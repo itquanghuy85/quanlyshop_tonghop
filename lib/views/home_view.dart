@@ -661,7 +661,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           index: _currentIndex,
           children: _tabWidgets,
         ),
-        bottomNavigationBar: _navItems.isEmpty
+        bottomNavigationBar: _navItems.length < 2
             ? null
             : BottomNavigationBar(
                 currentIndex: _currentIndex,

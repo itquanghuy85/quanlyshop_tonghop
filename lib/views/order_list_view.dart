@@ -123,7 +123,9 @@ class OrderListViewState extends State<OrderListView> {
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
         title: const Text("DANH SÁCH MÁY SỬA", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white, elevation: 0,
+        backgroundColor: Colors.white, 
+        foregroundColor: Colors.black,
+        elevation: 0,
         automaticallyImplyLeading: true,
         actions: [
           IconButton(

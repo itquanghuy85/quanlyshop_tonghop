@@ -251,16 +251,7 @@ class _FastStockInViewState extends State<FastStockInView> {
       return;
     }
 
-    // Check for duplicate IMEI
-    final imeiToCheck = imeiCtrl.text.trim();
-    if (imeiToCheck.isNotEmpty) {
-      final dbInstance = await db.database;
-      final existingProducts = await dbInstance.query('products', where: 'imei = ?', whereArgs: [imeiToCheck]);
-      if (existingProducts.isNotEmpty) {
-        NotificationService.showSnackBar("IMEI đã tồn tại trong kho!", color: Colors.red);
-        return;
-      }
-    }
+    // IMEI không cần unique - cho phép nhập trùng
 
     final cost = _parseMoneyWithK(costCtrl.text);
     if (cost <= 0) {

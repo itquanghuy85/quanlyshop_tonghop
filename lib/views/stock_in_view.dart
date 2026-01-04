@@ -34,7 +34,7 @@ class _StockInViewState extends State<StockInView> {
   final modelCtrl = TextEditingController();
   final capacityCtrl = TextEditingController();
   final colorCtrl = TextEditingController();
-  final conditionCtrl = TextEditingController(text: 'Mới');
+  final conditionCtrl = TextEditingController(text: 'Mới 100%');
   final imeiCtrl = TextEditingController();
   final quantityCtrl = TextEditingController(text: '1');
   final costCtrl = TextEditingController();
@@ -126,7 +126,7 @@ class _StockInViewState extends State<StockInView> {
       modelCtrl.text = data['model'] ?? '';
       capacityCtrl.text = data['capacity'] ?? '';
       colorCtrl.text = data['color'] ?? '';
-      conditionCtrl.text = data['condition'] ?? 'Mới';
+      conditionCtrl.text = data['condition'] ?? 'Mới 100%';
       imeiCtrl.text = data['imei'] ?? '';
       quantityCtrl.text = data['quantity']?.toString() ?? '1';
       costCtrl.text = data['cost'] != null ? CurrencyTextField.formatDisplay(data['cost'] as int) : '';
@@ -144,7 +144,7 @@ class _StockInViewState extends State<StockInView> {
       _modelChanged = modelCtrl.text.isNotEmpty;
       _capacityChanged = capacityCtrl.text.isNotEmpty;
       _colorChanged = colorCtrl.text.isNotEmpty;
-      _conditionChanged = conditionCtrl.text != 'Mới';
+      _conditionChanged = conditionCtrl.text != 'Mới 100%';
       _imeiChanged = imeiCtrl.text.isNotEmpty;
       _quantityChanged = quantityCtrl.text != '1';
       _costChanged = costCtrl.text.isNotEmpty;
@@ -274,16 +274,7 @@ class _StockInViewState extends State<StockInView> {
       return false;
     }
 
-    // Chỉ validate IMEI cho phone
-    if (!_isAccessoryOrLinhKien && imeiCtrl.text.isNotEmpty) {
-      // Check for duplicate IMEI
-      final dbInstance = await db.database;
-      final result = await dbInstance.query('products', where: 'imei = ?', whereArgs: [imeiCtrl.text.trim()]);
-      if (result.isNotEmpty) {
-        NotificationService.showSnackBar("IMEI đã tồn tại trong kho!", color: Colors.red);
-        return false;
-      }
-    }
+    // IMEI không cần unique - cho phép nhập trùng
 
     final quantity = int.tryParse(quantityCtrl.text);
     if (quantity == null || quantity <= 0) {

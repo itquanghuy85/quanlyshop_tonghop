@@ -879,6 +879,7 @@ class DBHelper {
     final maps = await (await database).query(
       'products',
       where: 'status = 1 AND quantity > 0',
+      orderBy: 'createdAt DESC',
     );
     return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
   }
