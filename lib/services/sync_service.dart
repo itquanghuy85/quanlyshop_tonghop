@@ -497,6 +497,45 @@ class SyncService {
       }
       await saleBatch.commit();
 
+      // Sync EXPENSES (Chi phí)
+      try {
+        final expenses = await dbHelper.getAllExpensesForSync();
+        debugPrint(
+          "syncAllToCloud: có ${expenses.length} expenses cần kiểm tra sync",
+        );
+        if (expenses.isNotEmpty) {
+          final WriteBatch expenseBatch = _db.batch();
+          for (var expense in expenses) {
+            // Skip nếu đã có firestoreId và đã sync
+            final firestoreId = expense.firestoreId;
+            if (firestoreId != null && firestoreId.isNotEmpty && expense.isSynced) continue;
+
+            try {
+              Map<String, dynamic> data = expense.toMap();
+              data['shopId'] = shopId;
+              data.remove('id');
+
+              final docId = firestoreId ?? "exp_${expense.date}_${expense.title.hashCode}";
+              expenseBatch.set(
+                _db.collection('expenses').doc(docId),
+                data,
+                SetOptions(merge: true),
+              );
+
+              // Update local với firestoreId và isSynced
+              expense.firestoreId = docId;
+              expense.isSynced = true;
+              await dbHelper.updateExpense(expense);
+            } catch (e) {
+              debugPrint("Lỗi sync expense ${expense.id}: $e");
+            }
+          }
+          await expenseBatch.commit();
+        }
+      } catch (e) {
+        debugPrint("Lỗi sync expenses collection: $e");
+      }
+
       // Sync PRODUCTS
       final products = await dbHelper.getAllProducts();
       debugPrint("syncAllToCloud: có ${products.length} products cần sync");

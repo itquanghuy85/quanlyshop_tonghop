@@ -1574,7 +1574,9 @@ class _InventoryViewState extends State<InventoryView> with TickerProviderStateM
           final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
           await db.logAction(userId: user?.uid ?? "0", userName: userName, action: "NHẬP KHO", type: "PRODUCT", targetId: p.imei, desc: "Đã nhập máy ${p.name}");
           if (payMethod != "CÔNG NỢ") {
-            await db.insertExpense({'title': "NHẬP HÀNG: ${p.name}", 'amount': p.cost * p.quantity, 'category': "NHẬP HÀNG", 'date': ts, 'paymentMethod': payMethod, 'note': "Nhập từ $supplier"});
+            final expData = {'firestoreId': 'exp_${ts}_${p.name.hashCode}', 'title': "NHẬP HÀNG: ${p.name}", 'amount': p.cost * p.quantity, 'category': "NHẬP HÀNG", 'date': ts, 'paymentMethod': payMethod, 'note': "Nhập từ $supplier"};
+            await db.insertExpense(expData);
+            await FirestoreService.addExpenseCloud(expData);
           } else {
             final debtData = {'personName': supplier, 'totalAmount': p.cost * p.quantity, 'paidAmount': 0, 'type': "SHOP_OWES", 'status': "ACTIVE", 'createdAt': ts, 'note': "Nợ tiền máy ${p.name}"};
             await db.insertDebt(debtData);

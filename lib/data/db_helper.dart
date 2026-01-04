@@ -1055,6 +1055,20 @@ class DBHelper {
       (await database).insert('expenses', e);
   Future<List<Map<String, dynamic>>> getAllExpenses() async =>
       (await database).query('expenses', orderBy: 'date DESC');
+  Future<List<Expense>> getAllExpensesForSync() async {
+    final db = await database;
+    final maps = await db.query('expenses', orderBy: 'date DESC');
+    return maps.map((m) => Expense.fromMap(m)).toList();
+  }
+  Future<void> updateExpense(Expense e) async {
+    final db = await database;
+    await db.update(
+      'expenses',
+      e.toMap(),
+      where: 'id = ?',
+      whereArgs: [e.id],
+    );
+  }
   Future<int> deleteExpenseByFirestoreId(String fId) async => (await database)
       .delete('expenses', where: 'firestoreId = ?', whereArgs: [fId]);
   Future<void> upsertDebt(Debt d) async =>

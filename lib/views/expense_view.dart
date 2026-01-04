@@ -360,10 +360,11 @@ class _ExpenseViewState extends State<ExpenseView> {
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
-                    children: ["CỐ ĐỊNH", "PHÁT SINH", "KHÁC"]
+                    runSpacing: 8,
+                    children: ["CỐ ĐỊNH", "PHÁT SINH", "LƯƠNG", "MẶT BẰNG", "ĐIỆN NƯỚC", "KHÁC"]
                         .map(
                           (c) => ChoiceChip(
-                            label: Text(c, style: AppTextStyles.caption),
+                            label: Text(c, style: AppTextStyles.caption.copyWith(fontSize: 11)),
                             selected: category == c,
                             onSelected: (v) => setS(() => category = c),
                             selectedColor: AppColors.error.withOpacity(0.1),
@@ -759,13 +760,16 @@ class _ExpenseViewState extends State<ExpenseView> {
 
   Widget _buildProfessionalHeader(int total, List<Map<String, dynamic>> list) {
     int coDinh = list
-        .where((e) => e['category'] == 'CỐ ĐỊNH')
+        .where((e) => e['category'] == 'CỐ ĐỊNH' || e['category'] == 'LƯƠNG' || e['category'] == 'MẶT BẰNG' || e['category'] == 'ĐIỆN NƯỚC')
         .fold(0, (sum, e) => sum + (e['amount'] as int));
     int phatSinh = list
-        .where((e) => e['category'] == 'PHÁT SINH')
+        .where((e) => e['category'] == 'PHÁT SINH' || e['category'] == 'REPAIR_PARTS')
+        .fold(0, (sum, e) => sum + (e['amount'] as int));
+    int nhapHang = list
+        .where((e) => e['category'] == 'NHẬP HÀNG' || e['category'] == 'PURCHASE' || e['category'] == 'ĐƠN NHẬP HÀNG')
         .fold(0, (sum, e) => sum + (e['amount'] as int));
     int khac = list
-        .where((e) => e['category'] == 'KHÁC')
+        .where((e) => e['category'] == 'KHÁC' || e['category'] == 'Phí NH')
         .fold(0, (sum, e) => sum + (e['amount'] as int));
 
     String headerTitle = _filterType == 'NGÀY'
@@ -823,6 +827,14 @@ class _ExpenseViewState extends State<ExpenseView> {
                     _miniStat("Phát sinh", phatSinh),
                   ],
                 ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _miniStat("Nhập hàng", nhapHang),
+                    const SizedBox(width: 10),
+                    _miniStat("Khác", khac),
+                  ],
+                ),
               ],
             ),
           ),
@@ -832,24 +844,30 @@ class _ExpenseViewState extends State<ExpenseView> {
             child: PieChart(
               PieChartData(
                 sectionsSpace: 2,
-                centerSpaceRadius: 20,
+                centerSpaceRadius: 15,
                 sections: [
                   PieChartSectionData(
                     value: coDinh.toDouble() == 0 ? 1 : coDinh.toDouble(),
                     color: Colors.white,
-                    radius: 10,
+                    radius: 12,
                     showTitle: false,
                   ),
                   PieChartSectionData(
                     value: phatSinh.toDouble() == 0 ? 1 : phatSinh.toDouble(),
-                    color: Colors.white60,
-                    radius: 10,
+                    color: Colors.white70,
+                    radius: 12,
+                    showTitle: false,
+                  ),
+                  PieChartSectionData(
+                    value: nhapHang.toDouble() == 0 ? 1 : nhapHang.toDouble(),
+                    color: Colors.white54,
+                    radius: 12,
                     showTitle: false,
                   ),
                   PieChartSectionData(
                     value: khac.toDouble() == 0 ? 1 : khac.toDouble(),
-                    color: Colors.white24,
-                    radius: 10,
+                    color: Colors.white30,
+                    radius: 12,
                     showTitle: false,
                   ),
                 ],
@@ -880,9 +898,25 @@ class _ExpenseViewState extends State<ExpenseView> {
 
   Widget _expenseProfessionalCard(Map<String, dynamic> e) {
     final cat = e['category'] ?? 'KHÁC';
-    final color = cat == 'CỐ ĐỊNH'
-        ? Colors.blue
-        : (cat == 'PHÁT SINH' ? Colors.orange : Colors.grey);
+    Color color;
+    IconData icon;
+    
+    if (cat == 'CỐ ĐỊNH' || cat == 'LƯƠNG' || cat == 'MẶT BẰNG' || cat == 'ĐIỆN NƯỚC') {
+      color = Colors.blue;
+      icon = Icons.home_work;
+    } else if (cat == 'PHÁT SINH' || cat == 'REPAIR_PARTS') {
+      color = Colors.orange;
+      icon = Icons.build;
+    } else if (cat == 'NHẬP HÀNG' || cat == 'PURCHASE' || cat == 'ĐƠN NHẬP HÀNG') {
+      color = Colors.green;
+      icon = Icons.inventory_2;
+    } else if (cat == 'Phí NH') {
+      color = Colors.purple;
+      icon = Icons.account_balance;
+    } else {
+      color = Colors.grey;
+      icon = Icons.shopping_cart;
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -902,7 +936,7 @@ class _ExpenseViewState extends State<ExpenseView> {
             borderRadius: BorderRadius.circular(15),
           ),
           child: Icon(
-            cat == 'CỐ ĐỊNH' ? Icons.home_work : Icons.shopping_cart,
+            icon,
             color: color,
             size: 24,
           ),
@@ -915,9 +949,18 @@ class _ExpenseViewState extends State<ExpenseView> {
             color: Color(0xFF1A237E),
           ),
         ),
-        subtitle: Text(
-          "${DateFormat('HH:mm - dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))} | ${e['isPurchaseDebt'] == true ? 'CÔNG NỢ' : (e['paymentMethod'] ?? 'TIỀN MẶT')}",
-          style: const TextStyle(fontSize: 10, color: Colors.grey),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              cat,
+              style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              "${DateFormat('HH:mm - dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))} | ${e['isPurchaseDebt'] == true ? 'CÔNG NỢ' : (e['paymentMethod'] ?? 'TIỀN MẶT')}",
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+          ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,

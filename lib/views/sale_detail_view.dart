@@ -226,14 +226,17 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     await db.updateSale(s);
 
     if (fee > 0) {
-      await db.insertExpense({
+      final expData = {
+        'firestoreId': 'exp_${nowMs}_${s.firestoreId.hashCode}',
         'title': "Phí NH trả góp ${s.bankName ?? ''}",
         'amount': fee,
         'category': 'Phí NH',
         'date': nowMs,
         'note': s.settlementNote ?? '',
         'paymentMethod': 'CHUYỂN KHOẢN',
-      });
+      };
+      await db.insertExpense(expData);
+      await FirestoreService.addExpenseCloud(expData);
     }
 
     if (!mounted) return;

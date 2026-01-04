@@ -1335,6 +1335,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   value: _todayTotalOut,
                   color: AppColors.error,
                   detail: "$_todayExpenseCount khoản chi",
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ExpenseView()),
+                  ),
                 ),
               ),
             ],
@@ -1475,50 +1479,59 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     required int value,
     required Color color,
     String? detail,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 8),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: AppTextStyles.overline.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (onTap != null)
+                  Icon(Icons.arrow_forward_ios, color: color.withOpacity(0.5), size: 12),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "${MoneyUtils.formatVND(value)} đ",
+              style: AppTextStyles.body1.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            if (detail != null) ...[
+              const SizedBox(height: 4),
               Text(
-                label,
+                detail,
                 style: AppTextStyles.overline.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
+                  color: AppColors.onSurface.withOpacity(0.5),
+                  fontSize: 9,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            "${MoneyUtils.formatVND(value)} đ",
-            style: AppTextStyles.body1.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          if (detail != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              detail,
-              style: AppTextStyles.overline.copyWith(
-                color: AppColors.onSurface.withOpacity(0.5),
-                fontSize: 9,
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -1804,6 +1817,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         value: _todayTotalOut,
                         color: AppColors.error,
                         subLabel: "$_todayExpenseCount khoản chi",
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ExpenseView()),
+                        ),
                       ),
                     ),
                   ],
@@ -1908,58 +1925,67 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     required int value,
     required Color color,
     String? subLabel,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 16),
                 ),
-                child: Icon(icon, color: color, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: AppTextStyles.caption.copyWith(
+                      color: color.withOpacity(0.8),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+                if (onTap != null)
+                  Icon(Icons.arrow_forward_ios, color: color.withOpacity(0.4), size: 10),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "${MoneyUtils.formatVND(value)} đ",
+              style: AppTextStyles.body1.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
-              const SizedBox(width: 8),
+            ),
+            if (subLabel != null) ...[
+              const SizedBox(height: 4),
               Text(
-                label,
-                style: AppTextStyles.caption.copyWith(
-                  color: color.withOpacity(0.8),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 10,
+                subLabel,
+                style: AppTextStyles.overline.copyWith(
+                  color: AppColors.onSurface.withOpacity(0.5),
+                  fontSize: 9,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            "${MoneyUtils.formatVND(value)} đ",
-            style: AppTextStyles.body1.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          if (subLabel != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              subLabel,
-              style: AppTextStyles.overline.copyWith(
-                color: AppColors.onSurface.withOpacity(0.5),
-                fontSize: 9,
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
