@@ -32,9 +32,9 @@ class _AuditLogViewState extends State<AuditLogView> {
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
         title: const Text("NHẬT KÝ HỆ THỐNG", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        backgroundColor: Colors.white, foregroundColor: Colors.black, elevation: 0,
+        backgroundColor: const Color(0xFF2962FF), foregroundColor: Colors.white, elevation: 0,
         automaticallyImplyLeading: true,
-        actions: [IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh, color: Colors.blue))],
+        actions: [IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh, color: Colors.white))],
       ),
       body: _loading ? const Center(child: CircularProgressIndicator()) : _logs.isEmpty 
         ? _buildEmpty() 

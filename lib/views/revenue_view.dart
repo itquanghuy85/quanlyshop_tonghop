@@ -9,6 +9,8 @@ import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/currency_text_field.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 import 'debt_view.dart';
 import 'warranty_view.dart';
 
@@ -32,7 +34,11 @@ class _RevenueViewState extends State<RevenueView>
   bool _isLoading = true;
   bool _isSyncing = false;
   String _syncStatus = 'Đã đồng bộ';
-  final String _selectedPeriod = 'Tháng này';
+  
+  // Filter states
+  String _timeFilter = 'today'; // today, week, month, custom
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
 
   final cashEndCtrl = TextEditingController();
   final bankEndCtrl = TextEditingController();
@@ -117,6 +123,195 @@ class _RevenueViewState extends State<RevenueView>
     return dt.day == day.day && dt.month == day.month && dt.year == day.year;
   }
 
+  bool _isInFilterPeriod(int ms) {
+    final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    switch (_timeFilter) {
+      case 'today':
+        return _isSameDay(ms, now);
+      case 'week':
+        final weekAgo = today.subtract(const Duration(days: 7));
+        return !dt.isBefore(weekAgo);
+      case 'month':
+        final monthStart = DateTime(now.year, now.month, 1);
+        return !dt.isBefore(monthStart);
+      case 'custom':
+        if (_customStartDate != null && dt.isBefore(_customStartDate!)) return false;
+        if (_customEndDate != null && dt.isAfter(_customEndDate!.add(const Duration(days: 1)))) return false;
+        return true;
+      default:
+        return true;
+    }
+  }
+
+  String _getFilterLabel() {
+    switch (_timeFilter) {
+      case 'today': return 'HÔM NAY';
+      case 'week': return '7 NGÀY QUA';
+      case 'month': return 'THÁNG NÀY';
+      case 'custom':
+        if (_customStartDate != null && _customEndDate != null) {
+          return '${DateFormat('dd/MM').format(_customStartDate!)} - ${DateFormat('dd/MM').format(_customEndDate!)}';
+        }
+        return 'TÙY CHỌN';
+      default: return '';
+    }
+  }
+
+  void _showFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('LỌC THEO THỜI GIAN', style: AppTextStyles.headline6.copyWith(fontWeight: FontWeight.bold)),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _filterChip('Hôm nay', 'today', setSheetState),
+                  _filterChip('7 ngày', 'week', setSheetState),
+                  _filterChip('Tháng này', 'month', setSheetState),
+                  _customDateChip(ctx, setSheetState),
+                ],
+              ),
+              if (_timeFilter == 'custom' && _customStartDate != null && _customEndDate != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.date_range, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${DateFormat('dd/MM/yyyy').format(_customStartDate!)} - ${DateFormat('dd/MM/yyyy').format(_customEndDate!)}',
+                          style: AppTextStyles.body2.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    setState(() {}); // Refresh main view
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('ÁP DỤNG', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _filterChip(String label, String value, StateSetter setSheetState) {
+    final isSelected = _timeFilter == value;
+    return GestureDetector(
+      onTap: () => setSheetState(() => _timeFilter = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? AppColors.primary : AppColors.onSurface.withOpacity(0.2)),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.body2.copyWith(
+            color: isSelected ? Colors.white : AppColors.onSurface,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _customDateChip(BuildContext ctx, StateSetter setSheetState) {
+    final isSelected = _timeFilter == 'custom';
+    return GestureDetector(
+      onTap: () async {
+        final range = await showDateRangePicker(
+          context: ctx,
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now(),
+          initialDateRange: _customStartDate != null && _customEndDate != null
+            ? DateTimeRange(start: _customStartDate!, end: _customEndDate!)
+            : null,
+          locale: const Locale('vi', 'VN'),
+        );
+        if (range != null) {
+          setSheetState(() {
+            _timeFilter = 'custom';
+            _customStartDate = range.start;
+            _customEndDate = range.end;
+          });
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? AppColors.primary : AppColors.onSurface.withOpacity(0.2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.calendar_month, size: 16, color: isSelected ? Colors.white : AppColors.onSurface),
+            const SizedBox(width: 6),
+            Text(
+              'Tùy chọn',
+              style: AppTextStyles.body2.copyWith(
+                color: isSelected ? Colors.white : AppColors.onSurface,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_hasRevenueAccess)
@@ -127,31 +322,47 @@ class _RevenueViewState extends State<RevenueView>
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
       appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
         title: const Text(
           "QUẢN LÝ TÀI CHÍNH",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
         ),
         automaticallyImplyLeading: true,
         actions: [
+          // Filter button with badge
+          Stack(
+            children: [
+              IconButton(
+                onPressed: _showFilterSheet,
+                icon: const Icon(Icons.filter_list, color: Colors.white),
+                tooltip: 'Lọc theo thời gian',
+              ),
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _getFilterLabel(),
+                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                _syncStatus,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _syncStatus == 'Lỗi đồng bộ'
-                      ? Colors.red
-                      : Colors.grey[600],
-                  fontWeight: _isSyncing ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-              const SizedBox(width: 8),
               IconButton(
                 onPressed: _isSyncing ? null : _syncWithFirebase,
                 icon: Icon(
                   _isSyncing ? Icons.sync : Icons.sync_outlined,
-                  color: _isSyncing ? Colors.orange : Colors.blue,
+                  color: _isSyncing ? Colors.orange : Colors.white,
                 ),
                 tooltip: 'Đồng bộ với Firebase',
               ),
@@ -159,6 +370,9 @@ class _RevenueViewState extends State<RevenueView>
           ),
         ],
         bottom: TabBar(
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           controller: _tabController,
           isScrollable: true,
           tabs: const [
@@ -454,19 +668,18 @@ class _RevenueViewState extends State<RevenueView>
   );
 
   Widget _buildOverview() {
-    final now = DateTime.now();
-    final fSales = _sales.where((s) => _isSameDay(s.soldAt, now)).toList();
+    final fSales = _sales.where((s) => _isInFilterPeriod(s.soldAt)).toList();
     // Chỉ tính repair khi status == 4 (Đã giao) và có deliveredAt
     final fRepairs = _repairs
         .where(
           (r) =>
               r.status == 4 &&
               r.deliveredAt != null &&
-              _isSameDay(r.deliveredAt!, now),
+              _isInFilterPeriod(r.deliveredAt!),
         )
         .toList();
     final fExpenses = _expenses
-        .where((e) => _isSameDay(e['date'] as int, now))
+        .where((e) => _isInFilterPeriod(e['date'] as int))
         .toList();
     int totalIn =
         fSales.fold<int>(0, (sum, s) => sum + s.totalPrice) +
@@ -486,13 +699,26 @@ class _RevenueViewState extends State<RevenueView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          const Text(
-            "TỔNG QUAN HÔM NAY",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2962FF),
+          // Filter indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.calendar_today, size: 16, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'TỔNG QUAN: ${_getFilterLabel()}',
+                  style: AppTextStyles.body2.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -500,19 +726,15 @@ class _RevenueViewState extends State<RevenueView>
           // Revenue Cards Row
           Row(
             children: [
-              Expanded(
-                child: _miniCard("THU HÔM NAY", totalIn, Colors.green.shade700),
-              ),
+              _miniCard("TỔNG THU", totalIn, Colors.green.shade700),
               const SizedBox(width: 12),
-              Expanded(
-                child: _miniCard("CHI HÔM NAY", totalOut, Colors.red.shade700),
-              ),
+              _miniCard("TỔNG CHI", totalOut, Colors.red.shade700),
             ],
           ),
           const SizedBox(height: 16),
 
           // Profit Card
-          _mainProfitCard(profit),
+          _mainProfitCard(profit, _getFilterLabel()),
 
           const SizedBox(height: 24),
 
@@ -590,7 +812,7 @@ class _RevenueViewState extends State<RevenueView>
           ),
           const SizedBox(height: 4),
           Text(
-            NumberFormat('#,###').format(v),
+            '${NumberFormat('#,###').format(v)}đ',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -601,7 +823,7 @@ class _RevenueViewState extends State<RevenueView>
       ),
     ),
   );
-  Widget _mainProfitCard(int p) => Container(
+  Widget _mainProfitCard(int p, String periodLabel) => Container(
     width: double.infinity,
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
@@ -622,7 +844,7 @@ class _RevenueViewState extends State<RevenueView>
     child: Column(
       children: [
         Text(
-          "LỢI NHUẬN RÒNG HÔM NAY",
+          "LỢI NHUẬN RÒNG ($periodLabel)",
           style: TextStyle(
             color: Colors.white.withOpacity(0.9),
             fontSize: 11,
@@ -643,76 +865,160 @@ class _RevenueViewState extends State<RevenueView>
   );
   Widget _buildSaleDetail() {
     final list = _sales
-        .where((s) => _isSameDay(s.soldAt, DateTime.now()))
+        .where((s) => _isInFilterPeriod(s.soldAt))
         .toList();
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: list.length,
-      itemBuilder: (ctx, i) => Card(
-        child: ListTile(
-          title: Text(list[i].productNames),
-          subtitle: Text("Khách: ${list[i].customerName}"),
-          trailing: Text(
-            "+${NumberFormat('#,###').format(list[i].totalPrice)}",
-            style: const TextStyle(
-              color: Colors.green,
-              fontWeight: FontWeight.bold,
-            ),
+    list.sort((a, b) => b.soldAt.compareTo(a.soldAt));
+    
+    final totalRevenue = list.fold<int>(0, (sum, s) => sum + s.totalPrice);
+    
+    return Column(
+      children: [
+        // Summary header
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: AppColors.surface,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${list.length} đơn bán', style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold)),
+              Text('${NumberFormat('#,###').format(totalRevenue)}đ', style: AppTextStyles.body2.copyWith(color: Colors.green, fontWeight: FontWeight.bold)),
+            ],
           ),
         ),
-      ),
+        Expanded(
+          child: list.isEmpty
+            ? Center(child: Text('Không có đơn bán trong ${_getFilterLabel().toLowerCase()}', style: AppTextStyles.body2.copyWith(color: Colors.grey)))
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: list.length,
+                itemBuilder: (ctx, i) {
+                  final sale = list[i];
+                  final date = DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(sale.soldAt));
+                  return Card(
+                    child: ListTile(
+                      title: Text(sale.productNames, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text("Khách: ${sale.customerName} • $date"),
+                      trailing: Text(
+                        "+${NumberFormat('#,###').format(sale.totalPrice)}đ",
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+        ),
+      ],
     );
   }
 
-  // Chỉ hiển thị repair đã giao (status == 4) và có deliveredAt hôm nay
+  // Chỉ hiển thị repair đã giao (status == 4) và có deliveredAt trong filter period
   Widget _buildRepairDetail() {
     final list = _repairs
         .where(
           (r) =>
               r.status == 4 &&
               r.deliveredAt != null &&
-              _isSameDay(r.deliveredAt!, DateTime.now()),
+              _isInFilterPeriod(r.deliveredAt!),
         )
         .toList();
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: list.length,
-      itemBuilder: (ctx, i) => Card(
-        child: ListTile(
-          title: Text(list[i].model),
-          subtitle: Text("Khách: ${list[i].customerName}"),
-          trailing: Text(
-            "+${NumberFormat('#,###').format(list[i].price)}",
-            style: const TextStyle(
-              color: Colors.blueAccent,
-              fontWeight: FontWeight.bold,
-            ),
+    list.sort((a, b) => (b.deliveredAt ?? 0).compareTo(a.deliveredAt ?? 0));
+    
+    final totalRevenue = list.fold<int>(0, (sum, r) => sum + r.price);
+    
+    return Column(
+      children: [
+        // Summary header
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: AppColors.surface,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${list.length} đơn sửa chữa', style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold)),
+              Text('${NumberFormat('#,###').format(totalRevenue)}đ', style: AppTextStyles.body2.copyWith(color: Colors.blue, fontWeight: FontWeight.bold)),
+            ],
           ),
         ),
-      ),
+        Expanded(
+          child: list.isEmpty
+            ? Center(child: Text('Không có đơn sửa chữa trong ${_getFilterLabel().toLowerCase()}', style: AppTextStyles.body2.copyWith(color: Colors.grey)))
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: list.length,
+                itemBuilder: (ctx, i) {
+                  final repair = list[i];
+                  final date = DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(repair.deliveredAt!));
+                  return Card(
+                    child: ListTile(
+                      title: Text(repair.model, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text("Khách: ${repair.customerName} • $date"),
+                      trailing: Text(
+                        "+${NumberFormat('#,###').format(repair.price)}đ",
+                        style: const TextStyle(
+                          color: Colors.blueAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+        ),
+      ],
     );
   }
 
   Widget _buildExpenseDetail() {
     final list = _expenses
-        .where((e) => _isSameDay(e['date'] as int, DateTime.now()))
+        .where((e) => _isInFilterPeriod(e['date'] as int))
         .toList();
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: list.length,
-      itemBuilder: (ctx, i) => Card(
-        child: ListTile(
-          title: Text(list[i]['title'] ?? 'Chi phí'),
-          subtitle: Text(list[i]['category'] ?? 'Khác'),
-          trailing: Text(
-            "-${NumberFormat('#,###').format(list[i]['amount'])}",
-            style: const TextStyle(
-              color: Colors.redAccent,
-              fontWeight: FontWeight.bold,
-            ),
+    list.sort((a, b) => (b['date'] as int).compareTo(a['date'] as int));
+    
+    final totalExpense = list.fold<int>(0, (sum, e) => sum + (e['amount'] as int));
+    
+    return Column(
+      children: [
+        // Summary header
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: AppColors.surface,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${list.length} khoản chi', style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold)),
+              Text('-${NumberFormat('#,###').format(totalExpense)}đ', style: AppTextStyles.body2.copyWith(color: Colors.red, fontWeight: FontWeight.bold)),
+            ],
           ),
         ),
-      ),
+        Expanded(
+          child: list.isEmpty
+            ? Center(child: Text('Không có chi phí trong ${_getFilterLabel().toLowerCase()}', style: AppTextStyles.body2.copyWith(color: Colors.grey)))
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: list.length,
+                itemBuilder: (ctx, i) {
+                  final expense = list[i];
+                  final date = DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(expense['date'] as int));
+                  return Card(
+                    child: ListTile(
+                      title: Text(expense['title'] ?? 'Chi phí', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text("${expense['category'] ?? 'Khác'} • $date"),
+                      trailing: Text(
+                        "-${NumberFormat('#,###').format(expense['amount'])}đ",
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+        ),
+      ],
     );
   }
 

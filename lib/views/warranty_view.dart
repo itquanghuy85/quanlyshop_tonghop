@@ -106,9 +106,9 @@ class _WarrantyViewState extends State<WarrantyView> {
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
         title: const Text("SIÊU TRUNG TÂM BẢO HÀNH", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        elevation: 0, backgroundColor: Colors.white, foregroundColor: Colors.black,
+        elevation: 0, backgroundColor: const Color(0xFF2962FF), foregroundColor: Colors.white,
         automaticallyImplyLeading: true,
-        actions: [IconButton(onPressed: _loadAllWarranty, icon: const Icon(Icons.refresh_rounded, color: Color(0xFF2962FF)))],
+        actions: [IconButton(onPressed: _loadAllWarranty, icon: const Icon(Icons.refresh_rounded, color: Colors.white))],
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())

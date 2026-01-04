@@ -123,14 +123,14 @@ class OrderListViewState extends State<OrderListView> {
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
         title: const Text("DANH SÁCH MÁY SỬA", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white, 
-        foregroundColor: Colors.black,
+        backgroundColor: const Color(0xFF2962FF), 
+        foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: true,
         actions: [
           IconButton(
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => GlobalSearchView(role: widget.role))),
-            icon: const Icon(Icons.search, color: Color(0xFF9C27B0)),
+            icon: const Icon(Icons.search, color: Colors.white),
             tooltip: 'Tìm kiếm toàn app',
           ),
         ],

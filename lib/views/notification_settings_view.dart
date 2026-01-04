@@ -109,9 +109,9 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
           "CÀI ĐẶT THÔNG BÁO",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF2962FF),
         elevation: 0,
-        foregroundColor: Colors.black,
+        foregroundColor: Colors.white,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
