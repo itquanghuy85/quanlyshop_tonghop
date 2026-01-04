@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:encrypt/encrypt.dart';
+import 'package:encrypt/encrypt.dart' as encrypt_lib;
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,8 +12,8 @@ class EncryptionService {
   static const String _masterSecret = 'HuLuCa_Shop_2024_Secure_Key_@!#';
   static const String _enabledKey = 'encryption_enabled';
   
-  static Encrypter? _encrypter;
-  static IV? _iv;
+  static encrypt_lib.Encrypter? _encrypter;
+  static encrypt_lib.IV? _iv;
   static bool _initialized = false;
   static bool _enabled = true;
   
@@ -51,14 +51,14 @@ class EncryptionService {
       // Tạo key từ shopId + master secret
       final keySource = '$shopId$_masterSecret';
       final keyBytes = sha256.convert(utf8.encode(keySource)).bytes;
-      final key = Key(Uint8List.fromList(keyBytes));
+      final key = encrypt_lib.Key(Uint8List.fromList(keyBytes));
       
       // IV cố định từ shopId (16 bytes)
       final ivSource = 'IV_$shopId';
       final ivBytes = md5.convert(utf8.encode(ivSource)).bytes;
-      _iv = IV(Uint8List.fromList(ivBytes));
+      _iv = encrypt_lib.IV(Uint8List.fromList(ivBytes));
       
-      _encrypter = Encrypter(AES(key, mode: AESMode.cbc));
+      _encrypter = encrypt_lib.Encrypter(encrypt_lib.AES(key, mode: encrypt_lib.AESMode.cbc));
       _initialized = true;
       
       // Load trạng thái enabled
@@ -112,7 +112,7 @@ class EncryptionService {
     
     try {
       final base64Text = encryptedText.substring(4); // Bỏ prefix 'ENC:'
-      final encrypted = Encrypted.fromBase64(base64Text);
+      final encrypted = encrypt_lib.Encrypted.fromBase64(base64Text);
       return _encrypter!.decrypt(encrypted, iv: _iv);
     } catch (e) {
       debugPrint('Decryption error: $e');
