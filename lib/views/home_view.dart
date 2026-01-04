@@ -43,6 +43,7 @@ import '../services/sync_service.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
+import '../services/encryption_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -662,6 +663,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             IconButton(
               onPressed: () async {
                 await SyncService.cancelAllSubscriptions();
+                EncryptionService.reset(); // Reset mã hóa khi đăng xuất
                 try {
                   await FirebaseAuth.instance.signOut();
                 } catch (e) {

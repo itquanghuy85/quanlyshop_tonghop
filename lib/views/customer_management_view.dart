@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/customer_model.dart';
 import '../services/customer_service.dart';
 import '../services/sync_service.dart';
@@ -74,6 +75,9 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
   }
 
   Future<void> _editCustomer(Customer customer) async {
+    // Verify owner password first
+    if (!await _verifyOwnerPassword('chỉnh sửa khách hàng')) return;
+
     final result = await showDialog<Customer>(
       context: context,
       builder: (context) => CustomerFormDialog(customer: customer),
@@ -86,6 +90,9 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
   }
 
   Future<void> _deleteCustomer(Customer customer) async {
+    // Verify owner password first
+    if (!await _verifyOwnerPassword('xóa khách hàng')) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -108,6 +115,68 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
     if (confirmed == true) {
       await _customerService.deleteCustomer(customer.id!);
       _loadCustomers();
+    }
+  }
+
+  // ============ PASSWORD VERIFICATION ============
+  Future<String?> _showPasswordDialog(String action) async {
+    String password = '';
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Xác nhận $action'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Chỉ chủ shop được phép thực hiện.\nNhập mật khẩu tài khoản để xác nhận:'),
+            const SizedBox(height: 10),
+            TextField(
+              obscureText: true,
+              onChanged: (value) => password = value,
+              decoration: const InputDecoration(
+                hintText: 'Mật khẩu',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, password),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _verifyOwnerPassword(String action) async {
+    final password = await _showPasswordDialog(action);
+    if (password == null || password.isEmpty) return false;
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập lại')),
+      );
+      return false;
+    }
+
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: currentUser.email!,
+        password: password,
+      );
+      await currentUser.reauthenticateWithCredential(credential);
+      return true;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mật khẩu không đúng!')),
+        );
+      }
+      return false;
     }
   }
 
@@ -240,6 +309,13 @@ class CustomerListItem extends StatelessWidget {
               Text(
                 customer.address!,
                 style: AppTextStyles.caption.copyWith(color: Colors.grey.shade600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            if (customer.notes?.isNotEmpty == true)
+              Text(
+                'Ghi chú: ${customer.notes!}',
+                style: AppTextStyles.caption.copyWith(color: Colors.blue.shade600, fontStyle: FontStyle.italic),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

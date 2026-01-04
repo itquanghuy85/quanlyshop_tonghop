@@ -37,6 +37,9 @@ class Repair {
   // Dịch vụ sửa chữa với đối tác
   List<RepairService> services;
 
+  // Ghi chú đơn sửa
+  String? notes;
+
   // Getter for receive images
   List<String> get receiveImages {
     if (imagePath == null || imagePath!.isEmpty) return [];
@@ -74,6 +77,7 @@ class Repair {
     this.imei,
     this.condition,
     this.services = const [],
+    this.notes,
   });
 
   int get totalCost => services.isNotEmpty ? services.fold(0, (sum, s) => sum + s.cost) : cost;
@@ -110,6 +114,7 @@ class Repair {
       'imei': imei,
       'condition': condition,
       'services': jsonEncode(services.map((s) => s.toMap()).toList()),
+      'notes': notes,
     };
   }
 
@@ -147,6 +152,7 @@ class Repair {
       services: map['services'] != null 
         ? (jsonDecode(map['services']) as List).map((s) => RepairService.fromMap(s)).toList()
         : [],
+      notes: map['notes'],
     );
   }
 
@@ -181,6 +187,7 @@ class Repair {
     String? imei,
     String? condition,
     List<RepairService>? services,
+    String? notes,
   }) {
     return Repair(
       id: id ?? this.id,
@@ -213,6 +220,7 @@ class Repair {
       imei: imei ?? this.imei,
       condition: condition ?? this.condition,
       services: services ?? this.services,
+      notes: notes ?? this.notes,
     );
   }
 }

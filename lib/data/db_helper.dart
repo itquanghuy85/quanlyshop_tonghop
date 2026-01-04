@@ -26,10 +26,10 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 40,
+      version: 41,
       onCreate: (db, version) async {
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT)',
+          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, brand TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, supplier TEXT, type TEXT DEFAULT "PHONE", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT)',
@@ -458,6 +458,15 @@ class DBHelper {
             debugPrint('DB upgrade: added services to repairs');
           } catch (e) {
             debugPrint('DB upgrade error (repairs services): $e');
+          }
+        }
+        if (oldV < 41) {
+          // Thêm cột notes vào repairs để lưu ghi chú đơn sửa
+          try {
+            await db.execute('ALTER TABLE repairs ADD COLUMN notes TEXT');
+            debugPrint('DB upgrade: added notes to repairs');
+          } catch (e) {
+            debugPrint('DB upgrade error (repairs notes): $e');
           }
         }
         debugPrint('DB upgrade completed');

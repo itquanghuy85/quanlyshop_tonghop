@@ -6,6 +6,7 @@ import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../models/debt_model.dart';
 import '../models/quick_input_code_model.dart';
+import '../models/supplier_model.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
@@ -227,10 +228,20 @@ class _FastStockInViewState extends State<FastStockInView> {
           TextButton(onPressed: () async {
             if (nameCtrl.text.trim().isNotEmpty) {
               try {
-                await db.insertSupplier({'name': nameCtrl.text.trim().toUpperCase(), 'createdAt': DateTime.now().millisecondsSinceEpoch});
-                await _loadSuppliers();
-                setState(() => selectedSupplier = nameCtrl.text.trim().toUpperCase());
-                Navigator.pop(ctx, true);
+                final shopId = await UserService.getCurrentShopId();
+                final supplier = Supplier(
+                  name: nameCtrl.text.trim().toUpperCase(),
+                  shopId: shopId ?? '',
+                );
+                final savedSupplier = await supplierService.addSupplier(supplier);
+                if (savedSupplier != null) {
+                  await _loadSuppliers();
+                  setState(() => selectedSupplier = nameCtrl.text.trim().toUpperCase());
+                  EventBus().emit('suppliers_changed');
+                  Navigator.pop(ctx, true);
+                } else {
+                  NotificationService.showSnackBar("Lỗi thêm nhà cung cấp", color: Colors.red);
+                }
               } catch (e) {
                 NotificationService.showSnackBar("Lỗi thêm nhà cung cấp: $e", color: Colors.red);
               }

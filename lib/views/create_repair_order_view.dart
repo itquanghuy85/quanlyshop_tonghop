@@ -48,6 +48,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   final accCtrl = TextEditingController();
   final passCtrl = TextEditingController();
   final priceCtrl = TextEditingController();
+  final notesCtrl = TextEditingController(); // Ghi chú đơn sửa
 
   final phoneF = FocusNode();
   final nameF = FocusNode();
@@ -263,6 +264,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 .toUpperCase() ??
             "NV",
         services: _services,
+        notes: notesCtrl.text.trim().isNotEmpty ? notesCtrl.text.trim() : null,
       );
 
       await db.upsertRepair(r);
@@ -683,6 +685,27 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
                   const SizedBox(height: 20),
                   Text(
+                    "GHI CHÚ",
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSurface.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: notesCtrl,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: "Nhập ghi chú cho đơn sửa (nếu có)...",
+                      prefixIcon: const Icon(Icons.note_alt_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                  Text(
                     "HÌNH ẢNH HIỆN TRẠNG",
                     style: AppTextStyles.caption.copyWith(
                       fontWeight: FontWeight.bold,
@@ -966,7 +989,28 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                         final customer = _filteredCustomers[index];
                         return ListTile(
                           title: Text(customer.name),
-                          subtitle: Text(customer.phone),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(customer.phone),
+                              if (customer.address != null && customer.address!.isNotEmpty)
+                                Text(
+                                  'Địa chỉ: ${customer.address}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              if (customer.notes != null && customer.notes!.isNotEmpty)
+                                Text(
+                                  'Ghi chú: ${customer.notes}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.blue, fontStyle: FontStyle.italic),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                          isThreeLine: (customer.address != null && customer.address!.isNotEmpty) || 
+                                       (customer.notes != null && customer.notes!.isNotEmpty),
                           onTap: () => widget.onSelect(customer),
                         );
                       },

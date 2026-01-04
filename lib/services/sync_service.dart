@@ -15,6 +15,7 @@ import '../models/supplier_model.dart';
 import '../models/repair_partner_model.dart';
 import 'storage_service.dart';
 import 'user_service.dart';
+import 'encryption_service.dart';
 
 class SyncService {
   static final _db = FirebaseFirestore.instance;
@@ -374,8 +375,12 @@ class SyncService {
 
     final sub = query.snapshots().listen((snapshot) async {
       for (var change in snapshot.docChanges) {
-        final data = change.doc.data();
+        var data = change.doc.data();
         if (data == null) continue;
+        
+        // Giải mã dữ liệu nếu được mã hóa
+        data = EncryptionService.decryptMap(data);
+        
         debugPrint(
           "Real-time change in $collection: ${change.doc.id}, type: ${change.type}",
         );

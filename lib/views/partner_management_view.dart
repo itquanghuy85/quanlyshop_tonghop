@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../core/utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../models/supplier_model.dart';
@@ -233,9 +234,18 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           child: ListTile(
             title: Text(partner.name, style: TextStyle(fontSize: 14)),
             subtitle: Text(partner.phone ?? 'Không có SĐT', style: TextStyle(fontSize: 12)),
-            trailing: IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => _showEditPartnerDialog(partner),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  onPressed: () => _verifyAndEditPartner(partner),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _verifyAndDeletePartner(partner),
+                ),
+              ],
             ),
           ),
         );
@@ -252,9 +262,18 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           child: ListTile(
             title: Text(supplier.name, style: TextStyle(fontSize: 14)),
             subtitle: Text('${supplier.phone ?? ''} - ${supplier.email ?? ''}', style: TextStyle(fontSize: 12)),
-            trailing: IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => _showEditSupplierDialog(supplier),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  onPressed: () => _verifyAndEditSupplier(supplier),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _verifyAndDeleteSupplier(supplier),
+                ),
+              ],
             ),
           ),
         );
@@ -625,7 +644,93 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       ),
     );
   }
+  // ============ PASSWORD VERIFICATION ============
+  Future<String?> _showPasswordDialog(String action) async {
+    String password = '';
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Xác nhận $action'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Chỉ chủ shop được phép thực hiện.\nNhập mật khẩu tài khoản để xác nhận:'),
+            const SizedBox(height: 10),
+            TextField(
+              obscureText: true,
+              onChanged: (value) => password = value,
+              decoration: const InputDecoration(
+                hintText: 'Mật khẩu',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, password),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Future<bool> _verifyOwnerPassword(String action) async {
+    final password = await _showPasswordDialog(action);
+    if (password == null || password.isEmpty) return false;
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập lại')),
+      );
+      return false;
+    }
+
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: currentUser.email!,
+        password: password,
+      );
+      await currentUser.reauthenticateWithCredential(credential);
+      return true;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mật khẩu không đúng!')),
+        );
+      }
+      return false;
+    }
+  }
+
+  // ============ VERIFY AND EDIT/DELETE PARTNER ============
+  Future<void> _verifyAndEditPartner(RepairPartner partner) async {
+    if (await _verifyOwnerPassword('chỉnh sửa đối tác')) {
+      _showEditPartnerDialog(partner);
+    }
+  }
+
+  Future<void> _verifyAndDeletePartner(RepairPartner partner) async {
+    if (await _verifyOwnerPassword('xóa đối tác')) {
+      _confirmDeletePartner(partner);
+    }
+  }
+
+  // ============ VERIFY AND EDIT/DELETE SUPPLIER ============
+  Future<void> _verifyAndEditSupplier(Supplier supplier) async {
+    if (await _verifyOwnerPassword('chỉnh sửa nhà cung cấp')) {
+      _showEditSupplierDialog(supplier);
+    }
+  }
+
+  Future<void> _verifyAndDeleteSupplier(Supplier supplier) async {
+    if (await _verifyOwnerPassword('xóa nhà cung cấp')) {
+      _confirmDeleteSupplier(supplier);
+    }
+  }
   void _showEditPartnerDialog(RepairPartner partner) {
     final nameCtrl = TextEditingController(text: partner.name);
     final phoneCtrl = TextEditingController(text: partner.phone ?? '');
@@ -740,6 +845,97 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
               if (mounted) Navigator.pop(ctx);
             },
             child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeletePartner(RepairPartner partner) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: Text('Bạn có chắc muốn xóa đối tác "${partner.name}"?\n\nLưu ý: Dữ liệu liên quan có thể bị ảnh hưởng.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final service = RepairPartnerService();
+                final success = await service.deleteRepairPartner(partner.id!);
+                if (success) {
+                  EventBus().emit('repair_partners_changed');
+                  await _loadData();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Đã xóa đối tác thành công')),
+                    );
+                  }
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Lỗi: Không thể xóa đối tác')),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Lỗi: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Xóa', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteSupplier(Supplier supplier) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: Text('Bạn có chắc muốn xóa nhà cung cấp "${supplier.name}"?\n\nLưu ý: Dữ liệu liên quan có thể bị ảnh hưởng.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final service = SupplierService();
+                final success = await service.deleteSupplier(supplier.id!);
+                if (success) {
+                  FastInventoryInputController().clearSupplierCache();
+                  EventBus().emit('suppliers_changed');
+                  await _loadData();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Đã xóa nhà cung cấp thành công')),
+                    );
+                  }
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Lỗi: Không thể xóa nhà cung cấp')),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Lỗi: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Xóa', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

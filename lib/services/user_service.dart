@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'encryption_service.dart';
 
 class UserService {
     // Validate input fields
@@ -228,6 +229,12 @@ class UserService {
     }
 
     _cachedShopId = shopId is String ? shopId : null;
+    
+    // Khởi tạo EncryptionService với shopId để mã hóa/giải mã dữ liệu
+    if (_cachedShopId != null && _cachedShopId!.isNotEmpty) {
+      EncryptionService.init(_cachedShopId!);
+      debugPrint('EncryptionService initialized for shop: $_cachedShopId');
+    }
 
     final userData = {
       'email': email,

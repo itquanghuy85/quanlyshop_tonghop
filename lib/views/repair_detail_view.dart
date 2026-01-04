@@ -336,7 +336,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Widget _buildCustomerCard() {
-    return Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)), child: Column(children: [_infoRow("Khách hàng", r.customerName), _phoneRow("Số điện thoại", r.phone), _infoRow("Tình trạng lỗi", r.issue), _infoRow("Phụ kiện kèm", r.accessories.isEmpty ? "Không có" : r.accessories), _infoRow("Bảo hành", r.warranty.isEmpty ? "Chưa có" : r.warranty), if (r.deliveredAt != null) _infoRow("Ngày giao", DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!)))]));
+    return Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)), child: Column(children: [_infoRow("Khách hàng", r.customerName), _phoneRow("Số điện thoại", r.phone), _infoRow("Tình trạng lỗi", r.issue), _infoRow("Phụ kiện kèm", r.accessories.isEmpty ? "Không có" : r.accessories), _infoRow("Bảo hành", r.warranty.isEmpty ? "Chưa có" : r.warranty), if (r.notes != null && r.notes!.isNotEmpty) _infoRow("Ghi chú", r.notes!), if (r.deliveredAt != null) _infoRow("Ngày giao", DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!)))]));
   }
 
   Widget _infoRow(String l, String v) => Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(l, style: AppTextStyles.caption.copyWith(color: AppColors.onSurface.withOpacity(0.6))), Text(v, style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold))]));

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
+import '../services/encryption_service.dart';
 import '../data/db_helper.dart';
 import '../services/sync_service.dart';
 import 'staff_permissions_view.dart';
@@ -140,6 +141,7 @@ class _SettingsViewState extends State<SettingsView> {
         NotificationService.showSnackBar("LỖI KHI XÓA DỮ LIỆU ĐÁM MÂY: $errorMessage", color: Colors.red);
       }
       await SyncService.cancelAllSubscriptions();
+      EncryptionService.reset(); // Reset mã hóa khi xóa dữ liệu
       try {
         await FirebaseAuth.instance.signOut();
       } catch (e) {
@@ -220,6 +222,7 @@ class _SettingsViewState extends State<SettingsView> {
                 );
                 if (confirm == true) {
                   await SyncService.cancelAllSubscriptions();
+                  EncryptionService.reset(); // Reset mã hóa khi đăng xuất
                   try {
                     await FirebaseAuth.instance.signOut();
                   } catch (e) {

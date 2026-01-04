@@ -11,6 +11,7 @@ import '../models/repair_partner_model.dart';
 import '../models/partner_repair_history_model.dart';
 import 'user_service.dart';
 import 'notification_service.dart';
+import 'encryption_service.dart';
 
 class FirestoreService {
   static final _db = FirebaseFirestore.instance;
@@ -148,7 +149,9 @@ class FirestoreService {
       Map<String, dynamic> data = r.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docRef.id;
-      await docRef.set(data, SetOptions(merge: true));
+      // Mã hóa dữ liệu nhạy cảm trước khi upload
+      final encryptedData = EncryptionService.encryptMap(data);
+      await docRef.set(encryptedData, SetOptions(merge: true));
       _notifyAll("🔧 MÁY NHẬN MỚI", "${r.createdBy} nhận ${r.model} của khách ${r.customerName}", type: 'repair', id: docRef.id, summary: "${r.customerName} - ${r.model}");
       return docRef.id;
     } catch (e) { 
@@ -160,7 +163,8 @@ class FirestoreService {
   static Future<void> upsertRepair(Repair r) async {
     if (r.firestoreId == null) return;
     try {
-      await _db.collection('repairs').doc(r.firestoreId).set(r.toMap(), SetOptions(merge: true));
+      final data = EncryptionService.encryptMap(r.toMap());
+      await _db.collection('repairs').doc(r.firestoreId).set(data, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsertRepair error: $e');
     }
@@ -188,7 +192,9 @@ class FirestoreService {
       Map<String, dynamic> data = s.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docRef.id;
-      await docRef.set(data, SetOptions(merge: true));
+      // Mã hóa dữ liệu nhạy cảm trước khi upload
+      final encryptedData = EncryptionService.encryptMap(data);
+      await docRef.set(encryptedData, SetOptions(merge: true));
       _notifyAll("🎉 BÁN HÀNG THÀNH CÔNG", "${s.sellerName} vừa bán ${s.productNames} cho ${s.customerName}", type: 'sale', id: docRef.id, summary: "${s.customerName} - ${s.productNames}");
       return docRef.id;
     } catch (e) { return null; }
@@ -200,7 +206,8 @@ class FirestoreService {
       final shopId = await UserService.getCurrentShopId();
       Map<String, dynamic> data = s.toMap();
       data['shopId'] = shopId;
-      await _db.collection('sales').doc(s.firestoreId).set(data, SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(data);
+      await _db.collection('sales').doc(s.firestoreId).set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore updateSaleCloud error: $e');
     }
@@ -223,7 +230,8 @@ class FirestoreService {
       data['shopId'] = shopId;
       // Remove firestoreId from data since it's already in docId
       data.remove('firestoreId');
-      await docRef.set(data, SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(data);
+      await docRef.set(encryptedData, SetOptions(merge: true));
       return docRef.id;
     } catch (e) { return null; }
   }
@@ -231,7 +239,8 @@ class FirestoreService {
   static Future<void> updateProductCloud(Product p) async {
     if (p.firestoreId == null) return;
     try {
-      await _db.collection('products').doc(p.firestoreId).set(p.toMap(), SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(p.toMap());
+      await _db.collection('products').doc(p.firestoreId).set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore updateProductCloud error: $e');
     }
@@ -284,7 +293,8 @@ class FirestoreService {
       final String docId = debtData['firestoreId'] ?? "debt_${debtData['createdAt']}_${debtData['phone'] ?? 'ncc'}";
       debtData['shopId'] = shopId;
       debtData['firestoreId'] = docId;
-      await _db.collection('debts').doc(docId).set(debtData, SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(debtData);
+      await _db.collection('debts').doc(docId).set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Error adding debt to cloud: $e');
       rethrow; // Re-throw để caller biết có lỗi
@@ -297,7 +307,8 @@ class FirestoreService {
       final String docId = paymentData['firestoreId'] ?? "pay_${paymentData['paidAt']}_${paymentData['debtId'] ?? 'debt'}";
       paymentData['shopId'] = shopId;
       paymentData['firestoreId'] = docId;
-      await _db.collection('debt_payments').doc(docId).set(paymentData, SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(paymentData);
+      await _db.collection('debt_payments').doc(docId).set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Error adding debt payment to cloud: $e');
     }
@@ -310,7 +321,8 @@ class FirestoreService {
       final String docId = "exp_${expData['date']}_${expData['title'].hashCode}";
       expData['shopId'] = shopId;
       expData['firestoreId'] = docId;
-      await _db.collection('expenses').doc(docId).set(expData, SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(expData);
+      await _db.collection('expenses').doc(docId).set(encryptedData, SetOptions(merge: true));
     } catch (_) {}
   }
 
@@ -319,7 +331,8 @@ class FirestoreService {
     try {
       final shopId = await UserService.getCurrentShopId();
       expData['shopId'] = shopId;
-      await _db.collection('expenses').doc(expData['firestoreId']).set(expData, SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(expData);
+      await _db.collection('expenses').doc(expData['firestoreId']).set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore updateExpenseCloud error: $e');
     }
@@ -361,7 +374,8 @@ class FirestoreService {
       Map<String, dynamic> data = attendance.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docId;
-      await docRef.set(data, SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(data);
+      await docRef.set(encryptedData, SetOptions(merge: true));
       return docId;
     } catch (e) {
       debugPrint('Firestore addAttendance error: $e');
@@ -375,7 +389,8 @@ class FirestoreService {
       final shopId = await UserService.getCurrentShopId();
       Map<String, dynamic> data = attendance.toMap();
       data['shopId'] = shopId;
-      await _db.collection('attendance').doc(attendance.firestoreId).set(data, SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(data);
+      await _db.collection('attendance').doc(attendance.firestoreId).set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore updateAttendanceCloud error: $e');
     }
@@ -483,8 +498,9 @@ class FirestoreService {
       Map<String, dynamic> data = code.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docId;
+      final encryptedData = EncryptionService.encryptMap(data);
 
-      await docRef.set(data, SetOptions(merge: true));
+      await docRef.set(encryptedData, SetOptions(merge: true));
       return docId;
     } catch (e) {
       debugPrint('Error adding quick input code: $e');
@@ -499,8 +515,9 @@ class FirestoreService {
 
       Map<String, dynamic> data = code.toMap();
       data['updatedAt'] = FieldValue.serverTimestamp();
+      final encryptedData = EncryptionService.encryptMap(data);
 
-      await docRef.update(data);
+      await docRef.update(encryptedData);
     } catch (e) {
       debugPrint('Error updating quick input code: $e');
     }
@@ -656,7 +673,8 @@ class FirestoreService {
       final docRef = _db.collection('repair_partners').doc(docId);
       partnerData['shopId'] = shopId;
       partnerData['firestoreId'] = docRef.id;
-      await docRef.set(partnerData, SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(partnerData);
+      await docRef.set(encryptedData, SetOptions(merge: true));
       return docRef.id;
     } catch (e) {
       debugPrint('Firestore addRepairPartner error: $e');
@@ -668,7 +686,8 @@ class FirestoreService {
     try {
       final firestoreId = partnerData['firestoreId'];
       if (firestoreId == null) return;
-      await _db.collection('repair_partners').doc(firestoreId).update(partnerData);
+      final encryptedData = EncryptionService.encryptMap(partnerData);
+      await _db.collection('repair_partners').doc(firestoreId).update(encryptedData);
     } catch (e) {
       debugPrint('Firestore updateRepairPartner error: $e');
     }
@@ -696,7 +715,8 @@ class FirestoreService {
       final docRef = _db.collection('partner_repair_history').doc(docId);
       historyData['shopId'] = shopId;
       historyData['firestoreId'] = docRef.id;
-      await docRef.set(historyData, SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(historyData);
+      await docRef.set(encryptedData, SetOptions(merge: true));
       return docRef.id;
     } catch (e) {
       debugPrint('Firestore addPartnerRepairHistory error: $e');
@@ -715,7 +735,8 @@ class FirestoreService {
       final docRef = _db.collection('suppliers').doc(docId);
       supplierData['shopId'] = shopId;
       supplierData['firestoreId'] = docRef.id;
-      await docRef.set(supplierData, SetOptions(merge: true));
+      final encryptedData = EncryptionService.encryptMap(supplierData);
+      await docRef.set(encryptedData, SetOptions(merge: true));
       return docRef.id;
     } catch (e) {
       debugPrint('Firestore addSupplier error: $e');
@@ -727,7 +748,8 @@ class FirestoreService {
     try {
       final firestoreId = supplierData['firestoreId'];
       if (firestoreId == null) return;
-      await _db.collection('suppliers').doc(firestoreId).update(supplierData);
+      final encryptedData = EncryptionService.encryptMap(supplierData);
+      await _db.collection('suppliers').doc(firestoreId).update(encryptedData);
     } catch (e) {
       debugPrint('Firestore updateSupplier error: $e');
     }

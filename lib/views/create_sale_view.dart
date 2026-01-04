@@ -685,7 +685,17 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           decoration: const InputDecoration(labelText: "CHỌN THỜI GIAN BẢO HÀNH", prefixIcon: Icon(Icons.verified_user)), 
           items: ["KO BH", "1 THÁNG", "3 THÁNG", "6 THÁNG", "12 THÁNG"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), 
           onChanged: (v) => setState(() => _saleWarranty = v ?? "KO BH")
-        )
+        ),
+        const SizedBox(height: 15),
+        TextFormField(
+          controller: noteCtrl,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: "GHI CHÚ ĐƠN HÀNG",
+            hintText: "Nhập ghi chú (nếu có)...",
+            prefixIcon: Icon(Icons.note_alt_outlined),
+          ),
+        ),
       ]),
     );
   }
@@ -1025,13 +1035,22 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                               Text(customer.phone),
                               if (customer.address?.isNotEmpty == true)
                                 Text(
-                                  customer.address!,
+                                  'Địa chỉ: ${customer.address!}',
                                   style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              if (customer.notes?.isNotEmpty == true)
+                                Text(
+                                  'Ghi chú: ${customer.notes!}',
+                                  style: const TextStyle(color: Colors.blue, fontSize: 12, fontStyle: FontStyle.italic),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                             ],
                           ),
+                          isThreeLine: (customer.address?.isNotEmpty == true) || 
+                                       (customer.notes?.isNotEmpty == true),
                           onTap: () => Navigator.pop(context, customer),
                         );
                       },

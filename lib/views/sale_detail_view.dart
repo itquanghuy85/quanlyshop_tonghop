@@ -606,6 +606,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               _item("Nhân viên", s.sellerName),
               _item("Thời gian", _fmtDate(s.soldAt)),
               _item("Hình thức", s.paymentMethod),
+              if (s.notes != null && s.notes!.isNotEmpty) _item("Ghi chú", s.notes!),
               _item("Tổng tiền", "${NumberFormat('#,###').format(s.totalPrice)} Đ", color: Colors.red),
             ]),
             if (_isInstallmentNH)
