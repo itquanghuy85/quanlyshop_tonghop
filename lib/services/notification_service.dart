@@ -105,6 +105,33 @@ class NotificationService {
     return await Permission.notification.status;
   }
 
+  /// Kiểm tra trạng thái thông báo đầy đủ: quyền + FCM token
+  /// Trả về Map với các key: permissionGranted, hasFcmToken, isFullyWorking
+  static Future<Map<String, bool>> checkNotificationStatus() async {
+    bool permissionGranted = false;
+    bool hasFcmToken = false;
+
+    try {
+      // Kiểm tra quyền notification
+      final permissionStatus = await Permission.notification.status;
+      permissionGranted = permissionStatus.isGranted;
+
+      // Kiểm tra FCM token
+      final token = await _firebaseMessaging.getToken();
+      hasFcmToken = token != null && token.isNotEmpty;
+
+      debugPrint('Notification status check: permission=$permissionGranted, fcmToken=$hasFcmToken');
+    } catch (e) {
+      debugPrint('Error checking notification status: $e');
+    }
+
+    return {
+      'permissionGranted': permissionGranted,
+      'hasFcmToken': hasFcmToken,
+      'isFullyWorking': permissionGranted && hasFcmToken,
+    };
+  }
+
   // Guide user to enable notifications in settings
   static Future<bool> openNotificationSettings() async {
     return await openAppSettings();
@@ -533,7 +560,7 @@ class NotificationService {
       importance: _getChannelImportance(channelId),
       priority: Priority.high,
       showWhen: true,
-      icon: '@mipmap/ic_launcher',
+      icon: '@mipmap/launcher_icon',
       playSound: _shouldPlaySound(channelId),
     );
 

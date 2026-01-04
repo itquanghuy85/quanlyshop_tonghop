@@ -585,7 +585,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         return;
       }
       final debtId = target['id'] as int;
-      await _db.insertDebtPayment({
+      final paymentData = {
         'firestoreId': 'pay_${DateTime.now().millisecondsSinceEpoch}_${d.supplier.id ?? 'sup'}',
         'debtId': debtId,
         'debtFirestoreId': target['firestoreId'],
@@ -594,7 +594,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         'paymentMethod': method,
         'note': note,
         'createdBy': FirebaseAuth.instance.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV',
-      });
+      };
+      await _db.insertDebtPayment(paymentData);
+      // Sync debt payment lên cloud
+      await FirestoreService.addDebtPaymentCloud(paymentData);
       await _db.updateDebtPaid(debtId, amount);
 
       final allDebts = await _db.getAllDebts();

@@ -939,6 +939,21 @@ class DBHelper {
     );
   }
 
+  /// Lấy số lượng tồn kho hiện tại của sản phẩm (real-time từ DB)
+  /// Dùng để kiểm tra trước khi bán, tránh 2 nhân viên bán cùng 1 món
+  Future<int> getProductQuantityById(int id) async {
+    final db = await database;
+    final result = await db.query(
+      'products',
+      columns: ['quantity'],
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (result.isEmpty) return 0;
+    return (result.first['quantity'] as int?) ?? 0;
+  }
+
   Future<Product?> getProductByImei(String imei) async {
     final res = await (await database).query(
       'products',
@@ -998,6 +1013,31 @@ class DBHelper {
       return 0;
     }
   }
+
+  Future<void> upsertSupplier(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'];
+    // Loại bỏ id vì SQLite auto-generate
+    final cleanData = Map<String, dynamic>.from(data);
+    cleanData.remove('id');
+    
+    if (firestoreId == null) {
+      await db.insert('suppliers', cleanData, conflictAlgorithm: ConflictAlgorithm.replace);
+      return;
+    }
+    final existing = await db.query('suppliers', where: 'firestoreId = ?', whereArgs: [firestoreId]);
+    if (existing.isEmpty) {
+      await db.insert('suppliers', cleanData, conflictAlgorithm: ConflictAlgorithm.replace);
+    } else {
+      await db.update('suppliers', cleanData, where: 'firestoreId = ?', whereArgs: [firestoreId]);
+    }
+  }
+
+  Future<int> deleteSupplierByFirestoreId(String firestoreId) async {
+    final db = await database;
+    return await db.delete('suppliers', where: 'firestoreId = ?', whereArgs: [firestoreId]);
+  }
+
   Future<List<Map<String, dynamic>>> getSuppliers() async {
     final db = await database;
     final res = await db.query('suppliers', orderBy: 'name ASC');
@@ -1046,6 +1086,17 @@ class DBHelper {
       );
   Future<int> deleteDebtByFirestoreId(String fId) async => (await database)
       .delete('debts', where: 'firestoreId = ?', whereArgs: [fId]);
+
+  /// Cập nhật firestoreId và isSynced cho debt sau khi sync lên cloud
+  Future<void> updateDebtSynced(int id, String firestoreId) async {
+    final db = await database;
+    await db.update(
+      'debts',
+      {'firestoreId': firestoreId, 'isSynced': 1},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 
   Future<void> upsertClosing(Map<String, dynamic> map) async {
     final db = await database;
@@ -1440,6 +1491,26 @@ class DBHelper {
     ''');
   }
 
+  /// Lấy tất cả debt payments để sync
+  Future<List<Map<String, dynamic>>> getAllDebtPaymentsForSync() async {
+    final db = await database;
+    return await db.query(
+      'debt_payments',
+      orderBy: 'paidAt DESC',
+    );
+  }
+
+  /// Cập nhật trạng thái synced cho debt payment
+  Future<void> updateDebtPaymentSynced(int id, String firestoreId) async {
+    final db = await database;
+    await db.update(
+      'debt_payments',
+      {'firestoreId': firestoreId, 'isSynced': 1},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   // Quick Input Codes methods
   Future<List<QuickInputCode>> getQuickInputCodes() async {
     final db = await database;
@@ -1695,6 +1766,30 @@ class DBHelper {
         where: 'active = 1',
         orderBy: 'name ASC',
       );
+    }
+
+    Future<void> upsertRepairPartner(Map<String, dynamic> data) async {
+      final db = await database;
+      final firestoreId = data['firestoreId'];
+      // Loại bỏ id vì SQLite auto-generate
+      final cleanData = Map<String, dynamic>.from(data);
+      cleanData.remove('id');
+      
+      if (firestoreId == null) {
+        await db.insert('repair_partners', cleanData, conflictAlgorithm: ConflictAlgorithm.replace);
+        return;
+      }
+      final existing = await db.query('repair_partners', where: 'firestoreId = ?', whereArgs: [firestoreId]);
+      if (existing.isEmpty) {
+        await db.insert('repair_partners', cleanData, conflictAlgorithm: ConflictAlgorithm.replace);
+      } else {
+        await db.update('repair_partners', cleanData, where: 'firestoreId = ?', whereArgs: [firestoreId]);
+      }
+    }
+
+    Future<int> deleteRepairPartnerByFirestoreId(String firestoreId) async {
+      final db = await database;
+      return await db.delete('repair_partners', where: 'firestoreId = ?', whereArgs: [firestoreId]);
     }
 
     Future<int> insertRepairPartner(Map<String, dynamic> partner) async {

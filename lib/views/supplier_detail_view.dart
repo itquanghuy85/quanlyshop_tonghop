@@ -307,7 +307,7 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
       final target = _debts.firstWhere((d) => (d['totalAmount'] as int? ?? 0) > (d['paidAmount'] as int? ?? 0));
       final debtId = target['id'] as int;
       final now = DateTime.now().millisecondsSinceEpoch;
-      await _db.insertDebtPayment({
+      final paymentData = {
         'firestoreId': 'pay_${now}_${widget.supplier.id ?? 'sup'}',
         'debtId': debtId,
         'debtFirestoreId': target['firestoreId'],
@@ -316,7 +316,10 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
         'paymentMethod': method,
         'note': note,
         'createdBy': FirebaseAuth.instance.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV',
-      });
+      };
+      await _db.insertDebtPayment(paymentData);
+      // Sync debt payment lên cloud
+      await FirestoreService.addDebtPaymentCloud(paymentData);
       await _db.updateDebtPaid(debtId, amount);
       final allDebts = await _db.getAllDebts();
       final updated = allDebts.firstWhere((e) => e['id'] == debtId);

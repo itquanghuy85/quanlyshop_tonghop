@@ -938,11 +938,12 @@ class _InventoryViewState extends State<InventoryView> with TickerProviderStateM
             label: Text('Nhà cung cấp', style: AppTextStyles.caption.copyWith(color: AppColors.onSurface)),
             style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
           ),
-          IconButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputLibraryView())),
-            icon: Icon(Icons.library_books, color: AppColors.info),
-            tooltip: 'Thư viện mã nhập nhanh',
-          ),
+          // Nút thư viện đã ẩn theo yêu cầu
+          // IconButton(
+          //   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputLibraryView())),
+          //   icon: Icon(Icons.library_books, color: AppColors.info),
+          //   tooltip: 'Thư viện mã nhập nhanh',
+          // ),
           const SizedBox(width: 8),
         ],
       ),
@@ -956,87 +957,29 @@ class _InventoryViewState extends State<InventoryView> with TickerProviderStateM
               ],
             ),
           ),
-          // Bottom navigation row (KIỂM KHO removed)
+          // Bottom navigation row (THƯ VIỆN đã ẩn theo yêu cầu)
           Container(
             color: AppColors.surface,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                // Thư viện mã nhập nhanh button (primary)
+                // Nhập kho nhanh button (mở rộng)
                 Expanded(
-                  child: Stack(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputLibraryView())).then((_) => _refresh()),
-                        icon: Icon(Icons.library_books, size: _iconSize),
-                        label: Text("THƯ VIỆN", style: AppTextStyles.caption),
-                        style: AppButtonStyles.elevatedButtonStyle,
-                      ),
-                      if (_unsyncedCount > 0)
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.error,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 16,
-                              minHeight: 16,
-                            ),
-                            child: Text(
-                              _unsyncedCount > 99 ? '99+' : _unsyncedCount.toString(),
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.onError,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                // Nhập kho nhanh button (thu nhỏ)
-                SizedBox(
-                  width: 84,
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockInView())).then((_) => _refresh()),
-                    style: AppButtonStyles.elevatedButtonStyle.copyWith(
-                      minimumSize: MaterialStateProperty.all(Size(0, _btnMinHeight)),
-                      padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 6, horizontal: 6)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.add_box_rounded, size: _iconSize - 4),
-                        const SizedBox(height: 2),
-                        Text("NHẬP KHO", style: AppTextStyles.caption),
-                      ],
-                    ),
+                    icon: Icon(Icons.add_box_rounded, size: _iconSize),
+                    label: Text("NHẬP KHO", style: AppTextStyles.caption),
+                    style: AppButtonStyles.elevatedButtonStyle,
                   ),
                 ),
                 const SizedBox(width: 8),
                 // Nhập nhanh button
-                SizedBox(
-                  width: 84,
-                  child: ElevatedButton(
+                Expanded(
+                  child: ElevatedButton.icon(
                     onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FastStockInView())).then((_) => _refresh()),
-                    style: AppButtonStyles.elevatedButtonStyle.copyWith(
-                      minimumSize: MaterialStateProperty.all(Size(0, _btnMinHeight)),
-                      padding: MaterialStateProperty.all(const EdgeInsets.symmetric(vertical: 6, horizontal: 6)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.flash_on, size: _iconSize - 4),
-                        const SizedBox(height: 2),
-                        Text("NHẬP NHANH", style: AppTextStyles.caption),
-                      ],
-                    ),
+                    icon: Icon(Icons.flash_on, size: _iconSize),
+                    label: Text("NHẬP NHANH", style: AppTextStyles.caption),
+                    style: AppButtonStyles.elevatedButtonStyle,
                   ),
                 ),
               ],
@@ -1633,7 +1576,10 @@ class _InventoryViewState extends State<InventoryView> with TickerProviderStateM
           if (payMethod != "CÔNG NỢ") {
             await db.insertExpense({'title': "NHẬP HÀNG: ${p.name}", 'amount': p.cost * p.quantity, 'category': "NHẬP HÀNG", 'date': ts, 'paymentMethod': payMethod, 'note': "Nhập từ $supplier"});
           } else {
-            await db.insertDebt({'personName': supplier, 'totalAmount': p.cost * p.quantity, 'paidAmount': 0, 'type': "SHOP_OWES", 'status': "ACTIVE", 'createdAt': ts, 'note': "Nợ tiền máy ${p.name}"});
+            final debtData = {'personName': supplier, 'totalAmount': p.cost * p.quantity, 'paidAmount': 0, 'type': "SHOP_OWES", 'status': "ACTIVE", 'createdAt': ts, 'note': "Nợ tiền máy ${p.name}"};
+            await db.insertDebt(debtData);
+            // Sync debt lên cloud
+            await FirestoreService.addDebtCloud(debtData);
           }
           await db.upsertProduct(p); await FirestoreService.addProduct(p);
 

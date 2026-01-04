@@ -88,6 +88,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   int totalDebtRemain = 0;
   int expiringWarranties = 0;
   int unreadChatCount = 0;
+  bool _notificationWorking = false; // Trạng thái thông báo
 
   final bool _isSuperAdmin = UserService.isCurrentUserSuperAdmin();
   bool get hasFullAccess =>
@@ -98,6 +99,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     super.initState();
     debugPrint('HomeView: initState STARTED - instance created');
     _initializeTabConfigs();
+    _checkNotificationStatus(); // Kiểm tra trạng thái thông báo
     _initialSetup();
     SyncService.initRealTimeSync(() {
       _debouncedLoadStats();
@@ -548,6 +550,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     if (mounted) setState(() => unreadChatCount = unread);
   }
 
+  /// Kiểm tra trạng thái thông báo (quyền + FCM token)
+  Future<void> _checkNotificationStatus() async {
+    final status = await NotificationService.checkNotificationStatus();
+    if (mounted) {
+      setState(() {
+        _notificationWorking = status['isFullyWorking'] ?? false;
+      });
+      debugPrint('Notification status: $_notificationWorking');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     debugPrint(
@@ -605,8 +618,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   context,
                   MaterialPageRoute(builder: (_) => const NotificationsView()),
                 ),
-                icon: Icon(Icons.notifications, color: AppColors.secondary),
-                tooltip: 'Thông báo',
+                icon: Icon(
+                  Icons.notifications,
+                  color: _notificationWorking ? AppColors.success : AppColors.secondary,
+                ),
+                tooltip: _notificationWorking 
+                    ? 'Thông báo (đang hoạt động)' 
+                    : 'Thông báo (chưa kích hoạt)',
               ),
             ),
             IconButton(
@@ -1065,14 +1083,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             subtitle: "Xem và quản lý danh sách sản phẩm trong kho.",
           ),
           _tabMenuItem(
-            "Nhà cung cấp",
+            "Nhà cung cấp - Đối tác sửa chữa",
             Icons.business_center,
             AppColors.secondary,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SupplierListView()),
             ),
-            subtitle: "Quản lý NCC, công nợ và lịch sử nhập.",
+            subtitle: "Quản lý NCC- Đối tác sửa chữa, công nợ và lịch sử nhập.",
           ),
           _tabMenuItem(
             "Nhập kho siêu tốc",

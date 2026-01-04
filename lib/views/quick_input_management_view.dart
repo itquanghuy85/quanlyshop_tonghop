@@ -16,10 +16,8 @@ class QuickInputManagementView extends StatefulWidget {
   State<QuickInputManagementView> createState() => _QuickInputManagementViewState();
 }
 
-class _QuickInputManagementViewState extends State<QuickInputManagementView>
-    with TickerProviderStateMixin {
+class _QuickInputManagementViewState extends State<QuickInputManagementView> {
 
-  late TabController _tabController;
   final db = DBHelper();
   String? shopId;
   bool _isLoading = true;
@@ -32,13 +30,11 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _initializeData();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -457,19 +453,9 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mã Nhập Nhanh'),
+        title: const Text('Quản lý Mã Nhập Nhanh'),
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Thư viện', icon: Icon(Icons.library_books)),
-            Tab(text: 'Quản lý', icon: Icon(Icons.settings)),
-          ],
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -478,13 +464,7 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView>
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildLibraryTab(),
-          _buildManagementTab(),
-        ],
-      ),
+      body: _buildManagementTab(),
       floatingActionButton: FloatingActionButton(
         heroTag: 'quick_input_management_fab',
         onPressed: _showCreateDialog,

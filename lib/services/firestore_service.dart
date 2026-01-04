@@ -291,6 +291,18 @@ class FirestoreService {
     }
   }
 
+  static Future<void> addDebtPaymentCloud(Map<String, dynamic> paymentData) async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      final String docId = paymentData['firestoreId'] ?? "pay_${paymentData['paidAt']}_${paymentData['debtId'] ?? 'debt'}";
+      paymentData['shopId'] = shopId;
+      paymentData['firestoreId'] = docId;
+      await _db.collection('debt_payments').doc(docId).set(paymentData, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error adding debt payment to cloud: $e');
+    }
+  }
+
   static Future<void> addExpenseCloud(Map<String, dynamic> expData) async {
     try {
       if (((expData['amount'] as int?) ?? 0) <= 0) return;

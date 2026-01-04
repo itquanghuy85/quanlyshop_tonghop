@@ -11,6 +11,8 @@ import '../models/debt_model.dart';
 import '../models/attendance_model.dart';
 import '../models/customer_model.dart';
 import '../models/quick_input_code_model.dart';
+import '../models/supplier_model.dart';
+import '../models/repair_partner_model.dart';
 import 'storage_service.dart';
 import 'user_service.dart';
 
@@ -302,6 +304,54 @@ class SyncService {
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo customers sync: $e");
+    }
+
+    // 13. Đồng bộ SUPPLIERS
+    try {
+      _subscribeToCollection(
+        collection: 'suppliers',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteSupplierByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              await db.upsertSupplier(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync supplier $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo suppliers sync: $e");
+    }
+
+    // 14. Đồng bộ REPAIR PARTNERS
+    try {
+      _subscribeToCollection(
+        collection: 'repair_partners',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteRepairPartnerByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              await db.upsertRepairPartner(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync repair_partner $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo repair_partners sync: $e");
     }
 
     debugPrint(
@@ -616,6 +666,156 @@ class SyncService {
         debugPrint("Lỗi sync quick input codes collection: $e");
       }
 
+      // Đồng bộ Suppliers
+      try {
+        final suppliers = await dbHelper.getSuppliers();
+        debugPrint(
+          "syncAllToCloud: có ${suppliers.length} suppliers cần kiểm tra sync",
+        );
+        if (suppliers.isNotEmpty) {
+          final WriteBatch supplierBatch = _db.batch();
+          for (var supplierMap in suppliers) {
+            // Skip nếu đã có firestoreId (đã sync)
+            if (supplierMap['firestoreId'] != null && supplierMap['firestoreId'].toString().isNotEmpty) continue;
+
+            try {
+              Map<String, dynamic> data = Map<String, dynamic>.from(supplierMap);
+              data['shopId'] = shopId;
+              data.remove('id');
+
+              final docId = "supplier_${data['createdAt']}_${data['name'].toString().replaceAll(' ', '_')}";
+              supplierBatch.set(
+                _db.collection('suppliers').doc(docId),
+                data,
+                SetOptions(merge: true),
+              );
+
+              // Update local với firestoreId
+              supplierMap['firestoreId'] = docId;
+              await dbHelper.upsertSupplier(supplierMap);
+            } catch (e) {
+              debugPrint("Lỗi sync supplier ${supplierMap['id']}: $e");
+            }
+          }
+          await supplierBatch.commit();
+        }
+      } catch (e) {
+        debugPrint("Lỗi sync suppliers collection: $e");
+      }
+
+      // Đồng bộ Repair Partners
+      try {
+        final partners = await dbHelper.getRepairPartners();
+        debugPrint(
+          "syncAllToCloud: có ${partners.length} repair partners cần kiểm tra sync",
+        );
+        if (partners.isNotEmpty) {
+          final WriteBatch partnerBatch = _db.batch();
+          for (var partnerMap in partners) {
+            // Skip nếu đã có firestoreId (đã sync)
+            if (partnerMap['firestoreId'] != null && partnerMap['firestoreId'].toString().isNotEmpty) continue;
+
+            try {
+              Map<String, dynamic> data = Map<String, dynamic>.from(partnerMap);
+              data['shopId'] = shopId;
+              data.remove('id');
+
+              final docId = "rp_${data['createdAt']}_${data['name'].toString().replaceAll(' ', '_')}";
+              partnerBatch.set(
+                _db.collection('repair_partners').doc(docId),
+                data,
+                SetOptions(merge: true),
+              );
+
+              // Update local với firestoreId
+              partnerMap['firestoreId'] = docId;
+              await dbHelper.upsertRepairPartner(partnerMap);
+            } catch (e) {
+              debugPrint("Lỗi sync repair partner ${partnerMap['id']}: $e");
+            }
+          }
+          await partnerBatch.commit();
+        }
+      } catch (e) {
+        debugPrint("Lỗi sync repair partners collection: $e");
+      }
+
+      // Đồng bộ Debts (Công nợ)
+      try {
+        final debts = await dbHelper.getAllDebts();
+        debugPrint(
+          "syncAllToCloud: có ${debts.length} debts cần kiểm tra sync",
+        );
+        if (debts.isNotEmpty) {
+          final WriteBatch debtBatch = _db.batch();
+          for (var debtMap in debts) {
+            // Skip nếu đã có firestoreId và đã sync
+            final firestoreId = debtMap['firestoreId'];
+            final isSynced = debtMap['isSynced'] == 1 || debtMap['isSynced'] == true;
+            if (firestoreId != null && firestoreId.toString().isNotEmpty && isSynced) continue;
+
+            try {
+              Map<String, dynamic> data = Map<String, dynamic>.from(debtMap);
+              data['shopId'] = shopId;
+              data.remove('id');
+
+              final docId = firestoreId ?? "debt_${data['createdAt']}_${data['phone'] ?? 'ncc'}";
+              debtBatch.set(
+                _db.collection('debts').doc(docId),
+                data,
+                SetOptions(merge: true),
+              );
+
+              // Update local với firestoreId và isSynced
+              await dbHelper.updateDebtSynced(debtMap['id'], docId);
+            } catch (e) {
+              debugPrint("Lỗi sync debt ${debtMap['id']}: $e");
+            }
+          }
+          await debtBatch.commit();
+        }
+      } catch (e) {
+        debugPrint("Lỗi sync debts collection: $e");
+      }
+
+      // Đồng bộ Debt Payments (Lịch sử thanh toán công nợ)
+      try {
+        final debtPayments = await dbHelper.getAllDebtPaymentsForSync();
+        debugPrint(
+          "syncAllToCloud: có ${debtPayments.length} debt payments cần kiểm tra sync",
+        );
+        if (debtPayments.isNotEmpty) {
+          final WriteBatch paymentBatch = _db.batch();
+          for (var paymentMap in debtPayments) {
+            // Skip nếu đã có firestoreId và đã sync
+            final firestoreId = paymentMap['firestoreId'];
+            final isSynced = paymentMap['isSynced'] == 1 || paymentMap['isSynced'] == true;
+            if (firestoreId != null && firestoreId.toString().isNotEmpty && isSynced) continue;
+
+            try {
+              Map<String, dynamic> data = Map<String, dynamic>.from(paymentMap);
+              data['shopId'] = shopId;
+              data.remove('id');
+
+              final docId = firestoreId ?? "pay_${data['paidAt']}_${data['debtId'] ?? 'debt'}";
+              paymentBatch.set(
+                _db.collection('debt_payments').doc(docId),
+                data,
+                SetOptions(merge: true),
+              );
+
+              // Update local với firestoreId và isSynced
+              await dbHelper.updateDebtPaymentSynced(paymentMap['id'], docId);
+            } catch (e) {
+              debugPrint("Lỗi sync debt payment ${paymentMap['id']}: $e");
+            }
+          }
+          await paymentBatch.commit();
+        }
+      } catch (e) {
+        debugPrint("Lỗi sync debt payments collection: $e");
+      }
+
       debugPrint("Đã hoàn thành đồng bộ toàn bộ dữ liệu lên Cloud.");
     } catch (e) {
       debugPrint("Lỗi syncAllToCloud: $e");
@@ -658,6 +858,8 @@ class SyncService {
         'supplier_payments',
         'repair_partner_payments',
         'customers',
+        'suppliers',
+        'repair_partners',
       ];
 
       for (var col in collections) {
@@ -706,6 +908,10 @@ class SyncService {
                 continue; // Managed locally
               } else if (col == 'customers') {
                 await db.upsertCustomer(data);
+              } else if (col == 'suppliers') {
+                await db.upsertSupplier(data);
+              } else if (col == 'repair_partners') {
+                await db.upsertRepairPartner(data);
               }
             } catch (e) {
               debugPrint("Lỗi xử lý document ${doc.id}: $e");

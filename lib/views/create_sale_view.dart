@@ -66,6 +66,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     downPaymentCtrl.addListener(_calculateInstallment);
     priceCtrl.addListener(_formatPrice);
     loanAmountCtrl.addListener(_formatLoanAmount);
+    // Refresh UI for add customer button when name/phone changes
+    nameCtrl.addListener(() => setState(() {}));
+    phoneCtrl.addListener(() => setState(() {}));
   }
 
   Future<void> _checkPermission() async {
@@ -116,6 +119,60 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         addressCtrl.text = selectedCustomer.address ?? '';
         _suggestCustomers = [];
       });
+    }
+  }
+
+  Future<void> _addCustomerQuick() async {
+    final name = nameCtrl.text.trim().toUpperCase();
+    final phone = phoneCtrl.text.trim();
+    final address = addressCtrl.text.trim().toUpperCase();
+
+    if (name.isEmpty || phone.isEmpty) {
+      NotificationService.showSnackBar(
+        "Vui lòng nhập đủ tên và số điện thoại",
+        color: Colors.orange,
+      );
+      return;
+    }
+
+    // Kiểm tra phone format
+    final phoneError = UserService.validatePhone(phone);
+    if (phoneError != null) {
+      NotificationService.showSnackBar(phoneError, color: Colors.red);
+      return;
+    }
+
+    try {
+      final customerService = CustomerService();
+      // Kiểm tra khách hàng đã tồn tại chưa
+      final existingCustomers = await customerService.getCustomers();
+      final existing = existingCustomers.where((c) => c.phone == phone).toList();
+      
+      if (existing.isNotEmpty) {
+        NotificationService.showSnackBar(
+          "Khách hàng với SĐT này đã tồn tại: ${existing.first.name}",
+          color: Colors.orange,
+        );
+        return;
+      }
+
+      final newCustomer = Customer(
+        name: name,
+        phone: phone,
+        address: address,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+      );
+      await customerService.addCustomer(newCustomer);
+      
+      NotificationService.showSnackBar(
+        "Đã thêm khách hàng: $name",
+        color: Colors.green,
+      );
+    } catch (e) {
+      NotificationService.showSnackBar(
+        "Lỗi thêm khách hàng: $e",
+        color: Colors.red,
+      );
     }
   }
 
@@ -402,8 +459,41 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       );
       
       if (_paymentMethod == "CÔNG NỢ" || (_paymentMethod != "TRẢ GÓP (NH)" && paidAmount < totalPrice)) {
-        await db.insertDebt({'personName': nameCtrl.text.trim().toUpperCase(), 'phone': phoneCtrl.text.trim(), 'totalAmount': totalPrice, 'paidAmount': paidAmount, 'type': "CUSTOMER_OWES", 'status': "ACTIVE", 'createdAt': now, 'note': "Nợ mua máy: ${sale.productNames}", 'linkedId': uniqueId});
+        final debtData = {
+          'personName': nameCtrl.text.trim().toUpperCase(), 
+          'phone': phoneCtrl.text.trim(), 
+          'totalAmount': totalPrice, 
+          'paidAmount': paidAmount, 
+          'type': "CUSTOMER_OWES", 
+          'status': "ACTIVE", 
+          'createdAt': now, 
+          'note': "Nợ mua máy: ${sale.productNames}", 
+          'linkedId': uniqueId
+        };
+        await db.insertDebt(debtData);
+        // Sync debt lên cloud
+        await FirestoreService.addDebtCloud(debtData);
       }
+      
+      // KIỂM TRA TỒN KHO REAL-TIME TRƯỚC KHI BÁN (tránh 2 nhân viên bán cùng 1 món)
+      for (var item in _selectedItems) {
+        final p = item['product'] as Product;
+        final quantity = item['quantity'] as int;
+        
+        // Lấy số lượng tồn kho mới nhất từ database
+        final currentStock = await db.getProductQuantityById(p.id!);
+        if (currentStock < quantity) {
+          NotificationService.showSnackBar(
+            "⚠️ ${p.name} đã được bán bởi nhân viên khác! Còn lại: $currentStock", 
+            color: Colors.red
+          );
+          // Refresh lại danh sách sản phẩm
+          await _loadData();
+          setState(() => _isSaving = false);
+          return;
+        }
+      }
+      
       for (var item in _selectedItems) {
         final p = item['product'] as Product;
         final quantity = item['quantity'] as int;
@@ -412,13 +502,6 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         final customImei = item['imei'] as String?;
         if (p.type == 'PHONE' && (customImei == null || customImei.isEmpty) && (p.imei == null || p.imei!.isEmpty)) {
           NotificationService.showSnackBar("Không thể bán máy chưa có IMEI: ${p.name}", color: Colors.red);
-          setState(() => _isSaving = false);
-          return;
-        }
-        
-        // Kiểm tra số lượng tồn kho
-        if (p.quantity < quantity) {
-          NotificationService.showSnackBar("Không đủ hàng trong kho: ${p.name} (còn ${p.quantity}, cần ${quantity})", color: Colors.red);
           setState(() => _isSaving = false);
           return;
         }
@@ -547,7 +630,33 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             ],
           ),
           _buildCustomerSuggestions(),
-          ValidatedTextField(controller: phoneCtrl, label: "SỐ ĐIỆN THOẠI", icon: Icons.phone, keyboardType: TextInputType.phone),
+          Row(
+            children: [
+              Expanded(
+                child: ValidatedTextField(controller: phoneCtrl, label: "SỐ ĐIỆN THOẠI", icon: Icons.phone, keyboardType: TextInputType.phone),
+              ),
+              const SizedBox(width: 8),
+              Tooltip(
+                message: 'Thêm nhanh khách hàng vào danh sách',
+                child: IconButton(
+                  onPressed: (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty)
+                      ? _addCustomerQuick
+                      : null,
+                  icon: Icon(
+                    Icons.person_add,
+                    color: (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty)
+                        ? AppColors.success
+                        : AppColors.grey600,
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor: (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty)
+                        ? AppColors.success.withOpacity(0.1)
+                        : AppColors.grey600.withOpacity(0.1),
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
           _sectionTitle("3. THANH TOÁN & BẢO HÀNH"),
           _buildPaymentSection(),

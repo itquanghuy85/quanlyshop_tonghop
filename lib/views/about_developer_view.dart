@@ -271,7 +271,7 @@ class AboutDeveloperView extends StatelessWidget {
                 ),
               ),
               child: const Text(
-                'Flutter Developer',
+                'HUY AKA',
                 style: TextStyle(
                   color: Color(0xFF2962FF),
                   fontWeight: FontWeight.w600,
@@ -613,7 +613,7 @@ class AboutDeveloperView extends StatelessWidget {
                 ),
               ),
               child: const Text(
-                'Flutter + Firebase',
+                '',
                 style: TextStyle(
                   color: Color(0xFF4CAF50),
                   fontWeight: FontWeight.w600,

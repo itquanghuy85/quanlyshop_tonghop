@@ -16,6 +16,7 @@ import '../widgets/currency_text_field.dart';
 import '../models/repair_partner_model.dart';
 import '../models/repair_service_model.dart';
 import '../services/repair_partner_service.dart';
+import '../services/user_service.dart';
 import '../models/customer_model.dart';
 import '../services/customer_service.dart';
 import '../theme/app_colors.dart';
@@ -80,7 +81,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     super.initState();
     phoneCtrl.addListener(() {
       if (phoneCtrl.text.length == 10) _smartFill();
+      setState(() {}); // Refresh UI for add customer button
     });
+    nameCtrl.addListener(() => setState(() {})); // Refresh UI for add customer button
     _loadPartners();
   }
 
@@ -147,6 +150,60 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         },
       ),
     );
+  }
+
+  Future<void> _addCustomerQuick() async {
+    final name = nameCtrl.text.trim().toUpperCase();
+    final phone = phoneCtrl.text.trim();
+    final address = addressCtrl.text.trim().toUpperCase();
+
+    if (name.isEmpty || phone.isEmpty) {
+      NotificationService.showSnackBar(
+        "Vui lòng nhập đủ tên và số điện thoại",
+        color: Colors.orange,
+      );
+      return;
+    }
+
+    // Kiểm tra phone format
+    final phoneError = UserService.validatePhone(phone);
+    if (phoneError != null) {
+      NotificationService.showSnackBar(phoneError, color: Colors.red);
+      return;
+    }
+
+    try {
+      // Kiểm tra khách hàng đã tồn tại chưa
+      final existingCustomers = await customerService.getCustomers();
+      final existing = existingCustomers.where((c) => c.phone == phone).toList();
+      
+      if (existing.isNotEmpty) {
+        NotificationService.showSnackBar(
+          "Khách hàng với SĐT này đã tồn tại: ${existing.first.name}",
+          color: Colors.orange,
+        );
+        return;
+      }
+
+      final newCustomer = Customer(
+        name: name,
+        phone: phone,
+        address: address,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+      );
+      await customerService.addCustomer(newCustomer);
+      
+      NotificationService.showSnackBar(
+        "Đã thêm khách hàng: $name",
+        color: Colors.green,
+      );
+      HapticFeedback.lightImpact();
+    } catch (e) {
+      NotificationService.showSnackBar(
+        "Lỗi thêm khách hàng: $e",
+        color: Colors.red,
+      );
+    }
   }
 
   int _parseFinalPrice(String text) {
@@ -520,13 +577,34 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                       ),
                     ],
                   ),
-                  _input(
-                    phoneCtrl,
-                    "SỐ ĐIỆN THOẠI *",
-                    Icons.phone,
-                    type: TextInputType.phone,
-                    f: phoneF,
-                    next: nameF,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _input(
+                          phoneCtrl,
+                          "SỐ ĐIỆN THOẠI *",
+                          Icons.phone,
+                          type: TextInputType.phone,
+                          f: phoneF,
+                          next: nameF,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Tooltip(
+                        message: 'Thêm nhanh khách hàng vào danh sách',
+                        child: IconButton(
+                          onPressed: (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty)
+                              ? _addCustomerQuick
+                              : null,
+                          icon: Icon(
+                            Icons.person_add,
+                            color: (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty)
+                                ? Colors.green
+                                : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 15),
                   _sectionTitle("THÔNG TIN MÁY"),

@@ -147,7 +147,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
 
       if (payMethod == "CÔNG NỢ") {
-        await db.insertDebt({
+        final debtData = {
           'personName': r.customerName,
           'phone': r.phone,
           'totalAmount': r.price,
@@ -156,7 +156,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           'status': "ACTIVE",
           'createdAt': DateTime.now().millisecondsSinceEpoch,
           'note': "Nợ tiền sửa máy: ${r.model}",
-        });
+          'linkedId': r.firestoreId,
+        };
+        await db.insertDebt(debtData);
+        // Sync debt lên cloud
+        await FirestoreService.addDebtCloud(debtData);
       }
     }
 

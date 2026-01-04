@@ -289,7 +289,7 @@ class _DebtViewState extends State<DebtView>
                 }
 
                 // 1. Lưu lịch sử chi tiết
-                await db.insertDebtPayment({
+                final paymentData = {
                   'firestoreId': "pay_${now}_${user?.uid}",
                   'debtId': debt['id'],
                   'debtFirestoreId': debt['firestoreId'],
@@ -297,7 +297,10 @@ class _DebtViewState extends State<DebtView>
                   'paidAt': now,
                   'paymentMethod': method,
                   'createdBy': userName,
-                });
+                };
+                await db.insertDebtPayment(paymentData);
+                // Sync debt payment lên cloud
+                await FirestoreService.addDebtPaymentCloud(paymentData);
 
                 // 2. CẬP NHẬT SỐ TIỀN ĐÃ TRẢ
                 await db.updateDebtPaid(debt['id'], payAmount);
