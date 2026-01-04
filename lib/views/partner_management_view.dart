@@ -17,6 +17,9 @@ import '../services/supplier_payment_service.dart';
 import '../services/repair_partner_payment_service.dart';
 import '../services/user_service.dart';
 import '../widgets/validated_text_field.dart';
+import '../constants/partner_constants.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 class PartnerManagementView extends StatefulWidget {
   const PartnerManagementView({super.key});
@@ -50,9 +53,31 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
     _loadData();
   }
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  String _normalizePaymentMethod(String? raw) {
+    final value = (raw ?? '').trim().toUpperCase();
+    if (PartnerConstants.paymentMethods.contains(value)) return value;
+    return value.isEmpty ? 'KHÁC' : value;
+  }
+
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
+      // Clear old data to avoid duplicate accumulation on refresh
+      _repairPartners = [];
+      _partnerImportHistory = [];
+      _partnerPayments = [];
+      _suppliers = [];
+      _supplierImportHistory = [];
+      _supplierProductPrices = [];
+      _supplierPayments = [];
+      _supplierDebts = [];
+
       // Load repair partners
       final partnerService = RepairPartnerService();
       _repairPartners = await partnerService.getRepairPartners();
@@ -89,9 +114,10 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
 
       // Load debts for suppliers (SHOP_OWES type)
       _supplierDebts = await _db.getAllDebts();
-      _supplierDebts = _supplierDebts.where((debt) => 
-        debt['type'] == 'SHOP_OWES' && debt['status'] != 'paid'
-      ).toList();
+      _supplierDebts = _supplierDebts.where((debt) {
+        final status = debt['status']?.toString().toLowerCase();
+        return debt['type'] == 'SHOP_OWES' && status != 'paid';
+      }).toList();
 
     } catch (e) {
       debugPrint('Error loading data: $e');
@@ -103,11 +129,16 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('QUẢN LÝ ĐỐI TÁC & NHÀ CUNG CẤP'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
+        title: Text('QUẢN LÝ ĐỐI TÁC & NHÀ CUNG CẤP', style: AppTextStyles.headline6.copyWith(color: AppColors.onPrimary)),
         bottom: TabBar(
           controller: _tabController,
-          labelStyle: TextStyle(fontSize: 12),
+          labelStyle: AppTextStyles.body2.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w700),
+          unselectedLabelStyle: AppTextStyles.body2.copyWith(color: AppColors.onPrimary.withOpacity(0.7)),
+          indicatorColor: AppColors.onPrimary,
           tabs: const [
             Tab(text: 'ĐỐI TÁC SỬA CHỮA'),
             Tab(text: 'NHÀ CUNG CẤP'),
@@ -126,6 +157,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       floatingActionButton: FloatingActionButton(
         mini: true,
         onPressed: _showAddDialog,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.onPrimary,
         child: const Icon(Icons.add),
       ),
     );
@@ -308,7 +341,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
     final totalPaid = _partnerPayments.fold<int>(0, (sum, p) => sum + p.amount);
     final paymentStats = <String, int>{};
     for (var p in _partnerPayments) {
-      paymentStats[p.paymentMethod] = (paymentStats[p.paymentMethod] ?? 0) + p.amount;
+      final method = _normalizePaymentMethod(p.paymentMethod);
+      paymentStats[method] = (paymentStats[method] ?? 0) + p.amount;
     }
 
     return SingleChildScrollView(
@@ -363,7 +397,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
     
     final paymentStats = <String, int>{};
     for (var p in _supplierPayments) {
-      paymentStats[p.paymentMethod] = (paymentStats[p.paymentMethod] ?? 0) + p.amount;
+      final method = _normalizePaymentMethod(p.paymentMethod);
+      paymentStats[method] = (paymentStats[method] ?? 0) + p.amount;
     }
 
     return SingleChildScrollView(
@@ -460,19 +495,36 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Thêm đối tác sửa chữa'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ValidatedTextField(controller: nameCtrl, label: 'Tên đối tác *'),
-            ValidatedTextField(controller: phoneCtrl, label: 'Số điện thoại'),
-            ValidatedTextField(controller: noteCtrl, label: 'Ghi chú'),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ValidatedTextField(controller: nameCtrl, label: 'Tên đối tác *', required: true),
+              ValidatedTextField(controller: phoneCtrl, label: 'Số điện thoại'),
+              ValidatedTextField(controller: noteCtrl, label: 'Ghi chú'),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
           ElevatedButton(
             onPressed: () async {
-              if (nameCtrl.text.isEmpty) return;
+              if (nameCtrl.text.trim().isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Vui lòng nhập tên đối tác')),
+                );
+                return;
+              }
+              if (phoneCtrl.text.trim().isNotEmpty) {
+                try {
+                  UserService.validatePhone(phoneCtrl.text.trim());
+                } catch (e) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Số điện thoại không hợp lệ: $e')),
+                  );
+                  return;
+                }
+              }
               final service = RepairPartnerService();
               final partner = RepairPartner(
                 name: nameCtrl.text.trim().toUpperCase(),
@@ -501,14 +553,16 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Thêm nhà cung cấp'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ValidatedTextField(controller: nameCtrl, label: 'Tên nhà cung cấp *'),
-            ValidatedTextField(controller: phoneCtrl, label: 'Số điện thoại'),
-            ValidatedTextField(controller: emailCtrl, label: 'Email'),
-            ValidatedTextField(controller: addressCtrl, label: 'Địa chỉ'),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ValidatedTextField(controller: nameCtrl, label: 'Tên nhà cung cấp *', required: true),
+              ValidatedTextField(controller: phoneCtrl, label: 'Số điện thoại'),
+              ValidatedTextField(controller: emailCtrl, label: 'Email'),
+              ValidatedTextField(controller: addressCtrl, label: 'Địa chỉ'),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
@@ -522,6 +576,17 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
               }
               
               try {
+                if (phoneCtrl.text.trim().isNotEmpty) {
+                  try {
+                    UserService.validatePhone(phoneCtrl.text.trim());
+                  } catch (e) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text('Số điện thoại không hợp lệ: $e')),
+                    );
+                    return;
+                  }
+                }
+
                 final service = SupplierService();
                 final supplier = Supplier(
                   name: nameCtrl.text.trim().toUpperCase(),
@@ -562,10 +627,122 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
   }
 
   void _showEditPartnerDialog(RepairPartner partner) {
-    // Similar to add, but pre-fill
+    final nameCtrl = TextEditingController(text: partner.name);
+    final phoneCtrl = TextEditingController(text: partner.phone ?? '');
+    final noteCtrl = TextEditingController(text: partner.note ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Chỉnh sửa đối tác sửa chữa'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ValidatedTextField(controller: nameCtrl, label: 'Tên đối tác *', required: true),
+              ValidatedTextField(controller: phoneCtrl, label: 'Số điện thoại'),
+              ValidatedTextField(controller: noteCtrl, label: 'Ghi chú'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameCtrl.text.trim().isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Vui lòng nhập tên đối tác')),
+                );
+                return;
+              }
+              if (phoneCtrl.text.trim().isNotEmpty) {
+                try {
+                  UserService.validatePhone(phoneCtrl.text.trim());
+                } catch (e) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Số điện thoại không hợp lệ: $e')),
+                  );
+                  return;
+                }
+              }
+
+              final service = RepairPartnerService();
+              final updated = partner.copyWith(
+                name: nameCtrl.text.trim().toUpperCase(),
+                phone: phoneCtrl.text.trim(),
+                note: noteCtrl.text.trim(),
+              );
+              await service.updateRepairPartner(updated);
+              await _loadData();
+              if (mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showEditSupplierDialog(Supplier supplier) {
-    // Similar to add, but pre-fill
+    final nameCtrl = TextEditingController(text: supplier.name);
+    final phoneCtrl = TextEditingController(text: supplier.phone ?? '');
+    final emailCtrl = TextEditingController(text: supplier.email ?? '');
+    final addressCtrl = TextEditingController(text: supplier.address ?? '');
+    final noteCtrl = TextEditingController(text: supplier.note ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Chỉnh sửa nhà cung cấp'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ValidatedTextField(controller: nameCtrl, label: 'Tên nhà cung cấp *', required: true),
+              ValidatedTextField(controller: phoneCtrl, label: 'Số điện thoại'),
+              ValidatedTextField(controller: emailCtrl, label: 'Email'),
+              ValidatedTextField(controller: addressCtrl, label: 'Địa chỉ'),
+              ValidatedTextField(controller: noteCtrl, label: 'Ghi chú'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameCtrl.text.trim().isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Vui lòng nhập tên nhà cung cấp')),
+                );
+                return;
+              }
+              if (phoneCtrl.text.trim().isNotEmpty) {
+                try {
+                  UserService.validatePhone(phoneCtrl.text.trim());
+                } catch (e) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Số điện thoại không hợp lệ: $e')),
+                  );
+                  return;
+                }
+              }
+
+              final service = SupplierService();
+              final updated = supplier.copyWith(
+                name: nameCtrl.text.trim().toUpperCase(),
+                phone: phoneCtrl.text.trim(),
+                email: emailCtrl.text.trim(),
+                address: addressCtrl.text.trim(),
+                note: noteCtrl.text.trim(),
+              );
+              await service.updateSupplier(updated);
+              await _loadData();
+              if (mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
   }
 }

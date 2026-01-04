@@ -251,6 +251,17 @@ class _FastStockInViewState extends State<FastStockInView> {
       return;
     }
 
+    // Check for duplicate IMEI
+    final imeiToCheck = imeiCtrl.text.trim();
+    if (imeiToCheck.isNotEmpty) {
+      final dbInstance = await db.database;
+      final existingProducts = await dbInstance.query('products', where: 'imei = ?', whereArgs: [imeiToCheck]);
+      if (existingProducts.isNotEmpty) {
+        NotificationService.showSnackBar("IMEI đã tồn tại trong kho!", color: Colors.red);
+        return;
+      }
+    }
+
     final cost = _parseMoneyWithK(costCtrl.text);
     if (cost <= 0) {
       NotificationService.showSnackBar("Vui lòng nhập giá nhập hợp lệ!", color: Colors.red);
@@ -737,7 +748,8 @@ class _FastStockInViewState extends State<FastStockInView> {
             Text('IMEI/Serial *', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
             TextField(
               controller: imeiCtrl,
-              inputFormatters: [UpperCaseTextFormatter(), LengthLimitingTextInputFormatter(5)],
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(5)],
               style: const TextStyle(fontSize: 11),
               decoration: InputDecoration(
                 hintText: 'Nhập 5 số cuối IMEI (bắt buộc)',

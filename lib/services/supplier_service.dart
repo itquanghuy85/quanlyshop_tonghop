@@ -1,4 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../data/db_helper.dart';
 import '../models/supplier_model.dart';
 import '../models/supplier_import_history_model.dart';
@@ -12,26 +14,99 @@ class SupplierService {
   // Supplier CRUD
   Future<List<Supplier>> getSuppliers() async {
     final shopId = await UserService.getCurrentShopId();
+    debugPrint('SupplierService.getSuppliers: shopId=$shopId');
+
     final data = await db.getSuppliers();
-    return data
-        .where((s) => s['shopId'] == shopId)
-        .map((s) => Supplier.fromMap(s))
-        .toList();
+    debugPrint('SupplierService.getSuppliers: local data count=${data.length}');
+    final List<Supplier> suppliers = [];
+
+    // Super admin: return all suppliers without filtering
+    if (shopId == null) {
+      debugPrint('SupplierService.getSuppliers: super admin mode, returning all');
+      return data.map((s) => Supplier.fromMap({...s, 'shopId': s['shopId'] ?? ''})).toList();
+    }
+
+    for (final s in data) {
+      String? supplierShopId = s['shopId'] as String?;
+      debugPrint('SupplierService.getSuppliers: checking supplier ${s['name']}, shopId=$supplierShopId');
+
+      // Normalize empty or missing shopId to current shop
+      if (supplierShopId == null || supplierShopId.isEmpty) {
+        final id = s['id'] as int?;
+        if (id != null) {
+          await db.updateSupplier(id, {'shopId': shopId});
+          supplierShopId = shopId;
+          debugPrint('SupplierService.getSuppliers: normalized shopId for ${s['name']}');
+        }
+      }
+
+      // Include supplier if shopId matches OR if we just normalized it
+      if (supplierShopId == shopId) {
+        suppliers.add(Supplier.fromMap({...s, 'shopId': supplierShopId}));
+      }
+    }
+    debugPrint('SupplierService.getSuppliers: after filter count=${suppliers.length}');
+
+    // Fallback: if local DB is empty, pull from Firestore and cache locally
+    if (suppliers.isEmpty) {
+      try {
+        Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('suppliers');
+        if (shopId != null) {
+          query = query.where('shopId', isEqualTo: shopId);
+        }
+        final snapshot = await query.get();
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          final mapped = {
+            ...data,
+            'id': data['id'],
+            'firestoreId': doc.id,
+            'shopId': data['shopId'] ?? shopId ?? '',
+            'active': (data['active'] == 1 || data['active'] == true) ? 1 : 0,
+            'favorite': (data['favorite'] == 1 || data['favorite'] == true) ? 1 : 0,
+            'createdAt': data['createdAt'] ?? DateTime.now().millisecondsSinceEpoch,
+            'updatedAt': data['updatedAt'] ?? DateTime.now().millisecondsSinceEpoch,
+          };
+          // Cache locally for offline use
+          await db.insertSupplier(mapped);
+          suppliers.add(Supplier.fromMap(mapped));
+        }
+      } catch (_) {}
+    }
+
+    return suppliers;
   }
 
   Future<Supplier?> addSupplier(Supplier supplier) async {
+    final shopId = await UserService.getCurrentShopId();
+    debugPrint('SupplierService.addSupplier: shopId=$shopId, name=${supplier.name}');
+    
     final supplierMap = supplier.toMap();
-    supplierMap['shopId'] = await UserService.getCurrentShopId();
+    supplierMap['shopId'] = shopId ?? '';
     supplierMap['createdAt'] = DateTime.now().millisecondsSinceEpoch;
     supplierMap['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
+    supplierMap['favorite'] = supplier.favorite ? 1 : 0;
+    supplierMap['active'] = supplier.active ? 1 : 0;
+    // Remove null id to let DB auto-generate
+    supplierMap.remove('id');
 
     final id = await db.insertSupplier(supplierMap);
+    debugPrint('SupplierService.addSupplier: local insert id=$id');
+    
     if (id > 0) {
-      final firestoreId = await FirestoreService.addSupplier(supplierMap);
-      if (firestoreId != null) {
-        await db.updateSupplier(id, {'firestoreId': firestoreId});
-        return supplier.copyWith(id: id);
+      // Try Firestore but don't fail if it doesn't work
+      try {
+        final firestoreId = await FirestoreService.addSupplier({...supplierMap, 'id': id});
+        if (firestoreId != null) {
+          await db.updateSupplier(id, {'firestoreId': firestoreId});
+          debugPrint('SupplierService.addSupplier: firestoreId=$firestoreId');
+          return supplier.copyWith(id: id, firestoreId: firestoreId, shopId: shopId ?? '');
+        }
+      } catch (e) {
+        debugPrint('SupplierService.addSupplier: Firestore error $e');
       }
+      // Return supplier even if Firestore fails
+      return supplier.copyWith(id: id, shopId: shopId ?? '');
     }
     return null;
   }
@@ -39,6 +114,10 @@ class SupplierService {
   Future<bool> updateSupplier(Supplier supplier) async {
     final supplierMap = supplier.toMap();
     supplierMap['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
+    supplierMap['favorite'] = supplier.favorite ? 1 : 0;
+    if (supplier.firestoreId != null) {
+      supplierMap['firestoreId'] = supplier.firestoreId;
+    }
 
     final result = await db.updateSupplier(supplier.id!, supplierMap);
     if (result > 0) {

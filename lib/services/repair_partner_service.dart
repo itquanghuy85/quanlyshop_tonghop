@@ -4,6 +4,8 @@ import '../models/repair_partner_model.dart';
 import '../models/partner_repair_history_model.dart';
 import '../services/firestore_service.dart';
 import '../services/user_service.dart';
+import '../services/audit_service.dart';
+import '../core/utils/money_utils.dart';
 
 class RepairPartnerService {
   final db = DBHelper();
@@ -29,7 +31,7 @@ class RepairPartnerService {
       final firestoreId = await FirestoreService.addRepairPartner(partnerMap);
       if (firestoreId != null) {
         await db.updateRepairPartner(id, {'firestoreId': firestoreId});
-        return partner.copyWith(id: id);
+        return partner.copyWith(id: id, firestoreId: firestoreId);
       }
     }
     return null;
@@ -38,6 +40,10 @@ class RepairPartnerService {
   Future<bool> updateRepairPartner(RepairPartner partner) async {
     final partnerMap = partner.toMap();
     partnerMap['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
+    // Ensure firestoreId present for cloud update
+    if (partner.firestoreId != null) {
+      partnerMap['firestoreId'] = partner.firestoreId;
+    }
 
     final result = await db.updateRepairPartner(partner.id!, partnerMap);
     if (result > 0) {
@@ -83,7 +89,21 @@ class RepairPartnerService {
   }
 
   Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId) async {
-    return await db.getPartnerRepairStats(partnerId);
+    final dbStats = await db.getPartnerRepairStats(partnerId);
+    // Also get total paid from payments table
+    final shopId = await UserService.getCurrentShopId();
+    final dbInstance = await db.database;
+    final payments = await dbInstance.rawQuery(
+      'SELECT COALESCE(SUM(amount), 0) as totalPaid FROM repair_partner_payments WHERE partnerId = ? AND shopId = ? AND deleted = 0',
+      [partnerId, shopId],
+    );
+    final totalPaid = payments.isNotEmpty ? (payments.first['totalPaid'] as int? ?? 0) : 0;
+    return {
+      ...?dbStats,
+      'totalOrders': dbStats?['totalRepairs'] ?? 0,
+      'totalCost': dbStats?['totalCost'] ?? 0,
+      'totalPaid': totalPaid,
+    };
   }
 
   // Combined operation for repair order with partner
@@ -96,6 +116,7 @@ class RepairPartnerService {
     required String issue,
     String? repairContent,
   }) async {
+    final shopId = await UserService.getCurrentShopId() ?? '';
     final history = PartnerRepairHistory(
       repairOrderId: repairOrderId,
       partnerId: partnerId,
@@ -105,10 +126,35 @@ class RepairPartnerService {
       partnerCost: partnerCost,
       repairContent: repairContent,
       sentAt: DateTime.now().millisecondsSinceEpoch,
-      shopId: await UserService.getCurrentShopId() ?? '',
+      shopId: shopId,
     );
 
     final result = await addPartnerRepairHistory(history);
+    
+    // Ghi nhật ký hệ thống khi tạo chi phí gửi sửa
+    if (result != null) {
+      // Lấy tên đối tác
+      final partners = await db.getRepairPartners();
+      final partner = partners.firstWhere((p) => p['id'] == partnerId, orElse: () => {});
+      final partnerName = partner['name'] ?? 'N/A';
+      
+      await AuditService.logAction(
+        action: 'PARTNER_REPAIR_COST',
+        entityType: 'partner_repair_history',
+        entityId: repairOrderId,
+        summary: 'Gửi sửa đối tác $partnerName: ${MoneyUtils.formatVND(partnerCost)} - $deviceModel',
+        payload: {
+          'repairOrderId': repairOrderId,
+          'partnerId': partnerId,
+          'partnerName': partnerName,
+          'partnerCost': partnerCost,
+          'customerName': customerName,
+          'deviceModel': deviceModel,
+          'issue': issue,
+        },
+      );
+    }
+    
     return result != null;
   }
 }

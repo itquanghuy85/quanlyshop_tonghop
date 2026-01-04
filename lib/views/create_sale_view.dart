@@ -11,7 +11,6 @@ import '../services/customer_service.dart';
 import '../services/sync_service.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
-import 'partner_management_view.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -516,9 +515,6 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         title: Tooltip(message: widget.editSale != null ? "Chỉnh sửa thông tin đơn bán hàng" : "Chọn sản phẩm, nhập thông tin khách và hoàn tất đơn bán.", child: Text(widget.editSale != null ? "SỬA ĐƠN BÁN HÀNG" : "TẠO ĐƠN BÁN HÀNG", style: AppTextStyles.headline6.copyWith(color: AppColors.onPrimary))), 
         backgroundColor: AppColors.primary, foregroundColor: AppColors.onPrimary,
         automaticallyImplyLeading: true,
-        actions: [
-          IconButton(onPressed: () { Navigator.push(context, MaterialPageRoute(builder: (_) => PartnerManagementView())); }, icon: const Icon(Icons.business_center_rounded)),
-        ],
       ),
       body: _isLoading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -782,20 +778,6 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => PartnerManagementView()),
-                    );
-                  },
-                  icon: const Icon(Icons.business_center, size: 18),
-                  label: const Text('TẠO NHÀ CUNG CẤP'),
-                  style: AppButtonStyles.elevatedButtonStyle,
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {

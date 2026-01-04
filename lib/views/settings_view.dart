@@ -7,7 +7,6 @@ import '../data/db_helper.dart';
 import '../services/sync_service.dart';
 import 'staff_permissions_view.dart';
 import 'shop_settings_view.dart';
-import 'partner_management_view.dart';
 import 'debt_debug_view.dart';
 
 class SettingsView extends StatefulWidget {
@@ -244,17 +243,6 @@ class _SettingsViewState extends State<SettingsView> {
                 title: const Text("THÔNG TIN CỬA HÀNG", style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold)),
                 subtitle: const Text("Cập nhật logo, thông tin, địa chỉ và quản lý thành viên", style: TextStyle(fontSize: 11)),
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopSettingsView())),
-              ),
-            ),
-            const SizedBox(height: 15),
-            Card(
-              color: Colors.orange.shade50,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: Colors.orange.shade200)),
-              child: ListTile(
-                leading: const Icon(Icons.business, color: Colors.orange),
-                title: const Text("ĐỐI TÁC SỬA CHỮA", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-                subtitle: const Text("Quản lý đối tác ngoài, gửi máy sửa chữa và theo dõi chi phí", style: TextStyle(fontSize: 11)),
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PartnerManagementView())),
               ),
             ),
             const SizedBox(height: 15),

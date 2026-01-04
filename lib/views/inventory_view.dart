@@ -6,9 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../models/inventory_check_model.dart';
-import 'supplier_view.dart';
 import 'create_sale_view.dart';
-import 'partner_management_view.dart';
 import '../services/firestore_service.dart';
 import '../services/unified_printer_service.dart';
 import '../services/bluetooth_printer_service.dart';
@@ -16,6 +14,7 @@ import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
+import 'supplier_list_view.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../models/printer_types.dart';
@@ -934,9 +933,9 @@ class _InventoryViewState extends State<InventoryView> with TickerProviderStateM
             tooltip: 'Làm mới',
           ),
           TextButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PartnerManagementView())).then((_) => _refresh()),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupplierListView())),
             icon: Icon(Icons.business_center, size: 18, color: AppColors.onSurface),
-            label: Text('Đối tác & NCC', style: AppTextStyles.caption.copyWith(color: AppColors.onSurface)),
+            label: Text('Nhà cung cấp', style: AppTextStyles.caption.copyWith(color: AppColors.onSurface)),
             style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
           ),
           IconButton(

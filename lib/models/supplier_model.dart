@@ -6,9 +6,11 @@ class Supplier {
   final String? address;
   final String? note;
   final bool active;
+  final bool favorite;
   final int createdAt;
   final int updatedAt;
   final String shopId;
+  final String? firestoreId;
 
   Supplier({
     this.id,
@@ -18,9 +20,11 @@ class Supplier {
     this.address,
     this.note,
     this.active = true,
+    this.favorite = false,
     int? createdAt,
     int? updatedAt,
     required this.shopId,
+    this.firestoreId,
   }) :
     createdAt = createdAt ?? DateTime.now().millisecondsSinceEpoch,
     updatedAt = updatedAt ?? DateTime.now().millisecondsSinceEpoch;
@@ -34,9 +38,11 @@ class Supplier {
       'address': address,
       'note': note,
       'active': active ? 1 : 0,
+      'favorite': favorite ? 1 : 0,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'shopId': shopId,
+      'firestoreId': firestoreId,
     };
   }
 
@@ -49,9 +55,11 @@ class Supplier {
       address: map['address'],
       note: map['note'],
       active: map['active'] == 1,
+      favorite: map['favorite'] == 1,
       createdAt: map['createdAt'],
       updatedAt: map['updatedAt'],
       shopId: map['shopId'],
+      firestoreId: map['firestoreId'],
     );
   }
 
@@ -63,9 +71,11 @@ class Supplier {
     String? address,
     String? note,
     bool? active,
+    bool? favorite,
     int? createdAt,
     int? updatedAt,
     String? shopId,
+    String? firestoreId,
   }) {
     return Supplier(
       id: id ?? this.id,
@@ -75,9 +85,11 @@ class Supplier {
       address: address ?? this.address,
       note: note ?? this.note,
       active: active ?? this.active,
+      favorite: favorite ?? this.favorite,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       shopId: shopId ?? this.shopId,
+      firestoreId: firestoreId ?? this.firestoreId,
     );
   }
 }

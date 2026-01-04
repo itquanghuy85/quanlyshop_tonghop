@@ -11,6 +11,7 @@ import 'revenue_view.dart';
 import 'inventory_view.dart';
 import 'fast_inventory_input_view.dart';
 import 'fast_inventory_check_view.dart';
+import 'supplier_list_view.dart';
 import 'quick_input_codes_view.dart';
 import 'sale_list_view.dart';
 import 'expense_view.dart';
@@ -35,7 +36,6 @@ import 'customer_management_view.dart';
 import 'parts_inventory_view.dart';
 import 'create_repair_order_view.dart';
 import 'about_developer_view.dart';
-import 'partner_management_view.dart';
 import '../data/db_helper.dart';
 import '../widgets/notification_badge.dart';
 import '../widgets/perpetual_calendar.dart';
@@ -999,20 +999,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _quickActionButton(
-                  "Đối tác & NCC",
-                  Icons.business_center,
-                  AppColors.secondary,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PartnerManagementView(),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -1039,17 +1025,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
             ),
             subtitle: "Tạo đơn sửa chữa mới với thông tin máy và khách.",
-          ),
-          _tabMenuItem(
-            "Đối tác & Nhà cung cấp",
-            Icons.business_center,
-            AppColors.secondary,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PartnerManagementView()),
-            ),
-            subtitle:
-                "Quản lý toàn diện đối tác sửa chữa và nhà cung cấp với lịch sử, thanh toán, thống kê.",
           ),
           _tabMenuItem(
             "Kho phụ tùng",
@@ -1090,15 +1065,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             subtitle: "Xem và quản lý danh sách sản phẩm trong kho.",
           ),
           _tabMenuItem(
-            "Quản lý đối tác & NCC",
+            "Nhà cung cấp",
             Icons.business_center,
-            AppColors.success,
+            AppColors.secondary,
             () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const PartnerManagementView()),
+              MaterialPageRoute(builder: (_) => const SupplierListView()),
             ),
-            subtitle:
-                "Quản lý toàn diện đối tác sửa chữa và nhà cung cấp với lịch sử, thanh toán, thống kê.",
+            subtitle: "Quản lý NCC, công nợ và lịch sử nhập.",
           ),
           _tabMenuItem(
             "Nhập kho siêu tốc",

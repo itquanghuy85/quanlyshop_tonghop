@@ -7,6 +7,7 @@ class RepairPartner {
   final int createdAt;
   final int updatedAt;
   final String shopId;
+  final String? firestoreId;
 
   RepairPartner({
     this.id,
@@ -17,6 +18,7 @@ class RepairPartner {
     int? createdAt,
     int? updatedAt,
     required this.shopId,
+    this.firestoreId,
   }) : 
     createdAt = createdAt ?? DateTime.now().millisecondsSinceEpoch,
     updatedAt = updatedAt ?? DateTime.now().millisecondsSinceEpoch;
@@ -31,6 +33,7 @@ class RepairPartner {
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'shopId': shopId,
+      'firestoreId': firestoreId,
     };
   }
 
@@ -44,6 +47,7 @@ class RepairPartner {
       createdAt: map['createdAt'],
       updatedAt: map['updatedAt'],
       shopId: map['shopId'],
+      firestoreId: map['firestoreId'],
     );
   }
 
@@ -56,6 +60,7 @@ class RepairPartner {
     int? createdAt,
     int? updatedAt,
     String? shopId,
+    String? firestoreId,
   }) {
     return RepairPartner(
       id: id ?? this.id,
@@ -66,6 +71,7 @@ class RepairPartner {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       shopId: shopId ?? this.shopId,
+      firestoreId: firestoreId ?? this.firestoreId,
     );
   }
 }

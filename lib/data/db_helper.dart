@@ -41,7 +41,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT UNIQUE, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, isSynced INTEGER DEFAULT 0)',
@@ -626,6 +626,9 @@ class DBHelper {
           final hasActive = cols.any(
             (c) => (c['name'] ?? c['name'.toString()]) == 'active',
           );
+          final hasFavorite = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'favorite',
+          );
           final hasUpdatedAt = cols.any(
             (c) => (c['name'] ?? c['name'.toString()]) == 'updatedAt',
           );
@@ -641,6 +644,10 @@ class DBHelper {
           if (!hasActive) {
             await db.execute('ALTER TABLE suppliers ADD COLUMN active INTEGER DEFAULT 1');
             debugPrint('DB: added active column to suppliers');
+          }
+          if (!hasFavorite) {
+            await db.execute('ALTER TABLE suppliers ADD COLUMN favorite INTEGER DEFAULT 0');
+            debugPrint('DB: added favorite column to suppliers');
           }
           if (!hasUpdatedAt) {
             await db.execute('ALTER TABLE suppliers ADD COLUMN updatedAt INTEGER');
@@ -979,22 +986,21 @@ class DBHelper {
   Future<int> deleteCustomerByPhone(String phone) async => (await database)
       .delete('customers', where: 'phone = ?', whereArgs: [phone]);
 
-  Future<int> insertSupplier(Map<String, dynamic> map) async =>
-      (await database).insert('suppliers', map);
+  Future<int> insertSupplier(Map<String, dynamic> map) async {
+    final dbInstance = await database;
+    try {
+      final id = await dbInstance.insert('suppliers', map, conflictAlgorithm: ConflictAlgorithm.replace);
+      debugPrint('DBHelper.insertSupplier: inserted id=$id, name=${map['name']}');
+      return id;
+    } catch (e) {
+      debugPrint('DBHelper.insertSupplier error: $e');
+      return 0;
+    }
+  }
   Future<List<Map<String, dynamic>>> getSuppliers() async {
     final db = await database;
     final res = await db.query('suppliers', orderBy: 'name ASC');
-    if (res.isEmpty) {
-      await db.insert('suppliers', {
-        'name': 'KHO TỔNG',
-        'contactPerson': 'QUANG HUY',
-        'phone': '0964095979',
-        'address': 'HÀ NỘI',
-        'items': 'ĐIỆN THOẠI, PHỤ KIỆN',
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
-      });
-      return await db.query('suppliers', orderBy: 'name ASC');
-    }
+    debugPrint('DBHelper.getSuppliers: found ${res.length} suppliers');
     return res;
   }
 
@@ -1767,8 +1773,8 @@ class DBHelper {
         '''
       SELECT
         COUNT(*) as totalRepairs,
-        SUM(partnerCost) as totalCost,
-        AVG(partnerCost) as avgCost,
+        COALESCE(SUM(partnerCost), 0) as totalCost,
+        COALESCE(AVG(partnerCost), 0) as avgCost,
         MAX(sentAt) as lastRepairDate
       FROM partner_repair_history
       WHERE partnerId = ?
@@ -1814,8 +1820,8 @@ class DBHelper {
         '''
       SELECT
         COUNT(DISTINCT sih.id) as totalImports,
-        SUM(sih.totalAmount) as totalImportValue,
-        SUM(sp.amount) as totalPaid
+        COALESCE(SUM(sih.totalAmount), 0) as totalImportValue,
+        COALESCE(SUM(sp.amount), 0) as totalPaid
       FROM supplier_import_history sih
       LEFT JOIN supplier_payments sp ON sih.supplierId = sp.supplierId
       WHERE sih.supplierId = ? AND sih.shopId = ?

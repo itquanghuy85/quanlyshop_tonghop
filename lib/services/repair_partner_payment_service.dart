@@ -78,4 +78,35 @@ class RepairPartnerPaymentService {
     }
     return stats;
   }
+
+  /// Get payments by partner ID as raw Map (for detail views)
+  Future<List<Map<String, dynamic>>> getPaymentsByPartnerId(int partnerId) async {
+    final shopId = await UserService.getCurrentShopId();
+    final maps = await _db.database.then((db) => db.query(
+      'repair_partner_payments',
+      where: 'partnerId = ? AND shopId = ? AND deleted = 0',
+      whereArgs: [partnerId, shopId],
+      orderBy: 'paidAt DESC',
+    ));
+    return maps;
+  }
+
+  /// Add a payment with simplified parameters
+  Future<int> addPayment({
+    required int partnerId,
+    required int amount,
+    required String paymentMethod,
+    String? note,
+  }) async {
+    final shopId = await UserService.getCurrentShopId() ?? '';
+    final payment = RepairPartnerPayment(
+      partnerId: partnerId,
+      amount: amount,
+      paidAt: DateTime.now().millisecondsSinceEpoch,
+      paymentMethod: paymentMethod,
+      note: note,
+      shopId: shopId,
+    );
+    return await addPartnerPayment(payment);
+  }
 }

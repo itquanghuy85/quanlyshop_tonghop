@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/repair_partner_model.dart';
 import '../services/repair_partner_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/validated_text_field.dart';
+import '../services/user_service.dart';
 
 class RepairPartnerListView extends StatefulWidget {
   const RepairPartnerListView({super.key});
@@ -13,6 +15,8 @@ class RepairPartnerListView extends StatefulWidget {
 
 class _RepairPartnerListViewState extends State<RepairPartnerListView> {
   final RepairPartnerService _service = RepairPartnerService();
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   List<RepairPartner> _partners = [];
   bool _isLoading = false;
   String _searchQuery = '';
@@ -32,6 +36,13 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
   void initState() {
     super.initState();
     _loadPartners();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPartners() async {
@@ -116,10 +127,15 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: ValidatedTextField(
-                controller: TextEditingController(text: _searchQuery),
+                controller: _searchController,
                 label: 'Tìm kiếm đối tác...',
                 icon: Icons.search,
-                onChanged: (value) => setState(() => _searchQuery = value),
+                onChanged: (value) {
+                  _searchDebounce?.cancel();
+                  _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+                    setState(() => _searchQuery = value);
+                  });
+                },
               ),
             ),
 
@@ -189,6 +205,17 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
                 fontSize: 12,
               ),
             ),
+            if (partner.firestoreId == null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: const [
+                    Icon(Icons.sync_problem, size: 14, color: Colors.orange),
+                    SizedBox(width: 4),
+                    Text('Chưa đồng bộ', style: TextStyle(fontSize: 12, color: Colors.orange)),
+                  ],
+                ),
+              ),
           ],
         ),
         trailing: PopupMenuButton<String>(
@@ -296,6 +323,15 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
                 return;
               }
 
+              if (phoneController.text.trim().isNotEmpty) {
+                try {
+                  UserService.validatePhone(phoneController.text.trim());
+                } catch (e) {
+                  NotificationService.showSnackBar('Số điện thoại không hợp lệ: $e', color: Colors.red);
+                  return;
+                }
+              }
+
               final partner = RepairPartner(
                 name: nameController.text.trim(),
                 phone: phoneController.text.trim(),
@@ -362,6 +398,15 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
                 return;
               }
 
+              if (phoneController.text.trim().isNotEmpty) {
+                try {
+                  UserService.validatePhone(phoneController.text.trim());
+                } catch (e) {
+                  NotificationService.showSnackBar('Số điện thoại không hợp lệ: $e', color: Colors.red);
+                  return;
+                }
+              }
+
               final updatedPartner = partner.copyWith(
                 name: nameController.text.trim(),
                 phone: phoneController.text.trim(),
@@ -403,7 +448,38 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
   }
 
   void _showPartnerDetails(BuildContext context, RepairPartner partner) {
-    // TODO: Implement partner details view with repair history
-    NotificationService.showSnackBar('Tính năng xem chi tiết đối tác đang được phát triển');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(partner.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (partner.phone?.isNotEmpty ?? false) Text('SĐT: ${partner.phone}'),
+            if (partner.note?.isNotEmpty ?? false) ...[
+              const SizedBox(height: 8),
+              Text('Ghi chú:'),
+              Text(partner.note!),
+            ],
+            const SizedBox(height: 12),
+            Text(
+              partner.active ? 'Trạng thái: Đang hoạt động' : 'Trạng thái: Tạm ngừng',
+              style: TextStyle(color: partner.active ? Colors.green : Colors.red),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đóng')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showEditPartnerDialog(context, partner);
+            },
+            child: const Text('Chỉnh sửa'),
+          ),
+        ],
+      ),
+    );
   }
 }

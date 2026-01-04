@@ -13,6 +13,7 @@ import '../utils/money_utils.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import 'fast_stock_in_view.dart';
+import '../models/debt_model.dart';
 
 class StockInView extends StatefulWidget {
   final Map<String, dynamic>? prefilledData;
@@ -42,8 +43,12 @@ class _StockInViewState extends State<StockInView> {
   final notesCtrl = TextEditingController();
   DateTime selectedDate = DateTime.now();
 
-  // Payment method
-  String selectedPaymentMethod = 'Công nợ';
+  // Payment method - UPPERCASE to match fast_stock_in_view
+  String selectedPaymentMethod = 'CÔNG NỢ';
+
+  // EventBus subscription for memory leak prevention
+  late final Stream<String> _eventStream;
+  bool _eventListenerAttached = false;
 
   // Focus nodes
   final brandF = FocusNode();
@@ -83,8 +88,11 @@ class _StockInViewState extends State<StockInView> {
     _loadSuppliers();
     imeiCtrl.addListener(_onImeiChanged);
 
-    // Listen for supplier changes
-    EventBus().stream.listen((event) {
+    // Listen for supplier changes - store reference for cleanup
+    _eventStream = EventBus().stream;
+    _eventListenerAttached = true;
+    _eventStream.listen((event) {
+      if (!_eventListenerAttached) return;
       if (event == 'suppliers_changed' && mounted) {
         _loadSuppliers();
       }
@@ -185,6 +193,8 @@ class _StockInViewState extends State<StockInView> {
     // CurrencyTextField handles formatting - no format listeners to remove
     supplierCtrl.removeListener(() => _onFieldChanged(supplierCtrl, (changed) => _supplierChanged = changed));
     notesCtrl.removeListener(() => _onFieldChanged(notesCtrl, (changed) => _notesChanged = changed));
+    // Disable EventBus listener to prevent memory leak
+    _eventListenerAttached = false;
     // Dispose controllers and focus nodes
     typeCtrl.dispose();
     brandCtrl.dispose();
@@ -428,8 +438,30 @@ class _StockInViewState extends State<StockInView> {
         linkedSummary: product.name,
       );
 
-      // Thêm chi phí nhập kho nếu thanh toán bằng tiền
-      if (selectedPaymentMethod == 'TIỀN MẶT' || selectedPaymentMethod == 'CHUYỂN KHOẢN') {
+      // Chi phí/công nợ NCC
+      if (selectedPaymentMethod == 'CÔNG NỢ') {
+        final supplierData = suppliers.firstWhere((s) => s['name'] == supplierCtrl.text, orElse: () => {});
+        final supplierPhone = supplierData['phone']?.toString() ?? '';
+        final debt = Debt(
+          personName: supplierCtrl.text,
+          phone: supplierPhone,
+          totalAmount: product.cost * product.quantity,
+          paidAmount: 0,
+          type: 'SHOP_OWES',
+          status: 'ACTIVE',
+          createdAt: ts,
+          note: 'Công nợ nhập hàng ${product.name}',
+          linkedId: product.firestoreId,
+        );
+        debt.firestoreId = "debt_${ts}_${supplierPhone.isNotEmpty ? supplierPhone : supplierCtrl.text.hashCode}";
+        try {
+          await db.upsertDebt(debt);
+          await FirestoreService.addDebtCloud(debt.toMap());
+        } catch (e) {
+          debugPrint('StockIn: Debt creation error: $e');
+          NotificationService.showSnackBar("Lỗi tạo công nợ: $e", color: Colors.red);
+        }
+      } else {
         await _addStockInExpense(product);
       }
 
@@ -843,7 +875,7 @@ class _StockInViewState extends State<StockInView> {
             ),
             const SizedBox(height: 8),
 
-            // Payment method
+            // Payment method - values must match UPPERCASE constants
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -853,7 +885,7 @@ class _StockInViewState extends State<StockInView> {
                     Expanded(
                       child: RadioListTile<String>(
                         title: const Text('Công nợ', style: TextStyle(fontSize: 12)),
-                        value: 'Công nợ',
+                        value: 'CÔNG NỢ',
                         groupValue: selectedPaymentMethod,
                         onChanged: (value) => setState(() => selectedPaymentMethod = value!),
                         dense: true,
@@ -863,7 +895,7 @@ class _StockInViewState extends State<StockInView> {
                     Expanded(
                       child: RadioListTile<String>(
                         title: const Text('Tiền mặt', style: TextStyle(fontSize: 12)),
-                        value: 'Tiền mặt',
+                        value: 'TIỀN MẶT',
                         groupValue: selectedPaymentMethod,
                         onChanged: (value) => setState(() => selectedPaymentMethod = value!),
                         dense: true,
@@ -873,7 +905,7 @@ class _StockInViewState extends State<StockInView> {
                     Expanded(
                       child: RadioListTile<String>(
                         title: const Text('Chuyển khoản', style: TextStyle(fontSize: 12)),
-                        value: 'Chuyển khoản',
+                        value: 'CHUYỂN KHOẢN',
                         groupValue: selectedPaymentMethod,
                         onChanged: (value) => setState(() => selectedPaymentMethod = value!),
                         dense: true,
@@ -910,10 +942,7 @@ class _StockInViewState extends State<StockInView> {
               controller: notesCtrl,
               label: 'Ghi chú',
               focusNode: notesF,
-              icon: Icons.note,
-              hasChanged: _notesChanged,
             ),
-            const SizedBox(height: 16),
 
             // Save button
             ElevatedButton(

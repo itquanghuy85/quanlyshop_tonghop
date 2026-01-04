@@ -474,6 +474,7 @@ class _SupplierViewState extends State<SupplierView> {
     final isActive = supplier['active'] == 1;
     final totalAmount = supplier['totalAmount'] ?? 0;
     final importCount = supplier['importCount'] ?? 0;
+    final synced = supplier['firestoreId'] != null;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -547,6 +548,23 @@ class _SupplierViewState extends State<SupplierView> {
                       ),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  if (!synced)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.sync_problem, size: 12, color: AppColors.warning),
+                          const SizedBox(width: 4),
+                          Text('Chưa đồng bộ', style: AppTextStyles.caption.copyWith(color: AppColors.warning)),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ],
