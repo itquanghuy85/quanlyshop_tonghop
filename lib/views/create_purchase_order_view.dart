@@ -11,6 +11,7 @@ import '../services/firestore_service.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
+import '../services/supplier_service.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 
@@ -23,6 +24,7 @@ class CreatePurchaseOrderView extends StatefulWidget {
 
 class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
   final db = DBHelper();
+  final supplierService = SupplierService();
   final _formKey = GlobalKey<FormState>();
 
   // Controllers
@@ -59,12 +61,12 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
 
   Future<void> _loadData() async {
     try {
-      final suppliers = await db.getSuppliers();
+      final suppliers = await supplierService.getSuppliers();
       final user = FirebaseAuth.instance.currentUser;
       final userData = await UserService.getUserInfo(user?.uid ?? '');
 
       setState(() {
-        _suppliers = suppliers;
+        _suppliers = suppliers.map((s) => s.toMap()).toList();
         _currentUserName = userData['name'] ?? 'Unknown';
         _isLoading = false;
       });

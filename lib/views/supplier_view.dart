@@ -6,6 +6,7 @@ import '../data/db_helper.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/event_bus.dart';
+import '../services/supplier_service.dart';
 import 'fast_stock_in_view.dart';
 import 'supplier_details_dialog.dart';
 import '../theme/app_colors.dart';
@@ -22,9 +23,12 @@ class SupplierView extends StatefulWidget {
 class _SupplierViewState extends State<SupplierView> {
   StreamSubscription<String>? _subscription;
   final db = DBHelper();
+  final supplierService = SupplierService();
   List<Map<String, dynamic>> _suppliers = [];
   bool _isLoading = true;
   bool _isAdmin = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -37,6 +41,7 @@ class _SupplierViewState extends State<SupplierView> {
   @override
   void dispose() {
     _subscription?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -56,11 +61,22 @@ class _SupplierViewState extends State<SupplierView> {
 
   Future<void> _refresh() async {
     setState(() => _isLoading = true);
-    final data = await db.getSuppliers();
+    final suppliers = await supplierService.getSuppliers();
     setState(() {
-      _suppliers = data;
+      _suppliers = suppliers.map((s) => s.toMap()).toList();
       _isLoading = false;
     });
+  }
+
+  List<Map<String, dynamic>> get _filteredSuppliers {
+    if (_searchQuery.isEmpty) return _suppliers;
+    return _suppliers.where((supplier) {
+      final name = supplier['name']?.toString().toLowerCase() ?? '';
+      final contact = supplier['contactPerson']?.toString().toLowerCase() ?? '';
+      final phone = supplier['phone']?.toString().toLowerCase() ?? '';
+      final query = _searchQuery.toLowerCase();
+      return name.contains(query) || contact.contains(query) || phone.contains(query);
+    }).toList();
   }
 
   Future<void> _confirmDeleteSupplier(Map<String, dynamic> s) async {
@@ -68,7 +84,12 @@ class _SupplierViewState extends State<SupplierView> {
 
     if (!_isAdmin) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Chỉ tài khoản QUẢN LÝ mới được xóa nhà cung cấp')),
+        SnackBar(
+          content: Text('Chỉ tài khoản QUẢN LÝ mới được xóa nhà cung cấp', style: AppTextStyles.body2.copyWith(color: AppColors.onError)),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       );
       return;
     }
@@ -76,13 +97,38 @@ class _SupplierViewState extends State<SupplierView> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("XÓA NHÀ CUNG CẤP"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
+            const SizedBox(width: 12),
+            Text("XÓA NHÀ CUNG CẤP", style: AppTextStyles.headline6.copyWith(color: AppColors.error)),
+          ],
+        ),
         content: Text(
           "Bạn chắc chắn muốn xóa nhà cung cấp \"${s['name']}\" khỏi danh sách? Các sản phẩm cũ vẫn giữ nguyên thông tin NCC dạng chữ.",
+          style: AppTextStyles.body2,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("HỦY")),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("XÓA")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.onSurface.withOpacity(0.7),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            child: Text("HỦY", style: AppTextStyles.button),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.onError,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text("XÓA", style: AppTextStyles.button),
+          ),
         ],
       ),
     );
@@ -94,7 +140,19 @@ class _SupplierViewState extends State<SupplierView> {
       }
       await db.deleteSupplier(s['id'] as int);
       messenger.showSnackBar(
-        const SnackBar(content: Text('ĐÃ XÓA NHÀ CUNG CẤP')), 
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: AppColors.onSuccess, size: 20),
+              const SizedBox(width: 8),
+              Text('ĐÃ XÓA NHÀ CUNG CẤP', style: AppTextStyles.body2.copyWith(color: AppColors.onSuccess)),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          duration: const Duration(seconds: 3),
+        ),
       );
       _refresh();
     }
@@ -106,48 +164,168 @@ class _SupplierViewState extends State<SupplierView> {
     final phoneC = TextEditingController();
     final addressC = TextEditingController();
     final itemsC = TextEditingController();
+    final emailC = TextEditingController();
+    final noteC = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text("THÊM NHÀ CUNG CẤP", style: AppTextStyles.headline5),
-        content: SingleChildScrollView(
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _input(nameC, "Tên nhà cung cấp (VD: Kho Hà Nội)", true),
-              const SizedBox(height: 10),
-              _input(contactC, "Người liên hệ / Bán hàng", false),
-              const SizedBox(height: 10),
-              _input(phoneC, "Số điện thoại", false, TextInputType.phone),
-              const SizedBox(height: 10),
-              _input(addressC, "Địa chỉ", false),
-              const SizedBox(height: 10),
-              _input(itemsC, "Các mặt hàng cung cấp", false),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.business, color: AppColors.primary, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Text("THÊM NHÀ CUNG CẤP", style: AppTextStyles.headline5.copyWith(color: AppColors.primary)),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildInputField(nameC, "Tên nhà cung cấp", Icons.business, true, "VD: Kho Hà Nội"),
+                      const SizedBox(height: 16),
+                      _buildInputField(contactC, "Người liên hệ", Icons.person, false, "Tên người bán hàng"),
+                      const SizedBox(height: 16),
+                      _buildInputField(phoneC, "Số điện thoại", Icons.phone, false, "Số điện thoại liên hệ", TextInputType.phone),
+                      const SizedBox(height: 16),
+                      _buildInputField(emailC, "Email", Icons.email, false, "Địa chỉ email (tùy chọn)"),
+                      const SizedBox(height: 16),
+                      _buildInputField(addressC, "Địa chỉ", Icons.location_on, false, "Địa chỉ kho hàng"),
+                      const SizedBox(height: 16),
+                      _buildInputField(itemsC, "Mặt hàng cung cấp", Icons.inventory, false, "Các loại sản phẩm chính"),
+                      const SizedBox(height: 16),
+                      _buildInputField(noteC, "Ghi chú", Icons.note, false, "Thông tin bổ sung (tùy chọn)"),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text("HỦY", style: AppTextStyles.button.copyWith(color: AppColors.onSurface.withOpacity(0.7))),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (nameC.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text('Vui lòng nhập tên nhà cung cấp', style: AppTextStyles.body2.copyWith(color: AppColors.onError)),
+                              backgroundColor: AppColors.error,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
+                        final navigator = Navigator.of(ctx);
+                        await db.insertSupplier({
+                          'name': nameC.text.trim().toUpperCase(),
+                          'contactPerson': contactC.text.trim().toUpperCase(),
+                          'phone': phoneC.text.trim(),
+                          'email': emailC.text.trim(),
+                          'address': addressC.text.trim().toUpperCase(),
+                          'items': itemsC.text.trim().toUpperCase(),
+                          'note': noteC.text.trim(),
+                          'active': 1,
+                          'createdAt': DateTime.now().millisecondsSinceEpoch,
+                          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+                        });
+                        navigator.pop();
+                        _refresh();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: AppColors.onSuccess, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text('Đã thêm nhà cung cấp thành công', style: AppTextStyles.body2.copyWith(color: AppColors.onSuccess)),
+                                ],
+                              ),
+                              backgroundColor: AppColors.success,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 2,
+                      ),
+                      child: Text("LƯU", style: AppTextStyles.button),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY")),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameC.text.isEmpty) return;
-              final navigator = Navigator.of(ctx);
-              await db.insertSupplier({
-                'name': nameC.text.toUpperCase(),
-                'contactPerson': contactC.text.toUpperCase(),
-                'phone': phoneC.text,
-                'address': addressC.text.toUpperCase(),
-                'items': itemsC.text.toUpperCase(),
-                'createdAt': DateTime.now().millisecondsSinceEpoch,
-              });
-              navigator.pop();
-              _refresh();
-            },
-            child: const Text("LƯU"),
-          )
-        ],
       ),
+    );
+  }
+
+  Widget _buildInputField(TextEditingController controller, String label, IconData icon, bool caps, [String? hint, TextInputType? keyboardType]) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.w600, color: AppColors.onSurface)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          textCapitalization: caps ? TextCapitalization.characters : TextCapitalization.none,
+          style: AppTextStyles.body1,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.5)),
+            prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.outline),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.outline),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
+            filled: true,
+            fillColor: AppColors.surface,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+        ),
+      ],
     );
   }
 
@@ -156,136 +334,376 @@ class _SupplierViewState extends State<SupplierView> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text("NHÀ CUNG CẤP", style: AppTextStyles.headline5),
-        backgroundColor: AppColors.secondary,
+        title: Row(
+          children: [
+            Icon(Icons.business_center, color: AppColors.onPrimary, size: 28),
+            const SizedBox(width: 12),
+            Text("QUẢN LÝ NHÀ CUNG CẤP", style: AppTextStyles.headline6.copyWith(color: AppColors.onPrimary)),
+          ],
+        ),
         foregroundColor: AppColors.onPrimary,
-        elevation: 2,
         automaticallyImplyLeading: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(80),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.primary.withOpacity(0.1), AppColors.primary.withOpacity(0.05)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _searchQuery = value),
+              style: AppTextStyles.body1.copyWith(color: AppColors.onPrimary),
+              decoration: InputDecoration(
+                hintText: "Tìm kiếm nhà cung cấp...",
+                hintStyle: AppTextStyles.body2.copyWith(color: AppColors.onPrimary.withOpacity(0.7)),
+                prefixIcon: Icon(Icons.search, color: AppColors.onPrimary.withOpacity(0.7)),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: AppColors.onPrimary.withOpacity(0.7)),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: AppColors.onPrimary.withOpacity(0.3)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: AppColors.onPrimary.withOpacity(0.3)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: AppColors.onPrimary, width: 2),
+                ),
+                filled: true,
+                fillColor: AppColors.onPrimary.withOpacity(0.1),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+        ),
       ),
       body: _isLoading
-        ? Center(child: CircularProgressIndicator(color: AppColors.secondary))
-        : _suppliers.isEmpty
-          ? const Center(child: Text("Chưa có nhà cung cấp nào"))
-          : ListView.builder(
-              padding: const EdgeInsets.all(15),
-              itemCount: _suppliers.length,
-              itemBuilder: (ctx, i) {
-                final s = _suppliers[i];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  child: ExpansionTile(
-                    title: Text(s['name'], style: AppTextStyles.headline6.copyWith(color: AppColors.primary)),
-                    subtitle: Text("Số lần nhập: ${s['importCount']}", style: AppTextStyles.caption),
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(15),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _infoRowSimple("Người bán", s['contactPerson']),
-                            _infoRowSimple("SĐT", s['phone']),
-                            _infoRowSimple("Địa chỉ", s['address']),
-                            _infoRowSimple("Mặt hàng", s['items']),
-                            const Divider(),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 5),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text("TỔNG TIỀN NHẬP:", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
-                                  Text("${NumberFormat('#,###').format(s['totalAmount'])} đ", style: AppTextStyles.body2.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => FastStockInView(
-                                            preselectedSupplier: s['name'],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.inventory, size: 16),
-                                    label: Text("NHẬP KHO", style: AppTextStyles.caption),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.success,
-                                      foregroundColor: AppColors.onSuccess,
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => _showSupplierDetails(s),
-                                    icon: const Icon(Icons.history, size: 16),
-                                    label: Text("LỊCH SỬ", style: AppTextStyles.caption),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      foregroundColor: AppColors.onPrimary,
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                    ),
-                                  ),
-                                ),
-                                if (_isAdmin) ...[
-                                  const SizedBox(width: 8),
-                                  TextButton.icon(
-                                    onPressed: () => _confirmDeleteSupplier(s),
-                                    icon: const Icon(Icons.delete_outline, size: 16),
-                                    label: Text(
-                                      "XÓA",
-                                      style: AppTextStyles.caption,
-                                    ),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: AppColors.error,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-                      )
-                    ],
-                  ),
-                );
-              },
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: AppColors.primary),
+                const SizedBox(height: 16),
+                Text("Đang tải danh sách...", style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.7))),
+              ],
             ),
-      floatingActionButton: FloatingActionButton(
+          )
+        : _filteredSuppliers.isEmpty
+          ? _buildEmptyState()
+          : RefreshIndicator(
+              onRefresh: _refresh,
+              color: AppColors.primary,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _filteredSuppliers.length,
+                itemBuilder: (ctx, i) => _buildSupplierCard(_filteredSuppliers[i]),
+              ),
+            ),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddSupplier,
         backgroundColor: AppColors.primary,
-        child: Icon(Icons.add, color: AppColors.onPrimary),
+        foregroundColor: AppColors.onPrimary,
+        elevation: 6,
+        icon: const Icon(Icons.add_business, size: 24),
+        label: Text("THÊM NHÀ CUNG CẤP", style: AppTextStyles.button.copyWith(fontWeight: FontWeight.w600)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
 
-  Widget _input(TextEditingController ctrl, String hint, bool caps, [TextInputType type = TextInputType.text]) => TextField(controller: ctrl, keyboardType: type, textCapitalization: caps ? TextCapitalization.characters : TextCapitalization.none, decoration: InputDecoration(hintText: hint, border: const OutlineInputBorder()));
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.business, size: 64, color: AppColors.primary.withOpacity(0.5)),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            _searchQuery.isEmpty ? "Chưa có nhà cung cấp nào" : "Không tìm thấy nhà cung cấp",
+            style: AppTextStyles.headline6.copyWith(color: AppColors.onSurface.withOpacity(0.7)),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _searchQuery.isEmpty
+                ? "Thêm nhà cung cấp đầu tiên để bắt đầu quản lý kho hàng"
+                : "Thử tìm kiếm với từ khóa khác",
+            style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.5)),
+            textAlign: TextAlign.center,
+          ),
+          if (_searchQuery.isEmpty) ...[
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _showAddSupplier,
+              icon: const Icon(Icons.add),
+              label: Text("THÊM NHÀ CUNG CẤP ĐẦU TIÊN", style: AppTextStyles.button),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.onPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSupplierCard(Map<String, dynamic> supplier) {
+    final isActive = supplier['active'] == 1;
+    final totalAmount = supplier['totalAmount'] ?? 0;
+    final importCount = supplier['importCount'] ?? 0;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: isActive ? AppColors.primary.withOpacity(0.2) : AppColors.warning.withOpacity(0.2),
+          width: 1.5,
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          childrenPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          leading: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isActive ? AppColors.primary.withOpacity(0.1) : AppColors.warning.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.business,
+              color: isActive ? AppColors.primary : AppColors.warning,
+              size: 24,
+            ),
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                supplier['name'] ?? 'N/A',
+                style: AppTextStyles.headline6.copyWith(
+                  color: AppColors.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.inventory, size: 16, color: AppColors.onSurface.withOpacity(0.6)),
+                  const SizedBox(width: 4),
+                  Text(
+                    "$importCount lần nhập",
+                    style: AppTextStyles.caption.copyWith(color: AppColors.onSurface.withOpacity(0.6)),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isActive ? AppColors.success.withOpacity(0.1) : AppColors.warning.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      isActive ? "HOẠT ĐỘNG" : "TẠM DỪNG",
+                      style: AppTextStyles.caption.copyWith(
+                        color: isActive ? AppColors.success : AppColors.warning,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          trailing: Icon(
+            Icons.expand_more,
+            color: AppColors.onSurface.withOpacity(0.6),
+          ),
+          children: [
+            const Divider(height: 32, thickness: 1),
+            _buildInfoRow("Người liên hệ", supplier['contactPerson'], Icons.person),
+            _buildInfoRow("Số điện thoại", supplier['phone'], Icons.phone),
+            _buildInfoRow("Email", supplier['email'], Icons.email),
+            _buildInfoRow("Địa chỉ", supplier['address'], Icons.location_on),
+            _buildInfoRow("Mặt hàng", supplier['items'], Icons.inventory),
+            if (supplier['note'] != null && supplier['note'].toString().isNotEmpty)
+              _buildInfoRow("Ghi chú", supplier['note'], Icons.note),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.account_balance_wallet, color: AppColors.primary, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    "TỔNG GIÁ TRỊ NHẬP:",
+                    style: AppTextStyles.body2.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    "${NumberFormat('#,###').format(totalAmount)} đ",
+                    style: AppTextStyles.headline6.copyWith(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FastStockInView(
+                            preselectedSupplier: supplier['name'],
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.inventory, size: 20),
+                    label: Text("NHẬP KHO", style: AppTextStyles.button),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: AppColors.onSuccess,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 2,
+                      shadowColor: AppColors.shadow,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showSupplierDetails(supplier),
+                    icon: const Icon(Icons.history, size: 20),
+                    label: Text("LỊCH SỬ", style: AppTextStyles.button),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: AppColors.primary, width: 1.5),
+                      foregroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                if (_isAdmin) ...[
+                  const SizedBox(width: 12),
+                  IconButton(
+                    onPressed: () => _confirmDeleteSupplier(supplier),
+                    icon: const Icon(Icons.delete_outline, size: 22),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.error.withOpacity(0.1),
+                      foregroundColor: AppColors.error,
+                      padding: const EdgeInsets.all(12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String? value, IconData icon) {
+    if (value == null || value.trim().isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTextStyles.body2.copyWith(
+                    color: AppColors.onSurface.withOpacity(0.7),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: AppTextStyles.body2.copyWith(
+                    color: AppColors.onSurface,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showSupplierDetails(Map<String, dynamic> supplier) {
     showDialog(
       context: context,
       builder: (ctx) => SupplierDetailsDialog(supplier: supplier),
-    );
-  }
-
-  Widget _infoRowSimple(String label, String? val) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text("$label: ", style: AppTextStyles.caption.copyWith(color: AppColors.onSurface.withOpacity(0.6))),
-          Text(val ?? "Trống", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w500)),
-        ],
-      ),
     );
   }
 }

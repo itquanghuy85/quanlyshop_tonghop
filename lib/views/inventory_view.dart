@@ -15,6 +15,7 @@ import '../services/bluetooth_printer_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
+import '../services/supplier_service.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../models/printer_types.dart';
@@ -39,6 +40,7 @@ class InventoryView extends StatefulWidget {
 
 class _InventoryViewState extends State<InventoryView> with TickerProviderStateMixin {
   final db = DBHelper();
+  final supplierService = SupplierService();
   List<Product> _products = [];
   List<Map<String, dynamic>> _suppliers = [];
   bool _isLoading = true;
@@ -406,13 +408,13 @@ class _InventoryViewState extends State<InventoryView> with TickerProviderStateM
                 if (oldCost != updatedProduct.cost && updatedProduct.supplier?.isNotEmpty == true) {
                   try {
                     // Tìm supplier ID từ tên supplier
-                    final suppliers = await db.getSuppliers();
-                    final supplier = suppliers.where((s) => s['name'] == updatedProduct.supplier).firstOrNull;
+                    final suppliers = await supplierService.getSuppliers();
+                    final supplier = suppliers.where((s) => s.name == updatedProduct.supplier).firstOrNull;
                     
                     if (supplier != null) {
                       // Cập nhật hoặc tạo mới giá trong bảng supplier_product_prices
                       final priceData = {
-                        'supplierId': supplier['id'],
+                        'supplierId': supplier.id,
                         'productName': updatedProduct.name,
                         'productBrand': updatedProduct.brand ?? '',
                         'productModel': updatedProduct.capacity ?? '',
@@ -645,12 +647,12 @@ class _InventoryViewState extends State<InventoryView> with TickerProviderStateM
       _isSelectionMode = false;
     });
     final data = await db.getInStockProducts();
-    final suppliers = await db.getSuppliers();
+    final suppliers = await supplierService.getSuppliers();
     final unsyncedCount = await db.getUnsyncedQuickInputCodesCount();
     if (!mounted) return;
     setState(() { 
       _products = data; 
-      _suppliers = suppliers; 
+      _suppliers = suppliers.map((s) => s.toMap()).toList(); 
       _unsyncedCount = unsyncedCount;
       _isLoading = false; 
     });
@@ -1638,9 +1640,9 @@ class _InventoryViewState extends State<InventoryView> with TickerProviderStateM
 
           // Lưu lịch sử nhập hàng từ nhà cung cấp
           if (supplier?.isNotEmpty == true) {
-            final suppliers = await db.getSuppliers();
-            final supplierData = suppliers.firstWhere((s) => s['name'] == supplier, orElse: () => {});
-            final supplierId = supplierData['id'];
+            final suppliers = await supplierService.getSuppliers();
+            final supplierData = suppliers.where((s) => s.name == supplier).firstOrNull;
+            final supplierId = supplierData?.id;
             final shopId = await UserService.getCurrentShopId();
             if (supplierId != null) {
               final importHistory = {

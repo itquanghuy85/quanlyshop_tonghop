@@ -8,7 +8,6 @@ import '../models/expense_model.dart';
 import '../models/debt_model.dart';
 import '../models/purchase_order_model.dart';
 import '../models/attendance_model.dart';
-import '../models/customer_model.dart';
 import '../models/quick_input_code_model.dart';
 
 class DBHelper {
@@ -27,10 +26,10 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 35,
+      version: 40,
       onCreate: (db, version) async {
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT)',
+          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, brand TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, supplier TEXT, type TEXT DEFAULT "PHONE", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT)',
@@ -39,10 +38,10 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, isSynced INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT UNIQUE, address TEXT, createdAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT UNIQUE, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, address TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, createdAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, isSynced INTEGER DEFAULT 0)',
@@ -374,6 +373,93 @@ class DBHelper {
             debugPrint('DB upgrade error (repair_partner_payments): $e');
           }
         }
+        if (oldV < 36) {
+          // Update suppliers table schema to match current Supplier model
+          try {
+            // Add missing columns to suppliers table
+            await db.execute('ALTER TABLE suppliers ADD COLUMN email TEXT');
+            await db.execute('ALTER TABLE suppliers ADD COLUMN note TEXT');
+            await db.execute('ALTER TABLE suppliers ADD COLUMN active INTEGER DEFAULT 1');
+            await db.execute('ALTER TABLE suppliers ADD COLUMN updatedAt INTEGER');
+            debugPrint('DB upgrade: added email, note, active, updatedAt columns to suppliers table');
+          } catch (e) {
+            debugPrint('DB upgrade error (suppliers schema update): $e');
+          }
+        }
+        if (oldV < 37) {
+          // Ensure supplier tables have required columns
+          try {
+            await db.execute('ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT UNIQUE');
+            debugPrint('DB upgrade: added firestoreId to supplier_import_history');
+          } catch (e) {
+            debugPrint('DB upgrade error (supplier_import_history firestoreId): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT');
+            debugPrint('DB upgrade: added shopId to supplier_import_history');
+          } catch (e) {
+            debugPrint('DB upgrade error (supplier_import_history shopId): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT UNIQUE');
+            debugPrint('DB upgrade: added firestoreId to supplier_product_prices');
+          } catch (e) {
+            debugPrint('DB upgrade error (supplier_product_prices firestoreId): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT');
+            debugPrint('DB upgrade: added shopId to supplier_product_prices');
+          } catch (e) {
+            debugPrint('DB upgrade error (supplier_product_prices shopId): $e');
+          }
+        }
+        if (oldV < 39) {
+          // Align customers table schema with Customer model
+          try {
+            await db.execute('ALTER TABLE customers ADD COLUMN email TEXT');
+          } catch (e) {
+            debugPrint('DB upgrade error (customers email): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE customers ADD COLUMN notes TEXT');
+          } catch (e) {
+            debugPrint('DB upgrade error (customers notes): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE customers ADD COLUMN lastVisitAt INTEGER');
+          } catch (e) {
+            debugPrint('DB upgrade error (customers lastVisitAt): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE customers ADD COLUMN totalSpent INTEGER DEFAULT 0');
+          } catch (e) {
+            debugPrint('DB upgrade error (customers totalSpent): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE customers ADD COLUMN totalRepairs INTEGER DEFAULT 0');
+          } catch (e) {
+            debugPrint('DB upgrade error (customers totalRepairs): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE customers ADD COLUMN totalRepairCost INTEGER DEFAULT 0');
+          } catch (e) {
+            debugPrint('DB upgrade error (customers totalRepairCost): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE customers ADD COLUMN deleted INTEGER DEFAULT 0');
+          } catch (e) {
+            debugPrint('DB upgrade error (customers deleted): $e');
+          }
+        }
+        if (oldV < 40) {
+          // Đảm bảo bảng repairs có cột services để lưu JSON danh sách dịch vụ
+          try {
+            await db.execute('ALTER TABLE repairs ADD COLUMN services TEXT');
+            debugPrint('DB upgrade: added services to repairs');
+          } catch (e) {
+            debugPrint('DB upgrade error (repairs services): $e');
+          }
+        }
         debugPrint('DB upgrade completed');
       },
       onOpen: (db) async {
@@ -463,6 +549,106 @@ class DBHelper {
         } catch (e) {
           debugPrint('DB onOpen check error (repairs services): $e');
         }
+
+        // Ensure missing columns exist in customers table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(customers)');
+          final hasEmail = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'email',
+          );
+          final hasNotes = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'notes',
+          );
+          final hasLastVisitAt = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'lastVisitAt',
+          );
+          final hasUpdatedAt = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'updatedAt',
+          );
+
+          if (!hasEmail) {
+            await db.execute('ALTER TABLE customers ADD COLUMN email TEXT');
+            debugPrint('DB: added email column to customers');
+          }
+          if (!hasNotes) {
+            await db.execute('ALTER TABLE customers ADD COLUMN notes TEXT');
+            debugPrint('DB: added notes column to customers');
+          }
+          if (!hasLastVisitAt) {
+            await db.execute('ALTER TABLE customers ADD COLUMN lastVisitAt INTEGER');
+            debugPrint('DB: added lastVisitAt column to customers');
+          }
+          if (!hasUpdatedAt) {
+            await db.execute('ALTER TABLE customers ADD COLUMN updatedAt INTEGER');
+            debugPrint('DB: added updatedAt column to customers');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (customers): $e');
+        }
+
+        // Ensure firestoreId column exists in supplier_import_history table
+        try {
+          await db.execute('ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT UNIQUE');
+          debugPrint('DB: added firestoreId column to supplier_import_history');
+        } catch (e) {
+          debugPrint('DB: firestoreId column already exists in supplier_import_history or error: $e');
+        }
+        try {
+          await db.execute('ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT');
+          debugPrint('DB: added shopId column to supplier_import_history');
+        } catch (e) {
+          debugPrint('DB: shopId column already exists in supplier_import_history or error: $e');
+        }
+
+        // Ensure firestoreId column exists in supplier_product_prices table
+        try {
+          await db.execute('ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT UNIQUE');
+          debugPrint('DB: added firestoreId column to supplier_product_prices');
+        } catch (e) {
+          debugPrint('DB: firestoreId column already exists in supplier_product_prices or error: $e');
+        }
+        try {
+          await db.execute('ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT');
+          debugPrint('DB: added shopId column to supplier_product_prices');
+        } catch (e) {
+          debugPrint('DB: shopId column already exists in supplier_product_prices or error: $e');
+        }
+
+        // Ensure missing columns exist in suppliers table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(suppliers)');
+          final hasEmail = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'email',
+          );
+          final hasNote = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'note',
+          );
+          final hasActive = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'active',
+          );
+          final hasUpdatedAt = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'updatedAt',
+          );
+
+          if (!hasEmail) {
+            await db.execute('ALTER TABLE suppliers ADD COLUMN email TEXT');
+            debugPrint('DB: added email column to suppliers');
+          }
+          if (!hasNote) {
+            await db.execute('ALTER TABLE suppliers ADD COLUMN note TEXT');
+            debugPrint('DB: added note column to suppliers');
+          }
+          if (!hasActive) {
+            await db.execute('ALTER TABLE suppliers ADD COLUMN active INTEGER DEFAULT 1');
+            debugPrint('DB: added active column to suppliers');
+          }
+          if (!hasUpdatedAt) {
+            await db.execute('ALTER TABLE suppliers ADD COLUMN updatedAt INTEGER');
+            debugPrint('DB: added updatedAt column to suppliers');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (suppliers columns): $e');
+        }
       },
     );
   }
@@ -497,22 +683,90 @@ class DBHelper {
   }
 
   // --- REPAIRS ---
-  Future<void> upsertRepair(Repair r) async => _upsert(
-    'repairs',
-    r.toMap(),
-    r.firestoreId ?? "${r.createdAt}_${r.phone}",
-  );
+  Future<void> upsertRepair(Repair r) async {
+    final db = await database;
+    final firestoreId = r.firestoreId ?? "${r.createdAt}_${r.phone}";
+    
+    await db.transaction((txn) async {
+      final existing = await txn.query(
+        'repairs',
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+        limit: 1,
+      );
+      
+      Map<String, dynamic> data = Map<String, dynamic>.from(r.toMap());
+      data.remove('id');
+      
+      // Check if services column exists
+      final cols = await txn.rawQuery('PRAGMA table_info(repairs)');
+      final hasServices = cols.any(
+        (c) => (c['name'] ?? c['name'.toString()]) == 'services',
+      );
+      
+      if (!hasServices) {
+        // Remove services from data if column doesn't exist
+        data.remove('services');
+        debugPrint('DB WARNING: services column not found, removing from data');
+        
+        // Try to add the column
+        try {
+          await txn.execute('ALTER TABLE repairs ADD COLUMN services TEXT');
+          debugPrint('DB: Added services column to repairs');
+          // Re-add services to data now that column exists
+          data['services'] = r.toMap()['services'];
+        } catch (e) {
+          debugPrint('DB: Could not add services column: $e');
+        }
+      }
+      
+      if (existing.isNotEmpty) {
+        await txn.update(
+          'repairs',
+          data,
+          where: 'id = ?',
+          whereArgs: [existing.first['id']],
+        );
+      } else {
+        await txn.insert('repairs', data);
+      }
+    });
+  }
   Future<int> insertRepair(Repair r) async {
     await upsertRepair(r);
     return 1;
   }
 
-  Future<int> updateRepair(Repair r) async => (await database).update(
-    'repairs',
-    r.toMap(),
-    where: 'id = ?',
-    whereArgs: [r.id],
-  );
+  Future<int> updateRepair(Repair r) async {
+    final db = await database;
+    Map<String, dynamic> data = Map<String, dynamic>.from(r.toMap());
+    
+    // Check if services column exists
+    final cols = await db.rawQuery('PRAGMA table_info(repairs)');
+    final hasServices = cols.any(
+      (c) => (c['name'] ?? c['name'.toString()]) == 'services',
+    );
+    
+    if (!hasServices) {
+      data.remove('services');
+      debugPrint('DB WARNING (updateRepair): services column not found');
+      // Try to add the column
+      try {
+        await db.execute('ALTER TABLE repairs ADD COLUMN services TEXT');
+        debugPrint('DB: Added services column to repairs');
+        data['services'] = r.toMap()['services'];
+      } catch (e) {
+        debugPrint('DB: Could not add services column: $e');
+      }
+    }
+    
+    return db.update(
+      'repairs',
+      data,
+      where: 'id = ?',
+      whereArgs: [r.id],
+    );
+  }
   Future<int> deleteRepair(int id) async =>
       (await database).delete('repairs', where: 'id = ?', whereArgs: [id]);
   Future<int> deleteRepairByFirestoreId(String fId) async => (await database)
@@ -1005,7 +1259,6 @@ class DBHelper {
     String? desc,
     String? fId,
   }) async {
-    final db = await database;
     final String firestoreId =
         fId ?? "log_${DateTime.now().millisecondsSinceEpoch}_$userId";
     await _upsert('audit_logs', {
@@ -1266,7 +1519,6 @@ class DBHelper {
 
   // Supplier Product Prices methods
   Future<void> insertSupplierProductPrice(Map<String, dynamic> price) async {
-    final db = await database;
     final firestoreId =
         price['firestoreId'] ??
         "price_${DateTime.now().millisecondsSinceEpoch}_${price['supplierId'] ?? 'unknown'}_${price['productName']?.replaceAll(' ', '_') ?? 'unknown'}";

@@ -77,6 +77,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _updateStatus(int newStatus) async {
+    debugPrint('Starting status update from ${r.status} to $newStatus for repair ${r.firestoreId}');
+    final repairsBefore = await db.getAllRepairs();
+    debugPrint('Repairs count before update: ${repairsBefore.length}');
     if (newStatus <= r.status) {
       NotificationService.showSnackBar("Không thể quay lại trạng thái trước!", color: AppColors.error);
       return;
@@ -161,10 +164,16 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     setState(() { r.status = newStatus; _isUpdating = true; });
     try {
+      debugPrint('Updating repair status to $newStatus for repair ${r.firestoreId}');
       await db.upsertRepair(r);
       await FirestoreService.upsertRepair(r);
+      debugPrint('Repair status updated successfully');
+      final repairsAfter = await db.getAllRepairs();
+      debugPrint('Repairs count after update: ${repairsAfter.length}');
       NotificationService.showSnackBar("ĐÃ CẬP NHẬT: ${_getStatusText(newStatus)}", color: AppColors.success);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error updating repair status: $e');
+    }
     setState(() => _isUpdating = false);
   }
 
@@ -202,31 +211,40 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     if (mounted) setState(() => _isUpdating = false);
   }
 
-  bool _isValidFinancialInput(String price, String cost) {
-    final priceVal = int.tryParse(price);
-    final costVal = int.tryParse(cost);
-    return (priceVal != null && priceVal >= 0) && (costVal != null && costVal >= 0);
-  }
-
   Future<void> _editFinancials() async {
     final priceC = TextEditingController(text: CurrencyTextField.formatDisplay(r.price));
     final costC = TextEditingController(text: CurrencyTextField.formatDisplay(r.cost));
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("TÀI CHÍNH ĐƠN SỬA"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CurrencyTextField(controller: priceC, label: "Giá thu khách", icon: Icons.attach_money),
-            const SizedBox(height: 12),
-            CurrencyTextField(controller: costC, label: "Giá vốn linh kiện", icon: Icons.inventory),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text("TÀI CHÍNH ĐƠN SỬA"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CurrencyTextField(
+                controller: priceC,
+                label: "Giá thu khách",
+                icon: Icons.attach_money,
+                onChanged: (_) => setDialogState(() {}),
+              ),
+              const SizedBox(height: 12),
+              CurrencyTextField(
+                controller: costC,
+                label: "Giá vốn linh kiện",
+                icon: Icons.inventory,
+                onChanged: (_) => setDialogState(() {}),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("HỦY")),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text("LƯU"),
+            ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("HỦY")),
-          ElevatedButton(onPressed: _isValidFinancialInput(priceC.text, costC.text) ? () => Navigator.pop(ctx, true) : null, child: const Text("LƯU")),
-        ],
       ),
     );
     if (result == true) {

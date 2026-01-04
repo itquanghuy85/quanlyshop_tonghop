@@ -2,6 +2,7 @@ import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
+import '../services/supplier_service.dart';
 import '../utils/sku_generator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -14,8 +15,17 @@ class FastInventoryInputController {
 
   // Get cached suppliers
   Future<List<Map<String, dynamic>>> getSuppliers() async {
-    _cachedSuppliers ??= await db.getSuppliers();
+    if (_cachedSuppliers == null) {
+      final supplierService = SupplierService();
+      final suppliers = await supplierService.getSuppliers();
+      _cachedSuppliers = suppliers.map((s) => s.toMap()).toList();
+    }
     return _cachedSuppliers!;
+  }
+
+  // Clear supplier cache (call when suppliers are modified)
+  void clearSupplierCache() {
+    _cachedSuppliers = null;
   }
 
   // Get cached settings

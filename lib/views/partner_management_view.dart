@@ -9,6 +9,8 @@ import '../models/supplier_import_history_model.dart';
 import '../models/supplier_product_prices_model.dart';
 import '../models/supplier_payment_model.dart';
 import '../models/repair_partner_payment_model.dart';
+import '../controllers/fast_inventory_input_controller.dart';
+import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
 import '../services/repair_partner_service.dart';
 import '../services/supplier_payment_service.dart';
@@ -37,6 +39,7 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
   List<SupplierImportHistory> _supplierImportHistory = [];
   List<SupplierProductPrices> _supplierProductPrices = [];
   List<SupplierPayment> _supplierPayments = [];
+  List<Map<String, dynamic>> _supplierDebts = []; // Thêm debts cho suppliers
 
   bool _loading = true;
 
@@ -83,6 +86,12 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final payments = await supplierPaymentService.getSupplierPayments(supplier.id!);
         _supplierPayments.addAll(payments);
       }
+
+      // Load debts for suppliers (SHOP_OWES type)
+      _supplierDebts = await _db.getAllDebts();
+      _supplierDebts = _supplierDebts.where((debt) => 
+        debt['type'] == 'SHOP_OWES' && debt['status'] != 'paid'
+      ).toList();
 
     } catch (e) {
       debugPrint('Error loading data: $e');
@@ -327,6 +336,31 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
 
   Widget _buildSupplierStats() {
     final totalPaid = _supplierPayments.fold<int>(0, (sum, p) => sum + p.amount);
+    
+    // Tính tổng công nợ cho suppliers
+    final supplierDebtStats = <String, Map<String, dynamic>>{};
+    for (var supplier in _suppliers) {
+      final supplierDebts = _supplierDebts.where((debt) => 
+        debt['personName'] == supplier.name
+      ).toList();
+      
+      int totalOwed = 0;
+      for (var debt in supplierDebts) {
+        final int total = debt['totalAmount'] ?? 0;
+        final int paid = debt['paidAmount'] ?? 0;
+        totalOwed += (total - paid);
+      }
+      
+      if (totalOwed > 0 || supplierDebts.isNotEmpty) {
+        supplierDebtStats[supplier.name] = {
+          'totalOwed': totalOwed,
+          'debtCount': supplierDebts.length,
+        };
+      }
+    }
+    
+    final totalOwedAll = supplierDebtStats.values.fold<int>(0, (sum, stat) => sum + (stat['totalOwed'] as int));
+    
     final paymentStats = <String, int>{};
     for (var p in _supplierPayments) {
       paymentStats[p.paymentMethod] = (paymentStats[p.paymentMethod] ?? 0) + p.amount;
@@ -335,20 +369,74 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Tổng thanh toán: ${MoneyUtils.formatVND(totalPaid)}₫', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          // Tổng quan thanh toán
+          Text('💰 TỔNG THANH TOÁN: ${MoneyUtils.formatVND(totalPaid)}₫', 
+               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+          
+          const SizedBox(height: 16),
+          
+          // Tổng quan công nợ
+          Text('💸 TỔNG CÔNG NỢ: ${MoneyUtils.formatVND(totalOwedAll)}₫', 
+               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+          
           const SizedBox(height: 20),
+          
+          // Chi tiết công nợ theo supplier
+          if (supplierDebtStats.isNotEmpty) ...[
+            Text('📋 CHI TIẾT CÔNG NỢ THEO NCC:', 
+                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            ...supplierDebtStats.entries.map((entry) => 
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        entry.key,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    Text(
+                      '${MoneyUtils.formatVND(entry.value['totalOwed'])}₫ (${entry.value['debtCount']} khoản)',
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            ),
+            const SizedBox(height: 20),
+          ],
+          
+          // Biểu đồ thanh toán
+          Text('📊 THỐNG KÊ THANH TOÁN:', 
+               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
           SizedBox(
             height: 200,
-            child: PieChart(
-              PieChartData(
-                sections: paymentStats.entries.map((e) => PieChartSectionData(
-                  value: e.value.toDouble(),
-                  title: '${e.key}\n${MoneyUtils.formatVND(e.value)}₫',
-                  color: Colors.primaries[paymentStats.keys.toList().indexOf(e.key) % Colors.primaries.length],
-                )).toList(),
-              ),
-            ),
+            child: paymentStats.isEmpty 
+              ? const Center(child: Text('Chưa có dữ liệu thanh toán'))
+              : PieChart(
+                  PieChartData(
+                    sections: paymentStats.entries.map((e) => PieChartSectionData(
+                      value: e.value.toDouble(),
+                      title: '${e.key}\n${MoneyUtils.formatVND(e.value)}₫',
+                      color: Colors.primaries[paymentStats.keys.toList().indexOf(e.key) % Colors.primaries.length],
+                    )).toList(),
+                  ),
+                ),
           ),
         ],
       ),
@@ -426,18 +514,45 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
           ElevatedButton(
             onPressed: () async {
-              if (nameCtrl.text.isEmpty) return;
-              final service = SupplierService();
-              final supplier = Supplier(
-                name: nameCtrl.text.trim().toUpperCase(),
-                phone: phoneCtrl.text.trim(),
-                email: emailCtrl.text.trim(),
-                address: addressCtrl.text.trim(),
-                shopId: (await UserService.getCurrentShopId())!,
-              );
-              await service.addSupplier(supplier);
-              _loadData();
-              Navigator.pop(ctx);
+              if (nameCtrl.text.isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Vui lòng nhập tên nhà cung cấp')),
+                );
+                return;
+              }
+              
+              try {
+                final service = SupplierService();
+                final supplier = Supplier(
+                  name: nameCtrl.text.trim().toUpperCase(),
+                  phone: phoneCtrl.text.trim(),
+                  email: emailCtrl.text.trim(),
+                  address: addressCtrl.text.trim(),
+                  shopId: (await UserService.getCurrentShopId())!,
+                );
+                
+                final result = await service.addSupplier(supplier);
+                if (result != null) {
+                  // Clear supplier cache in other controllers
+                  FastInventoryInputController().clearSupplierCache();
+                  // Send event to refresh other views
+                  EventBus().emit('suppliers_changed');
+                  await _loadData();
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Đã thêm nhà cung cấp thành công')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Lỗi: Không thể thêm nhà cung cấp')),
+                  );
+                }
+              } catch (e) {
+                debugPrint('Error adding supplier: $e');
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(content: Text('Lỗi: $e')),
+                );
+              }
             },
             child: const Text('Thêm'),
           ),

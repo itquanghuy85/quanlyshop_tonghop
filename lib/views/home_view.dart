@@ -31,7 +31,7 @@ import 'global_search_view.dart';
 import 'work_schedule_settings_view.dart';
 import 'debt_analysis_view.dart';
 import 'create_sale_view.dart';
-import 'customer_view.dart';
+import 'customer_management_view.dart';
 import 'parts_inventory_view.dart';
 import 'create_repair_order_view.dart';
 import 'about_developer_view.dart';
@@ -952,7 +952,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => CustomerListView(role: widget.role),
+                builder: (_) => const CustomerManagementView(),
               ),
             ),
             subtitle: "Thêm, sửa và xem thông tin khách hàng.",
@@ -1288,18 +1288,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
               subtitle: "Quản lý các khoản nợ và thu nợ từ khách hàng.",
             ),
-            if (_isSuperAdmin)
-              _tabMenuItem(
-                "Phân tích nợ",
-                Icons.analytics,
-                AppColors.warning,
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const DebtAnalysisView()),
-                ),
-                subtitle:
-                    "Phân tích chi tiết các khoản nợ (chỉ dành cho admin).",
+            _tabMenuItem(
+              "Phân tích nợ",
+              Icons.analytics,
+              AppColors.warning,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DebtAnalysisView()),
               ),
+              subtitle:
+                  "Phân tích chi tiết các khoản nợ và thống kê.",
+            ),
           ],
         ),
       ),

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
@@ -20,7 +19,6 @@ import '../services/repair_partner_service.dart';
 import '../models/customer_model.dart';
 import '../services/customer_service.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_button_styles.dart';
 import '../theme/app_text_styles.dart';
 import '../services/event_bus.dart';
 
@@ -83,7 +81,6 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     phoneCtrl.addListener(() {
       if (phoneCtrl.text.length == 10) _smartFill();
     });
-    priceCtrl.addListener(_formatPrice);
     _loadPartners();
   }
 
@@ -99,22 +96,6 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     }
   }
 
-  void _formatPrice() {
-    final text = priceCtrl.text;
-    if (text.isEmpty) return;
-    final clean = text.replaceAll(',', '').split('.').first;
-    final num = int.tryParse(clean);
-    if (num != null) {
-      final formatted = MoneyUtils.formatVND(MoneyUtils.inputToVND(num));
-      if (formatted != text) {
-        priceCtrl.value = TextEditingValue(
-          text: formatted,
-          selection: TextSelection.collapsed(offset: formatted.length - 4),
-        );
-      }
-    }
-  }
-
   void _smartFill() async {
     final res = await db.getUniqueCustomersAll();
     final find = res.where((c) => c['phone'] == phoneCtrl.text).toList();
@@ -127,10 +108,29 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   }
 
   Future<void> _selectCustomer() async {
+    debugPrint("_selectCustomer: bắt đầu chọn khách hàng");
     // Sync customers from cloud first
+    debugPrint("_selectCustomer: bắt đầu sync từ cloud");
     await SyncService.syncCustomersFromCloud();
+    debugPrint("_selectCustomer: đã sync xong từ cloud");
 
-    final customers = await customerService.getCustomers();
+    List<Customer> customers = await customerService.getCustomers();
+    debugPrint("_selectCustomer: lấy được ${customers.length} customers từ local DB");
+
+    // Fallback: lấy danh sách khách độc nhất từ lịch sử nếu chưa có trong bảng customers
+    if (customers.isEmpty) {
+      final unique = await db.getUniqueCustomersAll();
+      customers = unique
+          .map((c) => Customer(
+                name: (c['customerName'] ?? '').toString(),
+                phone: (c['phone'] ?? '').toString(),
+                address: (c['address'] ?? '').toString(),
+                createdAt: DateTime.now().millisecondsSinceEpoch,
+              ))
+          .where((c) => c.phone.isNotEmpty)
+          .toList();
+      debugPrint("_selectCustomer: fallback ${customers.length} customers từ history");
+    }
     if (!mounted) return;
 
     showDialog(
@@ -150,24 +150,15 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   }
 
   int _parseFinalPrice(String text) {
-    // _formatPrice() đã dùng MoneyUtils.inputToVND để format
-    // Nên giá trị trong controller đã là full VNĐ (e.g., "500.000" = 500000đ)
-    // Chỉ cần parse ra số, không cần nhân 1000 nữa
-    return CurrencyTextField.parseValue(text);
+    // Parse giá trị và áp dụng rule nhân 1000 nếu < 100000
+    // Dùng MoneyUtils.parseMoney để đảm bảo logic đồng nhất
+    return MoneyUtils.parseMoney(text);
   }
 
   Future<Repair?> _saveOrderProcess() async {
     if (phoneCtrl.text.isEmpty || modelCtrl.text.isEmpty) {
       NotificationService.showSnackBar(
         "Vui lòng nhập SĐT và Model máy",
-        color: Colors.red,
-      );
-      return null;
-    }
-
-    if (_services.isEmpty) {
-      NotificationService.showSnackBar(
-        "Vui lòng thêm ít nhất một dịch vụ sửa chữa",
         color: Colors.red,
       );
       return null;
@@ -218,15 +209,37 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       );
 
       await db.upsertRepair(r);
+
+      // Create customer if not exists
+      final existingCustomers = await customerService.getCustomers();
+      final existing = existingCustomers.where((c) => c.phone == phoneCtrl.text.trim()).toList();
+      if (existing.isEmpty) {
+        final newCustomer = Customer(
+          name: nameCtrl.text.trim().toUpperCase(),
+          phone: phoneCtrl.text.trim(),
+          address: addressCtrl.text.trim().toUpperCase(),
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+        );
+        await customerService.addCustomer(newCustomer);
+      }
+
       final cloudDocId = await FirestoreService.addRepair(r);
       if (cloudDocId == null) throw Exception('Lỗi đồng bộ đám mây');
+
+      // Cập nhật lại firestoreId để tránh tạo bản ghi trùng khi sync
+      final rWithCloudId = r.copyWith(firestoreId: cloudDocId);
+      // Xóa bản ghi tạm nếu có trước khi upsert với ID cloud
+      if (r.firestoreId != null) {
+        await db.deleteRepairByFirestoreId(r.firestoreId!);
+      }
+      await db.upsertRepair(rWithCloudId);
       await db.logAction(
         userId: FirebaseAuth.instance.currentUser?.uid ?? "0",
         userName: r.createdBy ?? "NV",
         action: "NHẬP ĐƠN SỬA",
         type: "REPAIR",
-        targetId: r.firestoreId,
-        desc: "Đã nhập đơn sửa ${r.model} cho khách ${r.customerName}",
+        targetId: rWithCloudId.firestoreId,
+        desc: "Đã nhập đơn sửa ${rWithCloudId.model} cho khách ${rWithCloudId.customerName}",
       );
 
       // Handle partner outsourcing for services that have partners
@@ -260,7 +273,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         // Don't fail the repair creation if notification fails
       }
 
-      return r;
+      return rWithCloudId;
     } catch (e) {
       NotificationService.showSnackBar("Lỗi: $e", color: Colors.red);
       return null;
@@ -335,7 +348,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         ),
         const SizedBox(height: 10),
         Text(
-          "Tổng chi phí: ${MoneyUtils.formatVND(_services.fold(0, (sum, s) => sum + s.cost).toInt())}₫",
+          "Tổng chi phí: ${MoneyUtils.formatVND(_services.fold(0, (sum, s) => sum + s.cost).toInt())}.000 Vn₫",
           style: AppTextStyles.priceStyle,
         ),
         const SizedBox(height: 10),
@@ -425,8 +438,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   );
                   return;
                 }
-                // Lấy giá trị từ CurrencyTextField (đã format và nhân 1000)
-                final cost = CurrencyTextField.parseValue(costCtrl.text);
+                // Lấy giá trị từ CurrencyTextField và áp dụng rule nhân 1000
+                final cost = MoneyUtils.parseMoney(costCtrl.text);
                 final service = RepairService(
                   serviceName: serviceCtrl.text.trim().toUpperCase(),
                   cost: cost,
@@ -537,14 +550,14 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                     f: issueF,
                     next: priceF,
                   ),
-                  _input(
-                    priceCtrl,
-                    "GIÁ DỰ KIẾN (,000)",
-                    Icons.monetization_on,
-                    type: TextInputType.number,
-                    f: priceF,
-                    next: passF,
-                    suffix: ",000",
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: CurrencyTextField(
+                      controller: priceCtrl,
+                      label: "GIÁ DỰ KIẾN (VNĐ)",
+                      icon: Icons.monetization_on,
+                      onSubmitted: () => FocusScope.of(context).requestFocus(passF),
+                    ),
                   ),
 
                   const SizedBox(height: 15),
@@ -808,7 +821,6 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
   @override
   void dispose() {
-    priceCtrl.removeListener(_formatPrice);
     super.dispose();
   }
 }
@@ -829,7 +841,6 @@ class CustomerSelectionDialog extends StatefulWidget {
 }
 
 class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
-  String _searchQuery = '';
   late List<Customer> _filteredCustomers;
 
   @override
@@ -840,7 +851,6 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
 
   void _filterCustomers(String query) {
     setState(() {
-      _searchQuery = query;
       if (query.isEmpty) {
         _filteredCustomers = widget.customers;
       } else {

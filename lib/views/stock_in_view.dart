@@ -7,6 +7,7 @@ import '../models/product_model.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
+import '../services/supplier_service.dart';
 import '../services/event_bus.dart';
 import '../utils/money_utils.dart';
 import '../widgets/validated_text_field.dart';
@@ -69,18 +70,25 @@ class _StockInViewState extends State<StockInView> {
   bool _notesChanged = false;
 
   // Dropdown options
-  final List<String> types = ['PHONE', 'ACCESSORY', 'LINH KIỆN'];
-  final List<String> conditions = ['Mới', '99', '98', 'Khác'];
+  final List<String> types = ['PHONE', 'ACCESSORY', 'LINHKIEN'];
+  final List<String> conditions = ['Mới 100%', 'Mới 99%', 'Mới 95%', 'Mới 90%', 'Đã sử dụng'];
   List<Map<String, dynamic>> suppliers = [];
 
   // Computed property to check if current type is accessory or linh kiện
-  bool get _isAccessoryOrLinhKien => typeCtrl.text == 'ACCESSORY' || typeCtrl.text == 'LINH KIỆN';
+  bool get _isAccessoryOrLinhKien => typeCtrl.text == 'ACCESSORY' || typeCtrl.text == 'LINHKIEN';
 
   @override
   void initState() {
     super.initState();
     _loadSuppliers();
     imeiCtrl.addListener(_onImeiChanged);
+
+    // Listen for supplier changes
+    EventBus().stream.listen((event) {
+      if (event == 'suppliers_changed' && mounted) {
+        _loadSuppliers();
+      }
+    });
 
     // Add listeners to track field changes
     brandCtrl.addListener(() => _onFieldChanged(brandCtrl, (changed) => _brandChanged = changed));
@@ -92,8 +100,7 @@ class _StockInViewState extends State<StockInView> {
     quantityCtrl.addListener(() => _onFieldChanged(quantityCtrl, (changed) => _quantityChanged = changed));
     costCtrl.addListener(() => _onFieldChanged(costCtrl, (changed) => _costChanged = changed));
     priceCtrl.addListener(() => _onFieldChanged(priceCtrl, (changed) => _priceChanged = changed));
-    costCtrl.addListener(_formatCost);
-    priceCtrl.addListener(_formatPrice);
+    // CurrencyTextField handles formatting automatically - no need for format listeners
     supplierCtrl.addListener(() => _onFieldChanged(supplierCtrl, (changed) => _supplierChanged = changed));
     notesCtrl.addListener(() => _onFieldChanged(notesCtrl, (changed) => _notesChanged = changed));
 
@@ -153,37 +160,7 @@ class _StockInViewState extends State<StockInView> {
     return CurrencyTextField.parseValue(text);
   }
 
-  void _formatCost() {
-    final text = costCtrl.text;
-    if (text.isEmpty) return;
-    final clean = text.replaceAll(',', '').split('.').first;
-    final num = int.tryParse(clean);
-    if (num != null) {
-      final formatted = "${NumberFormat('#,###').format(num)}";
-      if (formatted != text) {
-        costCtrl.value = TextEditingValue(
-          text: formatted,
-          selection: TextSelection.collapsed(offset: formatted.length - 4),
-        );
-      }
-    }
-  }
-
-  void _formatPrice() {
-    final text = priceCtrl.text;
-    if (text.isEmpty) return;
-    final clean = text.replaceAll(',', '').split('.').first;
-    final num = int.tryParse(clean);
-    if (num != null) {
-      final formatted = "${NumberFormat('#,###').format(num)}";
-      if (formatted != text) {
-        priceCtrl.value = TextEditingValue(
-          text: formatted,
-          selection: TextSelection.collapsed(offset: formatted.length - 4),
-        );
-      }
-    }
-  }
+  // _formatCost and _formatPrice removed - CurrencyTextField handles formatting automatically
 
   void _onFieldChanged(TextEditingController controller, Function(bool) setChanged) {
     final hasText = controller.text.trim().isNotEmpty;
@@ -205,8 +182,7 @@ class _StockInViewState extends State<StockInView> {
     quantityCtrl.removeListener(() => _onFieldChanged(quantityCtrl, (changed) => _quantityChanged = changed));
     costCtrl.removeListener(() => _onFieldChanged(costCtrl, (changed) => _costChanged = changed));
     priceCtrl.removeListener(() => _onFieldChanged(priceCtrl, (changed) => _priceChanged = changed));
-    costCtrl.removeListener(_formatCost);
-    priceCtrl.removeListener(_formatPrice);
+    // CurrencyTextField handles formatting - no format listeners to remove
     supplierCtrl.removeListener(() => _onFieldChanged(supplierCtrl, (changed) => _supplierChanged = changed));
     notesCtrl.removeListener(() => _onFieldChanged(notesCtrl, (changed) => _notesChanged = changed));
     // Dispose controllers and focus nodes
@@ -241,9 +217,10 @@ class _StockInViewState extends State<StockInView> {
   }
 
   Future<void> _loadSuppliers() async {
-    final sups = await db.getSuppliers();
+    final supplierService = SupplierService();
+    final sups = await supplierService.getSuppliers();
     setState(() {
-      suppliers = sups;
+      suppliers = sups.map((s) => s.toMap()).toList();
       if (suppliers.isNotEmpty && suppliers.first['name'] != null) {
         supplierCtrl.text = suppliers.first['name'] as String;
       }
@@ -380,7 +357,6 @@ class _StockInViewState extends State<StockInView> {
 
       // Lưu lịch sử nhập hàng từ nhà cung cấp
       if (supplierCtrl.text.isNotEmpty) {
-        final suppliers = await db.getSuppliers();
         final supplierData = suppliers.firstWhere((s) => s['name'] == supplierCtrl.text, orElse: () => {});
         final supplierId = supplierData['id'];
         if (supplierId != null) {

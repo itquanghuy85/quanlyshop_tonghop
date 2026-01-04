@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
 import '../services/event_bus.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 class SupplierDetailsDialog extends StatefulWidget {
   final Map<String, dynamic> supplier;
@@ -67,20 +69,25 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: AppColors.surface,
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.8,
+        width: MediaQuery.of(context).size.width * 0.95,
+        height: MediaQuery.of(context).size.height * 0.85,
         child: Column(
           children: [
-            // Header
+            // Header với gradient
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                gradient: LinearGradient(
+                  colors: [AppColors.primary, AppColors.primaryLight],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(15),
-                  topRight: Radius.circular(15),
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
                 ),
               ),
               child: Column(
@@ -88,87 +95,141 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.business, color: Colors.blue.shade700),
-                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.onPrimary.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.business, color: AppColors.onPrimary, size: 28),
+                      ),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           widget.supplier['name'] ?? 'N/A',
-                          style: const TextStyle(
-                            fontSize: 18,
+                          style: AppTextStyles.headline5.copyWith(
+                            color: AppColors.onPrimary,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blue,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
+                        icon: Icon(Icons.close, color: AppColors.onPrimary),
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppColors.onPrimary.withOpacity(0.1),
+                        ),
                       ),
                     ],
                   ),
                   if (_stats != null) ...[
+                    const SizedBox(height: 16),
+                    // Stats cards với design mới
+                    Row(
+                      children: [
+                        _buildStatCard(
+                          'Tổng nhập',
+                          '${_stats!['totalImports'] ?? 0}',
+                          'lần',
+                          Icons.inventory_2,
+                          AppColors.success,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildStatCard(
+                          'Tổng tiền',
+                          '${NumberFormat('#,###').format(_stats!['totalAmount'] ?? 0)}',
+                          'đ',
+                          Icons.account_balance_wallet,
+                          AppColors.warning,
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
-                    // Row 1: Tổng nhập và Tổng tiền
                     Row(
                       children: [
-                        _statChip('Tổng nhập', '${_stats!['totalImports'] ?? 0} lần'),
+                        _buildStatCard(
+                          'SL sản phẩm',
+                          '${_stats!['totalQuantity'] ?? 0}',
+                          'cái',
+                          Icons.inventory,
+                          AppColors.info,
+                        ),
                         const SizedBox(width: 8),
-                        _statChip('Tổng tiền', '${NumberFormat('#,###').format(_stats!['totalAmount'] ?? 0)} đ'),
+                        _buildStatCard(
+                          'SP duy nhất',
+                          '${_stats!['uniqueProducts'] ?? 0}',
+                          'loại',
+                          Icons.category,
+                          AppColors.secondary,
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    // Row 2: Tổng số lượng và Sản phẩm duy nhất
-                    Row(
-                      children: [
-                        _statChip('Tổng SL', '${_stats!['totalQuantity'] ?? 0} cái'),
-                        const SizedBox(width: 8),
-                        _statChip('SP duy nhất', '${_stats!['uniqueProducts'] ?? 0} loại'),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    // Row 3: Giá trung bình và Khoảng giá
-                    Row(
-                      children: [
-                        _statChip('Giá TB', '${NumberFormat('#,###').format(_stats!['avgPrice'] ?? 0)} đ'),
-                        const SizedBox(width: 8),
-                        _statChip('Giá từ',
-                          '${NumberFormat('#,###').format(_stats!['minPrice'] ?? 0)} - ${NumberFormat('#,###').format(_stats!['maxPrice'] ?? 0)} đ'),
-                      ],
-                    ),
-                    // Row 4: Ngày nhập đầu tiên và cuối cùng
-                    if (_stats!['firstImportDate'] != null && _stats!['lastImportDate'] != null) ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          _statChip('Nhập đầu',
-                            DateFormat('dd/MM/yy').format(DateTime.fromMillisecondsSinceEpoch(_stats!['firstImportDate']))),
-                          const SizedBox(width: 8),
-                          _statChip('Nhập cuối',
-                            DateFormat('dd/MM/yy').format(DateTime.fromMillisecondsSinceEpoch(_stats!['lastImportDate']))),
-                        ],
-                      ),
-                    ],
                   ],
                 ],
               ),
             ),
 
-            // Tab bar
-            TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(text: 'Lịch sử nhập hàng', icon: Icon(Icons.history)),
-                Tab(text: 'Giá sản phẩm', icon: Icon(Icons.price_change)),
-                Tab(text: 'Thống kê', icon: Icon(Icons.analytics)),
-              ],
-              labelColor: Colors.blue,
-              unselectedLabelColor: Colors.grey,
+            // Tab bar với design mới
+            Container(
+              color: AppColors.surface,
+              child: TabBar(
+                controller: _tabController,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: AppColors.onSurface.withOpacity(0.6),
+                indicatorColor: AppColors.primary,
+                indicatorWeight: 3,
+                labelStyle: AppTextStyles.body2.copyWith(fontWeight: FontWeight.w600),
+                unselectedLabelStyle: AppTextStyles.body2,
+                tabs: const [
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.history),
+                        SizedBox(width: 8),
+                        Text('LỊCH SỬ NHẬP'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.price_change),
+                        SizedBox(width: 8),
+                        Text('GIÁ SẢN PHẨM'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.analytics),
+                        SizedBox(width: 8),
+                        Text('THỐNG KÊ'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
 
             // Tab content
             Expanded(
               child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(color: AppColors.primary),
+                        const SizedBox(height: 16),
+                        Text('Đang tải dữ liệu...', style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.7))),
+                      ],
+                    ),
+                  )
                 : TabBarView(
                     controller: _tabController,
                     children: [
@@ -184,36 +245,58 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
     );
   }
 
-  Widget _statChip(String label, String value) {
+  Widget _buildStatCard(String title, String value, String unit, IconData icon, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.onPrimary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.blue.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blue.shade50,
-              blurRadius: 2,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          border: Border.all(color: AppColors.onPrimary.withOpacity(0.2)),
         ),
-        child: Column(
+        child: Row(
           children: [
-            Text(
-              label,
-              style: TextStyle(fontSize: 10, color: Colors.blue.shade700, fontWeight: FontWeight.w500),
-              textAlign: TextAlign.center,
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 16),
             ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.onPrimary.withOpacity(0.8),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        value,
+                        style: AppTextStyles.body2.copyWith(
+                          color: AppColors.onPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        unit,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.onPrimary.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -223,13 +306,29 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
 
   Widget _buildImportHistoryTab() {
     if (_importHistory.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.history, size: 48, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('Chưa có lịch sử nhập hàng', style: TextStyle(color: Colors.grey)),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.history, size: 48, color: AppColors.primary.withOpacity(0.5)),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Chưa có lịch sử nhập hàng',
+              style: AppTextStyles.headline6.copyWith(color: AppColors.onSurface.withOpacity(0.7)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Các lần nhập hàng sẽ hiển thị ở đây',
+              style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.5)),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       );
@@ -243,54 +342,129 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
         final date = DateTime.fromMillisecondsSinceEpoch(item['importDate']);
         final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(date);
 
-        return Card(
+        return Container(
           margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.outline.withOpacity(0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadow,
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(Icons.inventory, color: AppColors.primary, size: 16),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         item['productName'] ?? 'N/A',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: AppTextStyles.body1.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurface,
+                        ),
                       ),
                     ),
-                    Text(
-                      formattedDate,
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        formattedDate,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.secondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 12),
                 Row(
                   children: [
-                    Text('IMEI: ${item['imei'] ?? 'N/A'}', style: const TextStyle(fontSize: 12)),
-                    const SizedBox(width: 16),
-                    Text('SL: ${item['quantity'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                    Expanded(
+                      child: _buildDetailChip(
+                        'IMEI/Serial',
+                        item['imei'] ?? 'N/A',
+                        Icons.qr_code,
+                        AppColors.info,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildDetailChip(
+                        'Số lượng',
+                        '${item['quantity'] ?? 0} cái',
+                        Icons.numbers,
+                        AppColors.success,
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    Text(
-                      'Giá: ${NumberFormat('#,###').format(item['costPrice'] ?? 0)} đ',
-                      style: const TextStyle(fontSize: 12, color: Colors.green),
+                    Expanded(
+                      child: _buildDetailChip(
+                        'Giá nhập',
+                        '${NumberFormat('#,###').format(item['costPrice'] ?? 0)} đ',
+                        Icons.attach_money,
+                        AppColors.warning,
+                      ),
                     ),
-                    const SizedBox(width: 16),
-                    Text(
-                      'Tổng: ${NumberFormat('#,###').format(item['totalAmount'] ?? 0)} đ',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildDetailChip(
+                        'Tổng tiền',
+                        '${NumberFormat('#,###').format(item['totalAmount'] ?? 0)} đ',
+                        Icons.account_balance_wallet,
+                        AppColors.error,
+                      ),
                     ),
                   ],
                 ),
                 if (item['notes'] != null && item['notes'].toString().isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Ghi chú: ${item['notes']}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.outline.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.note, size: 16, color: AppColors.onSurface.withOpacity(0.6)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Ghi chú: ${item['notes']}',
+                            style: AppTextStyles.body2.copyWith(
+                              color: AppColors.onSurface.withOpacity(0.8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ],
@@ -301,15 +475,72 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
     );
   }
 
+  Widget _buildDetailChip(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTextStyles.caption.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: AppTextStyles.body2.copyWith(
+                    color: AppColors.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProductPricesTab() {
     if (_productPrices.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.price_change, size: 48, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('Chưa có thông tin giá sản phẩm', style: TextStyle(color: Colors.grey)),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.price_change, size: 48, color: AppColors.primary.withOpacity(0.5)),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Chưa có thông tin giá sản phẩm',
+              style: AppTextStyles.headline6.copyWith(color: AppColors.onSurface.withOpacity(0.7)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Giá sản phẩm từ nhà cung cấp sẽ hiển thị ở đây',
+              style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.5)),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       );
@@ -323,44 +554,148 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
         final lastUpdated = DateTime.fromMillisecondsSinceEpoch(price['lastUpdated']);
         final formattedDate = DateFormat('dd/MM/yyyy HH:mm').format(lastUpdated);
 
-        return Card(
+        return Container(
           margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.outline.withOpacity(0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.shadow,
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  price['productName'] ?? 'N/A',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
                 Row(
                   children: [
-                    Text(
-                      'Thương hiệu: ${price['productBrand'] ?? 'N/A'}',
-                      style: const TextStyle(fontSize: 12),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(Icons.inventory_2, color: AppColors.primary, size: 16),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        price['productName'] ?? 'N/A',
+                        style: AppTextStyles.body1.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    if (price['productBrand'] != null) ...[
+                      Expanded(
+                        child: _buildPriceDetailChip(
+                          'Thương hiệu',
+                          price['productBrand'],
+                          Icons.business,
+                          AppColors.secondary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     if (price['productModel'] != null) ...[
-                      const SizedBox(width: 16),
-                      Text(
-                        'Model: ${price['productModel']}',
-                        style: const TextStyle(fontSize: 12),
+                      Expanded(
+                        child: _buildPriceDetailChip(
+                          'Model',
+                          price['productModel'],
+                          Icons.devices,
+                          AppColors.info,
+                        ),
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    Text(
-                      'Giá nhập: ${NumberFormat('#,###').format(price['costPrice'] ?? 0)} đ',
-                      style: const TextStyle(fontSize: 14, color: Colors.green, fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.attach_money, size: 16, color: AppColors.success),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Giá nhập',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.success,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${NumberFormat('#,###').format(price['costPrice'] ?? 0)} đ',
+                              style: AppTextStyles.headline6.copyWith(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 16),
-                    Text(
-                      'Cập nhật: $formattedDate',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.update, size: 16, color: AppColors.primary),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Cập nhật',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              formattedDate,
+                              style: AppTextStyles.body2.copyWith(
+                                color: AppColors.onSurface,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -372,15 +707,72 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
     );
   }
 
+  Widget _buildPriceDetailChip(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTextStyles.caption.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: AppTextStyles.body2.copyWith(
+                    color: AppColors.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatisticsTab() {
     if (_stats == null) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.analytics, size: 48, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('Chưa có dữ liệu thống kê', style: TextStyle(color: Colors.grey)),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.analytics, size: 48, color: AppColors.primary.withOpacity(0.5)),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Chưa có dữ liệu thống kê',
+              style: AppTextStyles.headline6.copyWith(color: AppColors.onSurface.withOpacity(0.7)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Thống kê sẽ hiển thị sau khi có dữ liệu nhập hàng',
+              style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.5)),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       );
@@ -391,56 +783,82 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Tổng quan
+          // Tổng quan hoạt động
           _buildStatSection(
             'Tổng quan hoạt động',
+            Icons.business_center,
+            AppColors.primary,
             [
-              _buildStatRow('Tổng số lần nhập hàng', '${_stats!['totalImports'] ?? 0} lần'),
-              _buildStatRow('Tổng số lượng sản phẩm', '${_stats!['totalQuantity'] ?? 0} cái'),
-              _buildStatRow('Tổng giá trị nhập hàng', '${NumberFormat('#,###').format(_stats!['totalAmount'] ?? 0)} đ'),
-              _buildStatRow('Số loại sản phẩm khác nhau', '${_stats!['uniqueProducts'] ?? 0} loại'),
+              _buildStatMetric('Tổng số lần nhập hàng', '${_stats!['totalImports'] ?? 0} lần', Icons.inventory),
+              _buildStatMetric('Tổng số lượng sản phẩm', '${_stats!['totalQuantity'] ?? 0} cái', Icons.numbers),
+              _buildStatMetric('Tổng giá trị nhập hàng', '${NumberFormat('#,###').format(_stats!['totalAmount'] ?? 0)} đ', Icons.account_balance_wallet),
+              _buildStatMetric('Số loại sản phẩm khác nhau', '${_stats!['uniqueProducts'] ?? 0} loại', Icons.category),
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           // Thống kê giá cả
           _buildStatSection(
             'Thống kê giá cả',
+            Icons.attach_money,
+            AppColors.success,
             [
-              _buildStatRow('Giá nhập trung bình', '${NumberFormat('#,###').format(_stats!['avgPrice'] ?? 0)} đ'),
-              _buildStatRow('Giá nhập thấp nhất', '${NumberFormat('#,###').format(_stats!['minPrice'] ?? 0)} đ'),
-              _buildStatRow('Giá nhập cao nhất', '${NumberFormat('#,###').format(_stats!['maxPrice'] ?? 0)} đ'),
+              _buildStatMetric('Giá nhập trung bình', '${NumberFormat('#,###').format(_stats!['avgPrice'] ?? 0)} đ', Icons.trending_up),
+              _buildStatMetric('Giá nhập thấp nhất', '${NumberFormat('#,###').format(_stats!['minPrice'] ?? 0)} đ', Icons.arrow_downward),
+              _buildStatMetric('Giá nhập cao nhất', '${NumberFormat('#,###').format(_stats!['maxPrice'] ?? 0)} đ', Icons.arrow_upward),
+              _buildStatMetric('Biên độ giá', '${NumberFormat('#,###').format((_stats!['maxPrice'] ?? 0) - (_stats!['minPrice'] ?? 0))} đ', Icons.compare_arrows),
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           // Thời gian hoạt động
           if (_stats!['firstImportDate'] != null && _stats!['lastImportDate'] != null) ...[
             _buildStatSection(
               'Thời gian hoạt động',
+              Icons.schedule,
+              AppColors.secondary,
               [
-                _buildStatRow('Lần nhập đầu tiên',
-                  DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(_stats!['firstImportDate']))),
-                _buildStatRow('Lần nhập gần nhất',
-                  DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(_stats!['lastImportDate']))),
-                _buildStatRow('Thời gian hợp tác',
-                  _calculateCooperationPeriod(_stats!['firstImportDate'], _stats!['lastImportDate'])),
+                _buildStatMetric('Lần nhập đầu tiên',
+                  DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(_stats!['firstImportDate'])), Icons.start),
+                _buildStatMetric('Lần nhập gần nhất',
+                  DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(_stats!['lastImportDate'])), Icons.update),
+                _buildStatMetric('Thời gian hợp tác', _calculateCooperationPeriod(_stats!['firstImportDate'], _stats!['lastImportDate']), Icons.timeline),
+                _buildStatMetric('Tần suất nhập hàng', _calculateImportFrequency(_stats!['totalImports'], _stats!['firstImportDate'], _stats!['lastImportDate']), Icons.repeat),
               ],
             ),
           ],
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // Thống kê hiệu suất
+          // Hiệu suất và dòng tiền
           _buildStatSection(
-            'Hiệu suất',
+            'Hiệu suất & Dòng tiền',
+            Icons.trending_up,
+            AppColors.warning,
             [
-              _buildStatRow('Giá trị trung bình/lần nhập',
-                '${NumberFormat('#,###').format((_stats!['totalAmount'] ?? 0) / (_stats!['totalImports'] ?? 1))} đ'),
-              _buildStatRow('Số lượng trung bình/lần nhập',
-                '${((_stats!['totalQuantity'] ?? 0) / (_stats!['totalImports'] ?? 1)).toStringAsFixed(1)} cái'),
+              _buildStatMetric('Giá trị trung bình/lần nhập',
+                '${NumberFormat('#,###').format((_stats!['totalAmount'] ?? 0) / (_stats!['totalImports'] ?? 1))} đ', Icons.calculate),
+              _buildStatMetric('Số lượng trung bình/lần nhập',
+                '${((_stats!['totalQuantity'] ?? 0) / (_stats!['totalImports'] ?? 1)).toStringAsFixed(1)} cái', Icons.inventory_2),
+              _buildStatMetric('Tổng dòng tiền ra', '${NumberFormat('#,###').format(_stats!['totalAmount'] ?? 0)} đ', Icons.money_off),
+              _buildStatMetric('Giá trị lớn nhất/lần nhập',
+                '${NumberFormat('#,###').format(_stats!['maxSingleImport'] ?? 0)} đ', Icons.emoji_events),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // Phân tích xu hướng
+          _buildStatSection(
+            'Phân tích xu hướng',
+            Icons.insights,
+            AppColors.info,
+            [
+              _buildStatMetric('Xu hướng nhập hàng', _calculateImportTrend(), Icons.show_chart),
+              _buildStatMetric('Mức độ ổn định giá', _calculatePriceStability(), Icons.straighten),
+              _buildStatMetric('Đánh giá tổng thể', _calculateOverallRating(), Icons.star),
             ],
           ),
         ],
@@ -448,55 +866,103 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
     );
   }
 
-  Widget _buildStatSection(String title, List<Widget> stats) {
+  Widget _buildStatSection(String title, IconData icon, Color color, List<Widget> metrics) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.outline.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: AppTextStyles.headline6.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          ...stats,
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(children: metrics),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+  Widget _buildStatMetric(String label, String value, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.outline.withOpacity(0.2)),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade700,
-              ),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
             ),
+            child: Icon(icon, size: 16, color: AppColors.primary),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTextStyles.body2.copyWith(
+                    color: AppColors.onSurface.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: AppTextStyles.body1.copyWith(
+                    color: AppColors.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            textAlign: TextAlign.right,
           ),
         ],
       ),
@@ -518,5 +984,70 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
     if (days > 0 || parts.isEmpty) parts.add('$days ngày');
 
     return parts.join(', ');
+  }
+
+  String _calculateImportFrequency(int totalImports, int firstDate, int lastDate) {
+    final first = DateTime.fromMillisecondsSinceEpoch(firstDate);
+    final last = DateTime.fromMillisecondsSinceEpoch(lastDate);
+    final days = last.difference(first).inDays;
+
+    if (days == 0) return '1 lần/ngày';
+
+    final frequency = totalImports / days;
+    if (frequency >= 1) {
+      return '${frequency.toStringAsFixed(1)} lần/ngày';
+    } else if (frequency >= 0.1) {
+      return '${(frequency * 7).toStringAsFixed(1)} lần/tuần';
+    } else {
+      return '${(frequency * 30).toStringAsFixed(1)} lần/tháng';
+    }
+  }
+
+  String _calculateImportTrend() {
+    // Simple trend analysis based on import frequency
+    final totalImports = _stats!['totalImports'] ?? 0;
+    if (totalImports < 3) return 'Chưa đủ dữ liệu';
+
+    // This would need more sophisticated analysis in a real implementation
+    return 'Ổn định';
+  }
+
+  String _calculatePriceStability() {
+    final minPrice = _stats!['minPrice'] ?? 0;
+    final maxPrice = _stats!['maxPrice'] ?? 0;
+    final avgPrice = _stats!['avgPrice'] ?? 0;
+
+    if (avgPrice == 0) return 'N/A';
+
+    final variance = ((maxPrice - minPrice) / avgPrice) * 100;
+    if (variance < 10) return 'Rất ổn định (<10%)';
+    if (variance < 25) return 'Ổn định (10-25%)';
+    if (variance < 50) return 'Biến động (25-50%)';
+    return 'Rất biến động (>50%)';
+  }
+
+  String _calculateOverallRating() {
+    final totalImports = _stats!['totalImports'] ?? 0;
+    final totalAmount = _stats!['totalAmount'] ?? 0;
+    final uniqueProducts = _stats!['uniqueProducts'] ?? 0;
+
+    if (totalImports == 0) return 'N/A';
+
+    // Simple rating based on activity and diversity
+    int score = 0;
+    if (totalImports > 10) score += 2;
+    else if (totalImports > 5) score += 1;
+
+    if (totalAmount > 10000000) score += 2; // 10M VND
+    else if (totalAmount > 5000000) score += 1; // 5M VND
+
+    if (uniqueProducts > 5) score += 2;
+    else if (uniqueProducts > 2) score += 1;
+
+    if (score >= 5) return '⭐⭐⭐⭐⭐ Xuất sắc';
+    if (score >= 4) return '⭐⭐⭐⭐ Tốt';
+    if (score >= 3) return '⭐⭐⭐ Khá';
+    if (score >= 2) return '⭐⭐ Trung bình';
+    return '⭐ Cơ bản';
   }
 }

@@ -7,6 +7,7 @@ import '../core/utils/money_utils.dart';
 import '../controllers/fast_inventory_input_controller.dart';
 import '../models/product_model.dart';
 import '../services/notification_service.dart';
+import '../services/event_bus.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/validated_text_field.dart';
 import '../theme/app_colors.dart';
@@ -124,7 +125,6 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView> with Ti
 
   final List<String> types = ['PHONE', 'ACCESSORY', 'LINHKIEN'];
   final List<String> conditions = ['Mới 100%', 'Mới 99%', 'Mới 95%', 'Mới 90%', 'Đã sử dụng'];
-  List<Map<String, dynamic>> suppliers = [];
   String selectedPaymentMethod = 'Tiền mặt';
   DateTime selectedDate = DateTime.now();
   bool _saving = false;
@@ -136,6 +136,13 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView> with Ti
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadInitialData();
+    
+    // Listen for supplier changes
+    EventBus().stream.listen((event) {
+      if (event == 'suppliers_changed' && mounted) {
+        _loadSuppliers();
+      }
+    });
   }
 
   Future<void> _loadInitialData() async {
@@ -154,6 +161,22 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView> with Ti
       }
     } catch (e) {
       NotificationService.showSnackBar("Lỗi tải dữ liệu: $e", color: AppColors.error);
+    }
+  }
+
+  Future<void> _loadSuppliers() async {
+    try {
+      final suppliers = await _controller.getSuppliers();
+      if (mounted) {
+        setState(() {
+          _suppliers = suppliers;
+          if (_suppliers.isNotEmpty && _selectedSupplier.isEmpty) {
+            _selectedSupplier = _suppliers.first['name'] as String;
+          }
+        });
+      }
+    } catch (e) {
+      NotificationService.showSnackBar("Lỗi tải nhà cung cấp: $e", color: AppColors.error);
     }
   }
 
@@ -193,15 +216,6 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView> with Ti
     priceF.dispose();
     notesF.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadSuppliers() async {
-    try {
-      suppliers = await _controller.getSuppliers();
-      setState(() {});
-    } catch (e) {
-      NotificationService.showSnackBar("Lỗi tải nhà cung cấp: $e", color: AppColors.error);
-    }
   }
 
   bool _validateForm() {
@@ -769,7 +783,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView> with Ti
                 borderSide: BorderSide(color: Colors.blue, width: 1.0),
               ),
             ),
-            items: suppliers.map((supplier) => DropdownMenuItem<String>(
+            items: _suppliers.map((supplier) => DropdownMenuItem<String>(
               value: supplier['name'] as String,
               child: Text(
                 supplier['name'] as String,

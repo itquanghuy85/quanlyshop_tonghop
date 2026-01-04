@@ -17,7 +17,7 @@ class AppTheme {
       primaryColorLight: AppColors.primaryLight,
       primaryColorDark: AppColors.primaryDark,
       scaffoldBackgroundColor: AppColors.background,
-      cardColor: AppColors.surface,
+      cardColor: const Color.fromARGB(255, 15, 228, 125),
       dividerColor: AppColors.divider,
 
       // ========== COLOR SCHEME ==========
@@ -27,7 +27,7 @@ class AppTheme {
         secondary: AppColors.secondary,
         secondaryContainer: AppColors.secondaryLight,
         surface: AppColors.surface,
-        background: AppColors.background,
+        background: Color.fromARGB(255, 107, 243, 11),
         error: AppColors.error,
         onPrimary: AppColors.onPrimary,
         onSecondary: AppColors.onSecondary,
@@ -44,7 +44,8 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.onPrimary,
-        elevation: 2,
+        elevation: 4,
+        shadowColor: AppColors.shadow,
         centerTitle: true,
         titleTextStyle: AppTextStyles.headline6.copyWith(
           color: AppColors.onPrimary,
@@ -57,8 +58,8 @@ class AppTheme {
 
       // ========== BOTTOM NAVIGATION BAR ==========
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: AppColors.surface,
-        selectedItemColor: AppColors.primary,
+        backgroundColor: const Color.fromARGB(255, 137, 247, 162),
+        selectedItemColor: const Color.fromARGB(255, 167, 243, 14),
         unselectedItemColor: AppColors.onSurface.withOpacity(0.6),
         selectedLabelStyle: AppTextStyles.caption.copyWith(
           fontWeight: FontWeight.w600,
@@ -72,22 +73,13 @@ class AppTheme {
 
       // ========== TAB BAR ==========
       tabBarTheme: const TabBarThemeData(
-        labelColor: AppColors.primary,
-        unselectedLabelColor: AppColors.grey600,
-        labelStyle: TextStyle(
-          fontWeight: FontWeight.w600,
-          color: AppColors.primary,
-        ),
-        unselectedLabelStyle: TextStyle(
-          color: AppColors.grey600,
-        ),
-        indicator: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: AppColors.primary,
-              width: 3,
-            ),
-          ),
+        labelColor: Colors.white,
+        unselectedLabelColor: AppColors.grey300,
+        labelStyle: TextStyle(fontWeight: FontWeight.w600),
+        unselectedLabelStyle: TextStyle(),
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(color: AppColors.secondary, width: 3),
+          insets: EdgeInsets.symmetric(horizontal: 16),
         ),
         indicatorSize: TabBarIndicatorSize.tab,
       ),

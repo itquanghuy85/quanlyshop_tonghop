@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
 import '../core/utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
@@ -16,12 +15,10 @@ import 'partner_management_view.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/currency_text_field.dart';
-import 'supplier_view.dart';
-import 'stock_in_view.dart';
-import '../theme/app_theme.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart'; 
+import 'stock_in_view.dart'; // Restored stock_in_view import
 
 class CreateSaleView extends StatefulWidget {
   final Product? preSelectedProduct; 
@@ -187,8 +184,6 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     // Load selected items từ sale
     final productNames = sale.productNames.split(',');
     final productImeis = sale.productImeis.split(',');
-    final quantities = List.filled(productNames.length, 1); // Giả sử quantity 1
-    
     for (int i = 0; i < productNames.length; i++) {
       final name = productNames[i].trim();
       final imei = productImeis.length > i ? productImeis[i].trim() : '';
@@ -454,6 +449,20 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         await FirestoreService.updateProductCloud(p);
       }
       await db.upsertSale(sale); await FirestoreService.addSale(sale);
+
+      // Create customer if not exists
+      final customerService = CustomerService();
+      final existingCustomers = await customerService.getCustomers();
+      final existing = existingCustomers.where((c) => c.phone == phoneCtrl.text.trim()).toList();
+      if (existing.isEmpty) {
+        final newCustomer = Customer(
+          name: nameCtrl.text.trim().toUpperCase(),
+          phone: phoneCtrl.text.trim(),
+          address: addressCtrl.text.trim().toUpperCase(),
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+        );
+        await customerService.addCustomer(newCustomer);
+      }
       
       // Trigger payment notification if payment is completed
       if (_paymentMethod != "CÔNG NỢ" && !_isInstallment) {

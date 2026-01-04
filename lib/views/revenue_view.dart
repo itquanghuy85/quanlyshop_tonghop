@@ -40,7 +40,7 @@ class _RevenueViewState extends State<RevenueView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
     _loadPermissions();
     _loadAllData();
   }
@@ -161,8 +161,6 @@ class _RevenueViewState extends State<RevenueView>
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
-          labelColor: const Color(0xFF2962FF),
-          indicatorColor: const Color(0xFF2962FF),
           tabs: const [
             Tab(text: "TỔNG QUAN"),
             Tab(text: "CHỐT QUỸ"),
@@ -171,6 +169,7 @@ class _RevenueViewState extends State<RevenueView>
             Tab(text: "BẢO HÀNH"),
             Tab(text: "CHI TIÊU"),
             Tab(text: "CÔNG NỢ"),
+            Tab(text: "DÒNG TIỀN"),
           ],
         ),
       ),
@@ -186,6 +185,7 @@ class _RevenueViewState extends State<RevenueView>
                 const WarrantyView(),
                 _buildExpenseDetail(),
                 const DebtView(),
+                _buildCashFlowHistory(),
               ],
             ),
     );
@@ -713,6 +713,130 @@ class _RevenueViewState extends State<RevenueView>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCashFlowHistory() {
+    // Collect all transactions with dates
+    List<_TransactionItem> allTransactions = [];
+
+    // Sales
+    for (var s in _sales) {
+      allTransactions.add(
+        _TransactionItem(
+          title: "Bán: ${s.productNames}",
+          amount: s.totalPrice,
+          method: s.paymentMethod,
+          time: s.soldAt,
+          type: "IN",
+          isDebt: s.paymentMethod == "CÔNG NỢ",
+        ),
+      );
+    }
+
+    // Repairs
+    for (var r in _repairs.where((r) => r.status == 4 && r.deliveredAt != null)) {
+      allTransactions.add(
+        _TransactionItem(
+          title: "Sửa: ${r.model}",
+          amount: r.price,
+          method: r.paymentMethod,
+          time: r.deliveredAt!,
+          type: "IN",
+          isDebt: r.paymentMethod == "CÔNG NỢ",
+        ),
+      );
+    }
+
+    // Expenses
+    for (var e in _expenses) {
+      allTransactions.add(
+        _TransactionItem(
+          title: "Chi: ${e['title']}",
+          amount: e['amount'],
+          method: e['paymentMethod'] ?? 'TIỀN MẶT',
+          time: e['date'],
+          type: "OUT",
+          isDebt: false,
+        ),
+      );
+    }
+
+    // Debt payments
+    for (var p in _debtPayments) {
+      bool isShopPay = p['debtType'] == 'SHOP_OWES';
+      allTransactions.add(
+        _TransactionItem(
+          title: isShopPay
+              ? "Trả nợ NCC: ${p['personName']}"
+              : "Thu nợ: ${p['personName']}",
+          amount: p['amount'],
+          method: p['paymentMethod'] ?? 'TIỀN MẶT',
+          time: p['paidAt'],
+          type: isShopPay ? "OUT" : "IN",
+          isDebt: false,
+        ),
+      );
+    }
+
+    // Sort by time descending
+    allTransactions.sort((a, b) => b.time.compareTo(a.time));
+
+    if (allTransactions.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.account_balance_wallet, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text("Chưa có giao dịch nào", style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: allTransactions.length,
+      itemBuilder: (ctx, i) {
+        final item = allTransactions[i];
+        final date = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(item.time));
+        final isIncome = item.type == "IN";
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isIncome ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                isIncome ? Icons.arrow_upward : Icons.arrow_downward,
+                color: isIncome ? Colors.green : Colors.red,
+                size: 20,
+              ),
+            ),
+            title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w500)),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("${item.method} • $date"),
+                if (item.isDebt) const Text("Công nợ", style: TextStyle(color: Colors.orange, fontSize: 12)),
+              ],
+            ),
+            trailing: Text(
+              "${isIncome ? '+' : '-'}${NumberFormat('#,###').format(item.amount)}đ",
+              style: TextStyle(
+                color: isIncome ? Colors.green : Colors.red,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

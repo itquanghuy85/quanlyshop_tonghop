@@ -10,6 +10,7 @@ import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/event_bus.dart';
+import '../services/supplier_service.dart';
 import '../core/utils/money_utils.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/currency_text_field.dart';
@@ -36,6 +37,7 @@ class FastStockInView extends StatefulWidget {
 
 class _FastStockInViewState extends State<FastStockInView> {
   final db = DBHelper();
+  final supplierService = SupplierService();
   bool _saving = false;
   bool _isLoading = true;
   String? _loadingError;
@@ -80,13 +82,13 @@ class _FastStockInViewState extends State<FastStockInView> {
     _initData();
     imeiCtrl.addListener(_updateConfirmButton);
     modelCtrl.addListener(_updateConfirmButton);
-    costCtrl.addListener(_formatCost);
-    priceCtrl.addListener(_formatPrice);
+    // CurrencyTextField handles formatting automatically - no need for listeners
   }
 
   int _parseMoneyWithK(String text) {
-    // MoneyUtils.parseMoney already handles auto-multiply for values < 100000
-    return MoneyUtils.parseMoney(text);
+    // CurrencyTextField stores formatted value (e.g., "500.000" for 500000 VND)
+    // parseValue removes formatting and returns the integer
+    return CurrencyTextField.parseValue(text);
   }
 
   void _preFillFromQuickInputCode(QuickInputCode code) {
@@ -115,12 +117,12 @@ class _FastStockInViewState extends State<FastStockInView> {
       selectedCondition = code.condition!.toUpperCase();
     }
     
-    // Pre-fill prices
+    // Pre-fill prices - use CurrencyTextField format for consistency
     if (code.cost != null) {
-      costCtrl.text = MoneyUtils.formatVND(code.cost!);
+      costCtrl.text = CurrencyTextField.formatDisplay(code.cost!);
     }
     if (code.price != null) {
-      priceCtrl.text = MoneyUtils.formatVND(code.price!);
+      priceCtrl.text = CurrencyTextField.formatDisplay(code.price!);
     }
     
     // Pre-fill supplier
@@ -177,8 +179,7 @@ class _FastStockInViewState extends State<FastStockInView> {
   void dispose() {
     imeiCtrl.removeListener(_updateConfirmButton);
     modelCtrl.removeListener(_updateConfirmButton);
-    costCtrl.removeListener(_formatCost);
-    priceCtrl.removeListener(_formatPrice);
+    // CurrencyTextField handles formatting - no format listeners to remove
     modelCtrl.dispose();
     imeiCtrl.dispose();
     quantityCtrl.dispose();
@@ -191,45 +192,13 @@ class _FastStockInViewState extends State<FastStockInView> {
     setState(() {});
   }
 
-  void _formatCost() {
-    final text = costCtrl.text;
-    if (text.isEmpty) return;
-    final clean = text.replaceAll(',', '').split('.').first;
-    final num = int.tryParse(clean);
-    if (num != null) {
-      final formatted = MoneyUtils.formatVND(MoneyUtils.inputToVND(num));
-      if (formatted != text) {
-        costCtrl.value = TextEditingValue(
-          text: formatted,
-          selection: TextSelection.collapsed(offset: formatted.length),
-        );
-      }
-    }
-  }
-
-  void _formatPrice() {
-    final text = priceCtrl.text;
-    if (text.isEmpty) return;
-    final clean = text.replaceAll(',', '').split('.').first;
-    final num = int.tryParse(clean);
-    if (num != null) {
-      final formatted = MoneyUtils.formatVND(MoneyUtils.inputToVND(num));
-      if (formatted != text) {
-        priceCtrl.value = TextEditingValue(
-          text: formatted,
-          selection: TextSelection.collapsed(offset: formatted.length),
-        );
-      }
-    }
-  }
-
   Future<void> _loadSuppliers() async {
     debugPrint('FastStockIn: start loading suppliers');
     try {
-      final sups = await db.getSuppliers();
+      final sups = await supplierService.getSuppliers();
       if (mounted) {
         setState(() {
-          suppliers = sups.where((s) => s['name'] != null && s['name'].toString().isNotEmpty).toList();
+          suppliers = sups.map((s) => s.toMap()).where((s) => s['name'] != null && s['name'].toString().isNotEmpty).toList();
         });
         debugPrint('FastStockIn: loaded suppliers count=${suppliers.length}');
       }
@@ -603,26 +572,12 @@ class _FastStockInViewState extends State<FastStockInView> {
     );
   }
 
-  Widget _buildPresetRow(String title, TextEditingController controller, {String? suffix}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-        const SizedBox(height: 4),
-        TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: const TextStyle(fontSize: 11),
-          decoration: InputDecoration(
-            hintText: 'Nhập giá',
-            suffixText: suffix,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-          ),
-        ),
-        const SizedBox(height: 8),
-      ],
+  Widget _buildCurrencyField(String title, TextEditingController controller, IconData icon) {
+    return CurrencyTextField(
+      controller: controller,
+      label: title,
+      icon: icon,
+      autoMultiply1000: true,
     );
   }
 
@@ -706,10 +661,10 @@ class _FastStockInViewState extends State<FastStockInView> {
       }
 
       if (code.cost != null) {
-        costCtrl.text = code.cost.toString();
+        costCtrl.text = CurrencyTextField.formatDisplay(code.cost!);
       }
       if (code.price != null) {
-        priceCtrl.text = code.price.toString();
+        priceCtrl.text = CurrencyTextField.formatDisplay(code.price!);
       }
       selectedSupplier = code.supplier;
       if (code.supplier != null && !suppliers.any((s) => s['name'] == code.supplier)) {
@@ -807,8 +762,9 @@ class _FastStockInViewState extends State<FastStockInView> {
             ),
             const SizedBox(height: 8),
 
-            _buildPresetRow('Giá nhập (VNĐ)', costCtrl, suffix: ''),
-            _buildPresetRow('Giá bán (VNĐ)', priceCtrl, suffix: ''),
+            _buildCurrencyField('Giá nhập (VNĐ) *', costCtrl, Icons.attach_money),
+            const SizedBox(height: 8),
+            _buildCurrencyField('Giá bán (VNĐ)', priceCtrl, Icons.sell),
 
             const SizedBox(height: 24),
             Center(

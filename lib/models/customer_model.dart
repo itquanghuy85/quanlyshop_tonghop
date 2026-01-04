@@ -8,9 +8,11 @@ class Customer {
   String? notes;
   int createdAt;
   int? lastVisitAt;
+  int? updatedAt;
   int totalSpent; // Tổng tiền đã mua
   int totalRepairs; // Tổng số lần sửa chữa
   int totalRepairCost; // Tổng tiền sửa chữa
+  String? shopId;
   bool isSynced;
   bool deleted;
 
@@ -24,9 +26,11 @@ class Customer {
     this.notes,
     required this.createdAt,
     this.lastVisitAt,
+    this.updatedAt,
     this.totalSpent = 0,
     this.totalRepairs = 0,
     this.totalRepairCost = 0,
+    this.shopId,
     this.isSynced = false,
     this.deleted = false,
   });
@@ -43,9 +47,11 @@ class Customer {
       'notes': notes,
       'createdAt': createdAt,
       'lastVisitAt': lastVisitAt,
+      'updatedAt': updatedAt,
       'totalSpent': totalSpent,
       'totalRepairs': totalRepairs,
       'totalRepairCost': totalRepairCost,
+      'shopId': shopId,
       'isSynced': isSynced ? 1 : 0,
       'deleted': deleted ? 1 : 0,
     };
@@ -63,9 +69,11 @@ class Customer {
       notes: map['notes'],
       createdAt: map['createdAt'] ?? DateTime.now().millisecondsSinceEpoch,
       lastVisitAt: map['lastVisitAt'],
+      updatedAt: map['updatedAt'],
       totalSpent: map['totalSpent'] ?? 0,
       totalRepairs: map['totalRepairs'] ?? 0,
       totalRepairCost: map['totalRepairCost'] ?? 0,
+      shopId: map['shopId'],
       isSynced: (map['isSynced'] ?? 0) == 1,
       deleted: (map['deleted'] ?? 0) == 1,
     );
@@ -118,9 +126,11 @@ class Customer {
     String? notes,
     int? createdAt,
     int? lastVisitAt,
+    int? updatedAt,
     int? totalSpent,
     int? totalRepairs,
     int? totalRepairCost,
+    String? shopId,
     bool? isSynced,
     bool? deleted,
   }) {
@@ -134,9 +144,11 @@ class Customer {
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       lastVisitAt: lastVisitAt ?? this.lastVisitAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       totalSpent: totalSpent ?? this.totalSpent,
       totalRepairs: totalRepairs ?? this.totalRepairs,
       totalRepairCost: totalRepairCost ?? this.totalRepairCost,
+      shopId: shopId ?? this.shopId,
       isSynced: isSynced ?? this.isSynced,
       deleted: deleted ?? this.deleted,
     );
