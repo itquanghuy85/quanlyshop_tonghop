@@ -79,14 +79,21 @@ class ShopsTab extends StatelessWidget {
           children: [
             _buildIntroCard(context),
             const SizedBox(height: 12),
+            _buildStatsCard(shops.length),
+            const SizedBox(height: 12),
             ...shops.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
               final shopId = doc.id;
+              final shopName = data['name'] ?? 'Shop chưa đặt tên';
               final ownerEmail = data['ownerEmail'] ?? 'Không rõ email chủ shop';
               final ownerUid = data['ownerUid'] ?? 'Không rõ UID chủ shop';
               final createdAt = data['createdAt'];
               final appLocked = data['appLocked'] == true;
               final adminFinanceLocked = data['adminFinanceLocked'] == true;
+              final staffSalesLocked = data['staffSalesLocked'] == true;
+              final staffInventoryLocked = data['staffInventoryLocked'] == true;
+              final staffDebtLocked = data['staffDebtLocked'] == true;
+              final staffSettingsLocked = data['staffSettingsLocked'] == true;
 
               String createdText = 'Chưa rõ ngày tạo';
               if (createdAt is Timestamp) {
@@ -96,71 +103,276 @@ class ShopsTab extends StatelessWidget {
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                child: Padding(
-                  padding: const EdgeInsets.all(15),
-                  child: Column(
+                child: ExpansionTile(
+                  leading: Icon(
+                    appLocked ? Icons.lock : Icons.store_mall_directory,
+                    color: appLocked ? Colors.red : Colors.blueAccent,
+                  ),
+                  title: Text(
+                    shopName,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: appLocked ? Colors.red : Colors.black87,
+                    ),
+                  ),
+                  subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.store_mall_directory, color: Colors.blueAccent),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Shop ID: $shopId',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text('Chủ shop: $ownerEmail', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                      Text('Owner UID: $ownerUid', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                      Text(createdText, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                      const Divider(height: 20),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('KHÓA TOÀN BỘ APP CỦA SHOP NÀY', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        subtitle: const Text(
-                          'Khi bật, mọi tài khoản thuộc shop này sẽ không truy cập được bất kỳ chức năng nào.',
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
-                        value: appLocked,
-                        onChanged: (v) async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          await UserService.updateShopControlFlags(shopId: shopId, appLocked: v);
-                          messenger.showSnackBar(
-                            SnackBar(content: Text(v ? 'ĐÃ KHÓA toàn bộ app cho shop $shopId' : 'ĐÃ MỞ KHÓA app cho shop $shopId')),
-                          );
-                        },
-
-                      ),
-                      const SizedBox(height: 4),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('KHÓA CHỨC NĂNG TÀI CHÍNH CỦA QUẢN LÝ SHOP', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        subtitle: const Text(
-                          'Khi bật, tài khoản QUẢN LÝ của shop không xem được Doanh thu, Chi phí và Sổ công nợ.',
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
-                        value: adminFinanceLocked,
-                        onChanged: (v) async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          await UserService.updateShopControlFlags(shopId: shopId, adminFinanceLocked: v);
-                          messenger.showSnackBar(
-                            SnackBar(content: Text(v ? 'ĐÃ KHÓA tài chính của quản lý shop $shopId' : 'ĐÃ MỞ lại tài chính cho quản lý shop $shopId')),
-                          );
-                        },
-
-                      ),
+                      Text('ID: $shopId', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      Text(ownerEmail, style: const TextStyle(fontSize: 11, color: Colors.grey)),
                     ],
                   ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(15),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Owner UID: $ownerUid', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          Text(createdText, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          const Divider(height: 20),
+                          const Text('🔐 ĐIỀU KHIỂN SUPER ADMIN', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                          const SizedBox(height: 8),
+                          _buildLockSwitch(
+                            context: context,
+                            title: '🚫 KHÓA TOÀN BỘ APP',
+                            subtitle: 'Mọi tài khoản của shop không truy cập được app.',
+                            value: appLocked,
+                            onChanged: (v) => _updateFlag(context, shopId, 'appLocked', v, 'toàn bộ app'),
+                            isDestructive: true,
+                          ),
+                          _buildLockSwitch(
+                            context: context,
+                            title: '💰 KHÓA TÀI CHÍNH CHO QUẢN LÝ',
+                            subtitle: 'Quản lý không xem được doanh thu, chi phí, công nợ.',
+                            value: adminFinanceLocked,
+                            onChanged: (v) => _updateFlag(context, shopId, 'adminFinanceLocked', v, 'tài chính quản lý'),
+                          ),
+                          const Divider(height: 20),
+                          const Text('👷 KHÓA CHỨC NĂNG CHO NHÂN VIÊN', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange)),
+                          const SizedBox(height: 8),
+                          _buildLockSwitch(
+                            context: context,
+                            title: '🛒 KHÓA XEM BÁN HÀNG',
+                            subtitle: 'Nhân viên không xem được danh sách bán hàng.',
+                            value: staffSalesLocked,
+                            onChanged: (v) => _updateFlag(context, shopId, 'staffSalesLocked', v, 'bán hàng nhân viên'),
+                          ),
+                          _buildLockSwitch(
+                            context: context,
+                            title: '📦 KHÓA XEM KHO',
+                            subtitle: 'Nhân viên không xem được kho hàng.',
+                            value: staffInventoryLocked,
+                            onChanged: (v) => _updateFlag(context, shopId, 'staffInventoryLocked', v, 'kho nhân viên'),
+                          ),
+                          _buildLockSwitch(
+                            context: context,
+                            title: '📋 KHÓA XEM CÔNG NỢ',
+                            subtitle: 'Nhân viên không xem được sổ công nợ.',
+                            value: staffDebtLocked,
+                            onChanged: (v) => _updateFlag(context, shopId, 'staffDebtLocked', v, 'công nợ nhân viên'),
+                          ),
+                          _buildLockSwitch(
+                            context: context,
+                            title: '⚙️ KHÓA CÀI ĐẶT',
+                            subtitle: 'Nhân viên & Quản lý không vào được trang Cài đặt.',
+                            value: staffSettingsLocked,
+                            onChanged: (v) => _updateFlag(context, shopId, 'staffSettingsLocked', v, 'cài đặt'),
+                          ),
+                          const Divider(height: 20),
+                          const Text('👥 THÀNH VIÊN TRONG SHOP', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.teal)),
+                          const SizedBox(height: 8),
+                          _buildShopMembersList(shopId),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               );
             }),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildShopMembersList(String shopId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .where('shopId', isEqualTo: shopId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.all(8),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text('Không có thành viên', style: TextStyle(color: Colors.grey, fontSize: 12)),
+          );
+        }
+
+        final members = snapshot.data!.docs;
+        return Column(
+          children: members.map((doc) {
+            final userData = doc.data() as Map<String, dynamic>;
+            final email = userData['email'] ?? 'Không có email';
+            final displayName = userData['displayName'] ?? '';
+            final role = userData['role'] ?? 'user';
+            final phone = userData['phone'] ?? '';
+            
+            // Map role to Vietnamese
+            String roleText;
+            Color roleColor;
+            IconData roleIcon;
+            switch (role) {
+              case 'owner':
+                roleText = 'Chủ shop';
+                roleColor = Colors.purple;
+                roleIcon = Icons.star;
+                break;
+              case 'manager':
+                roleText = 'Quản lý';
+                roleColor = Colors.blue;
+                roleIcon = Icons.manage_accounts;
+                break;
+              case 'employee':
+                roleText = 'Nhân viên';
+                roleColor = Colors.green;
+                roleIcon = Icons.person;
+                break;
+              case 'technician':
+                roleText = 'Kỹ thuật';
+                roleColor = Colors.orange;
+                roleIcon = Icons.build;
+                break;
+              case 'admin':
+                roleText = 'Admin';
+                roleColor = Colors.red;
+                roleIcon = Icons.admin_panel_settings;
+                break;
+              default:
+                roleText = 'Người dùng';
+                roleColor = Colors.grey;
+                roleIcon = Icons.person_outline;
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: roleColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: roleColor.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: roleColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(roleIcon, color: roleColor, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayName.isNotEmpty ? displayName : email,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (displayName.isNotEmpty)
+                          Text(email, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        if (phone.isNotEmpty)
+                          Text('📞 $phone', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: roleColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      roleText,
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatsCard(int totalShops) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: Colors.blue.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Icon(Icons.analytics, color: Colors.blue, size: 32),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Tổng số Shop', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('$totalShops', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLockSwitch({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required Function(bool) onChanged,
+    bool isDestructive = false,
+  }) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(
+        title,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: isDestructive && value ? Colors.red : Colors.black87,
+        ),
+      ),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+      value: value,
+      activeColor: isDestructive ? Colors.red : Colors.blue,
+      onChanged: onChanged,
+    );
+  }
+
+  Future<void> _updateFlag(BuildContext context, String shopId, String flag, bool value, String featureName) async {
+    final messenger = ScaffoldMessenger.of(context);
+    await UserService.updateShopControlFlags(shopId: shopId, flagName: flag, flagValue: value);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(value ? 'ĐÃ KHÓA $featureName cho shop $shopId' : 'ĐÃ MỞ KHÓA $featureName cho shop $shopId'),
+        backgroundColor: value ? Colors.orange : Colors.green,
+      ),
     );
   }
 

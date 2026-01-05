@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/utils/money_utils.dart';
 import '../services/event_bus.dart';
 import 'order_list_view.dart';
@@ -79,6 +81,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   Timer? _autoSyncTimer;
   Timer? _statsDebounceTimer; // Add debounce timer
   Map<String, bool> _permissions = {};
+  List<dynamic> _lockedByAdmin = []; // Danh sách quyền bị Admin khóa
+  List<dynamic> _lockedByOwner = []; // Danh sách quyền bị Chủ shop khóa
   bool _shopLocked = false;
   final TextEditingController _phoneSearchCtrl = TextEditingController();
   bool _isSyncing = false;
@@ -208,23 +212,524 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         .toList();
   }
 
+  /// Widget hiển thị thông báo chức năng bị khóa - giao diện chuyên nghiệp
+  /// [lockedBy]: 'admin' = Super Admin khóa, 'owner' = Chủ shop phân quyền
+  Widget _buildLockedFeatureScreen(
+    String featureName, {
+    String lockedBy = 'owner',
+  }) {
+    final isLockedByAdmin = lockedBy == 'admin';
+    final lockMessage = isLockedByAdmin
+        ? 'Tính năng này đã bị khóa bởi Quản trị viên (Admin).\nVui lòng liên hệ nhà phát triển để được hỗ trợ mở khóa.'
+        : 'Bạn không có quyền truy cập tính năng này.\nVui lòng liên hệ Chủ shop để được cấp quyền.';
+    final contactTitle = isLockedByAdmin
+        ? 'HỖ TRỢ KỸ THUẬT'
+        : 'LIÊN HỆ CHỦ SHOP';
+    final contactName = isLockedByAdmin ? 'Huluca Tech' : 'Chủ cửa hàng';
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Icon khóa với animation
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: (isLockedByAdmin ? AppColors.error : Colors.orange)
+                      .withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isLockedByAdmin
+                      ? Icons.admin_panel_settings
+                      : Icons.lock_person,
+                  size: 80,
+                  color: isLockedByAdmin ? AppColors.error : Colors.orange,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Badge nguồn khóa
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: isLockedByAdmin
+                      ? Colors.red.shade50
+                      : Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isLockedByAdmin
+                        ? Colors.red.shade200
+                        : Colors.orange.shade200,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isLockedByAdmin ? Icons.security : Icons.person,
+                      size: 16,
+                      color: isLockedByAdmin ? Colors.red : Colors.orange,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isLockedByAdmin ? 'ADMIN KHÓA' : 'CHỦ SHOP PHÂN QUYỀN',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isLockedByAdmin ? Colors.red : Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Tiêu đề
+              Text(
+                'Chức năng bị khóa',
+                style: AppTextStyles.headline5.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurface,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+
+              // Tên chức năng
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  featureName,
+                  style: AppTextStyles.subtitle1.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Mô tả
+              Text(
+                lockMessage,
+                style: AppTextStyles.body1.copyWith(
+                  color: AppColors.onSurface.withOpacity(0.7),
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 40),
+
+              // Card thông tin liên hệ - chỉ hiển thị cho Admin lock
+              if (isLockedByAdmin)
+                _buildAdminContactCard(contactTitle, contactName)
+              else
+                _buildOwnerContactCard(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Card liên hệ Admin (Huluca Tech)
+  Widget _buildAdminContactCard(String contactTitle, String contactName) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.support_agent_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          contactTitle,
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.white.withOpacity(0.8),
+                            letterSpacing: 1,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          contactName,
+                          style: AppTextStyles.headline6.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Divider(color: Colors.white24, height: 1),
+              const SizedBox(height: 20),
+
+              // Số điện thoại
+              _buildContactRow(
+                icon: Icons.phone_rounded,
+                label: 'Hotline',
+                value: '0964.09.59.79',
+                onTap: () => _makePhoneCall('0964095979'),
+              ),
+              const SizedBox(height: 16),
+
+              // Zalo
+              _buildContactRow(
+                icon: Icons.chat_bubble_rounded,
+                label: 'Zalo',
+                value: '0964.09.59.79',
+                onTap: () => _openZalo('0964095979'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Ghi chú thời gian hỗ trợ
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.info.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.info.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.access_time_rounded, color: AppColors.info, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Hỗ trợ 24/7 • Phản hồi trong vòng 30 phút',
+                  style: AppTextStyles.body2.copyWith(
+                    color: AppColors.info,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Card hướng dẫn liên hệ Chủ shop
+  Widget _buildOwnerContactCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orange.shade600, Colors.orange.shade400],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.store_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'LIÊN HỆ CHỦ SHOP',
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.white.withOpacity(0.8),
+                        letterSpacing: 1,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Yêu cầu cấp quyền',
+                      style: AppTextStyles.headline6.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Divider(color: Colors.white24, height: 1),
+          const SizedBox(height: 20),
+
+          // Hướng dẫn
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildStepRow('1', 'Liên hệ Chủ shop hoặc Quản lý của bạn'),
+                const SizedBox(height: 12),
+                _buildStepRow('2', 'Yêu cầu cấp quyền truy cập tính năng này'),
+                const SizedBox(height: 12),
+                _buildStepRow(
+                  '3',
+                  'Sau khi được cấp quyền, đăng nhập lại để áp dụng',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepRow(String step, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.3),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              step,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContactRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  ),
+                  Text(
+                    value,
+                    style: AppTextStyles.subtitle1.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    try {
+      await launchUrl(launchUri);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể thực hiện cuộc gọi: $phoneNumber'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _openZalo(String phoneNumber) async {
+    final Uri zaloUri = Uri.parse('https://zalo.me/$phoneNumber');
+    try {
+      await launchUrl(zaloUri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Không thể mở Zalo. Vui lòng liên hệ: $phoneNumber'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Xác định nguồn khóa quyền: 'admin' hoặc 'owner'
+  /// [permissionKey] - key quyền như 'allowViewSales', 'allowViewInventory'
+  String _getLockedBy(String permissionKey) {
+    // Kiểm tra xem quyền này có trong danh sách khóa bởi Admin không
+    if (_lockedByAdmin.contains(permissionKey)) {
+      return 'admin';
+    }
+    // Kiểm tra xem quyền này có trong danh sách khóa bởi Owner không
+    if (_lockedByOwner.contains(permissionKey)) {
+      return 'owner';
+    }
+    // Mặc định là owner (chủ shop phân quyền)
+    return 'owner';
+  }
+
   void _updateAvailableTabs() {
     debugPrint(
       'HomeView: _updateAvailableTabs called, _tabConfigs.length = ${_tabConfigs.length}',
     );
     debugPrint('HomeView: _permissions = $_permissions');
-    final availableConfigs = _tabConfigs.where((config) {
+
+    // THAY ĐỔI: Luôn hiển thị tất cả các tab, nhưng thay nội dung bằng màn hình khóa nếu không có quyền
+    final allConfigs = _tabConfigs.map((config) {
       final permission = config['permission'] as String?;
       final hasPermission =
           permission == null || (_permissions[permission] == true);
       debugPrint(
         'HomeView: Tab ${config['item'].label} permission=$permission, hasPermission=$hasPermission',
       );
-      return hasPermission;
+
+      // Nếu không có quyền, thay thế widget bằng màn hình khóa
+      if (!hasPermission && permission != null) {
+        final tabLabel =
+            (config['item'] as BottomNavigationBarItem).label ?? 'Chức năng';
+        // Xác định nguồn khóa: admin hay owner
+        final lockedBy = _getLockedBy(permission);
+        return {
+          ...config,
+          'widget': _buildLockedFeatureScreen(tabLabel, lockedBy: lockedBy),
+        };
+      }
+      return config;
     }).toList();
 
     // Limit to 7 tabs max for BottomNavigationBar compatibility
-    if (availableConfigs.length > 7) {
+    if (allConfigs.length > 7) {
       // Prioritize: Home, Sales, Repairs, Inventory, Staff, Finance, Settings
       final priorityTabs = [
         'Home',
@@ -235,29 +740,35 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         'Tài chính',
         'Cài đặt',
       ];
-      final prioritized = availableConfigs
-          .where((config) => priorityTabs.contains(config['item'].label))
+      final prioritized = allConfigs
+          .where(
+            (config) => priorityTabs.contains(
+              (config['item'] as BottomNavigationBarItem).label,
+            ),
+          )
           .toList();
-      final remaining = availableConfigs
-          .where((config) => !priorityTabs.contains(config['item'].label))
+      final remaining = allConfigs
+          .where(
+            (config) => !priorityTabs.contains(
+              (config['item'] as BottomNavigationBarItem).label,
+            ),
+          )
           .toList();
-      availableConfigs.clear();
-      availableConfigs.addAll(prioritized);
-      availableConfigs.addAll(remaining.take(7 - prioritized.length));
+      allConfigs.clear();
+      allConfigs.addAll(prioritized);
+      allConfigs.addAll(remaining.take(7 - prioritized.length));
     }
 
-    _navItems = availableConfigs
+    _navItems = allConfigs
         .map((config) => config['item'] as BottomNavigationBarItem)
         .toList();
-    _tabWidgets = availableConfigs
+    _tabWidgets = allConfigs
         .map((config) => config['widget'] as Widget)
         .toList();
 
+    debugPrint('HomeView: Available tabs after limit: ${allConfigs.length}');
     debugPrint(
-      'HomeView: Available tabs after limit: ${availableConfigs.length}',
-    );
-    debugPrint(
-      'HomeView: Available tab names: ${availableConfigs.map((c) => c['item'].label)}',
+      'HomeView: Available tab names: ${allConfigs.map((c) => (c['item'] as BottomNavigationBarItem).label)}',
     );
 
     // Adjust current index if it's out of bounds
@@ -269,69 +780,125 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   /// Rebuild all tab widgets to reflect updated state variables
   /// This is necessary because IndexedStack caches child widgets
   void _rebuildTabWidgets() {
-    debugPrint('HomeView: _rebuildTabWidgets called - rebuilding all tabs with fresh data');
+    debugPrint(
+      'HomeView: _rebuildTabWidgets called - rebuilding all tabs with fresh data',
+    );
     // Rebuild tab configs with current data values
     _tabConfigs = [
       {
         'permission': null,
-        'item': const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+        'item': const BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
+        ),
         'widget': _buildHomeTab(),
       },
       {
         'permission': 'allowViewSales',
-        'item': const BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Bán hàng'),
+        'item': const BottomNavigationBarItem(
+          icon: Icon(Icons.shopping_cart),
+          label: 'Bán hàng',
+        ),
         'widget': _buildSalesTab(),
       },
       {
         'permission': 'allowViewRepairs',
-        'item': const BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Sửa chữa'),
+        'item': const BottomNavigationBarItem(
+          icon: Icon(Icons.build),
+          label: 'Sửa chữa',
+        ),
         'widget': _buildRepairsTab(),
       },
       {
         'permission': 'allowViewInventory',
-        'item': const BottomNavigationBarItem(icon: Icon(Icons.inventory), label: 'Kho'),
+        'item': const BottomNavigationBarItem(
+          icon: Icon(Icons.inventory),
+          label: 'Kho',
+        ),
         'widget': _buildInventoryTab(),
       },
       {
         'permission': 'allowManageStaff',
-        'item': const BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Nhân sự'),
+        'item': const BottomNavigationBarItem(
+          icon: Icon(Icons.people),
+          label: 'Nhân sự',
+        ),
         'widget': _buildStaffTab(),
       },
       {
-        'permission': 'allowManageFinance',
-        'item': const BottomNavigationBarItem(icon: Icon(Icons.attach_money), label: 'Tài chính'),
+        'permission': 'allowViewRevenue',
+        'item': const BottomNavigationBarItem(
+          icon: Icon(Icons.attach_money),
+          label: 'Tài chính',
+        ),
         'widget': _buildFinanceTab(),
       },
       {
         'permission': 'allowViewSettings',
-        'item': const BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Cài đặt'),
+        'item': const BottomNavigationBarItem(
+          icon: Icon(Icons.settings),
+          label: 'Cài đặt',
+        ),
         'widget': _buildSettingsTab(),
       },
     ];
-    
-    // Re-apply permissions filter
-    final availableConfigs = _tabConfigs.where((config) {
+
+    // THAY ĐỔI: Luôn hiển thị tất cả các tab, nhưng thay nội dung bằng màn hình khóa nếu không có quyền
+    final allConfigs = _tabConfigs.map((config) {
       final permission = config['permission'] as String?;
-      return permission == null || (_permissions[permission] == true);
+      final hasPermission =
+          permission == null || (_permissions[permission] == true);
+
+      // Nếu không có quyền, thay thế widget bằng màn hình khóa
+      if (!hasPermission) {
+        final tabLabel =
+            (config['item'] as BottomNavigationBarItem).label ?? 'Chức năng';
+        return {...config, 'widget': _buildLockedFeatureScreen(tabLabel)};
+      }
+      return config;
     }).toList();
-    
+
     // Limit to 7 tabs max
-    if (availableConfigs.length > 7) {
-      final priorityTabs = ['Home', 'Bán hàng', 'Sửa chữa', 'Kho', 'Nhân sự', 'Tài chính', 'Cài đặt'];
-      final prioritized = availableConfigs.where((config) => priorityTabs.contains(config['item'].label)).toList();
-      final remaining = availableConfigs.where((config) => !priorityTabs.contains(config['item'].label)).toList();
-      availableConfigs.clear();
-      availableConfigs.addAll(prioritized);
-      availableConfigs.addAll(remaining.take(7 - prioritized.length));
+    if (allConfigs.length > 7) {
+      final priorityTabs = [
+        'Home',
+        'Bán hàng',
+        'Sửa chữa',
+        'Kho',
+        'Nhân sự',
+        'Tài chính',
+        'Cài đặt',
+      ];
+      final prioritized = allConfigs
+          .where(
+            (config) => priorityTabs.contains(
+              (config['item'] as BottomNavigationBarItem).label,
+            ),
+          )
+          .toList();
+      final remaining = allConfigs
+          .where(
+            (config) => !priorityTabs.contains(
+              (config['item'] as BottomNavigationBarItem).label,
+            ),
+          )
+          .toList();
+      allConfigs.clear();
+      allConfigs.addAll(prioritized);
+      allConfigs.addAll(remaining.take(7 - prioritized.length));
     }
-    
-    _navItems = availableConfigs.map((config) => config['item'] as BottomNavigationBarItem).toList();
-    _tabWidgets = availableConfigs.map((config) => config['widget'] as Widget).toList();
-    
+
+    _navItems = allConfigs
+        .map((config) => config['item'] as BottomNavigationBarItem)
+        .toList();
+    _tabWidgets = allConfigs
+        .map((config) => config['widget'] as Widget)
+        .toList();
+
     if (_currentIndex >= _navItems.length) {
       _currentIndex = 0;
     }
-    
+
     debugPrint('HomeView: Rebuilt ${_tabWidgets.length} tabs');
   }
 
@@ -355,7 +922,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           await UserService.syncUserInfo(currentUser.uid, currentUser.email!);
       }
       await db.cleanDuplicateData();
-      
+
       // QUAN TRỌNG: Sync với Firebase TRƯỚC KHI load stats
       // để đảm bảo data hiển thị giống như trong Quản lý tài chính
       debugPrint('HomeView: Syncing with Firebase before loading stats...');
@@ -365,7 +932,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       } catch (syncError) {
         debugPrint('HomeView: Sync failed, using local data: $syncError');
       }
-      
+
       debugPrint('About to call _loadStats in initState');
       await _loadStats();
       debugPrint('After _loadStats in initState');
@@ -384,16 +951,26 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       if (!mounted) return;
       setState(() {
         _shopLocked = perms['shopAppLocked'] == true;
-        _permissions = perms.map((key, value) => MapEntry(key, value == true));
+        _lockedByAdmin = perms['lockedByAdmin'] as List<dynamic>? ?? [];
+        _lockedByOwner = perms['lockedByOwner'] as List<dynamic>? ?? [];
+        _permissions = {};
+        perms.forEach((key, value) {
+          if (value is bool) {
+            _permissions[key] = value;
+          }
+        });
         _updateAvailableTabs();
       });
       debugPrint('HomeView permissions updated: $_permissions');
-      debugPrint('allowViewSettings: ${_permissions['allowViewSettings']}');
+      debugPrint('Locked by Admin: $_lockedByAdmin');
+      debugPrint('Locked by Owner: $_lockedByOwner');
     } catch (e) {
       debugPrint('Error updating permissions: $e');
       if (!mounted) return;
       setState(() {
         _permissions = {'allowViewSettings': true}; // Minimal permissions
+        _lockedByAdmin = [];
+        _lockedByOwner = [];
         _updateAvailableTabs();
       });
     }
@@ -450,7 +1027,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     // === TÍNH TOÁN CHÍNH XÁC NHƯ REVENUE_VIEW.DART ===
     // Lọc sales hôm nay
     final fSales = sales.where((s) => _isSameDay(s.soldAt)).toList();
-    
+
     // Lọc repairs đã giao (status == 4) và deliveredAt hôm nay
     final fRepairs = repairs
         .where(
@@ -460,7 +1037,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               _isSameDay(r.deliveredAt!),
         )
         .toList();
-    
+
     // Lọc expenses hôm nay
     final fExpenses = expenses
         .where((e) => _isSameDay(e['date'] as int))
@@ -621,10 +1198,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
                 icon: Icon(
                   Icons.notifications,
-                  color: _notificationWorking ? AppColors.success : AppColors.secondary,
+                  color: _notificationWorking
+                      ? AppColors.success
+                      : AppColors.secondary,
                 ),
-                tooltip: _notificationWorking 
-                    ? 'Thông báo (đang hoạt động)' 
+                tooltip: _notificationWorking
+                    ? 'Thông báo (đang hoạt động)'
                     : 'Thông báo (chưa kích hoạt)',
               ),
             ),
@@ -735,6 +1314,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
               ),
+            // Banner cho nhân viên mới - hiển thị khi dữ liệu local ít
+            if (totalPendingRepair == 0 &&
+                todaySaleCount == 0 &&
+                revenueToday == 0)
+              _buildNewStaffBanner(),
             _buildDashboardOverview(),
             const SizedBox(height: 20),
             _buildQuickActions(),
@@ -745,6 +1329,273 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             const SizedBox(height: 50),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildNewStaffBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade400, Colors.blue.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.waving_hand,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Chào mừng nhân viên mới!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Tải dữ liệu shop về máy để bắt đầu làm việc',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showDownloadDataDialog,
+              icon: const Icon(Icons.cloud_download, size: 20),
+              label: const Text(
+                'TẢI DỮ LIỆU SHOP',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.blue.shade600,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showDownloadDataDialog() async {
+    // Lấy tên shop để hiển thị
+    final shopId = await UserService.getCurrentShopId();
+    String shopName = "shop hiện tại";
+    if (shopId != null) {
+      final shopDoc = await FirebaseFirestore.instance
+          .collection('shops')
+          .doc(shopId)
+          .get();
+      if (shopDoc.exists) {
+        shopName = shopDoc.data()?['name'] ?? shopName;
+      }
+    }
+
+    if (!mounted) return;
+
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.cloud_download, color: Colors.blue.shade600),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                "TẢI DỮ LIỆU SHOP",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(color: Colors.black87, fontSize: 14),
+                children: [
+                  const TextSpan(text: 'Tải dữ liệu của '),
+                  TextSpan(
+                    text: '"$shopName"',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const TextSpan(text: ' từ đám mây về máy này.'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDataItem(Icons.build, 'Đơn sửa chữa'),
+                  _buildDataItem(Icons.shopping_cart, 'Đơn bán hàng'),
+                  _buildDataItem(Icons.inventory, 'Sản phẩm trong kho'),
+                  _buildDataItem(Icons.receipt, 'Công nợ & Chi phí'),
+                  _buildDataItem(Icons.people, 'Khách hàng & NCC'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Colors.orange.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Chỉ tải dữ liệu của shop này, không ảnh hưởng shop khác.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.orange.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Quá trình có thể mất vài phút tùy lượng dữ liệu.",
+              style: TextStyle(
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("HỦY"),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.download, size: 18),
+            label: const Text("BẮT ĐẦU TẢI"),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      // Show loading overlay
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => WillPopScope(
+          onWillPop: () async => false,
+          child: AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text(
+                  'Đang tải dữ liệu shop...',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Vui lòng đợi trong giây lát',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      try {
+        await SyncService.downloadAllFromCloud();
+        try {
+          await _loadStats();
+        } catch (statsError) {
+          debugPrint('Error loading stats after download: $statsError');
+        }
+        if (mounted) Navigator.of(context).pop(); // Close loading dialog
+        NotificationService.showSnackBar(
+          "✅ Đã tải xong dữ liệu shop!",
+          color: Colors.green,
+        );
+      } catch (e) {
+        if (mounted) Navigator.of(context).pop(); // Close loading dialog
+        NotificationService.showSnackBar("❌ Lỗi: $e", color: Colors.red);
+      }
+    }
+  }
+
+  Widget _buildDataItem(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.blue.shade600),
+          const SizedBox(width: 8),
+          Text(text, style: const TextStyle(fontSize: 13)),
+        ],
       ),
     );
   }
@@ -971,9 +1822,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             AppColors.secondary,
             () => Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const CustomerManagementView(),
-              ),
+              MaterialPageRoute(builder: (_) => const CustomerManagementView()),
             ),
             subtitle: "Thêm, sửa và xem thông tin khách hàng.",
           ),
@@ -1290,8 +2139,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 context,
                 MaterialPageRoute(builder: (_) => const DebtAnalysisView()),
               ),
-              subtitle:
-                  "Phân tích chi tiết các khoản nợ và thống kê.",
+              subtitle: "Phân tích chi tiết các khoản nợ và thống kê.",
             ),
           ],
         ),
@@ -1510,7 +2358,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 if (onTap != null)
-                  Icon(Icons.arrow_forward_ios, color: color.withOpacity(0.5), size: 12),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: color.withOpacity(0.5),
+                    size: 12,
+                  ),
               ],
             ),
             const SizedBox(height: 10),
@@ -1821,7 +2673,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         subLabel: "$_todayExpenseCount khoản chi",
                         onTap: () => Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const ExpenseView()),
+                          MaterialPageRoute(
+                            builder: (_) => const ExpenseView(),
+                          ),
                         ),
                       ),
                     ),
@@ -1964,7 +2818,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 if (onTap != null)
-                  Icon(Icons.arrow_forward_ios, color: color.withOpacity(0.4), size: 10),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: color.withOpacity(0.4),
+                    size: 10,
+                  ),
               ],
             ),
             const SizedBox(height: 10),

@@ -11,6 +11,8 @@ class UserService {
     }
 
     static String? validatePhone(String phone) {
+      // Cho phép số điện thoại trống (optional)
+      if (phone.trim().isEmpty) return null;
       final cleaned = phone.replaceAll(RegExp(r'[^\d]'), '');
       if (cleaned.length < 9 || cleaned.length > 12) {
         return 'Số điện thoại phải có 9-12 chữ số';
@@ -19,7 +21,8 @@ class UserService {
     }
 
     static String? validateAddress(String address) {
-      if (address.trim().isEmpty) return 'Địa chỉ không được để trống';
+      // Cho phép địa chỉ trống (optional)
+      if (address.trim().isEmpty) return null;
       return null;
     }
 
@@ -275,7 +278,11 @@ class UserService {
   }
 
   /// Lấy quyền xem các màn hình nhạy cảm (doanh thu, chi phí, công nợ) của tài khoản hiện tại
-  static Future<Map<String, bool>> getCurrentUserPermissions() async {
+  /// Trả về Map với các key:
+  /// - allowView*: quyền xem từng chức năng
+  /// - shopAppLocked, shopAdminFinanceLocked: cờ khóa từ Super Admin
+  /// - lockedBy*: nguồn gốc khóa ('admin' = Super Admin, 'owner' = Chủ shop phân quyền)
+  static Future<Map<String, dynamic>> getCurrentUserPermissions() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       return _defaultPermissionsForRole('user');
@@ -295,7 +302,7 @@ class UserService {
       debugPrint('getCurrentUserPermissions: defaults = $defaults');
 
       // Bắt đầu từ quyền riêng trên tài khoản (nếu chưa cấu hình thì dùng mặc định theo role)
-      final perms = <String, bool>{
+      final perms = <String, dynamic>{
         'allowViewSales': (data['allowViewSales'] as bool?) ?? defaults['allowViewSales']!,
         'allowViewRepairs': (data['allowViewRepairs'] as bool?) ?? defaults['allowViewRepairs']!,
         'allowViewInventory': (data['allowViewInventory'] as bool?) ?? defaults['allowViewInventory']!,
@@ -315,9 +322,26 @@ class UserService {
         'allowManageStaff': (data['allowManageStaff'] as bool?) ?? defaults['allowManageStaff']!,
         'shopAppLocked': false,
         'shopAdminFinanceLocked': false,
+        // Lưu nguồn gốc khóa để hiển thị thông báo phù hợp
+        'lockedByAdmin': <String>[], // Danh sách các quyền bị Admin khóa
+        'lockedByOwner': <String>[], // Danh sách các quyền bị Chủ shop khóa
       };
 
+      // Kiểm tra xem user có được owner phân quyền riêng không (khác với default role)
+      final ownerLockedList = <String>[];
+      for (final key in ['allowViewSales', 'allowViewRepairs', 'allowViewInventory', 'allowViewParts',
+          'allowViewSuppliers', 'allowViewCustomers', 'allowViewPurchaseOrders', 'allowViewWarranty',
+          'allowViewRevenue', 'allowViewExpenses', 'allowViewDebts', 'allowViewSettings', 'allowManageStaff']) {
+        // Nếu user có quyền = false và khác với default role → bị chủ shop tắt
+        final userPerm = data[key] as bool?;
+        if (userPerm == false && defaults[key] == true) {
+          ownerLockedList.add(key);
+        }
+      }
+      perms['lockedByOwner'] = ownerLockedList;
+
       // Áp thêm luật điều khiển ở cấp shop (do Super Admin thiết lập)
+      final adminLockedList = <String>[];
       final shopId = (data['shopId'] as String?) ?? _cachedShopId;
       if (shopId != null && shopId.trim().isNotEmpty) {
         try {
@@ -325,34 +349,81 @@ class UserService {
           final shopData = shopSnap.data() ?? {};
           final appLocked = shopData['appLocked'] == true;
           final adminFinanceLocked = shopData['adminFinanceLocked'] == true;
+          final staffSalesLocked = shopData['staffSalesLocked'] == true;
+          final staffInventoryLocked = shopData['staffInventoryLocked'] == true;
+          final staffDebtLocked = shopData['staffDebtLocked'] == true;
+          final staffSettingsLocked = shopData['staffSettingsLocked'] == true;
           debugPrint('UserService: shop appLocked=$appLocked, adminFinanceLocked=$adminFinanceLocked');
 
           if (appLocked) {
-            // Khóa toàn bộ app cho shop này
+            // Khóa toàn bộ app cho shop này - bởi Admin
             for (final key in perms.keys.toList()) {
-              if (key != 'shopAppLocked' && key != 'shopAdminFinanceLocked') {
+              if (key.startsWith('allowView') || key.startsWith('allowManage') || key.startsWith('allowCreate')) {
                 perms[key] = false;
+                adminLockedList.add(key);
               }
             }
             perms['shopAppLocked'] = true;
           }
 
-          if (adminFinanceLocked && role == 'admin') {
+          // Khóa tài chính cho quản lý - bởi Admin
+          if (adminFinanceLocked && (role == 'manager')) {
             perms['allowViewRevenue'] = false;
             perms['allowViewExpenses'] = false;
             perms['allowViewDebts'] = false;
             perms['shopAdminFinanceLocked'] = true;
+            adminLockedList.addAll(['allowViewRevenue', 'allowViewExpenses', 'allowViewDebts']);
+          }
+
+          // Khóa Cài đặt cho nhân viên và quản lý - bởi Admin
+          final isStaffOrManager = role == 'employee' || role == 'technician' || role == 'manager';
+          if (staffSettingsLocked && isStaffOrManager) {
+            perms['allowViewSettings'] = false;
+            adminLockedList.add('allowViewSettings');
+          }
+
+          // Khóa các chức năng cho nhân viên (employee, technician) - bởi Admin
+          final isStaff = role == 'employee' || role == 'technician';
+          if (isStaff) {
+            if (staffSalesLocked) {
+              perms['allowViewSales'] = false;
+              adminLockedList.add('allowViewSales');
+            }
+            if (staffInventoryLocked) {
+              perms['allowViewInventory'] = false;
+              perms['allowViewParts'] = false;
+              adminLockedList.addAll(['allowViewInventory', 'allowViewParts']);
+            }
+            if (staffDebtLocked) {
+              perms['allowViewDebts'] = false;
+              adminLockedList.add('allowViewDebts');
+            }
           }
         } catch (_) {
           // Nếu lỗi đọc shop thì bỏ qua, chỉ dùng quyền theo tài khoản
         }
       }
+      perms['lockedByAdmin'] = adminLockedList;
 
       debugPrint('UserService: final perms = $perms');
       return perms;
     } catch (_) {
       return _defaultPermissionsForRole('user');
     }
+  }
+
+  /// Kiểm tra xem một quyền bị khóa bởi ai: 'admin', 'owner', hoặc null nếu không bị khóa
+  static String? getLockedBy(Map<String, dynamic> permissions, String permissionKey) {
+    final lockedByAdmin = permissions['lockedByAdmin'] as List<dynamic>? ?? [];
+    final lockedByOwner = permissions['lockedByOwner'] as List<dynamic>? ?? [];
+    
+    if (lockedByAdmin.contains(permissionKey)) {
+      return 'admin';
+    }
+    if (lockedByOwner.contains(permissionKey)) {
+      return 'owner';
+    }
+    return null;
   }
 
   /// Dành riêng cho Super Admin: xem danh sách tất cả shop
@@ -433,6 +504,8 @@ class UserService {
     required String shopId,
     bool? appLocked,
     bool? adminFinanceLocked,
+    String? flagName,
+    bool? flagValue,
   }) async {
     final updateData = <String, dynamic>{
       'updatedAt': FieldValue.serverTimestamp(),
@@ -442,6 +515,10 @@ class UserService {
     }
     if (adminFinanceLocked != null) {
       updateData['adminFinanceLocked'] = adminFinanceLocked;
+    }
+    // Hỗ trợ cập nhật flag tùy ý theo tên
+    if (flagName != null && flagValue != null) {
+      updateData[flagName] = flagValue;
     }
     await _db.collection('shops').doc(shopId).set(updateData, SetOptions(merge: true));
   }
@@ -487,18 +564,31 @@ class UserService {
 
   /// Dành riêng cho Super Admin: xóa một user (chỉ xóa từ Firestore, không xóa auth)
   static Future<int> getUnreadChatCount(String uid) async {
-    final shopId = await getCurrentShopId();
-    if (shopId == null) return 0;
+    try {
+      final shopId = await getCurrentShopId();
+      if (shopId == null) return 0;
 
-    final userDoc = await _db.collection('users').doc(uid).get();
-    final lastRead = userDoc.data()?['lastReadChat'] ?? 0;
+      final userDoc = await _db.collection('users').doc(uid).get();
+      final lastRead = userDoc.data()?['lastReadChat'] ?? 0;
 
-    final query = await _db.collection('chat_messages')
-        .where('shopId', isEqualTo: shopId)
-        .where('createdAt', isGreaterThan: lastRead)
-        .get();
+      // Query đơn giản hơn - chỉ lọc theo shopId để tránh lỗi index
+      final query = await _db.collection('chat_messages')
+          .where('shopId', isEqualTo: shopId)
+          .get();
 
-    return query.docs.length;
+      // Đếm số tin nhắn có createdAt > lastRead
+      int count = 0;
+      for (var doc in query.docs) {
+        final createdAt = doc.data()['createdAt'];
+        if (createdAt != null && createdAt is int && createdAt > lastRead) {
+          count++;
+        }
+      }
+      return count;
+    } catch (e) {
+      debugPrint('Error getting unread chat count: $e');
+      return 0; // Trả về 0 nếu có lỗi (bao gồm lỗi index)
+    }
   }
 
   static Future<void> markChatAsRead(String uid) async {

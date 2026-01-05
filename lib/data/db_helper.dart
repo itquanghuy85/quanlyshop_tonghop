@@ -26,7 +26,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 42,
+      version: 43,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT)',
@@ -47,7 +47,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, isSynced INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, personName TEXT, phone TEXT, totalAmount INTEGER, paidAmount INTEGER DEFAULT 0, type TEXT, status TEXT, createdAt INTEGER, note TEXT, isSynced INTEGER DEFAULT 0, linkedId TEXT)',
+          'CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, personName TEXT, phone TEXT, totalAmount INTEGER, paidAmount INTEGER DEFAULT 0, type TEXT, status TEXT, createdAt INTEGER, note TEXT, isSynced INTEGER DEFAULT 0, linkedId TEXT, createdBy TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS attendance(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, dateKey TEXT, checkInAt INTEGER, checkOutAt INTEGER, overtimeOn INTEGER DEFAULT 0, photoIn TEXT, photoOut TEXT, note TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, locked INTEGER DEFAULT 0, createdAt INTEGER, location TEXT, isLate INTEGER DEFAULT 0, isEarlyLeave INTEGER DEFAULT 0, workSchedule TEXT, updatedAt INTEGER)',
@@ -484,6 +484,15 @@ class DBHelper {
             debugPrint('DB upgrade error (repair_partners deleted): $e');
           }
         }
+        if (oldV < 43) {
+          // Thêm cột createdBy vào bảng debts để lưu người tạo công nợ
+          try {
+            await db.execute('ALTER TABLE debts ADD COLUMN createdBy TEXT');
+            debugPrint('DB upgrade: added createdBy to debts');
+          } catch (e) {
+            debugPrint('DB upgrade error (debts createdBy): $e');
+          }
+        }
         debugPrint('DB upgrade completed');
       },
       onOpen: (db) async {
@@ -679,6 +688,20 @@ class DBHelper {
           }
         } catch (e) {
           debugPrint('DB onOpen check error (suppliers columns): $e');
+        }
+
+        // Ensure createdBy column exists in debts table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(debts)');
+          final hasCreatedBy = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'createdBy',
+          );
+          if (!hasCreatedBy) {
+            await db.execute('ALTER TABLE debts ADD COLUMN createdBy TEXT');
+            debugPrint('DB: added createdBy column to debts');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (debts createdBy): $e');
         }
       },
     );
@@ -1041,19 +1064,42 @@ class DBHelper {
   Future<void> upsertSupplier(Map<String, dynamic> data) async {
     final db = await database;
     final firestoreId = data['firestoreId'];
-    // Loại bỏ id vì SQLite auto-generate
+    final name = data['name'] as String?;
+    final shopId = data['shopId'] as String?;
+    
+    // Loại bỏ id vì SQLite auto-generate và _encrypted vì không có trong schema
     final cleanData = Map<String, dynamic>.from(data);
     cleanData.remove('id');
+    cleanData.remove('_encrypted');
+    cleanData.remove('email'); // Loại bỏ email nếu có
     
-    if (firestoreId == null) {
-      await db.insert('suppliers', cleanData, conflictAlgorithm: ConflictAlgorithm.replace);
-      return;
-    }
-    final existing = await db.query('suppliers', where: 'firestoreId = ?', whereArgs: [firestoreId]);
-    if (existing.isEmpty) {
+    if (firestoreId != null && firestoreId.toString().isNotEmpty) {
+      // Tìm theo firestoreId trước
+      final existing = await db.query('suppliers', where: 'firestoreId = ?', whereArgs: [firestoreId]);
+      if (existing.isNotEmpty) {
+        await db.update('suppliers', cleanData, where: 'firestoreId = ?', whereArgs: [firestoreId]);
+        return;
+      }
+      
+      // Nếu không tìm thấy theo firestoreId, tìm theo name + shopId (trường hợp insert local chưa có firestoreId)
+      if (name != null && shopId != null) {
+        final existingByName = await db.query(
+          'suppliers', 
+          where: 'name = ? AND shopId = ? AND (firestoreId IS NULL OR firestoreId = "")',
+          whereArgs: [name, shopId],
+        );
+        if (existingByName.isNotEmpty) {
+          // Update record cũ với firestoreId mới
+          await db.update('suppliers', cleanData, where: 'id = ?', whereArgs: [existingByName.first['id']]);
+          return;
+        }
+      }
+      
+      // Không tìm thấy, insert mới
       await db.insert('suppliers', cleanData, conflictAlgorithm: ConflictAlgorithm.replace);
     } else {
-      await db.update('suppliers', cleanData, where: 'firestoreId = ?', whereArgs: [firestoreId]);
+      // Không có firestoreId, insert mới
+      await db.insert('suppliers', cleanData, conflictAlgorithm: ConflictAlgorithm.replace);
     }
   }
 

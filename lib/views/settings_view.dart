@@ -97,6 +97,46 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
+  // HÀM ĐỒNG BỘ DỮ LIỆU LÊN ĐÁM MÂY
+  Future<void> _handleUploadData() async {
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("📤 ĐỒNG BỘ LÊN ĐÁM MÂY", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("Đẩy dữ liệu từ máy này lên đám mây để các thiết bị khác trong shop có thể đồng bộ."),
+            SizedBox(height: 10),
+            Text("Dữ liệu sẽ được mã hóa an toàn trước khi upload.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("HỦY")),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text("ĐỒNG BỘ", style: TextStyle(color: Colors.white)),
+          )
+        ],
+      ),
+    );
+
+    if (result == true) {
+      setState(() => _loading = true);
+      
+      try {
+        await SyncService.syncAllToCloud();
+        NotificationService.showSnackBar("✅ Đã đồng bộ dữ liệu lên đám mây!", color: Colors.green);
+      } catch (e) {
+        NotificationService.showSnackBar("❌ Lỗi đồng bộ: $e", color: Colors.red);
+        debugPrint("Upload data error: $e");
+      } finally {
+        if (mounted) setState(() => _loading = false);
+      }
+    }
+  }
+
   // HÀM XỬ LÝ XÓA TRẮNG SHOP (BẢO MẬT TUYỆT ĐỐI)
   Future<void> _handleResetShop() async {
     // Chỉ super admin mới được xóa dữ liệu shop
@@ -233,6 +273,47 @@ class _SettingsViewState extends State<SettingsView> {
               },
             ),
           ),
+
+          // ĐỒNG BỘ DỮ LIỆU - Hiển thị cho tất cả người dùng
+          const SizedBox(height: 30),
+          _buildSection("ĐỒNG BỘ DỮ LIỆU"),
+          Card(
+            color: Colors.blue.shade50,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: Colors.blue.shade200)),
+            child: ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.cloud_download, color: Colors.blue, size: 28),
+              ),
+              title: const Text("TẢI DỮ LIỆU SHOP VỀ MÁY", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+              subtitle: const Text("Dành cho nhân viên mới hoặc khi đổi máy. Tải toàn bộ dữ liệu shop từ đám mây.", style: TextStyle(fontSize: 11)),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.blue),
+              onTap: _handleDownloadAllData,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Card(
+            color: Colors.green.shade50,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: Colors.green.shade200)),
+            child: ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.cloud_upload, color: Colors.green, size: 28),
+              ),
+              title: const Text("ĐỒNG BỘ DỮ LIỆU LÊN MÂY", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+              subtitle: const Text("Đẩy dữ liệu từ máy này lên đám mây để các thiết bị khác đồng bộ.", style: TextStyle(fontSize: 11)),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.green),
+              onTap: _handleUploadData,
+            ),
+          ),
           
           // QUẢN TRỊ SHOP CHO OWNER/MANAGER
           if (_role == 'owner' || _role == 'manager') ...[
@@ -256,24 +337,13 @@ class _SettingsViewState extends State<SettingsView> {
             const SizedBox(height: 30),
             _buildSection("QUẢN TRỊ NÂNG CAO"),
             Card(
-              color: Colors.green.shade50,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: Colors.green.shade200)),
+              color: Colors.orange.shade50,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: Colors.orange.shade200)),
               child: ListTile(
-                leading: const Icon(Icons.admin_panel_settings, color: Colors.green),
-                title: const Text("QUẢN LÝ PHÂN QUYỀN NHÂN VIÊN", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                leading: const Icon(Icons.admin_panel_settings, color: Colors.orange),
+                title: const Text("QUẢN LÝ PHÂN QUYỀN NHÂN VIÊN", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
                 subtitle: const Text("Xem và chỉnh sửa quyền truy cập của từng nhân viên", style: TextStyle(fontSize: 11)),
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffPermissionsView())),
-              ),
-            ),
-            const SizedBox(height: 15),
-            Card(
-              color: Colors.blue.shade50,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: Colors.blue.shade200)),
-              child: ListTile(
-                leading: const Icon(Icons.cloud_download, color: Colors.blue),
-                title: const Text("TẢI TOÀN BỘ DỮ LIỆU SHOP", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
-                subtitle: const Text("Đồng bộ toàn bộ dữ liệu từ đám mây về máy cho nhân viên mới", style: TextStyle(fontSize: 11)),
-                onTap: _handleDownloadAllData,
               ),
             ),
             const SizedBox(height: 15),

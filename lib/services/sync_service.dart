@@ -377,10 +377,10 @@ class SyncService {
       for (var change in snapshot.docChanges) {
         var data = change.doc.data();
         if (data == null) continue;
-        
+
         // Giải mã dữ liệu nếu được mã hóa
         data = EncryptionService.decryptMap(data);
-        
+
         debugPrint(
           "Real-time change in $collection: ${change.doc.id}, type: ${change.type}",
         );
@@ -513,14 +513,19 @@ class SyncService {
           for (var expense in expenses) {
             // Skip nếu đã có firestoreId và đã sync
             final firestoreId = expense.firestoreId;
-            if (firestoreId != null && firestoreId.isNotEmpty && expense.isSynced) continue;
+            if (firestoreId != null &&
+                firestoreId.isNotEmpty &&
+                expense.isSynced)
+              continue;
 
             try {
               Map<String, dynamic> data = expense.toMap();
               data['shopId'] = shopId;
               data.remove('id');
 
-              final docId = firestoreId ?? "exp_${expense.date}_${expense.title.hashCode}";
+              final docId =
+                  firestoreId ??
+                  "exp_${expense.date}_${expense.title.hashCode}";
               expenseBatch.set(
                 _db.collection('expenses').doc(docId),
                 data,
@@ -720,14 +725,19 @@ class SyncService {
           final WriteBatch supplierBatch = _db.batch();
           for (var supplierMap in suppliers) {
             // Skip nếu đã có firestoreId (đã sync)
-            if (supplierMap['firestoreId'] != null && supplierMap['firestoreId'].toString().isNotEmpty) continue;
+            if (supplierMap['firestoreId'] != null &&
+                supplierMap['firestoreId'].toString().isNotEmpty)
+              continue;
 
             try {
-              Map<String, dynamic> data = Map<String, dynamic>.from(supplierMap);
+              Map<String, dynamic> data = Map<String, dynamic>.from(
+                supplierMap,
+              );
               data['shopId'] = shopId;
               data.remove('id');
 
-              final docId = "supplier_${data['createdAt']}_${data['name'].toString().replaceAll(' ', '_')}";
+              final docId =
+                  "supplier_${data['createdAt']}_${data['name'].toString().replaceAll(' ', '_')}";
               supplierBatch.set(
                 _db.collection('suppliers').doc(docId),
                 data,
@@ -757,14 +767,17 @@ class SyncService {
           final WriteBatch partnerBatch = _db.batch();
           for (var partnerMap in partners) {
             // Skip nếu đã có firestoreId (đã sync)
-            if (partnerMap['firestoreId'] != null && partnerMap['firestoreId'].toString().isNotEmpty) continue;
+            if (partnerMap['firestoreId'] != null &&
+                partnerMap['firestoreId'].toString().isNotEmpty)
+              continue;
 
             try {
               Map<String, dynamic> data = Map<String, dynamic>.from(partnerMap);
               data['shopId'] = shopId;
               data.remove('id');
 
-              final docId = "rp_${data['createdAt']}_${data['name'].toString().replaceAll(' ', '_')}";
+              final docId =
+                  "rp_${data['createdAt']}_${data['name'].toString().replaceAll(' ', '_')}";
               partnerBatch.set(
                 _db.collection('repair_partners').doc(docId),
                 data,
@@ -795,15 +808,21 @@ class SyncService {
           for (var debtMap in debts) {
             // Skip nếu đã có firestoreId và đã sync
             final firestoreId = debtMap['firestoreId'];
-            final isSynced = debtMap['isSynced'] == 1 || debtMap['isSynced'] == true;
-            if (firestoreId != null && firestoreId.toString().isNotEmpty && isSynced) continue;
+            final isSynced =
+                debtMap['isSynced'] == 1 || debtMap['isSynced'] == true;
+            if (firestoreId != null &&
+                firestoreId.toString().isNotEmpty &&
+                isSynced)
+              continue;
 
             try {
               Map<String, dynamic> data = Map<String, dynamic>.from(debtMap);
               data['shopId'] = shopId;
               data.remove('id');
 
-              final docId = firestoreId ?? "debt_${data['createdAt']}_${data['phone'] ?? 'ncc'}";
+              final docId =
+                  firestoreId ??
+                  "debt_${data['createdAt']}_${data['phone'] ?? 'ncc'}";
               debtBatch.set(
                 _db.collection('debts').doc(docId),
                 data,
@@ -833,15 +852,21 @@ class SyncService {
           for (var paymentMap in debtPayments) {
             // Skip nếu đã có firestoreId và đã sync
             final firestoreId = paymentMap['firestoreId'];
-            final isSynced = paymentMap['isSynced'] == 1 || paymentMap['isSynced'] == true;
-            if (firestoreId != null && firestoreId.toString().isNotEmpty && isSynced) continue;
+            final isSynced =
+                paymentMap['isSynced'] == 1 || paymentMap['isSynced'] == true;
+            if (firestoreId != null &&
+                firestoreId.toString().isNotEmpty &&
+                isSynced)
+              continue;
 
             try {
               Map<String, dynamic> data = Map<String, dynamic>.from(paymentMap);
               data['shopId'] = shopId;
               data.remove('id');
 
-              final docId = firestoreId ?? "pay_${data['paidAt']}_${data['debtId'] ?? 'debt'}";
+              final docId =
+                  firestoreId ??
+                  "pay_${data['paidAt']}_${data['debtId'] ?? 'debt'}";
               paymentBatch.set(
                 _db.collection('debt_payments').doc(docId),
                 data,
@@ -886,6 +911,7 @@ class SyncService {
         "LOCAL DATA BEFORE SYNC: repairs=${localRepairs.length}, products=${localProducts.length}, sales=${localSales.length}, attendance=${localAttendance.length}",
       );
 
+      // Chỉ tải các collection có shopId - đảm bảo chỉ lấy dữ liệu của shop hiện tại
       final collections = [
         'repairs',
         'products',
@@ -893,39 +919,42 @@ class SyncService {
         'expenses',
         'debts',
         'debt_payments',
-        'users',
-        'shops',
         'attendance',
         'quick_input_codes',
-        'supplier_import_history',
-        'supplier_product_prices',
         'supplier_payments',
         'repair_partner_payments',
         'customers',
         'suppliers',
         'repair_partners',
       ];
+      // Lưu ý: 'users' và 'shops' không có shopId field nên không tải ở đây
+      // 'supplier_import_history' và 'supplier_product_prices' quản lý locally
 
       for (var col in collections) {
-        // Skip products if local already has products to avoid downloading old data
-        if (col == 'products' && localProducts.isNotEmpty) {
-          debugPrint(
-            "Skip downloading products because local has ${localProducts.length} products",
-          );
-          continue;
-        }
         try {
+          debugPrint("Downloading collection: $col...");
           final snap = await _db
               .collection(col)
               .where('shopId', isEqualTo: shopId)
               .get();
+          debugPrint("  -> Found ${snap.docs.length} documents in $col");
+
+          int successCount = 0;
+          int skipCount = 0;
+          int errorCount = 0;
+
           for (var doc in snap.docs) {
             try {
-              final data = doc.data();
-              if (data['deleted'] == true)
+              var data = doc.data();
+              if (data['deleted'] == true) {
+                skipCount++;
                 continue; // Skip soft-deleted documents
+              }
 
+              // Giải mã dữ liệu nếu được mã hóa
+              data = EncryptionService.decryptMap(data);
               data['firestoreId'] = doc.id;
+
               if (col == 'repairs') {
                 await db.upsertRepair(Repair.fromMap(data));
               } else if (col == 'products') {
@@ -939,17 +968,13 @@ class SyncService {
               } else if (col == 'debt_payments') {
                 await db.upsertDebtPayment(data);
               } else if (col == 'attendance') {
-                try {
-                  await db.upsertAttendance(Attendance.fromMap(data));
-                } catch (e) {
-                  debugPrint("Lỗi upsert attendance ${doc.id}: $e");
-                }
+                await db.upsertAttendance(Attendance.fromMap(data));
               } else if (col == 'quick_input_codes') {
                 await db.upsertQuickInputCode(QuickInputCode.fromMap(data));
-              } else if (col == 'supplier_import_history') {
-                continue; // Managed locally
-              } else if (col == 'supplier_product_prices') {
-                continue; // Managed locally
+              } else if (col == 'supplier_payments') {
+                await db.upsertSupplierPayment(data);
+              } else if (col == 'repair_partner_payments') {
+                await db.upsertRepairPartnerPayment(data);
               } else if (col == 'customers') {
                 await db.upsertCustomer(data);
               } else if (col == 'suppliers') {
@@ -957,10 +982,15 @@ class SyncService {
               } else if (col == 'repair_partners') {
                 await db.upsertRepairPartner(data);
               }
+              successCount++;
             } catch (e) {
-              debugPrint("Lỗi xử lý document ${doc.id}: $e");
+              errorCount++;
+              debugPrint("  -> Error processing document ${doc.id}: $e");
             }
           }
+          debugPrint(
+            "  -> $col: success=$successCount, skipped=$skipCount, errors=$errorCount",
+          );
         } catch (e) {
           debugPrint("Lỗi tải collection $col: $e");
         }
@@ -971,8 +1001,10 @@ class SyncService {
       final localProductsAfter = await db.getInStockProducts();
       final localSalesAfter = await db.getAllSales();
       final localAttendanceAfter = await db.getAllAttendance();
+      final localExpenses = await db.getAllExpensesForSync();
+      final localDebts = await db.getAllDebts();
       debugPrint(
-        "LOCAL DATA AFTER SYNC: repairs=${localRepairsAfter.length}, products=${localProductsAfter.length}, sales=${localSalesAfter.length}, attendance=${localAttendanceAfter.length}",
+        "LOCAL DATA AFTER SYNC: repairs=${localRepairsAfter.length}, products=${localProductsAfter.length}, sales=${localSalesAfter.length}, attendance=${localAttendanceAfter.length}, expenses=${localExpenses.length}, debts=${localDebts.length}",
       );
 
       debugPrint("Đã hoàn thành downloadAllFromCloud.");

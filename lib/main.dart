@@ -155,6 +155,9 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<String> _getRoleAfterSync(String uid, String email) async {
     await UserService.syncUserInfo(uid, email);
+    // QUAN TRỌNG: Download dữ liệu từ cloud về ngay sau khi sync user info
+    // Đảm bảo dữ liệu được tải về trước khi vào HomeView
+    await SyncService.downloadAllFromCloud();
     return UserService.getUserRole(uid);
   }
 
@@ -163,15 +166,19 @@ class _AuthGateState extends State<AuthGate> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        if (snap.connectionState == ConnectionState.waiting) {
+          return _buildLoadingScreen('Đang kiểm tra phiên đăng nhập...');
+        }
         if (snap.hasError || !snap.hasData) return LoginView(setLocale: widget.setLocale);
 
-        final uid = snap.data!.uid; // Note: snap.data is guaranteed non-null here due to !snap.hasData check above
+        final uid = snap.data!.uid;
 
         return FutureBuilder<String>(
-          future: _getRoleAfterSync(uid, snap.data!.email!).timeout(const Duration(seconds: 15)),
+          future: _getRoleAfterSync(uid, snap.data!.email!).timeout(const Duration(seconds: 30)),
           builder: (context, roleSnap) {
-            if (roleSnap.connectionState == ConnectionState.waiting) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            if (roleSnap.connectionState == ConnectionState.waiting) {
+              return _buildLoadingScreen('Đang đồng bộ dữ liệu cửa hàng...');
+            }
             if (roleSnap.hasError || !roleSnap.hasData) {
               FirebaseAuth.instance.signOut();
               return LoginView(setLocale: widget.setLocale);
@@ -180,6 +187,64 @@ class _AuthGateState extends State<AuthGate> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildLoadingScreen(String message) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2962FF)),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    message,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF424242),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Vui lòng đợi trong giây lát...',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

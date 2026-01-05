@@ -504,6 +504,90 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView> with Ti
     }
   }
 
+  /// Mở scanner QR/Barcode để quét IMEI - chỉ quét 1 lần, lấy 5 số cuối
+  void _openQRScannerForIMEI() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'QUÉT QR/BARCODE IMEI',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Hướng camera vào mã QR hoặc Barcode IMEI.\nChỉ lấy 5 số cuối để nhập vào trường IMEI.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            // Scanner
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: MobileScanner(
+                  controller: MobileScannerController(
+                    detectionTimeoutMs: 1000,
+                    returnImage: false,
+                  ),
+                  onDetect: (capture) {
+                    final barcodes = capture.barcodes;
+                    if (barcodes.isNotEmpty) {
+                      final rawValue = barcodes.first.rawValue ?? '';
+                      if (rawValue.isNotEmpty) {
+                        // Lấy 5 số cuối từ IMEI
+                        final digitsOnly = rawValue.replaceAll(RegExp(r'[^0-9]'), '');
+                        final last5 = digitsOnly.length >= 5 
+                            ? digitsOnly.substring(digitsOnly.length - 5)
+                            : digitsOnly;
+                        
+                        // Đóng scanner và set IMEI
+                        Navigator.pop(ctx);
+                        setState(() {
+                          _imeiController.text = last5;
+                        });
+                        NotificationService.showSnackBar(
+                          'Đã quét: $rawValue → 5 số cuối: $last5',
+                          color: Colors.green,
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
 
 
 
@@ -943,11 +1027,27 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView> with Ti
                 ],
               ),
               const SizedBox(height: 12),
-              ValidatedTextField(
-                controller: _imeiController,
-                label: "IMEI/Serial (có thể nhập thủ công)",
-                icon: Icons.fingerprint,
-                keyboardType: TextInputType.number,
+              Row(
+                children: [
+                  Expanded(
+                    child: ValidatedTextField(
+                      controller: _imeiController,
+                      label: "IMEI/Serial (có thể nhập thủ công)",
+                      icon: Icons.fingerprint,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _openQRScannerForIMEI,
+                    icon: const Icon(Icons.qr_code_scanner, color: Colors.green),
+                    tooltip: 'Quét QR lấy 5 số cuối IMEI',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.green.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

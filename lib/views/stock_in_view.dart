@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../services/notification_service.dart';
@@ -499,6 +500,92 @@ class _StockInViewState extends State<StockInView> {
     }
   }
 
+  /// Mở scanner QR/Barcode để quét IMEI - chỉ quét 1 lần, lấy 5 số cuối
+  void _openQRScannerForIMEI() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'QUÉT QR/BARCODE IMEI',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Hướng camera vào mã QR hoặc Barcode IMEI.\nChỉ lấy 5 số cuối để nhập vào trường IMEI.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            // Scanner
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: MobileScanner(
+                  controller: MobileScannerController(
+                    detectionTimeoutMs: 1000,
+                    returnImage: false,
+                  ),
+                  onDetect: (capture) {
+                    final barcodes = capture.barcodes;
+                    if (barcodes.isNotEmpty) {
+                      final rawValue = barcodes.first.rawValue ?? '';
+                      if (rawValue.isNotEmpty) {
+                        // Lấy 5 số cuối từ IMEI
+                        final digitsOnly = rawValue.replaceAll(RegExp(r'[^0-9]'), '');
+                        final last5 = digitsOnly.length >= 5 
+                            ? digitsOnly.substring(digitsOnly.length - 5)
+                            : digitsOnly;
+                        
+                        // Đóng scanner và set IMEI
+                        Navigator.pop(ctx);
+                        setState(() {
+                          imeiCtrl.text = last5;
+                          _imeiChanged = true;
+                        });
+                        NotificationService.showSnackBar(
+                          'Đã quét: $rawValue → 5 số cuối: $last5',
+                          color: Colors.green,
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _resetForm() {
     // Không reset type để giữ loại sản phẩm hiện tại
     brandCtrl.clear();
@@ -541,7 +628,7 @@ class _StockInViewState extends State<StockInView> {
     bool hasChanged = false,
   }) {
     return DropdownButtonFormField<String>(
-      value: controller.text.isNotEmpty ? controller.text : null,
+      initialValue: controller.text.isNotEmpty ? controller.text : null,
       style: TextStyle(
         fontSize: 12,
         color: hasChanged ? const Color(0xFF1976D2) : Colors.black87,
@@ -745,7 +832,10 @@ class _StockInViewState extends State<StockInView> {
             const SizedBox(height: 8),
 
             // IMEI/Serial (chỉ cho phone)
-            if (!_isAccessoryOrLinhKien) ...[
+            if (!_isAccessoryOrLinhKien) ...[              Row(
+                children: [
+                  Expanded(
+                    child:
               _buildTextField(
                 controller: imeiCtrl,
                 label: 'IMEI/Serial (5 số cuối)',
@@ -755,6 +845,19 @@ class _StockInViewState extends State<StockInView> {
                 icon: Icons.qr_code,
                 inputFormatters: [LengthLimitingTextInputFormatter(5)],
                 hasChanged: _imeiChanged,
+              ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _openQRScannerForIMEI,
+                    icon: const Icon(Icons.qr_code_scanner, color: Colors.green),
+                    tooltip: 'Quét QR/Barcode IMEI',
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.green.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
             ],
@@ -821,7 +924,7 @@ class _StockInViewState extends State<StockInView> {
                     ? supplierCtrl.text 
                     : null;
                 return DropdownButtonFormField<String>(
-                  value: validValue,
+                  initialValue: validValue,
                   style: TextStyle(
                     fontSize: 12,
                     color: _supplierChanged ? const Color(0xFF1976D2) : Colors.black87,

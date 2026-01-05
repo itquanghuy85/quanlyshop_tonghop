@@ -147,23 +147,20 @@ class SupplierService {
       fsId = supplier['firestoreId'] as String?;
     }
     
-    // Soft delete local: đánh dấu deleted = 1 và active = 0
+    // HARD DELETE local: xóa hoàn toàn khỏi local DB
     final localDb = await db.database;
-    final result = await localDb.update(
+    final result = await localDb.delete(
       'suppliers',
-      {
-        'active': 0,
-        'deleted': 1,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      },
       where: 'id = ?',
       whereArgs: [supplierId],
     );
+    debugPrint('SupplierService.deleteSupplier: deleted $result rows for id=$supplierId');
     
     if (result > 0) {
       // Xóa trên Firestore nếu có firestoreId
       if (fsId != null && fsId.isNotEmpty) {
         await FirestoreService.deleteSupplier(fsId);
+        debugPrint('SupplierService.deleteSupplier: deleted from Firestore fsId=$fsId');
       }
       return true;
     }
