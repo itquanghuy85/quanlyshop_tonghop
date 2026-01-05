@@ -4,14 +4,12 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../services/user_service.dart';
-import '../services/firestore_service.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
 import 'fast_stock_in_view.dart';
 import 'supplier_details_dialog.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/app_button_styles.dart';
 
 class SupplierView extends StatefulWidget {
   const SupplierView({super.key});
@@ -82,10 +80,34 @@ class _SupplierViewState extends State<SupplierView> {
   Future<void> _confirmDeleteSupplier(Map<String, dynamic> s) async {
     final messenger = ScaffoldMessenger.of(context);
 
-    if (!_isAdmin) {
+    // Yêu cầu xác thực mật khẩu trước khi xóa
+    final password = await _showPasswordDialog();
+    if (password == null || password.isEmpty) return;
+
+    // Xác thực mật khẩu
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Chỉ tài khoản QUẢN LÝ mới được xóa nhà cung cấp', style: AppTextStyles.body2.copyWith(color: AppColors.onError)),
+          content: Text('Vui lòng đăng nhập lại', style: AppTextStyles.body2.copyWith(color: AppColors.onError)),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: currentUser.email!,
+        password: password,
+      );
+      await currentUser.reauthenticateWithCredential(credential);
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Mật khẩu không đúng!', style: AppTextStyles.body2.copyWith(color: AppColors.onError)),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -135,26 +157,37 @@ class _SupplierViewState extends State<SupplierView> {
 
     if (ok == true) {
       final firestoreId = s['firestoreId'] as String?;
-      if (firestoreId != null) {
-        await FirestoreService.deleteSupplier(firestoreId);
-      }
-      await db.deleteSupplier(s['id'] as int);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: AppColors.onSuccess, size: 20),
-              const SizedBox(width: 8),
-              Text('ĐÃ XÓA NHÀ CUNG CẤP', style: AppTextStyles.body2.copyWith(color: AppColors.onSuccess)),
-            ],
+      final id = s['id'] as int;
+      
+      // Sử dụng SupplierService để xóa cả local và cloud (soft delete)
+      final success = await supplierService.deleteSupplier(id, firestoreId: firestoreId);
+      
+      if (success) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: AppColors.onSuccess, size: 20),
+                const SizedBox(width: 8),
+                Text('ĐÃ XÓA NHÀ CUNG CẤP', style: AppTextStyles.body2.copyWith(color: AppColors.onSuccess)),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      _refresh();
+        );
+        _refresh();
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Lỗi: Không thể xóa nhà cung cấp', style: AppTextStyles.body2.copyWith(color: AppColors.onError)),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -653,19 +686,19 @@ class _SupplierViewState extends State<SupplierView> {
                     ),
                   ),
                 ),
-                if (_isAdmin) ...[
-                  const SizedBox(width: 12),
-                  IconButton(
-                    onPressed: () => _confirmDeleteSupplier(supplier),
-                    icon: const Icon(Icons.delete_outline, size: 22),
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.error.withOpacity(0.1),
-                      foregroundColor: AppColors.error,
-                      padding: const EdgeInsets.all(12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
+                const SizedBox(width: 12),
+                // Nút xóa nhà cung cấp - yêu cầu xác thực mật khẩu
+                IconButton(
+                  onPressed: () => _confirmDeleteSupplier(supplier),
+                  icon: const Icon(Icons.delete_outline, size: 22),
+                  tooltip: 'Xóa nhà cung cấp',
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.error.withOpacity(0.1),
+                    foregroundColor: AppColors.error,
+                    padding: const EdgeInsets.all(12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                ],
+                ),
               ],
             ),
           ],
@@ -722,6 +755,80 @@ class _SupplierViewState extends State<SupplierView> {
     showDialog(
       context: context,
       builder: (ctx) => SupplierDetailsDialog(supplier: supplier),
+    );
+  }
+
+  Future<String?> _showPasswordDialog() async {
+    String password = '';
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.lock, color: AppColors.primary, size: 24),
+            const SizedBox(width: 12),
+            Text('XÁC NHẬN XÓA', style: AppTextStyles.headline6.copyWith(color: AppColors.primary)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Chỉ chủ shop/quản lý được phép xóa nhà cung cấp.\nNhập mật khẩu tài khoản để xác nhận:',
+              style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.7)),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              obscureText: true,
+              onChanged: (value) => password = value,
+              style: AppTextStyles.body1,
+              decoration: InputDecoration(
+                hintText: 'Mật khẩu',
+                hintStyle: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.5)),
+                prefixIcon: Icon(Icons.password, color: AppColors.primary, size: 20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.outline),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.outline),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                ),
+                filled: true,
+                fillColor: AppColors.surface,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.onSurface.withOpacity(0.7),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            child: Text('HỦY', style: AppTextStyles.button),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, password),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.onPrimary,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text('XÁC NHẬN', style: AppTextStyles.button),
+          ),
+        ],
+      ),
     );
   }
 }

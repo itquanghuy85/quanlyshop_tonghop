@@ -975,7 +975,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
   final phoneCtrl = TextEditingController();
   final addressCtrl = TextEditingController();
   String? _photoPath;
-  String _selectedRole = 'user';
+  String _selectedRole = 'employee'; // Mặc định là employee
   bool _isEditing = false;
 
   String? _staffShopId;
@@ -1015,7 +1015,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
       phoneCtrl.text = widget.fullData['phone'] ?? "";
       addressCtrl.text = widget.fullData['address'] ?? "";
       _photoPath = widget.fullData['photoUrl'];
-      _selectedRole = widget.role;
+      // Đảm bảo role nằm trong danh sách dropdown, nếu không dùng mặc định 'employee'
+      const validRoles = ['owner', 'manager', 'employee', 'technician'];
+      _selectedRole = validRoles.contains(widget.role) ? widget.role : 'employee';
       _staffShopId = widget.fullData['shopId'];
 
       // Quyền xem nội dung (mặc định: chỉ quản lý thấy toàn bộ tài chính)

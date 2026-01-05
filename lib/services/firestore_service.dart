@@ -318,7 +318,8 @@ class FirestoreService {
     try {
       if (((expData['amount'] as int?) ?? 0) <= 0) return;
       final shopId = await UserService.getCurrentShopId();
-      final String docId = "exp_${expData['date']}_${expData['title'].hashCode}";
+      // Sử dụng firestoreId đã có trong expData nếu có, không tạo lại
+      final String docId = expData['firestoreId'] ?? "exp_${expData['date']}_${expData['title'].hashCode}";
       expData['shopId'] = shopId;
       expData['firestoreId'] = docId;
       final encryptedData = EncryptionService.encryptMap(expData);
@@ -484,8 +485,23 @@ class FirestoreService {
     try { await _db.collection('customers').doc(firestoreId).delete(); } catch (_) {}
   }
 
+  /// Xóa supplier theo firestoreId - soft delete với deleted: true để tránh sync lại
   static Future<void> deleteSupplier(String firestoreId) async {
-    try { await _db.collection('suppliers').doc(firestoreId).delete(); } catch (_) {}
+    try {
+      // Soft delete: đánh dấu deleted = true thay vì xóa hẳn
+      await _db.collection('suppliers').doc(firestoreId).update({
+        'deleted': true,
+        'active': 0,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint('Firestore deleteSupplier: $firestoreId soft deleted');
+    } catch (e) {
+      // Nếu doc không tồn tại hoặc lỗi update, thử xóa hẳn
+      try {
+        await _db.collection('suppliers').doc(firestoreId).delete();
+      } catch (_) {}
+      debugPrint('Firestore deleteSupplier error: $e');
+    }
   }
 
   // --- QUẢN LÝ MÃ NHẬP NHANH (Đồng bộ giữa các thiết bị trong shop) ---
@@ -701,6 +717,25 @@ class FirestoreService {
       debugPrint('Firestore deleteRepairPartner not implemented - needs firestoreId');
     } catch (e) {
       debugPrint('Firestore deleteRepairPartner error: $e');
+    }
+  }
+
+  /// Xóa repair partner theo firestoreId - soft delete với deleted: true
+  static Future<void> deleteRepairPartnerByFirestoreId(String firestoreId) async {
+    try {
+      // Soft delete: đánh dấu deleted = true thay vì xóa hẳn để tránh sync lại
+      await _db.collection('repair_partners').doc(firestoreId).update({
+        'deleted': true,
+        'active': 0,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint('Firestore deleteRepairPartnerByFirestoreId: $firestoreId deleted');
+    } catch (e) {
+      // Nếu doc không tồn tại, thử xóa hẳn
+      try {
+        await _db.collection('repair_partners').doc(firestoreId).delete();
+      } catch (_) {}
+      debugPrint('Firestore deleteRepairPartnerByFirestoreId error: $e');
     }
   }
 

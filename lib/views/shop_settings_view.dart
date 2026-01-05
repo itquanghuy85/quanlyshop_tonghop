@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
@@ -78,12 +79,23 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           _emailController.text = _shopEmail;
           _descriptionController.text = _shopDescription;
         });
+
+        // Đồng bộ thông tin shop vào SharedPreferences để các màn hình in hóa đơn đọc được
+        await _syncToSharedPreferences(_shopName, _shopAddress, _shopPhone);
       }
     } catch (e) {
       NotificationService.showSnackBar("Lỗi tải thông tin shop: $e", color: Colors.red);
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  /// Đồng bộ thông tin shop vào SharedPreferences để các màn hình in hóa đơn đọc được
+  Future<void> _syncToSharedPreferences(String name, String address, String phone) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('shop_name', name);
+    await prefs.setString('shop_address', address);
+    await prefs.setString('shop_phone', phone);
   }
 
   Future<void> _pickLogo() async {
@@ -136,6 +148,13 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       };
 
       await FirebaseFirestore.instance.collection('shops').doc(shopId).update(shopData);
+
+      // Đồng bộ thông tin shop vào SharedPreferences để các màn hình in hóa đơn đọc được
+      await _syncToSharedPreferences(
+        _nameController.text.trim(),
+        _addressController.text.trim(),
+        _phoneController.text.trim(),
+      );
 
       setState(() {
         _shopName = _nameController.text.trim();

@@ -15,7 +15,7 @@ class RepairPartnerService {
     final shopId = await UserService.getCurrentShopId();
     final data = await db.getRepairPartners();
     return data
-        .where((p) => p['shopId'] == shopId)
+        .where((p) => p['shopId'] == shopId && p['deleted'] != 1 && p['deleted'] != true)
         .map((p) => RepairPartner.fromMap(p))
         .toList();
   }
@@ -53,10 +53,36 @@ class RepairPartnerService {
     return false;
   }
 
-  Future<bool> deleteRepairPartner(int partnerId) async {
-    final result = await db.deleteRepairPartner(partnerId);
+  Future<bool> deleteRepairPartner(int partnerId, {String? firestoreId}) async {
+    // Lấy firestoreId nếu chưa có
+    String? fsId = firestoreId;
+    if (fsId == null) {
+      final partners = await db.getRepairPartners();
+      final partner = partners.firstWhere(
+        (p) => p['id'] == partnerId,
+        orElse: () => {},
+      );
+      fsId = partner['firestoreId'] as String?;
+    }
+    
+    // Soft delete local: đánh dấu deleted = 1 và active = 0
+    final localDb = await db.database;
+    final result = await localDb.update(
+      'repair_partners',
+      {
+        'active': 0,
+        'deleted': 1,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [partnerId],
+    );
+    
     if (result > 0) {
-      await FirestoreService.deleteRepairPartner(partnerId);
+      // Xóa trên Firestore nếu có firestoreId
+      if (fsId != null && fsId.isNotEmpty) {
+        await FirestoreService.deleteRepairPartnerByFirestoreId(fsId);
+      }
       return true;
     }
     return false;

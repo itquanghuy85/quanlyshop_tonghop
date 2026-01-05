@@ -87,11 +87,10 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       final supplierService = SupplierService();
       _suppliers = await supplierService.getSuppliers();
 
-      // Load import history for partners (assuming partners can have import history)
-      for (var partner in _repairPartners) {
-        final history = await supplierService.getSupplierImportHistory(partner.id.toString());
-        _partnerImportHistory.addAll(history);
-      }
+      // Đối tác sửa chữa không có supplier_import_history riêng
+      // Lịch sử công việc của đối tác được lưu trong repairs.services (JSON với partnerId)
+      // Hiện tại để trống, cần implement riêng nếu muốn thống kê từ repairs
+      _partnerImportHistory = [];
 
       // Load import history for suppliers
       for (var supplier in _suppliers) {
@@ -282,6 +281,30 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
   }
 
   Widget _buildPartnerImportHistory() {
+    if (_partnerImportHistory.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.history, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Chưa có lịch sử công việc',
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Lịch sử công việc gửi đối tác sẽ hiển thị từ các đơn sửa chữa',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return ListView.builder(
       itemCount: _partnerImportHistory.length,
       itemBuilder: (ctx, i) {
@@ -739,7 +762,20 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Chỉnh sửa đối tác sửa chữa'),
+        title: Row(
+          children: [
+            const Expanded(child: Text('Chỉnh sửa đối tác sửa chữa')),
+            // Nút xóa đối tác
+            IconButton(
+              icon: const Icon(Icons.delete_forever, color: Colors.red),
+              tooltip: 'Xóa đối tác',
+              onPressed: () {
+                Navigator.pop(ctx);
+                _confirmDeletePartner(partner);
+              },
+            ),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -751,6 +787,16 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           ),
         ),
         actions: [
+          // Nút xóa ở actions
+          TextButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _confirmDeletePartner(partner);
+            },
+            icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+            label: const Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+          const Spacer(),
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
           ElevatedButton(
             onPressed: () async {
@@ -798,7 +844,20 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Chỉnh sửa nhà cung cấp'),
+        title: Row(
+          children: [
+            const Expanded(child: Text('Chỉnh sửa nhà cung cấp')),
+            // Nút xóa nhà cung cấp
+            IconButton(
+              icon: const Icon(Icons.delete_forever, color: Colors.red),
+              tooltip: 'Xóa nhà cung cấp',
+              onPressed: () {
+                Navigator.pop(ctx);
+                _confirmDeleteSupplier(supplier);
+              },
+            ),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -812,6 +871,16 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           ),
         ),
         actions: [
+          // Nút xóa ở actions
+          TextButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _confirmDeleteSupplier(supplier);
+            },
+            icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+            label: const Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+          const Spacer(),
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
           ElevatedButton(
             onPressed: () async {
@@ -865,7 +934,11 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
               Navigator.pop(ctx);
               try {
                 final service = RepairPartnerService();
-                final success = await service.deleteRepairPartner(partner.id!);
+                // Truyền firestoreId để xóa cả local và cloud
+                final success = await service.deleteRepairPartner(
+                  partner.id!,
+                  firestoreId: partner.firestoreId,
+                );
                 if (success) {
                   EventBus().emit('repair_partners_changed');
                   await _loadData();
@@ -910,7 +983,11 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
               Navigator.pop(ctx);
               try {
                 final service = SupplierService();
-                final success = await service.deleteSupplier(supplier.id!);
+                // Truyền firestoreId để xóa cả local và cloud
+                final success = await service.deleteSupplier(
+                  supplier.id!,
+                  firestoreId: supplier.firestoreId,
+                );
                 if (success) {
                   FastInventoryInputController().clearSupplierCache();
                   EventBus().emit('suppliers_changed');

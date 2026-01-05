@@ -224,7 +224,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
     setState(() {
       _saving = true;
-      _uploadStatus = "Đang đồng bộ dữ liệu đám mây...";
+      _uploadStatus = "Đang đồng bộ dữ liệu lên server...";
     });
     try {
       String cloudImagePaths = "";
@@ -407,7 +407,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         ),
         const SizedBox(height: 10),
         Text(
-          "Tổng chi phí: ${MoneyUtils.formatVND(_services.fold(0, (sum, s) => sum + s.cost).toInt())}.000 Vn₫",
+          "Tổng chi phí: ${MoneyUtils.formatVND(_services.fold(0, (sum, s) => sum + s.cost).toInt())} Vn₫",
           style: AppTextStyles.priceStyle,
         ),
         const SizedBox(height: 10),

@@ -20,13 +20,21 @@ class SupplierService {
     debugPrint('SupplierService.getSuppliers: local data count=${data.length}');
     final List<Supplier> suppliers = [];
 
-    // Super admin: return all suppliers without filtering
+    // Super admin: return all suppliers without filtering, nhưng loại bỏ deleted
     if (shopId == null) {
       debugPrint('SupplierService.getSuppliers: super admin mode, returning all');
-      return data.map((s) => Supplier.fromMap({...s, 'shopId': s['shopId'] ?? ''})).toList();
+      return data
+          .where((s) => s['deleted'] != 1 && s['deleted'] != true)
+          .map((s) => Supplier.fromMap({...s, 'shopId': s['shopId'] ?? ''}))
+          .toList();
     }
 
     for (final s in data) {
+      // Bỏ qua các supplier đã bị xóa (soft delete)
+      if (s['deleted'] == 1 || s['deleted'] == true) {
+        continue;
+      }
+      
       String? supplierShopId = s['shopId'] as String?;
       debugPrint('SupplierService.getSuppliers: checking supplier ${s['name']}, shopId=$supplierShopId');
 
@@ -127,10 +135,36 @@ class SupplierService {
     return false;
   }
 
-  Future<bool> deleteSupplier(int supplierId) async {
-    final result = await db.deleteSupplier(supplierId);
+  Future<bool> deleteSupplier(int supplierId, {String? firestoreId}) async {
+    // Lấy firestoreId nếu chưa có
+    String? fsId = firestoreId;
+    if (fsId == null) {
+      final suppliers = await db.getSuppliers();
+      final supplier = suppliers.firstWhere(
+        (s) => s['id'] == supplierId,
+        orElse: () => {},
+      );
+      fsId = supplier['firestoreId'] as String?;
+    }
+    
+    // Soft delete local: đánh dấu deleted = 1 và active = 0
+    final localDb = await db.database;
+    final result = await localDb.update(
+      'suppliers',
+      {
+        'active': 0,
+        'deleted': 1,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [supplierId],
+    );
+    
     if (result > 0) {
-      await FirestoreService.deleteSupplier(supplierId.toString());
+      // Xóa trên Firestore nếu có firestoreId
+      if (fsId != null && fsId.isNotEmpty) {
+        await FirestoreService.deleteSupplier(fsId);
+      }
       return true;
     }
     return false;

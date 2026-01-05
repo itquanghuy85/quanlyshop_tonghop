@@ -26,7 +26,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 41,
+      version: 42,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT)',
@@ -41,7 +41,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT UNIQUE, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, isSynced INTEGER DEFAULT 0)',
@@ -92,7 +92,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS supplier_import_history(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, supplierId INTEGER, supplierName TEXT, productName TEXT, productBrand TEXT, productModel TEXT, imei TEXT, quantity INTEGER, costPrice INTEGER, totalAmount INTEGER, paymentMethod TEXT, importDate INTEGER, importedBy TEXT, notes TEXT, isSynced INTEGER DEFAULT 0, shopId TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS repair_partners(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, note TEXT, active INTEGER DEFAULT 1, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS repair_partners(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, note TEXT, active INTEGER DEFAULT 1, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS partner_repair_history(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, repairOrderId TEXT, partnerId INTEGER, customerName TEXT, deviceModel TEXT, issue TEXT, partnerCost INTEGER, repairContent TEXT, sentAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
@@ -335,7 +335,7 @@ class DBHelper {
         if (oldV < 33) {
           try {
             await db.execute(
-              'CREATE TABLE IF NOT EXISTS repair_partners(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, note TEXT, active INTEGER DEFAULT 1, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
+              'CREATE TABLE IF NOT EXISTS repair_partners(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, note TEXT, active INTEGER DEFAULT 1, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
             );
           } catch (e) {
             debugPrint('DB upgrade error (repair_partners): $e');
@@ -467,6 +467,21 @@ class DBHelper {
             debugPrint('DB upgrade: added notes to repairs');
           } catch (e) {
             debugPrint('DB upgrade error (repairs notes): $e');
+          }
+        }
+        if (oldV < 42) {
+          // Thêm cột deleted vào suppliers và repair_partners cho soft delete
+          try {
+            await db.execute('ALTER TABLE suppliers ADD COLUMN deleted INTEGER DEFAULT 0');
+            debugPrint('DB upgrade: added deleted to suppliers');
+          } catch (e) {
+            debugPrint('DB upgrade error (suppliers deleted): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE repair_partners ADD COLUMN deleted INTEGER DEFAULT 0');
+            debugPrint('DB upgrade: added deleted to repair_partners');
+          } catch (e) {
+            debugPrint('DB upgrade error (repair_partners deleted): $e');
           }
         }
         debugPrint('DB upgrade completed');

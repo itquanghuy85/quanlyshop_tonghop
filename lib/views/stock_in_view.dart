@@ -813,11 +813,18 @@ class _StockInViewState extends State<StockInView> {
             ],
 
             // Nhà cung cấp
-            DropdownButtonFormField<String>(
-              value: supplierCtrl.text.isNotEmpty ? supplierCtrl.text : null,
-              style: TextStyle(
-                fontSize: 12,
-                color: _supplierChanged ? const Color(0xFF1976D2) : Colors.black87,
+            Builder(
+              builder: (context) {
+                // Fix: đảm bảo value nằm trong danh sách suppliers
+                final supplierNames = suppliers.map((s) => s['name'] as String).toList();
+                final validValue = (supplierCtrl.text.isNotEmpty && supplierNames.contains(supplierCtrl.text)) 
+                    ? supplierCtrl.text 
+                    : null;
+                return DropdownButtonFormField<String>(
+                  value: validValue,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _supplierChanged ? const Color(0xFF1976D2) : Colors.black87,
                 fontWeight: _supplierChanged ? FontWeight.bold : FontWeight.normal,
               ),
               dropdownColor: Colors.white,
@@ -858,10 +865,12 @@ class _StockInViewState extends State<StockInView> {
                   ),
                 ),
               )).toList(),
-              onChanged: (value) {
-                setState(() {
-                  supplierCtrl.text = value!;
-                });
+                  onChanged: (value) {
+                    setState(() {
+                      supplierCtrl.text = value!;
+                    });
+                  },
+                );
               },
             ),
             const SizedBox(height: 8),

@@ -63,7 +63,7 @@ class _FastStockInViewState extends State<FastStockInView> {
   List<Map<String, dynamic>> suppliers = [];
 
   // Options
-  final List<String> brands = ['IPHONE', 'SAMSUNG', 'OPPO', 'REDMI'];
+  final List<String> brands = ['IPHONE', 'SAMSUNG', 'OPPO', 'REDMI', 'KHÁC'];
   final List<String> capacities = ['64GB', '128GB', '256GB', '512GB', '1TB'];
   final List<String> colors = ['ĐEN', 'TRẮNG', 'XANH', 'ĐỎ', 'VÀNG', 'TÍM'];
   final List<String> conditions = ['MỚI', '99', 'KHÁC'];
@@ -71,10 +71,11 @@ class _FastStockInViewState extends State<FastStockInView> {
 
   // Model suggestions based on brand
   final Map<String, List<String>> modelSuggestions = {
-    'IPHONE': ['16', '17', '15', '14', '13', '12', '11', 'X','XS','XS MAX' '8', 'SE','PRO','PROMAX'],
+    'IPHONE': ['17', '16', '15', '14', '13', '12', '11', 'XS MAX', 'XS', 'X', 'SE', '8', 'PRO', 'PROMAX'],
     'SAMSUNG': ['S24', 'S23', 'S22', 'S21', 'A54', 'A34', 'A14'],
     'OPPO': ['A18', 'A17', 'A16', 'A15', 'F11', 'F9'],
     'REDMI': ['13C', '12C', '11', '10', '9', 'Note 12'],
+    'KHÁC': [],
   };
 
   @override
@@ -213,24 +214,97 @@ class _FastStockInViewState extends State<FastStockInView> {
 
   Future<void> _addNewSupplier() async {
     final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final addressCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Thêm nhà cung cấp mới', style: TextStyle(fontSize: 14)),
-        content: TextField(
-          controller: nameCtrl,
-          inputFormatters: [UpperCaseTextFormatter(), LengthLimitingTextInputFormatter(60)],
-          decoration: const InputDecoration(labelText: 'Tên nhà cung cấp'),
-          style: const TextStyle(fontSize: 11),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                inputFormatters: [UpperCaseTextFormatter(), LengthLimitingTextInputFormatter(60)],
+                decoration: const InputDecoration(
+                  labelText: 'Tên nhà cung cấp *',
+                  hintText: 'VD: KHO HÀ NỘI',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Số điện thoại',
+                  hintText: 'Số điện thoại liên hệ',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  hintText: 'Địa chỉ email (tùy chọn)',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: addressCtrl,
+                inputFormatters: [UpperCaseTextFormatter()],
+                decoration: const InputDecoration(
+                  labelText: 'Địa chỉ',
+                  hintText: 'Địa chỉ kho hàng',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: noteCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Ghi chú',
+                  hintText: 'Thông tin bổ sung (tùy chọn)',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-          TextButton(onPressed: () async {
-            if (nameCtrl.text.trim().isNotEmpty) {
+          ElevatedButton(
+            onPressed: () async {
+              if (nameCtrl.text.trim().isEmpty) {
+                NotificationService.showSnackBar("Vui lòng nhập tên nhà cung cấp", color: Colors.red);
+                return;
+              }
               try {
                 final shopId = await UserService.getCurrentShopId();
                 final supplier = Supplier(
                   name: nameCtrl.text.trim().toUpperCase(),
+                  phone: phoneCtrl.text.trim().isNotEmpty ? phoneCtrl.text.trim() : null,
+                  email: emailCtrl.text.trim().isNotEmpty ? emailCtrl.text.trim() : null,
+                  address: addressCtrl.text.trim().isNotEmpty ? addressCtrl.text.trim().toUpperCase() : null,
+                  note: noteCtrl.text.trim().isNotEmpty ? noteCtrl.text.trim() : null,
                   shopId: shopId ?? '',
                 );
                 final savedSupplier = await supplierService.addSupplier(supplier);
@@ -239,14 +313,122 @@ class _FastStockInViewState extends State<FastStockInView> {
                   setState(() => selectedSupplier = nameCtrl.text.trim().toUpperCase());
                   EventBus().emit('suppliers_changed');
                   Navigator.pop(ctx, true);
+                  NotificationService.showSnackBar("Đã thêm nhà cung cấp thành công", color: Colors.green);
                 } else {
                   NotificationService.showSnackBar("Lỗi thêm nhà cung cấp", color: Colors.red);
                 }
               } catch (e) {
                 NotificationService.showSnackBar("Lỗi thêm nhà cung cấp: $e", color: Colors.red);
               }
-            }
-          }, child: const Text('Thêm')),
+            },
+            child: const Text('Thêm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteSupplier(String supplierName) async {
+    // Tìm supplier trong danh sách
+    final supplierMap = suppliers.firstWhere(
+      (s) => s['name'] == supplierName,
+      orElse: () => {},
+    );
+    
+    if (supplierMap.isEmpty) {
+      NotificationService.showSnackBar("Không tìm thấy nhà cung cấp", color: Colors.red);
+      return;
+    }
+
+    // Xác nhận mật khẩu trước khi xóa
+    final password = await _showPasswordDialog();
+    if (password == null || password.isEmpty) return;
+
+    // Xác thực mật khẩu
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      NotificationService.showSnackBar("Vui lòng đăng nhập lại", color: Colors.red);
+      return;
+    }
+
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: currentUser.email!,
+        password: password,
+      );
+      await currentUser.reauthenticateWithCredential(credential);
+    } catch (e) {
+      NotificationService.showSnackBar("Mật khẩu không đúng!", color: Colors.red);
+      return;
+    }
+
+    // Xác nhận xóa
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xác nhận xóa', style: TextStyle(fontSize: 14)),
+        content: Text('Bạn có chắc muốn xóa nhà cung cấp "$supplierName"?\n\nLưu ý: Dữ liệu liên quan có thể bị ảnh hưởng.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xóa', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final supplierId = supplierMap['id'] as int;
+      final firestoreId = supplierMap['firestoreId'] as String?;
+      
+      final success = await supplierService.deleteSupplier(supplierId, firestoreId: firestoreId);
+      
+      if (success) {
+        await _loadSuppliers();
+        setState(() => selectedSupplier = null);
+        EventBus().emit('suppliers_changed');
+        NotificationService.showSnackBar("Đã xóa nhà cung cấp thành công", color: Colors.green);
+      } else {
+        NotificationService.showSnackBar("Lỗi: Không thể xóa nhà cung cấp", color: Colors.red);
+      }
+    } catch (e) {
+      NotificationService.showSnackBar("Lỗi xóa nhà cung cấp: $e", color: Colors.red);
+    }
+  }
+
+  Future<String?> _showPasswordDialog() async {
+    String password = '';
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xác nhận xóa nhà cung cấp', style: TextStyle(fontSize: 14)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Chỉ chủ shop/quản lý được phép xóa.\nNhập mật khẩu tài khoản để xác nhận:', style: TextStyle(fontSize: 12)),
+            const SizedBox(height: 10),
+            TextField(
+              obscureText: true,
+              onChanged: (value) => password = value,
+              decoration: const InputDecoration(
+                hintText: 'Mật khẩu',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, password),
+            child: const Text('Xác nhận'),
+          ),
         ],
       ),
     );
@@ -487,6 +669,12 @@ class _FastStockInViewState extends State<FastStockInView> {
   }
 
   Widget _buildSupplierField() {
+    // Fix: đảm bảo selectedSupplier nằm trong danh sách suppliers
+    final supplierNames = suppliers.map((s) => s['name'] as String).toList();
+    final validSelectedSupplier = (selectedSupplier != null && supplierNames.contains(selectedSupplier)) 
+        ? selectedSupplier 
+        : null;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -496,7 +684,7 @@ class _FastStockInViewState extends State<FastStockInView> {
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: selectedSupplier,
+                value: validSelectedSupplier,
                 items: suppliers.map((sup) => DropdownMenuItem<String>(
                   value: sup['name'] as String,
                   child: Text(sup['name'] as String, style: const TextStyle(fontSize: 11, color: Colors.black87)),
@@ -513,14 +701,26 @@ class _FastStockInViewState extends State<FastStockInView> {
                 dropdownColor: Colors.white,
               ),
             ),
-            const SizedBox(width: 8),
-            ElevatedButton(
+            const SizedBox(width: 4),
+            // Nút thêm nhà cung cấp
+            IconButton(
               onPressed: _addNewSupplier,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: const Size(32, 32),
+              icon: const Icon(Icons.add_circle, color: Colors.green, size: 28),
+              tooltip: 'Thêm nhà cung cấp',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+            // Nút xóa nhà cung cấp đang chọn
+            IconButton(
+              onPressed: validSelectedSupplier != null ? () => _deleteSupplier(validSelectedSupplier!) : null,
+              icon: Icon(
+                Icons.delete_outline, 
+                color: validSelectedSupplier != null ? Colors.red : Colors.grey,
+                size: 24,
               ),
-              child: const Text('+', style: TextStyle(fontSize: 12)),
+              tooltip: 'Xóa nhà cung cấp',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
           ],
         ),

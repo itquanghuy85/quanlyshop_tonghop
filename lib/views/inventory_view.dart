@@ -399,7 +399,12 @@ class _InventoryViewState extends State<InventoryView> with TickerProviderStateM
                 // Kiểm tra nếu giá thay đổi
                 final priceChanged = oldCost != updatedProduct.cost || oldPrice != updatedProduct.price;
 
+                // Cập nhật local database
                 await db.updateProduct(updatedProduct);
+                
+                // Cập nhật lên cloud (Firestore)
+                await FirestoreService.updateProductCloud(updatedProduct);
+                
                 await _refresh();
                 Navigator.pop(ctx);
 
