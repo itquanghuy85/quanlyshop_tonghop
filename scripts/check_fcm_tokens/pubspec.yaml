@@ -1,0 +1,9 @@
+name: check_fcm_tokens
+description: A simple script to check FCM tokens in Firestore.
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  firebase_core: ^3.15.2
+  cloud_firestore: ^5.6.12

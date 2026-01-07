@@ -1,0 +1,62 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="60" y1="40" x2="452" y2="472" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF6B6B"/>
+      <stop offset="0.35" stop-color="#FF8F3F"/>
+      <stop offset="0.7" stop-color="#00D6FF"/>
+      <stop offset="1" stop-color="#6B5BFF"/>
+    </linearGradient>
+    <linearGradient id="card" x1="180" y1="120" x2="332" y2="392" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1226" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#0B1226" stop-opacity="0.85"/>
+    </linearGradient>
+    <linearGradient id="cartStroke" x1="60" y1="120" x2="200" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#FFE082"/>
+    </linearGradient>
+    <linearGradient id="gearFill" x1="140" y1="120" x2="210" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00E1FF"/>
+      <stop offset="1" stop-color="#5CFF8F"/>
+    </linearGradient>
+    <filter id="shadow" x="120" y="80" width="272" height="360" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#001F4D" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Vibrant gradient background -->
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+
+  <!-- Card / device with strong shadow -->
+  <g filter="url(#shadow)">
+    <rect x="156" y="96" width="200" height="320" rx="40" fill="#FFFFFF" fill-opacity="0.96"/>
+  </g>
+  <rect x="176" y="126" width="160" height="260" rx="28" fill="url(#card)"/>
+  <rect x="214" y="114" width="84" height="10" rx="5" fill="#F1F4FF" opacity="0.95"/>
+  <circle cx="256" cy="362" r="12" fill="#E7EEFF" opacity="0.95"/>
+
+  <!-- Cart + gear, more vivid -->
+  <g transform="translate(150 176)">
+    <!-- wheels with highlight -->
+    <circle cx="60" cy="180" r="15" fill="#00E1FF"/>
+    <circle cx="140" cy="180" r="15" fill="#5CFF8F"/>
+    <circle cx="60" cy="180" r="7" fill="#0B1226" opacity="0.65"/>
+    <circle cx="140" cy="180" r="7" fill="#0B1226" opacity="0.65"/>
+    <!-- cart body -->
+    <path d="M50 96h120l-12 66H70l-9-48" stroke="url(#cartStroke)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M40 76h34" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round"/>
+    <path d="M80 154h68" stroke="#FFE082" stroke-width="10" stroke-linecap="round"/>
+    <path d="M76 126h96" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round"/>
+    <!-- gear -->
+    <g transform="translate(128 80)">
+      <circle cx="44" cy="44" r="28" fill="#FFFFFF" opacity="0.98"/>
+      <path d="M44 12l7 9 12-2 5 11 12 0 0 13 11 5-2 12 9 7-9 9 2 12-11 5 0 12-13 0-5 11-12-2-7 9-9-9-12 2-5-11-12 0 0-13-11-5 2-12-9-7 9-9-2-12 11-5 0-12 13 0 5-11 12 2 7-9 9 9z" fill="url(#gearFill)" opacity="0.95"/>
+      <circle cx="44" cy="44" r="13" fill="#0B1226" opacity="0.92"/>
+    </g>
+  </g>
+
+  <!-- Cloud badge (sync) with brighter fill -->
+  <circle cx="366" cy="160" r="38" fill="#FFFFFF" opacity="0.94"/>
+  <path d="M350 160c0-9 8-17 17-17 5 0 9 2 12 5 2-1 4-1 6-1 8 0 15 7 15 15 0 2-1 4-1 5h2c6 0 11 5 11 11s-5 11-11 11h-47c-7 0-13-6-13-13 0-6 4-10 8-12-1-1-2-3-2-5z" fill="#00A6FF"/>
+
+  <!-- No text for cleaner Play icon -->
+</svg>

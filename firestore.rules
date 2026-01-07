@@ -1,0 +1,9 @@
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // TEMPORARY TESTING RULES: allow authenticated users to read/write everything
+    // NOTE: This is permissive and should ONLY be used for short-term testing.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
