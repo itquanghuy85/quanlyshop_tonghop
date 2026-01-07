@@ -287,6 +287,159 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     if (mounted) setState(() => _isUpdating = false);
   }
 
+  /// Dialog chọn phụ tùng từ kho và tự động trừ kho
+  Future<void> _selectPartsFromInventory() async {
+    final parts = await db.getAllParts();
+    if (parts.isEmpty) {
+      NotificationService.showSnackBar(
+        "Kho phụ tùng trống. Vui lòng thêm phụ tùng trước.",
+        color: Colors.orange,
+      );
+      return;
+    }
+
+    // Map để lưu số lượng chọn cho mỗi part
+    final Map<int, int> selectedQuantities = {};
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.inventory_2, color: Colors.purple),
+              const SizedBox(width: 10),
+              const Text("CHỌN PHỤ TÙNG"),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: ListView.builder(
+              itemCount: parts.length,
+              itemBuilder: (context, index) {
+                final part = parts[index];
+                final partId = part['id'] as int;
+                final partName = part['partName'] ?? '';
+                final partQty = part['quantity'] as int? ?? 0;
+                final partCost = part['cost'] as int? ?? 0;
+                final partPrice = part['price'] as int? ?? 0;
+                final selectedQty = selectedQuantities[partId] ?? 0;
+
+                return Card(
+                  child: ListTile(
+                    title: Text(
+                      partName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Tồn kho: $partQty"),
+                        Text(
+                          "Vốn: ${NumberFormat('#,###').format(partCost)} | Bán: ${NumberFormat('#,###').format(partPrice)}",
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ],
+                    ),
+                    trailing: partQty > 0
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline),
+                                onPressed: selectedQty > 0
+                                    ? () => setDialogState(() {
+                                          selectedQuantities[partId] = selectedQty - 1;
+                                          if (selectedQuantities[partId] == 0) {
+                                            selectedQuantities.remove(partId);
+                                          }
+                                        })
+                                    : null,
+                              ),
+                              Text(
+                                '$selectedQty',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add_circle_outline),
+                                onPressed: selectedQty < partQty
+                                    ? () => setDialogState(() {
+                                          selectedQuantities[partId] = selectedQty + 1;
+                                        })
+                                    : null,
+                              ),
+                            ],
+                          )
+                        : const Text(
+                            "Hết hàng",
+                            style: TextStyle(color: Colors.red),
+                          ),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("HỦY"),
+            ),
+            ElevatedButton(
+              onPressed: selectedQuantities.isNotEmpty
+                  ? () => Navigator.pop(ctx, true)
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+              ),
+              child: const Text("XÁC NHẬN", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true && selectedQuantities.isNotEmpty) {
+      int totalCost = 0;
+      List<String> usedParts = [];
+
+      for (var entry in selectedQuantities.entries) {
+        final partId = entry.key;
+        final qty = entry.value;
+        final part = parts.firstWhere((p) => p['id'] == partId);
+        final partName = part['partName'] ?? '';
+        final partCost = part['cost'] as int? ?? 0;
+
+        // Trừ kho
+        final success = await db.deductPartQuantity(partId, qty);
+        if (success) {
+          totalCost += partCost * qty;
+          usedParts.add("$partName x$qty");
+        }
+      }
+
+      // Cập nhật giá vốn và partsUsed
+      setState(() {
+        r.cost += totalCost;
+        if (r.partsUsed.isNotEmpty) {
+          r.partsUsed = "${r.partsUsed}, ${usedParts.join(', ')}";
+        } else {
+          r.partsUsed = usedParts.join(', ');
+        }
+      });
+
+      await _saveData();
+
+      NotificationService.showSnackBar(
+        "Đã thêm phụ tùng và trừ kho: ${usedParts.join(', ')}",
+        color: Colors.green,
+      );
+    }
+  }
+
   Future<void> _editFinancials() async {
     final priceC = TextEditingController(
       text: CurrencyTextField.formatDisplay(r.price),
@@ -542,13 +695,43 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             ],
           ),
           const SizedBox(height: 10),
-          TextButton.icon(
-            onPressed: _editFinancials,
-            icon: const Icon(Icons.edit, size: 14),
-            label: Text(
-              "Thay đổi giá & vốn linh kiện",
-              style: AppTextStyles.caption,
+          // Hiển thị phụ tùng đã dùng
+          if (r.partsUsed.isNotEmpty) ...[
+            const Divider(height: 20),
+            Row(
+              children: [
+                const Icon(Icons.build, size: 16, color: Colors.purple),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Phụ tùng: ${r.partsUsed}",
+                    style: AppTextStyles.caption.copyWith(color: Colors.purple),
+                  ),
+                ),
+              ],
             ),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              TextButton.icon(
+                onPressed: _selectPartsFromInventory,
+                icon: const Icon(Icons.inventory_2, size: 14, color: Colors.purple),
+                label: Text(
+                  "Chọn phụ tùng",
+                  style: AppTextStyles.caption.copyWith(color: Colors.purple),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _editFinancials,
+                icon: const Icon(Icons.edit, size: 14),
+                label: Text(
+                  "Sửa giá",
+                  style: AppTextStyles.caption,
+                ),
+              ),
+            ],
           ),
         ],
       ),

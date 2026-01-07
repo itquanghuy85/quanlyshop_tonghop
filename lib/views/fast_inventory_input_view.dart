@@ -129,13 +129,8 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
   bool _notesChanged = false;
 
   final List<String> types = ['PHONE', 'ACCESSORY', 'LINHKIEN'];
-  final List<String> conditions = [
-    'Mới 100%',
-    'Mới 99%',
-    'Mới 95%',
-    'Mới 90%',
-    'Đã sử dụng',
-  ];
+  // Đồng bộ với fast_stock_in_view.dart
+  final List<String> conditions = ['MỚI', '99', 'KHÁC'];
   String selectedPaymentMethod = 'Tiền mặt';
   DateTime selectedDate = DateTime.now();
   bool _saving = false;

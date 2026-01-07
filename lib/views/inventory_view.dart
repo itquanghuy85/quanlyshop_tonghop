@@ -700,14 +700,14 @@ class _InventoryViewState extends State<InventoryView>
 
   Future<void> _deleteProduct(Product p) async {
     try {
-      // Set quantity to 0 to "delete" from stock
-      final updatedProduct = p.copyWith(
-        quantity: 0,
-        updatedAt: DateTime.now().millisecondsSinceEpoch,
-        isSynced: false,
-      );
-      await db.updateProduct(updatedProduct);
-      await FirestoreService.updateProductCloud(updatedProduct);
+      // Xóa thực sự khỏi database
+      if (p.id != null) {
+        await db.deleteProduct(p.id!);
+      }
+      // Xóa trên Firestore nếu có
+      if (p.firestoreId != null) {
+        await FirestoreService.deleteProduct(p.firestoreId!);
+      }
       await _refresh();
       NotificationService.showSnackBar(
         'Đã xóa sản phẩm khỏi kho',
@@ -798,6 +798,8 @@ class _InventoryViewState extends State<InventoryView>
     });
     // Lấy TẤT CẢ sản phẩm thay vì chỉ còn hàng
     final data = await db.getAllProducts();
+    // Sắp xếp theo thời gian cập nhật mới nhất lên đầu
+    data.sort((a, b) => (b.updatedAt ?? 0).compareTo(a.updatedAt ?? 0));
     final suppliers = await supplierService.getSuppliers();
     final unsyncedCount = await db.getUnsyncedQuickInputCodesCount();
     if (!mounted) return;

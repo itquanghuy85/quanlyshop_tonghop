@@ -36,10 +36,12 @@ class SyncService {
     final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
     // Super admin cũng cần shopId nếu đã chọn shop
     final String? shopId = await UserService.getCurrentShopId();
-    
+
     // LOG QUAN TRỌNG: Hiển thị shopId được sử dụng để filter
-    debugPrint("⚡ initRealTimeSync: user=${user.uid}, email=${user.email}, shopId=$shopId, isSuperAdmin=$isSuperAdmin");
-    
+    debugPrint(
+      "⚡ initRealTimeSync: user=${user.uid}, email=${user.email}, shopId=$shopId, isSuperAdmin=$isSuperAdmin",
+    );
+
     // Super admin phải chọn shop trước khi init real-time sync
     if (shopId == null) {
       if (isSuperAdmin) {
@@ -382,6 +384,31 @@ class SyncService {
       debugPrint("Lỗi khởi tạo repair_partners sync: $e");
     }
 
+    // 15. Đồng bộ AUDIT LOGS
+    try {
+      _subscribeToCollection(
+        collection: 'audit_logs',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteAuditLogByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+              await db.upsertAuditLog(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync audit_log $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo audit_logs sync: $e");
+    }
+
     debugPrint(
       "Đã khởi tạo real-time sync cho ${isSuperAdmin ? 'super admin' : 'shop: $shopId'}",
     );
@@ -400,7 +427,9 @@ class SyncService {
       query = query.where('shopId', isEqualTo: shopId);
       debugPrint("📡 Subscribing to $collection with shopId filter: $shopId");
     } else {
-      debugPrint("⚠️ Subscribing to $collection WITHOUT shopId filter (super admin mode)");
+      debugPrint(
+        "⚠️ Subscribing to $collection WITHOUT shopId filter (super admin mode)",
+      );
     }
 
     final sub = query.snapshots().listen((snapshot) async {
@@ -441,26 +470,30 @@ class SyncService {
 
       final String? shopId = await UserService.getCurrentShopId();
       final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
-      
+
       // LOG QUAN TRỌNG: Hiển thị shopId được sử dụng
-      debugPrint("⚡ syncAllToCloud: user=${user.uid}, email=${user.email}, shopId=$shopId, isSuperAdmin=$isSuperAdmin");
-      
+      debugPrint(
+        "⚡ syncAllToCloud: user=${user.uid}, email=${user.email}, shopId=$shopId, isSuperAdmin=$isSuperAdmin",
+      );
+
       // Cần có shopId để upload (super admin chỉ xem, không tạo/sửa data)
       if (shopId == null) {
         if (isSuperAdmin) {
-          debugPrint("⚠️ Super admin chưa chọn shop hoặc chỉ được xem, bỏ qua syncAllToCloud");
+          debugPrint(
+            "⚠️ Super admin chưa chọn shop hoặc chỉ được xem, bỏ qua syncAllToCloud",
+          );
         } else {
           debugPrint("Không có shopId, bỏ qua syncAllToCloud");
         }
         return;
       }
-      
+
       // Super admin chỉ được xem, không được upload data
       if (isSuperAdmin) {
         debugPrint("⚠️ Super admin chỉ được xem, không được upload data");
         return;
       }
-      
+
       final dbHelper = DBHelper();
 
       // Chỉ đẩy những đơn hàng CHƯA đồng bộ hoặc CÓ thay đổi hình ảnh
@@ -936,6 +969,41 @@ class SyncService {
         debugPrint("Lỗi sync debt payments collection: $e");
       }
 
+      // Đồng bộ Audit Logs (Nhật ký hoạt động)
+      try {
+        final auditLogs = await dbHelper.getUnsyncedAuditLogs();
+        debugPrint(
+          "syncAllToCloud: có ${auditLogs.length} audit logs cần sync",
+        );
+        if (auditLogs.isNotEmpty) {
+          final WriteBatch auditBatch = _db.batch();
+          for (var logMap in auditLogs) {
+            try {
+              Map<String, dynamic> data = Map<String, dynamic>.from(logMap);
+              data['shopId'] = shopId;
+              data.remove('id');
+
+              final docId =
+                  logMap['firestoreId'] ??
+                  "log_${data['createdAt']}_${data['userId']}";
+              auditBatch.set(
+                _db.collection('audit_logs').doc(docId),
+                data,
+                SetOptions(merge: true),
+              );
+
+              // Update local với isSynced
+              await dbHelper.updateAuditLogSynced(docId);
+            } catch (e) {
+              debugPrint("Lỗi sync audit log ${logMap['id']}: $e");
+            }
+          }
+          await auditBatch.commit();
+        }
+      } catch (e) {
+        debugPrint("Lỗi sync audit logs collection: $e");
+      }
+
       debugPrint("Đã hoàn thành đồng bộ toàn bộ dữ liệu lên Cloud.");
     } catch (e) {
       debugPrint("Lỗi syncAllToCloud: $e");
@@ -950,14 +1018,18 @@ class SyncService {
       final user = FirebaseAuth.instance.currentUser;
       final String? shopId = await UserService.getCurrentShopId();
       final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
-      
+
       // LOG QUAN TRỌNG: Hiển thị shopId được sử dụng
-      debugPrint("⚡ downloadAllFromCloud: user=${user?.uid}, email=${user?.email}, shopId=$shopId, isSuperAdmin=$isSuperAdmin");
-      
+      debugPrint(
+        "⚡ downloadAllFromCloud: user=${user?.uid}, email=${user?.email}, shopId=$shopId, isSuperAdmin=$isSuperAdmin",
+      );
+
       // Cần có shopId để sync (super admin phải chọn shop trước)
       if (shopId == null) {
         if (isSuperAdmin) {
-          debugPrint("⚠️ Super admin chưa chọn shop, bỏ qua downloadAllFromCloud");
+          debugPrint(
+            "⚠️ Super admin chưa chọn shop, bỏ qua downloadAllFromCloud",
+          );
         } else {
           debugPrint("Không có shopId, bỏ qua downloadAllFromCloud");
         }

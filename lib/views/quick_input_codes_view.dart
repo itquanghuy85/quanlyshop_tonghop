@@ -929,7 +929,8 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   // Danh sách gợi ý
   final List<String> _brandSuggestions = ['APPLE', 'SAMSUNG', 'XIAOMI', 'OPPO', 'VIVO', 'REALME', 'HUAWEI', 'NOKIA', 'ASUS', 'GOOGLE'];
   final List<String> _capacitySuggestions = ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'];
-  final List<String> _conditionSuggestions = ['MỚI 100%', 'LIKE NEW 99%', 'ĐÃ QUA SD 98%', 'ĐÃ QUA SD 95%', 'CŨ'];
+  // Đồng bộ với fast_stock_in_view.dart
+  final List<String> _conditionSuggestions = ['MỚI', '99', 'KHÁC'];
   final List<String> _paymentMethods = ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'];
 
   @override
@@ -1182,32 +1183,26 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Tình trạng
-                        Autocomplete<String>(
-                          optionsBuilder: (textEditingValue) {
-                            if (textEditingValue.text.isEmpty) {
-                              return _conditionSuggestions;
-                            }
-                            return _conditionSuggestions.where((cond) =>
-                                cond.toLowerCase().contains(textEditingValue.text.toLowerCase()));
-                          },
-                          onSelected: (selection) {
-                            _conditionCtrl.text = selection;
-                          },
-                          fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-                            controller.text = _conditionCtrl.text;
-                            controller.addListener(() => _conditionCtrl.text = controller.text);
-                            return TextFormField(
-                              controller: controller,
-                              focusNode: focusNode,
-                              decoration: InputDecoration(
-                                labelText: 'Tình trạng',
-                                hintText: 'VD: MỚI 100%',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            );
+                        // Tình trạng - Dropdown để tránh nhập sai
+                        DropdownButtonFormField<String>(
+                          value: _conditionCtrl.text.isNotEmpty ? _conditionCtrl.text : null,
+                          decoration: InputDecoration(
+                            labelText: 'Tình trạng',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          items: [
+                            const DropdownMenuItem<String>(value: null, child: Text('Chưa chọn')),
+                            ..._conditionSuggestions.map((c) => DropdownMenuItem<String>(
+                              value: c,
+                              child: Text(c),
+                            )),
+                          ],
+                          onChanged: (val) {
+                            setState(() {
+                              _conditionCtrl.text = val ?? '';
+                            });
                           },
                         ),
                       ] else ...[

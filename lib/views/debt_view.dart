@@ -398,6 +398,10 @@ class _DebtViewState extends State<DebtView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    
+    // Đếm số công nợ còn hiệu lực
+    final activeDebtsCount = _debts.where(_isActiveDebt).length;
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
@@ -420,7 +424,7 @@ class _DebtViewState extends State<DebtView>
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             Text(
-              '${_debts.length} khoản nợ',
+              '$activeDebtsCount khoản nợ còn',
               style: const TextStyle(fontSize: 11, color: Colors.white70),
             ),
           ],
@@ -498,6 +502,25 @@ class _DebtViewState extends State<DebtView>
     );
   }
 
+  /// Kiểm tra công nợ còn hiệu lực (chưa thanh toán hết và chưa bị hủy)
+  bool _isActiveDebt(Map<String, dynamic> d) {
+    final status = d['status']?.toString().toUpperCase() ?? 'ACTIVE';
+    // Bỏ qua nếu đã thanh toán hoặc đã hủy (cả lowercase và uppercase)
+    if (status == 'PAID' || status == 'CANCELLED' || status == 'UNPAID') {
+      // "UNPAID" là status cũ khi chưa trả hết, nhưng vẫn cần kiểm tra số tiền
+      // Không bỏ qua UNPAID vì đó là nợ chưa trả hết
+    }
+    if (status == 'PAID' || status == 'CANCELLED') return false;
+    
+    // Kiểm tra số tiền còn nợ
+    final totalAmount = d['totalAmount'] as int? ?? 0;
+    final paidAmount = d['paidAmount'] as int? ?? 0;
+    final remaining = totalAmount - paidAmount;
+    
+    // Công nợ hợp lệ: còn tiền nợ > 0 và tổng nợ > 0
+    return remaining > 0 && totalAmount > 0;
+  }
+
   Widget _buildDebtList(String type) {
     List<Map<String, dynamic>> list;
     if (type == 'OTHER') {
@@ -505,12 +528,28 @@ class _DebtViewState extends State<DebtView>
           .where(
             (d) =>
                 d['type'].toString().startsWith('OTHER_') &&
-                (d['status'] != 'paid'),
+                _isActiveDebt(d),
           )
+          .toList();
+    } else if (type == 'CUSTOMER_OWES') {
+      // Khách nợ shop: CUSTOMER_OWES hoặc legacy 'OWE'
+      list = _debts
+          .where((d) {
+            final debtType = d['type']?.toString() ?? '';
+            return (debtType == 'CUSTOMER_OWES' || debtType == 'OWE') && _isActiveDebt(d);
+          })
+          .toList();
+    } else if (type == 'SHOP_OWES') {
+      // Shop nợ NCC: SHOP_OWES hoặc legacy 'OWED'
+      list = _debts
+          .where((d) {
+            final debtType = d['type']?.toString() ?? '';
+            return (debtType == 'SHOP_OWES' || debtType == 'OWED') && _isActiveDebt(d);
+          })
           .toList();
     } else {
       list = _debts
-          .where((d) => d['type'] == type && (d['status'] != 'paid'))
+          .where((d) => d['type'] == type && _isActiveDebt(d))
           .toList();
     }
 

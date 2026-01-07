@@ -9,6 +9,7 @@ import '../models/debt_model.dart';
 import '../models/purchase_order_model.dart';
 import '../models/attendance_model.dart';
 import '../models/quick_input_code_model.dart';
+import '../services/user_service.dart';
 
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
@@ -26,7 +27,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 44,
+      version: 45,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT)',
@@ -53,7 +54,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS attendance(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, dateKey TEXT, checkInAt INTEGER, checkOutAt INTEGER, overtimeOn INTEGER DEFAULT 0, photoIn TEXT, photoOut TEXT, note TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, locked INTEGER DEFAULT 0, createdAt INTEGER, location TEXT, isLate INTEGER DEFAULT 0, isEarlyLeave INTEGER DEFAULT 0, workSchedule TEXT, updatedAt INTEGER)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, userName TEXT, action TEXT, targetType TEXT, targetId TEXT, description TEXT, createdAt INTEGER)',
+          'CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, userName TEXT, action TEXT, targetType TEXT, targetId TEXT, description TEXT, createdAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS inventory_checks(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, type TEXT, checkDate INTEGER, itemsJson TEXT, status TEXT, createdBy TEXT, isSynced INTEGER DEFAULT 0, isCompleted INTEGER DEFAULT 0)',
@@ -530,10 +531,29 @@ class DBHelper {
         if (oldV < 44) {
           // Thêm cột shopId vào bảng debt_payments cho data isolation
           try {
-            await db.execute('ALTER TABLE debt_payments ADD COLUMN shopId TEXT');
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN shopId TEXT',
+            );
             debugPrint('DB upgrade: added shopId to debt_payments');
           } catch (e) {
             debugPrint('DB upgrade error (debt_payments shopId): $e');
+          }
+        }
+        if (oldV < 45) {
+          // Thêm cột isSynced và shopId vào audit_logs để đồng bộ cloud
+          try {
+            await db.execute(
+              'ALTER TABLE audit_logs ADD COLUMN isSynced INTEGER DEFAULT 0',
+            );
+            debugPrint('DB upgrade: added isSynced to audit_logs');
+          } catch (e) {
+            debugPrint('DB upgrade error (audit_logs isSynced): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE audit_logs ADD COLUMN shopId TEXT');
+            debugPrint('DB upgrade: added shopId to audit_logs');
+          } catch (e) {
+            debugPrint('DB upgrade error (audit_logs shopId): $e');
           }
         }
         debugPrint('DB upgrade completed');
@@ -1495,6 +1515,51 @@ class DBHelper {
     return await db.insert('repair_parts', data);
   }
 
+  /// Lấy phụ tùng theo ID
+  Future<Map<String, dynamic>?> getPartById(int id) async {
+    final db = await database;
+    final res = await db.query(
+      'repair_parts',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return res.isNotEmpty ? res.first : null;
+  }
+
+  /// Cập nhật phụ tùng
+  Future<int> updatePart(int id, Map<String, dynamic> data) async {
+    final db = await database;
+    data['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
+    return await db.update(
+      'repair_parts',
+      data,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Trừ số lượng phụ tùng trong kho
+  Future<bool> deductPartQuantity(int partId, int quantity) async {
+    final db = await database;
+    final part = await getPartById(partId);
+    if (part == null) return false;
+
+    final currentQty = part['quantity'] as int? ?? 0;
+    if (currentQty < quantity) return false; // Không đủ hàng
+
+    await db.update(
+      'repair_parts',
+      {
+        'quantity': currentQty - quantity,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [partId],
+    );
+    return true;
+  }
+
   // --- AUDIT LOGS ---
   Future<void> logAction({
     required String userId,
@@ -1504,7 +1569,11 @@ class DBHelper {
     String? targetId,
     String? desc,
     String? fId,
+    String? shopId,
   }) async {
+    // Tự động lấy shopId nếu không được truyền vào
+    final String? effectiveShopId =
+        shopId ?? await UserService.getCurrentShopId();
     final String firestoreId =
         fId ?? "log_${DateTime.now().millisecondsSinceEpoch}_$userId";
     await _upsert('audit_logs', {
@@ -1516,12 +1585,53 @@ class DBHelper {
       'description': desc,
       'createdAt': DateTime.now().millisecondsSinceEpoch,
       'firestoreId': firestoreId,
+      'isSynced': 0,
+      'shopId': effectiveShopId,
     }, firestoreId);
   }
 
   Future<List<Map<String, dynamic>>> getAuditLogs() async {
     final db = await database;
     return await db.query('audit_logs', orderBy: 'createdAt DESC', limit: 100);
+  }
+
+  /// Lấy các audit logs chưa sync lên cloud
+  Future<List<Map<String, dynamic>>> getUnsyncedAuditLogs() async {
+    final db = await database;
+    return await db.query(
+      'audit_logs',
+      where: 'isSynced = ?',
+      whereArgs: [0],
+      orderBy: 'createdAt ASC',
+    );
+  }
+
+  /// Upsert audit log từ cloud
+  Future<void> upsertAuditLog(Map<String, dynamic> log) async {
+    final firestoreId = log['firestoreId'] as String?;
+    if (firestoreId == null || firestoreId.isEmpty) return;
+    await _upsert('audit_logs', log, firestoreId);
+  }
+
+  /// Đánh dấu audit log đã sync
+  Future<void> updateAuditLogSynced(String firestoreId) async {
+    final db = await database;
+    await db.update(
+      'audit_logs',
+      {'isSynced': 1},
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
+
+  /// Xoá audit log theo firestoreId
+  Future<void> deleteAuditLogByFirestoreId(String firestoreId) async {
+    final db = await database;
+    await db.delete(
+      'audit_logs',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
   }
 
   // --- PAYROLL SETTINGS ---

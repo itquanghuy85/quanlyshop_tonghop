@@ -704,9 +704,17 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                   label: 'Màu sắc',
                 ),
                 const SizedBox(height: 12),
-                ValidatedTextField(
-                  controller: _conditionCtrl,
-                  label: 'Tình trạng',
+                // Dropdown cho tình trạng - đồng bộ với fast_stock_in_view
+                DropdownButtonFormField<String>(
+                  value: _conditionCtrl.text.isNotEmpty ? _conditionCtrl.text : null,
+                  decoration: const InputDecoration(labelText: 'Tình trạng'),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Chưa chọn')),
+                    DropdownMenuItem(value: 'MỚI', child: Text('MỚI - Mới 100%')),
+                    DropdownMenuItem(value: '99', child: Text('99 - Like New')),
+                    DropdownMenuItem(value: 'KHÁC', child: Text('KHÁC')),
+                  ],
+                  onChanged: (val) => setState(() => _conditionCtrl.text = val ?? ''),
                 ),
               ] else ...[
                 // Accessory fields
