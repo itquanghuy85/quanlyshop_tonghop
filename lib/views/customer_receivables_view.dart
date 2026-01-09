@@ -51,25 +51,29 @@ class _CustomerReceivablesViewState extends State<CustomerReceivablesView>
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     
-    final allSales = await db.getAllSales();
-    final dbRaw = await db.database;
-    
-    // Lấy đơn bán công nợ (paymentMethod = CÔNG NỢ)
-    _debtSales = allSales.where((s) => s.paymentMethod == 'CÔNG NỢ').toList();
-    
-    // Lấy đơn trả góp chưa nhận tiền tất toán
-    _installmentSales = allSales.where((s) => 
-      s.isInstallment && s.settlementReceivedAt == null
-    ).toList();
-    
-    // Lấy công nợ khách hàng từ bảng debts (type = CUSTOMER_OWES)
-    final debts = await dbRaw.query(
-      'debts',
-      where: 'type = ? AND (deleted IS NULL OR deleted = 0)',
-      whereArgs: ['CUSTOMER_OWES'],
-      orderBy: 'createdAt DESC',
-    );
-    _customerDebts = debts;
+    try {
+      final allSales = await db.getAllSales();
+      final dbRaw = await db.database;
+      
+      // Lấy đơn bán công nợ (paymentMethod = CÔNG NỢ)
+      _debtSales = allSales.where((s) => s.paymentMethod == 'CÔNG NỢ').toList();
+      
+      // Lấy đơn trả góp chưa nhận tiền tất toán
+      _installmentSales = allSales.where((s) => 
+        s.isInstallment && s.settlementReceivedAt == null
+      ).toList();
+      
+      // Lấy công nợ khách hàng từ bảng debts (type = CUSTOMER_OWES hoặc legacy OWE)
+      final debts = await dbRaw.query(
+        'debts',
+        where: '(type = ? OR type = ?) AND (deleted IS NULL OR deleted = 0)',
+        whereArgs: ['CUSTOMER_OWES', 'OWE'],
+        orderBy: 'createdAt DESC',
+      );
+      _customerDebts = debts;
+    } catch (e) {
+      debugPrint('CustomerReceivablesView _loadData error: $e');
+    }
 
     if (mounted) {
       setState(() => _isLoading = false);
