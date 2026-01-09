@@ -1051,6 +1051,27 @@ class DBHelper {
           debugPrint('DB onOpen check error (repairs services): $e');
         }
 
+        // Ensure isSynced, shopId, deleted columns exist in attendance table (defensive migration)
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(attendance)');
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          
+          if (!colNames.contains('isSynced')) {
+            await db.execute('ALTER TABLE attendance ADD COLUMN isSynced INTEGER DEFAULT 0');
+            debugPrint('DB onOpen: added isSynced to attendance');
+          }
+          if (!colNames.contains('shopId')) {
+            await db.execute('ALTER TABLE attendance ADD COLUMN shopId TEXT');
+            debugPrint('DB onOpen: added shopId to attendance');
+          }
+          if (!colNames.contains('deleted')) {
+            await db.execute('ALTER TABLE attendance ADD COLUMN deleted INTEGER DEFAULT 0');
+            debugPrint('DB onOpen: added deleted to attendance');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (attendance columns): $e');
+        }
+
         // Ensure missing columns exist in customers table
         try {
           final cols = await db.rawQuery('PRAGMA table_info(customers)');
