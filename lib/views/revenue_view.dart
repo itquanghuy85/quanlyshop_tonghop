@@ -17,6 +17,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'debt_view.dart';
 import 'warranty_view.dart';
+import 'customer_receivables_view.dart';
 
 class RevenueView extends StatefulWidget {
   const RevenueView({super.key});
@@ -487,7 +488,7 @@ class _RevenueViewState extends State<RevenueView>
             Tab(text: "SỬA CHỮA"),
             Tab(text: "BẢO HÀNH"),
             Tab(text: "CHI TIÊU"),
-            Tab(text: "CÔNG NỢ"),
+            Tab(text: "PHẢI THU"),
             Tab(text: "DÒNG TIỀN"),
           ],
         ),
@@ -503,7 +504,7 @@ class _RevenueViewState extends State<RevenueView>
                 _buildRepairDetail(),
                 const WarrantyView(),
                 _buildExpenseDetail(),
-                const DebtView(),
+                const CustomerReceivablesView(),
                 _buildCashFlowHistory(),
               ],
             ),
