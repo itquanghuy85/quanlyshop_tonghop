@@ -515,17 +515,53 @@ class _RevenueViewState extends State<RevenueView>
     List<_TransactionItem> todayTrans = [];
 
     for (var s in _sales.where((s) => _isSameDay(s.soldAt, now))) {
+      // Xử lý trả góp: chỉ tính tiền trả trước (downPayment), không tính phần vay NH
+      if (s.isInstallment) {
+        // Tiền trả trước từ khách (nếu có)
+        if (s.downPayment > 0) {
+          todayTrans.add(
+            _TransactionItem(
+              title: "Bán TG cọc: ${s.productNames}",
+              amount: s.downPayment,
+              method: s.paymentMethod,
+              time: s.soldAt,
+              type: "IN",
+              isDebt: s.paymentMethod == "CÔNG NỢ",
+            ),
+          );
+        }
+      } else {
+        // Bán thường: tính toàn bộ totalPrice
+        todayTrans.add(
+          _TransactionItem(
+            title: "Bán: ${s.productNames}",
+            amount: s.totalPrice,
+            method: s.paymentMethod,
+            time: s.soldAt,
+            type: "IN",
+            isDebt: s.paymentMethod == "CÔNG NỢ",
+          ),
+        );
+      }
+    }
+    
+    // Thêm tiền tất toán từ NH nhận hôm nay (trả góp đã tất toán)
+    for (var s in _sales.where((s) => 
+        s.isInstallment && 
+        s.settlementReceivedAt != null && 
+        _isSameDay(s.settlementReceivedAt!, now))) {
       todayTrans.add(
         _TransactionItem(
-          title: "Bán: ${s.productNames}",
-          amount: s.totalPrice,
-          method: s.paymentMethod,
-          time: s.soldAt,
+          title: "Tất toán NH: ${s.productNames}",
+          amount: s.settlementAmount,
+          method: "CHUYỂN KHOẢN", // NH luôn chuyển khoản
+          time: s.settlementReceivedAt!,
           type: "IN",
-          isDebt: s.paymentMethod == "CÔNG NỢ",
+          isDebt: false,
         ),
       );
     }
+    
     // Chỉ tính repair khi status == 4 (Đã giao) và có deliveredAt
     for (var r in _repairs.where(
       (r) =>
@@ -1105,9 +1141,35 @@ class _RevenueViewState extends State<RevenueView>
     final fExpenses = _expenses
         .where((e) => _isInFilterPeriod(e['date'] as int))
         .toList();
-    int totalIn =
-        fSales.fold<int>(0, (sum, s) => sum + s.totalPrice) +
-        fRepairs.fold<int>(0, (sum, r) => sum + r.price);
+    
+    // Tính tổng thu từ sales (xử lý trả góp đúng cách)
+    int salesIncome = 0;
+    for (var s in fSales) {
+      if (s.paymentMethod == 'CÔNG NỢ') {
+        // Công nợ: không tính vào dòng tiền thực tế
+        continue;
+      }
+      if (s.isInstallment) {
+        // Trả góp: chỉ tính downPayment + settlementAmount (nếu đã nhận)
+        salesIncome += s.downPayment;
+        if (s.settlementReceivedAt != null && _isInFilterPeriod(s.settlementReceivedAt!)) {
+          salesIncome += s.settlementAmount;
+        }
+      } else {
+        // Bán thường
+        salesIncome += s.totalPrice;
+      }
+    }
+    
+    // Tính tổng thu từ repairs (loại trừ công nợ)
+    int repairsIncome = 0;
+    for (var r in fRepairs) {
+      if (r.paymentMethod != 'CÔNG NỢ') {
+        repairsIncome += r.price;
+      }
+    }
+    
+    int totalIn = salesIncome + repairsIncome;
     int totalOut = fExpenses.fold<int>(
       0,
       (sum, e) => sum + (e['amount'] as int),
@@ -1507,18 +1569,48 @@ class _RevenueViewState extends State<RevenueView>
     // Collect all transactions with dates
     List<_TransactionItem> allTransactions = [];
 
-    // Sales
+    // Sales - xử lý trả góp đúng cách
     for (var s in _sales) {
-      allTransactions.add(
-        _TransactionItem(
-          title: "Bán: ${s.productNames}",
-          amount: s.totalPrice,
-          method: s.paymentMethod,
-          time: s.soldAt,
-          type: "IN",
-          isDebt: s.paymentMethod == "CÔNG NỢ",
-        ),
-      );
+      if (s.isInstallment) {
+        // Bán trả góp: chỉ tính tiền trả trước (downPayment)
+        if (s.downPayment > 0) {
+          allTransactions.add(
+            _TransactionItem(
+              title: "Bán TG cọc: ${s.productNames}",
+              amount: s.downPayment,
+              method: s.paymentMethod,
+              time: s.soldAt,
+              type: "IN",
+              isDebt: s.paymentMethod == "CÔNG NỢ",
+            ),
+          );
+        }
+        // Thêm giao dịch tất toán nếu đã nhận tiền từ NH
+        if (s.settlementReceivedAt != null && s.settlementAmount > 0) {
+          allTransactions.add(
+            _TransactionItem(
+              title: "Tất toán NH: ${s.productNames}",
+              amount: s.settlementAmount,
+              method: "CHUYỂN KHOẢN",
+              time: s.settlementReceivedAt!,
+              type: "IN",
+              isDebt: false,
+            ),
+          );
+        }
+      } else {
+        // Bán thường
+        allTransactions.add(
+          _TransactionItem(
+            title: "Bán: ${s.productNames}",
+            amount: s.totalPrice,
+            method: s.paymentMethod,
+            time: s.soldAt,
+            type: "IN",
+            isDebt: s.paymentMethod == "CÔNG NỢ",
+          ),
+        );
+      }
     }
 
     // Repairs
