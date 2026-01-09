@@ -405,6 +405,49 @@ class FirestoreService {
     }
   }
 
+  // --- CASH CLOSINGS CRUD METHODS ---
+  static Future<void> upsertCashClosingCloud(Map<String, dynamic> closingData) async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      final dateKey = closingData['dateKey'] as String;
+      final docId = closingData['firestoreId'] ?? "closing_${shopId}_$dateKey";
+      
+      closingData['shopId'] = shopId;
+      closingData['firestoreId'] = docId;
+      closingData['updatedAt'] = FieldValue.serverTimestamp();
+      
+      await _db.collection('cash_closings').doc(docId).set(closingData, SetOptions(merge: true));
+      debugPrint('Cash closing synced to cloud: $docId');
+    } catch (e) {
+      debugPrint('Error syncing cash closing to cloud: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getCashClosingFromCloud(String dateKey) async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      final docId = "closing_${shopId}_$dateKey";
+      final doc = await _db.collection('cash_closings').doc(docId).get();
+      if (doc.exists) {
+        return doc.data();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting cash closing from cloud: $e');
+      return null;
+    }
+  }
+
+  static Stream<DocumentSnapshot> getCashClosingStream(String dateKey) async* {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      final docId = "closing_${shopId}_$dateKey";
+      yield* _db.collection('cash_closings').doc(docId).snapshots();
+    } catch (e) {
+      debugPrint('Error streaming cash closing: $e');
+    }
+  }
+
   static Stream<QuerySnapshot> getAttendanceStream({String? userId, String? dateKey}) async* {
     try {
       final shopId = await UserService.getCurrentShopId();
@@ -875,6 +918,224 @@ class FirestoreService {
     } catch (e) {
       debugPrint('Firestore deleteCustomer error: $e');
       return false;
+    }
+  }
+
+  /// TRANSACTION THANH TOÁN CÔNG NỢ - Fix BUG-001 race condition
+  /// 
+  /// Thực hiện atomic: đọc debt + validate + update paidAmount + tạo payment record
+  /// Nếu 2 user thanh toán cùng lúc, chỉ 1 user thành công (transaction retry)
+  /// 
+  /// Returns: {success: bool, newPaidAmount: int?, error: String?}
+  static Future<Map<String, dynamic>> executeDebtPaymentTransaction({
+    required String debtFirestoreId,
+    required int payAmount,
+    required String paymentMethod,
+    required String createdBy,
+    String? note,
+  }) async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) {
+        return {'success': false, 'error': 'Không tìm thấy thông tin shop'};
+      }
+
+      int newPaidAmount = 0;
+      String? paymentDocId;
+
+      await _db.runTransaction((transaction) async {
+        // PHASE 1: Đọc debt document
+        final debtRef = _db.collection('debts').doc(debtFirestoreId);
+        final debtSnapshot = await transaction.get(debtRef);
+        
+        if (!debtSnapshot.exists) {
+          throw Exception('DEBT_NOT_FOUND:Công nợ không tồn tại');
+        }
+        
+        final debtData = EncryptionService.decryptMap(debtSnapshot.data()!);
+        final totalAmount = (debtData['totalAmount'] ?? 0) as int;
+        final currentPaid = (debtData['paidAmount'] ?? 0) as int;
+        final remain = totalAmount - currentPaid;
+        
+        // PHASE 2: Validate payment amount
+        if (payAmount <= 0) {
+          throw Exception('INVALID_AMOUNT:Số tiền phải lớn hơn 0');
+        }
+        
+        if (payAmount > remain) {
+          throw Exception('OVER_PAYMENT:Số tiền ($payAmount) vượt quá số nợ còn lại ($remain)');
+        }
+        
+        // PHASE 3: Update debt
+        newPaidAmount = currentPaid + payAmount;
+        final newStatus = newPaidAmount >= totalAmount ? 'paid' : 'unpaid';
+        
+        transaction.update(debtRef, {
+          'paidAmount': newPaidAmount,
+          'status': newStatus,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        // PHASE 4: Create payment record
+        final now = DateTime.now().millisecondsSinceEpoch;
+        paymentDocId = 'pay_${now}_$createdBy';
+        final paymentRef = _db.collection('debt_payments').doc(paymentDocId);
+        
+        final paymentData = {
+          'firestoreId': paymentDocId,
+          'debtFirestoreId': debtFirestoreId,
+          'amount': payAmount,
+          'paidAt': now,
+          'paymentMethod': paymentMethod,
+          'createdBy': createdBy,
+          'note': note ?? '',
+          'shopId': shopId,
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+        
+        transaction.set(paymentRef, EncryptionService.encryptMap(paymentData));
+      });
+
+      debugPrint('✅ Debt payment transaction completed: $debtFirestoreId, paid: $payAmount, total paid: $newPaidAmount');
+      return {
+        'success': true,
+        'newPaidAmount': newPaidAmount,
+        'paymentDocId': paymentDocId,
+      };
+      
+    } catch (e) {
+      final errorMsg = e.toString();
+      debugPrint('❌ Debt payment transaction failed: $errorMsg');
+      
+      // Parse custom errors
+      if (errorMsg.contains('DEBT_NOT_FOUND:')) {
+        return {'success': false, 'error': 'Công nợ không tồn tại trên cloud'};
+      }
+      if (errorMsg.contains('INVALID_AMOUNT:')) {
+        return {'success': false, 'error': 'Số tiền không hợp lệ'};
+      }
+      if (errorMsg.contains('OVER_PAYMENT:')) {
+        final parts = errorMsg.split('OVER_PAYMENT:');
+        return {'success': false, 'error': parts.length > 1 ? parts[1].trim() : 'Số tiền vượt quá nợ còn lại'};
+      }
+      
+      return {'success': false, 'error': errorMsg};
+    }
+  }
+
+  /// TRANSACTION BÁN HÀNG - Fix race condition
+  /// 
+  /// Thực hiện atomic: kiểm tra stock + trừ stock + tạo sale trong 1 Firestore transaction
+  /// Nếu 2 user bán cùng lúc, chỉ 1 user thành công (người còn lại bị abort)
+  /// 
+  /// Returns: {success: bool, saleDocId: String?, error: String?, outOfStockItems: List<String>?}
+  static Future<Map<String, dynamic>> executeSaleTransaction({
+    required List<Map<String, dynamic>> items, // [{firestoreId, quantity, productName}]
+    required Map<String, dynamic> saleData,
+    Map<String, dynamic>? debtData,
+  }) async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) {
+        return {'success': false, 'error': 'Không tìm thấy thông tin shop'};
+      }
+
+      String? saleDocId;
+      List<String> outOfStockItems = [];
+
+      await _db.runTransaction((transaction) async {
+        // PHASE 1: Đọc tất cả products và kiểm tra stock
+        Map<String, DocumentSnapshot> productDocs = {};
+        
+        for (var item in items) {
+          final firestoreId = item['firestoreId'] as String?;
+          if (firestoreId == null || firestoreId.isEmpty) {
+            throw Exception('Product ${item['productName']} chưa được đồng bộ lên cloud');
+          }
+          
+          final docRef = _db.collection('products').doc(firestoreId);
+          final docSnapshot = await transaction.get(docRef);
+          
+          if (!docSnapshot.exists) {
+            throw Exception('Product ${item['productName']} không tồn tại trên cloud');
+          }
+          
+          productDocs[firestoreId] = docSnapshot;
+          
+          // Kiểm tra stock
+          final data = docSnapshot.data() as Map<String, dynamic>;
+          final cloudStock = (data['quantity'] ?? 0) as int;
+          final requestedQty = item['quantity'] as int;
+          
+          if (cloudStock < requestedQty) {
+            outOfStockItems.add('${item['productName']} (còn: $cloudStock, cần: $requestedQty)');
+          }
+        }
+        
+        // Nếu có item hết hàng → abort transaction
+        if (outOfStockItems.isNotEmpty) {
+          throw Exception('OUT_OF_STOCK:${outOfStockItems.join('|')}');
+        }
+        
+        // PHASE 2: Trừ stock cho tất cả products
+        for (var item in items) {
+          final firestoreId = item['firestoreId'] as String;
+          final docRef = _db.collection('products').doc(firestoreId);
+          final docSnapshot = productDocs[firestoreId]!;
+          final data = docSnapshot.data() as Map<String, dynamic>;
+          
+          final currentQty = (data['quantity'] ?? 0) as int;
+          final requestedQty = item['quantity'] as int;
+          final newQty = currentQty - requestedQty;
+          final isPhone = (data['type'] ?? 'PHONE') == 'PHONE';
+          
+          transaction.update(docRef, {
+            'quantity': newQty,
+            'status': (isPhone || newQty <= 0) ? 0 : data['status'],
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+        
+        // PHASE 3: Tạo sale document
+        final saleDocRef = _db.collection('sales').doc(saleData['firestoreId']);
+        saleData['shopId'] = shopId;
+        saleData['createdAt'] = FieldValue.serverTimestamp();
+        final encryptedSaleData = EncryptionService.encryptMap(saleData);
+        transaction.set(saleDocRef, encryptedSaleData);
+        saleDocId = saleDocRef.id;
+        
+        // PHASE 4: Tạo debt nếu có
+        if (debtData != null) {
+          final debtDocId = debtData['firestoreId'] ?? 'debt_${DateTime.now().millisecondsSinceEpoch}';
+          final debtDocRef = _db.collection('debts').doc(debtDocId);
+          debtData['shopId'] = shopId;
+          debtData['firestoreId'] = debtDocId;
+          final encryptedDebtData = EncryptionService.encryptMap(debtData);
+          transaction.set(debtDocRef, encryptedDebtData);
+        }
+      });
+
+      debugPrint('✅ Sale transaction completed successfully: $saleDocId');
+      return {'success': true, 'saleDocId': saleDocId};
+      
+    } catch (e) {
+      final errorMsg = e.toString();
+      debugPrint('❌ Sale transaction failed: $errorMsg');
+      
+      // Parse lỗi hết hàng
+      if (errorMsg.contains('OUT_OF_STOCK:')) {
+        final parts = errorMsg.split('OUT_OF_STOCK:');
+        if (parts.length > 1) {
+          final itemsStr = parts[1].replaceAll('Exception: ', '').trim();
+          return {
+            'success': false,
+            'error': 'Hết hàng',
+            'outOfStockItems': itemsStr.split('|'),
+          };
+        }
+      }
+      
+      return {'success': false, 'error': errorMsg};
     }
   }
 }

@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../core/utils/money_utils.dart';
+import '../utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../services/notification_service.dart';
-import '../services/firestore_service.dart';
 import '../services/sync_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
+import '../services/adjustment_service.dart';
+import '../services/firestore_service.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
-import '../services/user_service.dart';
-import '../widgets/currency_text_field.dart';
 
 class DebtView extends StatefulWidget {
   const DebtView({super.key});
@@ -28,13 +28,11 @@ class _DebtViewState extends State<DebtView>
   bool _isSyncing = false;
   String _syncStatus = 'Đã đồng bộ';
   StreamSubscription<String>? _eventSub;
-  bool _hasPermission = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _checkPermission();
     _loadRole();
     _refresh();
 
@@ -57,18 +55,13 @@ class _DebtViewState extends State<DebtView>
     // Role loading not needed for current functionality
   }
 
-  Future<void> _checkPermission() async {
-    final perms = await UserService.getCurrentUserPermissions();
-    if (!mounted) return;
-    setState(() => _hasPermission = perms['allowViewDebts'] ?? false);
-  }
-
   Future<void> _refresh() async {
     setState(() => _isLoading = true);
     final data = await db.getAllDebts();
     if (!mounted) return;
     setState(() {
-      _debts = data;
+      // Filter out soft-deleted debts
+      _debts = data.where((d) => (d['deleted'] ?? 0) != 1).toList();
       _isLoading = false;
     });
   }
@@ -181,7 +174,7 @@ class _DebtViewState extends State<DebtView>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "+ ${MoneyUtils.formatVND(p['amount'])} đ",
+                                "+ ${MoneyUtils.formatCurrency(p['amount'])}",
                                 style: AppTextStyles.priceStyle,
                               ),
                               Text(
@@ -233,7 +226,19 @@ class _DebtViewState extends State<DebtView>
     );
   }
 
-  void _payDebt(Map<String, dynamic> debt) {
+  void _payDebt(Map<String, dynamic> debt) async {
+    // Kiểm tra ngày hôm nay đã chốt quỹ chưa (thanh toán ở ngày hiện tại)
+    final today = DateTime.now();
+    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    if (!canEdit && mounted) {
+      NotificationService.showSnackBar(
+        '❌ Ngày hôm nay đã chốt quỹ! Không thể thu tiền trả nợ.',
+        color: Colors.red,
+      );
+      return;
+    }
+
+    final formKey = GlobalKey<FormState>();
     final payC = TextEditingController();
     String method = "TIỀN MẶT";
     showDialog(
@@ -241,24 +246,38 @@ class _DebtViewState extends State<DebtView>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
           title: const Text("THU TIỀN TRẢ NỢ"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CurrencyTextField(controller: payC, label: "SỐ TIỀN THU"),
-              const SizedBox(height: 15),
-              Wrap(
-                spacing: 8,
-                children: ["TIỀN MẶT", "CHUYỂN KHOẢN"]
-                    .map(
-                      (m) => ChoiceChip(
-                        label: Text(m, style: AppTextStyles.caption),
-                        selected: method == m,
-                        onSelected: (v) => setS(() => method = m),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: payC,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                  decoration: const InputDecoration(labelText: "SỐ TIỀN THU (VNĐ)"),
+                  validator: (v) => MoneyUtils.validateAmount(
+                    v ?? '',
+                    min: 1,
+                    max: (debt['totalAmount'] as int? ?? 0) - (debt['paidAmount'] as int? ?? 0),
+                    fieldName: 'Số tiền thu',
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Wrap(
+                  spacing: 8,
+                  children: ["TIỀN MẶT", "CHUYỂN KHOẢN"]
+                      .map(
+                        (m) => ChoiceChip(
+                          label: Text(m, style: AppTextStyles.caption),
+                          selected: method == m,
+                          onSelected: (v) => setS(() => method = m),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -267,10 +286,10 @@ class _DebtViewState extends State<DebtView>
             ),
             ElevatedButton(
               onPressed: () async {
-                // Lấy giá trị đã được CurrencyTextField xử lý (có nhân 1000 nếu < 100000)
-                int payAmount = CurrencyTextField.parseValueWithMultiply(
-                  payC.text,
-                );
+                if (!(formKey.currentState?.validate() ?? false)) return;
+                final parsed = MoneyUtils.parseCurrency(payC.text);
+                // Min 1000 để tránh nhập 999 → 999000
+                final payAmount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
                 if (payAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
@@ -290,49 +309,115 @@ class _DebtViewState extends State<DebtView>
                   return;
                 }
 
-                // 1. Lưu lịch sử chi tiết
-                final paymentData = {
-                  'firestoreId': "pay_${now}_${user?.uid}",
-                  'debtId': debt['id'],
-                  'debtFirestoreId': debt['firestoreId'],
-                  'amount': payAmount,
-                  'paidAt': now,
-                  'paymentMethod': method,
-                  'createdBy': userName,
-                };
-                await db.insertDebtPayment(paymentData);
-                // Sync debt payment lên cloud
-                await FirestoreService.addDebtPaymentCloud(paymentData);
+                // === FIRESTORE TRANSACTION: Tránh race condition khi 2 user thanh toán cùng lúc ===
+                final debtFId = debt['firestoreId'] as String?;
+                if (debtFId != null && debtFId.isNotEmpty) {
+                  // Có firestoreId → dùng transaction để đảm bảo atomic
+                  final txResult = await FirestoreService.executeDebtPaymentTransaction(
+                    debtFirestoreId: debtFId,
+                    payAmount: payAmount,
+                    paymentMethod: method,
+                    createdBy: userName,
+                  );
+                  
+                  if (!txResult['success']) {
+                    NotificationService.showSnackBar(
+                      "❌ ${txResult['error'] ?? 'Lỗi thanh toán'}",
+                      color: Colors.red,
+                    );
+                    return;
+                  }
+                  
+                  // Transaction thành công → cập nhật local DB
+                  await db.updateDebtPaid(debt['id'], payAmount);
+                  
+                  // Lưu payment vào local
+                  final paymentData = {
+                    'firestoreId': txResult['paymentDocId'] ?? "pay_${now}_${user?.uid}",
+                    'debtId': debt['id'],
+                    'debtFirestoreId': debtFId,
+                    'amount': payAmount,
+                    'paidAt': now,
+                    'paymentMethod': method,
+                    'createdBy': userName,
+                    'isSynced': 1, // Đã sync qua transaction
+                  };
+                  await db.insertDebtPayment(paymentData);
+                } else {
+                  // Chưa có firestoreId → xử lý offline-first như cũ
+                  final paymentData = {
+                    'firestoreId': "pay_${now}_${user?.uid}",
+                    'debtId': debt['id'],
+                    'debtFirestoreId': debt['firestoreId'],
+                    'amount': payAmount,
+                    'paidAt': now,
+                    'paymentMethod': method,
+                    'createdBy': userName,
+                  };
+                  final paymentId = await db.insertDebtPayment(paymentData);
+                  // Queue sync debt payment to cloud via SyncOrchestrator
+                  await SyncOrchestrator().enqueue(
+                    entityType: SyncEntityType.debtPayment,
+                    entityId: paymentId,
+                    firestoreId: paymentData['firestoreId'] as String,
+                    operation: SyncOperation.create,
+                    data: paymentData,
+                  );
 
-                // 2. CẬP NHẬT SỐ TIỀN ĐÃ TRẢ
-                await db.updateDebtPaid(debt['id'], payAmount);
+                  // CẬP NHẬT SỐ TIỀN ĐÃ TRẢ
+                  await db.updateDebtPaid(debt['id'], payAmount);
+                  
+                  // Queue sync updated debt to cloud
+                  final allDebts = await db.getAllDebts();
+                  final updatedDebt = allDebts.firstWhere(
+                    (e) => e['id'] == debt['id'],
+                  );
+                  await SyncOrchestrator().enqueue(
+                    entityType: SyncEntityType.debt,
+                    entityId: debt['id'] as int,
+                    firestoreId: debt['firestoreId'] as String?,
+                    operation: SyncOperation.update,
+                    data: Map<String, dynamic>.from(updatedDebt),
+                  );
+                }
 
-                // 3. LOGIC CHO THANH TOÁN MỘT PHẦN - KHÔNG CẦN TẠO DEBT MỚI
-                // Debt sẽ vẫn active với số tiền còn lại = totalAmount - (alreadyPaid + payAmount)
-
-                // 3. Cập nhật đơn hàng liên kết (nếu có)
+                // Cập nhật đơn hàng liên kết (nếu có)
                 if (debt['linkedId'] != null) {
                   await db.updateOrderStatusFromDebt(
                     debt['linkedId'],
                     alreadyPaid + payAmount,
                   );
-                  // Cập nhật Cloud cho order
+                  // Queue sync for linked orders
                   if (debt['linkedId'].startsWith('sale_')) {
                     final sales = await db.getAllSales();
                     final matching = sales.where(
                       (s) => s.firestoreId == debt['linkedId'],
                     );
                     final sale = matching.isNotEmpty ? matching.first : null;
-                    if (sale != null)
-                      await FirestoreService.updateSaleCloud(sale);
+                    if (sale != null && sale.id != null) {
+                      await SyncOrchestrator().enqueue(
+                        entityType: SyncEntityType.sale,
+                        entityId: sale.id!,
+                        firestoreId: sale.firestoreId,
+                        operation: SyncOperation.update,
+                        data: sale.toMap(),
+                      );
+                    }
                   } else if (debt['linkedId'].startsWith('rep_')) {
                     final repairs = await db.getAllRepairs();
                     final matching = repairs.where(
                       (r) => r.firestoreId == debt['linkedId'],
                     );
                     final repair = matching.isNotEmpty ? matching.first : null;
-                    if (repair != null)
-                      await FirestoreService.upsertRepair(repair);
+                    if (repair != null && repair.id != null) {
+                      await SyncOrchestrator().enqueue(
+                        entityType: SyncEntityType.repair,
+                        entityId: repair.id!,
+                        firestoreId: repair.firestoreId,
+                        operation: SyncOperation.update,
+                        data: repair.toMap(),
+                      );
+                    }
                   } else {
                     // Assume it's a purchase order code
                     final purchases = await db.getAllPurchaseOrders();
@@ -345,7 +430,15 @@ class _DebtViewState extends State<DebtView>
                     if (purchase != null) {
                       purchase.status = 'RECEIVED';
                       await db.updatePurchaseOrder(purchase);
-                      await FirestoreService.addPurchaseOrder(purchase);
+                      // Queue sync via SyncOrchestrator
+                      final orderId = await db.getPurchaseOrderIdByFirestoreId(purchase.firestoreId ?? '');
+                      await SyncOrchestrator().enqueue(
+                        entityType: SyncEntityType.purchaseOrder,
+                        entityId: orderId ?? 0,
+                        firestoreId: purchase.firestoreId,
+                        operation: SyncOperation.update,
+                        data: purchase.toMap(),
+                      );
                     }
                   }
                 }
@@ -357,32 +450,24 @@ class _DebtViewState extends State<DebtView>
                   debugPrint('Error cleaning duplicate data: $e');
                 }
 
-                // 4. Đồng bộ Cloud
-                final allDebts = await db.getAllDebts();
-                final updatedOldDebt = allDebts.firstWhere(
-                  (e) => e['id'] == debt['id'],
-                );
-                await FirestoreService.addDebtCloud(
-                  Map<String, dynamic>.from(updatedOldDebt),
-                );
-
-                // 5. Nhật ký
+                // Nhật ký
                 await db.logAction(
                   userId: user?.uid ?? "0",
                   userName: userName,
                   action: "THU NỢ",
                   type: "DEBT",
                   targetId: debt['firestoreId'],
-                  desc: "Khách trả ${MoneyUtils.formatVND(payAmount)} đ.",
+                  desc: "Khách trả ${MoneyUtils.formatCurrency(payAmount)}.",
                 );
 
+                EventBus().emit('debts_changed');
                 if (!mounted) return;
                 Navigator.pop(context);
-                _refresh();
                 NotificationService.showSnackBar(
                   "Đã thu nợ và đồng bộ hệ thống!",
                   color: Colors.green,
                 );
+                await _refresh();
               },
               child: const Text("XÁC NHẬN"),
             ),
@@ -512,10 +597,10 @@ class _DebtViewState extends State<DebtView>
     }
     if (status == 'PAID' || status == 'CANCELLED') return false;
     
-    // Kiểm tra số tiền còn nợ
+    // Kiểm tra số tiền còn nợ (clamp để không âm)
     final totalAmount = d['totalAmount'] as int? ?? 0;
     final paidAmount = d['paidAmount'] as int? ?? 0;
-    final remaining = totalAmount - paidAmount;
+    final remaining = (totalAmount - paidAmount).clamp(0, totalAmount);
     
     // Công nợ hợp lệ: còn tiền nợ > 0 và tổng nợ > 0
     return remaining > 0 && totalAmount > 0;
@@ -587,15 +672,15 @@ class _DebtViewState extends State<DebtView>
       int totalReceivable = receivableDebts.fold(0, (sum, d) {
         final int total = d['totalAmount'] as int;
         final int paid = d['paidAmount'] as int? ?? 0;
-        final int remain = total - paid;
-        return remain > 0 ? sum + remain : sum;
+        final int remain = (total - paid).clamp(0, total);
+        return sum + remain;
       });
 
       int totalPayable = payableDebts.fold(0, (sum, d) {
         final int total = d['totalAmount'] as int;
         final int paid = d['paidAmount'] as int? ?? 0;
-        final int remain = total - paid;
-        return remain > 0 ? sum + remain : sum;
+        final int remain = (total - paid).clamp(0, total);
+        return sum + remain;
       });
 
       return Column(
@@ -623,7 +708,7 @@ class _DebtViewState extends State<DebtView>
                   ),
                   const Spacer(),
                   Text(
-                    "${MoneyUtils.formatVND(totalReceivable)} đ",
+                    MoneyUtils.formatCurrency(totalReceivable),
                     style: AppTextStyles.body1.copyWith(
                       color: AppColors.error,
                       fontWeight: FontWeight.bold,
@@ -643,6 +728,7 @@ class _DebtViewState extends State<DebtView>
                   receivableDebts[i],
                   Icons.arrow_downward,
                   Colors.red,
+                  i + 1,
                 ),
               ),
             ),
@@ -670,7 +756,7 @@ class _DebtViewState extends State<DebtView>
                   ),
                   const Spacer(),
                   Text(
-                    "${MoneyUtils.formatVND(totalPayable)} đ",
+                    MoneyUtils.formatCurrency(totalPayable),
                     style: AppTextStyles.body1.copyWith(
                       color: AppColors.info,
                       fontWeight: FontWeight.bold,
@@ -690,6 +776,7 @@ class _DebtViewState extends State<DebtView>
                   payableDebts[i],
                   Icons.arrow_upward,
                   Colors.blue,
+                  i + 1,
                 ),
               ),
             ),
@@ -713,8 +800,8 @@ class _DebtViewState extends State<DebtView>
     int totalRemain = list.fold(0, (sum, d) {
       final int total = d['totalAmount'] as int;
       final int paid = d['paidAmount'] as int? ?? 0;
-      final int remain = total - paid;
-      return remain > 0 ? sum + remain : sum;
+      final int remain = (total - paid).clamp(0, total);
+      return sum + remain;
     });
 
     return Column(
@@ -730,7 +817,7 @@ class _DebtViewState extends State<DebtView>
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: list.length,
-            itemBuilder: (ctx, i) => _debtCard(list[i]),
+            itemBuilder: (ctx, i) => _debtCard(list[i], i + 1),
           ),
         ),
       ],
@@ -758,7 +845,7 @@ class _DebtViewState extends State<DebtView>
           ),
           const SizedBox(height: 4),
           Text(
-            "${MoneyUtils.formatVND(amount)} đ",
+            MoneyUtils.formatCurrency(amount),
             style: AppTextStyles.headline4.copyWith(
               color: color,
               fontWeight: FontWeight.bold,
@@ -769,10 +856,10 @@ class _DebtViewState extends State<DebtView>
     );
   }
 
-  Widget _debtCard(Map<String, dynamic> d) {
+  Widget _debtCard(Map<String, dynamic> d, [int? index]) {
     final int total = d['totalAmount'];
     final int paid = d['paidAmount'] ?? 0;
-    final int remain = total - paid;
+    final int remain = (total - paid).clamp(0, total);
     final date = DateFormat(
       'dd/MM/yyyy',
     ).format(DateTime.fromMillisecondsSinceEpoch(d['createdAt']));
@@ -789,6 +876,26 @@ class _DebtViewState extends State<DebtView>
       child: ListTile(
         onTap: () => _showDebtHistory(d),
         contentPadding: const EdgeInsets.all(15),
+        leading: index != null
+            ? Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    '$index',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              )
+            : null,
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -846,17 +953,29 @@ class _DebtViewState extends State<DebtView>
         ),
       ),
       Text(
-        "${MoneyUtils.formatVND(v)}",
+        MoneyUtils.formatCurrency(v),
         style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: c),
       ),
     ],
   );
 
-  void _createOtherDebt() {
+  void _createOtherDebt() async {
+    // Kiểm tra ngày hôm nay đã chốt quỹ chưa
+    final today = DateTime.now();
+    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    if (!canEdit && mounted) {
+      NotificationService.showSnackBar(
+        '❌ Ngày hôm nay đã chốt quỹ! Không thể tạo công nợ mới.',
+        color: Colors.red,
+      );
+      return;
+    }
+    
     final nameC = TextEditingController();
     final phoneC = TextEditingController();
     final amountC = TextEditingController();
     final noteC = TextEditingController();
+    final formKey = GlobalKey<FormState>();
     String debtType = "CUSTOMER_OWES"; // Default to customer owes (nợ phải thu)
 
     showDialog(
@@ -865,143 +984,153 @@ class _DebtViewState extends State<DebtView>
         builder: (ctx, setS) => AlertDialog(
           title: const Text("TẠO CÔNG NỢ KHÁC"),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: nameC,
-                  decoration: const InputDecoration(labelText: "Tên người nợ"),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: phoneC,
-                  decoration: const InputDecoration(labelText: "Số điện thoại"),
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 10),
-                CurrencyTextField(controller: amountC, label: "Số tiền nợ"),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: noteC,
-                  decoration: const InputDecoration(labelText: "Ghi chú"),
-                ),
-                const SizedBox(height: 15),
-                const Text(
-                  "Hình thức nợ:",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setS(() => debtType = "CUSTOMER_OWES"),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: debtType == "CUSTOMER_OWES"
-                                ? Colors.red.withOpacity(0.15)
-                                : Colors.grey.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: debtType == "CUSTOMER_OWES"
-                                  ? Colors.red
-                                  : Colors.grey.shade300,
-                              width: debtType == "CUSTOMER_OWES" ? 2 : 1,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: nameC,
+                    decoration: const InputDecoration(labelText: "Tên người nợ"),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập tên người nợ' : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: phoneC,
+                    decoration: const InputDecoration(labelText: "Số điện thoại"),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: amountC,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                    decoration: const InputDecoration(labelText: "Số tiền nợ (VNĐ)"),
+                    validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền nợ'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: noteC,
+                    decoration: const InputDecoration(labelText: "Ghi chú"),
+                  ),
+                  const SizedBox(height: 15),
+                  const Text(
+                    "Hình thức nợ:",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setS(() => debtType = "CUSTOMER_OWES"),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 8,
                             ),
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.arrow_downward,
+                            decoration: BoxDecoration(
+                              color: debtType == "CUSTOMER_OWES"
+                                  ? Colors.red.withOpacity(0.15)
+                                  : Colors.grey.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
                                 color: debtType == "CUSTOMER_OWES"
                                     ? Colors.red
-                                    : Colors.grey,
+                                    : Colors.grey.shade300,
+                                width: debtType == "CUSTOMER_OWES" ? 2 : 1,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "NỢ PHẢI THU",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.arrow_downward,
                                   color: debtType == "CUSTOMER_OWES"
                                       ? Colors.red
                                       : Colors.grey,
                                 ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const Text(
-                                "(Khách nợ shop)",
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: Colors.grey,
+                                const SizedBox(height: 4),
+                                Text(
+                                  "NỢ PHẢI THU",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: debtType == "CUSTOMER_OWES"
+                                        ? Colors.red
+                                        : Colors.grey,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                            ],
+                                const Text(
+                                  "(Khách nợ shop)",
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setS(() => debtType = "SHOP_OWES"),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: debtType == "SHOP_OWES"
-                                ? Colors.blue.withOpacity(0.15)
-                                : Colors.grey.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: debtType == "SHOP_OWES"
-                                  ? Colors.blue
-                                  : Colors.grey.shade300,
-                              width: debtType == "SHOP_OWES" ? 2 : 1,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setS(() => debtType = "SHOP_OWES"),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 8,
                             ),
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.arrow_upward,
+                            decoration: BoxDecoration(
+                              color: debtType == "SHOP_OWES"
+                                  ? Colors.blue.withOpacity(0.15)
+                                  : Colors.grey.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
                                 color: debtType == "SHOP_OWES"
                                     ? Colors.blue
-                                    : Colors.grey,
+                                    : Colors.grey.shade300,
+                                width: debtType == "SHOP_OWES" ? 2 : 1,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "NỢ PHẢI TRẢ",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.arrow_upward,
                                   color: debtType == "SHOP_OWES"
                                       ? Colors.blue
                                       : Colors.grey,
                                 ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const Text(
-                                "(Shop nợ người khác)",
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: Colors.grey,
+                                const SizedBox(height: 4),
+                                Text(
+                                  "NỢ PHẢI TRẢ",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: debtType == "SHOP_OWES"
+                                        ? Colors.blue
+                                        : Colors.grey,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                            ],
+                                const Text(
+                                  "(Shop nợ người khác)",
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -1011,30 +1140,11 @@ class _DebtViewState extends State<DebtView>
             ),
             ElevatedButton(
               onPressed: () async {
-                // Validate inputs
-                if (nameC.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Vui lòng nhập tên người nợ")),
-                  );
-                  return;
-                }
-                if (amountC.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Vui lòng nhập số tiền nợ")),
-                  );
-                  return;
-                }
+                if (!(formKey.currentState?.validate() ?? false)) return;
 
-                // Lấy giá trị đã được CurrencyTextField xử lý (có nhân 1000 nếu < 100000)
-                int debtAmount = CurrencyTextField.parseValueWithMultiply(
-                  amountC.text,
-                );
-                if (debtAmount <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Số tiền nợ phải lớn hơn 0")),
-                  );
-                  return;
-                }
+                final parsed = MoneyUtils.parseCurrency(amountC.text);
+                final debtAmount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
+                if (debtAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
                 final userName =
@@ -1055,15 +1165,24 @@ class _DebtViewState extends State<DebtView>
                   'createdBy': userName,
                 };
 
-                await db.insertDebt(newDebtData);
-                await FirestoreService.addDebtCloud(newDebtData);
+                final debtId = await db.insertDebt(newDebtData);
+                // Queue sync to cloud via SyncOrchestrator
+                await SyncOrchestrator().enqueue(
+                  entityType: SyncEntityType.debt,
+                  entityId: debtId,
+                  firestoreId: newDebtData['firestoreId'] as String,
+                  operation: SyncOperation.create,
+                  data: newDebtData,
+                );
 
+                EventBus().emit('debts_changed');
                 if (mounted) {
                   Navigator.pop(ctx);
-                  _refresh();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Đã tạo công nợ mới")),
+                  NotificationService.showSnackBar(
+                    "Đã tạo công nợ mới",
+                    color: Colors.green,
                   );
+                  await _refresh();
                 }
               },
               child: const Text("TẠO"),
@@ -1074,36 +1193,59 @@ class _DebtViewState extends State<DebtView>
     );
   }
 
-  void _createCustomerDebt() {
+  void _createCustomerDebt() async {
+    // Kiểm tra ngày hôm nay đã chốt quỹ chưa
+    final today = DateTime.now();
+    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    if (!canEdit && mounted) {
+      NotificationService.showSnackBar(
+        '❌ Ngày hôm nay đã chốt quỹ! Không thể tạo công nợ mới.',
+        color: Colors.red,
+      );
+      return;
+    }
+    
     final nameC = TextEditingController();
     final phoneC = TextEditingController();
     final amountC = TextEditingController();
     final noteC = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("TẠO NỢ KHÁCH HÀNG (PHẢI THU)"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameC,
-              decoration: const InputDecoration(labelText: "Tên khách hàng"),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: phoneC,
-              decoration: const InputDecoration(labelText: "Số điện thoại"),
-            ),
-            const SizedBox(height: 10),
-            CurrencyTextField(controller: amountC, label: "Số tiền nợ"),
-            const SizedBox(height: 10),
-            TextField(
-              controller: noteC,
-              decoration: const InputDecoration(labelText: "Ghi chú"),
-            ),
-          ],
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameC,
+                decoration: const InputDecoration(labelText: "Tên khách hàng"),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập tên khách hàng' : null,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: phoneC,
+                decoration: const InputDecoration(labelText: "Số điện thoại"),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: amountC,
+                keyboardType: TextInputType.number,
+                inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                decoration: const InputDecoration(labelText: "Số tiền nợ (VNĐ)"),
+                validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền nợ'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: noteC,
+                decoration: const InputDecoration(labelText: "Ghi chú"),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1112,16 +1254,11 @@ class _DebtViewState extends State<DebtView>
           ),
           ElevatedButton(
             onPressed: () async {
-              if (nameC.text.isEmpty ||
-                  phoneC.text.isEmpty ||
-                  amountC.text.isEmpty)
-                return;
+              if (!(formKey.currentState?.validate() ?? false)) return;
 
               try {
-                // Lấy giá trị đã được CurrencyTextField xử lý (có nhân 1000 nếu < 100000)
-                int debtAmount = CurrencyTextField.parseValueWithMultiply(
-                  amountC.text,
-                );
+                final parsed = MoneyUtils.parseCurrency(amountC.text);
+                final debtAmount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
                 if (debtAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
@@ -1142,8 +1279,15 @@ class _DebtViewState extends State<DebtView>
                   'createdBy': userName,
                 };
 
-                await db.insertDebt(newDebtData);
-                await FirestoreService.addDebtCloud(newDebtData);
+                final debtId = await db.insertDebt(newDebtData);
+                // Queue sync to cloud via SyncOrchestrator
+                await SyncOrchestrator().enqueue(
+                  entityType: SyncEntityType.debt,
+                  entityId: debtId,
+                  firestoreId: newDebtData['firestoreId'] as String,
+                  operation: SyncOperation.create,
+                  data: newDebtData,
+                );
 
                 // Nhật ký
                 await db.logAction(
@@ -1152,17 +1296,18 @@ class _DebtViewState extends State<DebtView>
                   action: "TẠO NỢ",
                   type: "DEBT",
                   targetId: newDebtData['firestoreId'] as String,
-                  desc:
-                      "Tạo nợ khách hàng: ${nameC.text} - ${MoneyUtils.formatVND(debtAmount)} đ.",
+                    desc:
+                      "Tạo nợ khách hàng: ${nameC.text} - ${MoneyUtils.formatCurrency(debtAmount)}.",
                 );
 
+                EventBus().emit('debts_changed');
                 if (!mounted) return;
                 Navigator.pop(context);
-                _refresh();
                 NotificationService.showSnackBar(
                   "Đã tạo nợ khách hàng!",
                   color: Colors.green,
                 );
+                await _refresh();
               } catch (e) {
                 if (!mounted) return;
                 NotificationService.showSnackBar(
@@ -1178,36 +1323,59 @@ class _DebtViewState extends State<DebtView>
     );
   }
 
-  void _createSupplierDebt() {
+  void _createSupplierDebt() async {
+    // Kiểm tra ngày hôm nay đã chốt quỹ chưa
+    final today = DateTime.now();
+    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    if (!canEdit && mounted) {
+      NotificationService.showSnackBar(
+        '❌ Ngày hôm nay đã chốt quỹ! Không thể tạo công nợ mới.',
+        color: Colors.red,
+      );
+      return;
+    }
+    
     final nameC = TextEditingController();
     final phoneC = TextEditingController();
     final amountC = TextEditingController();
     final noteC = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("TẠO NỢ NHÀ CUNG CẤP (PHẢI TRẢ)"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameC,
-              decoration: const InputDecoration(labelText: "Tên nhà cung cấp"),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: phoneC,
-              decoration: const InputDecoration(labelText: "Số điện thoại"),
-            ),
-            const SizedBox(height: 10),
-            CurrencyTextField(controller: amountC, label: "Số tiền nợ"),
-            const SizedBox(height: 10),
-            TextField(
-              controller: noteC,
-              decoration: const InputDecoration(labelText: "Ghi chú"),
-            ),
-          ],
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameC,
+                decoration: const InputDecoration(labelText: "Tên nhà cung cấp"),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập tên nhà cung cấp' : null,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: phoneC,
+                decoration: const InputDecoration(labelText: "Số điện thoại"),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: amountC,
+                keyboardType: TextInputType.number,
+                inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                decoration: const InputDecoration(labelText: "Số tiền nợ (VNĐ)"),
+                validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền nợ'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: noteC,
+                decoration: const InputDecoration(labelText: "Ghi chú"),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1216,16 +1384,11 @@ class _DebtViewState extends State<DebtView>
           ),
           ElevatedButton(
             onPressed: () async {
-              if (nameC.text.isEmpty ||
-                  phoneC.text.isEmpty ||
-                  amountC.text.isEmpty)
-                return;
+              if (!(formKey.currentState?.validate() ?? false)) return;
 
               try {
-                // Lấy giá trị đã được CurrencyTextField xử lý (có nhân 1000 nếu < 100000)
-                int debtAmount = CurrencyTextField.parseValueWithMultiply(
-                  amountC.text,
-                );
+                final parsed = MoneyUtils.parseCurrency(amountC.text);
+                final debtAmount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
                 if (debtAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
@@ -1246,8 +1409,15 @@ class _DebtViewState extends State<DebtView>
                   'createdBy': userName,
                 };
 
-                await db.insertDebt(newDebtData);
-                await FirestoreService.addDebtCloud(newDebtData);
+                final debtId = await db.insertDebt(newDebtData);
+                // Queue sync to cloud via SyncOrchestrator
+                await SyncOrchestrator().enqueue(
+                  entityType: SyncEntityType.debt,
+                  entityId: debtId,
+                  firestoreId: newDebtData['firestoreId'] as String,
+                  operation: SyncOperation.create,
+                  data: newDebtData,
+                );
 
                 // Nhật ký
                 await db.logAction(
@@ -1256,17 +1426,18 @@ class _DebtViewState extends State<DebtView>
                   action: "TẠO NỢ",
                   type: "DEBT",
                   targetId: newDebtData['firestoreId'] as String,
-                  desc:
-                      "Tạo nợ nhà cung cấp: ${nameC.text} - ${MoneyUtils.formatVND(debtAmount)} đ.",
+                    desc:
+                      "Tạo nợ nhà cung cấp: ${nameC.text} - ${MoneyUtils.formatCurrency(debtAmount)}.",
                 );
 
+                EventBus().emit('debts_changed');
                 if (!mounted) return;
                 Navigator.pop(context);
-                _refresh();
                 NotificationService.showSnackBar(
                   "Đã tạo nợ nhà cung cấp!",
                   color: Colors.green,
                 );
+                await _refresh();
               } catch (e) {
                 if (!mounted) return;
                 NotificationService.showSnackBar(
@@ -1285,8 +1456,9 @@ class _DebtViewState extends State<DebtView>
   Widget _debtCardWithIcon(
     Map<String, dynamic> d,
     IconData icon,
-    Color iconColor,
-  ) {
+    Color iconColor, [
+    int? index,
+  ]) {
     final int total = d['totalAmount'];
     final int paid = d['paidAmount'] ?? 0;
     final int remain = total - paid;
@@ -1306,9 +1478,35 @@ class _DebtViewState extends State<DebtView>
       child: ListTile(
         onTap: () => _showDebtHistory(d),
         contentPadding: const EdgeInsets.all(15),
-        leading: CircleAvatar(
-          backgroundColor: iconColor.withAlpha(25),
-          child: Icon(icon, color: iconColor, size: 20),
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (index != null) ...[
+              Container(
+                width: 24,
+                height: 24,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Center(
+                  child: Text(
+                    '$index',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: iconColor,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            CircleAvatar(
+              backgroundColor: iconColor.withAlpha(25),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+          ],
         ),
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

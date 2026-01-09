@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../utils/money_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../models/inventory_check_model.dart';
 import 'create_sale_view.dart';
-import '../services/firestore_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../services/unified_printer_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/notification_service.dart';
@@ -18,14 +19,11 @@ import 'supplier_list_view.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../models/printer_types.dart';
-import 'fast_inventory_input_view.dart';
 import 'stock_in_view.dart';
 import 'global_search_view.dart';
 import 'fast_stock_in_view.dart';
-import 'quick_input_library_view.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/validated_text_field.dart';
-import '../theme/app_theme.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -181,11 +179,11 @@ class _InventoryViewState extends State<InventoryView>
             _detailItem("Nhà cung cấp", p.supplier ?? "N/A"),
             _detailItem(
               "Giá nhập",
-              "${NumberFormat('#,###').format(p.cost ?? 0)} đ",
+              "${MoneyUtils.formatCurrency(p.cost)} đ",
             ),
             _detailItem(
               "Giá bán",
-              "${NumberFormat('#,###').format(p.price)} đ",
+              "${MoneyUtils.formatCurrency(p.price)} đ",
               color: Colors.red,
             ),
             _detailItem("Thanh toán", p.paymentMethod ?? "N/A"),
@@ -386,13 +384,13 @@ class _InventoryViewState extends State<InventoryView>
     final imeiCtrl = TextEditingController(text: p.imei ?? '');
     final supplierCtrl = TextEditingController(text: p.supplier ?? '');
     final costCtrl = TextEditingController(
-      text: p.cost != null ? NumberFormat('#,###').format(p.cost) : '',
+      text: MoneyUtils.formatCurrency(p.cost),
     );
     final priceCtrl = TextEditingController(
-      text: p.price != null ? NumberFormat('#,###').format(p.price) : '',
+      text: MoneyUtils.formatCurrency(p.price),
     );
     final quantityCtrl = TextEditingController(
-      text: (p.quantity ?? 1).toString(),
+      text: p.quantity.toString(),
     );
 
     showDialog(
@@ -408,7 +406,7 @@ class _InventoryViewState extends State<InventoryView>
                 label: 'Tên sản phẩm',
                 uppercase: true,
                 customValidator: (val) =>
-                    val?.isEmpty ?? true ? 'Vui lòng nhập tên sản phẩm' : null,
+                  val.isEmpty ? 'Vui lòng nhập tên sản phẩm' : null,
               ),
               const SizedBox(height: 12),
               ValidatedTextField(
@@ -432,7 +430,7 @@ class _InventoryViewState extends State<InventoryView>
                 label: 'Số lượng',
                 keyboardType: TextInputType.number,
                 customValidator: (val) {
-                  final qty = int.tryParse(val ?? '');
+                  final qty = int.tryParse(val);
                   if (qty == null || qty < 0)
                     return 'Số lượng phải là số không âm';
                   return null;
@@ -481,8 +479,16 @@ class _InventoryViewState extends State<InventoryView>
                 // Cập nhật local database
                 await db.updateProduct(updatedProduct);
 
-                // Cập nhật lên cloud (Firestore)
-                await FirestoreService.updateProductCloud(updatedProduct);
+                // Queue sync to cloud via SyncOrchestrator
+                if (updatedProduct.id != null) {
+                  await SyncOrchestrator().enqueue(
+                    entityType: SyncEntityType.product,
+                    entityId: updatedProduct.id!,
+                    firestoreId: updatedProduct.firestoreId,
+                    operation: SyncOperation.update,
+                    data: updatedProduct.toMap(),
+                  );
+                }
 
                 await _refresh();
                 Navigator.pop(ctx);
@@ -502,7 +508,7 @@ class _InventoryViewState extends State<InventoryView>
                       final priceData = {
                         'supplierId': supplier.id,
                         'productName': updatedProduct.name,
-                        'productBrand': updatedProduct.brand ?? '',
+                        'productBrand': updatedProduct.brand,
                         'productModel': updatedProduct.capacity ?? '',
                         'costPrice': updatedProduct.cost,
                         'lastUpdated': DateTime.now().millisecondsSinceEpoch,
@@ -703,10 +709,15 @@ class _InventoryViewState extends State<InventoryView>
       // Xóa thực sự khỏi database
       if (p.id != null) {
         await db.deleteProduct(p.id!);
-      }
-      // Xóa trên Firestore nếu có
-      if (p.firestoreId != null) {
-        await FirestoreService.deleteProduct(p.firestoreId!);
+        
+        // Queue delete sync via SyncOrchestrator
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.product,
+          entityId: p.id!,
+          firestoreId: p.firestoreId,
+          operation: SyncOperation.delete,
+          data: null,
+        );
       }
       await _refresh();
       NotificationService.showSnackBar(
@@ -897,8 +908,15 @@ class _InventoryViewState extends State<InventoryView>
             desc: "Đã xóa ${p.name} (IMEI: ${p.imei})",
           );
           await db.deleteProduct(id);
-          if (p.firestoreId != null)
-            await FirestoreService.deleteProduct(p.firestoreId!);
+          
+          // Queue delete sync via SyncOrchestrator
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.product,
+            entityId: id,
+            firestoreId: p.firestoreId,
+            operation: SyncOperation.delete,
+            data: null,
+          );
         }
         HapticFeedback.mediumImpact();
         _refresh();
@@ -1335,7 +1353,7 @@ class _InventoryViewState extends State<InventoryView>
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                         itemCount: filteredList.length,
                         itemBuilder: (ctx, i) =>
-                            _buildProfessionalCard(filteredList[i]),
+                            _buildProfessionalCard(filteredList[i], i + 1),
                       ),
                     ),
             ),
@@ -1628,7 +1646,6 @@ class _InventoryViewState extends State<InventoryView>
   }
 
   Widget _buildInventorySummary(int qty, int capital) {
-    final fmt = NumberFormat('#,###');
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -1652,7 +1669,7 @@ class _InventoryViewState extends State<InventoryView>
           Container(width: 1, height: 36, color: Colors.white24),
           _summaryItemCompact(
             "VỐN TỒN KHO",
-            "${fmt.format(capital)} đ",
+            "${MoneyUtils.formatCurrency(capital)} đ",
             Icons.account_balance_wallet,
           ),
         ],
@@ -1817,9 +1834,8 @@ class _InventoryViewState extends State<InventoryView>
     );
   }
 
-  Widget _buildProfessionalCard(Product p) {
+  Widget _buildProfessionalCard(Product p, [int? index]) {
     final bool isSelected = _selectedIds.contains(p.id);
-    final fmt = NumberFormat('#,###');
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
@@ -1848,6 +1864,28 @@ class _InventoryViewState extends State<InventoryView>
           padding: EdgeInsets.all(_cardPadding),
           child: Row(
             children: [
+              // STT (Số thứ tự)
+              if (index != null) ...[
+                Container(
+                  width: 28,
+                  height: 28,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$index',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               // Brand Icon
               Container(
                 padding: EdgeInsets.all(_cardPadding - 2),
@@ -1936,7 +1974,7 @@ class _InventoryViewState extends State<InventoryView>
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    "${fmt.format(p.price)} đ",
+                    "${MoneyUtils.formatCurrency(p.price)} đ",
                     style: TextStyle(
                       color: Colors.redAccent,
                       fontWeight: FontWeight.bold,
@@ -2093,8 +2131,9 @@ class _InventoryViewState extends State<InventoryView>
                 desc: "Đã nhập máy ${p.name}",
               );
               if (payMethod != "CÔNG NỢ") {
+                final expFId = 'exp_${ts}_${p.name.hashCode}';
                 final expData = {
-                  'firestoreId': 'exp_${ts}_${p.name.hashCode}',
+                  'firestoreId': expFId,
                   'title': "NHẬP HÀNG: ${p.name}",
                   'amount': p.cost * p.quantity,
                   'category': "NHẬP HÀNG",
@@ -2102,10 +2141,20 @@ class _InventoryViewState extends State<InventoryView>
                   'paymentMethod': payMethod,
                   'note': "Nhập từ $supplier",
                 };
-                await db.insertExpense(expData);
-                await FirestoreService.addExpenseCloud(expData);
+                final expenseId = await db.insertExpense(expData);
+                
+                // Queue sync via SyncOrchestrator
+                await SyncOrchestrator().enqueue(
+                  entityType: SyncEntityType.expense,
+                  entityId: expenseId,
+                  firestoreId: expFId,
+                  operation: SyncOperation.create,
+                  data: expData,
+                );
               } else {
+                final debtFId = 'debt_inv_${ts}';
                 final debtData = {
+                  'firestoreId': debtFId,
                   'personName': supplier,
                   'totalAmount': p.cost * p.quantity,
                   'paidAmount': 0,
@@ -2114,12 +2163,30 @@ class _InventoryViewState extends State<InventoryView>
                   'createdAt': ts,
                   'note': "Nợ tiền máy ${p.name}",
                 };
-                await db.insertDebt(debtData);
-                // Sync debt lên cloud
-                await FirestoreService.addDebtCloud(debtData);
+                final debtId = await db.insertDebt(debtData);
+                
+                // Queue sync via SyncOrchestrator
+                await SyncOrchestrator().enqueue(
+                  entityType: SyncEntityType.debt,
+                  entityId: debtId,
+                  firestoreId: debtFId,
+                  operation: SyncOperation.create,
+                  data: debtData,
+                );
               }
               await db.upsertProduct(p);
-              await FirestoreService.addProduct(p);
+              
+              // Get product ID and queue sync
+              final savedProduct = await db.getProductByFirestoreId(p.firestoreId ?? 'prod_${p.createdAt}');
+              if (savedProduct?.id != null) {
+                await SyncOrchestrator().enqueue(
+                  entityType: SyncEntityType.product,
+                  entityId: savedProduct!.id!,
+                  firestoreId: p.firestoreId,
+                  operation: SyncOperation.create,
+                  data: p.toMap(),
+                );
+              }
 
               // Lưu lịch sử nhập hàng từ nhà cung cấp
               if (supplier?.isNotEmpty == true) {
@@ -2134,7 +2201,7 @@ class _InventoryViewState extends State<InventoryView>
                     'supplierId': supplierId,
                     'supplierName': supplier,
                     'productName': p.name,
-                    'productBrand': p.brand ?? '',
+                    'productBrand': p.brand,
                     'productModel': p.model,
                     'imei': p.imei,
                     'quantity': p.quantity,
@@ -2160,13 +2227,13 @@ class _InventoryViewState extends State<InventoryView>
                   await db.deactivateSupplierProductPrice(
                     supplierId,
                     p.name,
-                    p.brand ?? '',
+                    p.brand,
                     p.model,
                   );
                   final supplierPrice = {
                     'supplierId': supplierId,
                     'productName': p.name,
-                    'productBrand': p.brand ?? '',
+                    'productBrand': p.brand,
                     'productModel': p.model,
                     'costPrice': p.cost,
                     'lastUpdated': ts,
@@ -2527,7 +2594,18 @@ class _InventoryViewState extends State<InventoryView>
                 desc: "Đã chỉnh sửa máy ${p.name}",
               );
               await db.upsertProduct(updatedP);
-              await FirestoreService.updateProductCloud(updatedP);
+              
+              // Get product ID and queue sync
+              final savedProduct = await db.getProductByFirestoreId(updatedP.firestoreId ?? 'prod_${updatedP.createdAt}');
+              if (savedProduct?.id != null) {
+                await SyncOrchestrator().enqueue(
+                  entityType: SyncEntityType.product,
+                  entityId: savedProduct!.id!,
+                  firestoreId: updatedP.firestoreId,
+                  operation: SyncOperation.update,
+                  data: updatedP.toMap(),
+                );
+              }
 
               HapticFeedback.lightImpact();
               if (mounted) {

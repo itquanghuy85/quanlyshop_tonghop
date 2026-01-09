@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/sync_service.dart';
+import '../services/firestore_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../widgets/currency_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -30,10 +34,14 @@ class _RevenueViewState extends State<RevenueView>
   List<Map<String, dynamic>> _expenses = [];
   List<Map<String, dynamic>> _closings = [];
   List<Map<String, dynamic>> _debtPayments = [];
+  Map<String, dynamic>? _todayClosing; // Thông tin chốt quỹ hôm nay
   bool _hasRevenueAccess = false;
   bool _isLoading = true;
   bool _isSyncing = false;
   String _syncStatus = 'Đã đồng bộ';
+  
+  // Real-time listener cho cash_closings
+  StreamSubscription<DocumentSnapshot>? _closingSubscription;
   
   // Filter states
   String _timeFilter = 'today'; // today, week, month, custom
@@ -49,6 +57,75 @@ class _RevenueViewState extends State<RevenueView>
     _tabController = TabController(length: 8, vsync: this);
     _loadPermissions();
     _loadAllData();
+    _initClosingRealTimeSync();
+    // Lắng nghe real-time sync từ cloud
+    SyncService.initRealTimeSync(() {
+      if (mounted) _loadAllData();
+    });
+  }
+  
+  @override
+  void dispose() {
+    _closingSubscription?.cancel();
+    _tabController.dispose();
+    cashEndCtrl.dispose();
+    bankEndCtrl.dispose();
+    super.dispose();
+  }
+  
+  /// Khởi tạo real-time sync cho cash_closings để các máy khác nhận được update
+  Future<void> _initClosingRealTimeSync() async {
+    final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final shopId = await UserService.getCurrentShopId();
+    if (shopId == null) return;
+    
+    final docId = "closing_${shopId}_$todayKey";
+    
+    _closingSubscription = FirebaseFirestore.instance
+        .collection('cash_closings')
+        .doc(docId)
+        .snapshots()
+        .listen((snapshot) async {
+      if (snapshot.exists && mounted) {
+        final cloudData = snapshot.data()!;
+        final cloudIsLocked = cloudData['isLocked'];
+        final localIsLocked = _todayClosing?['isLocked'];
+        
+        // Nếu trạng thái khóa khác nhau, cập nhật local DB và UI
+        if (cloudIsLocked != localIsLocked) {
+          debugPrint('Cash closing sync: Cloud isLocked=$cloudIsLocked, Local isLocked=$localIsLocked');
+          
+          // Cập nhật local DB
+          final dbRaw = await db.database;
+          await dbRaw.update(
+            'cash_closings',
+            {
+              'isLocked': cloudIsLocked == true || cloudIsLocked == 1 ? 1 : 0,
+              'lockedBy': cloudData['lockedBy'],
+              'lockedAt': cloudData['lockedAt'],
+              'unlockedBy': cloudData['unlockedBy'],
+              'unlockedAt': cloudData['unlockedAt'],
+              'cashEnd': cloudData['cashEnd'],
+              'bankEnd': cloudData['bankEnd'],
+            },
+            where: 'dateKey = ?',
+            whereArgs: [todayKey],
+          );
+          
+          // Reload UI
+          await _loadAllData();
+          
+          // Hiển thị thông báo
+          final isNowLocked = cloudIsLocked == true || cloudIsLocked == 1;
+          NotificationService.showSnackBar(
+            isNowLocked 
+                ? "🔒 Quỹ hôm nay đã được ${cloudData['lockedBy']} chốt!" 
+                : "🔓 Quỹ hôm nay đã được ${cloudData['unlockedBy']} mở khóa!",
+            color: isNowLocked ? Colors.green : Colors.orange,
+          );
+        }
+      }
+    });
   }
 
   Future<void> _loadPermissions() async {
@@ -72,6 +149,15 @@ class _RevenueViewState extends State<RevenueView>
       orderBy: 'createdAt DESC',
       limit: 10,
     );
+    
+    // Lấy thông tin chốt quỹ của ngày hôm nay
+    final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final todayClosingResult = await dbRaw.query(
+      'cash_closings',
+      where: 'dateKey = ?',
+      whereArgs: [todayKey],
+      limit: 1,
+    );
 
     if (!mounted) return;
     setState(() {
@@ -80,6 +166,7 @@ class _RevenueViewState extends State<RevenueView>
       _expenses = expenses;
       _debtPayments = debtPayments;
       _closings = closings;
+      _todayClosing = todayClosingResult.isNotEmpty ? todayClosingResult.first : null;
       _isLoading = false;
     });
   }
@@ -320,12 +407,12 @@ class _RevenueViewState extends State<RevenueView>
       );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFF),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.indigo, Colors.indigo.withOpacity(0.7)],
+              colors: [AppColors.primary, AppColors.primary.withOpacity(0.7)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -333,14 +420,14 @@ class _RevenueViewState extends State<RevenueView>
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               "QUẢN LÝ TÀI CHÍNH",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+              style: AppTextStyles.headline5.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
             ),
-            Text("Tổng quan doanh thu, chi phí", style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text("Tổng quan doanh thu, chi phí", style: AppTextStyles.caption.copyWith(color: Colors.white70)),
           ],
         ),
         automaticallyImplyLeading: true,
@@ -388,6 +475,9 @@ class _RevenueViewState extends State<RevenueView>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelStyle: AppTextStyles.button.copyWith(fontWeight: FontWeight.bold),
+          unselectedLabelStyle: AppTextStyles.button,
           controller: _tabController,
           isScrollable: true,
           tabs: const [
@@ -403,7 +493,7 @@ class _RevenueViewState extends State<RevenueView>
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : TabBarView(
               controller: _tabController,
               children: [
@@ -571,6 +661,116 @@ class _RevenueViewState extends State<RevenueView>
   }
 
   Widget _inputClosingSection() {
+    final isLocked = _todayClosing != null && (_todayClosing!['isLocked'] == 1 || _todayClosing!['isLocked'] == true);
+    final cashEnd = _todayClosing?['cashEnd'] as int? ?? 0;
+    final bankEnd = _todayClosing?['bankEnd'] as int? ?? 0;
+    final lockedBy = _todayClosing?['lockedBy'] as String? ?? '';
+    final lockedAt = _todayClosing?['lockedAt'] as int?;
+    
+    // Nếu đã chốt quỹ - hiển thị thông tin và nút mở khóa
+    if (isLocked) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.green.shade300, width: 2),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 10),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header đã chốt
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock, color: Colors.green.shade700, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  "ĐÃ CHỐT QUỸ HÔM NAY",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Thông tin chốt
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _closingInfoRow(
+                    Icons.payments,
+                    "Tiền mặt đếm được",
+                    NumberFormat('#,###').format(cashEnd),
+                    Colors.orange,
+                  ),
+                  const Divider(height: 20),
+                  _closingInfoRow(
+                    Icons.account_balance,
+                    "Số dư ngân hàng",
+                    NumberFormat('#,###').format(bankEnd),
+                    Colors.blue,
+                  ),
+                  const Divider(height: 20),
+                  _closingInfoRow(
+                    Icons.calculate,
+                    "TỔNG CỘNG",
+                    NumberFormat('#,###').format(cashEnd + bankEnd),
+                    Colors.purple,
+                    isBold: true,
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Thông tin người chốt
+            Text(
+              "Chốt bởi: $lockedBy ${lockedAt != null ? '- ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(lockedAt))}' : ''}",
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Nút mở khóa
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                onPressed: _confirmUnlockClosing,
+                icon: const Icon(Icons.lock_open, color: Colors.red),
+                label: const Text(
+                  "MỞ KHÓA ĐỂ SỬA ĐỔI",
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red, width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // Nếu chưa chốt - hiển thị form nhập
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -582,6 +782,21 @@ class _RevenueViewState extends State<RevenueView>
       ),
       child: Column(
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_open, color: Colors.orange.shade700, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                "CHƯA CHỐT QUỸ",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           const Text(
             "ĐỐI SOÁT THỰC TẾ CUỐI NGÀY",
             style: TextStyle(fontWeight: FontWeight.bold),
@@ -602,13 +817,14 @@ class _RevenueViewState extends State<RevenueView>
           SizedBox(
             width: double.infinity,
             height: 50,
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
               onPressed: _saveClosing,
+              icon: const Icon(Icons.lock, color: Colors.white),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2962FF),
               ),
-              child: const Text(
-                "XÁC NHẬN CHỐT QUỸ",
+              label: const Text(
+                "XÁC NHẬN CHỐT QUỸ & KHÓA",
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -620,28 +836,221 @@ class _RevenueViewState extends State<RevenueView>
       ),
     );
   }
+  
+  Widget _closingInfoRow(IconData icon, String label, String value, Color color, {bool isBold = false}) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+        Text(
+          "$value đ",
+          style: TextStyle(
+            fontSize: isBold ? 16 : 14,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Future<void> _confirmUnlockClosing() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
+            const SizedBox(width: 8),
+            const Text("XÁC NHẬN MỞ KHÓA"),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Bạn có chắc muốn mở khóa ngày hôm nay?",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 12),
+            Text(
+              "• Các giao dịch sẽ được phép thêm/sửa/xóa\n"
+              "• Bạn cần chốt quỹ lại sau khi hoàn tất\n"
+              "• Hành động này sẽ được ghi nhật ký",
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("HỦY"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("MỞ KHÓA", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    
+    if (result == true) {
+      await _unlockClosing();
+    }
+  }
+  
+  Future<void> _unlockClosing() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final userName = user?.email?.split('@').first.toUpperCase() ?? "ADMIN";
+    final dateKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final now = DateTime.now().millisecondsSinceEpoch;
+    
+    final shopId = await UserService.getCurrentShopId();
+    final firestoreId = "closing_${shopId}_$dateKey";
+    
+    final closingData = {
+      'dateKey': dateKey,
+      'isLocked': 0,
+      'unlockedBy': userName,
+      'unlockedAt': now,
+      'firestoreId': firestoreId,
+      'shopId': shopId,
+    };
+    
+    // Cập nhật local DB
+    final dbRaw = await db.database;
+    await dbRaw.update(
+      'cash_closings',
+      closingData,
+      where: 'dateKey = ?',
+      whereArgs: [dateKey],
+    );
+    
+    // Queue sync via SyncOrchestrator
+    final closingId = await db.getCashClosingIdByFirestoreId(firestoreId);
+    await SyncOrchestrator().enqueue(
+      entityType: SyncEntityType.cashClosing,
+      entityId: closingId ?? 0,
+      firestoreId: firestoreId,
+      operation: SyncOperation.update,
+      data: closingData,
+    );
+    
+    await db.logAction(
+      userId: user?.uid ?? "0",
+      userName: userName,
+      action: "MỞ KHÓA QUỸ",
+      type: "FINANCE",
+      desc: "Đã mở khóa ngày $dateKey để sửa đổi",
+    );
+    
+    NotificationService.showSnackBar(
+      "Đã mở khóa ngày $dateKey!",
+      color: Colors.orange,
+    );
+    HapticFeedback.mediumImpact();
+    _loadAllData();
+  }
 
   Future<void> _saveClosing() async {
     final cash = int.tryParse(cashEndCtrl.text.replaceAll('.', '')) ?? 0;
     final bank = int.tryParse(bankEndCtrl.text.replaceAll('.', '')) ?? 0;
-    if (cash == 0 && bank == 0) return;
-    await db.upsertClosing({
-      'dateKey': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+    
+    // Xác nhận trước khi chốt
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.lock_outline, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('XÁC NHẬN CHỐT QUỸ'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Tiền mặt: ${NumberFormat('#,###').format(cash)} đ'),
+            SizedBox(height: 4),
+            Text('Ngân hàng: ${NumberFormat('#,###').format(bank)} đ'),
+            SizedBox(height: 12),
+            Text(
+              'Sau khi chốt, bạn sẽ không thể sửa/xóa các phiếu trong ngày.',
+              style: TextStyle(fontSize: 12, color: Colors.orange),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('HỦY'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: Text('CHỐT QUỸ', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm != true) return;
+    
+    final user = FirebaseAuth.instance.currentUser;
+    final userName = user?.email?.split('@').first.toUpperCase() ?? "ADMIN";
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final dateKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    
+    final shopId = await UserService.getCurrentShopId();
+    final firestoreId = "closing_${shopId}_$dateKey";
+    
+    final closingData = {
+      'dateKey': dateKey,
       'cashEnd': cash,
       'bankEnd': bank,
-      'createdAt': DateTime.now().millisecondsSinceEpoch,
-    });
-    final user = FirebaseAuth.instance.currentUser;
+      'createdAt': now,
+      'isLocked': 1, // Tự động khóa khi chốt
+      'lockedBy': userName,
+      'lockedAt': now,
+      'firestoreId': firestoreId,
+      'shopId': shopId,
+    };
+    
+    // Lưu local
+    await db.upsertClosing(closingData);
+    
+    // Queue sync via SyncOrchestrator
+    final closingId = await db.getCashClosingIdByFirestoreId(firestoreId);
+    await SyncOrchestrator().enqueue(
+      entityType: SyncEntityType.cashClosing,
+      entityId: closingId ?? 0,
+      firestoreId: firestoreId,
+      operation: SyncOperation.create,
+      data: closingData,
+    );
+    
     await db.logAction(
       userId: user?.uid ?? "0",
-      userName: user?.email?.split('@').first.toUpperCase() ?? "ADMIN",
+      userName: userName,
       action: "CHỐT QUỸ",
       type: "FINANCE",
       desc:
-          "Tiền mặt: ${NumberFormat('#,###').format(cash)}đ, Ngân hàng: ${NumberFormat('#,###').format(bank)}đ",
+          "Tiền mặt: ${NumberFormat('#,###').format(cash)}đ, Ngân hàng: ${NumberFormat('#,###').format(bank)}đ - Ngày $dateKey đã bị khóa",
     );
     NotificationService.showSnackBar(
-      "Đã chốt quỹ thành công!",
+      "Đã chốt quỹ thành công! Ngày $dateKey đã bị khóa.",
       color: Colors.green,
     );
     HapticFeedback.mediumImpact();
@@ -909,8 +1318,27 @@ class _RevenueViewState extends State<RevenueView>
                 itemBuilder: (ctx, i) {
                   final sale = list[i];
                   final date = DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(sale.soldAt));
+                  final index = i + 1;
                   return Card(
                     child: ListTile(
+                      leading: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$index',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
                       title: Text(sale.productNames, style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text("Khách: ${sale.customerName} • $date"),
                       trailing: Text(
@@ -966,8 +1394,27 @@ class _RevenueViewState extends State<RevenueView>
                 itemBuilder: (ctx, i) {
                   final repair = list[i];
                   final date = DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(repair.deliveredAt!));
+                  final index = i + 1;
                   return Card(
                     child: ListTile(
+                      leading: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.blueAccent.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$index',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueAccent,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
                       title: Text(repair.model, style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text("Khách: ${repair.customerName} • $date"),
                       trailing: Text(
@@ -1017,8 +1464,27 @@ class _RevenueViewState extends State<RevenueView>
                 itemBuilder: (ctx, i) {
                   final expense = list[i];
                   final date = DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(expense['date'] as int));
+                  final index = i + 1;
                   return Card(
                     child: ListTile(
+                      leading: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$index',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.redAccent,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
                       title: Text(expense['title'] ?? 'Chi phí', style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text("${expense['category'] ?? 'Khác'} • $date"),
                       trailing: Text(
@@ -1123,21 +1589,46 @@ class _RevenueViewState extends State<RevenueView>
         final item = allTransactions[i];
         final date = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(item.time));
         final isIncome = item.type == "IN";
+        final index = i + 1;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isIncome ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                isIncome ? Icons.arrow_upward : Icons.arrow_downward,
-                color: isIncome ? Colors.green : Colors.red,
-                size: 20,
-              ),
+            leading: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$index',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isIncome ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    isIncome ? Icons.arrow_upward : Icons.arrow_downward,
+                    color: isIncome ? Colors.green : Colors.red,
+                    size: 20,
+                  ),
+                ),
+              ],
             ),
             title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w500)),
             subtitle: Column(

@@ -7,6 +7,7 @@ import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
+import '../services/sync_orchestrator.dart';
 import 'repair_detail_view.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
@@ -183,8 +184,17 @@ class _CustomerListViewState extends State<CustomerListView> {
       for (final customer in selectedCustomers) {
         // Xóa tất cả repairs và sales của customer này
         await db.deleteCustomerData(customer['customerName'], customer['phone']);
-        if (customer['firestoreId'] != null) {
-          await FirestoreService.deleteCustomer(customer['firestoreId']);
+        final customerId = customer['id'] as int?;
+        final firestoreId = customer['firestoreId'] as String?;
+        if (customerId != null && firestoreId != null) {
+          // Queue delete sync via SyncOrchestrator
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.customer,
+            entityId: customerId,
+            firestoreId: firestoreId,
+            operation: SyncOperation.delete,
+            data: null,
+          );
         }
       }
 
@@ -778,11 +788,21 @@ class _CustomerListViewState extends State<CustomerListView> {
     );
 
     if (ok == true) {
+      final customerId = c['id'] as int?;
       final firestoreId = c['firestoreId'] as String?;
-      if (firestoreId != null) {
-        await FirestoreService.deleteCustomer(firestoreId);
-      }
       await db.deleteCustomerByPhone(c['phone'] as String);
+      
+      // Queue delete sync via SyncOrchestrator
+      if (customerId != null && firestoreId != null) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.customer,
+          entityId: customerId,
+          firestoreId: firestoreId,
+          operation: SyncOperation.delete,
+          data: null,
+        );
+      }
+      
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('ĐÃ XÓA KHÁCH KHỎI DANH BẠ')), 

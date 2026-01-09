@@ -41,6 +41,7 @@ import 'about_developer_view.dart';
 import '../data/db_helper.dart';
 import '../widgets/notification_badge.dart';
 import '../widgets/perpetual_calendar.dart';
+import '../widgets/unified_sync_button.dart';
 import '../services/sync_service.dart';
 import '../services/sync_health_check.dart';
 import '../services/user_service.dart';
@@ -730,11 +731,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       );
 
       // Nếu không có quyền, thay thế widget bằng màn hình khóa
-      if (!hasPermission && permission != null) {
+      if (!hasPermission) {
         final tabLabel =
             (config['item'] as BottomNavigationBarItem).label ?? 'Chức năng';
         // Xác định nguồn khóa: admin hay owner
-        final lockedBy = _getLockedBy(permission);
+        final lockedBy = _getLockedBy(permission ?? '');
         return {
           ...config,
           'widget': _buildLockedFeatureScreen(tabLabel, lockedBy: lockedBy),
@@ -1063,7 +1064,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     final sales = await db.getAllSales();
     await Future.delayed(Duration.zero); // Yield
 
-    final debts = await db.getAllDebts();
+    final debtsRaw = await db.getAllDebts();
+    final debts = debtsRaw.where((d) => (d['deleted'] ?? 0) != 1).toList();
     await Future.delayed(Duration.zero); // Yield
 
     final expenses = await db.getAllExpenses();
@@ -1139,10 +1141,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       }
     }
 
-    // Tính tổng nợ còn lại
+    // Tính tổng nợ còn lại (chỉ tính nợ chưa thanh toán hết và chưa hủy)
     for (var d in debts) {
-      final int remain = (d['totalAmount'] ?? 0) - (d['paidAmount'] ?? 0);
-      if (remain > 0) debtR += remain;
+      final status = d['status']?.toString().toUpperCase() ?? '';
+      // Bỏ qua nếu đã thanh toán hoặc đã hủy
+      if (status == 'PAID' || status == 'CANCELLED') continue;
+      
+      final int totalAmount = (d['totalAmount'] ?? 0) as int;
+      final int paidAmount = (d['paidAmount'] ?? 0) as int;
+      final int remain = totalAmount - paidAmount;
+      if (remain > 0 && totalAmount > 0) debtR += remain;
     }
 
     // Tính tổng số dữ liệu local (để biết máy mới hay không)
@@ -1282,16 +1290,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               icon: Icon(Icons.search, color: AppColors.primary, size: 28),
               tooltip: 'Tìm kiếm toàn app',
             ),
-            IconButton(
-              onPressed: () => _syncNow(),
-              icon: _isSyncing
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(Icons.sync, color: AppColors.success, size: 28),
-            ),
+            // Unified sync button - gom tất cả chức năng sync vào 1 nơi
+            const UnifiedSyncButton(),
             IconButton(
               onPressed: () async {
                 await SyncService.cancelAllSubscriptions();
@@ -2563,14 +2563,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             subtitle: "Xem, tìm kiếm và theo dõi tất cả đơn sửa chữa.",
           ),
           _tabMenuItem(
-            "Kho phụ tùng",
+            "Kho Linh Kiện",
             Icons.build,
             Colors.orange,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const PartsInventoryView()),
             ),
-            subtitle: "Quản lý tồn kho phụ tùng cho sửa chữa.",
+            subtitle: "Quản lý tồn Kho Linh Kiện cho sửa chữa.",
           ),
         ],
       ),

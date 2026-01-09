@@ -10,6 +10,7 @@ import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/supplier_service.dart';
 import '../services/event_bus.dart';
+import '../services/sync_orchestrator.dart';
 import '../utils/money_utils.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -35,7 +36,7 @@ class _StockInViewState extends State<StockInView> {
   final modelCtrl = TextEditingController();
   final capacityCtrl = TextEditingController();
   final colorCtrl = TextEditingController();
-  final conditionCtrl = TextEditingController(text: 'Mới 100%');
+  final conditionCtrl = TextEditingController(text: 'MỚI');
   final imeiCtrl = TextEditingController();
   final quantityCtrl = TextEditingController(text: '1');
   final costCtrl = TextEditingController();
@@ -128,7 +129,7 @@ class _StockInViewState extends State<StockInView> {
       modelCtrl.text = data['model'] ?? '';
       capacityCtrl.text = data['capacity'] ?? '';
       colorCtrl.text = data['color'] ?? '';
-      conditionCtrl.text = data['condition'] ?? 'Mới 100%';
+      conditionCtrl.text = data['condition'] ?? 'MỚI';
       imeiCtrl.text = data['imei'] ?? '';
       quantityCtrl.text = data['quantity']?.toString() ?? '1';
       costCtrl.text = data['cost'] != null ? CurrencyTextField.formatDisplay(data['cost'] as int) : '';
@@ -146,7 +147,7 @@ class _StockInViewState extends State<StockInView> {
       _modelChanged = modelCtrl.text.isNotEmpty;
       _capacityChanged = capacityCtrl.text.isNotEmpty;
       _colorChanged = colorCtrl.text.isNotEmpty;
-      _conditionChanged = conditionCtrl.text != 'Mới 100%';
+      _conditionChanged = conditionCtrl.text != 'MỚI';
       _imeiChanged = imeiCtrl.text.isNotEmpty;
       _quantityChanged = quantityCtrl.text != '1';
       _costChanged = costCtrl.text.isNotEmpty;
@@ -336,6 +337,7 @@ class _StockInViewState extends State<StockInView> {
         status: 1,
         description: notesCtrl.text.trim(),
         createdAt: ts,
+        updatedAt: ts, // Thêm updatedAt để sort đúng
         supplier: supplierCtrl.text,
         type: typeCtrl.text,
         quantity: quantity,
@@ -353,10 +355,27 @@ class _StockInViewState extends State<StockInView> {
       }
 
       await db.upsertProduct(product);
-      final cloudResult = await FirestoreService.addProduct(product);
-      if (cloudResult == null) {
-        throw Exception("Lỗi đồng bộ với cloud. Vui lòng kiểm tra kết nối mạng!");
+      
+      // Generate firestoreId if needed and queue sync
+      if (product.firestoreId == null || product.firestoreId!.isEmpty) {
+        final shopId = await UserService.getCurrentShopId();
+        product.firestoreId = 'product_${shopId}_${DateTime.now().millisecondsSinceEpoch}';
       }
+      product.isSynced = false;
+      await db.upsertProduct(product);
+      
+      // Get product ID after upsert
+      final productFromDb = await db.getProductByFirestoreId(product.firestoreId!);
+      final productId = productFromDb?.id ?? 0;
+      
+      // Queue sync via SyncOrchestrator
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.product,
+        entityId: productId,
+        firestoreId: product.firestoreId,
+        operation: SyncOperation.create,
+        data: product.toMap(),
+      );
 
       // Lưu lịch sử nhập hàng từ nhà cung cấp
       if (supplierCtrl.text.isNotEmpty) {
@@ -449,7 +468,15 @@ class _StockInViewState extends State<StockInView> {
         debt.firestoreId = "debt_${ts}_${supplierPhone.isNotEmpty ? supplierPhone : supplierCtrl.text.hashCode}";
         try {
           await db.upsertDebt(debt);
-          await FirestoreService.addDebtCloud(debt.toMap());
+          // Get debt ID after upsert and queue sync
+          final debtId = await db.getDebtIdByFirestoreId(debt.firestoreId!);
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.debt,
+            entityId: debtId ?? 0,
+            firestoreId: debt.firestoreId,
+            operation: SyncOperation.create,
+            data: debt.toMap(),
+          );
         } catch (e) {
           debugPrint('StockIn: Debt creation error: $e');
           NotificationService.showSnackBar("Lỗi tạo công nợ: $e", color: Colors.red);
@@ -473,6 +500,8 @@ class _StockInViewState extends State<StockInView> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
+      final shopId = await UserService.getCurrentShopId();
+      final firestoreId = 'expense_${shopId}_${DateTime.now().millisecondsSinceEpoch}';
 
       final expense = {
         'amount': product.cost * product.quantity,
@@ -483,13 +512,21 @@ class _StockInViewState extends State<StockInView> {
         'linkedId': product.firestoreId,
         'paymentMethod': selectedPaymentMethod,
         'isSynced': false,
+        'firestoreId': firestoreId,
+        'shopId': shopId,
       };
 
       // Thêm vào local DB
-      await db.insertExpense(expense);
+      final expenseId = await db.insertExpense(expense);
 
-      // Sync to Firestore
-      await FirestoreService.addExpenseCloud(expense);
+      // Queue sync via SyncOrchestrator
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.expense,
+        entityId: expenseId,
+        firestoreId: firestoreId,
+        operation: SyncOperation.create,
+        data: expense,
+      );
 
       // Notify expense change
       EventBus().emit('expenses_changed');

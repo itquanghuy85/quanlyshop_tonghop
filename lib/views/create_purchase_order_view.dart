@@ -12,6 +12,7 @@ import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 
@@ -198,39 +199,67 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
         await db.upsertDebt(debt);
         debugPrint('Purchase order debt created successfully');
 
-        // Sync to Firestore
-        await FirestoreService.addDebtCloud(debt.toMap());
+        // Queue sync to Firestore via SyncOrchestrator
+        final debtId = await db.getDebtIdByFirestoreId(debt.firestoreId!);
+        if (debtId != null) {
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.debt,
+            entityId: debtId,
+            firestoreId: debt.firestoreId,
+            operation: SyncOperation.create,
+            data: debt.toMap(),
+          );
+        }
 
         // Notify UI update
         EventBus().emit('debts_changed');
       } else {
         // If payment method is cash/bank transfer, create expense record
+        final ts = DateTime.now().millisecondsSinceEpoch;
+        final fId = "exp_purchase_${ts}";
         final exp = {
+          'firestoreId': fId,
           'title': 'Đơn nhập hàng ${order.orderCode}',
           'amount': order.totalCost,
           'category': 'PURCHASE',
-          'date': DateTime.now().millisecondsSinceEpoch,
+          'date': ts,
           'note': 'Thanh toán đơn nhập hàng từ ${supplierNameCtrl.text.trim()}',
           'paymentMethod': _paymentMethod,
-          'createdAt': DateTime.now().millisecondsSinceEpoch,
+          'createdAt': ts,
         };
-        await db.insertExpense(exp);
-        await FirestoreService.addExpenseCloud(exp);
+        final expenseId = await db.insertExpense(exp);
+        
+        // Queue sync to Firestore via SyncOrchestrator
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.expense,
+          entityId: expenseId,
+          firestoreId: fId,
+          operation: SyncOperation.create,
+          data: exp,
+        );
         EventBus().emit('expenses_changed');
       }
 
-      // Save to Firestore
-      final firestoreId = await FirestoreService.addPurchaseOrder(order);
-      if (firestoreId != null) {
-        order.firestoreId = firestoreId;
-        await db.updatePurchaseOrder(order);
+      // Generate firestoreId and save to local DB
+      final firestoreId = order.firestoreId ?? "po_${order.createdAt}_${order.orderCode}";
+      order.firestoreId = firestoreId;
+      await db.updatePurchaseOrder(order);
 
-        // CẬP NHẬT INVENTORY TRONG LOCAL DB
-        // await _updateLocalInventoryFromPurchaseOrder(order);
+      // Queue sync via SyncOrchestrator
+      final orderId = await db.getPurchaseOrderIdByFirestoreId(firestoreId);
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.purchaseOrder,
+        entityId: orderId ?? 0,
+        firestoreId: firestoreId,
+        operation: SyncOperation.create,
+        data: order.toMap(),
+      );
 
-        // THÊM CHI PHÍ NHẬP HÀNG VÀO TRANG CHI PHÍ
-        await _addPurchaseExpense(order);
-      }
+      // CẬP NHẬT INVENTORY TRONG LOCAL DB
+      // await _updateLocalInventoryFromPurchaseOrder(order);
+
+      // THÊM CHI PHÍ NHẬP HÀNG VÀO TRANG CHI PHÍ
+      await _addPurchaseExpense(order);
 
       if (mounted) {
         Navigator.pop(context);
@@ -583,22 +612,31 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
   // THÊM CHI PHÍ NHẬP HÀNG VÀO TRANG CHI PHÍ
   Future<void> _addPurchaseExpense(PurchaseOrder order) async {
     try {
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final fId = "exp_purchase_add_${ts}_${order.orderCode}";
       final expense = {
+        'firestoreId': fId,
         'amount': order.totalCost,
         'category': 'NHẬP HÀNG',
         'description': 'Nhập hàng từ ${order.supplierName} - ${order.orderCode}',
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'createdAt': ts,
         'createdBy': _currentUserName,
         'linkedId': order.orderCode,
         'paymentMethod': order.paymentMethod ?? 'TIỀN MẶT',
-        'isSynced': false,
+        'isSynced': 0,
       };
 
       // Thêm vào local DB
-      await db.insertExpense(expense);
+      final expenseId = await db.insertExpense(expense);
 
-      // Sync to Firestore
-      await FirestoreService.addExpenseCloud(expense);
+      // Queue sync to Firestore via SyncOrchestrator
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.expense,
+        entityId: expenseId,
+        firestoreId: fId,
+        operation: SyncOperation.create,
+        data: expense,
+      );
 
       debugPrint('Đã thêm chi phí nhập hàng: ${order.totalCost} cho đơn ${order.orderCode}');
     } catch (e) {

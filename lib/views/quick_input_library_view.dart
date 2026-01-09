@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../data/db_helper.dart';
 import '../models/quick_input_code_model.dart';
-import '../models/product_model.dart';
 import '../services/sync_service.dart';
 import '../services/notification_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
-import 'fast_stock_in_view.dart';
 import 'quick_input_sync_check_view.dart';
 import 'stock_in_view.dart';
 
@@ -115,6 +114,17 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
 
     if (confirm == true) {
       try {
+        // Queue delete sync via SyncOrchestrator
+        if (code.firestoreId != null && code.firestoreId!.isNotEmpty) {
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.quickInputCode,
+            entityId: code.id!,
+            firestoreId: code.firestoreId,
+            operation: SyncOperation.delete,
+            data: {'firestoreId': code.firestoreId},
+          );
+        }
+        // Sau đó xóa local
         await db.deleteQuickInputCode(code.id!);
         await _loadCodes();
         NotificationService.showSnackBar('Đã xóa mã nhập nhanh', color: Colors.green);
@@ -676,7 +686,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                 controller: _nameCtrl,
                 label: 'Tên mã nhập nhanh',
                 uppercase: true,
-                customValidator: (val) => val?.isEmpty ?? true ? 'Vui lòng nhập tên' : null,
+                customValidator: (val) => val.isEmpty ? 'Vui lòng nhập tên' : null,
               ),
               const SizedBox(height: 12),
 

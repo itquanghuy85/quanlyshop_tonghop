@@ -11,15 +11,186 @@ import '../models/debt_model.dart';
 import '../models/attendance_model.dart';
 import '../models/customer_model.dart';
 import '../models/quick_input_code_model.dart';
-import '../models/supplier_model.dart';
-import '../models/repair_partner_model.dart';
 import 'storage_service.dart';
 import 'user_service.dart';
 import 'encryption_service.dart';
+import 'sync_orchestrator.dart';
 
 class SyncService {
   static final _db = FirebaseFirestore.instance;
   static final List<StreamSubscription> _subscriptions = [];
+
+  /// Helper: Lấy timestamp từ data (hỗ trợ cả Timestamp và int)
+  static int _getTimestamp(dynamic value) {
+    if (value == null) return 0;
+    if (value is Timestamp) return value.millisecondsSinceEpoch;
+    if (value is int) return value;
+    return 0;
+  }
+
+  /// Helper: So sánh updatedAt để quyết định có ghi đè local hay không
+  /// Returns: true nếu cloud data mới hơn hoặc bằng, false nếu local mới hơn
+  static Future<bool> _shouldAcceptCloudData({
+    required String collection,
+    required String firestoreId,
+    required Map<String, dynamic> cloudData,
+  }) async {
+    final db = DBHelper();
+    final cloudUpdatedAt = _getTimestamp(cloudData['updatedAt']);
+    
+    // Nếu cloud không có updatedAt, dùng createdAt
+    final cloudTime = cloudUpdatedAt > 0 
+        ? cloudUpdatedAt 
+        : _getTimestamp(cloudData['createdAt']);
+    
+    int localUpdatedAt = 0;
+    bool localIsSynced = true;
+    
+    try {
+      switch (collection) {
+        case 'repairs':
+          final local = await db.getRepairByFirestoreId(firestoreId);
+          if (local != null) {
+            // Repair model doesn't have updatedAt, use lastCaredAt or createdAt
+            localUpdatedAt = local.lastCaredAt ?? local.createdAt;
+            localIsSynced = local.isSynced;
+          }
+          break;
+        case 'sales':
+          final local = await db.getSaleByFirestoreId(firestoreId);
+          if (local != null) {
+            // SaleOrder model doesn't have updatedAt, use soldAt
+            localUpdatedAt = local.soldAt;
+            localIsSynced = local.isSynced;
+          }
+          break;
+        case 'products':
+          final local = await db.getProductByFirestoreId(firestoreId);
+          if (local != null) {
+            localUpdatedAt = local.updatedAt ?? local.createdAt;
+            localIsSynced = local.isSynced;
+          }
+          break;
+        case 'expenses':
+          final local = await db.getExpenseByFirestoreId(firestoreId);
+          if (local != null) {
+            // Expense model không có updatedAt, dùng date làm thời gian tham chiếu
+            localUpdatedAt = local.date;
+            localIsSynced = local.isSynced;
+          }
+          break;
+        case 'debts':
+          final local = await db.getDebtByFirestoreId(firestoreId);
+          if (local != null) {
+            localUpdatedAt = local['updatedAt'] as int? ?? local['createdAt'] as int? ?? 0;
+            localIsSynced = (local['isSynced'] as int?) == 1;
+          }
+          break;
+        default:
+          // Các collection khác: luôn accept cloud data
+          return true;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Conflict check error for $collection/$firestoreId: $e');
+      return true; // Nếu lỗi, accept cloud data
+    }
+    
+    // Nếu local chưa tồn tại → accept cloud
+    if (localUpdatedAt == 0) {
+      debugPrint('✅ SYNC: $collection/$firestoreId - Local không tồn tại, accept cloud');
+      return true;
+    }
+    
+    // Nếu local đã sync (không có thay đổi pending) → accept cloud
+    if (localIsSynced) {
+      debugPrint('✅ SYNC: $collection/$firestoreId - Local đã sync, accept cloud');
+      return true;
+    }
+    
+    // Local có thay đổi chưa sync → so sánh timestamp
+    if (cloudTime >= localUpdatedAt) {
+      debugPrint('✅ SYNC: $collection/$firestoreId - Cloud mới hơn (cloud: $cloudTime >= local: $localUpdatedAt), accept cloud');
+      return true;
+    } else {
+      debugPrint('🔒 SYNC: $collection/$firestoreId - Local mới hơn (local: $localUpdatedAt > cloud: $cloudTime), SKIP cloud, enqueue local');
+      // Enqueue local data để push lên cloud
+      await _enqueueLocalForSync(collection, firestoreId);
+      return false;
+    }
+  }
+
+  /// Helper: Enqueue local data để push lên cloud khi local mới hơn
+  static Future<void> _enqueueLocalForSync(String collection, String firestoreId) async {
+    final db = DBHelper();
+    final orchestrator = SyncOrchestrator();
+    
+    try {
+      switch (collection) {
+        case 'repairs':
+          final local = await db.getRepairByFirestoreId(firestoreId);
+          if (local != null && local.id != null) {
+            await orchestrator.enqueue(
+              entityType: SyncEntityType.repair,
+              entityId: local.id!,
+              firestoreId: firestoreId,
+              operation: SyncOperation.update,
+              data: local.toMap(),
+            );
+          }
+          break;
+        case 'sales':
+          final local = await db.getSaleByFirestoreId(firestoreId);
+          if (local != null && local.id != null) {
+            await orchestrator.enqueue(
+              entityType: SyncEntityType.sale,
+              entityId: local.id!,
+              firestoreId: firestoreId,
+              operation: SyncOperation.update,
+              data: local.toMap(),
+            );
+          }
+          break;
+        case 'products':
+          final local = await db.getProductByFirestoreId(firestoreId);
+          if (local != null && local.id != null) {
+            await orchestrator.enqueue(
+              entityType: SyncEntityType.product,
+              entityId: local.id!,
+              firestoreId: firestoreId,
+              operation: SyncOperation.update,
+              data: local.toMap(),
+            );
+          }
+          break;
+        case 'expenses':
+          final local = await db.getExpenseByFirestoreId(firestoreId);
+          if (local != null && local.id != null) {
+            await orchestrator.enqueue(
+              entityType: SyncEntityType.expense,
+              entityId: local.id!,
+              firestoreId: firestoreId,
+              operation: SyncOperation.update,
+              data: local.toMap(),
+            );
+          }
+          break;
+        case 'debts':
+          final local = await db.getDebtByFirestoreId(firestoreId);
+          if (local != null && local['id'] != null) {
+            await orchestrator.enqueue(
+              entityType: SyncEntityType.debt,
+              entityId: local['id'] as int,
+              firestoreId: firestoreId,
+              operation: SyncOperation.update,
+              data: local,
+            );
+          }
+          break;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to enqueue local $collection/$firestoreId: $e');
+    }
+  }
 
   /// Khởi tạo đồng bộ thời gian thực
   static Future<void> initRealTimeSync(VoidCallback onDataChanged) async {
@@ -68,12 +239,21 @@ class SyncService {
               "SYNC_TRACE: Deleted repair $docId from local DB (deleted=true in Firestore)",
             );
           } else {
-            data['firestoreId'] = docId;
-            data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
-            await db.upsertRepair(Repair.fromMap(data));
-            debugPrint(
-              "SYNC_TRACE: Upserted repair $docId to local DB SUCCESSFULLY",
+            // CONFLICT RESOLUTION: So sánh updatedAt
+            final shouldAccept = await _shouldAcceptCloudData(
+              collection: 'repairs',
+              firestoreId: docId,
+              cloudData: data,
             );
+            
+            if (shouldAccept) {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+              await db.upsertRepair(Repair.fromMap(data));
+              debugPrint(
+                "SYNC_TRACE: Upserted repair $docId to local DB SUCCESSFULLY",
+              );
+            }
           }
         } catch (e) {
           debugPrint("SYNC_TRACE: Error syncing repair $docId: $e");
@@ -98,12 +278,21 @@ class SyncService {
               "SYNC_TRACE: Deleted sale $docId from local DB (deleted=true in Firestore)",
             );
           } else {
-            data['firestoreId'] = docId;
-            data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
-            await db.upsertSale(SaleOrder.fromMap(data));
-            debugPrint(
-              "SYNC_TRACE: Upserted sale $docId to local DB SUCCESSFULLY",
+            // CONFLICT RESOLUTION: So sánh updatedAt
+            final shouldAccept = await _shouldAcceptCloudData(
+              collection: 'sales',
+              firestoreId: docId,
+              cloudData: data,
             );
+            
+            if (shouldAccept) {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+              await db.upsertSale(SaleOrder.fromMap(data));
+              debugPrint(
+                "SYNC_TRACE: Upserted sale $docId to local DB SUCCESSFULLY",
+              );
+            }
           }
         } catch (e) {
           debugPrint("SYNC_TRACE: Error syncing sale $docId: $e");
@@ -122,9 +311,18 @@ class SyncService {
           if (data['deleted'] == true) {
             await db.deleteProductByFirestoreId(docId);
           } else {
-            data['firestoreId'] = docId;
-            data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
-            await db.upsertProduct(Product.fromMap(data));
+            // CONFLICT RESOLUTION: So sánh updatedAt
+            final shouldAccept = await _shouldAcceptCloudData(
+              collection: 'products',
+              firestoreId: docId,
+              cloudData: data,
+            );
+            
+            if (shouldAccept) {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+              await db.upsertProduct(Product.fromMap(data));
+            }
           }
         } catch (e) {
           debugPrint("Lỗi sync product $docId: $e");
@@ -143,9 +341,18 @@ class SyncService {
           if (data['deleted'] == true) {
             await db.deleteExpenseByFirestoreId(docId);
           } else {
-            data['firestoreId'] = docId;
-            data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
-            await db.upsertExpense(Expense.fromMap(data));
+            // CONFLICT RESOLUTION: So sánh updatedAt
+            final shouldAccept = await _shouldAcceptCloudData(
+              collection: 'expenses',
+              firestoreId: docId,
+              cloudData: data,
+            );
+            
+            if (shouldAccept) {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+              await db.upsertExpense(Expense.fromMap(data));
+            }
           }
         } catch (e) {
           debugPrint("Lỗi sync expense $docId: $e");
@@ -164,9 +371,18 @@ class SyncService {
           if (data['deleted'] == true) {
             await db.deleteDebtByFirestoreId(docId);
           } else {
-            data['firestoreId'] = docId;
-            data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
-            await db.upsertDebt(Debt.fromMap(data));
+            // CONFLICT RESOLUTION: So sánh updatedAt
+            final shouldAccept = await _shouldAcceptCloudData(
+              collection: 'debts',
+              firestoreId: docId,
+              cloudData: data,
+            );
+            
+            if (shouldAccept) {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+              await db.upsertDebt(Debt.fromMap(data));
+            }
           }
         } catch (e) {
           debugPrint("Lỗi sync debt $docId: $e");
@@ -397,6 +613,17 @@ class SyncService {
             } else {
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+              // Chuyển đổi Timestamp sang milliseconds cho SQLite
+              if (data['createdAt'] is Timestamp) {
+                data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
+              }
+              // Map userName từ cloud
+              data['userName'] = data['userName'] ?? data['email']?.toString().split('@').first.toUpperCase() ?? 'SYSTEM';
+              // Map description từ summary
+              data['description'] = data['summary'] ?? data['description'] ?? '';
+              // Map targetType và targetId từ entityType và entityId
+              data['targetType'] = data['targetType'] ?? data['entityType'] ?? '';
+              data['targetId'] = data['targetId'] ?? data['entityId'] ?? '';
               await db.upsertAuditLog(data);
             }
           } catch (e) {
@@ -407,6 +634,31 @@ class SyncService {
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo audit_logs sync: $e");
+    }
+
+    // 16. Đồng bộ REPAIR PARTS (Kho linh kiện)
+    try {
+      _subscribeToCollection(
+        collection: 'repair_parts',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteRepairPartByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+              await db.upsertRepairPart(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync repair_part $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo repair_parts sync: $e");
     }
 
     debugPrint(
@@ -449,6 +701,63 @@ class SyncService {
     }, onError: (e) => debugPrint("Sync error in $collection: $e"));
 
     _subscriptions.add(sub);
+  }
+
+  /// Helper để xóa record local theo firestoreId khi cloud record đã bị soft-delete
+  static Future<void> _deleteLocalByFirestoreId(
+    DBHelper db,
+    String collection,
+    String firestoreId,
+  ) async {
+    try {
+      switch (collection) {
+        case 'repairs':
+          await db.deleteRepairByFirestoreId(firestoreId);
+          break;
+        case 'products':
+          await db.deleteProductByFirestoreId(firestoreId);
+          break;
+        case 'sales':
+          await db.deleteSaleByFirestoreId(firestoreId);
+          break;
+        case 'expenses':
+          await db.deleteExpenseByFirestoreId(firestoreId);
+          break;
+        case 'debts':
+          await db.deleteDebtByFirestoreId(firestoreId);
+          break;
+        case 'debt_payments':
+          await db.deleteDebtPaymentByFirestoreId(firestoreId);
+          break;
+        case 'attendance':
+          await db.deleteAttendanceByFirestoreId(firestoreId);
+          break;
+        case 'quick_input_codes':
+          await db.deleteQuickInputCodeByFirestoreId(firestoreId);
+          break;
+        case 'supplier_payments':
+          await db.deleteSupplierPaymentByFirestoreId(firestoreId);
+          break;
+        case 'repair_partner_payments':
+          await db.deleteRepairPartnerPaymentByFirestoreId(firestoreId);
+          break;
+        case 'customers':
+          await db.deleteCustomerByFirestoreId(firestoreId);
+          break;
+        case 'suppliers':
+          await db.deleteSupplierByFirestoreId(firestoreId);
+          break;
+        case 'repair_partners':
+          await db.deleteRepairPartnerByFirestoreId(firestoreId);
+          break;
+        case 'repair_parts':
+          await db.deleteRepairPartByFirestoreId(firestoreId);
+          break;
+      }
+      debugPrint("  -> Deleted local $collection record: $firestoreId (soft-deleted on cloud)");
+    } catch (e) {
+      debugPrint("  -> Error deleting local $collection $firestoreId: $e");
+    }
   }
 
   static Future<void> cancelAllSubscriptions() async {
@@ -1004,6 +1313,42 @@ class SyncService {
         debugPrint("Lỗi sync audit logs collection: $e");
       }
 
+      // Đồng bộ Repair Parts (Kho linh kiện)
+      try {
+        final repairParts = await dbHelper.getUnsyncedRepairParts();
+        debugPrint(
+          "syncAllToCloud: có ${repairParts.length} repair parts cần sync",
+        );
+        if (repairParts.isNotEmpty) {
+          final WriteBatch partsBatch = _db.batch();
+          for (var partMap in repairParts) {
+            try {
+              Map<String, dynamic> data = Map<String, dynamic>.from(partMap);
+              data['shopId'] = shopId;
+              final localId = data['id'];
+              data.remove('id');
+
+              final docId =
+                  partMap['firestoreId'] ??
+                  "part_${data['createdAt']}_${data['partName'].toString().replaceAll(' ', '_')}";
+              partsBatch.set(
+                _db.collection('repair_parts').doc(docId),
+                data,
+                SetOptions(merge: true),
+              );
+
+              // Update local với firestoreId và isSynced
+              await dbHelper.updateRepairPartSynced(localId, docId);
+            } catch (e) {
+              debugPrint("Lỗi sync repair part ${partMap['id']}: $e");
+            }
+          }
+          await partsBatch.commit();
+        }
+      } catch (e) {
+        debugPrint("Lỗi sync repair parts collection: $e");
+      }
+
       debugPrint("Đã hoàn thành đồng bộ toàn bộ dữ liệu lên Cloud.");
     } catch (e) {
       debugPrint("Lỗi syncAllToCloud: $e");
@@ -1038,7 +1383,7 @@ class SyncService {
 
       // Log local data counts before sync
       final localRepairs = await db.getAllRepairs();
-      final localProducts = await db.getInStockProducts();
+      final localProducts = await db.getAllProducts();
       final localSales = await db.getAllSales();
       final localAttendance = await db.getAllAttendance();
       debugPrint(
@@ -1060,6 +1405,7 @@ class SyncService {
         'customers',
         'suppliers',
         'repair_partners',
+        'repair_parts',
       ];
       // Lưu ý: 'users' và 'shops' không có shopId field nên không tải ở đây
       // 'supplier_import_history' và 'supplier_product_prices' quản lý locally
@@ -1082,6 +1428,8 @@ class SyncService {
             try {
               var data = doc.data();
               if (data['deleted'] == true) {
+                // Xóa record local nếu đã bị soft-delete trên cloud
+                await _deleteLocalByFirestoreId(db, col, doc.id);
                 skipCount++;
                 continue; // Skip soft-deleted documents
               }
@@ -1117,6 +1465,8 @@ class SyncService {
                 await db.upsertSupplier(data);
               } else if (col == 'repair_partners') {
                 await db.upsertRepairPartner(data);
+              } else if (col == 'repair_parts') {
+                await db.upsertRepairPart(data);
               }
               successCount++;
             } catch (e) {
@@ -1134,7 +1484,7 @@ class SyncService {
 
       // Log local data counts after sync
       final localRepairsAfter = await db.getAllRepairs();
-      final localProductsAfter = await db.getInStockProducts();
+      final localProductsAfter = await db.getAllProducts();
       final localSalesAfter = await db.getAllSales();
       final localAttendanceAfter = await db.getAllAttendance();
       final localExpenses = await db.getAllExpensesForSync();

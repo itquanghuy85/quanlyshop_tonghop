@@ -4,11 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/supplier_model.dart';
 import '../services/supplier_service.dart';
 import '../data/db_helper.dart';
-import '../core/utils/money_utils.dart';
+import '../utils/money_utils.dart';
 import '../services/notification_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
+import '../services/sync_orchestrator.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -47,7 +48,7 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
     try {
       final imports = await _db.getSupplierImportHistory(widget.supplier.id!);
       final debts = (await _db.getAllDebts())
-          .where((d) => d['type'] == 'SHOP_OWES' && (d['personName'] ?? '').toString().toUpperCase() == widget.supplier.name.toUpperCase())
+          .where((d) => d['type'] == 'SHOP_OWES' && (d['personName'] ?? '').toString().toUpperCase() == widget.supplier.name.toUpperCase() && (d['deleted'] ?? 0) != 1)
           .toList();
       final List<Map<String, dynamic>> payments = [];
       for (final d in debts) {
@@ -127,7 +128,7 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Ngày: $date', style: AppTextStyles.caption),
-                Text('Số tiền: ${MoneyUtils.formatVND(h['totalAmount'] as int? ?? 0)}', style: AppTextStyles.caption),
+                Text('Số tiền: ${MoneyUtils.formatCurrency(h['totalAmount'] as int? ?? 0)}', style: AppTextStyles.caption),
                 if (h['notes'] != null) Text('Ghi chú: ${h['notes']}', style: AppTextStyles.caption),
               ],
             ),
@@ -185,10 +186,10 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _statRow('Tổng nhập', MoneyUtils.formatVND(totalImport)),
-          _statRow('Đã thanh toán', MoneyUtils.formatVND(totalPaid)),
+          _statRow('Tổng nhập', MoneyUtils.formatCurrency(totalImport)),
+          _statRow('Đã thanh toán', MoneyUtils.formatCurrency(totalPaid)),
           _statRow('Số lần giao dịch', '$totalImports lần'),
-          _statRow('Trung bình/đơn', MoneyUtils.formatVND(avg)),
+          _statRow('Trung bình/đơn', MoneyUtils.formatCurrency(avg)),
         ],
       ),
     );
@@ -221,7 +222,7 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
           children: [
             Text(label, style: AppTextStyles.caption.copyWith(color: color)),
             const SizedBox(height: 4),
-            Text(MoneyUtils.formatVND(value), style: AppTextStyles.headline6.copyWith(color: color)),
+            Text(MoneyUtils.formatCurrency(value), style: AppTextStyles.headline6.copyWith(color: color)),
           ],
         ),
       ),
@@ -233,12 +234,12 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
     final date = DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(d['createdAt'] as int? ?? 0));
     return Card(
       child: ListTile(
-        title: Text('Nợ ${MoneyUtils.formatVND(d['totalAmount'] as int? ?? 0)}', style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold)),
+        title: Text('Nợ ${MoneyUtils.formatCurrency(d['totalAmount'] as int? ?? 0)}', style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Ngày tạo: $date', style: AppTextStyles.caption),
-            Text('Đã trả: ${MoneyUtils.formatVND(d['paidAmount'] as int? ?? 0)} | Còn: ${MoneyUtils.formatVND(remain)}', style: AppTextStyles.caption),
+            Text('Đã trả: ${MoneyUtils.formatCurrency(d['paidAmount'] as int? ?? 0)} | Còn: ${MoneyUtils.formatCurrency(remain)}', style: AppTextStyles.caption),
             if (d['note'] != null) Text('Ghi chú: ${d['note']}', style: AppTextStyles.caption),
           ],
         ),
@@ -251,7 +252,7 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
     return Card(
       child: ListTile(
         leading: const Icon(Icons.check_circle, color: Colors.green),
-        title: Text('+ ${MoneyUtils.formatVND(p['amount'] as int? ?? 0)}'),
+        title: Text('+ ${MoneyUtils.formatCurrency(p['amount'] as int? ?? 0)}'),
         subtitle: Text('$date | ${p['paymentMethod'] ?? ''}'),
         trailing: Text(p['note'] ?? '', style: AppTextStyles.caption),
       ),
@@ -259,6 +260,7 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
   }
 
   Future<void> _payDialog() async {
+    final formKey = GlobalKey<FormState>();
     final payCtrl = TextEditingController();
     String method = 'TIỀN MẶT';
     String note = '';
@@ -266,37 +268,54 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Thanh toán NCC'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: payCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Số tiền'),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: ['TIỀN MẶT', 'CHUYỂN KHOẢN'].map((m) => ChoiceChip(label: Text(m), selected: method == m, onSelected: (v) => setState(() => method = m))).toList(),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              onChanged: (v) => note = v,
-              decoration: const InputDecoration(labelText: 'Ghi chú'),
-            ),
-          ],
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: payCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                decoration: const InputDecoration(labelText: 'Số tiền'),
+                validator: (v) => MoneyUtils.validateAmount(
+                  v ?? '',
+                  min: 1,
+                  max: _remainDebt,
+                  fieldName: 'Số tiền',
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: ['TIỀN MẶT', 'CHUYỂN KHOẢN']
+                    .map((m) => ChoiceChip(
+                          label: Text(m),
+                          selected: method == m,
+                          onSelected: (v) => setState(() => method = m),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                onChanged: (v) => note = v,
+                decoration: const InputDecoration(labelText: 'Ghi chú'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('HỦY')),
-          ElevatedButton(onPressed: () async {
-            final amount = int.tryParse(payCtrl.text.replaceAll('.', '')) ?? 0;
-            if (amount <= 0 || amount > _remainDebt) {
-              NotificationService.showSnackBar('Số tiền không hợp lệ', color: Colors.red);
-              return;
-            }
-            await _confirmPay(amount, method, note);
-            if (mounted) Navigator.pop(ctx);
-          }, child: const Text('XÁC NHẬN')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+              final raw = MoneyUtils.parseCurrency(payCtrl.text);
+              final amount = raw > 0 && raw < 100000 ? raw * 1000 : raw;
+              await _confirmPay(amount, method, note);
+              if (mounted) Navigator.pop(ctx);
+            },
+            child: const Text('XÁC NHẬN'),
+          ),
         ],
       ),
     );
@@ -317,13 +336,26 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
         'note': note,
         'createdBy': FirebaseAuth.instance.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV',
       };
-      await _db.insertDebtPayment(paymentData);
-      // Sync debt payment lên cloud
-      await FirestoreService.addDebtPaymentCloud(paymentData);
+      final paymentId = await _db.insertDebtPayment(paymentData);
+      // Queue debt payment sync via SyncOrchestrator
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.debtPayment,
+        entityId: paymentId,
+        firestoreId: paymentData['firestoreId'] as String?,
+        operation: SyncOperation.create,
+        data: paymentData,
+      );
       await _db.updateDebtPaid(debtId, amount);
       final allDebts = await _db.getAllDebts();
       final updated = allDebts.firstWhere((e) => e['id'] == debtId);
-      await FirestoreService.addDebtCloud(Map<String, dynamic>.from(updated));
+      // Queue debt update sync via SyncOrchestrator
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.debt,
+        entityId: debtId,
+        firestoreId: updated['firestoreId'] as String?,
+        operation: SyncOperation.update,
+        data: Map<String, dynamic>.from(updated),
+      );
       EventBus().emit('debts_changed');
       NotificationService.showSnackBar('Đã ghi thanh toán', color: Colors.green);
       await _load();

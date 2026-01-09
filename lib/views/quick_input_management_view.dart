@@ -4,6 +4,8 @@ import '../models/quick_input_code_model.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_service.dart';
+import '../services/firestore_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../data/db_helper.dart';
 import 'stock_in_view.dart';
 
@@ -153,6 +155,17 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView> {
 
     if (confirm == true) {
       try {
+        // Queue delete sync via SyncOrchestrator
+        if (code.firestoreId != null && code.firestoreId!.isNotEmpty) {
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.quickInputCode,
+            entityId: code.id!,
+            firestoreId: code.firestoreId,
+            operation: SyncOperation.delete,
+            data: {'firestoreId': code.firestoreId},
+          );
+        }
+        // Sau đó xóa local
         await db.deleteQuickInputCode(code.id!);
         await _loadCodes();
         NotificationService.showSnackBar('Đã xóa mã nhập nhanh', color: Colors.green);

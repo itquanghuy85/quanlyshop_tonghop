@@ -9,8 +9,10 @@ import '../services/notification_service.dart';
 import '../services/firestore_service.dart';
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../services/unified_printer_service.dart';
-import '../core/utils/money_utils.dart';
+import '../services/adjustment_service.dart';
+import '../utils/money_utils.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../models/repair_partner_model.dart';
@@ -214,13 +216,30 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   }
 
   Future<Repair?> _saveOrderProcess() async {
+    debugPrint('🔧 _saveOrderProcess: Starting...');
+    // Kiểm tra ngày hôm nay đã chốt quỹ chưa
+    final today = DateTime.now();
+    debugPrint('🔧 _saveOrderProcess: Checking canEditDirectly for today...');
+    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    debugPrint('🔧 _saveOrderProcess: canEdit = $canEdit');
+    if (!canEdit && mounted) {
+      NotificationService.showSnackBar(
+        '❌ Ngày hôm nay đã chốt quỹ! Không thể tạo phiếu sửa mới.',
+        color: Colors.red,
+      );
+      return null;
+    }
+    
     if (phoneCtrl.text.isEmpty || modelCtrl.text.isEmpty) {
+      debugPrint('🔧 _saveOrderProcess: Validation failed - phone or model empty');
       NotificationService.showSnackBar(
         "Vui lòng nhập SĐT và Model máy",
         color: Colors.red,
       );
       return null;
     }
+
+    debugPrint('🔧 _saveOrderProcess: Validation passed, starting save...');
 
     setState(() {
       _saving = true;
@@ -267,7 +286,14 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         notes: notesCtrl.text.trim().isNotEmpty ? notesCtrl.text.trim() : null,
       );
 
+      // Lưu local trước
       await db.upsertRepair(r);
+      
+      // Lấy local ID để enqueue
+      final savedRepair = await db.getRepairByFirestoreId(r.firestoreId!);
+      if (savedRepair == null || savedRepair.id == null) {
+        throw Exception('Không thể lưu đơn sửa vào local database');
+      }
 
       // Create customer if not exists
       final existingCustomers = await customerService.getCustomers();
@@ -282,16 +308,19 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         await customerService.addCustomer(newCustomer);
       }
 
-      final cloudDocId = await FirestoreService.addRepair(r);
-      if (cloudDocId == null) throw Exception('Lỗi đồng bộ đám mây');
-
-      // Cập nhật lại firestoreId để tránh tạo bản ghi trùng khi sync
-      final rWithCloudId = r.copyWith(firestoreId: cloudDocId);
-      // Xóa bản ghi tạm nếu có trước khi upsert với ID cloud
-      if (r.firestoreId != null) {
-        await db.deleteRepairByFirestoreId(r.firestoreId!);
-      }
-      await db.upsertRepair(rWithCloudId);
+      // Enqueue sync lên cloud thay vì gọi trực tiếp
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.repair,
+        entityId: savedRepair.id!,
+        firestoreId: r.firestoreId,
+        operation: SyncOperation.create,
+        data: r.toMap(),
+      );
+      
+      // Trigger sync ngay nếu có mạng
+      SyncOrchestrator().syncAll();
+      
+      final rWithCloudId = savedRepair;
       await db.logAction(
         userId: FirebaseAuth.instance.currentUser?.uid ?? "0",
         userName: r.createdBy ?? "NV",
@@ -305,7 +334,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       final service = RepairPartnerService();
       for (var s in _services.where((s) => s.partnerId != null)) {
         final success = await service.createPartnerHistoryForRepair(
-          repairOrderId: cloudDocId,
+          repairOrderId: rWithCloudId.firestoreId!,
           partnerId: s.partnerId!,
           partnerCost: s.cost,
           customerName: r.customerName,
@@ -323,7 +352,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       // Trigger new order notification
       try {
         await NotificationService.sendNewOrderNotification(
-          cloudDocId,
+          rWithCloudId.firestoreId!,
           r.customerName,
           r.price,
         );
@@ -342,18 +371,23 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   }
 
   Future<void> _onlySave() async {
+    debugPrint('🔧 _onlySave: Starting save process...');
     final r = await _saveOrderProcess();
+    debugPrint('🔧 _onlySave: _saveOrderProcess returned: ${r != null ? 'success' : 'null'}');
     if (r != null) {
       HapticFeedback.mediumImpact();
 
       // Notify other views about the new repair
       EventBus().emit('repairs_changed');
 
+      debugPrint('🔧 _onlySave: Calling Navigator.pop...');
       if (mounted) Navigator.pop(context, true);
       NotificationService.showSnackBar(
         "ĐÃ LƯU ĐƠN THÀNH CÔNG",
         color: Colors.green,
       );
+    } else {
+      debugPrint('🔧 _onlySave: Save failed, r is null');
     }
   }
 
@@ -425,6 +459,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   }
 
   void _showAddServiceDialog([RepairService? editService]) {
+    final formKey = GlobalKey<FormState>();
     final serviceCtrl = TextEditingController(
       text: editService?.serviceName ?? '',
     );
@@ -450,38 +485,44 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
           title: Text(editService != null ? "Sửa dịch vụ" : "Thêm dịch vụ"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: serviceCtrl,
-                decoration: const InputDecoration(labelText: "Tên dịch vụ *"),
-                textCapitalization: TextCapitalization.characters,
-              ),
-              const SizedBox(height: 10),
-              CurrencyTextField(
-                controller: costCtrl,
-                label: "Chi phí",
-                required: true,
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<RepairPartner>(
-                decoration: const InputDecoration(
-                  labelText: "Đối tác (tùy chọn)",
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: serviceCtrl,
+                  decoration: const InputDecoration(labelText: "Tên dịch vụ *"),
+                  textCapitalization: TextCapitalization.characters,
+                  validator: (v) => (v ?? '').trim().isEmpty ? 'Vui lòng nhập tên dịch vụ' : null,
                 ),
-                value: selectedPartner,
-                items: [
-                  const DropdownMenuItem(
-                    value: null,
-                    child: Text("Không có đối tác"),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: costCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                  decoration: const InputDecoration(labelText: "Chi phí (VNĐ)"),
+                  validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Chi phí'),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<RepairPartner>(
+                  decoration: const InputDecoration(
+                    labelText: "Đối tác (tùy chọn)",
                   ),
-                  ..._partners.map(
-                    (p) => DropdownMenuItem(value: p, child: Text(p.name)),
-                  ),
-                ],
-                onChanged: (p) => setS(() => selectedPartner = p),
-              ),
-            ],
+                  value: selectedPartner,
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text("Không có đối tác"),
+                    ),
+                    ..._partners.map(
+                      (p) => DropdownMenuItem(value: p, child: Text(p.name)),
+                    ),
+                  ],
+                  onChanged: (p) => setS(() => selectedPartner = p),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -490,15 +531,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
             ),
             ElevatedButton(
               onPressed: () {
-                if (serviceCtrl.text.isEmpty || costCtrl.text.isEmpty) {
-                  NotificationService.showSnackBar(
-                    "Vui lòng nhập tên dịch vụ và chi phí",
-                    color: Colors.red,
-                  );
-                  return;
-                }
-                // Lấy giá trị từ CurrencyTextField và áp dụng rule nhân 1000
-                final cost = MoneyUtils.parseMoney(costCtrl.text);
+                if (!(formKey.currentState?.validate() ?? false)) return;
+                final parsed = MoneyUtils.parseCurrency(costCtrl.text);
+                final cost = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
                 final service = RepairService(
                   serviceName: serviceCtrl.text.trim().toUpperCase(),
                   cost: cost,
@@ -513,6 +548,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                     _services.add(service);
                   }
                 });
+                EventBus().emit('repair_services_changed');
                 Navigator.pop(ctx);
               },
               child: Text(editService != null ? "Cập nhật" : "Thêm"),

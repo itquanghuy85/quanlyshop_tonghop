@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
+import '../utils/money_utils.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
 
@@ -70,14 +70,13 @@ class CurrencyTextField extends StatefulWidget {
   /// Format số thành chuỗi hiển thị (x.xxx.xxx)
   static String formatDisplay(int value) {
     if (value == 0) return '';
-    return NumberFormat('#,###', 'vi_VN').format(value).replaceAll(',', '.');
+    return MoneyUtils.formatCurrency(value).replaceAll(',', '.');
   }
 
   /// Parse chuỗi thành số nguyên - CHỈ PARSE, KHÔNG NHÂN 1000
   /// ⚠️ KHÔNG NÊN DÙNG trực tiếp nếu muốn áp dụng rule x1000
   static int parseValue(String text) {
-    final clean = text.replaceAll(RegExp(r'[^0-9]'), '');
-    return int.tryParse(clean) ?? 0;
+    return MoneyUtils.parseCurrency(text);
   }
 
   /// Parse chuỗi thành số nguyên VỚI RULE NHÂN 1000 nếu < 100000
@@ -162,7 +161,7 @@ class _CurrencyTextFieldState extends State<CurrencyTextField> {
     }
 
     // Parse số từ text
-    final rawAmount = int.tryParse(text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    final rawAmount = MoneyUtils.parseCurrency(text);
 
     if (rawAmount <= 0) {
       widget.controller.clear();

@@ -67,7 +67,6 @@ class SupplierService {
           final data = doc.data();
           final mapped = {
             ...data,
-            'id': data['id'],
             'firestoreId': doc.id,
             'shopId': data['shopId'] ?? shopId ?? '',
             'active': (data['active'] == 1 || data['active'] == true) ? 1 : 0,
@@ -75,9 +74,11 @@ class SupplierService {
             'createdAt': data['createdAt'] ?? DateTime.now().millisecondsSinceEpoch,
             'updatedAt': data['updatedAt'] ?? DateTime.now().millisecondsSinceEpoch,
           };
-          // Cache locally for offline use
-          await db.insertSupplier(mapped);
-          suppliers.add(Supplier.fromMap(mapped));
+          // Remove null id to let DB auto-generate
+          mapped.remove('id');
+          // Cache locally for offline use and get the local ID
+          final localId = await db.insertSupplier(mapped);
+          suppliers.add(Supplier.fromMap({...mapped, 'id': localId}));
         }
       } catch (_) {}
     }

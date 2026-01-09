@@ -7,11 +7,12 @@ import '../services/supplier_service.dart';
 import '../services/repair_partner_service.dart';
 import '../services/repair_partner_payment_service.dart';
 import '../data/db_helper.dart';
-import '../core/utils/money_utils.dart';
+import '../utils/money_utils.dart';
 import '../services/notification_service.dart';
 import '../services/firestore_service.dart';
 import '../services/event_bus.dart';
 import '../services/audit_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -102,7 +103,8 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       int paidMonth = 0;
 
       for (final s in suppliers) {
-        final relatedDebts = debts.where((d) => d['type'] == 'SHOP_OWES' && (d['personName'] ?? '').toString().toUpperCase() == s.name.toUpperCase()).toList();
+        // BUG-007: Filter out soft-deleted debts
+        final relatedDebts = debts.where((d) => d['type'] == 'SHOP_OWES' && (d['personName'] ?? '').toString().toUpperCase() == s.name.toUpperCase() && (d['deleted'] ?? 0) != 1).toList();
         int total = 0;
         int paid = 0;
         int lastTx = s.updatedAt;
@@ -118,7 +120,8 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
             }
           }
         }
-        final remain = total - paid;
+        // BUG-002: Clamp remain để không âm (tránh hiển thị số nợ sai)
+        final remain = (total - paid).clamp(0, total);
         final imports = supplierImport.where((h) => h['supplierId'] == s.id).toList();
         int totalImportValue = 0;
         int lastImport = lastTx;
@@ -373,7 +376,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           children: [
             Expanded(child: _headerTile('Tổng NCC', _totalSuppliers.toString(), Icons.apartment, AppColors.primary)),
             const SizedBox(width: 8),
-            Expanded(child: _headerTile('Tổng công nợ', MoneyUtils.formatVND(_totalPayable), Icons.account_balance, AppColors.error)),
+            Expanded(child: _headerTile('Tổng công nợ', MoneyUtils.formatCurrency(_totalPayable), Icons.account_balance, AppColors.error)),
           ],
         ),
         const SizedBox(height: 8),
@@ -381,7 +384,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           children: [
             Expanded(child: _headerTile('NCC còn nợ', _supplierOwing.toString(), Icons.warning, AppColors.warning)),
             const SizedBox(width: 8),
-            Expanded(child: _headerTile('Đã trả trong tháng', MoneyUtils.formatVND(_paidThisMonth), Icons.payments, AppColors.success)),
+            Expanded(child: _headerTile('Đã trả trong tháng', MoneyUtils.formatCurrency(_paidThisMonth), Icons.payments, AppColors.success)),
           ],
         ),
       ],
@@ -469,7 +472,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           Row(
             children: [
               Text('Công nợ: ', style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold)),
-              Text(MoneyUtils.formatVND(d.remain), style: AppTextStyles.body1.copyWith(color: color, fontWeight: FontWeight.bold)),
+              Text(MoneyUtils.formatCurrency(d.remain), style: AppTextStyles.body1.copyWith(color: color, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 6),
@@ -485,7 +488,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
             children: [
               Icon(Icons.inventory_2, size: 16, color: AppColors.onSurface.withOpacity(0.6)),
               const SizedBox(width: 6),
-              Text('Tổng nhập: ${MoneyUtils.formatVND(d.totalImport)}', style: AppTextStyles.caption),
+              Text('Tổng nhập: ${MoneyUtils.formatCurrency(d.totalImport)}', style: AppTextStyles.caption),
             ],
           ),
           const SizedBox(height: 10),
@@ -541,6 +544,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       NotificationService.showSnackBar('NCC này đã tất toán.', color: Colors.green);
       return;
     }
+    final formKey = GlobalKey<FormState>();
     final payCtrl = TextEditingController();
     String method = 'TIỀN MẶT';
     String note = '';
@@ -549,42 +553,44 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: Text('Thanh toán công nợ cho ${d.supplier.name}', style: AppTextStyles.headline6),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Còn nợ: ${MoneyUtils.formatVND(d.remain)}', style: AppTextStyles.body1.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: payCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Số tiền (nghìn đồng)',
-                  hintText: 'VD: 500 = ${MoneyUtils.formatVND(500000)}',
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Còn nợ: ${MoneyUtils.formatCurrency(d.remain)}', style: AppTextStyles.body1.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: payCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                  decoration: InputDecoration(
+                    labelText: 'Số tiền (VNĐ)',
+                    hintText: 'VD: 500 = ${MoneyUtils.formatCurrency(500000)}',
+                  ),
+                  validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, max: d.remain, fieldName: 'Số tiền'),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: ['TIỀN MẶT', 'CHUYỂN KHOẢN'].map((m) => ChoiceChip(label: Text(m), selected: method == m, onSelected: (v) => setDialogState(() => method = m))).toList(),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                onChanged: (v) => note = v,
-                decoration: const InputDecoration(labelText: 'Ghi chú (tùy chọn)'),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: ['TIỀN MẶT', 'CHUYỂN KHOẢN'].map((m) => ChoiceChip(label: Text(m), selected: method == m, onSelected: (v) => setDialogState(() => method = m))).toList(),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  onChanged: (v) => note = v,
+                  decoration: const InputDecoration(labelText: 'Ghi chú (tùy chọn)'),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('HỦY')),
             ElevatedButton(
               onPressed: () async {
-                final inputVal = int.tryParse(payCtrl.text.replaceAll('.', '').replaceAll(',', '')) ?? 0;
-                final amount = inputVal * 1000; // Nhân 1000 để chuyển sang VNĐ
-                if (amount <= 0 || amount > d.remain) {
-                  NotificationService.showSnackBar('Số tiền không hợp lệ (tối đa ${MoneyUtils.formatVND(d.remain)})', color: Colors.red);
-                  return;
-                }
+                if (!(formKey.currentState?.validate() ?? false)) return;
+                final parsed = MoneyUtils.parseCurrency(payCtrl.text);
+                final amount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
                 await _payDebt(d, amount, method, note);
                 if (mounted) Navigator.pop(ctx);
               },
@@ -599,7 +605,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
 
   Future<void> _payDebt(_SupplierCardData d, int amount, String method, String note) async {
     try {
-      // Find first active debt
+      // Find the first active supplier debt
       final debts = await _db.getAllDebts();
       final target = debts.firstWhere(
         (e) => e['type'] == 'SHOP_OWES' && (e['personName'] ?? '').toString().toUpperCase() == d.supplier.name.toUpperCase() && (e['totalAmount'] as int? ?? 0) > (e['paidAmount'] as int? ?? 0),
@@ -609,32 +615,48 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         NotificationService.showSnackBar('Không tìm thấy công nợ để thanh toán', color: Colors.red);
         return;
       }
+
       final debtId = target['id'] as int;
+      final now = DateTime.now().millisecondsSinceEpoch;
       final paymentData = {
-        'firestoreId': 'pay_${DateTime.now().millisecondsSinceEpoch}_${d.supplier.id ?? 'sup'}',
+        'firestoreId': 'pay_${now}_${d.supplier.id ?? 'sup'}',
         'debtId': debtId,
         'debtFirestoreId': target['firestoreId'],
         'amount': amount,
-        'paidAt': DateTime.now().millisecondsSinceEpoch,
+        'paidAt': now,
         'paymentMethod': method,
         'note': note,
         'createdBy': FirebaseAuth.instance.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV',
       };
-      await _db.insertDebtPayment(paymentData);
-      // Sync debt payment lên cloud
-      await FirestoreService.addDebtPaymentCloud(paymentData);
-      await _db.updateDebtPaid(debtId, amount);
 
+      final paymentId = await _db.insertDebtPayment(paymentData);
+      // Queue debt payment sync via SyncOrchestrator
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.debtPayment,
+        entityId: paymentId,
+        firestoreId: paymentData['firestoreId'] as String?,
+        operation: SyncOperation.create,
+        data: paymentData,
+      );
+
+      await _db.updateDebtPaid(debtId, amount);
       final allDebts = await _db.getAllDebts();
       final updated = allDebts.firstWhere((e) => e['id'] == debtId);
-      await FirestoreService.addDebtCloud(Map<String, dynamic>.from(updated));
-      
+      // Queue debt update sync via SyncOrchestrator
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.debt,
+        entityId: debtId,
+        firestoreId: updated['firestoreId'] as String?,
+        operation: SyncOperation.update,
+        data: Map<String, dynamic>.from(updated),
+      );
+
       // Ghi nhật ký hệ thống
       await AuditService.logAction(
         action: 'SUPPLIER_PAYMENT',
         entityType: 'supplier',
         entityId: d.supplier.id?.toString() ?? '',
-        summary: 'Thanh toán công nợ NCC ${d.supplier.name}: ${MoneyUtils.formatVND(amount)} ($method)',
+        summary: 'Thanh toán công nợ NCC ${d.supplier.name}: ${MoneyUtils.formatCurrency(amount)} ($method)',
         payload: {
           'supplierId': d.supplier.id,
           'supplierName': d.supplier.name,
@@ -645,7 +667,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           'remainAfter': d.remain - amount,
         },
       );
-      
+
       EventBus().emit('debts_changed');
       NotificationService.showSnackBar('Đã ghi nhận thanh toán', color: Colors.green);
       await _load();
@@ -664,7 +686,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           children: [
             Expanded(child: _headerTile('Tổng đối tác', _totalPartners.toString(), Icons.handyman, AppColors.primary)),
             const SizedBox(width: 8),
-            Expanded(child: _headerTile('Còn nợ đối tác', MoneyUtils.formatVND(remain), Icons.account_balance, remain > 0 ? AppColors.error : AppColors.success)),
+            Expanded(child: _headerTile('Còn nợ đối tác', MoneyUtils.formatCurrency(remain), Icons.account_balance, remain > 0 ? AppColors.error : AppColors.success)),
           ],
         ),
         const SizedBox(height: 8),
@@ -672,7 +694,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           children: [
             Expanded(child: _headerTile('ĐT còn nợ', _partnerOwingCount.toString(), Icons.warning, AppColors.warning)),
             const SizedBox(width: 8),
-            Expanded(child: _headerTile('Đã thanh toán', MoneyUtils.formatVND(_totalPartnerPaid), Icons.payments, AppColors.success)),
+            Expanded(child: _headerTile('Đã thanh toán', MoneyUtils.formatCurrency(_totalPartnerPaid), Icons.payments, AppColors.success)),
           ],
         ),
       ],
@@ -755,7 +777,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           Row(
             children: [
               Text('Công nợ: ', style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold)),
-              Text(MoneyUtils.formatVND(d.remain), style: AppTextStyles.body1.copyWith(color: color, fontWeight: FontWeight.bold)),
+              Text(MoneyUtils.formatCurrency(d.remain), style: AppTextStyles.body1.copyWith(color: color, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 6),
@@ -767,7 +789,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
               const SizedBox(width: 16),
               Icon(Icons.receipt_long, size: 16, color: AppColors.onSurface.withOpacity(0.6)),
               const SizedBox(width: 6),
-              Text('Tổng chi: ${MoneyUtils.formatVND(d.totalCost)}', style: AppTextStyles.caption),
+              Text('Tổng chi: ${MoneyUtils.formatCurrency(d.totalCost)}', style: AppTextStyles.caption),
             ],
           ),
           if (d.partner.note != null && d.partner.note!.isNotEmpty) ...[
@@ -822,6 +844,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       NotificationService.showSnackBar('Đối tác này đã tất toán.', color: Colors.green);
       return;
     }
+    final formKey = GlobalKey<FormState>();
     final payCtrl = TextEditingController();
     String method = 'TIỀN MẶT';
     String note = '';
@@ -830,55 +853,57 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: Text('Thanh toán cho ${d.partner.name}', style: AppTextStyles.headline6),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Còn nợ: ${MoneyUtils.formatVND(d.remain)}', style: AppTextStyles.body1.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: payCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Số tiền (nghìn đồng)',
-                  hintText: 'VD: 500 = ${MoneyUtils.formatVND(500000)}',
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Còn nợ: ${MoneyUtils.formatCurrency(d.remain)}', style: AppTextStyles.body1.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: payCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                  decoration: InputDecoration(
+                    labelText: 'Số tiền (VNĐ)',
+                    hintText: 'VD: 500 = ${MoneyUtils.formatCurrency(500000)}',
+                  ),
+                  validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, max: d.remain, fieldName: 'Số tiền'),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: ['TIỀN MẶT', 'CHUYỂN KHOẢN'].map((m) => ChoiceChip(label: Text(m), selected: method == m, onSelected: (v) => setDialogState(() => method = m))).toList(),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                onChanged: (v) => note = v,
-                decoration: const InputDecoration(labelText: 'Ghi chú (tùy chọn)'),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: ['TIỀN MẶT', 'CHUYỂN KHOẢN'].map((m) => ChoiceChip(label: Text(m), selected: method == m, onSelected: (v) => setDialogState(() => method = m))).toList(),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  onChanged: (v) => note = v,
+                  decoration: const InputDecoration(labelText: 'Ghi chú (tùy chọn)'),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('HỦY')),
             ElevatedButton(
               onPressed: () async {
-                final inputVal = int.tryParse(payCtrl.text.replaceAll('.', '').replaceAll(',', '')) ?? 0;
-                final amount = inputVal * 1000; // Nhân 1000 để chuyển sang VNĐ
-                if (amount <= 0 || amount > d.remain) {
-                  NotificationService.showSnackBar('Số tiền không hợp lệ (tối đa ${MoneyUtils.formatVND(d.remain)})', color: Colors.red);
-                  return;
-                }
+                if (!(formKey.currentState?.validate() ?? false)) return;
+                final parsed = MoneyUtils.parseCurrency(payCtrl.text);
+                final amount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
                 await _paymentService.addPayment(
                   partnerId: d.partner.id!,
                   amount: amount,
                   paymentMethod: method,
                   note: note,
                 );
-                
+
                 // Ghi nhật ký hệ thống
                 await AuditService.logAction(
                   action: 'PARTNER_PAYMENT',
                   entityType: 'repair_partner',
                   entityId: d.partner.id!.toString(),
-                  summary: 'Thanh toán đối tác ${d.partner.name}: ${MoneyUtils.formatVND(amount)} ($method)',
+                  summary: 'Thanh toán đối tác ${d.partner.name}: ${MoneyUtils.formatCurrency(amount)} ($method)',
                   payload: {
                     'partnerId': d.partner.id,
                     'partnerName': d.partner.name,
@@ -889,11 +914,11 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
                     'remainAfter': d.remain - amount,
                   },
                 );
-                
-                NotificationService.showSnackBar('Đã ghi nhận thanh toán', color: Colors.green);
+
                 EventBus().emit('repair_partners_changed');
-                await _loadPartners();
                 if (mounted) Navigator.pop(ctx);
+                NotificationService.showSnackBar('Đã ghi nhận thanh toán', color: Colors.green);
+                await _loadPartners();
               },
               style: AppButtonStyles.successElevatedButtonStyle,
               child: const Text('XÁC NHẬN'),

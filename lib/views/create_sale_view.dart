@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../core/utils/money_utils.dart';
+import '../utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../models/customer_model.dart';
@@ -9,8 +9,10 @@ import '../services/notification_service.dart';
 import '../services/firestore_service.dart';
 import '../services/customer_service.dart';
 import '../services/sync_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
+import '../services/adjustment_service.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -65,7 +67,6 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     _loadData();
     downPaymentCtrl.addListener(_calculateInstallment);
     priceCtrl.addListener(_formatPrice);
-    loanAmountCtrl.addListener(_formatLoanAmount);
     // Refresh UI for add customer button when name/phone changes
     nameCtrl.addListener(() => setState(() {}));
     phoneCtrl.addListener(() => setState(() {}));
@@ -81,7 +82,6 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   void dispose() {
     downPaymentCtrl.removeListener(_calculateInstallment);
     priceCtrl.removeListener(_formatPrice);
-    loanAmountCtrl.removeListener(_formatLoanAmount);
     nameCtrl.dispose(); phoneCtrl.dispose(); addressCtrl.dispose();
     priceCtrl.dispose(); noteCtrl.dispose(); searchProdCtrl.dispose();
     downPaymentCtrl.dispose(); loanAmountCtrl.dispose(); bankCtrl.dispose();
@@ -176,38 +176,6 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     }
   }
 
-  void _formatPrice() {
-    final text = priceCtrl.text;
-    if (text.isEmpty) return;
-    final clean = text.replaceAll(',', '').split('.').first;
-    final num = int.tryParse(clean);
-    if (num != null) {
-      final formatted = MoneyUtils.formatVND(MoneyUtils.inputToVND(num));
-      if (formatted != text) {
-        priceCtrl.value = TextEditingValue(
-          text: formatted,
-          selection: TextSelection.collapsed(offset: formatted.length - 4),
-        );
-      }
-    }
-  }
-
-  void _formatLoanAmount() {
-    final text = loanAmountCtrl.text;
-    if (text.isEmpty) return;
-    final clean = text.replaceAll(',', '').split('.').first;
-    final num = int.tryParse(clean);
-    if (num != null) {
-      final formatted = MoneyUtils.formatVND(MoneyUtils.inputToVND(num));
-      if (formatted != text) {
-        loanAmountCtrl.value = TextEditingValue(
-          text: formatted,
-          selection: TextSelection.collapsed(offset: formatted.length - 4),
-        );
-      }
-    }
-  }
-
   Future<void> _loadData() async {
     final prods = await db.getInStockProducts();
     final suggests = await db.getCustomerSuggestions();
@@ -276,11 +244,28 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     _calculateInstallment();
   }
 
-  int _parseCurrency(String s) {
-    return MoneyUtils.parseInputToVND(s);
+  int _parseCurrency(String value, {bool autoMultiply1000 = true}) {
+    final parsed = MoneyUtils.parseCurrency(value);
+    if (autoMultiply1000 && parsed >= 1000 && parsed < 100000) {
+      return parsed * 1000;
+    }
+    return parsed;
   }
 
-  String _formatCurrency(int amount) => MoneyUtils.formatVND(amount);
+  String _formatCurrency(int amount) => MoneyUtils.formatCurrency(amount);
+
+  void _formatPrice() {
+    final text = priceCtrl.text.trim();
+    if (text.isEmpty) return;
+    final parsed = _parseCurrency(text);
+    final formatted = _formatCurrency(parsed);
+    if (formatted != text) {
+      priceCtrl.value = TextEditingValue(
+        text: formatted,
+        selection: TextSelection.collapsed(offset: formatted.length),
+      );
+    }
+  }
 
   void _addItem(Product p) {
     if (_selectedItems.any((item) => item['product'].id == p.id)) return;
@@ -362,8 +347,14 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             product.status = 1; // Đánh dấu là available
             await db.updateProductStatus(product.id!, 1);
           }
-          // Sync lên cloud
-          await FirestoreService.updateProductCloud(product);
+          // Enqueue sync lên cloud thay vì gọi trực tiếp
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.product,
+            entityId: product.id!,
+            firestoreId: product.firestoreId,
+            operation: SyncOperation.update,
+            data: product.toMap(),
+          );
           debugPrint('Restored inventory for product: ${product.name}, new quantity: ${product.quantity}');
         }
       }
@@ -375,8 +366,14 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       final linkedDebt = existingDebts.where((d) => d['linkedId'] == oldSale.firestoreId).firstOrNull;
       if (linkedDebt != null) {
         await db.deleteDebtByFirestoreId(linkedDebt['firestoreId']);
-        // Mark as deleted in cloud instead of deleting
-        await FirestoreService.addDebtCloud({...linkedDebt, 'deleted': true});
+        // Enqueue soft delete lên cloud
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.debt,
+          entityId: linkedDebt['id'] as int,
+          firestoreId: linkedDebt['firestoreId'] as String?,
+          operation: SyncOperation.delete,
+          data: {...linkedDebt, 'deleted': true},
+        );
         debugPrint('Marked old debt as deleted for sale: ${oldSale.firestoreId}');
       }
     }
@@ -386,13 +383,45 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   }
 
   Future<void> _processSale() async {
-    if (_isSaving) return;
-    if (_selectedItems.isEmpty) { NotificationService.showSnackBar("VUI LÒNG CHỌN SẢN PHẨM", color: Colors.red); return; }
-    if (nameCtrl.text.isEmpty || phoneCtrl.text.isEmpty) { NotificationService.showSnackBar("NHẬP ĐỦ THÔNG TIN KHÁCH", color: Colors.red); return; }
+    debugPrint('🛒 _processSale: Starting...');
+    if (_isSaving) {
+      debugPrint('🛒 _processSale: Already saving, returning...');
+      return;
+    }
+    
+    // Kiểm tra ngày hôm nay đã chốt quỹ chưa
+    final today = DateTime.now();
+    debugPrint('🛒 _processSale: Checking canEditDirectly for today...');
+    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    debugPrint('🛒 _processSale: canEdit = $canEdit');
+    if (!canEdit && mounted) {
+      NotificationService.showSnackBar(
+        '❌ Ngày hôm nay đã chốt quỹ! Không thể tạo đơn bán mới.',
+        color: Colors.red,
+      );
+      return;
+    }
+    
+    if (_selectedItems.isEmpty) { 
+      debugPrint('🛒 _processSale: No items selected');
+      NotificationService.showSnackBar("VUI LÒNG CHỌN SẢN PHẨM", color: Colors.red); 
+      return; 
+    }
+    if (nameCtrl.text.isEmpty || phoneCtrl.text.isEmpty) { 
+      debugPrint('🛒 _processSale: Name or phone empty');
+      NotificationService.showSnackBar("NHẬP ĐỦ THÔNG TIN KHÁCH", color: Colors.red); 
+      return; 
+    }
 
     // Validate phone format
     final phoneError = UserService.validatePhone(phoneCtrl.text.trim());
-    if (phoneError != null) { NotificationService.showSnackBar(phoneError, color: Colors.red); return; }
+    if (phoneError != null) { 
+      debugPrint('🛒 _processSale: Phone validation failed: $phoneError');
+      NotificationService.showSnackBar(phoneError, color: Colors.red); 
+      return; 
+    }
+
+    debugPrint('🛒 _processSale: Validation passed, starting save...');
 
     setState(() => _isSaving = true);
     try {
@@ -458,8 +487,36 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         warranty: _saleWarranty
       );
       
+      // Validate IMEI trước khi thực hiện transaction
+      for (var item in _selectedItems) {
+        final p = item['product'] as Product;
+        final customImei = item['imei'] as String?;
+        if (p.type == 'PHONE' && (customImei == null || customImei.isEmpty) && (p.imei == null || p.imei!.isEmpty)) {
+          NotificationService.showSnackBar("Không thể bán máy chưa có IMEI: ${p.name}", color: Colors.red);
+          setState(() => _isSaving = false);
+          return;
+        }
+      }
+
+      // === FIRESTORE TRANSACTION: KIỂM TRA + TRỪ KHO + TẠO SALE (ATOMIC) ===
+      // Tránh race condition khi 2 nhân viên bán cùng 1 món
+      
+      // Chuẩn bị data cho transaction
+      final transactionItems = _selectedItems.map((item) {
+        final p = item['product'] as Product;
+        return {
+          'firestoreId': p.firestoreId,
+          'quantity': item['quantity'] as int,
+          'productName': p.name,
+          'type': p.type,
+        };
+      }).toList();
+      
+      // Chuẩn bị debt data nếu cần
+      Map<String, dynamic>? debtDataForTransaction;
       if (_paymentMethod == "CÔNG NỢ" || (_paymentMethod != "TRẢ GÓP (NH)" && paidAmount < totalPrice)) {
-        final debtData = {
+        debtDataForTransaction = {
+          'firestoreId': 'debt_${now}_${phoneCtrl.text.trim()}',
           'personName': nameCtrl.text.trim().toUpperCase(), 
           'phone': phoneCtrl.text.trim(), 
           'totalAmount': totalPrice, 
@@ -470,48 +527,44 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           'note': "Nợ mua máy: ${sale.productNames}", 
           'linkedId': uniqueId
         };
-        await db.insertDebt(debtData);
-        // Sync debt lên cloud
-        await FirestoreService.addDebtCloud(debtData);
       }
       
-      // KIỂM TRA TỒN KHO REAL-TIME TRƯỚC KHI BÁN (tránh 2 nhân viên bán cùng 1 món)
-      for (var item in _selectedItems) {
-        final p = item['product'] as Product;
-        final quantity = item['quantity'] as int;
-        
-        // Lấy số lượng tồn kho mới nhất từ database
-        final currentStock = await db.getProductQuantityById(p.id!);
-        if (currentStock < quantity) {
+      // Thực hiện Firestore transaction
+      final transactionResult = await FirestoreService.executeSaleTransaction(
+        items: transactionItems,
+        saleData: sale.toMap(),
+        debtData: debtDataForTransaction,
+      );
+      
+      if (!transactionResult['success']) {
+        // Transaction failed
+        final outOfStockItems = transactionResult['outOfStockItems'] as List<dynamic>?;
+        if (outOfStockItems != null && outOfStockItems.isNotEmpty) {
           NotificationService.showSnackBar(
-            "⚠️ ${p.name} đã được bán bởi nhân viên khác! Còn lại: $currentStock", 
+            "⚠️ Hàng đã được bán bởi nhân viên khác!\n${outOfStockItems.join('\n')}", 
             color: Colors.red
           );
-          // Refresh lại danh sách sản phẩm
-          await _loadData();
-          setState(() => _isSaving = false);
-          return;
+        } else {
+          NotificationService.showSnackBar(
+            "❌ Lỗi: ${transactionResult['error']}", 
+            color: Colors.red
+          );
         }
+        // Refresh lại danh sách sản phẩm
+        await _loadData();
+        setState(() => _isSaving = false);
+        return;
       }
       
+      // Transaction thành công → Cập nhật local DB để đồng bộ
       for (var item in _selectedItems) {
         final p = item['product'] as Product;
         final quantity = item['quantity'] as int;
         
-        // Chỉ kiểm tra IMEI cho sản phẩm PHONE nếu không nhập IMEI tùy chọn
-        final customImei = item['imei'] as String?;
-        if (p.type == 'PHONE' && (customImei == null || customImei.isEmpty) && (p.imei == null || p.imei!.isEmpty)) {
-          NotificationService.showSnackBar("Không thể bán máy chưa có IMEI: ${p.name}", color: Colors.red);
-          setState(() => _isSaving = false);
-          return;
-        }
-        
-        // Cập nhật trạng thái và số lượng
+        // Cập nhật local database
         if (p.type == 'PHONE') {
-          // Phone: đánh dấu đã bán (status = 0)
           await db.updateProductStatus(p.id!, 0);
         }
-        // Giảm số lượng cho cả PHONE và ACCESSORY
         await db.deductProductQuantity(p.id!, quantity);
         
         // Cập nhật local object
@@ -520,17 +573,21 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           p.status = 0;
         }
         
-        // Check for low inventory after stock reduction
+        // Check for low inventory notification
         try {
           await NotificationService.checkAndNotifyLowInventory(p.firestoreId ?? p.id.toString(), p.name, p.quantity, 5);
         } catch (e) {
           debugPrint('Failed to check low inventory: $e');
         }
-        
-        // Sync lên cloud
-        await FirestoreService.updateProductCloud(p);
       }
-      await db.upsertSale(sale); await FirestoreService.addSale(sale);
+      
+      // Lưu sale vào local DB (cloud đã có từ transaction)
+      await db.upsertSale(sale);
+      
+      // Lưu debt vào local DB nếu có (cloud đã có từ transaction)
+      if (debtDataForTransaction != null) {
+        await db.insertDebt(debtDataForTransaction);
+      }
 
       // Create customer if not exists
       final customerService = CustomerService();
@@ -730,7 +787,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         final p = _filteredInStock[i]; 
         return ListTile(
           title: Text(p.name, style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold)), 
-          subtitle: Text("IMEI: ${p.imei ?? 'PK'} - Giá: ${MoneyUtils.formatVND(p.price)}"), 
+          subtitle: Text("IMEI: ${p.imei ?? 'PK'} - Giá: ${MoneyUtils.formatCurrency(p.price)}"), 
           // HIỂN THỊ SỐ LƯỢNG TỒN TRONG LIST CHỌN
           trailing: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -792,7 +849,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text("Giá bán: ${MoneyUtils.formatVND(item['sellPrice'])}"),
+                Text("Giá bán: ${MoneyUtils.formatCurrency(item['sellPrice'])}"),
                 const SizedBox(height: 4),
                 Row(
                   children: [

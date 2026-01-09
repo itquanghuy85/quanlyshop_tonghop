@@ -4,9 +4,9 @@ import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../services/encryption_service.dart';
-import '../services/sync_health_check.dart';
 import '../data/db_helper.dart';
 import '../services/sync_service.dart';
+import '../widgets/unified_sync_button.dart';
 import 'staff_permissions_view.dart';
 import 'shop_settings_view.dart';
 import 'debt_debug_view.dart';
@@ -24,10 +24,6 @@ class _SettingsViewState extends State<SettingsView> {
   String _role = 'user';
   bool _loading = true;
 
-  // Sync health status
-  bool _checkingSyncHealth = false;
-  SyncHealthReport? _syncHealthReport;
-
   // Super admin shop selection
   List<Map<String, dynamic>> _allShops = [];
   String? _selectedShopId;
@@ -37,7 +33,6 @@ class _SettingsViewState extends State<SettingsView> {
   void initState() {
     super.initState();
     _loadRole();
-    _checkSyncHealthInBackground();
     _loadShopsForAdmin();
   }
 
@@ -105,26 +100,6 @@ class _SettingsViewState extends State<SettingsView> {
         color: Colors.red,
       );
     }
-
-    // Refresh sync health
-    _checkSyncHealthInBackground();
-  }
-
-  /// Kiểm tra sync health ngầm khi mở Settings
-  Future<void> _checkSyncHealthInBackground() async {
-    if (mounted) setState(() => _checkingSyncHealth = true);
-    try {
-      final report = await SyncHealthCheck.runFullCheck();
-      if (mounted) {
-        setState(() {
-          _syncHealthReport = report;
-          _checkingSyncHealth = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('❌ Lỗi kiểm tra sync health: $e');
-      if (mounted) setState(() => _checkingSyncHealth = false);
-    }
   }
 
   String _getRoleDisplayName(String role) {
@@ -162,545 +137,6 @@ class _SettingsViewState extends State<SettingsView> {
         setState(() {
           _loading = false;
         });
-      }
-    }
-  }
-
-  // HÀM KIỂM TRA TÌNH TRẠNG ĐỒNG BỘ
-  Future<void> _handleCheckSyncHealth() async {
-    // Hiển thị loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text("Đang kiểm tra đồng bộ..."),
-            Text(
-              "So sánh Local vs Cloud",
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final report = await SyncHealthCheck.runFullCheck();
-      if (!mounted) return;
-      Navigator.pop(context); // Đóng loading
-
-      // Hiển thị kết quả
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Row(
-            children: [
-              Icon(
-                report.isFullyHealthy ? Icons.check_circle : Icons.warning,
-                color: report.isFullyHealthy ? Colors.green : Colors.orange,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  report.isFullyHealthy
-                      ? "ĐỒNG BỘ HOÀN TẤT"
-                      : "CÓ VẤN ĐỀ ĐỒNG BỘ",
-                  style: TextStyle(
-                    color: report.isFullyHealthy ? Colors.green : Colors.orange,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Summary
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: report.isFullyHealthy
-                        ? Colors.green.shade50
-                        : Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Shop ID: ${report.shopId ?? 'N/A'}",
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        "Local: ${report.totalLocalRecords} records",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        "Cloud: ${report.totalCloudRecords} records",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      if (report.totalMismatches > 0)
-                        Text(
-                          "Chưa đồng bộ: ${report.totalMismatches}",
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 15),
-                const Text(
-                  "CHI TIẾT TỪNG LOẠI:",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-                const SizedBox(height: 10),
-                ...report.results.map((r) => _buildSyncResultItem(r)),
-              ],
-            ),
-          ),
-          actions: [
-            if (!report.isFullyHealthy)
-              ElevatedButton.icon(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await _handleAutoFixSync();
-                },
-                icon: const Icon(Icons.sync, color: Colors.white),
-                label: const Text(
-                  "ĐỒNG BỘ NGAY",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-              ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("ĐÓNG"),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      if (mounted) Navigator.pop(context);
-      NotificationService.showSnackBar("❌ Lỗi kiểm tra: $e", color: Colors.red);
-    }
-  }
-
-  Widget _buildSyncResultItem(SyncCheckResult r) {
-    final isOk = r.isHealthy;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: isOk ? Colors.green.shade50 : Colors.red.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isOk ? Colors.green.shade200 : Colors.red.shade200,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            isOk ? Icons.check : Icons.error,
-            color: isOk ? Colors.green : Colors.red,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  r.collection.toUpperCase(),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  "Local: ${r.localCount} | Cloud: ${r.cloudCount}",
-                  style: const TextStyle(fontSize: 10),
-                ),
-                if (r.unsyncedLocal > 0)
-                  Text(
-                    "Chưa sync lên: ${r.unsyncedLocal}",
-                    style: const TextStyle(fontSize: 10, color: Colors.orange),
-                  ),
-                if (r.cloudOnly > 0)
-                  Text(
-                    "Thiếu ở local: ${r.cloudOnly}",
-                    style: const TextStyle(fontSize: 10, color: Colors.red),
-                  ),
-                if (r.error != null)
-                  Text(
-                    "Lỗi: ${r.error}",
-                    style: const TextStyle(fontSize: 9, color: Colors.red),
-                  ),
-              ],
-            ),
-          ),
-          Text(
-            "${r.syncPercentage.toStringAsFixed(0)}%",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isOk ? Colors.green : Colors.red,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _handleAutoFixSync() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text("Đang đồng bộ dữ liệu..."),
-            SizedBox(height: 8),
-            Text(
-              "1. Upload local → Cloud\n2. Download Cloud → Local",
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final fixedCount = await SyncHealthCheck.autoFix();
-      if (!mounted) return;
-      Navigator.pop(context);
-      NotificationService.showSnackBar(
-        "✅ Đồng bộ hoàn tất! Đã sửa $fixedCount records",
-        color: Colors.green,
-      );
-      // Refresh sync health
-      _checkSyncHealthInBackground();
-    } catch (e) {
-      if (mounted) Navigator.pop(context);
-      NotificationService.showSnackBar("❌ Lỗi: $e", color: Colors.red);
-    }
-  }
-
-  // Helper methods cho sync health UI
-  Color _getSyncHealthCardColor() {
-    if (_checkingSyncHealth || _syncHealthReport == null)
-      return Colors.orange.shade50;
-    return _syncHealthReport!.isFullyHealthy
-        ? Colors.green.shade50
-        : Colors.red.shade50;
-  }
-
-  Color _getSyncHealthBorderColor() {
-    if (_checkingSyncHealth || _syncHealthReport == null)
-      return Colors.orange.shade200;
-    return _syncHealthReport!.isFullyHealthy
-        ? Colors.green.shade200
-        : Colors.red.shade200;
-  }
-
-  Color _getSyncHealthIconBgColor() {
-    if (_checkingSyncHealth || _syncHealthReport == null)
-      return Colors.orange.shade100;
-    return _syncHealthReport!.isFullyHealthy
-        ? Colors.green.shade100
-        : Colors.red.shade100;
-  }
-
-  Color _getSyncHealthIconColor() {
-    if (_checkingSyncHealth || _syncHealthReport == null) return Colors.orange;
-    return _syncHealthReport!.isFullyHealthy ? Colors.green : Colors.red;
-  }
-
-  String _getSyncHealthTitle() {
-    if (_checkingSyncHealth) return "ĐANG KIỂM TRA...";
-    if (_syncHealthReport == null) return "KIỂM TRA TÌNH TRẠNG ĐỒNG BỘ";
-    return _syncHealthReport!.isFullyHealthy
-        ? "✅ ĐỒNG BỘ HOÀN TẤT"
-        : "⚠️ CẦN ĐỒNG BỘ";
-  }
-
-  String _getSyncHealthSubtitle() {
-    if (_checkingSyncHealth) return "Đang so sánh dữ liệu local vs cloud...";
-    if (_syncHealthReport == null)
-      return "So sánh dữ liệu local vs cloud, phát hiện thiếu sót";
-    if (_syncHealthReport!.isFullyHealthy) {
-      return "Local: ${_syncHealthReport!.totalLocalRecords} | Cloud: ${_syncHealthReport!.totalCloudRecords}";
-    }
-    return "${_syncHealthReport!.totalMismatches} bản ghi chưa đồng bộ. Nhấn để xem chi tiết.";
-  }
-
-  // HÀM XỬ LÝ TẢI TOÀN BỘ DỮ LIỆU SHOP
-  Future<void> _handleDownloadAllData() async {
-    final bool? result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          "📥 TẢI DỮ LIỆU SHOP",
-          style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              "Hành động này sẽ tải toàn bộ dữ liệu của shop từ đám mây về máy này.",
-            ),
-            SizedBox(height: 10),
-            Text(
-              "Bao gồm: Đơn sửa chữa, Sản phẩm, Đơn bán hàng, Nợ, Chi phí, Chấm công.",
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            SizedBox(height: 15),
-            Text(
-              "Quá trình có thể mất vài phút tùy thuộc vào lượng dữ liệu.",
-              style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("HỦY"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: const Text(
-              "BẮT ĐẦU TẢI",
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      setState(() => _loading = true);
-
-      try {
-        await SyncService.downloadAllFromCloud();
-        NotificationService.showSnackBar(
-          "✅ Đã tải xong toàn bộ dữ liệu shop!",
-          color: Colors.green,
-        );
-      } catch (e) {
-        NotificationService.showSnackBar(
-          "❌ Lỗi tải dữ liệu: $e",
-          color: Colors.red,
-        );
-        debugPrint("Download all data error: $e");
-      } finally {
-        if (mounted) setState(() => _loading = false);
-      }
-    }
-  }
-
-  // HÀM ĐỒNG BỘ DỮ LIỆU LÊN ĐÁM MÂY
-  Future<void> _handleUploadData() async {
-    // Kiểm tra số lượng dữ liệu local trước khi upload
-    final dbHelper = DBHelper();
-    final repairs = await dbHelper.getAllRepairs();
-    final sales = await dbHelper.getAllSales();
-    final products = await dbHelper.getAllProducts();
-
-    final totalLocal = repairs.length + sales.length + products.length;
-
-    // Cảnh báo nếu dữ liệu local quá ít (có thể là máy mới)
-    if (totalLocal < 5) {
-      final confirmEmpty = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Row(
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.orange.shade700,
-                size: 28,
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  "CẢNH BÁO",
-                  style: TextStyle(
-                    color: Colors.orange,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Máy này có rất ít dữ liệu:"),
-              const SizedBox(height: 10),
-              Text(
-                "• ${repairs.length} đơn sửa chữa",
-                style: const TextStyle(fontSize: 13),
-              ),
-              Text(
-                "• ${sales.length} đơn bán hàng",
-                style: const TextStyle(fontSize: 13),
-              ),
-              Text(
-                "• ${products.length} sản phẩm",
-                style: const TextStyle(fontSize: 13),
-              ),
-              const SizedBox(height: 15),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.red.shade200),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "⚠️ NẾU BẠN LÀ NHÂN VIÊN MỚI:",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: Colors.red,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      "Vui lòng TẢI DỮ LIỆU VỀ MÁY trước, KHÔNG đồng bộ lên đám mây khi chưa có dữ liệu.",
-                      style: TextStyle(fontSize: 11, color: Colors.red),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                "Bạn có chắc chắn muốn tiếp tục?",
-                style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text("HỦY"),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              child: const Text(
-                "VẪN TIẾP TỤC",
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      );
-
-      if (confirmEmpty != true) return;
-    }
-
-    final bool? result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          "📤 ĐỒNG BỘ LÊN ĐÁM MÂY",
-          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Đẩy dữ liệu từ máy này lên đám mây để các thiết bị khác trong shop có thể đồng bộ.",
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Dữ liệu sẽ upload:",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                  Text(
-                    "• ${repairs.where((r) => !r.isSynced).length} đơn sửa mới",
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                  Text(
-                    "• ${sales.where((s) => !s.isSynced).length} đơn bán mới",
-                    style: const TextStyle(fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              "✅ Dữ liệu cũ trên đám mây sẽ KHÔNG bị xóa.",
-              style: TextStyle(fontSize: 11, color: Colors.green),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("HỦY"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text("ĐỒNG BỘ", style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      setState(() => _loading = true);
-
-      try {
-        await SyncService.syncAllToCloud();
-        NotificationService.showSnackBar(
-          "✅ Đã đồng bộ dữ liệu lên đám mây!",
-          color: Colors.green,
-        );
-      } catch (e) {
-        NotificationService.showSnackBar(
-          "❌ Lỗi đồng bộ: $e",
-          color: Colors.red,
-        );
-        debugPrint("Upload data error: $e");
-      } finally {
-        if (mounted) setState(() => _loading = false);
       }
     }
   }
@@ -978,160 +414,55 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                 ),
 
-                // ĐỒNG BỘ DỮ LIỆU - Tải về cho tất cả, Upload chỉ cho Owner/Manager
+                // ĐỒNG BỘ DỮ LIỆU - Chỉ còn 1 entry point duy nhất
                 const SizedBox(height: 30),
                 _buildSection("ĐỒNG BỘ DỮ LIỆU"),
-                // Nút KIỂM TRA SYNC với trạng thái
+                // Card đơn giản mở Trung tâm đồng bộ
                 Card(
-                  color: _getSyncHealthCardColor(),
+                  color: Colors.teal.shade50,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
-                    side: BorderSide(color: _getSyncHealthBorderColor()),
+                    side: BorderSide(color: Colors.teal.shade200),
                   ),
                   child: ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: _getSyncHealthIconBgColor(),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: _checkingSyncHealth
-                          ? const SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              _syncHealthReport?.isFullyHealthy == true
-                                  ? Icons.check_circle
-                                  : Icons.health_and_safety,
-                              color: _getSyncHealthIconColor(),
-                              size: 28,
-                            ),
-                    ),
-                    title: Text(
-                      _getSyncHealthTitle(),
-                      style: TextStyle(
-                        color: _getSyncHealthIconColor(),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      _getSyncHealthSubtitle(),
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    trailing:
-                        _syncHealthReport != null &&
-                            !_syncHealthReport!.isFullyHealthy
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              "${_syncHealthReport!.totalMismatches}",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          )
-                        : Icon(
-                            Icons.arrow_forward_ios,
-                            size: 16,
-                            color: _getSyncHealthIconColor(),
-                          ),
-                    onTap: _handleCheckSyncHealth,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Card(
-                  color: Colors.blue.shade50,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    side: BorderSide(color: Colors.blue.shade200),
-                  ),
-                  child: ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade100,
+                        color: Colors.teal.shade100,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
-                        Icons.cloud_download,
-                        color: Colors.blue,
+                        Icons.cloud_sync,
+                        color: Colors.teal,
                         size: 28,
                       ),
                     ),
                     title: const Text(
-                      "TẢI DỮ LIỆU SHOP VỀ MÁY",
+                      "TRUNG TÂM ĐỒNG BỘ",
                       style: TextStyle(
-                        color: Colors.blue,
+                        color: Colors.teal,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     subtitle: const Text(
-                      "Dành cho nhân viên mới hoặc khi đổi máy. Tải toàn bộ dữ liệu shop từ đám mây.",
+                      "Tải về, đẩy lên, kiểm tra và khôi phục dữ liệu",
                       style: TextStyle(fontSize: 11),
                     ),
                     trailing: const Icon(
                       Icons.arrow_forward_ios,
                       size: 16,
-                      color: Colors.blue,
+                      color: Colors.teal,
                     ),
-                    onTap: _handleDownloadAllData,
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => const SyncCenterSheet(),
+                      );
+                    },
                   ),
                 ),
-                // Chỉ Owner/Manager mới được upload dữ liệu lên cloud
-                if (_role == 'owner' ||
-                    _role == 'manager' ||
-                    UserService.isCurrentUserSuperAdmin()) ...[
-                  const SizedBox(height: 10),
-                  Card(
-                    color: Colors.green.shade50,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: BorderSide(color: Colors.green.shade200),
-                    ),
-                    child: ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.cloud_upload,
-                          color: Colors.green,
-                          size: 28,
-                        ),
-                      ),
-                      title: const Text(
-                        "ĐỒNG BỘ DỮ LIỆU LÊN MÂY",
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: const Text(
-                        "Đẩy dữ liệu từ máy này lên đám mây để các thiết bị khác đồng bộ.",
-                        style: TextStyle(fontSize: 11),
-                      ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios,
-                        size: 16,
-                        color: Colors.green,
-                      ),
-                      onTap: _handleUploadData,
-                    ),
-                  ),
-                ],
 
                 // QUẢN TRỊ SHOP CHO OWNER/MANAGER
                 if (_role == 'owner' || _role == 'manager') ...[

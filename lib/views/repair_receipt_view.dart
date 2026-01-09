@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../utils/money_utils.dart';
+import '../services/event_bus.dart';
 import 'package:esc_pos_utils/esc_pos_utils.dart';
 import '../services/firestore_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/unified_printer_service.dart';
+import '../services/user_service.dart';
+import '../services/sync_orchestrator.dart';
+import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../models/printer_types.dart';
 import '../widgets/validated_text_field.dart';
@@ -41,6 +46,12 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
     setState(() => _receiptCode = code);
   }
 
+  int _parseAmount(String value) {
+    final parsed = MoneyUtils.parseCurrency(value);
+    if (parsed >= 1000 && parsed < 100000) return parsed * 1000;
+    return parsed;
+  }
+
   Future<void> _saveAndPrintReceipt() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -48,7 +59,14 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
     final messenger = ScaffoldMessenger.of(context);
 
     try {
+      final db = DBHelper();
+      final shopId = await UserService.getCurrentShopId();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final firestoreId = 'rep_${now}_${_phoneController.text.trim()}';
+      
       // Tạo repair record
+      final estimatedCost = _parseAmount(_estimatedCostController.text);
+
       final repair = Repair(
         customerName: _customerNameController.text.trim(),
         phone: _phoneController.text.trim(),
@@ -56,33 +74,41 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
         issue: _issueController.text.trim(),
         accessories: _accessoriesController.text.trim(),
         address: _addressController.text.trim(),
-        price: int.tryParse(_estimatedCostController.text.replaceAll(',', '')) ?? 0,
+        price: estimatedCost,
         status: 0, // Received
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-        lastCaredAt: DateTime.now().millisecondsSinceEpoch,
+        createdAt: now,
+        lastCaredAt: now,
         isSynced: false,
         deleted: false,
+        firestoreId: firestoreId,
+        shopId: shopId,
       );
 
-      // Lưu vào database
-      final firestoreService = FirestoreService();
-      final docId = await FirestoreService.addRepair(repair);
+      // Lưu vào local database
+      final repairId = await db.upsertRepair(repair);
 
-      if (docId != null) {
-        // In phiếu tiếp nhận
-        await _printReceipt(repair, docId);
+      // Queue sync via SyncOrchestrator
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.repair,
+        entityId: repairId,
+        firestoreId: firestoreId,
+        operation: SyncOperation.create,
+        data: repair.toMap(),
+      );
 
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Đã lưu và in phiếu tiếp nhận thành công!')),
-        );
+      EventBus().emit('repairs_changed');
 
-        // Reset form (guard with mounted)
-        if (mounted) {
-          _formKey.currentState!.reset();
-          _generateReceiptCode();
-        }
-      } else {
-        throw Exception('Không thể lưu phiếu tiếp nhận');
+      // In phiếu tiếp nhận
+      await _printReceipt(repair, firestoreId);
+
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Đã lưu và in phiếu tiếp nhận thành công!')),
+      );
+
+      // Reset form (guard with mounted)
+      if (mounted) {
+        _formKey.currentState!.reset();
+        _generateReceiptCode();
       }
     } catch (e) {
       messenger.showSnackBar(
@@ -248,11 +274,19 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
 
               const SizedBox(height: 12),
 
-              ValidatedTextField(
+              TextFormField(
                 controller: _estimatedCostController,
-                label: 'Giá dự kiến (VNĐ)',
                 keyboardType: TextInputType.number,
-                hint: 'Để trống nếu chưa xác định',
+                inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                decoration: const InputDecoration(
+                  labelText: 'Giá dự kiến (VNĐ)',
+                  hintText: 'Để trống nếu chưa xác định',
+                ),
+                validator: (v) {
+                  final text = v?.trim() ?? '';
+                  if (text.isEmpty) return null; // optional
+                  return MoneyUtils.validateAmount(text, min: 0, fieldName: 'Giá dự kiến');
+                },
               ),
 
               const SizedBox(height: 32),
@@ -327,7 +361,7 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
               _buildPreviewRow('Model:', _deviceModelController.text),
               _buildPreviewRow('Tình trạng:', _issueController.text),
               _buildPreviewRow('Phụ kiện:', _accessoriesController.text),
-              _buildPreviewRow('Giá dự kiến:', '${_estimatedCostController.text} VNĐ'),
+              _buildPreviewRow('Giá dự kiến:', _estimatedCostController.text.isEmpty ? '(chưa nhập)' : '${MoneyUtils.formatCurrency(_parseAmount(_estimatedCostController.text))} VNĐ'),
               _buildPreviewRow('Ngày nhận:', DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())),
             ],
           ),

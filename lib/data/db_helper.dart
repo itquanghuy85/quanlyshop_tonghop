@@ -27,7 +27,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 45,
+      version: 50,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT)',
@@ -45,10 +45,10 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, isSynced INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, description TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, createdAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, relatedPartId TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, personName TEXT, phone TEXT, totalAmount INTEGER, paidAmount INTEGER DEFAULT 0, type TEXT, status TEXT, createdAt INTEGER, note TEXT, isSynced INTEGER DEFAULT 0, linkedId TEXT, createdBy TEXT)',
+          'CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, personName TEXT, phone TEXT, totalAmount INTEGER, paidAmount INTEGER DEFAULT 0, type TEXT, status TEXT, createdAt INTEGER, note TEXT, isSynced INTEGER DEFAULT 0, linkedId TEXT, createdBy TEXT, shopId TEXT, relatedPartId TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS attendance(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, dateKey TEXT, checkInAt INTEGER, checkOutAt INTEGER, overtimeOn INTEGER DEFAULT 0, photoIn TEXT, photoOut TEXT, note TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, locked INTEGER DEFAULT 0, createdAt INTEGER, location TEXT, isLate INTEGER DEFAULT 0, isEarlyLeave INTEGER DEFAULT 0, workSchedule TEXT, updatedAt INTEGER)',
@@ -98,6 +98,26 @@ class DBHelper {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS partner_repair_history(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, repairOrderId TEXT, partnerId INTEGER, customerName TEXT, deviceModel TEXT, issue TEXT, partnerCost INTEGER, repairContent TEXT, sentAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
         );
+        await db.execute(
+          'CREATE TABLE IF NOT EXISTS repair_parts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, partName TEXT, compatibleModels TEXT, cost INTEGER, price INTEGER, quantity INTEGER, updatedAt INTEGER, createdAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0, supplierId INTEGER, paymentMethod TEXT, createdBy TEXT)',
+        );
+        // Sync queue table for tracking pending sync operations
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS sync_queue(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entityType TEXT NOT NULL,
+            entityId INTEGER NOT NULL,
+            firestoreId TEXT,
+            operation TEXT NOT NULL,
+            data TEXT,
+            createdAt INTEGER NOT NULL,
+            retryCount INTEGER DEFAULT 0,
+            lastError TEXT,
+            status TEXT DEFAULT 'pending'
+          )
+        ''');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue(status)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_queue_entity ON sync_queue(entityType, entityId)');
       },
       onUpgrade: (db, oldV, newV) async {
         debugPrint('Upgrading DB from $oldV to $newV');
@@ -556,6 +576,333 @@ class DBHelper {
             debugPrint('DB upgrade error (audit_logs shopId): $e');
           }
         }
+        if (oldV < 46) {
+          // Thêm các cột sync cho repair_parts (kho linh kiện)
+          try {
+            await db.execute(
+              'ALTER TABLE repair_parts ADD COLUMN firestoreId TEXT UNIQUE',
+            );
+            debugPrint('DB upgrade: added firestoreId to repair_parts');
+          } catch (e) {
+            debugPrint('DB upgrade error (repair_parts firestoreId): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE repair_parts ADD COLUMN isSynced INTEGER DEFAULT 0',
+            );
+            debugPrint('DB upgrade: added isSynced to repair_parts');
+          } catch (e) {
+            debugPrint('DB upgrade error (repair_parts isSynced): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE repair_parts ADD COLUMN shopId TEXT');
+            debugPrint('DB upgrade: added shopId to repair_parts');
+          } catch (e) {
+            debugPrint('DB upgrade error (repair_parts shopId): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE repair_parts ADD COLUMN deleted INTEGER DEFAULT 0',
+            );
+            debugPrint('DB upgrade: added deleted to repair_parts');
+          } catch (e) {
+            debugPrint('DB upgrade error (repair_parts deleted): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE repair_parts ADD COLUMN supplierId INTEGER',
+            );
+            debugPrint('DB upgrade: added supplierId to repair_parts');
+          } catch (e) {
+            debugPrint('DB upgrade error (repair_parts supplierId): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE repair_parts ADD COLUMN paymentMethod TEXT',
+            );
+            debugPrint('DB upgrade: added paymentMethod to repair_parts');
+          } catch (e) {
+            debugPrint('DB upgrade error (repair_parts paymentMethod): $e');
+          }
+        }
+        if (oldV < 47) {
+          // v47: Đảm bảo tất cả các cột cần thiết trong repair_parts đều tồn tại
+          // (sửa lỗi migration v46 không chạy trên một số thiết bị)
+          debugPrint('DB upgrade v47: Ensuring repair_parts columns exist...');
+          final cols = await db.rawQuery('PRAGMA table_info(repair_parts)');
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          
+          if (!colNames.contains('firestoreId')) {
+            try {
+              await db.execute('ALTER TABLE repair_parts ADD COLUMN firestoreId TEXT');
+              debugPrint('v47: added firestoreId to repair_parts');
+            } catch (e) {
+              debugPrint('v47 error (repair_parts firestoreId): $e');
+            }
+          }
+          if (!colNames.contains('isSynced')) {
+            try {
+              await db.execute('ALTER TABLE repair_parts ADD COLUMN isSynced INTEGER DEFAULT 0');
+              debugPrint('v47: added isSynced to repair_parts');
+            } catch (e) {
+              debugPrint('v47 error (repair_parts isSynced): $e');
+            }
+          }
+          if (!colNames.contains('shopId')) {
+            try {
+              await db.execute('ALTER TABLE repair_parts ADD COLUMN shopId TEXT');
+              debugPrint('v47: added shopId to repair_parts');
+            } catch (e) {
+              debugPrint('v47 error (repair_parts shopId): $e');
+            }
+          }
+          if (!colNames.contains('deleted')) {
+            try {
+              await db.execute('ALTER TABLE repair_parts ADD COLUMN deleted INTEGER DEFAULT 0');
+              debugPrint('v47: added deleted to repair_parts');
+            } catch (e) {
+              debugPrint('v47 error (repair_parts deleted): $e');
+            }
+          }
+          if (!colNames.contains('supplierId')) {
+            try {
+              await db.execute('ALTER TABLE repair_parts ADD COLUMN supplierId INTEGER');
+              debugPrint('v47: added supplierId to repair_parts');
+            } catch (e) {
+              debugPrint('v47 error (repair_parts supplierId): $e');
+            }
+          }
+          if (!colNames.contains('paymentMethod')) {
+            try {
+              await db.execute('ALTER TABLE repair_parts ADD COLUMN paymentMethod TEXT');
+              debugPrint('v47: added paymentMethod to repair_parts');
+            } catch (e) {
+              debugPrint('v47 error (repair_parts paymentMethod): $e');
+            }
+          }
+          debugPrint('DB upgrade v47: repair_parts columns check completed');
+        }
+        if (oldV < 48) {
+          // v48: Thêm các cột còn thiếu cho bảng expenses và debts
+          debugPrint('DB upgrade v48: Ensuring expenses and debts columns exist...');
+          
+          // Kiểm tra và thêm cột cho expenses
+          final expCols = await db.rawQuery('PRAGMA table_info(expenses)');
+          final expColNames = expCols.map((c) => c['name'] as String).toSet();
+          
+          if (!expColNames.contains('description')) {
+            try {
+              await db.execute('ALTER TABLE expenses ADD COLUMN description TEXT');
+              debugPrint('v48: added description to expenses');
+            } catch (e) {
+              debugPrint('v48 error (expenses description): $e');
+            }
+          }
+          if (!expColNames.contains('createdAt')) {
+            try {
+              await db.execute('ALTER TABLE expenses ADD COLUMN createdAt INTEGER');
+              debugPrint('v48: added createdAt to expenses');
+            } catch (e) {
+              debugPrint('v48 error (expenses createdAt): $e');
+            }
+          }
+          if (!expColNames.contains('shopId')) {
+            try {
+              await db.execute('ALTER TABLE expenses ADD COLUMN shopId TEXT');
+              debugPrint('v48: added shopId to expenses');
+            } catch (e) {
+              debugPrint('v48 error (expenses shopId): $e');
+            }
+          }
+          if (!expColNames.contains('relatedPartId')) {
+            try {
+              await db.execute('ALTER TABLE expenses ADD COLUMN relatedPartId TEXT');
+              debugPrint('v48: added relatedPartId to expenses');
+            } catch (e) {
+              debugPrint('v48 error (expenses relatedPartId): $e');
+            }
+          }
+          
+          // Kiểm tra và thêm cột cho debts
+          final debtCols = await db.rawQuery('PRAGMA table_info(debts)');
+          final debtColNames = debtCols.map((c) => c['name'] as String).toSet();
+          
+          if (!debtColNames.contains('shopId')) {
+            try {
+              await db.execute('ALTER TABLE debts ADD COLUMN shopId TEXT');
+              debugPrint('v48: added shopId to debts');
+            } catch (e) {
+              debugPrint('v48 error (debts shopId): $e');
+            }
+          }
+          if (!debtColNames.contains('relatedPartId')) {
+            try {
+              await db.execute('ALTER TABLE debts ADD COLUMN relatedPartId TEXT');
+              debugPrint('v48: added relatedPartId to debts');
+            } catch (e) {
+              debugPrint('v48 error (debts relatedPartId): $e');
+            }
+          }
+          
+          debugPrint('DB upgrade v48: expenses and debts columns check completed');
+        }
+        if (oldV < 49) {
+          // v49: Thêm bảng adjustment_entries cho bút toán điều chỉnh và cập nhật cash_closings
+          debugPrint('DB upgrade v49: Creating adjustment_entries table and updating cash_closings...');
+          
+          // Tạo bảng bút toán điều chỉnh
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS adjustment_entries(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firestoreId TEXT UNIQUE,
+                shopId TEXT,
+                adjustmentType TEXT,
+                originalEntityType TEXT,
+                originalEntityId TEXT,
+                originalDate INTEGER,
+                adjustmentDate INTEGER,
+                description TEXT,
+                reason TEXT,
+                oldValues TEXT,
+                newValues TEXT,
+                costDelta INTEGER DEFAULT 0,
+                debtDelta INTEGER DEFAULT 0,
+                cashDelta INTEGER DEFAULT 0,
+                bankDelta INTEGER DEFAULT 0,
+                supplierId INTEGER,
+                supplierName TEXT,
+                createdBy TEXT,
+                createdAt INTEGER,
+                approvedBy TEXT,
+                approvedAt INTEGER,
+                status TEXT DEFAULT 'PENDING',
+                isSynced INTEGER DEFAULT 0
+              )
+            ''');
+            debugPrint('v49: created adjustment_entries table');
+          } catch (e) {
+            debugPrint('v49 error (adjustment_entries): $e');
+          }
+          
+          // Thêm cột isLocked và lockedBy, lockedAt cho cash_closings
+          try {
+            final cols = await db.rawQuery('PRAGMA table_info(cash_closings)');
+            final colNames = cols.map((c) => c['name'] as String).toSet();
+            
+            if (!colNames.contains('isLocked')) {
+              await db.execute('ALTER TABLE cash_closings ADD COLUMN isLocked INTEGER DEFAULT 0');
+              debugPrint('v49: added isLocked to cash_closings');
+            }
+            if (!colNames.contains('lockedBy')) {
+              await db.execute('ALTER TABLE cash_closings ADD COLUMN lockedBy TEXT');
+              debugPrint('v49: added lockedBy to cash_closings');
+            }
+            if (!colNames.contains('lockedAt')) {
+              await db.execute('ALTER TABLE cash_closings ADD COLUMN lockedAt INTEGER');
+              debugPrint('v49: added lockedAt to cash_closings');
+            }
+            if (!colNames.contains('shopId')) {
+              await db.execute('ALTER TABLE cash_closings ADD COLUMN shopId TEXT');
+              debugPrint('v49: added shopId to cash_closings');
+            }
+            if (!colNames.contains('firestoreId')) {
+              await db.execute('ALTER TABLE cash_closings ADD COLUMN firestoreId TEXT UNIQUE');
+              debugPrint('v49: added firestoreId to cash_closings');
+            }
+            if (!colNames.contains('isSynced')) {
+              await db.execute('ALTER TABLE cash_closings ADD COLUMN isSynced INTEGER DEFAULT 0');
+              debugPrint('v49: added isSynced to cash_closings');
+            }
+          } catch (e) {
+            debugPrint('v49 error (cash_closings columns): $e');
+          }
+          
+          // Thêm cột lockedDateKey cho expenses để biết ngày đã chốt
+          try {
+            final cols = await db.rawQuery('PRAGMA table_info(expenses)');
+            final colNames = cols.map((c) => c['name'] as String).toSet();
+            if (!colNames.contains('lockedDateKey')) {
+              await db.execute('ALTER TABLE expenses ADD COLUMN lockedDateKey TEXT');
+              debugPrint('v49: added lockedDateKey to expenses');
+            }
+            if (!colNames.contains('isAdjustment')) {
+              await db.execute('ALTER TABLE expenses ADD COLUMN isAdjustment INTEGER DEFAULT 0');
+              debugPrint('v49: added isAdjustment to expenses');
+            }
+            if (!colNames.contains('adjustmentRef')) {
+              await db.execute('ALTER TABLE expenses ADD COLUMN adjustmentRef TEXT');
+              debugPrint('v49: added adjustmentRef to expenses');
+            }
+          } catch (e) {
+            debugPrint('v49 error (expenses adjustment columns): $e');
+          }
+          
+          // Thêm cột isAdjustment và adjustmentRef cho debts
+          try {
+            final cols = await db.rawQuery('PRAGMA table_info(debts)');
+            final colNames = cols.map((c) => c['name'] as String).toSet();
+            if (!colNames.contains('isAdjustment')) {
+              await db.execute('ALTER TABLE debts ADD COLUMN isAdjustment INTEGER DEFAULT 0');
+              debugPrint('v49: added isAdjustment to debts');
+            }
+            if (!colNames.contains('adjustmentRef')) {
+              await db.execute('ALTER TABLE debts ADD COLUMN adjustmentRef TEXT');
+              debugPrint('v49: added adjustmentRef to debts');
+            }
+          } catch (e) {
+            debugPrint('v49 error (debts adjustment columns): $e');
+          }
+          
+          // Tự động khóa các cash_closings đã có
+          try {
+            await db.execute('''
+              UPDATE cash_closings 
+              SET isLocked = 1, lockedAt = createdAt 
+              WHERE isLocked IS NULL OR isLocked = 0
+            ''');
+            debugPrint('v49: locked all existing cash_closings');
+          } catch (e) {
+            debugPrint('v49 error (lock existing closings): $e');
+          }
+          
+          debugPrint('DB upgrade v49: adjustment system completed');
+        }
+        if (oldV < 50) {
+          // v50: Tạo bảng sync_queue để track pending sync operations
+          debugPrint('DB upgrade v50: Creating sync_queue table...');
+          
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS sync_queue(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entityType TEXT NOT NULL,
+                entityId INTEGER NOT NULL,
+                firestoreId TEXT,
+                operation TEXT NOT NULL,
+                data TEXT,
+                createdAt INTEGER NOT NULL,
+                retryCount INTEGER DEFAULT 0,
+                lastError TEXT,
+                status TEXT DEFAULT 'pending'
+              )
+            ''');
+            debugPrint('v50: created sync_queue table');
+          } catch (e) {
+            debugPrint('v50 error (sync_queue): $e');
+          }
+          
+          // Tạo index để query nhanh
+          try {
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue(status)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_queue_entity ON sync_queue(entityType, entityId)');
+            debugPrint('v50: created sync_queue indexes');
+          } catch (e) {
+            debugPrint('v50 error (sync_queue indexes): $e');
+          }
+          
+          debugPrint('DB upgrade v50: sync_queue system completed');
+        }
         debugPrint('DB upgrade completed');
       },
       onOpen: (db) async {
@@ -622,12 +969,45 @@ class DBHelper {
           debugPrint('DB onOpen check error (products model): $e');
         }
 
-        // Ensure repair_parts table exists
+        // Ensure repair_parts table exists with all columns
         try {
           await db.execute(
-            'CREATE TABLE IF NOT EXISTS repair_parts(id INTEGER PRIMARY KEY AUTOINCREMENT, partName TEXT, compatibleModels TEXT, cost INTEGER, price INTEGER, quantity INTEGER, updatedAt INTEGER, createdAt INTEGER)',
+            'CREATE TABLE IF NOT EXISTS repair_parts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, partName TEXT, compatibleModels TEXT, cost INTEGER, price INTEGER, quantity INTEGER, updatedAt INTEGER, createdAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0, supplierId INTEGER, paymentMethod TEXT, createdBy TEXT)',
           );
           debugPrint('DB: ensured repair_parts table exists');
+          
+          // Ensure all sync columns exist in repair_parts (for old DBs)
+          final cols = await db.rawQuery('PRAGMA table_info(repair_parts)');
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          
+          if (!colNames.contains('firestoreId')) {
+            await db.execute('ALTER TABLE repair_parts ADD COLUMN firestoreId TEXT');
+            debugPrint('DB onOpen: added firestoreId to repair_parts');
+          }
+          if (!colNames.contains('isSynced')) {
+            await db.execute('ALTER TABLE repair_parts ADD COLUMN isSynced INTEGER DEFAULT 0');
+            debugPrint('DB onOpen: added isSynced to repair_parts');
+          }
+          if (!colNames.contains('shopId')) {
+            await db.execute('ALTER TABLE repair_parts ADD COLUMN shopId TEXT');
+            debugPrint('DB onOpen: added shopId to repair_parts');
+          }
+          if (!colNames.contains('deleted')) {
+            await db.execute('ALTER TABLE repair_parts ADD COLUMN deleted INTEGER DEFAULT 0');
+            debugPrint('DB onOpen: added deleted to repair_parts');
+          }
+          if (!colNames.contains('supplierId')) {
+            await db.execute('ALTER TABLE repair_parts ADD COLUMN supplierId INTEGER');
+            debugPrint('DB onOpen: added supplierId to repair_parts');
+          }
+          if (!colNames.contains('paymentMethod')) {
+            await db.execute('ALTER TABLE repair_parts ADD COLUMN paymentMethod TEXT');
+            debugPrint('DB onOpen: added paymentMethod to repair_parts');
+          }
+          if (!colNames.contains('createdBy')) {
+            await db.execute('ALTER TABLE repair_parts ADD COLUMN createdBy TEXT');
+            debugPrint('DB onOpen: added createdBy to repair_parts');
+          }
         } catch (e) {
           debugPrint('DB onOpen check error (repair_parts): $e');
         }
@@ -791,6 +1171,91 @@ class DBHelper {
           }
         } catch (e) {
           debugPrint('DB onOpen check error (debts createdBy): $e');
+        }
+        
+        // Ensure shopId, relatedPartId, and updatedAt columns exist in debts table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(debts)');
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          if (!colNames.contains('shopId')) {
+            await db.execute('ALTER TABLE debts ADD COLUMN shopId TEXT');
+            debugPrint('DB onOpen: added shopId to debts');
+          }
+          if (!colNames.contains('relatedPartId')) {
+            await db.execute('ALTER TABLE debts ADD COLUMN relatedPartId TEXT');
+            debugPrint('DB onOpen: added relatedPartId to debts');
+          }
+          // BUG-004 FIX: Thêm cột updatedAt cho sync conflict resolution
+          if (!colNames.contains('updatedAt')) {
+            await db.execute('ALTER TABLE debts ADD COLUMN updatedAt INTEGER');
+            debugPrint('DB onOpen: added updatedAt to debts');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (debts shopId/relatedPartId/updatedAt): $e');
+        }
+        
+        // Ensure description, createdAt, shopId, relatedPartId columns exist in expenses table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(expenses)');
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          if (!colNames.contains('description')) {
+            await db.execute('ALTER TABLE expenses ADD COLUMN description TEXT');
+            debugPrint('DB onOpen: added description to expenses');
+          }
+          if (!colNames.contains('createdAt')) {
+            await db.execute('ALTER TABLE expenses ADD COLUMN createdAt INTEGER');
+            debugPrint('DB onOpen: added createdAt to expenses');
+          }
+          if (!colNames.contains('shopId')) {
+            await db.execute('ALTER TABLE expenses ADD COLUMN shopId TEXT');
+            debugPrint('DB onOpen: added shopId to expenses');
+          }
+          if (!colNames.contains('relatedPartId')) {
+            await db.execute('ALTER TABLE expenses ADD COLUMN relatedPartId TEXT');
+            debugPrint('DB onOpen: added relatedPartId to expenses');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (expenses columns): $e');
+        }
+        
+        // Ensure isLocked, lockedBy, lockedAt, shopId, firestoreId, isSynced columns exist in cash_closings table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(cash_closings)');
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          if (!colNames.contains('isLocked')) {
+            await db.execute('ALTER TABLE cash_closings ADD COLUMN isLocked INTEGER DEFAULT 0');
+            debugPrint('DB onOpen: added isLocked to cash_closings');
+          }
+          if (!colNames.contains('lockedBy')) {
+            await db.execute('ALTER TABLE cash_closings ADD COLUMN lockedBy TEXT');
+            debugPrint('DB onOpen: added lockedBy to cash_closings');
+          }
+          if (!colNames.contains('lockedAt')) {
+            await db.execute('ALTER TABLE cash_closings ADD COLUMN lockedAt INTEGER');
+            debugPrint('DB onOpen: added lockedAt to cash_closings');
+          }
+          if (!colNames.contains('unlockedBy')) {
+            await db.execute('ALTER TABLE cash_closings ADD COLUMN unlockedBy TEXT');
+            debugPrint('DB onOpen: added unlockedBy to cash_closings');
+          }
+          if (!colNames.contains('unlockedAt')) {
+            await db.execute('ALTER TABLE cash_closings ADD COLUMN unlockedAt INTEGER');
+            debugPrint('DB onOpen: added unlockedAt to cash_closings');
+          }
+          if (!colNames.contains('shopId')) {
+            await db.execute('ALTER TABLE cash_closings ADD COLUMN shopId TEXT');
+            debugPrint('DB onOpen: added shopId to cash_closings');
+          }
+          if (!colNames.contains('firestoreId')) {
+            await db.execute('ALTER TABLE cash_closings ADD COLUMN firestoreId TEXT');
+            debugPrint('DB onOpen: added firestoreId to cash_closings');
+          }
+          if (!colNames.contains('isSynced')) {
+            await db.execute('ALTER TABLE cash_closings ADD COLUMN isSynced INTEGER DEFAULT 0');
+            debugPrint('DB onOpen: added isSynced to cash_closings');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (cash_closings columns): $e');
         }
       },
     );
@@ -1237,7 +1702,11 @@ class DBHelper {
 
   Future<List<Map<String, dynamic>>> getSuppliers() async {
     final db = await database;
-    final res = await db.query('suppliers', orderBy: 'name ASC');
+    final res = await db.query(
+      'suppliers',
+      where: 'deleted = 0 OR deleted IS NULL',
+      orderBy: 'name ASC',
+    );
     debugPrint('DBHelper.getSuppliers: found ${res.length} suppliers');
     return res;
   }
@@ -1265,6 +1734,18 @@ class DBHelper {
 
   Future<int> deleteExpenseByFirestoreId(String fId) async => (await database)
       .delete('expenses', where: 'firestoreId = ?', whereArgs: [fId]);
+
+  /// Lấy expense theo firestoreId - dùng cho conflict resolution
+  Future<Expense?> getExpenseByFirestoreId(String firestoreId) async {
+    final res = await (await database).query(
+      'expenses',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+      limit: 1,
+    );
+    return res.isNotEmpty ? Expense.fromMap(res.first) : null;
+  }
+
   Future<void> upsertDebt(Debt d) async =>
       _upsert('debts', d.toMap(), d.firestoreId ?? "debt_${d.createdAt}");
   Future<int> insertDebt(Map<String, dynamic> d) async =>
@@ -1281,10 +1762,13 @@ class DBHelper {
   Future<int> updateDebtPaid(
     int id,
     int pay,
-  ) async => await (await database).rawUpdate(
-    'UPDATE debts SET paidAmount = paidAmount + ?, status = CASE WHEN (paidAmount + ?) >= totalAmount THEN "paid" ELSE "unpaid" END WHERE id = ?',
-    [pay, pay, id],
-  );
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return await (await database).rawUpdate(
+      'UPDATE debts SET paidAmount = paidAmount + ?, status = CASE WHEN (paidAmount + ?) >= totalAmount THEN "paid" ELSE "unpaid" END, updatedAt = ?, isSynced = 0 WHERE id = ?',
+      [pay, pay, now, id],
+    );
+  }
   Future<int> updateDebt(Map<String, dynamic> debt) async =>
       await (await database).update(
         'debts',
@@ -1294,6 +1778,41 @@ class DBHelper {
       );
   Future<int> deleteDebtByFirestoreId(String fId) async => (await database)
       .delete('debts', where: 'firestoreId = ?', whereArgs: [fId]);
+
+  /// Lấy debt theo firestoreId - dùng cho conflict resolution
+  Future<Map<String, dynamic>?> getDebtByFirestoreId(String firestoreId) async {
+    final res = await (await database).query(
+      'debts',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+      limit: 1,
+    );
+    return res.isNotEmpty ? res.first : null;
+  }
+
+  /// Lấy debt ID từ firestoreId
+  Future<int?> getDebtIdByFirestoreId(String firestoreId) async {
+    final res = await (await database).query(
+      'debts',
+      columns: ['id'],
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+      limit: 1,
+    );
+    return res.isNotEmpty ? res.first['id'] as int? : null;
+  }
+
+  /// Lấy ID của purchase_order theo firestoreId
+  Future<int?> getPurchaseOrderIdByFirestoreId(String firestoreId) async {
+    final res = await (await database).query(
+      'purchase_orders',
+      columns: ['id'],
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+      limit: 1,
+    );
+    return res.isNotEmpty ? res.first['id'] as int? : null;
+  }
 
   /// Cập nhật firestoreId và isSynced cho debt sau khi sync lên cloud
   Future<void> updateDebtSynced(int id, String firestoreId) async {
@@ -1325,6 +1844,18 @@ class DBHelper {
     } else {
       await db.insert('cash_closings', map);
     }
+  }
+
+  /// Lấy ID của cash_closing theo firestoreId
+  Future<int?> getCashClosingIdByFirestoreId(String firestoreId) async {
+    final res = await (await database).query(
+      'cash_closings',
+      columns: ['id'],
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+      limit: 1,
+    );
+    return res.isNotEmpty ? res.first['id'] as int? : null;
   }
 
   // --- ATTENDANCE & WORK SCHEDULES ---
@@ -1502,8 +2033,13 @@ class DBHelper {
   // --- PARTS HELPERS ---
   Future<List<Map<String, dynamic>>> getAllParts() async {
     final db = await database;
-    // Return all repair parts, ordered by name
-    return await db.query('repair_parts', orderBy: 'partName COLLATE NOCASE');
+    // Return all repair parts, excluding soft-deleted items
+    // Sắp xếp theo thời gian nhập mới nhất lên đầu
+    return await db.query(
+      'repair_parts',
+      where: 'deleted = 0 OR deleted IS NULL',
+      orderBy: 'createdAt DESC',
+    );
   }
 
   Future<int> insertPart(Map<String, dynamic> part) async {
@@ -1512,6 +2048,9 @@ class DBHelper {
     data['createdAt'] =
         data['createdAt'] ?? DateTime.now().millisecondsSinceEpoch;
     data['updatedAt'] = data['updatedAt'] ?? data['createdAt'];
+    data['isSynced'] = 0; // Mới tạo, cần sync
+    // Tự động lấy shopId nếu chưa có
+    data['shopId'] = data['shopId'] ?? await UserService.getCurrentShopId();
     return await db.insert('repair_parts', data);
   }
 
@@ -1531,6 +2070,7 @@ class DBHelper {
   Future<int> updatePart(int id, Map<String, dynamic> data) async {
     final db = await database;
     data['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
+    data['isSynced'] = 0; // Có thay đổi, cần sync lại
     return await db.update(
       'repair_parts',
       data,
@@ -1553,11 +2093,103 @@ class DBHelper {
       {
         'quantity': currentQty - quantity,
         'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        'isSynced': 0, // Cần sync lại khi có thay đổi
       },
       where: 'id = ?',
       whereArgs: [partId],
     );
     return true;
+  }
+
+  /// Upsert repair part từ cloud
+  Future<void> upsertRepairPart(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'];
+    if (firestoreId == null) {
+      debugPrint('DB WARNING: upsertRepairPart called with null firestoreId, data=$data');
+      return;
+    }
+
+    try {
+      final existing = await db.query(
+        'repair_parts',
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+        limit: 1,
+      );
+
+      final Map<String, dynamic> cleanData = Map<String, dynamic>.from(data);
+      cleanData.remove('id');
+      cleanData['updatedAt'] = cleanData['updatedAt'] ??
+          DateTime.now().millisecondsSinceEpoch;
+      cleanData['createdAt'] = cleanData['createdAt'] ??
+          DateTime.now().millisecondsSinceEpoch;
+      
+      // Ensure numeric fields are integers
+      if (cleanData['cost'] != null) {
+        cleanData['cost'] = (cleanData['cost'] is int) 
+            ? cleanData['cost'] 
+            : (cleanData['cost'] as num).toInt();
+      }
+      if (cleanData['price'] != null) {
+        cleanData['price'] = (cleanData['price'] is int) 
+            ? cleanData['price'] 
+            : (cleanData['price'] as num).toInt();
+      }
+      if (cleanData['quantity'] != null) {
+        cleanData['quantity'] = (cleanData['quantity'] is int) 
+            ? cleanData['quantity'] 
+            : (cleanData['quantity'] as num).toInt();
+      }
+
+      if (existing.isEmpty) {
+        await db.insert('repair_parts', cleanData);
+        debugPrint('DB: Inserted repair_part $firestoreId');
+      } else {
+        await db.update(
+          'repair_parts',
+          cleanData,
+          where: 'firestoreId = ?',
+          whereArgs: [firestoreId],
+        );
+        debugPrint('DB: Updated repair_part $firestoreId');
+      }
+    } catch (e, stack) {
+      debugPrint('DB ERROR: upsertRepairPart failed for $firestoreId: $e');
+      debugPrint('DB ERROR stack: $stack');
+      debugPrint('DB ERROR data: $data');
+      rethrow;
+    }
+  }
+
+  /// Xóa repair part theo firestoreId
+  Future<void> deleteRepairPartByFirestoreId(String firestoreId) async {
+    final db = await database;
+    await db.delete(
+      'repair_parts',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
+
+  /// Lấy danh sách repair parts chưa sync
+  Future<List<Map<String, dynamic>>> getUnsyncedRepairParts() async {
+    final db = await database;
+    return await db.query(
+      'repair_parts',
+      where: 'isSynced = 0 OR isSynced IS NULL',
+    );
+  }
+
+  /// Đánh dấu repair part đã sync
+  Future<void> updateRepairPartSynced(int id, String firestoreId) async {
+    final db = await database;
+    await db.update(
+      'repair_parts',
+      {'isSynced': 1, 'firestoreId': firestoreId},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   // --- AUDIT LOGS ---
@@ -1611,6 +2243,12 @@ class DBHelper {
     final firestoreId = log['firestoreId'] as String?;
     if (firestoreId == null || firestoreId.isEmpty) return;
     await _upsert('audit_logs', log, firestoreId);
+  }
+
+  /// Insert audit log mới vào local DB
+  Future<void> insertAuditLog(Map<String, dynamic> log) async {
+    final db = await database;
+    await db.insert('audit_logs', log, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   /// Đánh dấu audit log đã sync
@@ -1803,6 +2441,16 @@ class DBHelper {
       {'firestoreId': firestoreId, 'isSynced': 1},
       where: 'id = ?',
       whereArgs: [id],
+    );
+  }
+
+  /// Xóa debt payment theo firestoreId (dùng cho soft-delete sync)
+  Future<int> deleteDebtPaymentByFirestoreId(String firestoreId) async {
+    final db = await database;
+    return await db.delete(
+      'debt_payments',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
     );
   }
 

@@ -325,6 +325,32 @@ class SyncHealthCheck {
       ),
     );
 
+    // Check REPAIR_PARTS (Kho linh kiện)
+    results.add(
+      await _checkCollection(
+        collection: 'repair_parts',
+        shopId: shopId,
+        getLocalIds: () async {
+          final db = await _localDb.database;
+          final parts = await db.query('repair_parts', where: 'deleted = 0 OR deleted IS NULL');
+          return parts
+              .where((p) => p['firestoreId'] != null)
+              .map((p) => p['firestoreId'] as String)
+              .toList();
+        },
+        getLocalCount: () async {
+          final db = await _localDb.database;
+          final parts = await db.query('repair_parts', where: 'deleted = 0 OR deleted IS NULL');
+          return parts.length;
+        },
+        getUnsyncedCount: () async {
+          final db = await _localDb.database;
+          final parts = await db.query('repair_parts', where: 'deleted = 0 OR deleted IS NULL');
+          return parts.where((p) => p['isSynced'] != 1).length;
+        },
+      ),
+    );
+
     // Tính tổng
     for (var r in results) {
       totalLocal += r.localCount;
@@ -380,6 +406,19 @@ class SyncHealthCheck {
           .where('shopId', isEqualTo: shopId)
           .get();
 
+      // DEBUG: Log chi tiết để tìm nguyên nhân cloud = 0
+      debugPrint('📊 _checkCollection $collection: shopId=$shopId, cloudDocs=${cloudSnap.docs.length}');
+      if (cloudSnap.docs.isEmpty) {
+        // Thử query không filter shopId để xem có data không
+        final allDocs = await _db.collection(collection).limit(5).get();
+        if (allDocs.docs.isNotEmpty) {
+          final sampleShopIds = allDocs.docs.map((d) => d.data()['shopId']).toSet();
+          debugPrint('⚠️ $collection có ${allDocs.docs.length}+ docs trên cloud nhưng shopId khác: $sampleShopIds');
+        } else {
+          debugPrint('ℹ️ $collection không có data nào trên cloud');
+        }
+      }
+
       // Filter ra các documents không bị xóa (deleted != true)
       final cloudIds = cloudSnap.docs
           .where((d) => d.data()['deleted'] != true)
@@ -388,6 +427,8 @@ class SyncHealthCheck {
       final localIds = (await getLocalIds()).toSet();
       final localCount = await getLocalCount();
       final unsyncedCount = await getUnsyncedCount();
+      
+      debugPrint('   → localCount=$localCount, localWithFirestoreId=${localIds.length}, cloudCount=${cloudIds.length}, unsynced=$unsyncedCount');
 
       final matched = localIds.intersection(cloudIds).length;
       final localOnly = localIds.difference(cloudIds).length;
@@ -453,6 +494,7 @@ class SyncHealthCheck {
       'customers',
       'suppliers',
       'quick_input_codes',
+      'repair_parts', // Kho linh kiện
     ];
 
     for (var collection in collections) {
@@ -468,14 +510,18 @@ class SyncHealthCheck {
         // Lấy local IDs
         final localIds = await _getLocalIds(collection);
         
+        // Đếm cloud docs (không bị deleted)
+        final activeCloudDocs = cloudSnap.docs.where((d) => d.data()['deleted'] != true).toList();
+        debugPrint('      Cloud total: ${cloudSnap.docs.length}, active: ${activeCloudDocs.length}, local: ${localIds.length}');
+        
         int collectionFixed = 0;
-        for (var doc in cloudSnap.docs) {
-          final data = doc.data();
-          // Bỏ qua nếu đã xóa
-          if (data['deleted'] == true) continue;
+        int collectionUpdated = 0;
+        for (var doc in activeCloudDocs) {
+          final data = Map<String, dynamic>.from(doc.data());
           
           data['firestoreId'] = doc.id;
           data['isSynced'] = 1; // Đánh dấu đã sync
+          data['deleted'] = data['deleted'] ?? 0; // Ensure deleted field exists
           
           try {
             // Upsert tất cả - cả records mới lẫn records cần cập nhật isSynced
@@ -483,15 +529,32 @@ class SyncHealthCheck {
             if (!localIds.contains(doc.id)) {
               collectionFixed++;
               fixedCount++;
+              debugPrint('      ➕ Mới: ${doc.id}');
+            } else {
+              collectionUpdated++;
             }
           } catch (e) {
             debugPrint('      ❌ Lỗi xử lý ${doc.id}: $e');
           }
         }
         
-        if (collectionFixed > 0) {
-          debugPrint('   ✅ Đã tải $collectionFixed $collection mới');
+        // Xóa local records đã bị xóa trên cloud
+        final deletedCloudDocs = cloudSnap.docs.where((d) => d.data()['deleted'] == true).toList();
+        int deletedLocally = 0;
+        for (var doc in deletedCloudDocs) {
+          if (localIds.contains(doc.id)) {
+            try {
+              // Đánh dấu deleted = 1 trong local thay vì xóa hẳn
+              await _markDeletedInLocal(collection, doc.id);
+              deletedLocally++;
+              debugPrint('      🗑️ Marked deleted: ${doc.id}');
+            } catch (e) {
+              debugPrint('      ❌ Lỗi đánh dấu xóa ${doc.id}: $e');
+            }
+          }
         }
+        
+        debugPrint('   ✅ $collection: +$collectionFixed mới, ~$collectionUpdated cập nhật, -$deletedLocally xóa');
       } catch (e) {
         debugPrint('   ❌ Lỗi xử lý $collection: $e');
       }
@@ -515,7 +578,7 @@ class SyncHealthCheck {
     final db = await _localDb.database;
     
     // Cập nhật isSynced = 1 cho tất cả records có firestoreId
-    final tables = ['repairs', 'sales', 'products', 'expenses', 'debts', 'attendance', 'customers', 'suppliers', 'quick_input_codes'];
+    final tables = ['repairs', 'sales', 'products', 'expenses', 'debts', 'attendance', 'customers', 'suppliers', 'quick_input_codes', 'repair_parts'];
     
     for (var table in tables) {
       try {
@@ -529,40 +592,42 @@ class SyncHealthCheck {
     }
   }
 
-  /// Lấy danh sách local IDs cho một collection
+  /// Lấy danh sách local IDs cho một collection (chỉ lấy records active, không deleted)
   static Future<Set<String>> _getLocalIds(String collection) async {
     final db = _localDb;
+    final dbInstance = await db.database;
+    
     switch (collection) {
       case 'repairs':
-        final repairs = await db.getAllRepairs();
-        return repairs.where((r) => r.firestoreId != null).map((r) => r.firestoreId!).toSet();
+        final repairs = await dbInstance.query('repairs', where: '(deleted = 0 OR deleted IS NULL)');
+        return repairs.where((r) => r['firestoreId'] != null).map((r) => r['firestoreId'] as String).toSet();
       case 'sales':
-        final sales = await db.getAllSales();
-        return sales.where((s) => s.firestoreId != null).map((s) => s.firestoreId!).toSet();
+        final sales = await dbInstance.query('sales', where: '(deleted = 0 OR deleted IS NULL)');
+        return sales.where((s) => s['firestoreId'] != null).map((s) => s['firestoreId'] as String).toSet();
       case 'products':
-        final products = await db.getAllProducts();
-        return products.where((p) => p.firestoreId != null).map((p) => p.firestoreId!).toSet();
+        final products = await dbInstance.query('products', where: '(deleted = 0 OR deleted IS NULL)');
+        return products.where((p) => p['firestoreId'] != null).map((p) => p['firestoreId'] as String).toSet();
       case 'expenses':
-        final expenses = await db.getAllExpenses();
+        final expenses = await dbInstance.query('expenses', where: '(deleted = 0 OR deleted IS NULL)');
         return expenses.where((e) => e['firestoreId'] != null).map((e) => e['firestoreId'] as String).toSet();
       case 'debts':
-        final debts = await db.getAllDebts();
+        final debts = await dbInstance.query('debts', where: '(deleted = 0 OR deleted IS NULL)');
         return debts.where((d) => d['firestoreId'] != null).map((d) => d['firestoreId'] as String).toSet();
       case 'attendance':
-        final attendance = await db.getAllAttendance();
-        return attendance.where((a) => a.firestoreId != null).map((a) => a.firestoreId!).toSet();
+        final attendance = await dbInstance.query('attendance', where: '(deleted = 0 OR deleted IS NULL)');
+        return attendance.where((a) => a['firestoreId'] != null).map((a) => a['firestoreId'] as String).toSet();
       case 'customers':
-        final dbInstance = await db.database;
-        final customers = await dbInstance.query('customers');
+        final customers = await dbInstance.query('customers', where: '(deleted = 0 OR deleted IS NULL)');
         return customers.where((c) => c['firestoreId'] != null).map((c) => c['firestoreId'] as String).toSet();
       case 'suppliers':
-        final dbInstance2 = await db.database;
-        final suppliers = await dbInstance2.query('suppliers');
+        final suppliers = await dbInstance.query('suppliers', where: '(deleted = 0 OR deleted IS NULL)');
         return suppliers.where((s) => s['firestoreId'] != null).map((s) => s['firestoreId'] as String).toSet();
       case 'quick_input_codes':
-        final dbInstance3 = await db.database;
-        final codes = await dbInstance3.query('quick_input_codes');
+        final codes = await dbInstance.query('quick_input_codes', where: '(deleted = 0 OR deleted IS NULL)');
         return codes.where((c) => c['firestoreId'] != null).map((c) => c['firestoreId'] as String).toSet();
+      case 'repair_parts':
+        final parts = await dbInstance.query('repair_parts', where: '(deleted = 0 OR deleted IS NULL)');
+        return parts.where((p) => p['firestoreId'] != null).map((p) => p['firestoreId'] as String).toSet();
       default:
         return {};
     }
@@ -603,6 +668,29 @@ class SyncHealthCheck {
       case 'quick_input_codes':
         await db.upsertQuickInputCode(QuickInputCode.fromMap(data));
         break;
+      case 'repair_parts':
+        await db.upsertRepairPart(data);
+        break;
+    }
+  }
+
+  /// Đánh dấu record đã bị xóa trong local DB
+  static Future<void> _markDeletedInLocal(String collection, String firestoreId) async {
+    final db = await _localDb.database;
+    
+    try {
+      await db.update(
+        collection,
+        {
+          'deleted': 1,
+          'isSynced': 1,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+    } catch (e) {
+      debugPrint('❌ Lỗi đánh dấu deleted cho $collection/$firestoreId: $e');
     }
   }
 }

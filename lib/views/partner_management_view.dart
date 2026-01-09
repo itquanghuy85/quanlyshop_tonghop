@@ -112,11 +112,12 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         _supplierPayments.addAll(payments);
       }
 
-      // Load debts for suppliers (SHOP_OWES type)
+      // Load debts for suppliers (SHOP_OWES type), filter deleted
       _supplierDebts = await _db.getAllDebts();
       _supplierDebts = _supplierDebts.where((debt) {
         final status = debt['status']?.toString().toLowerCase();
-        return debt['type'] == 'SHOP_OWES' && status != 'paid';
+        final isDeleted = (debt['deleted'] ?? 0) == 1;
+        return debt['type'] == 'SHOP_OWES' && status != 'paid' && !isDeleted;
       }).toList();
 
     } catch (e) {

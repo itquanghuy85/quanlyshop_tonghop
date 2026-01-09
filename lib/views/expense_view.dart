@@ -5,15 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 // BỔ SUNG THƯ VIỆN BỊ THIẾU
 import 'package:fl_chart/fl_chart.dart';
-import '../core/utils/money_utils.dart';
+import '../utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../services/notification_service.dart';
 import '../services/firestore_service.dart';
 import '../services/sync_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../services/user_service.dart';
-import '../widgets/validated_text_field.dart';
+import '../services/adjustment_service.dart';
 import '../services/event_bus.dart';
-import '../widgets/currency_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -229,6 +229,19 @@ class _ExpenseViewState extends State<ExpenseView> {
       );
       return;
     }
+    
+    // Kiểm tra ngày của chi phí đã chốt quỹ chưa
+    final expenseTimestamp = exp['date'] is int ? exp['date'] : DateTime.now().millisecondsSinceEpoch;
+    final canEdit = await AdjustmentService.canEditDirectly(expenseTimestamp);
+    if (!canEdit && mounted) {
+      final expenseDate = DateTime.fromMillisecondsSinceEpoch(expenseTimestamp);
+      NotificationService.showSnackBar(
+        '❌ Ngày ${DateFormat('dd/MM/yyyy').format(expenseDate)} đã chốt quỹ! Không thể xóa chi phí.',
+        color: Colors.red,
+      );
+      return;
+    }
+    
     final passC = TextEditingController();
     final bool? result = await showDialog<bool>(
       context: context,
@@ -244,7 +257,7 @@ class _ExpenseViewState extends State<ExpenseView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              "Bạn đang xóa khoản chi: ${exp['title']}\nSố tiền: ${MoneyUtils.formatVND(exp['amount'])}đ",
+              "Bạn đang xóa khoản chi: ${exp['title']}\nSố tiền: ${MoneyUtils.formatCurrency(exp['amount'])}",
             ),
             const SizedBox(height: 15),
             TextField(
@@ -288,8 +301,20 @@ class _ExpenseViewState extends State<ExpenseView> {
             credential,
           );
 
-          await db.deleteExpenseByFirestoreId(exp['firestoreId']);
-          await FirestoreService.deleteExpenseCloud(exp['firestoreId']);
+          final expenseId = exp['id'] as int?;
+          final firestoreId = exp['firestoreId'] as String?;
+          await db.deleteExpenseByFirestoreId(firestoreId ?? '');
+          
+          // Queue delete sync via SyncOrchestrator
+          if (expenseId != null) {
+            await SyncOrchestrator().enqueue(
+              entityType: SyncEntityType.expense,
+              entityId: expenseId,
+              firestoreId: firestoreId,
+              operation: SyncOperation.delete,
+              data: null,
+            );
+          }
 
           final user = FirebaseAuth.instance.currentUser;
           await db.logAction(
@@ -316,23 +341,32 @@ class _ExpenseViewState extends State<ExpenseView> {
     }
   }
 
-  void _showAddExpenseDialog() {
+  void _showAddExpenseDialog() async {
     if (_isSaving) return;
+    
+    // Kiểm tra ngày hôm nay đã chốt quỹ chưa
+    final today = DateTime.now();
+    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    if (!canEdit && mounted) {
+      NotificationService.showSnackBar(
+        '❌ Ngày hôm nay đã chốt quỹ! Không thể thêm chi phí mới.',
+        color: Colors.red,
+      );
+      return;
+    }
+    
+    final formKey = GlobalKey<FormState>();
     final titleC = TextEditingController();
     final amountC = TextEditingController();
     final noteC = TextEditingController();
     String category = "PHÁT SINH";
     String payMethod = "TIỀN MẶT";
 
-    bool isValidExpenseInput() {
-      return titleC.text.isNotEmpty && amountC.text.isNotEmpty;
-    }
-
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) {
+          builder: (ctx, setS) {
           titleC.addListener(() => setS(() {}));
           amountC.addListener(() => setS(() {}));
           return AlertDialog(
@@ -347,77 +381,86 @@ class _ExpenseViewState extends State<ExpenseView> {
               ),
             ),
             content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "PHÂN LOẠI",
-                    style: AppTextStyles.overline.copyWith(
-                      color: AppColors.onSurface.withOpacity(0.6),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "PHÂN LOẠI",
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onSurface.withOpacity(0.6),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children:
-                        [
-                              "CỐ ĐỊNH",
-                              "PHÁT SINH",
-                              "LƯƠNG",
-                              "MẶT BẰNG",
-                              "ĐIỆN NƯỚC",
-                              "KHÁC",
-                            ]
-                            .map(
-                              (c) => ChoiceChip(
-                                label: Text(
-                                  c,
-                                  style: AppTextStyles.caption.copyWith(
-                                    fontSize: 11,
-                                  ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        "CỐ ĐỊNH",
+                        "PHÁT SINH",
+                        "LƯƠNG",
+                        "MẶT BẰNG",
+                        "ĐIỆN NƯỚC",
+                        "KHÁC",
+                      ].map(
+                        (c) => ChoiceChip(
+                          label: Text(
+                            c,
+                            style: AppTextStyles.caption.copyWith(fontSize: 11),
+                          ),
+                          selected: category == c,
+                          onSelected: (v) => setS(() => category = c),
+                        ),
+                      ).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: titleC,
+                      decoration: const InputDecoration(labelText: "Nội dung chi *", prefixIcon: Icon(Icons.edit_note)),
+                      textCapitalization: TextCapitalization.characters,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập nội dung chi' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: amountC,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                      decoration: const InputDecoration(labelText: "Số tiền (VNĐ) *", prefixIcon: Icon(Icons.payments)),
+                      validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: noteC,
+                      decoration: const InputDecoration(labelText: "Ghi chú thêm", prefixIcon: Icon(Icons.description)),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "THANH TOÁN BẰNG",
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: ["TIỀN MẶT", "CHUYỂN KHOẢN"]
+                          .map(
+                            (m) => Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: ChoiceChip(
+                                  label: Text(m, style: AppTextStyles.caption),
+                                  selected: payMethod == m,
+                                  onSelected: (v) => setS(() => payMethod = m),
                                 ),
-                                selected: category == c,
-                                onSelected: (v) => setS(() => category = c),
-                                selectedColor: AppColors.error.withOpacity(0.1),
-                              ),
-                            )
-                            .toList(),
-                  ),
-                  const SizedBox(height: 15),
-                  _input(titleC, "Nội dung chi *", Icons.edit_note, caps: true),
-                  _input(
-                    amountC,
-                    "Số tiền (x1k) *",
-                    Icons.payments,
-                    type: TextInputType.number,
-                  ),
-                  _input(noteC, "Ghi chú thêm", Icons.description),
-                  Text(
-                    "THANH TOÁN BẰNG",
-                    style: AppTextStyles.overline.copyWith(
-                      color: AppColors.onSurface.withOpacity(0.6),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: ["TIỀN MẶT", "CHUYỂN KHOẢN"]
-                        .map(
-                          (m) => Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 4),
-                              child: ChoiceChip(
-                                label: Text(m, style: AppTextStyles.caption),
-                                selected: payMethod == m,
-                                onSelected: (v) => setS(() => payMethod = m),
                               ),
                             ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ],
+                          )
+                          .toList(),
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -432,18 +475,14 @@ class _ExpenseViewState extends State<ExpenseView> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: isValidExpenseInput() && !_isSaving
-                    ? () async {
-                        if (titleC.text.isEmpty ||
-                            amountC.text.isEmpty ||
-                            _isSaving)
-                          return;
+                onPressed: _isSaving
+                    ? null
+                    : () async {
+                        if (!(formKey.currentState?.validate() ?? false)) return;
                         setS(() => _isSaving = true);
 
-                        // Lấy giá trị đã được CurrencyTextField xử lý (có nhân 1000 nếu < 100000)
-                        int amount = CurrencyTextField.parseValueWithMultiply(
-                          amountC.text,
-                        );
+                        final parsed = MoneyUtils.parseCurrency(amountC.text);
+                        final amount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
 
                         final String fId =
                             "exp_${DateTime.now().millisecondsSinceEpoch}_${titleC.text.hashCode}";
@@ -458,8 +497,16 @@ class _ExpenseViewState extends State<ExpenseView> {
                         };
 
                         final navigator = Navigator.of(ctx);
-                        await db.insertExpense(expData);
-                        await FirestoreService.addExpenseCloud(expData);
+                        final expenseId = await db.insertExpense(expData);
+                        
+                        // Queue sync to cloud via SyncOrchestrator
+                        await SyncOrchestrator().enqueue(
+                          entityType: SyncEntityType.expense,
+                          entityId: expenseId,
+                          firestoreId: fId,
+                          operation: SyncOperation.create,
+                          data: expData,
+                        );
 
                         final user = FirebaseAuth.instance.currentUser;
                         await db.logAction(
@@ -469,21 +516,21 @@ class _ExpenseViewState extends State<ExpenseView> {
                               "NV",
                           action: "CHI PHÍ",
                           type: "FINANCE",
-                          desc: "Đã chi ${MoneyUtils.formatVND(amount)}đ",
+                          desc: "Đã chi ${MoneyUtils.formatCurrency(amount)}",
                         );
 
+                        EventBus().emit('expenses_changed');
                         if (!mounted) return;
                         navigator.pop();
-                        await _refresh(); // Load lại data từ DB thay vì chỉ filter
-                        setState(() {
-                          _isSaving = false;
-                        });
                         NotificationService.showSnackBar(
                           "Đã lưu chi phí!",
                           color: AppColors.success,
                         );
-                      }
-                    : null,
+                        setState(() {
+                          _isSaving = false;
+                        });
+                        await _refresh(); // Load lại data từ DB thay vì chỉ filter
+                      },
                 child: Text(
                   "LƯU CHI PHÍ",
                   style: AppTextStyles.button.copyWith(
@@ -496,26 +543,6 @@ class _ExpenseViewState extends State<ExpenseView> {
           );
         },
       ),
-    );
-  }
-
-  Widget _input(
-    TextEditingController c,
-    String l,
-    IconData i, {
-    TextInputType type = TextInputType.text,
-    bool caps = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: type == TextInputType.number
-          ? CurrencyTextField(controller: c, label: l, icon: i)
-          : ValidatedTextField(
-              controller: c,
-              label: l,
-              icon: i,
-              uppercase: caps,
-            ),
     );
   }
 
@@ -867,7 +894,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  "${MoneyUtils.formatVND(total)} đ",
+                  MoneyUtils.formatCurrency(total),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 26,
@@ -940,7 +967,7 @@ class _ExpenseViewState extends State<ExpenseView> {
       children: [
         Text(label, style: const TextStyle(color: Colors.white60, fontSize: 9)),
         Text(
-          MoneyUtils.formatVND(val),
+          MoneyUtils.formatCurrency(val),
           style: const TextStyle(
             color: Colors.white,
             fontSize: 11,
@@ -1026,7 +1053,7 @@ class _ExpenseViewState extends State<ExpenseView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              "-${MoneyUtils.formatVND(e['amount'])}",
+              "-${MoneyUtils.formatCurrency(e['amount'])}",
               style: const TextStyle(
                 color: Colors.redAccent,
                 fontWeight: FontWeight.w900,

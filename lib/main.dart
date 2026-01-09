@@ -20,6 +20,8 @@ import 'services/notification_service.dart';
 import 'services/connectivity_service.dart';
 import 'services/sync_service.dart';
 import 'services/sync_health_check.dart'; // Kiểm tra sync health
+import 'services/sync_orchestrator.dart'; // Quản lý đồng bộ local -> cloud
+import 'services/cash_closing_notifier.dart'; // Realtime notify chốt quỹ
 import 'data/db_helper.dart'; // Local database helper
 import 'package:firebase_messaging/firebase_messaging.dart';
 
@@ -150,6 +152,16 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initNotificationListener();
+    _initSyncOrchestrator();
+  }
+
+  void _initSyncOrchestrator() async {
+    try {
+      await SyncOrchestrator().init();
+      debugPrint('✅ SyncOrchestrator initialized');
+    } catch (e) {
+      debugPrint('❌ SyncOrchestrator init failed: $e');
+    }
   }
 
   @override
@@ -220,6 +232,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         },
       );
       debugPrint('✅ Sync hoàn thành');
+      
+      // Khởi tạo CashClosingNotifier để theo dõi trạng thái chốt quỹ realtime
+      await CashClosingNotifier.instance.init();
+      debugPrint('✅ CashClosingNotifier initialized');
     } catch (e) {
       debugPrint('❌ Lỗi đồng bộ: $e');
     }

@@ -391,6 +391,7 @@ class _SaleListViewState extends State<SaleListView> {
                         final s = list[i];
                         final date = DateFormat('HH:mm - dd/MM/yy').format(DateTime.fromMillisecondsSinceEpoch(s.soldAt));
                         final remain = s.totalPrice - s.downPayment;
+                        final index = i + 1;
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -405,6 +406,23 @@ class _SaleListViewState extends State<SaleListView> {
                               Navigator.push(context, MaterialPageRoute(builder: (_) => SaleDetailView(sale: s))).then((_) => _refresh());
                             },
                             contentPadding: const EdgeInsets.all(15),
+                            leading: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: AppColors.success.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$index',
+                                  style: AppTextStyles.body2.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                              ),
+                            ),
                             title: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [

@@ -7,7 +7,9 @@ import 'dart:io';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
+import '../services/data_migration_service.dart';
 import '../widgets/validated_text_field.dart';
+import 'adjustment_history_view.dart';
 
 class ShopSettingsView extends StatefulWidget {
   const ShopSettingsView({super.key});
@@ -290,6 +292,20 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
 
                     const SizedBox(height: 32),
 
+                    // Financial Management Section
+                    _buildSection("QUẢN LÝ TÀI CHÍNH"),
+                    const SizedBox(height: 16),
+                    _buildFinancialManagementSection(),
+
+                    const SizedBox(height: 32),
+
+                    // Data Migration Section
+                    _buildSection("KHÔI PHỤC DỮ LIỆU"),
+                    const SizedBox(height: 16),
+                    _buildDataMigrationSection(),
+
+                    const SizedBox(height: 32),
+
                     // Members Section
                     _buildSection("DANH SÁCH THÀNH VIÊN"),
                     const SizedBox(height: 16),
@@ -313,6 +329,470 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       ),
     );
   }
+
+  Widget _buildFinancialManagementSection() {
+    return Column(
+      children: [
+        // Lịch sử điều chỉnh
+        Card(
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.history, color: Colors.orange.shade700),
+            ),
+            title: const Text(
+              'Lịch sử điều chỉnh',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text(
+              'Xem các bút toán điều chỉnh sau chốt quỹ',
+              style: TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdjustmentHistoryView(),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Thông tin thêm về quy tắc tài chính
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Sau khi chốt quỹ, mọi thay đổi sẽ được ghi nhận bằng bút toán điều chỉnh để bảo toàn lịch sử tài chính.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDataMigrationSection() {
+    return Column(
+      children: [
+        // Tìm và khôi phục dữ liệu cũ
+        Card(
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.cloud_download, color: Colors.green.shade700),
+            ),
+            title: const Text(
+              'Khôi phục dữ liệu cũ',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text(
+              'Tìm và migrate dữ liệu từ tài khoản/shop khác',
+              style: TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _showDataMigrationDialog,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.amber.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.lightbulb_outline, color: Colors.amber.shade700, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Nếu bạn đã từng sử dụng app với tài khoản khác hoặc bị mất dữ liệu sau khi đăng nhập lại, tính năng này sẽ giúp khôi phục.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.amber.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showDataMigrationDialog() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text("Đang quét dữ liệu trên cloud..."),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final currentShopId = await UserService.getCurrentShopId();
+      final orphanData = await DataMigrationService.findOrphanData();
+      
+      if (!mounted) return;
+      Navigator.pop(context); // Đóng loading
+
+      if (orphanData.isEmpty) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green),
+                SizedBox(width: 10),
+                Text("KHÔNG CÓ DỮ LIỆU CŨ"),
+              ],
+            ),
+            content: const Text(
+              "Không tìm thấy dữ liệu nào từ tài khoản/shop khác trên cloud.\n\n"
+              "Nếu bạn chắc chắn có dữ liệu cũ, hãy kiểm tra:\n"
+              "• Đăng nhập đúng email\n"
+              "• Kết nối internet ổn định",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("ĐÓNG"),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // Nhóm dữ liệu theo shopId
+      final groupedByShopId = <String, List<OrphanDataInfo>>{};
+      for (var item in orphanData) {
+        groupedByShopId.putIfAbsent(item.shopId, () => []).add(item);
+      }
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.cloud_queue, color: Colors.blue),
+              SizedBox(width: 10),
+              Expanded(child: Text("TÌM THẤY DỮ LIỆU CŨ", style: TextStyle(fontSize: 16))),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    "Shop hiện tại: ${currentShopId ?? 'N/A'}",
+                    style: TextStyle(fontSize: 11, color: Colors.blue.shade800),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Dữ liệu từ các nguồn khác:",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 10),
+                ...groupedByShopId.entries.map((entry) {
+                  final shopId = entry.key;
+                  final items = entry.value;
+                  final totalCount = items.fold<int>(0, (sum, item) => sum + item.count);
+                  
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              shopId == 'null' ? Icons.help_outline : Icons.store,
+                              size: 16,
+                              color: shopId == 'null' ? Colors.orange : Colors.grey,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                shopId == 'null' 
+                                    ? "Dữ liệu chưa gán shop" 
+                                    : "Shop: ${shopId.substring(0, 8)}...",
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                            ),
+                            Text(
+                              "$totalCount bản ghi",
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: items.map((item) => Chip(
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: EdgeInsets.zero,
+                            labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                            label: Text(
+                              "${item.collection}: ${item.count}",
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          )).toList(),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _confirmMigration(shopId, totalCount);
+                            },
+                            icon: const Icon(Icons.download, size: 16),
+                            label: const Text("MIGRATE VỀ SHOP NÀY"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("ĐÓNG"),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      NotificationService.showSnackBar("❌ Lỗi: $e", color: Colors.red);
+    }
+  }
+
+  Future<void> _confirmMigration(String fromShopId, int totalCount) async {
+    final currentShopId = await UserService.getCurrentShopId();
+    if (currentShopId == null) {
+      NotificationService.showSnackBar("❌ Không xác định được shop hiện tại", color: Colors.red);
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber, color: Colors.orange),
+            SizedBox(width: 10),
+            Expanded(child: Text("XÁC NHẬN MIGRATE", style: TextStyle(fontSize: 16))),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Bạn sắp migrate $totalCount bản ghi từ:"),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                fromShopId == 'null' ? "Dữ liệu chưa gán shop" : "Shop: $fromShopId",
+                style: TextStyle(fontSize: 11, color: Colors.red.shade800),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text("Sang shop hiện tại:"),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                "Shop: $currentShopId",
+                style: TextStyle(fontSize: 11, color: Colors.green.shade800),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "⚠️ Hành động này không thể hoàn tác!",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("HỦY"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text("MIGRATE", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // Thực hiện migration
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        content: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text("Đang migrate dữ liệu..."),
+                const SizedBox(height: 8),
+                Text(
+                  _migrationProgress,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+
+    try {
+      final results = await DataMigrationService.migrateData(
+        fromShopId: fromShopId,
+        toShopId: currentShopId,
+        onProgress: (message) {
+          setState(() => _migrationProgress = message);
+        },
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Đóng loading
+
+      final totalMigrated = results.values.fold<int>(0, (sum, count) => sum + count);
+      
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 10),
+              Text("MIGRATE THÀNH CÔNG"),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Đã migrate $totalMigrated bản ghi:"),
+              const SizedBox(height: 10),
+              ...results.entries.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check, color: Colors.green, size: 16),
+                    const SizedBox(width: 8),
+                    Text("${e.key}: ${e.value}", style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+              )),
+              const SizedBox(height: 16),
+              const Text(
+                "Vui lòng khởi động lại app để dữ liệu được cập nhật đầy đủ.",
+                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                // Có thể trigger reload data ở đây
+              },
+              child: const Text("ĐÓNG"),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      NotificationService.showSnackBar("❌ Lỗi migrate: $e", color: Colors.red);
+    }
+  }
+
+  String _migrationProgress = '';
 
   Widget _buildMembersList() {
     return FutureBuilder<List<Map<String, dynamic>>>(

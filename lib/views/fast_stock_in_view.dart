@@ -11,6 +11,7 @@ import '../models/supplier_model.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
 import '../core/utils/money_utils.dart';
@@ -766,6 +767,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         status: 1,
         description: 'Nhập nhanh',
         createdAt: ts,
+        updatedAt: ts, // Thêm updatedAt để sort đúng
         supplier: selectedSupplier,
         type: 'PHONE',
         quantity: quantity,
@@ -776,7 +778,21 @@ class _FastStockInViewState extends State<FastStockInView> {
       );
 
       await db.upsertProduct(product);
-      await FirestoreService.addProduct(product);
+      
+      // Get product ID from local DB for SyncOrchestrator
+      final savedProduct = await db.getProductByFirestoreId(fId);
+      final productId = savedProduct?.id;
+      
+      // Queue sync to cloud via SyncOrchestrator
+      if (productId != null) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.product,
+          entityId: productId,
+          firestoreId: fId,
+          operation: SyncOperation.create,
+          data: product.toMap(),
+        );
+      }
 
       // Lưu lịch sử nhập hàng từ nhà cung cấp
       final supplierData = suppliers.firstWhere(
@@ -869,8 +885,17 @@ class _FastStockInViewState extends State<FastStockInView> {
             'FastStockIn: Debt created successfully, firestoreId: ${debt.firestoreId}',
           );
 
-          // Sync to Firestore
-          await FirestoreService.addDebtCloud(debt.toMap());
+          // Queue sync to cloud via SyncOrchestrator
+          final debtId = await db.getDebtIdByFirestoreId(debt.firestoreId!);
+          if (debtId != null) {
+            await SyncOrchestrator().enqueue(
+              entityType: SyncEntityType.debt,
+              entityId: debtId,
+              firestoreId: debt.firestoreId,
+              operation: SyncOperation.create,
+              data: debt.toMap(),
+            );
+          }
 
           // Notify UI update
           EventBus().emit('debts_changed');
@@ -889,7 +914,9 @@ class _FastStockInViewState extends State<FastStockInView> {
         }
       } else {
         // Xử lý thanh toán tiền mặt/chuyển khoản - tạo expense record
+        final expFId = "exp_stock_${ts}";
         final exp = {
+          'firestoreId': expFId,
           'title': 'Nhập hàng - $selectedSupplier',
           'amount': cost * quantity,
           'category': 'PURCHASE',
@@ -899,8 +926,16 @@ class _FastStockInViewState extends State<FastStockInView> {
           'createdAt': ts,
         };
         try {
-          await db.insertExpense(exp);
-          await FirestoreService.addExpenseCloud(exp);
+          final expenseId = await db.insertExpense(exp);
+          
+          // Queue sync to cloud via SyncOrchestrator
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.expense,
+            entityId: expenseId,
+            firestoreId: expFId,
+            operation: SyncOperation.create,
+            data: exp,
+          );
           EventBus().emit('expenses_changed');
         } catch (e) {
           debugPrint('FastStockIn: Failed to create expense: $e');
