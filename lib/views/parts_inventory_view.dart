@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../services/user_service.dart';
 import '../services/supplier_service.dart';
@@ -325,6 +326,33 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           'supplierName': supplierName,
                         },
                       );
+
+                      // Ghi lịch sử nhập hàng từ NCC (để hiển thị trong trang chi tiết NCC)
+                      if (selectedSupplierId != null) {
+                        final user = FirebaseAuth.instance.currentUser;
+                        final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
+                        final importHistory = {
+                          'supplierId': selectedSupplierId,
+                          'supplierName': supplierName,
+                          'productName': partName,
+                          'productBrand': 'LINH KIỆN',
+                          'productModel': modelC.text.toUpperCase(),
+                          'imei': null,
+                          'quantity': qty,
+                          'costPrice': cost,
+                          'totalAmount': cost * qty,
+                          'paymentMethod': paymentMethod,
+                          'importDate': now,
+                          'importedBy': userName,
+                          'notes': 'Nhập từ kho linh kiện',
+                          'shopId': shopId,
+                          'isSynced': 0,
+                        };
+                        await db.insertSupplierImportHistory(importHistory);
+
+                        // Cập nhật thống kê nhà cung cấp
+                        await db.updateSupplierStats(selectedSupplierId!, cost * qty, qty);
+                      }
 
                       if (paymentMethod == 'CÔNG NỢ') {
                         // BUG-005: Block save nếu CÔNG NỢ nhưng không chọn NCC
