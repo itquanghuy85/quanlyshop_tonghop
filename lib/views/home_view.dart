@@ -1197,14 +1197,34 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
     int totalIn = salesIncome + repairsIncome;
 
-    // CHI HÔM NAY = tổng expenses
-    int totalOut = fExpenses.fold<int>(
-      0,
-      (sum, e) => sum + (e['amount'] as int),
-    );
+    // CHI HÔM NAY = tổng expenses (LOẠI TRỪ nhập hàng/purchase vì đã tính trong giá vốn)
+    int totalOut = 0;
+    for (var e in fExpenses) {
+      final category = (e['category'] as String? ?? '').toUpperCase();
+      final amount = e['amount'] as int;
+      // Loại trừ các chi phí nhập hàng/purchase vì sẽ được tính qua giá vốn khi bán
+      // Category có thể là: NHẬP HÀNG, PURCHASE, STOCK (auto-created khi nhập kho)
+      if (category.contains('NHẬP HÀNG') || 
+          category.contains('PURCHASE') || 
+          category.contains('STOCK') ||
+          category.contains('ĐƠN NHẬP')) {
+        debugPrint('LOẠI TRỪ expense nhập hàng: category=$category, amount=$amount');
+      } else {
+        totalOut += amount;
+        debugPrint('TÍNH expense: category=$category, amount=$amount');
+      }
+    }
+
+    // Debug log
+    debugPrint('=== TÍNH LỢI NHUẬN ===');
+    debugPrint('salesIncome=$salesIncome, salesCost=$salesCost');
+    debugPrint('repairsIncome=$repairsIncome, repairsCost=$repairsCost');
+    debugPrint('totalIn=$totalIn, totalOut=$totalOut');
+    debugPrint('profit = $totalIn - $totalOut - $salesCost - $repairsCost');
 
     // LỢI NHUẬN RÒNG = THU - CHI - GIÁ VỐN (chỉ tính đơn đã thu tiền)
     int profit = totalIn - totalOut - salesCost - repairsCost;
+    debugPrint('profit = $profit');
 
     // Thống kê số lượng
     doneT = fRepairs.length;

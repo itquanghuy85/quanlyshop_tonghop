@@ -2209,10 +2209,16 @@ class _RevenueViewState extends State<RevenueView>
     }
 
     int totalIn = salesIncome + repairsIncome;
-    int totalOut = fExpenses.fold<int>(
-      0,
-      (sum, e) => sum + (e['amount'] as int),
-    );
+    // CHI PHÍ = tổng expenses (LOẠI TRỪ nhập hàng/purchase vì đã tính trong giá vốn)
+    int totalOut = fExpenses.where((e) {
+      final category = (e['category'] as String? ?? '').toUpperCase();
+      // Loại trừ các chi phí nhập hàng/purchase vì sẽ được tính qua giá vốn khi bán
+      // Category có thể là: NHẬP HÀNG, PURCHASE, STOCK (auto-created khi nhập kho)
+      return !category.contains('NHẬP HÀNG') && 
+             !category.contains('PURCHASE') && 
+             !category.contains('STOCK') &&
+             !category.contains('ĐƠN NHẬP');
+    }).fold<int>(0, (sum, e) => sum + (e['amount'] as int));
     // LỢI NHUẬN RÒNG = THU - CHI - GIÁ VỐN (chỉ tính đơn đã thu tiền)
     int profit = totalIn - totalOut - salesCost - repairsCost;
 
