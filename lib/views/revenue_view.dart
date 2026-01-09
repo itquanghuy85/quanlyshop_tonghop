@@ -581,13 +581,13 @@ class _RevenueViewState extends State<RevenueView>
         ),
       );
     }
-    for (var e in _expenses.where((e) => _isSameDay(e['date'] as int, now))) {
+    for (var e in _expenses.where((e) => _isSameDay((e['date'] ?? e['createdAt']) as int, now))) {
       todayTrans.add(
         _TransactionItem(
-          title: "Chi: ${e['title']}",
+          title: "Chi: ${e['title'] ?? e['description'] ?? 'Chi phí'}",
           amount: e['amount'],
           method: e['paymentMethod'] ?? 'TIỀN MẶT',
-          time: e['date'],
+          time: (e['date'] ?? e['createdAt']) as int,
           type: "OUT",
           isDebt: false,
         ),
@@ -1140,7 +1140,7 @@ class _RevenueViewState extends State<RevenueView>
         )
         .toList();
     final fExpenses = _expenses
-        .where((e) => _isInFilterPeriod(e['date'] as int))
+        .where((e) => _isInFilterPeriod((e['date'] ?? e['createdAt']) as int))
         .toList();
     
     // Tính tổng thu từ sales (xử lý trả góp đúng cách)
@@ -1498,11 +1498,11 @@ class _RevenueViewState extends State<RevenueView>
 
   Widget _buildExpenseDetail() {
     final list = _expenses
-        .where((e) => _isInFilterPeriod(e['date'] as int))
+        .where((e) => _isInFilterPeriod((e['date'] ?? e['createdAt']) as int))
         .toList();
-    list.sort((a, b) => (b['date'] as int).compareTo(a['date'] as int));
+    list.sort((a, b) => ((b['date'] ?? b['createdAt']) as int).compareTo((a['date'] ?? a['createdAt']) as int));
     
-    final totalExpense = list.fold<int>(0, (sum, e) => sum + (e['amount'] as int));
+    final totalExpense = list.fold<int>(0, (sum, e) => sum + (e['amount'] as int? ?? 0));
     
     return Column(
       children: [
@@ -1526,7 +1526,8 @@ class _RevenueViewState extends State<RevenueView>
                 itemCount: list.length,
                 itemBuilder: (ctx, i) {
                   final expense = list[i];
-                  final date = DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(expense['date'] as int));
+                  final expenseDate = (expense['date'] ?? expense['createdAt']) as int? ?? 0;
+                  final date = DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(expenseDate));
                   final index = i + 1;
                   return Card(
                     child: ListTile(
@@ -1548,7 +1549,7 @@ class _RevenueViewState extends State<RevenueView>
                           ),
                         ),
                       ),
-                      title: Text(expense['title'] ?? 'Chi phí', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      title: Text(expense['title'] ?? expense['description'] ?? 'Chi phí', style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text("${expense['category'] ?? 'Khác'} • $date"),
                       trailing: Text(
                         "-${NumberFormat('#,###').format(expense['amount'])}đ",
@@ -1630,12 +1631,13 @@ class _RevenueViewState extends State<RevenueView>
 
     // Expenses
     for (var e in _expenses) {
+      final expenseTime = (e['date'] ?? e['createdAt']) as int? ?? 0;
       allTransactions.add(
         _TransactionItem(
-          title: "Chi: ${e['title']}",
-          amount: e['amount'],
+          title: "Chi: ${e['title'] ?? e['description'] ?? 'Chi phí'}",
+          amount: e['amount'] ?? 0,
           method: e['paymentMethod'] ?? 'TIỀN MẶT',
-          time: e['date'],
+          time: expenseTime,
           type: "OUT",
           isDebt: false,
         ),
