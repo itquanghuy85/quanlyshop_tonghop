@@ -61,7 +61,6 @@ class _InventoryViewState extends State<InventoryView>
   bool _isCheckingLoading = false;
   bool _isScanning = false;
   final MobileScannerController _scannerController = MobileScannerController();
-  final String _checkSearchQuery = '';
   InventoryCheck? _currentCheck;
 
   // Layout sizing constants
@@ -69,7 +68,6 @@ class _InventoryViewState extends State<InventoryView>
   final double _cardPadding = 12.0;
   final double _iconSize = 20.0;
   final double _titleFontSize = 18.0;
-  final double _subtitleFontSize = 12.0;
   final double _smallFontSize = 11.0;
   final double _btnMinHeight = 44.0;
 
@@ -1677,37 +1675,6 @@ class _InventoryViewState extends State<InventoryView>
     );
   }
 
-  Widget _summaryItem(String label, String val, IconData icon) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, color: Colors.white70, size: 14),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          val,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    );
-  }
-
   // Compact summary used in the smaller header
   Widget _summaryItemCompact(String label, String val, IconData icon) {
     return Column(
@@ -2544,7 +2511,7 @@ class _InventoryViewState extends State<InventoryView>
     final qtyC = TextEditingController(text: p.quantity.toString());
     final modelC = TextEditingController(text: p.model ?? '');
 
-    String type = p.type ?? "PHONE";
+    String type = p.type;
     String? supplier = p.supplier;
     bool isSaving = false;
 

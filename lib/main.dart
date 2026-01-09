@@ -264,10 +264,15 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     final lastShopId = prefs.getString('last_synced_shop_id');
     
-    if (lastShopId != null && lastShopId != currentShopId) {
-      debugPrint('⚠️ ShopId đã thay đổi từ $lastShopId -> $currentShopId. Xóa local data cũ...');
+    // Xóa data nếu:
+    // 1. lastShopId khác currentShopId (đổi shop)
+    // 2. lastShopId == null (lần đầu đăng nhập với shop này - xóa dữ liệu cũ có thể còn từ account/device khác)
+    final needClear = lastShopId == null || lastShopId != currentShopId;
+    
+    if (needClear) {
+      debugPrint('⚠️ Shop mới hoặc đã thay đổi: $lastShopId -> $currentShopId. Xóa local data cũ...');
       await DBHelper().clearAllData();
-      debugPrint('✅ Đã xóa local data cũ của shop $lastShopId');
+      debugPrint('✅ Đã xóa local data cũ');
     }
     
     // Lưu shopId hiện tại

@@ -38,6 +38,9 @@ import 'customer_management_view.dart';
 import 'parts_inventory_view.dart';
 import 'create_repair_order_view.dart';
 import 'about_developer_view.dart';
+import 'cash_closing_view.dart';
+import 'transaction_detail_view.dart';
+import 'customer_receivables_view.dart';
 import '../data/db_helper.dart';
 import '../widgets/notification_badge.dart';
 import '../widgets/perpetual_calendar.dart';
@@ -737,7 +740,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         final tabLabel =
             (config['item'] as BottomNavigationBarItem).label ?? 'Chức năng';
         // Xác định nguồn khóa: admin hay owner
-        final lockedBy = _getLockedBy(permission ?? '');
+        final lockedBy = _getLockedBy(permission);
         return {
           ...config,
           'widget': _buildLockedFeatureScreen(tabLabel, lockedBy: lockedBy),
@@ -1000,12 +1003,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           .collection('users')
           .doc(user.uid)
           .get();
-      
+
       String displayName = '';
       if (userDoc.exists) {
         displayName = userDoc.data()?['displayName'] ?? '';
       }
-      
+
       // Fallback: dùng phần trước @ của email
       if (displayName.isEmpty && user.email != null) {
         displayName = user.email!.split('@').first;
@@ -1148,10 +1151,49 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         .where((e) => _isSameDay(e['date'] as int))
         .toList();
 
-    // THU HÔM NAY = totalPrice (bán hàng) + price (sửa chữa)
-    int totalIn =
-        fSales.fold<int>(0, (sum, s) => sum + s.totalPrice) +
-        fRepairs.fold<int>(0, (sum, r) => sum + r.price);
+    // THU HÔM NAY - TÍNH GIỐNG NHƯ REVENUE_VIEW.DART
+    // Tính tổng thu từ sales (xử lý trả góp và công nợ đúng cách)
+    int salesIncome = 0;
+    int salesCost = 0; // Chỉ tính giá vốn cho đơn đã thu tiền
+    for (var s in fSales) {
+      if (s.paymentMethod == 'CÔNG NỢ') {
+        // Công nợ: không tính vào dòng tiền và lợi nhuận
+        continue;
+      }
+      if (s.isInstallment) {
+        // Trả góp: chỉ tính downPayment + settlementAmount (nếu đã nhận)
+        salesIncome += s.downPayment;
+        if (s.settlementReceivedAt != null &&
+            _isSameDay(s.settlementReceivedAt!)) {
+          salesIncome += s.settlementAmount;
+        }
+        // Giá vốn tính theo tỷ lệ đã thu
+        final totalPaid =
+            s.downPayment +
+            (s.settlementReceivedAt != null &&
+                    _isSameDay(s.settlementReceivedAt!)
+                ? s.settlementAmount
+                : 0);
+        final ratio = s.totalPrice > 0 ? totalPaid / s.totalPrice : 0.0;
+        salesCost += (s.totalCost * ratio).round();
+      } else {
+        // Bán thường
+        salesIncome += s.totalPrice;
+        salesCost += s.totalCost;
+      }
+    }
+
+    // Tính tổng thu từ repairs (loại trừ công nợ)
+    int repairsIncome = 0;
+    int repairsCost = 0; // Chỉ tính giá vốn cho đơn đã thu tiền
+    for (var r in fRepairs) {
+      if (r.paymentMethod != 'CÔNG NỢ') {
+        repairsIncome += r.price;
+        repairsCost += r.totalCost;
+      }
+    }
+
+    int totalIn = salesIncome + repairsIncome;
 
     // CHI HÔM NAY = tổng expenses
     int totalOut = fExpenses.fold<int>(
@@ -1159,12 +1201,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       (sum, e) => sum + (e['amount'] as int),
     );
 
-    // LỢI NHUẬN RÒNG = THU - CHI - GIÁ VỐN
-    int profit =
-        totalIn -
-        totalOut -
-        fSales.fold<int>(0, (sum, s) => sum + s.totalCost) -
-        fRepairs.fold<int>(0, (sum, r) => sum + r.totalCost);
+    // LỢI NHUẬN RÒNG = THU - CHI - GIÁ VỐN (chỉ tính đơn đã thu tiền)
+    int profit = totalIn - totalOut - salesCost - repairsCost;
 
     // Thống kê số lượng
     doneT = fRepairs.length;
@@ -1201,7 +1239,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       final status = d['status']?.toString().toUpperCase() ?? '';
       // Bỏ qua nếu đã thanh toán hoặc đã hủy
       if (status == 'PAID' || status == 'CANCELLED') continue;
-      
+
       final int totalAmount = (d['totalAmount'] ?? 0) as int;
       final int paidAmount = (d['paidAmount'] ?? 0) as int;
       final int remain = totalAmount - paidAmount;
@@ -1352,7 +1390,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 await SyncService.cancelAllSubscriptions();
                 EncryptionService.reset(); // Reset mã hóa khi đăng xuất
                 UserService.clearCache(); // Xóa cache shopId
-                UserService.setAdminSelectedShop(null); // Xóa shop đã chọn của admin
+                UserService.setAdminSelectedShop(
+                  null,
+                ); // Xóa shop đã chọn của admin
                 await DBHelper().clearAllData(); // Xóa dữ liệu local
                 try {
                   await FirebaseAuth.instance.signOut();
@@ -1623,7 +1663,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           // Dòng lời chào
           Row(
             children: [
-              Icon(greetingIcon, color: Colors.white.withOpacity(0.9), size: 20),
+              Icon(
+                greetingIcon,
+                color: Colors.white.withOpacity(0.9),
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text(
                 greeting,
@@ -1644,7 +1688,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 12),
-          
+
           // Tên người dùng
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -1681,7 +1725,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: roleColor.withOpacity(0.9),
                             borderRadius: BorderRadius.circular(12),
@@ -3008,68 +3055,110 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   color: Colors.teal.shade100,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.fingerprint,
-                  color: Colors.teal,
-                  size: 28,
-                ),
+                child: const Icon(Icons.fingerprint, color: Colors.teal, size: 28),
               ),
-              title: const Text(
-                "CHẤM CÔNG",
-                style: TextStyle(
-                  color: Colors.teal,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              subtitle: const Text(
-                "Ghi nhận giờ làm việc",
-                style: TextStyle(fontSize: 11),
-              ),
-              trailing: const Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Colors.teal,
-              ),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AttendanceView()),
-              ),
+              title: const Text("CHẤM CÔNG", style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold)),
+              subtitle: const Text("Ghi nhận giờ làm việc", style: TextStyle(fontSize: 11)),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.teal),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendanceView())),
             ),
           ),
 
           const SizedBox(height: 20),
-          _buildSectionHeader("QUẢN LÝ"),
-          _tabMenuItem(
-            "Danh sách nhân viên",
-            Icons.people,
-            Colors.blue,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const StaffListView()),
-            ),
-            subtitle: "Xem và quản lý thông tin nhân viên.",
+          _buildSectionHeader("QUẢN LÝ NHÂN VIÊN"),
+          
+          // Grid 2x2 cho các chức năng chính
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.3,
+            children: [
+              _staffQuickCard(
+                "Danh sách\nNhân viên",
+                Icons.people,
+                Colors.blue,
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffListView())),
+              ),
+              _staffQuickCard(
+                "Hiệu suất\nLàm việc",
+                Icons.bar_chart,
+                Colors.orange,
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffPerformanceView())),
+              ),
+              _staffQuickCard(
+                "Lịch làm\nViệc",
+                Icons.schedule,
+                Colors.purple,
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => WorkScheduleSettingsView())),
+              ),
+              _staffQuickCard(
+                "Phân quyền\nNhân viên",
+                Icons.admin_panel_settings,
+                Colors.red,
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffListView())),
+              ),
+            ],
           ),
+          
+          const SizedBox(height: 20),
+          _buildSectionHeader("BÁO CÁO"),
           _tabMenuItem(
-            "Hiệu suất làm việc",
-            Icons.bar_chart,
-            Colors.orange,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const StaffPerformanceView()),
-            ),
-            subtitle: "Xem báo cáo hiệu suất làm việc của nhân viên.",
-          ),
-          _tabMenuItem(
-            "Lịch làm việc",
-            Icons.schedule,
-            Colors.purple,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => WorkScheduleSettingsView()),
-            ),
-            subtitle: "Thiết lập và xem lịch làm việc của nhân viên.",
+            "Lịch sử chấm công",
+            Icons.history,
+            Colors.indigo,
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendanceView())),
+            subtitle: "Xem lịch sử chấm công của tất cả nhân viên.",
           ),
         ],
+      ),
+    );
+  }
+  
+  /// Card nhỏ cho Staff Quick Actions
+  Widget _staffQuickCard(String title, IconData icon, Color color, VoidCallback onTap) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            gradient: LinearGradient(
+              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: color.withOpacity(0.9),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -3095,48 +3184,140 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             _financeOverviewSection(),
 
             const SizedBox(height: 20),
-            _buildSectionHeader("CHỨC NĂNG"),
-            _tabMenuItem(
-              "Báo cáo doanh thu",
-              Icons.trending_up,
-              Colors.green,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RevenueView()),
+            
+            // THAO TÁC NHANH - Chốt quỹ
+            _buildSectionHeader("THAO TÁC NHANH"),
+            Card(
+              color: Colors.green.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+                side: BorderSide(color: Colors.green.shade200),
               ),
-              subtitle: "Xem báo cáo doanh thu và lợi nhuận theo thời gian.",
+              child: ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.account_balance_wallet, color: Colors.green, size: 28),
+                ),
+                title: const Text("CHỐT QUỸ HÔM NAY", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                subtitle: const Text("Đối soát tiền mặt & ngân hàng", style: TextStyle(fontSize: 11)),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.green),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashClosingView())),
+              ),
             ),
+            
+            const SizedBox(height: 20),
+            _buildSectionHeader("BÁO CÁO & PHÂN TÍCH"),
+            
+            // Grid 2x2 cho các chức năng chính
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.3,
+              children: [
+                _financeQuickCard(
+                  "Tổng quan\nDoanh thu",
+                  Icons.trending_up,
+                  Colors.blue,
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RevenueView())),
+                ),
+                _financeQuickCard(
+                  "Chi tiết\nGiao dịch",
+                  Icons.receipt_long,
+                  Colors.purple,
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransactionDetailView())),
+                ),
+                _financeQuickCard(
+                  "Công nợ\nKhách hàng",
+                  Icons.account_balance,
+                  Colors.orange,
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerReceivablesView())),
+                ),
+                _financeQuickCard(
+                  "Theo dõi\nBảo hành",
+                  Icons.verified_user,
+                  Colors.teal,
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WarrantyView())),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 20),
+            _buildSectionHeader("QUẢN LÝ"),
             _tabMenuItem(
               "Quản lý chi phí",
               Icons.money_off,
               Colors.red,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ExpenseView()),
-              ),
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseView())),
               subtitle: "Thêm và theo dõi các khoản chi phí của cửa hàng.",
-            ),
-            _tabMenuItem(
-              "Công nợ",
-              Icons.receipt_long,
-              Colors.orange,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DebtView()),
-              ),
-              subtitle: "Quản lý các khoản nợ và thu nợ từ khách hàng.",
             ),
             _tabMenuItem(
               "Phân tích nợ",
               Icons.analytics,
-              Colors.purple,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DebtAnalysisView()),
-              ),
+              Colors.deepPurple,
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DebtAnalysisView())),
               subtitle: "Phân tích chi tiết các khoản nợ và thống kê.",
             ),
+            _tabMenuItem(
+              "Quản lý nợ (Thu/Chi)",
+              Icons.swap_horiz,
+              Colors.amber.shade700,
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DebtView())),
+              subtitle: "Ghi nhận và thanh toán các khoản nợ.",
+            ),
           ],
+        ),
+      ),
+    );
+  }
+  
+  /// Card nhỏ cho Finance Quick Actions
+  Widget _financeQuickCard(String title, IconData icon, Color color, VoidCallback onTap) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            gradient: LinearGradient(
+              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: color.withOpacity(0.9),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -17,6 +17,7 @@ import '../models/printer_types.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../services/notification_service.dart';
 import '../services/sync_orchestrator.dart';
+import '../services/firestore_service.dart';
 import '../services/user_service.dart';
 import '../data/db_helper.dart';
 import '../services/event_bus.dart';
@@ -86,17 +87,17 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     debugPrint(
       'Starting status update from ${r.status} to $newStatus for repair ${r.firestoreId}',
     );
-    
+
     // Validate status transition using state machine
-    final transitionError = RepairStatusValidator.getTransitionError(r.status, newStatus);
+    final transitionError = RepairStatusValidator.getTransitionError(
+      r.status,
+      newStatus,
+    );
     if (transitionError != null) {
-      NotificationService.showSnackBar(
-        transitionError,
-        color: AppColors.error,
-      );
+      NotificationService.showSnackBar(transitionError, color: AppColors.error);
       return;
     }
-    
+
     final repairsBefore = await db.getAllRepairs();
     debugPrint('Repairs count before update: ${repairsBefore.length}');
     if (newStatus == 4) {
@@ -212,7 +213,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           'linkedId': r.firestoreId,
         };
         final debtId = await db.insertDebt(debtData);
-        
+
         // Queue sync debt to cloud via SyncOrchestrator
         final debtFId = "debt_repair_${DateTime.now().millisecondsSinceEpoch}";
         debtData['firestoreId'] = debtFId;
@@ -224,6 +225,20 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           data: debtData,
         );
       }
+
+      // GHIM ĐƠN SỬA VÀO CHAT NỘI BỘ KHI GIAO MÁY
+      final key = r.firestoreId ?? "repair_${r.createdAt}";
+      final summary =
+          "ĐƠN SỬA - ${r.customerName} - ${r.phone} - ${r.model} - ${MoneyUtils.formatCurrency(r.price)} đ";
+      final msg = "✅ ĐÃ GIAO MÁY: $summary";
+      await FirestoreService.sendChat(
+        message: msg,
+        senderId: user?.uid ?? 'guest',
+        senderName: userName,
+        linkedType: 'repair',
+        linkedKey: key,
+        linkedSummary: summary,
+      );
     }
 
     if (newStatus == 3) r.finishedAt = DateTime.now().millisecondsSinceEpoch;
@@ -237,7 +252,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         'Updating repair status to $newStatus for repair ${r.firestoreId}',
       );
       await db.upsertRepair(r);
-      
+
       // Queue sync repair to cloud via SyncOrchestrator
       if (r.id != null) {
         await SyncOrchestrator().enqueue(
@@ -248,7 +263,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           data: r.toMap(),
         );
       }
-      
+
       debugPrint('Repair status updated successfully');
       final repairsAfter = await db.getAllRepairs();
       debugPrint('Repairs count after update: ${repairsAfter.length}');
@@ -257,6 +272,46 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         color: AppColors.success,
       );
       EventBus().emit('repairs_changed');
+
+      // GHIM TRẠNG THÁI MỚI VÀO CHAT NỘI BỘ (trừ status 4 đã ghim ở trên)
+      if (newStatus != 4) {
+        try {
+          final user = FirebaseAuth.instance.currentUser;
+          final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
+          final key = r.firestoreId ?? "repair_${r.createdAt}";
+          final summary =
+              "ĐƠN SỬA - ${r.customerName} - ${r.phone} - ${r.model}";
+
+          String emoji = "";
+          String statusMsg = "";
+          switch (newStatus) {
+            case 1:
+              emoji = "📥";
+              statusMsg = "NHẬN MÁY";
+              break;
+            case 2:
+              emoji = "🔧";
+              statusMsg = "BẮT ĐẦU SỬA";
+              break;
+            case 3:
+              emoji = "✔️";
+              statusMsg = "SỬA XONG";
+              break;
+          }
+
+          final msg = "$emoji $statusMsg: $summary";
+          await FirestoreService.sendChat(
+            message: msg,
+            senderId: user?.uid ?? 'guest',
+            senderName: userName,
+            linkedType: 'repair',
+            linkedKey: key,
+            linkedSummary: summary,
+          );
+        } catch (e) {
+          debugPrint('Failed to send status chat: $e');
+        }
+      }
     } catch (e) {
       debugPrint('Error updating repair status: $e');
     }
@@ -276,7 +331,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     HapticFeedback.mediumImpact();
     try {
       await db.upsertRepair(r);
-      
+
       // Queue sync repair to cloud via SyncOrchestrator
       if (r.id != null) {
         await SyncOrchestrator().enqueue(
@@ -304,7 +359,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               ? 'ACTIVE'
               : 'PAID';
           await db.updateDebt(linkedDebt);
-          
+
           // Queue sync debt to cloud via SyncOrchestrator
           final debtId = linkedDebt['id'] as int?;
           if (debtId != null) {
@@ -335,7 +390,56 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   /// Dialog chọn phụ tùng từ kho và tự động trừ kho
+  /// LƯU Ý: Mỗi lần chọn và xác nhận sẽ THÊM vào đơn và TRỪ KHO ngay lập tức
   Future<void> _selectPartsFromInventory() async {
+    // Hiển thị cảnh báo nếu đã có phụ tùng
+    if (r.partsUsed.isNotEmpty) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange),
+              SizedBox(width: 8),
+              Text("LƯU Ý"),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Đơn này đã có phụ tùng:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(r.partsUsed, style: const TextStyle(color: Colors.purple)),
+              const SizedBox(height: 16),
+              const Text(
+                "Nếu tiếp tục chọn, phụ tùng mới sẽ được THÊM VÀO và TRỪ KHO NGAY.\n\nBạn có muốn tiếp tục?",
+                style: TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("HỦY"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+              child: const Text(
+                "TIẾP TỤC CHỌN THÊM",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
+    }
+
     final parts = await db.getAllParts();
     if (parts.isEmpty) {
       NotificationService.showSnackBar(
@@ -397,11 +501,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                                 icon: const Icon(Icons.remove_circle_outline),
                                 onPressed: selectedQty > 0
                                     ? () => setDialogState(() {
-                                          selectedQuantities[partId] = selectedQty - 1;
-                                          if (selectedQuantities[partId] == 0) {
-                                            selectedQuantities.remove(partId);
-                                          }
-                                        })
+                                        selectedQuantities[partId] =
+                                            selectedQty - 1;
+                                        if (selectedQuantities[partId] == 0) {
+                                          selectedQuantities.remove(partId);
+                                        }
+                                      })
                                     : null,
                               ),
                               Text(
@@ -415,8 +520,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                                 icon: const Icon(Icons.add_circle_outline),
                                 onPressed: selectedQty < partQty
                                     ? () => setDialogState(() {
-                                          selectedQuantities[partId] = selectedQty + 1;
-                                        })
+                                        selectedQuantities[partId] =
+                                            selectedQty + 1;
+                                      })
                                     : null,
                               ),
                             ],
@@ -439,10 +545,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               onPressed: selectedQuantities.isNotEmpty
                   ? () => Navigator.pop(ctx, true)
                   : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+              child: const Text(
+                "XÁC NHẬN",
+                style: TextStyle(color: Colors.white),
               ),
-              child: const Text("XÁC NHẬN", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -509,16 +616,28 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   controller: priceC,
                   keyboardType: TextInputType.number,
                   inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(labelText: "Giá thu khách (VNĐ)"),
-                  validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 0, fieldName: 'Giá thu khách'),
+                  decoration: const InputDecoration(
+                    labelText: "Giá thu khách (VNĐ)",
+                  ),
+                  validator: (v) => MoneyUtils.validateAmount(
+                    v ?? '',
+                    min: 0,
+                    fieldName: 'Giá thu khách',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: costC,
                   keyboardType: TextInputType.number,
                   inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(labelText: "Giá vốn linh kiện (VNĐ)"),
-                  validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 0, fieldName: 'Giá vốn'),
+                  decoration: const InputDecoration(
+                    labelText: "Giá vốn linh kiện (VNĐ)",
+                  ),
+                  validator: (v) => MoneyUtils.validateAmount(
+                    v ?? '',
+                    min: 0,
+                    fieldName: 'Giá vốn',
+                  ),
                 ),
               ],
             ),
@@ -545,8 +664,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       setState(() {
         final parsedPrice = MoneyUtils.parseCurrency(priceC.text);
         final parsedCost = MoneyUtils.parseCurrency(costC.text);
-        r.price = parsedPrice > 0 && parsedPrice < 100000 ? parsedPrice * 1000 : parsedPrice;
-        r.cost = parsedCost > 0 && parsedCost < 100000 ? parsedCost * 1000 : parsedCost;
+        r.price = parsedPrice > 0 && parsedPrice < 100000
+            ? parsedPrice * 1000
+            : parsedPrice;
+        r.cost = parsedCost > 0 && parsedCost < 100000
+            ? parsedCost * 1000
+            : parsedCost;
       });
       // If cost increased, create expense for the additional cost
       if (r.cost > oldCost) {
@@ -564,7 +687,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           'createdAt': ts,
         };
         final expenseId = await db.insertExpense(exp);
-        
+
         // Queue sync expense to cloud via SyncOrchestrator
         await SyncOrchestrator().enqueue(
           entityType: SyncEntityType.expense,
@@ -786,7 +909,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             children: [
               TextButton.icon(
                 onPressed: _selectPartsFromInventory,
-                icon: const Icon(Icons.inventory_2, size: 14, color: Colors.purple),
+                icon: const Icon(
+                  Icons.inventory_2,
+                  size: 14,
+                  color: Colors.purple,
+                ),
                 label: Text(
                   "Chọn phụ tùng",
                   style: AppTextStyles.caption.copyWith(color: Colors.purple),
@@ -795,10 +922,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               TextButton.icon(
                 onPressed: _editFinancials,
                 icon: const Icon(Icons.edit, size: 14),
-                label: Text(
-                  "Sửa giá",
-                  style: AppTextStyles.caption,
-                ),
+                label: Text("Sửa giá", style: AppTextStyles.caption),
               ),
             ],
           ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
@@ -11,7 +10,6 @@ import '../services/firestore_service.dart';
 import '../services/supplier_service.dart';
 import '../services/event_bus.dart';
 import '../services/sync_orchestrator.dart';
-import '../utils/money_utils.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import 'fast_stock_in_view.dart';
@@ -391,7 +389,7 @@ class _StockInViewState extends State<StockInView> {
             'supplierId': supplierId,
             'supplierName': supplierCtrl.text,
             'productName': product.name,
-            'productBrand': product.brand ?? '',
+            'productBrand': product.brand,
             'productModel': product.model,
             'imei': product.imei,
             'quantity': quantity,
@@ -407,11 +405,11 @@ class _StockInViewState extends State<StockInView> {
           await db.insertSupplierImportHistory(importHistory);
 
           // Cập nhật giá nhà cung cấp
-          await db.deactivateSupplierProductPrice(supplierId, product.name, product.brand ?? '', product.model);
+          await db.deactivateSupplierProductPrice(supplierId, product.name, product.brand, product.model);
           final supplierPrice = {
             'supplierId': supplierId,
             'productName': product.name,
-            'productBrand': product.brand ?? '',
+            'productBrand': product.brand,
             'productModel': product.model,
             'costPrice': product.cost,
             'lastUpdated': ts,
@@ -624,39 +622,6 @@ class _StockInViewState extends State<StockInView> {
     );
   }
 
-  void _resetForm() {
-    // Không reset type để giữ loại sản phẩm hiện tại
-    brandCtrl.clear();
-    if (!_isAccessoryOrLinhKien) {
-      modelCtrl.clear();
-      capacityCtrl.clear();
-    }
-    colorCtrl.clear();
-    if (!_isAccessoryOrLinhKien) {
-      imeiCtrl.clear();
-    }
-    quantityCtrl.text = '1';
-    costCtrl.clear();
-    priceCtrl.clear();
-    notesCtrl.clear();
-    selectedDate = DateTime.now();
-
-    // Reset changed flags
-    _brandChanged = false;
-    _modelChanged = false;
-    _capacityChanged = false;
-    _colorChanged = false;
-    _conditionChanged = false;
-    _imeiChanged = false;
-    _quantityChanged = false;
-    _costChanged = false;
-    _priceChanged = false;
-    _supplierChanged = false;
-    _notesChanged = false;
-
-    setState(() {});
-  }
-
   Widget _buildDropdownField({
     required String label,
     required TextEditingController controller,
@@ -719,7 +684,6 @@ class _StockInViewState extends State<StockInView> {
     FocusNode? nextFocus,
     TextInputType keyboardType = TextInputType.text,
     IconData? icon,
-    bool required = false,
     String? suffix,
     List<TextInputFormatter>? inputFormatters,
     bool hasChanged = false,
