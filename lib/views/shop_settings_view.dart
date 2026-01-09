@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
 import 'dart:io';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
@@ -30,6 +31,8 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   String _shopEmail = '';
   String _shopDescription = '';
   String _shopLogoUrl = '';
+  double? _shopLatitude;
+  double? _shopLongitude;
   File? _selectedLogo;
 
   // Controllers
@@ -74,6 +77,8 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           _shopEmail = data['email'] ?? '';
           _shopDescription = data['description'] ?? '';
           _shopLogoUrl = data['logoUrl'] ?? '';
+          _shopLatitude = data['latitude']?.toDouble();
+          _shopLongitude = data['longitude']?.toDouble();
 
           _nameController.text = _shopName;
           _addressController.text = _shopAddress;
@@ -145,6 +150,8 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         'email': _emailController.text.trim(),
         'description': _descriptionController.text.trim(),
         'logoUrl': logoUrl,
+        'latitude': _shopLatitude,
+        'longitude': _shopLongitude,
         'updatedAt': DateTime.now(),
         'updatedBy': FirebaseAuth.instance.currentUser?.uid,
       };
@@ -289,6 +296,13 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                       icon: Icons.description,
                       maxLines: 3,
                     ),
+
+                    const SizedBox(height: 32),
+
+                    // Location Section for Attendance
+                    _buildSection("VỊ TRÍ CỬA HÀNG (CHO CHẤM CÔNG)"),
+                    const SizedBox(height: 16),
+                    _buildLocationSection(),
 
                     const SizedBox(height: 32),
 
@@ -893,5 +907,149 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       case 'employee': return 'Nhân viên';
       default: return 'Thành viên';
     }
+  }
+
+  Widget _buildLocationSection() {
+    final hasLocation = _shopLatitude != null && _shopLongitude != null;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: hasLocation ? Colors.green.shade50 : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    hasLocation ? Icons.location_on : Icons.location_off,
+                    color: hasLocation ? Colors.green.shade700 : Colors.orange.shade700,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hasLocation ? 'Đã cài đặt vị trí' : 'Chưa cài đặt vị trí',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: hasLocation ? Colors.green.shade700 : Colors.orange.shade700,
+                        ),
+                      ),
+                      if (hasLocation)
+                        Text(
+                          'Lat: ${_shopLatitude!.toStringAsFixed(6)}, Lng: ${_shopLongitude!.toStringAsFixed(6)}',
+                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue.shade700, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Vị trí này dùng để xác thực khi nhân viên chấm công (trong phạm vi 100m)',
+                      style: TextStyle(fontSize: 11, color: Colors.blue.shade800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _setCurrentLocation,
+                icon: const Icon(Icons.my_location),
+                label: Text(hasLocation ? 'Cập nhật vị trí hiện tại' : 'Cài đặt vị trí hiện tại'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: hasLocation ? Colors.blue : Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            if (hasLocation) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _clearLocation,
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Xóa vị trí'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _setCurrentLocation() async {
+    try {
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          NotificationService.showSnackBar('Cần quyền truy cập vị trí', color: Colors.red);
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        NotificationService.showSnackBar('Vui lòng bật quyền vị trí trong cài đặt', color: Colors.red);
+        return;
+      }
+
+      NotificationService.showSnackBar('Đang lấy vị trí...', color: Colors.blue);
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      setState(() {
+        _shopLatitude = position.latitude;
+        _shopLongitude = position.longitude;
+      });
+
+      NotificationService.showSnackBar(
+        '✅ Đã cập nhật vị trí! Nhấn Lưu để hoàn tất.',
+        color: Colors.green,
+      );
+    } catch (e) {
+      NotificationService.showSnackBar('Lỗi lấy vị trí: $e', color: Colors.red);
+    }
+  }
+
+  void _clearLocation() {
+    setState(() {
+      _shopLatitude = null;
+      _shopLongitude = null;
+    });
+    NotificationService.showSnackBar('Đã xóa vị trí. Nhấn Lưu để hoàn tất.', color: Colors.orange);
   }
 }

@@ -60,7 +60,7 @@ class _RevenueViewState extends State<RevenueView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 1, vsync: this);
     _loadPermissions();
     _loadAllData();
     _initClosingRealTimeSync();
@@ -546,43 +546,12 @@ class _RevenueViewState extends State<RevenueView>
             ],
           ),
         ],
-        bottom: TabBar(
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          labelStyle: AppTextStyles.button.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-          unselectedLabelStyle: AppTextStyles.button,
-          controller: _tabController,
-          isScrollable: false,
-          tabs: const [
-            Tab(icon: Icon(Icons.dashboard, size: 18), text: "TỔNG QUAN"),
-            Tab(
-              icon: Icon(Icons.account_balance_wallet, size: 18),
-              text: "CHỐT QUỸ",
-            ),
-            Tab(icon: Icon(Icons.receipt_long, size: 18), text: "CHI TIẾT"),
-            Tab(icon: Icon(Icons.account_balance, size: 18), text: "CÔNG NỢ"),
-            Tab(icon: Icon(Icons.verified_user, size: 18), text: "BẢO HÀNH"),
-          ],
-        ),
       ),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             )
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildOverview(),
-                _buildCashClosingWithHistory(), // Gộp CHỐT QUỸ + DÒNG TIỀN
-                _buildDetailTab(), // Gộp BÁN HÀNG + SỬA CHỮA + CHI TIÊU
-                const CustomerReceivablesView(), // CÔNG NỢ (PHẢI THU)
-                const WarrantyView(), // BẢO HÀNH
-              ],
-            ),
+          : _buildOverview(),
     );
   }
 
@@ -2252,89 +2221,384 @@ class _RevenueViewState extends State<RevenueView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Filter indicator
+          // Filter indicator với gradient
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.calendar_today,
-                  size: 16,
-                  color: AppColors.primary,
+              gradient: LinearGradient(
+                colors: [AppColors.primary, AppColors.primary.withOpacity(0.7)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
-                const SizedBox(width: 8),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.calendar_today, size: 18, color: Colors.white70),
+                    const SizedBox(width: 8),
+                    Text(
+                      _getFilterLabel(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
                 Text(
-                  'TỔNG QUAN: ${_getFilterLabel()}',
-                  style: AppTextStyles.body2.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  'Báo cáo tổng quan tài chính',
+                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+
+          // Main Profit Card - nổi bật
+          _mainProfitCard(profit, _getFilterLabel()),
+          const SizedBox(height: 20),
 
           // Revenue Cards Row
           Row(
             children: [
-              _miniCard("TỔNG THU", totalIn, Colors.green.shade700),
+              _modernIncomeCard("DOANH THU", totalIn, Colors.green, Icons.arrow_downward_rounded),
               const SizedBox(width: 12),
-              _miniCard("TỔNG CHI", totalOut, Colors.red.shade700),
+              _modernIncomeCard("CHI PHÍ", totalOut, Colors.red, Icons.arrow_upward_rounded),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _modernIncomeCard("GIÁ VỐN", salesCost + repairsCost, Colors.orange, Icons.inventory_2),
+              const SizedBox(width: 12),
+              _modernIncomeCard("LỢI NHUẬN", profit, profit >= 0 ? Colors.teal : Colors.red, Icons.trending_up),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Mini Revenue Chart
+          _buildMiniRevenueChart(salesIncome, repairsIncome, totalOut, salesCost + repairsCost),
+          const SizedBox(height: 24),
+
+          // Quick Stats Section
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.analytics, color: Colors.indigo, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      "THỐNG KÊ CHI TIẾT",
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.indigo,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(child: _modernStatCard("Đơn bán", fSales.length.toString(), Icons.shopping_cart, Colors.blue)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _modernStatCard("Sửa chữa", fRepairs.length.toString(), Icons.build, Colors.orange)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _modernStatCard("Chi phí", fExpenses.length.toString(), Icons.receipt, Colors.red)),
+                  ],
+                ),
+                const Divider(height: 24),
+                // Chi tiết nguồn thu
+                _buildRevenueBreakdown(salesIncome, repairsIncome, fSales.length, fRepairs.length),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Widget hiển thị biểu đồ mini doanh thu
+  Widget _buildMiniRevenueChart(int salesIncome, int repairsIncome, int expenses, int cost) {
+    final total = salesIncome + repairsIncome + expenses + cost;
+    if (total == 0) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: Text("Chưa có dữ liệu", style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
+
+    final salesPct = (salesIncome / total * 100).clamp(0, 100);
+    final repairsPct = (repairsIncome / total * 100).clamp(0, 100);
+    final expensesPct = (expenses / total * 100).clamp(0, 100);
+    final costPct = (cost / total * 100).clamp(0, 100);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.pie_chart, color: Colors.purple, size: 18),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                "PHÂN BỔ TÀI CHÍNH",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.purple,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
-
-          // Profit Card
-          _mainProfitCard(profit, _getFilterLabel()),
-
-          const SizedBox(height: 24),
-
-          // Quick Stats
-          const Text(
-            "THỐNG KÊ NHANH",
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
+          // Stacked Bar Chart
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              height: 24,
+              child: Row(
+                children: [
+                  if (salesPct > 0)
+                    Flexible(
+                      flex: salesPct.round().clamp(1, 100),
+                      child: Container(color: Colors.green.shade400),
+                    ),
+                  if (repairsPct > 0)
+                    Flexible(
+                      flex: repairsPct.round().clamp(1, 100),
+                      child: Container(color: Colors.blue.shade400),
+                    ),
+                  if (expensesPct > 0)
+                    Flexible(
+                      flex: expensesPct.round().clamp(1, 100),
+                      child: Container(color: Colors.red.shade400),
+                    ),
+                  if (costPct > 0)
+                    Flexible(
+                      flex: costPct.round().clamp(1, 100),
+                      child: Container(color: Colors.orange.shade400),
+                    ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-
-          Row(
+          const SizedBox(height: 16),
+          // Legend
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
             children: [
-              Expanded(
-                child: _statCard(
-                  "Đơn bán hàng",
-                  fSales.length.toString(),
-                  Icons.shopping_cart,
-                  Colors.blue.shade700,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _statCard(
-                  "Đơn sửa chữa",
-                  fRepairs.length.toString(),
-                  Icons.build,
-                  Colors.orange.shade700,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _statCard(
-                  "Chi phí",
-                  fExpenses.length.toString(),
-                  Icons.receipt,
-                  Colors.purple.shade700,
-                ),
-              ),
+              _chartLegend("Bán hàng", Colors.green.shade400, "${salesPct.toStringAsFixed(0)}%"),
+              _chartLegend("Sửa chữa", Colors.blue.shade400, "${repairsPct.toStringAsFixed(0)}%"),
+              _chartLegend("Chi phí", Colors.red.shade400, "${expensesPct.toStringAsFixed(0)}%"),
+              _chartLegend("Giá vốn", Colors.orange.shade400, "${costPct.toStringAsFixed(0)}%"),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chartLegend(String label, Color color, String pct) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          "$label: $pct",
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRevenueBreakdown(int salesIncome, int repairsIncome, int salesCount, int repairsCount) {
+    return Column(
+      children: [
+        _revenueBreakdownRow("Bán hàng ($salesCount đơn)", salesIncome, Colors.green),
+        const SizedBox(height: 8),
+        _revenueBreakdownRow("Sửa chữa ($repairsCount đơn)", repairsIncome, Colors.blue),
+      ],
+    );
+  }
+
+  Widget _revenueBreakdownRow(String label, int amount, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 24,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+        ),
+        Text(
+          "+${NumberFormat('#,###').format(amount)} đ",
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _modernIncomeCard(String label, int amount, Color color, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 16),
+                ),
+                const Spacer(),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${NumberFormat('#,###').format(amount)}đ',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _modernStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(fontSize: 10, color: color.withOpacity(0.8)),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

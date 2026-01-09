@@ -34,6 +34,7 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
   List<SaleOrder> _sales = [];
   List<Repair> _repairs = [];
   List<Map<String, dynamic>> _expenses = [];
+  bool _dataLoaded = false; // Prevent unnecessary reloads
 
   @override
   void initState() {
@@ -44,9 +45,12 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
       initialIndex: widget.initialTab,
     );
     _loadAllData();
-    SyncService.initRealTimeSync(() {
-      if (mounted) _loadAllData();
-    });
+    // Only init real-time sync once
+    if (!_dataLoaded) {
+      SyncService.initRealTimeSync(() {
+        if (mounted && !_isLoading) _loadAllData();
+      });
+    }
   }
 
   @override
@@ -56,6 +60,7 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
   }
 
   Future<void> _loadAllData() async {
+    if (_isLoading && _dataLoaded) return; // Prevent duplicate loads
     setState(() => _isLoading = true);
     final sales = await db.getAllSales();
     final repairs = await db.getAllRepairs();
@@ -67,6 +72,7 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
         _repairs = repairs;
         _expenses = expenses;
         _isLoading = false;
+        _dataLoaded = true;
       });
     }
   }

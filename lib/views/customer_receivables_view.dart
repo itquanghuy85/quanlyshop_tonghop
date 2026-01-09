@@ -101,42 +101,45 @@ class _CustomerReceivablesViewState extends State<CustomerReceivablesView>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Summary Cards
-        _buildSummarySection(),
-        
-        // Tab Bar
-        Container(
-          color: AppColors.surface,
-          child: TabBar(
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          // Summary Cards
+          _buildSummarySection(),
+          
+          // Tab Bar
+          Material(
+            color: AppColors.surface,
+            child: TabBar(
             controller: _tabController,
             labelColor: AppColors.primary,
             unselectedLabelColor: Colors.grey,
             indicatorColor: AppColors.primary,
             labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-            tabs: [
-              Tab(text: 'CÔNG NỢ KHÁCH (${_customerDebts.length})'),
-              Tab(text: 'BÁN CÔNG NỢ (${_debtSales.length})'),
-              Tab(text: 'TRẢ GÓP CHỜ TT (${_installmentSales.length})'),
-            ],
+              tabs: [
+                Tab(text: 'CÔNG NỢ KHÁCH (${_customerDebts.length})'),
+                Tab(text: 'BÁN CÔNG NỢ (${_debtSales.length})'),
+                Tab(text: 'TRẢ GÓP CHỜ TT (${_installmentSales.length})'),
+              ],
+            ),
           ),
-        ),
         
-        // Tab Content
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildCustomerDebtsTab(),
-                    _buildDebtSalesTab(),
-                    _buildInstallmentTab(),
-                  ],
-                ),
-        ),
-      ],
+          // Tab Content
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildCustomerDebtsTab(),
+                      _buildDebtSalesTab(),
+                      _buildInstallmentTab(),
+                    ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -147,10 +150,17 @@ class _CustomerReceivablesViewState extends State<CustomerReceivablesView>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.7)],
+          colors: [Colors.indigo.shade600, Colors.indigo.shade400],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.indigo.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -158,7 +168,14 @@ class _CustomerReceivablesViewState extends State<CustomerReceivablesView>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.account_balance_wallet, color: Colors.white, size: 28),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 28),
+              ),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,28 +198,28 @@ class _CustomerReceivablesViewState extends State<CustomerReceivablesView>
           ),
           const SizedBox(height: 16),
           
-          // Chi tiết 3 loại
+          // Chi tiết 3 loại - với màu nền trắng để chữ dễ đọc
           Row(
             children: [
               _summaryMiniCard(
                 'Công nợ khách',
                 _totalCustomerDebtsRemaining,
                 Icons.person_outline,
-                Colors.orange,
+                Colors.orange.shade700,
               ),
               const SizedBox(width: 8),
               _summaryMiniCard(
                 'Đơn bán nợ',
                 _totalDebtSalesAmount,
                 Icons.receipt_long,
-                Colors.red,
+                Colors.red.shade700,
               ),
               const SizedBox(width: 8),
               _summaryMiniCard(
                 'Chờ NH tất toán',
                 _totalInstallmentPending,
                 Icons.account_balance,
-                Colors.blue,
+                Colors.blue.shade700,
               ),
             ],
           ),
@@ -236,23 +253,38 @@ class _CustomerReceivablesViewState extends State<CustomerReceivablesView>
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(height: 6),
             Text(
               label,
-              style: const TextStyle(color: Colors.white70, fontSize: 9),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 9),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 2),
             Text(
               NumberFormat('#,###').format(amount),
               style: TextStyle(
                 color: color,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
               ),
             ),

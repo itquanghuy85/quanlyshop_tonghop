@@ -20,6 +20,7 @@ import 'expense_view.dart';
 import 'debt_view.dart';
 import 'warranty_view.dart';
 import 'settings_view.dart';
+import 'shop_settings_view.dart';
 import 'chat_view.dart';
 import 'thermal_printer_design_view.dart';
 import 'super_admin_view.dart' as admin_view;
@@ -42,6 +43,7 @@ import 'cash_closing_view.dart';
 import 'transaction_detail_view.dart';
 import 'customer_receivables_view.dart';
 import '../data/db_helper.dart';
+import '../widgets/unified_sync_button.dart';
 import '../widgets/notification_badge.dart';
 import '../widgets/perpetual_calendar.dart';
 import '../widgets/simple_sync_indicator.dart';
@@ -3074,7 +3076,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             crossAxisCount: 2,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 1.3,
+            childAspectRatio: 1.5,
             children: [
               _staffQuickCard(
                 "Danh sách\nNhân viên",
@@ -3126,7 +3128,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15),
             gradient: LinearGradient(
@@ -3137,23 +3139,27 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color, size: 28),
+                child: Icon(icon, color: color, size: 24),
               ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: color.withOpacity(0.9),
+              const SizedBox(height: 6),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: color.withOpacity(0.9),
+                  ),
                 ),
               ),
             ],
@@ -3219,7 +3225,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               crossAxisCount: 2,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 1.3,
+              childAspectRatio: 1.5,
               children: [
                 _financeQuickCard(
                   "Tổng quan\nDoanh thu",
@@ -3286,7 +3292,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15),
             gradient: LinearGradient(
@@ -3297,23 +3303,27 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color, size: 28),
+                child: Icon(icon, color: color, size: 24),
               ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: color.withOpacity(0.9),
+              const SizedBox(height: 6),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: color.withOpacity(0.9),
+                  ),
                 ),
               ),
             ],
@@ -3631,13 +3641,28 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            "CÀI ĐẶT HỆ THỐNG",
+            "CÀI ĐẶT",
             style: AppTextStyles.headline5.copyWith(color: AppColors.onSurface),
           ),
           const SizedBox(height: 20),
-          // SYNC HEALTH STATUS CARD
+          
+          // CÀI ĐẶT CỬA HÀNG - Đưa ra ngoài đầu tiên
+          if (hasFullAccess)
+            _tabMenuItem(
+              "Cài đặt cửa hàng",
+              Icons.store,
+              Colors.purple,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ShopSettingsView()),
+              ),
+              subtitle: "Thông tin, logo, vị trí và quản lý thành viên shop.",
+            ),
+          
+          // SYNC HEALTH STATUS CARD - Chỉ còn 1 nút đồng bộ duy nhất
           _buildSyncHealthStatusCard(),
           const SizedBox(height: 10),
+          
           _tabMenuItem(
             "Thông báo",
             Icons.notifications,
@@ -3662,31 +3687,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
             subtitle: "Thiết kế mẫu in cho máy in nhiệt.",
           ),
-          _tabMenuItem(
-            "Tìm kiếm toàn cục",
-            Icons.search,
-            AppColors.warning,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => GlobalSearchView(role: widget.role),
-              ),
-            ),
-            subtitle: "Tìm kiếm thông tin trên toàn bộ ứng dụng.",
-          ),
-          if (hasFullAccess)
-            _tabMenuItem(
-              "Cài đặt hệ thống",
-              Icons.settings,
-              AppColors.onSurface.withOpacity(0.6),
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SettingsView(setLocale: widget.setLocale),
-                ),
-              ),
-              subtitle: "Thay đổi cài đặt chung của ứng dụng.",
-            ),
           if (_isSuperAdmin)
             _tabMenuItem(
               "Trung tâm Admin",
@@ -3721,7 +3721,59 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
             subtitle: "Thông tin về nhà phát triển và ứng dụng.",
           ),
+          
+          // Đăng xuất ở cuối
+          const SizedBox(height: 20),
+          _buildLogoutCard(),
         ],
+      ),
+    );
+  }
+  
+  Widget _buildLogoutCard() {
+    return Card(
+      color: Colors.red.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: Colors.red.shade200),
+      ),
+      child: ListTile(
+        leading: const Icon(Icons.logout, color: Colors.red),
+        title: const Text(
+          "ĐĂNG XUẤT",
+          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+        ),
+        subtitle: const Text("Đăng xuất khỏi tài khoản", style: TextStyle(fontSize: 11)),
+        onTap: () async {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text("Đăng xuất?"),
+              content: const Text("Bạn có chắc muốn đăng xuất khỏi tài khoản?"),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text("HỦY"),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: const Text("ĐĂNG XUẤT", style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          );
+          if (confirm == true) {
+            try {
+              await SyncService.cancelAllSubscriptions();
+              UserService.clearCache();
+              await DBHelper().clearAllData();
+              await FirebaseAuth.instance.signOut();
+            } catch (e) {
+              debugPrint('Logout error: $e');
+            }
+          }
+        },
       ),
     );
   }
@@ -3843,7 +3895,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 subtitle: Text(
-                  "$mismatchCount bản ghi chưa đồng bộ. Vào Cài đặt để sửa.",
+                  "$mismatchCount bản ghi chưa đồng bộ. Bấm để mở Trung tâm đồng bộ.",
                   style: const TextStyle(fontSize: 10, color: Colors.red),
                 ),
                 trailing: IconButton(
@@ -3853,21 +3905,20 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     size: 16,
                   ),
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            SettingsView(setLocale: widget.setLocale),
-                      ),
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => const SyncCenterSheet(),
                     );
                   },
                 ),
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => SettingsView(setLocale: widget.setLocale),
-                    ),
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => const SyncCenterSheet(),
                   );
                 },
               ),

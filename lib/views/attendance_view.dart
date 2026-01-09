@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../models/attendance_model.dart';
 import '../services/user_service.dart';
@@ -29,6 +31,11 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
 
   Map<String, dynamic> _workSchedule = {};
   List<Attendance> _history = [];
+  
+  // Shop location for attendance verification
+  double? _shopLatitude;
+  double? _shopLongitude;
+  bool _locationRequired = false;
 
   @override
   void initState() {
@@ -51,12 +58,33 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
     _tabController = TabController(length: tabCount, vsync: this);
 
     final perms = await UserService.getCurrentUserPermissions();
+    
+    // Load shop location
+    await _loadShopLocation();
+    
     if (!mounted) return;
     setState(() { 
       _role = r; 
       _hasPermission = perms['allowViewAttendance'] ?? false;
     });
     _refreshAttendanceData();
+  }
+  
+  Future<void> _loadShopLocation() async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return;
+      
+      final shopDoc = await FirebaseFirestore.instance.collection('shops').doc(shopId).get();
+      if (shopDoc.exists) {
+        final data = shopDoc.data()!;
+        _shopLatitude = data['latitude']?.toDouble();
+        _shopLongitude = data['longitude']?.toDouble();
+        _locationRequired = _shopLatitude != null && _shopLongitude != null;
+      }
+    } catch (e) {
+      debugPrint('Error loading shop location: $e');
+    }
   }
 
   Future<void> _refreshAttendanceData() async {
@@ -78,9 +106,18 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
   }
 
   Future<void> _actionCheck(bool isIn) async {
+    // Check location first if required
+    if (_locationRequired) {
+      final locationOk = await _verifyLocation();
+      if (!locationOk) return;
+    }
+    
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 30);
-    if (picked == null) return;
+    if (picked == null) {
+      NotificationService.showSnackBar("Bắt buộc chụp ảnh để chấm công!", color: Colors.orange);
+      return;
+    }
 
     setState(() => _loading = true);
     HapticFeedback.mediumImpact();
@@ -98,6 +135,13 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
 
       final now = DateTime.now();
       final timestamp = now.millisecondsSinceEpoch;
+      
+      // Get current location for record
+      String? locationStr;
+      try {
+        final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
+        locationStr = '${position.latitude},${position.longitude}';
+      } catch (_) {}
       
       bool isLate = false;
       bool isEarly = false;
@@ -117,6 +161,9 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
       if (isIn && now.isAfter(startTime.add(const Duration(minutes: 15)))) isLate = true;
       if (!isIn && now.isBefore(endTime)) isEarly = true;
 
+      final firestoreId = "att_${DateFormat('yyyyMMdd').format(now)}_${user.uid}";
+      final shopId = await UserService.getCurrentShopId();
+      
       final attendance = Attendance(
         userId: user.uid,
         email: user.email!,
@@ -129,12 +176,17 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
         status: 'completed',
         isLate: isLate ? 1 : 0,
         isEarlyLeave: isEarly ? 1 : 0,
+        location: locationStr ?? _today?.location,
         createdAt: _today?.createdAt ?? timestamp,
         updatedAt: timestamp,
-        firestoreId: "att_${DateFormat('yyyyMMdd').format(now)}_${user.uid}",
+        firestoreId: firestoreId,
       );
 
       await db.upsertAttendance(attendance);
+      
+      // Sync to Firestore
+      await _syncAttendanceToCloud(attendance, shopId);
+      
       await _refreshAttendanceData();
 
       // Send attendance notification
@@ -154,6 +206,70 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
       NotificationService.showSnackBar("Lỗi: $e", color: Colors.red);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+  
+  Future<bool> _verifyLocation() async {
+    try {
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          NotificationService.showSnackBar('Cần quyền truy cập vị trí để chấm công', color: Colors.red);
+          return false;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        NotificationService.showSnackBar('Vui lòng bật quyền vị trí trong cài đặt', color: Colors.red);
+        return false;
+      }
+
+      NotificationService.showSnackBar('Đang kiểm tra vị trí...', color: Colors.blue);
+      
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      
+      // Calculate distance to shop
+      final distanceInMeters = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        _shopLatitude!,
+        _shopLongitude!,
+      );
+      
+      if (distanceInMeters > 100) { // 100 meters radius
+        NotificationService.showSnackBar(
+          'Bạn đang ở cách shop ${distanceInMeters.toInt()}m. Cần ở trong phạm vi 100m để chấm công.',
+          color: Colors.red,
+        );
+        return false;
+      }
+      
+      return true;
+    } catch (e) {
+      NotificationService.showSnackBar('Lỗi kiểm tra vị trí: $e', color: Colors.red);
+      return false;
+    }
+  }
+  
+  Future<void> _syncAttendanceToCloud(Attendance attendance, String? shopId) async {
+    if (shopId == null) return;
+    
+    try {
+      final data = attendance.toMap();
+      data['shopId'] = shopId;
+      data['syncedAt'] = FieldValue.serverTimestamp();
+      data.remove('id');
+      data.remove('isSynced');
+      
+      await FirebaseFirestore.instance
+          .collection('attendance')
+          .doc(attendance.firestoreId)
+          .set(data, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error syncing attendance to cloud: $e');
     }
   }
 
@@ -292,14 +408,226 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
         final item = _history[i];
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            leading: CircleAvatar(backgroundColor: item.isLate == 1 ? AppColors.error.withOpacity(0.1) : AppColors.success.withOpacity(0.1), child: Icon(item.isLate == 1 ? Icons.warning : Icons.check, color: item.isLate == 1 ? AppColors.error : AppColors.success, size: 16)),
-            title: Text(item.dateKey, style: AppTextStyles.headline6),
-            subtitle: Text("Vào: ${item.checkInAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(item.checkInAt!)) : '--'} | Ra: ${item.checkOutAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(item.checkOutAt!)) : '--'}"),
-            trailing: item.photoIn != null ? Icon(Icons.image, color: AppColors.primary, size: 18) : null,
+          child: InkWell(
+            onTap: () => _showAttendanceDetail(item),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: item.isLate == 1 ? AppColors.error.withOpacity(0.1) : AppColors.success.withOpacity(0.1),
+                    child: Icon(item.isLate == 1 ? Icons.warning : Icons.check, color: item.isLate == 1 ? AppColors.error : AppColors.success, size: 16),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.dateKey, style: AppTextStyles.headline6),
+                        Text(
+                          "Vào: ${item.checkInAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(item.checkInAt!)) : '--'} | Ra: ${item.checkOutAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(item.checkOutAt!)) : '--'}",
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (item.photoIn != null || item.photoOut != null)
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.photo_library, color: AppColors.primary, size: 18),
+                    ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                ],
+              ),
+            ),
           ),
         );
       },
+    );
+  }
+  
+  void _showAttendanceDetail(Attendance item) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.event_note, color: AppColors.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('CHI TIẾT CHẤM CÔNG', style: AppTextStyles.headline6.copyWith(fontWeight: FontWeight.bold)),
+                      Text(item.dateKey, style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            
+            // Info rows
+            _detailRow('Nhân viên', item.name, Icons.person),
+            _detailRow('Trạng thái', item.isLate == 1 ? 'Đi muộn' : 'Đúng giờ', Icons.timer, 
+              valueColor: item.isLate == 1 ? AppColors.error : AppColors.success),
+            _detailRow('Giờ vào', item.checkInAt != null 
+              ? DateFormat('HH:mm:ss - dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(item.checkInAt!)) 
+              : 'Chưa check-in', Icons.login),
+            _detailRow('Giờ ra', item.checkOutAt != null 
+              ? DateFormat('HH:mm:ss - dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(item.checkOutAt!)) 
+              : 'Chưa check-out', Icons.logout),
+            if (item.location != null)
+              _detailRow('Vị trí', item.location!, Icons.location_on),
+            
+            const SizedBox(height: 16),
+            
+            // Photos section
+            if (item.photoIn != null || item.photoOut != null) ...[
+              const Text('ẢNH CHẤM CÔNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (item.photoIn != null)
+                    Expanded(
+                      child: _photoCard('Check-in', item.photoIn!, item.checkInAt),
+                    ),
+                  if (item.photoIn != null && item.photoOut != null)
+                    const SizedBox(width: 12),
+                  if (item.photoOut != null)
+                    Expanded(
+                      child: _photoCard('Check-out', item.photoOut!, item.checkOutAt),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _detailRow(String label, String value, IconData icon, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: Colors.grey),
+          const SizedBox(width: 10),
+          Text('$label:', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: valueColor),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _photoCard(String label, String url, int? time) {
+    return GestureDetector(
+      onTap: () => _showFullImage(url, label),
+      child: Column(
+        children: [
+          Container(
+            height: 120,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(11),
+              child: Image.network(
+                url,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                loadingBuilder: (ctx, child, progress) {
+                  if (progress == null) return child;
+                  return Center(child: CircularProgressIndicator(strokeWidth: 2));
+                },
+                errorBuilder: (ctx, e, s) => const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+          if (time != null)
+            Text(
+              DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(time)),
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+        ],
+      ),
+    );
+  }
+  
+  void _showFullImage(String url, String title) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: Text(title),
+              automaticallyImplyLeading: false,
+              actions: [
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            Image.network(
+              url,
+              fit: BoxFit.contain,
+              loadingBuilder: (ctx, child, progress) {
+                if (progress == null) return child;
+                return const Padding(
+                  padding: EdgeInsets.all(50),
+                  child: CircularProgressIndicator(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

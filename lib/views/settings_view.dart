@@ -8,8 +8,6 @@ import '../data/db_helper.dart';
 import '../services/sync_service.dart';
 import '../widgets/unified_sync_button.dart';
 import 'staff_permissions_view.dart';
-import 'shop_settings_view.dart';
-import 'debt_debug_view.dart';
 import 'shop_selector_view.dart'; // Màn hình chọn shop cho super admin
 
 class SettingsView extends StatefulWidget {
@@ -273,40 +271,6 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
                 const SizedBox(height: 15),
 
-                // Debug section - di chuyển lên trên để dễ thấy
-                _buildSection("DEBUG TOOLS"),
-                Card(
-                  color: Colors.orange.shade50,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    side: BorderSide(color: Colors.orange.shade200),
-                  ),
-                  child: ListTile(
-                    leading: const Icon(Icons.bug_report, color: Colors.orange),
-                    title: const Text(
-                      "DEBT DEBUG",
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: const Text(
-                      "Kiểm tra dữ liệu công nợ chi tiết",
-                      style: TextStyle(fontSize: 11),
-                    ),
-                    onTap: () {
-                      debugPrint('Debt Debug button tapped');
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const DebtDebugView(),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 15),
-
                 // NÚT CHỌN SHOP KHÁC - Chỉ hiện cho Super Admin
                 if (UserService.isCurrentUserSuperAdmin()) ...[
                   Card(
@@ -463,40 +427,6 @@ class _SettingsViewState extends State<SettingsView> {
                     },
                   ),
                 ),
-
-                // QUẢN TRỊ SHOP CHO OWNER/MANAGER
-                if (_role == 'owner' || _role == 'manager') ...[
-                  const SizedBox(height: 30),
-                  _buildSection("QUẢN TRỊ SHOP"),
-                  Card(
-                    color: Colors.purple.shade50,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: BorderSide(color: Colors.purple.shade200),
-                    ),
-                    child: ListTile(
-                      leading: const Icon(Icons.store, color: Colors.purple),
-                      title: const Text(
-                        "THÔNG TIN CỬA HÀNG",
-                        style: TextStyle(
-                          color: Colors.purple,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: const Text(
-                        "Cập nhật logo, thông tin, địa chỉ và quản lý thành viên",
-                        style: TextStyle(fontSize: 11),
-                      ),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ShopSettingsView(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                ],
 
                 // NÚT XÓA TRẮNG CHỈ HIỆN CHO SUPER ADMIN
                 if (UserService.isCurrentUserSuperAdmin()) ...[
