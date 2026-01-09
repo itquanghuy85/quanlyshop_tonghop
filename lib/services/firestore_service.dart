@@ -728,13 +728,19 @@ class FirestoreService {
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
         throw Exception('Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.');
       }
-      final docId = partnerData['firestoreId'] ?? "partner_${DateTime.now().millisecondsSinceEpoch}";
-      final docRef = _db.collection('repair_partners').doc(docId);
+      
+      // Sử dụng firestoreId đã có sẵn từ local (tránh duplicate từ realtime sync)
+      final existingFirestoreId = partnerData['firestoreId'];
+      if (existingFirestoreId == null || existingFirestoreId.toString().isEmpty) {
+        throw Exception('firestoreId is required for addRepairPartner');
+      }
+      
+      final docRef = _db.collection('repair_partners').doc(existingFirestoreId);
       partnerData['shopId'] = shopId;
-      partnerData['firestoreId'] = docRef.id;
+      partnerData['firestoreId'] = existingFirestoreId;
       final encryptedData = EncryptionService.encryptMap(partnerData);
       await docRef.set(encryptedData, SetOptions(merge: true));
-      return docRef.id;
+      return existingFirestoreId;
     } catch (e) {
       debugPrint('Firestore addRepairPartner error: $e');
       return null;

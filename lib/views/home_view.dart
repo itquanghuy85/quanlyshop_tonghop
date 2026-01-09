@@ -41,7 +41,7 @@ import 'about_developer_view.dart';
 import '../data/db_helper.dart';
 import '../widgets/notification_badge.dart';
 import '../widgets/perpetual_calendar.dart';
-import '../widgets/unified_sync_button.dart';
+import '../widgets/simple_sync_indicator.dart';
 import '../services/sync_service.dart';
 import '../services/sync_health_check.dart';
 import '../services/user_service.dart';
@@ -98,6 +98,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   int expiringWarranties = 0;
   int unreadChatCount = 0;
   bool _notificationWorking = false; // Trạng thái thông báo
+  String _userName = ''; // Tên hiển thị của người dùng
+  String _shopName = ''; // Tên cửa hàng
 
   final bool _isSuperAdmin = UserService.isCurrentUserSuperAdmin();
   bool get hasFullAccess =>
@@ -943,6 +945,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       final currentUser = FirebaseAuth.instance.currentUser;
       final lastUserId = prefs.getString('lastUserId');
 
+      // Load tên người dùng và tên shop
+      _loadUserAndShopInfo();
+
       // Khi đổi user, KHÔNG xóa toàn bộ data local nữa
       // Chỉ cần update lastUserId và sync lại từ cloud
       // Dữ liệu sẽ được lọc theo shopId trong các queries
@@ -981,6 +986,56 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       debugPrint('Error in _initialSetup: $e');
       // Still try to load permissions
       await _updatePermissions();
+    }
+  }
+
+  /// Load thông tin người dùng và tên shop để hiển thị lời chào
+  Future<void> _loadUserAndShopInfo() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Lấy tên hiển thị từ Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      String displayName = '';
+      if (userDoc.exists) {
+        displayName = userDoc.data()?['displayName'] ?? '';
+      }
+      
+      // Fallback: dùng phần trước @ của email
+      if (displayName.isEmpty && user.email != null) {
+        displayName = user.email!.split('@').first;
+        // Capitalize first letter
+        if (displayName.isNotEmpty) {
+          displayName = displayName[0].toUpperCase() + displayName.substring(1);
+        }
+      }
+
+      // Lấy tên shop
+      final shopId = await UserService.getCurrentShopId();
+      String shopName = '';
+      if (shopId != null) {
+        final shopDoc = await FirebaseFirestore.instance
+            .collection('shops')
+            .doc(shopId)
+            .get();
+        if (shopDoc.exists) {
+          shopName = shopDoc.data()?['name'] ?? '';
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _userName = displayName;
+          _shopName = shopName;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user info: $e');
     }
   }
 
@@ -1290,8 +1345,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               icon: Icon(Icons.search, color: AppColors.primary, size: 28),
               tooltip: 'Tìm kiếm toàn app',
             ),
-            // Unified sync button - gom tất cả chức năng sync vào 1 nơi
-            const UnifiedSyncButton(),
+            // Simple sync indicator - tự động sync, tap để force sync
+            const SimpleSyncIndicator(),
             IconButton(
               onPressed: () async {
                 await SyncService.cancelAllSubscriptions();
@@ -1466,6 +1521,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           // Banner cho nhân viên mới - CHỈ HIỆN KHI MÁY CÓ ÍT HƠN 5 RECORDS (máy mới/đổi máy)
           if (_totalLocalRecords < 5) _buildNewStaffBanner(),
 
+          // LỜI CHÀO NGƯỜI DÙNG
+          _buildGreetingCard(),
+
           // TỔNG QUAN TÀI CHÍNH
           _buildSectionHeader("TỔNG QUAN TÀI CHÍNH"),
           _buildDashboardOverview(),
@@ -1497,6 +1555,174 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _buildAlerts(),
 
           const SizedBox(height: 50),
+        ],
+      ),
+    );
+  }
+
+  /// Widget lời chào người dùng - hiển thị tên và vai trò
+  Widget _buildGreetingCard() {
+    // Xác định lời chào theo thời gian
+    final hour = DateTime.now().hour;
+    String greeting;
+    IconData greetingIcon;
+    if (hour < 12) {
+      greeting = 'Chào buổi sáng';
+      greetingIcon = Icons.wb_sunny_outlined;
+    } else if (hour < 18) {
+      greeting = 'Chào buổi chiều';
+      greetingIcon = Icons.wb_sunny;
+    } else {
+      greeting = 'Chào buổi tối';
+      greetingIcon = Icons.nightlight_outlined;
+    }
+
+    // Xác định vai trò hiển thị
+    String roleText;
+    Color roleColor;
+    IconData roleIcon;
+    if (_isSuperAdmin) {
+      roleText = 'Quản trị viên hệ thống';
+      roleColor = Colors.purple;
+      roleIcon = Icons.admin_panel_settings;
+    } else if (widget.role == 'owner') {
+      roleText = 'Chủ cửa hàng';
+      roleColor = Colors.orange;
+      roleIcon = Icons.store;
+    } else if (widget.role == 'admin') {
+      roleText = 'Quản lý';
+      roleColor = Colors.blue;
+      roleIcon = Icons.manage_accounts;
+    } else {
+      roleText = 'Nhân viên';
+      roleColor = Colors.green;
+      roleIcon = Icons.person;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Dòng lời chào
+          Row(
+            children: [
+              Icon(greetingIcon, color: Colors.white.withOpacity(0.9), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                greeting,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                DateFormat('EEEE, dd/MM', 'vi').format(DateTime.now()),
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Tên người dùng
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.person_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _userName.isNotEmpty ? _userName : 'Người dùng',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: roleColor.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(roleIcon, color: Colors.white, size: 12),
+                              const SizedBox(width: 4),
+                              Text(
+                                roleText,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_shopName.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              '• $_shopName',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.85),
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

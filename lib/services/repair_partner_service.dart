@@ -22,17 +22,29 @@ class RepairPartnerService {
 
   Future<RepairPartner?> addRepairPartner(RepairPartner partner) async {
     final partnerMap = partner.toMap();
-    partnerMap['shopId'] = await UserService.getCurrentShopId();
-    partnerMap['createdAt'] = DateTime.now().millisecondsSinceEpoch;
-    partnerMap['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
+    final shopId = await UserService.getCurrentShopId();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    
+    // Tạo firestoreId TRƯỚC khi insert để tránh duplicate từ realtime sync
+    final firestoreId = 'partner_${now}';
+    
+    partnerMap['shopId'] = shopId;
+    partnerMap['createdAt'] = now;
+    partnerMap['updatedAt'] = now;
+    partnerMap['firestoreId'] = firestoreId;
+    partnerMap['isSynced'] = 0;
 
     final id = await db.insertRepairPartner(partnerMap);
     if (id > 0) {
-      final firestoreId = await FirestoreService.addRepairPartner(partnerMap);
-      if (firestoreId != null) {
-        await db.updateRepairPartner(id, {'firestoreId': firestoreId});
+      // Sync lên Firestore - sử dụng firestoreId đã tạo
+      final cloudId = await FirestoreService.addRepairPartner(partnerMap);
+      if (cloudId != null) {
+        // Đánh dấu đã sync
+        await db.updateRepairPartner(id, {'isSynced': 1});
         return partner.copyWith(id: id, firestoreId: firestoreId);
       }
+      // Dù chưa sync được cloud, vẫn return partner với firestoreId local
+      return partner.copyWith(id: id, firestoreId: firestoreId);
     }
     return null;
   }

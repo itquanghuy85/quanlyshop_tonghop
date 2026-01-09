@@ -27,7 +27,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 50,
+      version: 51,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT)',
@@ -51,7 +51,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, personName TEXT, phone TEXT, totalAmount INTEGER, paidAmount INTEGER DEFAULT 0, type TEXT, status TEXT, createdAt INTEGER, note TEXT, isSynced INTEGER DEFAULT 0, linkedId TEXT, createdBy TEXT, shopId TEXT, relatedPartId TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS attendance(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, dateKey TEXT, checkInAt INTEGER, checkOutAt INTEGER, overtimeOn INTEGER DEFAULT 0, photoIn TEXT, photoOut TEXT, note TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, locked INTEGER DEFAULT 0, createdAt INTEGER, location TEXT, isLate INTEGER DEFAULT 0, isEarlyLeave INTEGER DEFAULT 0, workSchedule TEXT, updatedAt INTEGER)',
+          'CREATE TABLE IF NOT EXISTS attendance(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, dateKey TEXT, checkInAt INTEGER, checkOutAt INTEGER, overtimeOn INTEGER DEFAULT 0, photoIn TEXT, photoOut TEXT, note TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, locked INTEGER DEFAULT 0, createdAt INTEGER, location TEXT, isLate INTEGER DEFAULT 0, isEarlyLeave INTEGER DEFAULT 0, workSchedule TEXT, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, userName TEXT, action TEXT, targetType TEXT, targetId TEXT, description TEXT, createdAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT)',
@@ -903,6 +903,31 @@ class DBHelper {
           
           debugPrint('DB upgrade v50: sync_queue system completed');
         }
+        if (oldV < 51) {
+          // v51: Thêm cột isSynced, shopId, deleted vào bảng attendance
+          debugPrint('DB upgrade v51: Adding isSynced, shopId, deleted to attendance...');
+          
+          try {
+            await db.execute('ALTER TABLE attendance ADD COLUMN isSynced INTEGER DEFAULT 0');
+            debugPrint('v51: added isSynced to attendance');
+          } catch (e) {
+            debugPrint('v51 error (attendance isSynced): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE attendance ADD COLUMN shopId TEXT');
+            debugPrint('v51: added shopId to attendance');
+          } catch (e) {
+            debugPrint('v51 error (attendance shopId): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE attendance ADD COLUMN deleted INTEGER DEFAULT 0');
+            debugPrint('v51: added deleted to attendance');
+          } catch (e) {
+            debugPrint('v51 error (attendance deleted): $e');
+          }
+          
+          debugPrint('DB upgrade v51: attendance columns completed');
+        }
         debugPrint('DB upgrade completed');
       },
       onOpen: (db) async {
@@ -1277,6 +1302,7 @@ class DBHelper {
       );
       Map<String, dynamic> data = Map<String, dynamic>.from(map);
       data.remove('id');
+      data.remove('_encrypted'); // Field metadata của Firestore, không lưu SQLite
       if (existing.isNotEmpty) {
         await txn.update(
           table,
@@ -2120,6 +2146,7 @@ class DBHelper {
 
       final Map<String, dynamic> cleanData = Map<String, dynamic>.from(data);
       cleanData.remove('id');
+      cleanData.remove('_encrypted'); // Field metadata của Firestore, không lưu SQLite
       cleanData['updatedAt'] = cleanData['updatedAt'] ??
           DateTime.now().millisecondsSinceEpoch;
       cleanData['createdAt'] = cleanData['createdAt'] ??
@@ -2718,9 +2745,21 @@ class DBHelper {
   Future<void> upsertRepairPartner(Map<String, dynamic> data) async {
     final db = await database;
     final firestoreId = data['firestoreId'];
-    // Loại bỏ id vì SQLite auto-generate
+    // Loại bỏ id vì SQLite auto-generate và các field không thuộc schema SQLite
     final cleanData = Map<String, dynamic>.from(data);
     cleanData.remove('id');
+    cleanData.remove('_encrypted'); // Field metadata của Firestore, không lưu SQLite
+    
+    // Convert bool to int for SQLite
+    if (cleanData['active'] is bool) {
+      cleanData['active'] = (cleanData['active'] as bool) ? 1 : 0;
+    }
+    if (cleanData['deleted'] is bool) {
+      cleanData['deleted'] = (cleanData['deleted'] as bool) ? 1 : 0;
+    }
+    if (cleanData['isSynced'] is bool) {
+      cleanData['isSynced'] = (cleanData['isSynced'] as bool) ? 1 : 0;
+    }
 
     if (firestoreId == null) {
       await db.insert(

@@ -28,6 +28,21 @@ class SyncService {
     return 0;
   }
 
+  /// Helper: Chuyển đổi tất cả Timestamp fields trong map sang milliseconds
+  /// Để lưu vào SQLite (không hỗ trợ Firestore Timestamp)
+  static void _convertTimestampFields(Map<String, dynamic> data) {
+    final timestampFields = [
+      'createdAt', 'updatedAt', 'checkInAt', 'checkOutAt', 'approvedAt',
+      'startedAt', 'finishedAt', 'deliveredAt', 'lastCaredAt', 'soldAt',
+      'paidAt', 'lastVisitAt', 'settlementPlannedAt', 'settlementReceivedAt',
+    ];
+    for (final field in timestampFields) {
+      if (data[field] is Timestamp) {
+        data[field] = (data[field] as Timestamp).millisecondsSinceEpoch;
+      }
+    }
+  }
+
   /// Helper: So sánh updatedAt để quyết định có ghi đè local hay không
   /// Returns: true nếu cloud data mới hơn hoặc bằng, false nếu local mới hơn
   static Future<bool> _shouldAcceptCloudData({
@@ -438,6 +453,22 @@ class SyncService {
             } else {
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+              // Chuyển đổi Timestamp sang milliseconds cho SQLite
+              if (data['checkInAt'] is Timestamp) {
+                data['checkInAt'] = (data['checkInAt'] as Timestamp).millisecondsSinceEpoch;
+              }
+              if (data['checkOutAt'] is Timestamp) {
+                data['checkOutAt'] = (data['checkOutAt'] as Timestamp).millisecondsSinceEpoch;
+              }
+              if (data['createdAt'] is Timestamp) {
+                data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
+              }
+              if (data['updatedAt'] is Timestamp) {
+                data['updatedAt'] = (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
+              }
+              if (data['approvedAt'] is Timestamp) {
+                data['approvedAt'] = (data['approvedAt'] as Timestamp).millisecondsSinceEpoch;
+              }
               await db.upsertAttendance(Attendance.fromMap(data));
             }
           } catch (e) {
@@ -649,6 +680,13 @@ class SyncService {
             } else {
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+              // Chuyển đổi Timestamp sang milliseconds cho SQLite
+              if (data['createdAt'] is Timestamp) {
+                data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
+              }
+              if (data['updatedAt'] is Timestamp) {
+                data['updatedAt'] = (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
+              }
               await db.upsertRepairPart(data);
             }
           } catch (e) {
@@ -1137,9 +1175,10 @@ class SyncService {
                 SetOptions(merge: true),
               );
 
-              // Update local với firestoreId
-              supplierMap['firestoreId'] = docId;
-              await dbHelper.upsertSupplier(supplierMap);
+              // Update local với firestoreId (tạo map mới vì supplierMap là read-only)
+              final updateData = Map<String, dynamic>.from(supplierMap);
+              updateData['firestoreId'] = docId;
+              await dbHelper.upsertSupplier(updateData);
             } catch (e) {
               debugPrint("Lỗi sync supplier ${supplierMap['id']}: $e");
             }
@@ -1177,9 +1216,10 @@ class SyncService {
                 SetOptions(merge: true),
               );
 
-              // Update local với firestoreId
-              partnerMap['firestoreId'] = docId;
-              await dbHelper.upsertRepairPartner(partnerMap);
+              // Update local với firestoreId (tạo map mới vì partnerMap là read-only)
+              final updateData = Map<String, dynamic>.from(partnerMap);
+              updateData['firestoreId'] = docId;
+              await dbHelper.upsertRepairPartner(updateData);
             } catch (e) {
               debugPrint("Lỗi sync repair partner ${partnerMap['id']}: $e");
             }
@@ -1438,6 +1478,9 @@ class SyncService {
               data = EncryptionService.decryptMap(data);
               data['firestoreId'] = doc.id;
               data['isSynced'] = 1; // QUAN TRỌNG: Đánh dấu đã sync từ cloud
+              
+              // Chuyển đổi tất cả Timestamp fields sang milliseconds cho SQLite
+              _convertTimestampFields(data);
 
               if (col == 'repairs') {
                 await db.upsertRepair(Repair.fromMap(data));
