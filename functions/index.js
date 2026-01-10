@@ -429,8 +429,306 @@ exports.sendShopNotification = onCall(async (request) => {
   }
 });
 
-// 🧹 CLEANUP FCM TOKENS - Xóa tokens cũ và không hợp lệ
-exports.cleanupFCMTokens = onSchedule("every 7 days", async (event) => {
+// ══════════════════════════════════════════════════════════════════════════════
+// 🔐 CUSTOM CLAIMS MANAGEMENT - Quản lý quyền người dùng
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * BATCH SYNC ALL CLAIMS - Đồng bộ Custom Claims cho TOÀN BỘ user cũ
+ * 
+ * Chỉ Super Admin (admin@huluca.com) được quyền gọi.
+ * Đọc từ Firestore users/{uid} và set custom claims.
+ * 
+ * @returns {Object} Thống kê: total, success, skipped, failed, errors
+ */
+exports.batchSyncAllClaims = onCall({ 
+  timeoutSeconds: 540,  // 9 phút cho batch lớn
+  memory: "512MiB"
+}, async (request) => {
+  const auth = request.auth;
+  
+  // 1. Verify authentication
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+  
+  // 2. ONLY Super Admin can call this function
+  const callerEmail = auth.token.email || "";
+  if (callerEmail !== "admin@huluca.com") {
+    console.log(`DENIED: ${callerEmail} tried to call batchSyncAllClaims`);
+    throw new HttpsError("permission-denied", "Chỉ Super Admin mới có quyền sync claims toàn bộ");
+  }
+  
+  console.log(`✅ Super Admin ${callerEmail} started batchSyncAllClaims`);
+  
+  // 3. Statistics
+  const stats = {
+    total: 0,
+    success: 0,
+    skipped: 0,
+    failed: 0,
+    errors: [],
+    details: []
+  };
+  
+  try {
+    // 4. Get ALL users from Firestore
+    const usersSnapshot = await admin.firestore().collection('users').get();
+    stats.total = usersSnapshot.size;
+    
+    console.log(`Found ${stats.total} users to process`);
+    
+    // 5. Process each user
+    for (const userDoc of usersSnapshot.docs) {
+      const uid = userDoc.id;
+      const userData = userDoc.data();
+      
+      try {
+        // 5.1 Validate user data
+        const email = (userData.email || "").toString().trim().toLowerCase();
+        const role = (userData.role || "user").toString().trim();
+        const shopId = (userData.shopId || "").toString().trim();
+        
+        // 5.2 Skip if no valid email (can't match with Auth)
+        if (!email) {
+          stats.skipped++;
+          stats.details.push({ uid, status: 'skipped', reason: 'no_email' });
+          continue;
+        }
+        
+        // 5.3 Validate role
+        const validRoles = ['owner', 'manager', 'employee', 'technician', 'user', 'admin'];
+        const finalRole = validRoles.includes(role) ? role : 'user';
+        
+        // 5.4 Determine isSuperAdmin
+        const isSuperAdmin = email === "admin@huluca.com";
+        
+        // 5.5 Build claims object
+        const claims = {
+          role: finalRole,
+          shopId: shopId || uid, // Fallback to uid if no shopId
+          isSuperAdmin: isSuperAdmin
+        };
+        
+        // 5.6 Verify user exists in Firebase Auth
+        try {
+          await admin.auth().getUser(uid);
+        } catch (authError) {
+          // User doesn't exist in Auth, skip
+          stats.skipped++;
+          stats.details.push({ uid, email, status: 'skipped', reason: 'not_in_auth' });
+          continue;
+        }
+        
+        // 5.7 Set custom claims
+        await admin.auth().setCustomUserClaims(uid, claims);
+        
+        // 5.8 Update Firestore with sync timestamp
+        await admin.firestore().collection('users').doc(uid).update({
+          claimsSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+          claimsSyncedBy: 'batchSyncAllClaims'
+        });
+        
+        stats.success++;
+        stats.details.push({
+          uid,
+          email,
+          status: 'success',
+          claims
+        });
+        
+        console.log(`✓ Synced claims for ${email}: role=${finalRole}, shopId=${claims.shopId}, isSuperAdmin=${isSuperAdmin}`);
+        
+      } catch (userError) {
+        stats.failed++;
+        const errorMsg = userError.message || userError.toString();
+        stats.errors.push({ uid, error: errorMsg });
+        stats.details.push({ uid, status: 'failed', error: errorMsg });
+        console.error(`✗ Failed to sync claims for ${uid}: ${errorMsg}`);
+      }
+    }
+    
+    console.log(`\n=== BATCH SYNC COMPLETED ===`);
+    console.log(`Total: ${stats.total}`);
+    console.log(`Success: ${stats.success}`);
+    console.log(`Skipped: ${stats.skipped}`);
+    console.log(`Failed: ${stats.failed}`);
+    
+    return {
+      success: true,
+      message: `Đã sync claims cho ${stats.success}/${stats.total} users`,
+      stats: {
+        total: stats.total,
+        success: stats.success,
+        skipped: stats.skipped,
+        failed: stats.failed
+      },
+      errors: stats.errors.length > 0 ? stats.errors.slice(0, 10) : [], // Limit errors in response
+      details: stats.details.slice(0, 50) // Limit details in response
+    };
+    
+  } catch (error) {
+    console.error('Error in batchSyncAllClaims:', error);
+    throw new HttpsError("internal", `Lỗi sync claims: ${error.message}`);
+  }
+});
+
+/**
+ * SYNC SINGLE USER CLAIMS - Sync claims cho 1 user cụ thể (v2)
+ * Chỉ Super Admin hoặc Owner của shop được gọi.
+ */
+exports.syncUserClaimsV2 = onCall(async (request) => {
+  const auth = request.auth;
+  const data = request.data || {};
+  
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+  
+  const targetUid = data.uid;
+  if (!targetUid) {
+    throw new HttpsError("invalid-argument", "Thiếu uid của user cần sync");
+  }
+  
+  const callerEmail = auth.token.email || "";
+  const isSuperAdmin = callerEmail === "admin@huluca.com";
+  
+  // Get caller's data to check permissions
+  const callerDoc = await admin.firestore().collection('users').doc(auth.uid).get();
+  const callerData = callerDoc.data() || {};
+  const callerRole = callerData.role || "user";
+  const callerShopId = callerData.shopId;
+  
+  // Get target user's data
+  const targetDoc = await admin.firestore().collection('users').doc(targetUid).get();
+  if (!targetDoc.exists) {
+    throw new HttpsError("not-found", "User không tồn tại");
+  }
+  
+  const targetData = targetDoc.data();
+  const targetShopId = targetData.shopId;
+  
+  // Permission check: Super Admin OR Owner of same shop
+  if (!isSuperAdmin && (callerRole !== 'owner' || callerShopId !== targetShopId)) {
+    throw new HttpsError("permission-denied", "Bạn không có quyền sync claims cho user này");
+  }
+  
+  // Build claims
+  const email = (targetData.email || "").toString().trim().toLowerCase();
+  const role = (targetData.role || "user").toString();
+  const shopId = targetData.shopId || targetUid;
+  
+  const claims = {
+    role: role,
+    shopId: shopId,
+    isSuperAdmin: email === "admin@huluca.com"
+  };
+  
+  // Set claims
+  await admin.auth().setCustomUserClaims(targetUid, claims);
+  
+  // Update Firestore
+  await admin.firestore().collection('users').doc(targetUid).update({
+    claimsSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+    claimsSyncedBy: auth.uid
+  });
+  
+  console.log(`✓ syncUserClaims: ${email} synced by ${callerEmail}`);
+  
+  return {
+    success: true,
+    uid: targetUid,
+    claims: claims
+  };
+});
+
+/**
+ * REFRESH MY CLAIMS - User tự refresh claims của mình (v2)
+ * Dùng sau khi role/shopId được thay đổi bởi admin
+ */
+exports.refreshMyClaimsV2 = onCall(async (request) => {
+  const auth = request.auth;
+  
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+  
+  const uid = auth.uid;
+  
+  // Get user data from Firestore
+  const userDoc = await admin.firestore().collection('users').doc(uid).get();
+  if (!userDoc.exists) {
+    throw new HttpsError("not-found", "User không tồn tại trong Firestore");
+  }
+  
+  const userData = userDoc.data();
+  const email = (userData.email || auth.token.email || "").toString().trim().toLowerCase();
+  const role = (userData.role || "user").toString();
+  const shopId = userData.shopId || uid;
+  
+  const claims = {
+    role: role,
+    shopId: shopId,
+    isSuperAdmin: email === "admin@huluca.com"
+  };
+  
+  // Set claims
+  await admin.auth().setCustomUserClaims(uid, claims);
+  
+  // Update Firestore
+  await admin.firestore().collection('users').doc(uid).update({
+    claimsSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+    claimsSyncedBy: 'self'
+  });
+  
+  console.log(`✓ refreshMyClaims: ${email} refreshed own claims`);
+  
+  return {
+    success: true,
+    claims: claims,
+    message: "Claims đã được refresh. Vui lòng logout và login lại để áp dụng."
+  };
+});
+
+/**
+ * GET MY CLAIMS - Xem claims hiện tại của user (v2)
+ */
+exports.getMyClaimsV2 = onCall(async (request) => {
+  const auth = request.auth;
+  
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+  
+  const uid = auth.uid;
+  
+  // Get current claims from Auth
+  const userRecord = await admin.auth().getUser(uid);
+  const currentClaims = userRecord.customClaims || {};
+  
+  // Get Firestore data for comparison
+  const userDoc = await admin.firestore().collection('users').doc(uid).get();
+  const firestoreData = userDoc.exists ? userDoc.data() : null;
+  
+  return {
+    success: true,
+    uid: uid,
+    email: auth.token.email,
+    currentClaims: currentClaims,
+    firestoreData: firestoreData ? {
+      role: firestoreData.role,
+      shopId: firestoreData.shopId,
+      claimsSyncedAt: firestoreData.claimsSyncedAt
+    } : null,
+    needsSync: firestoreData && (
+      currentClaims.role !== firestoreData.role ||
+      currentClaims.shopId !== firestoreData.shopId
+    )
+  };
+});
+
+// 🧹 CLEANUP FCM TOKENS - Xóa tokens cũ và không hợp lệ (mỗi Chủ nhật 3AM)
+exports.cleanupFCMTokens = onSchedule("0 3 * * 0", async (event) => {
   try {
     console.log('Starting FCM token cleanup...');
 
