@@ -1011,15 +1011,17 @@ class _CashClosingViewState extends State<CashClosingView>
       final method = e['paymentMethod'] as String? ?? 'TIỀN MẶT';
       final amount = e['amount'] as int? ?? 0;
       final category = (e['category'] as String? ?? '').toUpperCase();
-      // Loại trừ nhập hàng/purchase/stock khỏi chi phí (vì đã tính riêng và tính vào giá vốn)
-      if (!category.contains('NHẬP HÀNG') && 
-          !category.contains('PURCHASE') && 
-          !category.contains('STOCK') &&
-          !category.contains('ĐƠN NHẬP')) {
+      // Loại trừ nhập hàng/purchase/stock khỏi chi phí VÀ dòng tiền 
+      // (vì đã được tính trong supplier_imports - tránh double counting)
+      final isImportExpense = category.contains('NHẬP HÀNG') || 
+                               category.contains('PURCHASE') || 
+                               category.contains('STOCK') ||
+                               category.contains('ĐƠN NHẬP');
+      if (!isImportExpense) {
         expenseOut += amount;
+        // Chỉ tính vào dòng tiền cho chi phí thường (không phải nhập hàng)
+        if (method == 'TIỀN MẶT') cashOut += amount; else bankOut += amount;
       }
-      // Nhưng vẫn tính vào dòng tiền (cashOut/bankOut)
-      if (method == 'TIỀN MẶT') cashOut += amount; else bankOut += amount;
     }
     for (var imp in _supplierImports.where((i) => _isSameDay((i['importDate'] ?? i['createdAt'] ?? 0) as int, now))) {
       final method = imp['paymentMethod'] as String? ?? 'TIỀN MẶT';

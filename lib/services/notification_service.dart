@@ -658,31 +658,103 @@ class NotificationService {
     String body, {
     String channelId = 'system_channel',
     String? payload,
+    bool showInAppFallback = true,
   }) async {
-    final int id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    // Kiểm tra permission trước
+    final permissionStatus = await Permission.notification.status;
+    final hasPermission = permissionStatus.isGranted;
+    
+    if (hasPermission) {
+      try {
+        final int id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      channelId, _getChannelName(channelId),
-      channelDescription: _getChannelDescription(channelId),
-      importance: _getChannelImportance(channelId),
-      priority: Priority.high,
-      showWhen: true,
-      icon: '@mipmap/launcher_icon',
-      playSound: _shouldPlaySound(channelId),
-    );
+        final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+          channelId, _getChannelName(channelId),
+          channelDescription: _getChannelDescription(channelId),
+          importance: _getChannelImportance(channelId),
+          priority: Priority.high,
+          showWhen: true,
+          icon: '@mipmap/launcher_icon',
+          playSound: _shouldPlaySound(channelId),
+        );
 
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
+        const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        );
 
-    final NotificationDetails details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+        final NotificationDetails details = NotificationDetails(
+          android: androidDetails,
+          iOS: iosDetails,
+        );
 
-    await _localNotifications.show(id, title, body, details, payload: payload);
+        await _localNotifications.show(id, title, body, details, payload: payload);
+        return; // Success, no need fallback
+      } catch (e) {
+        debugPrint('Error showing local notification: $e');
+        // Fall through to in-app fallback
+      }
+    }
+    
+    // Fallback: Hiển thị thông báo trên màn hình khi push notification không hoạt động
+    if (showInAppFallback) {
+      _showInAppNotification(title, body);
+    }
+  }
+
+  /// Hiển thị thông báo trực tiếp trong app (fallback khi push notification bị tắt)
+  static void _showInAppNotification(String title, String body) {
+    try {
+      final messenger = messengerKey.currentState;
+      if (messenger != null) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.notifications_active, color: Colors.white, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                if (body.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    body,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+            backgroundColor: Colors.indigo.shade700,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            action: SnackBarAction(
+              label: 'BẬT TB',
+              textColor: Colors.yellow,
+              onPressed: () => openNotificationSettings(),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error showing in-app notification: $e');
+    }
   }
 
   static String _getChannelName(String channelId) {

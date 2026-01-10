@@ -2050,6 +2050,9 @@ class _InventoryViewState extends State<InventoryView>
           }
 
           Future<void> saveProcess({bool next = false}) async {
+            // Finalize currency fields trước khi xử lý
+            CurrencyTextField.finalizeAll();
+            
             if (skuC.text.isEmpty) {
               NotificationService.showSnackBar(
                 "Vui lòng tạo mã hàng trước!",
@@ -2521,6 +2524,9 @@ class _InventoryViewState extends State<InventoryView>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) {
           Future<void> saveProcess() async {
+            // Finalize currency fields trước khi xử lý
+            CurrencyTextField.finalizeAll();
+            
             if (supplier == null) {
               NotificationService.showSnackBar(
                 "Vui lòng chọn Nhà cung cấp!",
