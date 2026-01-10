@@ -693,7 +693,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         createdAt: ts,
         updatedAt: ts, // Thêm updatedAt để sort đúng
         supplier: selectedSupplier,
-        type: 'PHONE',
+        type: 'ĐIỆN THOẠI',
         quantity: quantity,
         color: selectedColor!,
         capacity: selectedCapacity!,
@@ -1164,7 +1164,7 @@ class _FastStockInViewState extends State<FastStockInView> {
             itemCount: activeCodes.length,
             itemBuilder: (ctx, i) {
               final code = activeCodes[i];
-              final isPhone = code.type == 'PHONE';
+              final isPhone = code.type == 'ĐIỆN THOẠI';
               return ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
@@ -1214,7 +1214,7 @@ class _FastStockInViewState extends State<FastStockInView> {
 
   void _applyQuickInputCode(QuickInputCode code) {
     setState(() {
-      if (code.type == 'PHONE') {
+      if (code.type == 'ĐIỆN THOẠI') {
         selectedBrand = code.brand;
         modelCtrl.text = code.model ?? '';
         selectedCapacity = code.capacity;

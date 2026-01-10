@@ -7,7 +7,7 @@ import '../views/repair_detail_view.dart';
 class QRRouter {
   static const String TYPE_ORDER = 'ORDER';
   static const String TYPE_REPAIR = 'REPAIR';
-  static const String TYPE_PHONE = 'PHONE';
+  static const String TYPE_PHONE = 'ĐIỆN THOẠI';
   static const String TYPE_PHU_KIEN = 'PHỤ KIỆN';
 
   /// Central QR routing method
