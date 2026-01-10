@@ -979,7 +979,7 @@ class _ExpenseViewState extends State<ExpenseView> {
   }
 
   Widget _expenseProfessionalCard(Map<String, dynamic> e) {
-    final cat = e['category'] ?? 'KHÁC';
+    final cat = (e['category'] ?? 'KHÁC').toString();
     Color color;
     IconData icon;
 
@@ -1025,7 +1025,7 @@ class _ExpenseViewState extends State<ExpenseView> {
           child: Icon(icon, color: color, size: 24),
         ),
         title: Text(
-          e['title'],
+          (e['title'] ?? 'Chi phí không tên').toString(),
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 14,
