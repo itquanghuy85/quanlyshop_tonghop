@@ -287,6 +287,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
               ),
               ElevatedButton(
                 onPressed: () async {
+                  // Finalize currency fields trước khi xử lý
+                  CurrencyTextField.finalizeAll();
+                  
                   if (!(formKey.currentState?.validate() ?? false)) return;
                   try {
                     final now = DateTime.now().millisecondsSinceEpoch;

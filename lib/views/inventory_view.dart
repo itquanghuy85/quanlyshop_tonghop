@@ -55,7 +55,7 @@ class _InventoryViewState extends State<InventoryView>
   late TabController _tabController;
 
   // Inventory check variables
-  String _selectedType = 'ĐIỆN_THOẠI';
+  String _selectedType = 'DIEN_THOAI';
   List<Map<String, dynamic>> _items = [];
   List<InventoryCheckItem> _checkItems = [];
   bool _isCheckingLoading = false;
@@ -1389,7 +1389,7 @@ class _InventoryViewState extends State<InventoryView>
                 ),
                 items: const [
                   DropdownMenuItem(
-                    value: "ĐIỆN_THOẠI",
+                    value: "DIEN_THOAI",
                     child: Text("📱 Điện thoại"),
                   ),
                   DropdownMenuItem(
@@ -1861,7 +1861,7 @@ class _InventoryViewState extends State<InventoryView>
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  p.type == 'ĐIỆN_THOẠI' ? Icons.phone_iphone : Icons.headset_mic,
+                  p.type == 'DIEN_THOAI' ? Icons.phone_iphone : Icons.headset_mic,
                   color: _getBrandColor(p.name),
                   size: _iconSize,
                 ),
@@ -2002,7 +2002,7 @@ class _InventoryViewState extends State<InventoryView>
     final skuC = TextEditingController(); // Generated SKU display/edit
     final skuF = FocusNode();
 
-    String type = "ĐIỆN_THOẠI";
+    String type = "DIEN_THOAI";
     String payMethod = "TIỀN MẶT";
     String? supplier = _suppliers.isNotEmpty
         ? _suppliers.first['name'] as String
@@ -2263,8 +2263,8 @@ class _InventoryViewState extends State<InventoryView>
                     initialValue: type,
                     items: const [
                       DropdownMenuItem(
-                        value: "ĐIỆN_THOẠI",
-                        child: Text("ĐIỆN_THOẠI"),
+                        value: "DIEN_THOAI",
+                        child: Text("DIEN_THOAI"),
                       ),
                       DropdownMenuItem(
                         value: "PHỤ KIỆN",
@@ -2606,8 +2606,8 @@ class _InventoryViewState extends State<InventoryView>
                     value: type,
                     items: const [
                       DropdownMenuItem(
-                        value: "ĐIỆN_THOẠI",
-                        child: Text("ĐIỆN_THOẠI"),
+                        value: "DIEN_THOAI",
+                        child: Text("DIEN_THOAI"),
                       ),
                       DropdownMenuItem(
                         value: "PHỤ KIỆN",

@@ -136,7 +136,7 @@ class BluetoothPrinterService {
     return await PrintBluetoothThermal.writeBytes(bytes);
   }
 
-  // IN TEM ĐIỆN_THOẠI VỚI CẤU HÌNH SIZE CHỮ TỐI ƯU
+  // IN TEM DIEN_THOAI VỚI CẤU HÌNH SIZE CHỮ TỐI ƯU
   static Future<bool> printPhoneLabel(Map<String, dynamic> labelData, [String? macAddress]) async {
     try {
       bool connected = await ensureConnection();
@@ -194,8 +194,8 @@ class BluetoothPrinterService {
       // 6. QR CODE (NẾU CÓ)
       if (showQR) {
         bytes.addAll(generator.feed(1));
-        // Generate QR in unified format: type=ĐIỆN_THOẠI&imei=...&code=...
-        final qrData = 'type=ĐIỆN_THOẠI&imei=${labelData['imei'] ?? 'N/A'}&code=${labelData['code'] ?? labelData['name'] ?? 'N/A'}';
+        // Generate QR in unified format: type=DIEN_THOAI&imei=...&code=...
+        final qrData = 'type=DIEN_THOAI&imei=${labelData['imei'] ?? 'N/A'}&code=${labelData['code'] ?? labelData['name'] ?? 'N/A'}';
         bytes.addAll(generator.qrcode(qrData, size: QRSize.Size4));
       }
 

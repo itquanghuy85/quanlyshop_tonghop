@@ -612,6 +612,9 @@ class _FastStockInViewState extends State<FastStockInView> {
   }
 
   Future<void> _saveProduct() async {
+    // Finalize currency fields trước khi xử lý
+    CurrencyTextField.finalizeAll();
+    
     if (selectedBrand == null ||
         selectedCapacity == null ||
         selectedColor == null ||
@@ -693,7 +696,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         createdAt: ts,
         updatedAt: ts, // Thêm updatedAt để sort đúng
         supplier: selectedSupplier,
-        type: 'ĐIỆN_THOẠI',
+        type: 'DIEN_THOAI',
         quantity: quantity,
         color: selectedColor!,
         capacity: selectedCapacity!,
@@ -1164,7 +1167,7 @@ class _FastStockInViewState extends State<FastStockInView> {
             itemCount: activeCodes.length,
             itemBuilder: (ctx, i) {
               final code = activeCodes[i];
-              final isPhone = code.type == 'ĐIỆN_THOẠI';
+              final isPhone = code.type == 'DIEN_THOAI';
               return ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
@@ -1214,7 +1217,7 @@ class _FastStockInViewState extends State<FastStockInView> {
 
   void _applyQuickInputCode(QuickInputCode code) {
     setState(() {
-      if (code.type == 'ĐIỆN_THOẠI') {
+      if (code.type == 'DIEN_THOAI') {
         selectedBrand = code.brand;
         modelCtrl.text = code.model ?? '';
         selectedCapacity = code.capacity;

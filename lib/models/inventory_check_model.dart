@@ -1,7 +1,7 @@
 class InventoryCheck {
   int? id;
   String? firestoreId;
-  String checkType; // 'ĐIỆN_THOẠI' hoặc 'PHỤ KIỆN'
+  String checkType; // 'DIEN_THOAI' hoặc 'PHỤ KIỆN'
   int checkDate;
   String checkedBy;
   List<InventoryCheckItem> items;
@@ -39,7 +39,7 @@ class InventoryCheck {
     return InventoryCheck(
       id: map['id'],
       firestoreId: map['firestoreId'],
-      checkType: map['type'] ?? map['checkType'] ?? 'ĐIỆN_THOẠI',
+      checkType: map['type'] ?? map['checkType'] ?? 'DIEN_THOAI',
       checkDate: map['checkDate'] ?? 0,
       checkedBy: map['checkedBy'] ?? '',
       items: (map['itemsJson'] as List<dynamic>?)
@@ -57,7 +57,7 @@ class InventoryCheck {
 class InventoryCheckItem {
   String itemId; // firestoreId của Product hoặc Part
   String itemName;
-  String itemType; // 'ĐIỆN_THOẠI' hoặc 'PHỤ KIỆN'
+  String itemType; // 'DIEN_THOAI' hoặc 'PHỤ KIỆN'
   String? imei;
   String? color;
   int quantity;
@@ -92,7 +92,7 @@ class InventoryCheckItem {
     return InventoryCheckItem(
       itemId: map['itemId'] ?? '',
       itemName: map['itemName'] ?? '',
-      itemType: map['itemType'] ?? 'ĐIỆN_THOẠI',
+      itemType: map['itemType'] ?? 'DIEN_THOAI',
       imei: map['imei'],
       color: map['color'],
       quantity: map['quantity'] ?? 1,

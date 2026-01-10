@@ -217,6 +217,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
   Future<Repair?> _saveOrderProcess() async {
     debugPrint('🔧 _saveOrderProcess: Starting...');
+    // Finalize currency fields trước khi xử lý
+    CurrencyTextField.finalizeAll();
+    
     // Kiểm tra ngày hôm nay đã chốt quỹ chưa
     final today = DateTime.now();
     debugPrint('🔧 _saveOrderProcess: Checking canEditDirectly for today...');
@@ -637,7 +640,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                       Expanded(
                         child: _input(
                           phoneCtrl,
-                          "SỐ ĐIỆN_THOẠI *",
+                          "SỐ DIEN_THOAI *",
                           Icons.phone,
                           type: TextInputType.phone,
                           f: phoneF,

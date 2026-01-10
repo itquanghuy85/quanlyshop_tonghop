@@ -49,7 +49,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
   final TextEditingController _skuController = TextEditingController();
 
   // Settings
-  String _selectedType = 'ĐIỆN_THOẠI';
+  String _selectedType = 'DIEN_THOAI';
   String _selectedSupplier = '';
   List<Map<String, dynamic>> _suppliers = [];
   bool _isSaving = false;

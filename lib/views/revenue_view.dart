@@ -2025,8 +2025,11 @@ class _RevenueViewState extends State<RevenueView>
   }
 
   Future<void> _saveClosing() async {
-    final cash = int.tryParse(cashEndCtrl.text.replaceAll('.', '')) ?? 0;
-    final bank = int.tryParse(bankEndCtrl.text.replaceAll('.', '')) ?? 0;
+    // Finalize currency fields trước khi xử lý
+    CurrencyTextField.finalizeAll();
+    
+    final cash = CurrencyTextField.parseValue(cashEndCtrl.text);
+    final bank = CurrencyTextField.parseValue(bankEndCtrl.text);
 
     // Xác nhận trước khi chốt
     final confirm = await showDialog<bool>(

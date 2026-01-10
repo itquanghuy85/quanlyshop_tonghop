@@ -298,6 +298,13 @@ class UserService {
 
     // Super admin xem được toàn bộ
     if (currentUser != null && _isSuperAdmin(currentUser)) {
+      // Nếu super admin đã chọn shop cụ thể, lọc theo shop đó
+      if (_adminSelectedShopId != null && _adminSelectedShopId!.trim().isNotEmpty) {
+        return _db
+            .collection('users')
+            .where('shopId', isEqualTo: _adminSelectedShopId)
+            .snapshots();
+      }
       return _db.collection('users').snapshots();
     }
 
@@ -312,6 +319,14 @@ class UserService {
 
     // Trường hợp chưa đồng bộ shopId, tạm thời trả toàn bộ (sẽ thu hẹp sau khi syncUserInfo chạy)
     return _db.collection('users').snapshots();
+  }
+
+  /// Stream lấy users theo shopId cụ thể (dùng khi cần đảm bảo có shopId)
+  static Stream<QuerySnapshot> getUsersStreamByShopId(String shopId) {
+    return _db
+        .collection('users')
+        .where('shopId', isEqualTo: shopId)
+        .snapshots();
   }
 
   static Future<void> updateUserInfo({

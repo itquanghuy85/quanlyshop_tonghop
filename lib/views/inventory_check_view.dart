@@ -16,7 +16,7 @@ class _InventoryCheckViewState extends State<InventoryCheckView> {
   final _dbHelper = DBHelper();
   final _scannerController = MobileScannerController();
   
-  String _selectedType = 'ĐIỆN_THOẠI'; // ĐIỆN_THOẠI hoặc PHỤ KIỆN
+  String _selectedType = 'DIEN_THOAI'; // DIEN_THOAI hoặc PHỤ KIỆN
   List<Map<String, dynamic>> _items = [];
   List<InventoryCheckItem> _checkItems = [];
   bool _isLoading = true;
@@ -136,7 +136,7 @@ class _InventoryCheckViewState extends State<InventoryCheckView> {
           Expanded(
             child: SegmentedButton<String>(
               segments: const [
-                ButtonSegment(value: 'ĐIỆN_THOẠI', label: Text('Máy'), icon: Icon(Icons.phone_android, size: 16)),
+                ButtonSegment(value: 'DIEN_THOAI', label: Text('Máy'), icon: Icon(Icons.phone_android, size: 16)),
                 ButtonSegment(value: 'PHỤ KIỆN', label: Text('Phụ kiện'), icon: Icon(Icons.headset, size: 16)),
               ],
               selected: {_selectedType},

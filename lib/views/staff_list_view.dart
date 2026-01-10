@@ -865,9 +865,53 @@ class _StaffListViewState extends State<StaffListView> {
           : null,
       body: _loadingRole
           ? const Center(child: CircularProgressIndicator())
-          : StreamBuilder<QuerySnapshot>(
-              stream: UserService.getAllUsersStream(),
+          : _currentShopId == null && !_isSuperAdmin
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 64, color: AppColors.warning),
+                      const SizedBox(height: 16),
+                      Text(
+                        "Chưa có thông tin shop\nVui lòng đăng xuất và đăng nhập lại",
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.body1.copyWith(color: AppColors.warning),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () async {
+                          // Thử load lại shopId
+                          final shopId = await UserService.getCurrentShopId();
+                          if (shopId != null && mounted) {
+                            setState(() => _currentShopId = shopId);
+                          }
+                        },
+                        child: const Text('Thử lại'),
+                      ),
+                    ],
+                  ),
+                )
+              : StreamBuilder<QuerySnapshot>(
+              stream: _isSuperAdmin 
+                  ? UserService.getAllUsersStream()
+                  : (_currentShopId != null 
+                      ? UserService.getUsersStreamByShopId(_currentShopId!)
+                      : UserService.getAllUsersStream()),
               builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      "Lỗi tải dữ liệu: ${snapshot.error}\nShopId: $_currentShopId",
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.body1.copyWith(color: AppColors.error),
+                    ),
+                  );
+                }
+                
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
 
                 final users = snapshot.data!.docs;

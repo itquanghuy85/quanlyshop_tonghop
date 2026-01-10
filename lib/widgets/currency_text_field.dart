@@ -29,6 +29,32 @@ class CurrencyTextField extends StatefulWidget {
   final bool
   autoMultiply1000; // Mặc định true - tự động nhân 1000 khi số < 100000
 
+  /// Global key registry để finalize tất cả currency fields trước khi submit
+  static final Map<TextEditingController, GlobalKey<_CurrencyTextFieldState>> _stateKeys = {};
+
+  /// Đăng ký state key cho controller
+  static void _registerState(TextEditingController controller, GlobalKey<_CurrencyTextFieldState> key) {
+    _stateKeys[controller] = key;
+  }
+
+  /// Hủy đăng ký state key
+  static void _unregisterState(TextEditingController controller) {
+    _stateKeys.remove(controller);
+  }
+
+  /// ✅ GỌI TRƯỚC KHI SUBMIT FORM để đảm bảo tất cả currency fields được finalize
+  /// Giải quyết vấn đề: nhập số rồi bấm save ngay mà không blur field
+  static void finalizeAll() {
+    for (final key in _stateKeys.values) {
+      key.currentState?._finalizeInput();
+    }
+  }
+
+  /// Finalize một controller cụ thể
+  static void finalizeController(TextEditingController controller) {
+    _stateKeys[controller]?.currentState?._finalizeInput();
+  }
+
   const CurrencyTextField({
     super.key,
     required this.controller,
@@ -97,16 +123,22 @@ class _CurrencyTextFieldState extends State<CurrencyTextField> {
   String? _errorText;
   final FocusNode _focusNode = FocusNode();
   bool _isEditing = false;
+  late final GlobalKey<_CurrencyTextFieldState> _stateKey;
 
   @override
   void initState() {
     super.initState();
+    // Tạo và đăng ký state key
+    _stateKey = GlobalKey<_CurrencyTextFieldState>();
+    CurrencyTextField._registerState(widget.controller, _stateKey);
     widget.controller.addListener(_validate);
     _focusNode.addListener(_handleFocusChange);
   }
 
   @override
   void dispose() {
+    // Hủy đăng ký state key
+    CurrencyTextField._unregisterState(widget.controller);
     _focusNode.removeListener(_handleFocusChange);
     _focusNode.dispose();
     widget.controller.removeListener(_validate);

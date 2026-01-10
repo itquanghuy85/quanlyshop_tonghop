@@ -183,8 +183,8 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
               child: Row(
                 children: [
                   Icon(
-                    code.type == 'ĐIỆN_THOẠI' ? Icons.smartphone : Icons.inventory_2,
-                    color: code.type == 'ĐIỆN_THOẠI' ? Colors.blue : Colors.orange,
+                    code.type == 'DIEN_THOAI' ? Icons.smartphone : Icons.inventory_2,
+                    color: code.type == 'DIEN_THOAI' ? Colors.blue : Colors.orange,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -295,7 +295,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
 
   void _copyCode(QuickInputCode code) {
     final info = '${code.name}\n'
-        '${code.type == 'ĐIỆN_THOẠI' ? '${code.brand ?? ''} ${code.model ?? ''}'.trim() : code.description ?? ''}\n'
+        '${code.type == 'DIEN_THOAI' ? '${code.brand ?? ''} ${code.model ?? ''}'.trim() : code.description ?? ''}\n'
         'Giá nhập: ${code.cost != null ? NumberFormat('#,###').format(code.cost) : 'N/A'}đ\n'
         'Giá bán: ${code.price != null ? NumberFormat('#,###').format(code.price) : 'N/A'}đ';
     Clipboard.setData(ClipboardData(text: info));
@@ -547,7 +547,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
   }
 
   Widget _buildCodeCard(QuickInputCode code) {
-    final isPhone = code.type == 'ĐIỆN_THOẠI';
+    final isPhone = code.type == 'DIEN_THOAI';
     final mainColor = isPhone ? Colors.blue : Colors.orange;
 
     return Container(
@@ -936,7 +936,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   final _descriptionCtrl = TextEditingController();
   final _supplierCtrl = TextEditingController();
 
-  String _type = 'ĐIỆN_THOẠI';
+  String _type = 'DIEN_THOAI';
   String? _paymentMethod;
 
   // Danh sách gợi ý
@@ -982,6 +982,9 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   }
 
   void _save() {
+    // Finalize currency fields trước khi xử lý
+    CurrencyTextField.finalizeAll();
+    
     if (!_formKey.currentState!.validate()) return;
 
     final code = QuickInputCode(
@@ -990,13 +993,13 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
       shopId: widget.code?.shopId ?? widget.shopId,
       name: _nameCtrl.text.trim().toUpperCase(),
       type: _type,
-      brand: _type == 'ĐIỆN_THOẠI' ? _brandCtrl.text.trim().toUpperCase() : null,
-      model: _type == 'ĐIỆN_THOẠI' ? _modelCtrl.text.trim().toUpperCase() : null,
-      capacity: _type == 'ĐIỆN_THOẠI' ? _capacityCtrl.text.trim() : null,
-      color: _type == 'ĐIỆN_THOẠI' ? _colorCtrl.text.trim() : null,
-      condition: _type == 'ĐIỆN_THOẠI' ? _conditionCtrl.text.trim() : null,
-      cost: int.tryParse(_costCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')),
-      price: int.tryParse(_priceCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')),
+      brand: _type == 'DIEN_THOAI' ? _brandCtrl.text.trim().toUpperCase() : null,
+      model: _type == 'DIEN_THOAI' ? _modelCtrl.text.trim().toUpperCase() : null,
+      capacity: _type == 'DIEN_THOAI' ? _capacityCtrl.text.trim() : null,
+      color: _type == 'DIEN_THOAI' ? _colorCtrl.text.trim() : null,
+      condition: _type == 'DIEN_THOAI' ? _conditionCtrl.text.trim() : null,
+      cost: CurrencyTextField.parseValue(_costCtrl.text),
+      price: CurrencyTextField.parseValue(_priceCtrl.text),
       description: _descriptionCtrl.text.trim(),
       supplier: _supplierCtrl.text.trim(),
       paymentMethod: _paymentMethod,
@@ -1080,7 +1083,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         children: [
                           Expanded(
                             child: _buildTypeChip(
-                              'ĐIỆN_THOẠI',
+                              'DIEN_THOAI',
                               'Điện thoại',
                               Icons.smartphone,
                               Colors.blue,
@@ -1110,7 +1113,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                       ),
                       const SizedBox(height: 16),
 
-                      if (_type == 'ĐIỆN_THOẠI') ...[
+                      if (_type == 'DIEN_THOAI') ...[
                         // Thương hiệu với gợi ý
                         Autocomplete<String>(
                           optionsBuilder: (textEditingValue) {
@@ -1292,7 +1295,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         onChanged: (val) => setState(() => _paymentMethod = val),
                       ),
 
-                      if (_type != 'ĐIỆN_THOẠI') ...[
+                      if (_type != 'DIEN_THOAI') ...[
                         const SizedBox(height: 16),
                         ValidatedTextField(
                           controller: _descriptionCtrl,

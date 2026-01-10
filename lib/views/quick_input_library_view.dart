@@ -336,7 +336,7 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
       );
 
   Widget _buildCodeCard(QuickInputCode code) {
-    final isPhone = code.type == 'ĐIỆN_THOẠI';
+    final isPhone = code.type == 'DIEN_THOAI';
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -593,7 +593,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   final _descriptionCtrl = TextEditingController();
   final _supplierCtrl = TextEditingController();
 
-  String _type = 'ĐIỆN_THOẠI';
+  String _type = 'DIEN_THOAI';
   String? _paymentMethod;
 
   @override
@@ -632,6 +632,9 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   }
 
   void _save() {
+    // Finalize currency fields trước khi xử lý
+    CurrencyTextField.finalizeAll();
+    
     if (!_formKey.currentState!.validate()) return;
 
     final code = QuickInputCode(
@@ -639,13 +642,13 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
       firestoreId: widget.code?.firestoreId,
       name: _nameCtrl.text.trim().toUpperCase(),
       type: _type,
-      brand: _type == 'ĐIỆN_THOẠI' ? _brandCtrl.text.trim().toUpperCase() : null,
-      model: _type == 'ĐIỆN_THOẠI' ? _modelCtrl.text.trim().toUpperCase() : null,
-      capacity: _type == 'ĐIỆN_THOẠI' ? _capacityCtrl.text.trim() : null,
-      color: _type == 'ĐIỆN_THOẠI' ? _colorCtrl.text.trim() : null,
-      condition: _type == 'ĐIỆN_THOẠI' ? _conditionCtrl.text.trim() : null,
-      cost: int.tryParse(_costCtrl.text.replaceAll(',', '')),
-      price: int.tryParse(_priceCtrl.text.replaceAll(',', '')),
+      brand: _type == 'DIEN_THOAI' ? _brandCtrl.text.trim().toUpperCase() : null,
+      model: _type == 'DIEN_THOAI' ? _modelCtrl.text.trim().toUpperCase() : null,
+      capacity: _type == 'DIEN_THOAI' ? _capacityCtrl.text.trim() : null,
+      color: _type == 'DIEN_THOAI' ? _colorCtrl.text.trim() : null,
+      condition: _type == 'DIEN_THOAI' ? _conditionCtrl.text.trim() : null,
+      cost: CurrencyTextField.parseValue(_costCtrl.text),
+      price: CurrencyTextField.parseValue(_priceCtrl.text),
       description: _descriptionCtrl.text.trim(),
       supplier: _supplierCtrl.text.trim(),
       paymentMethod: _paymentMethod,
@@ -673,7 +676,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                 value: _type,
                 decoration: const InputDecoration(labelText: 'Loại sản phẩm'),
                 items: const [
-                  DropdownMenuItem(value: 'ĐIỆN_THOẠI', child: Text('Điện thoại')),
+                  DropdownMenuItem(value: 'DIEN_THOAI', child: Text('Điện thoại')),
                   DropdownMenuItem(value: 'PHỤ KIỆN', child: Text('Phụ kiện/Linh kiện')),
                 ],
                 onChanged: (val) => setState(() => _type = val!),
@@ -690,7 +693,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
               ),
               const SizedBox(height: 12),
 
-              if (_type == 'ĐIỆN_THOẠI') ...[
+              if (_type == 'DIEN_THOAI') ...[
                 // Phone fields
                 ValidatedTextField(
                   controller: _brandCtrl,

@@ -351,14 +351,14 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: code.type == 'ĐIỆN_THOẠI'
+            color: code.type == 'DIEN_THOAI'
                 ? Colors.blue.shade100
                 : Colors.green.shade100,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
-            code.type == 'ĐIỆN_THOẠI' ? Icons.smartphone : Icons.devices_other,
-            color: code.type == 'ĐIỆN_THOẠI' ? Colors.blue : Colors.green,
+            code.type == 'DIEN_THOAI' ? Icons.smartphone : Icons.devices_other,
+            color: code.type == 'DIEN_THOAI' ? Colors.blue : Colors.green,
           ),
         ),
         title: Text(

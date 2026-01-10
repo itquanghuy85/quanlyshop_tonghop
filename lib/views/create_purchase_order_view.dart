@@ -149,6 +149,9 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
   }
 
   Future<void> _savePurchaseOrder() async {
+    // Finalize currency fields trước khi xử lý
+    CurrencyTextField.finalizeAll();
+    
     if (!_formKey.currentState!.validate()) return;
     if (_items.isEmpty) {
       NotificationService.showSnackBar("Vui lòng thêm ít nhất 1 sản phẩm!", color: Colors.red);
@@ -553,7 +556,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
                     const SizedBox(height: 8),
                     ValidatedTextField(
                       controller: supplierPhoneCtrl,
-                      label: "SỐ ĐIỆN_THOẠI",
+                      label: "SỐ DIEN_THOAI",
                       icon: Icons.phone,
                       keyboardType: TextInputType.phone,
                       uppercase: true,
@@ -685,7 +688,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
   //           description: 'Nhập từ đơn: ${order.orderCode}',
   //           createdAt: DateTime.now().millisecondsSinceEpoch,
   //           supplier: order.supplierName,
-  //           type: 'ĐIỆN_THOẠI',
+  //           type: 'DIEN_THOAI',
   //           quantity: item.quantity,
   //           color: item.color,
   //           capacity: item.capacity,

@@ -119,7 +119,7 @@ class FirestoreService {
             'description': 'Nhập từ đơn: ${order.orderCode}',
             'createdAt': FieldValue.serverTimestamp(),
             'supplier': order.supplierName,
-            'type': 'ĐIỆN_THOẠI',
+            'type': 'DIEN_THOAI',
             'quantity': item.quantity,
             'color': item.color,
             'capacity': item.capacity,
@@ -1093,7 +1093,7 @@ class FirestoreService {
           final currentQty = (data['quantity'] ?? 0) as int;
           final requestedQty = item['quantity'] as int;
           final newQty = currentQty - requestedQty;
-          final isPhone = (data['type'] ?? 'ĐIỆN_THOẠI') == 'ĐIỆN_THOẠI';
+          final isPhone = (data['type'] ?? 'DIEN_THOAI') == 'DIEN_THOAI';
           
           transaction.update(docRef, {
             'quantity': newQty,

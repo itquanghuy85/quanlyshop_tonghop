@@ -3,11 +3,11 @@ import '../lib/utils/qr_parser.dart';
 
 void main() {
   group('Fast Inventory Check QR Parsing Tests', () {
-    test('Parse ĐIỆN_THOẠI QR correctly', () {
-      const qrData = 'type=ĐIỆN_THOẠI&code=IPH15PM&imei=12345';
+    test('Parse DIEN_THOAI QR correctly', () {
+      const qrData = 'type=DIEN_THOAI&code=IPH15PM&imei=12345';
       final result = QRParser.parse(qrData);
 
-      expect(result['type'], 'ĐIỆN_THOẠI');
+      expect(result['type'], 'DIEN_THOAI');
       expect(result['code'], 'IPH15PM');
       expect(result['imei'], '12345');
     });
@@ -22,10 +22,10 @@ void main() {
     });
 
     test('Handle URL encoded values', () {
-      const qrData = 'type=ĐIỆN_THOẠI&code=iPhone%2015%20Pro&imei=67890';
+      const qrData = 'type=DIEN_THOAI&code=iPhone%2015%20Pro&imei=67890';
       final result = QRParser.parse(qrData);
 
-      expect(result['type'], 'ĐIỆN_THOẠI');
+      expect(result['type'], 'DIEN_THOAI');
       expect(result['code'], 'iPhone 15 Pro');
       expect(result['imei'], '67890');
     });

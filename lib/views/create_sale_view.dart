@@ -236,7 +236,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           cost: 0,
           price: sale.totalPrice ~/ productNames.length,
           condition: 'UNKNOWN',
-          type: 'ĐIỆN_THOẠI',
+          type: 'DIEN_THOAI',
           createdAt: DateTime.now().millisecondsSinceEpoch,
         ),
       );
@@ -369,7 +369,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           await db.addProductQuantity(product.id!, 1);
           // Cập nhật local object
           product.quantity += 1;
-          if (product.type == 'ĐIỆN_THOẠI' &&
+          if (product.type == 'DIEN_THOAI' &&
               product.status == 0 &&
               product.quantity > 0) {
             product.status = 1; // Đánh dấu là available
@@ -422,6 +422,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       debugPrint('🛒 _processSale: Already saving, returning...');
       return;
     }
+
+    // ✅ QUAN TRỌNG: Finalize tất cả currency fields trước khi xử lý
+    // Giải quyết vấn đề: nhập số rồi bấm lưu ngay mà không blur field
+    CurrencyTextField.finalizeAll();
 
     // Kiểm tra ngày hôm nay đã chốt quỹ chưa
     final today = DateTime.now();
@@ -535,7 +539,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 return customImei;
               }
               // Logic cũ nếu không nhập IMEI tùy chọn
-              if (product.type == 'ĐIỆN_THOẠI') {
+              if (product.type == 'DIEN_THOAI') {
                 return product.imei ?? "NO_IMEI";
               } else {
                 return "PKx${quantity}";
@@ -564,7 +568,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       for (var item in _selectedItems) {
         final p = item['product'] as Product;
         final customImei = item['imei'] as String?;
-        if (p.type == 'ĐIỆN_THOẠI' &&
+        if (p.type == 'DIEN_THOAI' &&
             (customImei == null || customImei.isEmpty) &&
             (p.imei == null || p.imei!.isEmpty)) {
           NotificationService.showSnackBar(
@@ -642,14 +646,14 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         final quantity = item['quantity'] as int;
 
         // Cập nhật local database
-        if (p.type == 'ĐIỆN_THOẠI') {
+        if (p.type == 'DIEN_THOAI') {
           await db.updateProductStatus(p.id!, 0);
         }
         await db.deductProductQuantity(p.id!, quantity);
 
         // Cập nhật local object
         p.quantity -= quantity;
-        if (p.type == 'ĐIỆN_THOẠI') {
+        if (p.type == 'DIEN_THOAI') {
           p.status = 0;
         }
 
@@ -858,7 +862,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                       Expanded(
                         child: ValidatedTextField(
                           controller: phoneCtrl,
-                          label: "SỐ ĐIỆN_THOẠI",
+                          label: "SỐ ĐIỆN THOẠI",
                           icon: Icons.phone,
                           keyboardType: TextInputType.phone,
                         ),

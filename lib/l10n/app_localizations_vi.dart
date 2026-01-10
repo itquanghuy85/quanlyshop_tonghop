@@ -573,7 +573,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get customerName => 'TÊN KHÁCH HÀNG';
 
   @override
-  String get phoneNumber => 'SỐ ĐIỆN_THOẠI';
+  String get phoneNumber => 'SỐ DIEN_THOAI';
 
   @override
   String get customerAddress => 'ĐỊA CHỈ KHÁCH HÀNG';
@@ -630,7 +630,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get bankT86 => 'NGÂN HÀNG T86';
 
   @override
-  String get enterPhoneFirst => 'VUI LÒNG NHẬP SỐ ĐIỆN_THOẠI TRƯỚC';
+  String get enterPhoneFirst => 'VUI LÒNG NHẬP SỐ DIEN_THOAI TRƯỚC';
 
   @override
   String get priceMustBePositive => 'GIÁ TIẾP NHẬN PHẢI LỚN HƠN HOẶC BẰNG 0!';
@@ -651,7 +651,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get productType => 'Loại hàng';
 
   @override
-  String get phone => 'ĐIỆN_THOẠI';
+  String get phone => 'DIEN_THOAI';
 
   @override
   String get accessory => 'PHỤ KIỆN';

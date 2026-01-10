@@ -31,7 +31,7 @@ class _StockInViewState extends State<StockInView> {
   bool _saving = false;
 
   // Controllers
-  final typeCtrl = TextEditingController(text: 'ĐIỆN_THOẠI');
+  final typeCtrl = TextEditingController(text: 'DIEN_THOAI');
   final brandCtrl = TextEditingController();
   final modelCtrl = TextEditingController();
   final capacityCtrl = TextEditingController();
@@ -77,7 +77,7 @@ class _StockInViewState extends State<StockInView> {
   bool _notesChanged = false;
 
   // Dropdown options
-  final List<String> types = ['ĐIỆN_THOẠI', 'PHỤ KIỆN', 'LINH KIỆN'];
+  final List<String> types = ['DIEN_THOAI', 'PHỤ KIỆN', 'LINH KIỆN'];
   // Đồng bộ với fast_stock_in_view.dart
   final List<String> conditions = ['MỚI', '99', 'KHÁC'];
   List<Map<String, dynamic>> suppliers = [];
@@ -124,7 +124,7 @@ class _StockInViewState extends State<StockInView> {
   void _fillPrefilledData() {
     final data = widget.prefilledData!;
     setState(() {
-      typeCtrl.text = data['type'] ?? 'ĐIỆN_THOẠI';
+      typeCtrl.text = data['type'] ?? 'DIEN_THOAI';
       brandCtrl.text = data['brand'] ?? '';
       modelCtrl.text = data['model'] ?? '';
       capacityCtrl.text = data['capacity'] ?? '';
@@ -303,6 +303,9 @@ class _StockInViewState extends State<StockInView> {
   }
 
   Future<void> _saveProduct() async {
+    // Finalize currency fields trước khi xử lý
+    CurrencyTextField.finalizeAll();
+    
     if (!(await _validateForm())) return;
 
     setState(() => _saving = true);
