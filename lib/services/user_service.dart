@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'encryption_service.dart';
+import 'claims_service.dart';
 
 class UserService {
   // Validate input fields
@@ -61,6 +62,13 @@ class UserService {
     _cachedShopId = null;
     _cachedUid = null;
     _adminSelectedShopId = null;
+    ClaimsService().stopClaimsSync(); // Stop claims listener on logout
+  }
+
+  /// Initialize claims sync after login
+  static void initClaimsSync() {
+    ClaimsService().startClaimsSync();
+    debugPrint('UserService: Started claims sync');
   }
 
   static bool _isSuperAdmin(User? user) {
@@ -227,6 +235,7 @@ class UserService {
   }
 
   // Lấy quyền của người dùng (Có nhận diện Admin đặc biệt)
+  // NOTE: Prefer using ClaimsService().getRoleFromClaims() for faster access
   static Future<String> getUserRole(String uid) async {
     // CAO KIẾN: Nhận diện Admin tối cao qua Email
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -236,6 +245,21 @@ class UserService {
       return 'admin'; // Luôn là Admin nếu dùng email này
     }
 
+    // Try to get role from Custom Claims first (faster, no Firestore read)
+    if (uid == currentUser?.uid) {
+      try {
+        final role = await ClaimsService().getRoleFromClaims();
+        if (role != 'user') {
+          // user is default, might not be set yet
+          debugPrint("getUserRole: role from claims = $role");
+          return role;
+        }
+      } catch (e) {
+        debugPrint("getUserRole: claims error $e, falling back to Firestore");
+      }
+    }
+
+    // Fallback to Firestore
     try {
       final doc = await _db.collection('users').doc(uid).get();
       final role = doc.data()?['role'] ?? 'user';
@@ -245,6 +269,23 @@ class UserService {
       debugPrint("getUserRole: error $e, returning user");
       return 'user';
     }
+  }
+
+  /// Fast role check using Custom Claims (no Firestore read)
+  static Future<String> getRoleFast() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser?.email == 'admin@huluca.com') {
+      return 'admin';
+    }
+    return await ClaimsService().getRoleFromClaims();
+  }
+
+  /// Fast shopId check using Custom Claims (no Firestore read)
+  static Future<String?> getShopIdFast() async {
+    if (isCurrentUserSuperAdmin()) {
+      return _adminSelectedShopId;
+    }
+    return await ClaimsService().getShopIdFromClaims();
   }
 
   static Future<Map<String, dynamic>> getUserInfo(String uid) async {

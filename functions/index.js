@@ -1,5 +1,5 @@
 const admin = require("firebase-admin");
-const { onDocumentCreated, onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentUpdated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { setGlobalOptions } = require("firebase-functions/v2/options");
@@ -7,6 +7,443 @@ const { setGlobalOptions } = require("firebase-functions/v2/options");
 admin.initializeApp();
 // Giới hạn region & timeout mặc định
 setGlobalOptions({ region: "asia-southeast1", timeoutSeconds: 30 });
+
+// ============================================================
+// CUSTOM CLAIMS MANAGEMENT
+// ============================================================
+// Purpose: Auto-sync Custom Claims when user data changes
+// Claims: shopId, role, isSuperAdmin
+// ============================================================
+
+const SUPER_ADMIN_EMAIL = "admin@huluca.com";
+const VALID_ROLES = ["owner", "manager", "employee", "technician", "user"];
+
+/**
+ * Check if email is super admin
+ */
+function checkIsSuperAdmin(email) {
+  return email && email.toLowerCase() === SUPER_ADMIN_EMAIL;
+}
+
+/**
+ * Build custom claims object from user data
+ */
+function buildCustomClaims(userData, email) {
+  const isSuperAdmin = checkIsSuperAdmin(email);
+  return {
+    shopId: userData?.shopId || null,
+    role: isSuperAdmin ? "admin" : (userData?.role || "user"),
+    isSuperAdmin: isSuperAdmin,
+  };
+}
+
+/**
+ * 🔑 AUTO-SYNC CUSTOM CLAIMS
+ * Triggered when user document is created or updated
+ * Sets: shopId, role, isSuperAdmin in JWT token
+ */
+exports.syncUserClaims = onDocumentWritten("users/{userId}", async (event) => {
+  const userId = event.params.userId;
+  const afterData = event.data?.after?.data();
+  
+  // Skip if document was deleted
+  if (!afterData) {
+    console.log(`User ${userId} deleted, skipping claims sync`);
+    return;
+  }
+
+  try {
+    // Get user's email from Auth
+    let userEmail = afterData.email;
+    if (!userEmail) {
+      try {
+        const userRecord = await admin.auth().getUser(userId);
+        userEmail = userRecord.email;
+      } catch (e) {
+        console.warn(`Cannot get email for user ${userId}:`, e.message);
+      }
+    }
+
+    // Build and set claims
+    const claims = buildCustomClaims(afterData, userEmail);
+    
+    // Check if claims actually changed
+    const beforeData = event.data?.before?.data();
+    const oldClaims = beforeData ? buildCustomClaims(beforeData, userEmail) : null;
+    
+    if (oldClaims && 
+        oldClaims.shopId === claims.shopId && 
+        oldClaims.role === claims.role && 
+        oldClaims.isSuperAdmin === claims.isSuperAdmin) {
+      console.log(`Claims unchanged for user ${userId}, skipping`);
+      return;
+    }
+
+    await admin.auth().setCustomUserClaims(userId, claims);
+    
+    // Mark claims as synced in Firestore (for client to know when to refresh token)
+    await event.data.after.ref.update({
+      claimsSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+      _claimsVersion: admin.firestore.FieldValue.increment(1),
+    });
+
+    console.log(`✅ Claims synced for ${userId}:`, claims);
+  } catch (error) {
+    console.error(`❌ Error syncing claims for ${userId}:`, error);
+  }
+});
+
+/**
+ * 🔄 MANUAL REFRESH CLAIMS
+ * Callable function to force refresh user's claims
+ * Client should call this after joining shop or role change
+ */
+exports.refreshMyClaims = onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+
+  const userId = auth.uid;
+  const userEmail = auth.token.email;
+
+  try {
+    // Get fresh user data from Firestore
+    const userDoc = await admin.firestore().doc(`users/${userId}`).get();
+    const userData = userDoc.data();
+
+    if (!userData) {
+      throw new HttpsError("not-found", "Không tìm thấy thông tin người dùng");
+    }
+
+    // Build and set claims
+    const claims = buildCustomClaims(userData, userEmail);
+    await admin.auth().setCustomUserClaims(userId, claims);
+
+    // Update sync timestamp
+    await userDoc.ref.update({
+      claimsSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log(`✅ Claims refreshed for ${userId}:`, claims);
+
+    return {
+      success: true,
+      claims: claims,
+      message: "Claims đã được cập nhật. Vui lòng refresh token.",
+    };
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    console.error(`Error refreshing claims for ${userId}:`, error);
+    throw new HttpsError("internal", "Lỗi cập nhật claims: " + error.message);
+  }
+});
+
+/**
+ * 👑 ADMIN: UPDATE USER ROLE
+ * Only owner/admin can change roles
+ * Cannot self-assign higher role
+ */
+exports.updateUserRole = onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+
+  const data = request.data || {};
+  const targetUserId = (data.userId || "").toString().trim();
+  const newRole = (data.role || "").toString().trim().toLowerCase();
+
+  // === VALIDATION ===
+  if (!targetUserId) {
+    throw new HttpsError("invalid-argument", "Thiếu userId");
+  }
+
+  if (!newRole || !VALID_ROLES.includes(newRole)) {
+    throw new HttpsError("invalid-argument", `Role không hợp lệ. Chỉ chấp nhận: ${VALID_ROLES.join(", ")}`);
+  }
+
+  const callerUid = auth.uid;
+  const callerEmail = auth.token.email || "";
+  const callerIsSuperAdmin = checkIsSuperAdmin(callerEmail);
+
+  // Get caller's data
+  const callerDoc = await admin.firestore().doc(`users/${callerUid}`).get();
+  const callerData = callerDoc.data() || {};
+  const callerRole = callerIsSuperAdmin ? "admin" : (callerData.role || "user");
+  const callerShopId = callerData.shopId;
+
+  // Get target user's data
+  const targetDoc = await admin.firestore().doc(`users/${targetUserId}`).get();
+  if (!targetDoc.exists) {
+    throw new HttpsError("not-found", "Không tìm thấy người dùng");
+  }
+  const targetData = targetDoc.data() || {};
+  const targetShopId = targetData.shopId;
+
+  // === PERMISSION CHECKS ===
+  
+  // 1. Super admin can do anything
+  if (!callerIsSuperAdmin) {
+    // 2. Must be in same shop (unless super admin)
+    if (callerShopId !== targetShopId) {
+      throw new HttpsError("permission-denied", "Không thể thay đổi role người dùng khác shop");
+    }
+
+    // 3. Only owner can assign owner role
+    if (newRole === "owner" && callerRole !== "owner") {
+      throw new HttpsError("permission-denied", "Chỉ owner mới có thể chỉ định owner mới");
+    }
+
+    // 4. Manager can only assign employee/technician/user
+    if (callerRole === "manager" && !["employee", "technician", "user"].includes(newRole)) {
+      throw new HttpsError("permission-denied", "Manager chỉ có thể gán role: employee, technician, user");
+    }
+
+    // 5. Employee and below cannot change roles
+    if (!["admin", "owner", "manager"].includes(callerRole)) {
+      throw new HttpsError("permission-denied", "Bạn không có quyền thay đổi role");
+    }
+
+    // 6. Cannot demote yourself
+    if (callerUid === targetUserId && getRolePriority(newRole) < getRolePriority(callerRole)) {
+      throw new HttpsError("permission-denied", "Không thể tự hạ role của mình");
+    }
+  }
+
+  // === UPDATE ROLE ===
+  try {
+    await targetDoc.ref.update({
+      role: newRole,
+      roleUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      roleUpdatedBy: callerUid,
+    });
+
+    // Claims will be auto-synced by syncUserClaims trigger
+    console.log(`✅ Role updated: ${targetUserId} -> ${newRole} (by ${callerUid})`);
+
+    return {
+      success: true,
+      userId: targetUserId,
+      newRole: newRole,
+      message: `Đã cập nhật role thành ${newRole}`,
+    };
+  } catch (error) {
+    console.error(`Error updating role for ${targetUserId}:`, error);
+    throw new HttpsError("internal", "Lỗi cập nhật role: " + error.message);
+  }
+});
+
+/**
+ * Helper: Get role priority for comparison
+ */
+function getRolePriority(role) {
+  const priorities = {
+    "admin": 100,
+    "owner": 90,
+    "manager": 70,
+    "employee": 50,
+    "technician": 40,
+    "user": 10,
+  };
+  return priorities[role] || 0;
+}
+
+/**
+ * 🏪 ADMIN: ADD USER TO SHOP
+ * Assigns user to a shop and sets initial role
+ */
+exports.addUserToShop = onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+
+  const data = request.data || {};
+  const targetUserId = (data.userId || "").toString().trim();
+  const targetShopId = (data.shopId || "").toString().trim();
+  const initialRole = (data.role || "employee").toString().trim().toLowerCase();
+
+  // === VALIDATION ===
+  if (!targetUserId) {
+    throw new HttpsError("invalid-argument", "Thiếu userId");
+  }
+  if (!targetShopId) {
+    throw new HttpsError("invalid-argument", "Thiếu shopId");
+  }
+  if (!VALID_ROLES.includes(initialRole)) {
+    throw new HttpsError("invalid-argument", `Role không hợp lệ: ${initialRole}`);
+  }
+
+  const callerEmail = auth.token.email || "";
+  const callerIsSuperAdmin = checkIsSuperAdmin(callerEmail);
+
+  // Get caller's data
+  const callerDoc = await admin.firestore().doc(`users/${auth.uid}`).get();
+  const callerData = callerDoc.data() || {};
+  const callerRole = callerIsSuperAdmin ? "admin" : (callerData.role || "user");
+  const callerShopId = callerData.shopId;
+
+  // === PERMISSION CHECKS ===
+  if (!callerIsSuperAdmin) {
+    // Must be owner/manager of the target shop
+    if (callerShopId !== targetShopId) {
+      throw new HttpsError("permission-denied", "Bạn không thuộc shop này");
+    }
+    if (!["owner", "manager"].includes(callerRole)) {
+      throw new HttpsError("permission-denied", "Chỉ owner/manager mới có thể thêm nhân viên");
+    }
+    // Manager cannot add owner
+    if (callerRole === "manager" && initialRole === "owner") {
+      throw new HttpsError("permission-denied", "Manager không thể thêm owner");
+    }
+  }
+
+  // Check if target user exists
+  const targetDoc = await admin.firestore().doc(`users/${targetUserId}`).get();
+  if (!targetDoc.exists) {
+    throw new HttpsError("not-found", "Không tìm thấy người dùng");
+  }
+
+  const targetData = targetDoc.data() || {};
+  if (targetData.shopId && targetData.shopId !== targetShopId) {
+    throw new HttpsError("failed-precondition", "Người dùng đã thuộc shop khác");
+  }
+
+  // === ADD TO SHOP ===
+  try {
+    await targetDoc.ref.update({
+      shopId: targetShopId,
+      role: initialRole,
+      joinedShopAt: admin.firestore.FieldValue.serverTimestamp(),
+      addedBy: auth.uid,
+    });
+
+    console.log(`✅ User ${targetUserId} added to shop ${targetShopId} as ${initialRole}`);
+
+    return {
+      success: true,
+      userId: targetUserId,
+      shopId: targetShopId,
+      role: initialRole,
+      message: `Đã thêm người dùng vào shop với role ${initialRole}`,
+    };
+  } catch (error) {
+    console.error(`Error adding user to shop:`, error);
+    throw new HttpsError("internal", "Lỗi thêm người dùng vào shop: " + error.message);
+  }
+});
+
+/**
+ * 🚪 ADMIN: REMOVE USER FROM SHOP
+ * Removes user from shop (sets shopId to null)
+ */
+exports.removeUserFromShop = onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+
+  const data = request.data || {};
+  const targetUserId = (data.userId || "").toString().trim();
+
+  if (!targetUserId) {
+    throw new HttpsError("invalid-argument", "Thiếu userId");
+  }
+
+  const callerEmail = auth.token.email || "";
+  const callerIsSuperAdmin = checkIsSuperAdmin(callerEmail);
+
+  // Get target user's data
+  const targetDoc = await admin.firestore().doc(`users/${targetUserId}`).get();
+  if (!targetDoc.exists) {
+    throw new HttpsError("not-found", "Không tìm thấy người dùng");
+  }
+  const targetData = targetDoc.data() || {};
+  const targetShopId = targetData.shopId;
+
+  if (!targetShopId) {
+    throw new HttpsError("failed-precondition", "Người dùng không thuộc shop nào");
+  }
+
+  // === PERMISSION CHECKS ===
+  if (!callerIsSuperAdmin) {
+    const callerDoc = await admin.firestore().doc(`users/${auth.uid}`).get();
+    const callerData = callerDoc.data() || {};
+    
+    if (callerData.shopId !== targetShopId) {
+      throw new HttpsError("permission-denied", "Không thể xóa người dùng khác shop");
+    }
+    if (!["owner", "manager"].includes(callerData.role)) {
+      throw new HttpsError("permission-denied", "Chỉ owner/manager mới có thể xóa nhân viên");
+    }
+    // Cannot remove owner
+    if (targetData.role === "owner") {
+      throw new HttpsError("permission-denied", "Không thể xóa owner khỏi shop");
+    }
+    // Cannot remove yourself
+    if (auth.uid === targetUserId) {
+      throw new HttpsError("permission-denied", "Không thể tự xóa mình khỏi shop");
+    }
+  }
+
+  // === REMOVE FROM SHOP ===
+  try {
+    await targetDoc.ref.update({
+      shopId: null,
+      role: "user",
+      removedFromShopAt: admin.firestore.FieldValue.serverTimestamp(),
+      removedBy: auth.uid,
+    });
+
+    console.log(`✅ User ${targetUserId} removed from shop ${targetShopId}`);
+
+    return {
+      success: true,
+      userId: targetUserId,
+      message: "Đã xóa người dùng khỏi shop",
+    };
+  } catch (error) {
+    console.error(`Error removing user from shop:`, error);
+    throw new HttpsError("internal", "Lỗi xóa người dùng: " + error.message);
+  }
+});
+
+/**
+ * 🔍 GET USER CLAIMS (for debugging)
+ * Returns current claims of a user
+ */
+exports.getUserClaims = onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+
+  const data = request.data || {};
+  const targetUserId = data.userId || auth.uid;
+
+  // Only super admin can view other users' claims
+  if (targetUserId !== auth.uid && !checkIsSuperAdmin(auth.token.email)) {
+    throw new HttpsError("permission-denied", "Không có quyền xem claims người khác");
+  }
+
+  try {
+    const userRecord = await admin.auth().getUser(targetUserId);
+    return {
+      success: true,
+      userId: targetUserId,
+      email: userRecord.email,
+      claims: userRecord.customClaims || {},
+    };
+  } catch (error) {
+    console.error(`Error getting claims for ${targetUserId}:`, error);
+    throw new HttpsError("internal", "Lỗi lấy thông tin claims");
+  }
+});
+
+// ============================================================
+// END CUSTOM CLAIMS MANAGEMENT
+// ============================================================
 
 // 🔔 Thông báo khi CÓ ĐƠN SỬA MỚI
 exports.notifyNewRepair = onDocumentCreated("repairs/{repairId}", async (event) => {
@@ -430,7 +867,8 @@ exports.sendShopNotification = onCall(async (request) => {
 });
 
 // 🧹 CLEANUP FCM TOKENS - Xóa tokens cũ và không hợp lệ
-exports.cleanupFCMTokens = onSchedule("every 7 days", async (event) => {
+exports.cleanupFCMTokens = onSchedule("0 3 * * 0", async (event) => {
+  // Runs every Sunday at 3:00 AM (cron format)
   try {
     console.log('Starting FCM token cleanup...');
 
