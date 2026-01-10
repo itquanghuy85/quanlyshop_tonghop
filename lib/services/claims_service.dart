@@ -1,330 +1,232 @@
-// ============================================================
-// CUSTOM CLAIMS SERVICE
-// ============================================================
-// Purpose: Manage Firebase Custom Claims from Flutter client
-// Author: Firebase Cloud Functions Expert
-// Date: 2026-01-10
-// ============================================================
-
-import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 
-/// Service để quản lý Custom Claims trong Firebase Auth
+/// Service quản lý Custom Claims cho Firebase Auth
+/// 
+/// Custom Claims structure:
+/// - role: owner | manager | employee | technician | user
+/// - shopId: ID của shop user thuộc về
+/// - isSuperAdmin: true nếu email == admin@huluca.com
 class ClaimsService {
   static final ClaimsService _instance = ClaimsService._internal();
   factory ClaimsService() => _instance;
   ClaimsService._internal();
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
-    region: 'asia-southeast1',
-  );
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final _functions = FirebaseFunctions.instanceFor(region: 'asia-southeast1');
+  final _auth = FirebaseAuth.instance;
 
-  StreamSubscription<DocumentSnapshot>? _claimsSubscription;
+  /// Cache claims để tránh gọi lại liên tục
+  Map<String, dynamic>? _cachedClaims;
+  DateTime? _cacheTime;
+  static const _cacheDuration = Duration(minutes: 5);
 
-  // ==================== GETTERS ====================
+  /// ══════════════════════════════════════════════════════════════════════════
+  /// 1. BATCH SYNC ALL CLAIMS (Chỉ Super Admin)
+  /// ══════════════════════════════════════════════════════════════════════════
+  /// 
+  /// Đồng bộ Custom Claims cho TOÀN BỘ user cũ.
+  /// Chỉ admin@huluca.com được gọi function này.
+  /// 
+  /// Returns: { success, message, stats: {total, success, skipped, failed}, errors, details }
+  Future<Map<String, dynamic>> batchSyncAllClaims() async {
+    try {
+      final callable = _functions.httpsCallable('batchSyncAllClaims');
+      final result = await callable.call();
+      
+      // Force refresh token để lấy claims mới
+      await _auth.currentUser?.getIdToken(true);
+      _clearCache();
+      
+      return Map<String, dynamic>.from(result.data);
+    } on FirebaseFunctionsException catch (e) {
+      return {
+        'success': false,
+        'error': e.message ?? 'Lỗi không xác định',
+        'code': e.code,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
 
-  /// Get current user's claims from ID token
-  Future<Map<String, dynamic>?> getCurrentClaims() async {
+  /// ══════════════════════════════════════════════════════════════════════════
+  /// 2. SYNC SINGLE USER CLAIMS (Super Admin hoặc Owner)
+  /// ══════════════════════════════════════════════════════════════════════════
+  /// 
+  /// Sync claims cho 1 user cụ thể.
+  /// 
+  /// [uid] - UID của user cần sync
+  Future<Map<String, dynamic>> syncUserClaims(String uid) async {
+    try {
+      final callable = _functions.httpsCallable('syncUserClaimsV2');
+      final result = await callable.call({'uid': uid});
+      return Map<String, dynamic>.from(result.data);
+    } on FirebaseFunctionsException catch (e) {
+      return {
+        'success': false,
+        'error': e.message ?? 'Lỗi không xác định',
+        'code': e.code,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// ══════════════════════════════════════════════════════════════════════════
+  /// 3. REFRESH MY CLAIMS (Bất kỳ user nào)
+  /// ══════════════════════════════════════════════════════════════════════════
+  /// 
+  /// User tự refresh claims của mình.
+  /// Dùng sau khi role/shopId được thay đổi bởi admin.
+  /// 
+  /// QUAN TRỌNG: Sau khi gọi, user cần logout và login lại để áp dụng.
+  Future<Map<String, dynamic>> refreshMyClaims() async {
+    try {
+      final callable = _functions.httpsCallable('refreshMyClaimsV2');
+      final result = await callable.call();
+      
+      // Force refresh token để lấy claims mới
+      await _auth.currentUser?.getIdToken(true);
+      _clearCache();
+      
+      return Map<String, dynamic>.from(result.data);
+    } on FirebaseFunctionsException catch (e) {
+      return {
+        'success': false,
+        'error': e.message ?? 'Lỗi không xác định',
+        'code': e.code,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// ══════════════════════════════════════════════════════════════════════════
+  /// 4. GET MY CLAIMS
+  /// ══════════════════════════════════════════════════════════════════════════
+  /// 
+  /// Xem claims hiện tại và kiểm tra cần sync không.
+  /// 
+  /// Returns: { currentClaims, firestoreData, needsSync }
+  Future<Map<String, dynamic>> getMyClaims() async {
+    try {
+      final callable = _functions.httpsCallable('getMyClaimsV2');
+      final result = await callable.call();
+      return Map<String, dynamic>.from(result.data);
+    } on FirebaseFunctionsException catch (e) {
+      return {
+        'success': false,
+        'error': e.message ?? 'Lỗi không xác định',
+        'code': e.code,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// ══════════════════════════════════════════════════════════════════════════
+  /// 5. GET CLAIMS FROM TOKEN (Local - không cần Cloud Function)
+  /// ══════════════════════════════════════════════════════════════════════════
+  /// 
+  /// Đọc claims trực tiếp từ ID token.
+  /// Nhanh hơn vì không cần network call.
+  Future<Map<String, dynamic>?> getClaimsFromToken({bool forceRefresh = false}) async {
+    // Check cache
+    if (!forceRefresh && _cachedClaims != null && _cacheTime != null) {
+      if (DateTime.now().difference(_cacheTime!) < _cacheDuration) {
+        return _cachedClaims;
+      }
+    }
+
     final user = _auth.currentUser;
     if (user == null) return null;
 
-    final idTokenResult = await user.getIdTokenResult();
-    return idTokenResult.claims;
+    try {
+      final idTokenResult = await user.getIdTokenResult(forceRefresh);
+      final claims = idTokenResult.claims;
+      
+      if (claims != null) {
+        _cachedClaims = {
+          'role': claims['role'] ?? 'user',
+          'shopId': claims['shopId'] ?? user.uid,
+          'isSuperAdmin': claims['isSuperAdmin'] == true,
+        };
+        _cacheTime = DateTime.now();
+      }
+      
+      return _cachedClaims;
+    } catch (e) {
+      print('Error getting claims from token: $e');
+      return null;
+    }
   }
 
-  /// Get shopId from claims (fast, no Firestore read)
-  Future<String?> getShopIdFromClaims() async {
-    final claims = await getCurrentClaims();
-    return claims?['shopId'] as String?;
-  }
+  /// ══════════════════════════════════════════════════════════════════════════
+  /// HELPER METHODS
+  /// ══════════════════════════════════════════════════════════════════════════
 
-  /// Get role from claims
+  /// Lấy role từ claims (cached)
   Future<String> getRoleFromClaims() async {
-    final claims = await getCurrentClaims();
-    return claims?['role'] as String? ?? 'user';
+    final claims = await getClaimsFromToken();
+    return claims?['role'] ?? 'user';
   }
 
-  /// Check if current user is super admin
+  /// Lấy shopId từ claims (cached)
+  Future<String?> getShopIdFromClaims() async {
+    final claims = await getClaimsFromToken();
+    return claims?['shopId'];
+  }
+
+  /// Kiểm tra có phải Super Admin không
   Future<bool> isSuperAdmin() async {
-    final claims = await getCurrentClaims();
+    final claims = await getClaimsFromToken();
     return claims?['isSuperAdmin'] == true;
   }
 
-  // ==================== TOKEN REFRESH ====================
-
-  /// Force refresh ID token to get latest claims
-  /// Call this after:
-  /// - User joins a shop
-  /// - User's role changes
-  /// - claimsSyncedAt in Firestore updates
-  Future<void> forceRefreshToken() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    await user.getIdToken(true); // force refresh
-    debugPrint('🔄 Token refreshed');
+  /// Kiểm tra có phải Owner không
+  Future<bool> isOwner() async {
+    final claims = await getClaimsFromToken();
+    return claims?['isSuperAdmin'] == true || claims?['role'] == 'owner';
   }
 
-  /// Call Cloud Function to refresh claims manually
-  Future<Map<String, dynamic>> refreshMyClaims() async {
-    try {
-      final callable = _functions.httpsCallable('refreshMyClaims');
-      final result = await callable.call();
-      
-      // Force token refresh to get new claims
-      await forceRefreshToken();
-      
-      debugPrint('✅ Claims refreshed: ${result.data}');
-      return Map<String, dynamic>.from(result.data as Map);
-    } on FirebaseFunctionsException catch (e) {
-      debugPrint('❌ Error refreshing claims: ${e.message}');
-      rethrow;
-    }
-  }
-
-  // ==================== AUTO-SYNC LISTENER ====================
-
-  /// Listen to claimsSyncedAt changes and auto-refresh token
-  /// Call this once after login
-  void startClaimsSync() {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    _claimsSubscription?.cancel();
-    
-    _claimsSubscription = _firestore
-        .doc('users/${user.uid}')
-        .snapshots()
-        .listen((snapshot) async {
-      final data = snapshot.data();
-      if (data == null) return;
-
-      // Check if claims were just synced
-      final claimsSyncedAt = data['claimsSyncedAt'] as Timestamp?;
-      if (claimsSyncedAt != null) {
-        final syncTime = claimsSyncedAt.toDate();
-        final now = DateTime.now();
-        
-        // If synced within last 5 seconds, refresh token
-        if (now.difference(syncTime).inSeconds < 5) {
-          debugPrint('🔄 Claims synced, refreshing token...');
-          await forceRefreshToken();
-        }
-      }
-    });
-
-    debugPrint('👂 Started claims sync listener');
-  }
-
-  /// Stop listening for claims changes
-  void stopClaimsSync() {
-    _claimsSubscription?.cancel();
-    _claimsSubscription = null;
-    debugPrint('🛑 Stopped claims sync listener');
-  }
-
-  // ==================== ADMIN FUNCTIONS ====================
-
-  /// Update user's role (owner/manager only)
-  /// 
-  /// Example:
-  /// ```dart
-  /// await ClaimsService().updateUserRole(
-  ///   userId: 'abc123',
-  ///   role: 'employee',
-  /// );
-  /// ```
-  Future<Map<String, dynamic>> updateUserRole({
-    required String userId,
-    required String role,
-  }) async {
-    try {
-      final callable = _functions.httpsCallable('updateUserRole');
-      final result = await callable.call({
-        'userId': userId,
-        'role': role,
-      });
-      
-      debugPrint('✅ Role updated: $userId -> $role');
-      return Map<String, dynamic>.from(result.data as Map);
-    } on FirebaseFunctionsException catch (e) {
-      debugPrint('❌ Error updating role: ${e.code} - ${e.message}');
-      rethrow;
-    }
-  }
-
-  /// Add user to shop (owner/manager only)
-  /// 
-  /// Example:
-  /// ```dart
-  /// await ClaimsService().addUserToShop(
-  ///   userId: 'abc123',
-  ///   shopId: 'shop456',
-  ///   role: 'employee',
-  /// );
-  /// ```
-  Future<Map<String, dynamic>> addUserToShop({
-    required String userId,
-    required String shopId,
-    String role = 'employee',
-  }) async {
-    try {
-      final callable = _functions.httpsCallable('addUserToShop');
-      final result = await callable.call({
-        'userId': userId,
-        'shopId': shopId,
-        'role': role,
-      });
-      
-      debugPrint('✅ User added to shop: $userId -> $shopId as $role');
-      return Map<String, dynamic>.from(result.data as Map);
-    } on FirebaseFunctionsException catch (e) {
-      debugPrint('❌ Error adding user to shop: ${e.code} - ${e.message}');
-      rethrow;
-    }
-  }
-
-  /// Remove user from shop (owner/manager only)
-  Future<Map<String, dynamic>> removeUserFromShop({
-    required String userId,
-  }) async {
-    try {
-      final callable = _functions.httpsCallable('removeUserFromShop');
-      final result = await callable.call({
-        'userId': userId,
-      });
-      
-      debugPrint('✅ User removed from shop: $userId');
-      return Map<String, dynamic>.from(result.data as Map);
-    } on FirebaseFunctionsException catch (e) {
-      debugPrint('❌ Error removing user: ${e.code} - ${e.message}');
-      rethrow;
-    }
-  }
-
-  /// Get user's claims (super admin can view others)
-  Future<Map<String, dynamic>> getUserClaims({String? userId}) async {
-    try {
-      final callable = _functions.httpsCallable('getUserClaims');
-      final result = await callable.call({
-        if (userId != null) 'userId': userId,
-      });
-      
-      return Map<String, dynamic>.from(result.data as Map);
-    } on FirebaseFunctionsException catch (e) {
-      debugPrint('❌ Error getting claims: ${e.code} - ${e.message}');
-      rethrow;
-    }
-  }
-
-  // ==================== ROLE HELPERS ====================
-
-  /// Check if current user is owner or above
-  Future<bool> isOwnerOrAbove() async {
-    if (await isSuperAdmin()) return true;
-    final role = await getRoleFromClaims();
-    return role == 'owner' || role == 'admin';
-  }
-
-  /// Check if current user is manager or above
+  /// Kiểm tra có phải Manager trở lên không
   Future<bool> isManagerOrAbove() async {
-    if (await isSuperAdmin()) return true;
-    final role = await getRoleFromClaims();
-    return ['admin', 'owner', 'manager'].contains(role);
+    final claims = await getClaimsFromToken();
+    if (claims?['isSuperAdmin'] == true) return true;
+    final role = claims?['role'];
+    return role == 'owner' || role == 'manager';
   }
 
-  /// Check if current user is employee or above
-  Future<bool> isEmployeeOrAbove() async {
-    if (await isSuperAdmin()) return true;
-    final role = await getRoleFromClaims();
-    return ['admin', 'owner', 'manager', 'employee'].contains(role);
+  /// Kiểm tra có phải Staff không (employee hoặc technician)
+  Future<bool> isStaff() async {
+    final claims = await getClaimsFromToken();
+    if (claims?['isSuperAdmin'] == true) return true;
+    final role = claims?['role'];
+    return ['owner', 'manager', 'employee', 'technician'].contains(role);
   }
 
-  /// Check if current user belongs to a specific shop
-  Future<bool> belongsToShop(String shopId) async {
-    if (await isSuperAdmin()) return true;
-    final userShopId = await getShopIdFromClaims();
-    return userShopId == shopId;
+  /// Clear cache (dùng sau khi refresh claims)
+  void _clearCache() {
+    _cachedClaims = null;
+    _cacheTime = null;
+  }
+
+  /// Force clear cache và refresh token
+  Future<void> forceRefresh() async {
+    _clearCache();
+    await _auth.currentUser?.getIdToken(true);
+    await getClaimsFromToken(forceRefresh: true);
   }
 }
-
-// ============================================================
-// USAGE EXAMPLES
-// ============================================================
-/*
-
-// 1. AFTER LOGIN - Start listening for claims changes
-void onLogin() {
-  ClaimsService().startClaimsSync();
-}
-
-// 2. AFTER LOGOUT - Stop listening
-void onLogout() {
-  ClaimsService().stopClaimsSync();
-}
-
-// 3. GET CURRENT ROLE (fast, from token)
-Future<void> checkRole() async {
-  final role = await ClaimsService().getRoleFromClaims();
-  print('Current role: $role');
-}
-
-// 4. CHECK PERMISSIONS
-Future<void> checkPermissions() async {
-  final claims = ClaimsService();
-  
-  if (await claims.isManagerOrAbove()) {
-    // Show manager features
-  }
-  
-  if (await claims.isSuperAdmin()) {
-    // Show super admin features
-  }
-}
-
-// 5. UPDATE USER ROLE (requires owner/manager)
-Future<void> promoteUser() async {
-  try {
-    await ClaimsService().updateUserRole(
-      userId: 'targetUserId',
-      role: 'manager',
-    );
-    print('Role updated!');
-  } on FirebaseFunctionsException catch (e) {
-    print('Error: ${e.message}');
-  }
-}
-
-// 6. ADD USER TO SHOP (requires owner/manager)
-Future<void> inviteUser() async {
-  try {
-    await ClaimsService().addUserToShop(
-      userId: 'newUserId',
-      shopId: 'myShopId',
-      role: 'employee',
-    );
-    print('User added!');
-  } on FirebaseFunctionsException catch (e) {
-    print('Error: ${e.message}');
-  }
-}
-
-// 7. FORCE REFRESH CLAIMS (after role change)
-Future<void> onRoleChanged() async {
-  await ClaimsService().refreshMyClaims();
-  // Now token has latest claims
-}
-
-// 8. DEBUG - View current claims
-Future<void> debugClaims() async {
-  final claims = await ClaimsService().getCurrentClaims();
-  print('Current claims: $claims');
-  // Output: {shopId: "abc", role: "manager", isSuperAdmin: false}
-}
-
-*/

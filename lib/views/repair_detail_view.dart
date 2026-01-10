@@ -332,6 +332,17 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     try {
       await db.upsertRepair(r);
 
+      // Ghi nhật ký sửa đơn
+      final user = FirebaseAuth.instance.currentUser;
+      await db.logAction(
+        userId: user?.uid ?? '0',
+        userName: user?.email?.split('@').first.toUpperCase() ?? 'NV',
+        action: 'SỬA ĐƠN SỬA',
+        type: 'REPAIR',
+        targetId: r.firestoreId,
+        desc: 'Cập nhật đơn sửa ${r.model} - ${r.customerName} - Giá: ${r.price}đ',
+      );
+
       // Queue sync repair to cloud via SyncOrchestrator
       if (r.id != null) {
         await SyncOrchestrator().enqueue(

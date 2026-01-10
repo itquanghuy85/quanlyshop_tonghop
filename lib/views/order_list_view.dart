@@ -371,6 +371,16 @@ class OrderListViewState extends State<OrderListView> {
                 await user.reauthenticateWithCredential(cred);
                 await db.deleteRepairByFirestoreId(r.firestoreId ?? "");
 
+                // Ghi nhật ký xóa đơn
+                await db.logAction(
+                  userId: user.uid,
+                  userName: user.email?.split('@').first.toUpperCase() ?? 'NV',
+                  action: 'XÓA ĐƠN SỬA',
+                  type: 'REPAIR',
+                  targetId: r.firestoreId,
+                  desc: 'Đã xóa đơn sửa ${r.model} - ${r.customerName} - ${r.phone}',
+                );
+
                 // Queue delete sync via SyncOrchestrator
                 if (r.id != null) {
                   await SyncOrchestrator().enqueue(
