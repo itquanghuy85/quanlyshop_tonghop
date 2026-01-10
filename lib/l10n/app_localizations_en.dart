@@ -651,7 +651,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get productType => 'Product type';
 
   @override
-  String get phone => 'PHONE';
+  String get phone => 'ĐIỆN_THOẠI';
 
   @override
   String get accessory => 'PHỤ KIỆN';

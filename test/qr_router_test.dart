@@ -23,15 +23,15 @@ void main() {
       expect(QRParser.getType(result), 'REPAIR');
     });
 
-    test('Parse PHONE QR correctly', () {
-      const qrData = 'type=PHONE&imei=12345&code=IPH15PM';
+    test('Parse ĐIỆN_THOẠI QR correctly', () {
+      const qrData = 'type=ĐIỆN_THOẠI&imei=12345&code=IPH15PM';
       final result = QRParser.parse(qrData);
 
-      expect(result['type'], 'PHONE');
+      expect(result['type'], 'ĐIỆN_THOẠI');
       expect(result['imei'], '12345');
       expect(result['code'], 'IPH15PM');
       expect(QRParser.isValidQR(result), true);
-      expect(QRParser.getType(result), 'PHONE');
+      expect(QRParser.getType(result), 'ĐIỆN_THOẠI');
     });
 
     test('Parse PHỤ KIỆN QR correctly', () {

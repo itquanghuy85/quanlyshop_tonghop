@@ -130,7 +130,7 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
                 textCapitalization: TextCapitalization.characters,
                 decoration: const InputDecoration(
                   labelText: 'Tên đối tác *',
-                  hintText: 'VD: TIỆM SỬA ĐIỆN THOẠI ABC',
+                  hintText: 'VD: TIỆM SỬA ĐIỆN_THOẠI ABC',
                   prefixIcon: Icon(Icons.business),
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty)

@@ -553,7 +553,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
                     const SizedBox(height: 8),
                     ValidatedTextField(
                       controller: supplierPhoneCtrl,
-                      label: "SỐ ĐIỆN THOẠI",
+                      label: "SỐ ĐIỆN_THOẠI",
                       icon: Icons.phone,
                       keyboardType: TextInputType.phone,
                       uppercase: true,
@@ -685,7 +685,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
   //           description: 'Nhập từ đơn: ${order.orderCode}',
   //           createdAt: DateTime.now().millisecondsSinceEpoch,
   //           supplier: order.supplierName,
-  //           type: 'PHONE',
+  //           type: 'ĐIỆN_THOẠI',
   //           quantity: item.quantity,
   //           color: item.color,
   //           capacity: item.capacity,

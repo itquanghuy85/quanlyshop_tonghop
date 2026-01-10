@@ -236,7 +236,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           cost: 0,
           price: sale.totalPrice ~/ productNames.length,
           condition: 'UNKNOWN',
-          type: 'PHONE',
+          type: 'ĐIỆN_THOẠI',
           createdAt: DateTime.now().millisecondsSinceEpoch,
         ),
       );
@@ -369,7 +369,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           await db.addProductQuantity(product.id!, 1);
           // Cập nhật local object
           product.quantity += 1;
-          if (product.type == 'PHONE' &&
+          if (product.type == 'ĐIỆN_THOẠI' &&
               product.status == 0 &&
               product.quantity > 0) {
             product.status = 1; // Đánh dấu là available
@@ -535,7 +535,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 return customImei;
               }
               // Logic cũ nếu không nhập IMEI tùy chọn
-              if (product.type == 'PHONE') {
+              if (product.type == 'ĐIỆN_THOẠI') {
                 return product.imei ?? "NO_IMEI";
               } else {
                 return "PKx${quantity}";
@@ -564,7 +564,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       for (var item in _selectedItems) {
         final p = item['product'] as Product;
         final customImei = item['imei'] as String?;
-        if (p.type == 'PHONE' &&
+        if (p.type == 'ĐIỆN_THOẠI' &&
             (customImei == null || customImei.isEmpty) &&
             (p.imei == null || p.imei!.isEmpty)) {
           NotificationService.showSnackBar(
@@ -642,14 +642,14 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         final quantity = item['quantity'] as int;
 
         // Cập nhật local database
-        if (p.type == 'PHONE') {
+        if (p.type == 'ĐIỆN_THOẠI') {
           await db.updateProductStatus(p.id!, 0);
         }
         await db.deductProductQuantity(p.id!, quantity);
 
         // Cập nhật local object
         p.quantity -= quantity;
-        if (p.type == 'PHONE') {
+        if (p.type == 'ĐIỆN_THOẠI') {
           p.status = 0;
         }
 
@@ -858,7 +858,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                       Expanded(
                         child: ValidatedTextField(
                           controller: phoneCtrl,
-                          label: "SỐ ĐIỆN THOẠI",
+                          label: "SỐ ĐIỆN_THOẠI",
                           icon: Icons.phone,
                           keyboardType: TextInputType.phone,
                         ),

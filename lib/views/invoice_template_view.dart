@@ -37,7 +37,7 @@ class _InvoiceTemplateViewState extends State<InvoiceTemplateView> {
   Future<void> _loadTemplate() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _headerController.text = prefs.getString('invoice_header') ?? 'CỬA HÀNG SỬA CHỮA ĐIỆN THOẠI HULUCA\nĐịa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM\nĐiện thoại: 0123 456 789 | Email: info@huluca.com\n\n================================\n        HÓA ĐƠN THANH TOÁN\n================================';
+      _headerController.text = prefs.getString('invoice_header') ?? 'CỬA HÀNG SỬA CHỮA ĐIỆN_THOẠI HULUCA\nĐịa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM\nĐiện thoại: 0123 456 789 | Email: info@huluca.com\n\n================================\n        HÓA ĐƠN THANH TOÁN\n================================';
       _bodyController.text = prefs.getString('invoice_body') ?? 'Ngày: {date}\nGiờ: {time}\n\nKhách hàng: {customerName}\nSố điện thoại: {customerPhone}\nĐịa chỉ: {customerAddress}\n\nDịch vụ: {service}\nMô tả: {description}\n\nGiá: {price} VND\n\n================================\nTỔNG CỘNG: {total} VND\n================================\n\nThanh toán: {paymentMethod}\nTrạng thái: {status}';
       _footerController.text = prefs.getString('invoice_footer') ?? '================================\nCảm ơn quý khách đã tin tưởng HULUCA!\nHẹn gặp lại quý khách lần sau.\n\nHotline: 0123 456 789\nWebsite: www.huluca.com\n================================';
     });

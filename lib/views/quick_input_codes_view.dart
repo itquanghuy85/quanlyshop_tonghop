@@ -183,8 +183,8 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
               child: Row(
                 children: [
                   Icon(
-                    code.type == 'PHONE' ? Icons.smartphone : Icons.inventory_2,
-                    color: code.type == 'PHONE' ? Colors.blue : Colors.orange,
+                    code.type == 'ĐIỆN_THOẠI' ? Icons.smartphone : Icons.inventory_2,
+                    color: code.type == 'ĐIỆN_THOẠI' ? Colors.blue : Colors.orange,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -295,7 +295,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
 
   void _copyCode(QuickInputCode code) {
     final info = '${code.name}\n'
-        '${code.type == 'PHONE' ? '${code.brand ?? ''} ${code.model ?? ''}'.trim() : code.description ?? ''}\n'
+        '${code.type == 'ĐIỆN_THOẠI' ? '${code.brand ?? ''} ${code.model ?? ''}'.trim() : code.description ?? ''}\n'
         'Giá nhập: ${code.cost != null ? NumberFormat('#,###').format(code.cost) : 'N/A'}đ\n'
         'Giá bán: ${code.price != null ? NumberFormat('#,###').format(code.price) : 'N/A'}đ';
     Clipboard.setData(ClipboardData(text: info));
@@ -547,7 +547,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
   }
 
   Widget _buildCodeCard(QuickInputCode code) {
-    final isPhone = code.type == 'PHONE';
+    final isPhone = code.type == 'ĐIỆN_THOẠI';
     final mainColor = isPhone ? Colors.blue : Colors.orange;
 
     return Container(
@@ -936,7 +936,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   final _descriptionCtrl = TextEditingController();
   final _supplierCtrl = TextEditingController();
 
-  String _type = 'PHONE';
+  String _type = 'ĐIỆN_THOẠI';
   String? _paymentMethod;
 
   // Danh sách gợi ý
@@ -990,11 +990,11 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
       shopId: widget.code?.shopId ?? widget.shopId,
       name: _nameCtrl.text.trim().toUpperCase(),
       type: _type,
-      brand: _type == 'PHONE' ? _brandCtrl.text.trim().toUpperCase() : null,
-      model: _type == 'PHONE' ? _modelCtrl.text.trim().toUpperCase() : null,
-      capacity: _type == 'PHONE' ? _capacityCtrl.text.trim() : null,
-      color: _type == 'PHONE' ? _colorCtrl.text.trim() : null,
-      condition: _type == 'PHONE' ? _conditionCtrl.text.trim() : null,
+      brand: _type == 'ĐIỆN_THOẠI' ? _brandCtrl.text.trim().toUpperCase() : null,
+      model: _type == 'ĐIỆN_THOẠI' ? _modelCtrl.text.trim().toUpperCase() : null,
+      capacity: _type == 'ĐIỆN_THOẠI' ? _capacityCtrl.text.trim() : null,
+      color: _type == 'ĐIỆN_THOẠI' ? _colorCtrl.text.trim() : null,
+      condition: _type == 'ĐIỆN_THOẠI' ? _conditionCtrl.text.trim() : null,
       cost: int.tryParse(_costCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')),
       price: int.tryParse(_priceCtrl.text.replaceAll(RegExp(r'[^0-9]'), '')),
       description: _descriptionCtrl.text.trim(),
@@ -1080,7 +1080,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         children: [
                           Expanded(
                             child: _buildTypeChip(
-                              'PHONE',
+                              'ĐIỆN_THOẠI',
                               'Điện thoại',
                               Icons.smartphone,
                               Colors.blue,
@@ -1110,7 +1110,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                       ),
                       const SizedBox(height: 16),
 
-                      if (_type == 'PHONE') ...[
+                      if (_type == 'ĐIỆN_THOẠI') ...[
                         // Thương hiệu với gợi ý
                         Autocomplete<String>(
                           optionsBuilder: (textEditingValue) {
@@ -1292,7 +1292,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         onChanged: (val) => setState(() => _paymentMethod = val),
                       ),
 
-                      if (_type != 'PHONE') ...[
+                      if (_type != 'ĐIỆN_THOẠI') ...[
                         const SizedBox(height: 16),
                         ValidatedTextField(
                           controller: _descriptionCtrl,

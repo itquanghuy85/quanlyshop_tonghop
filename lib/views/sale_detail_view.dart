@@ -502,7 +502,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
             await db.addProductQuantity(product.id!, 1);
             // Sync lên cloud
             product.quantity += 1;
-            if (product.type == 'PHONE' && product.status == 0 && product.quantity > 0) {
+            if (product.type == 'ĐIỆN_THOẠI' && product.status == 0 && product.quantity > 0) {
               product.status = 1; // Đánh dấu là available
             }
             // Queue sync via SyncOrchestrator
@@ -782,7 +782,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     final phone = s.phone.trim();
     if (phone.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(content: Text("KHÔNG CÓ SỐ ĐIỆN THOẠI KHÁCH")),
+        const SnackBar(content: Text("KHÔNG CÓ SỐ ĐIỆN_THOẠI KHÁCH")),
       );
       return;
     }

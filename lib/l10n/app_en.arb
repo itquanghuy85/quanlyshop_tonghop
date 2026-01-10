@@ -214,7 +214,7 @@
   "receivedDevice": "RECEIVE",
   "addProductToInventory": "ADD PRODUCT TO INVENTORY",
   "productType": "Product type",
-  "phone": "PHONE",
+  "phone": "ĐIỆN_THOẠI",
   "accessory": "PHỤ KIỆN",
   "productName": "Product/Part name",
   "imeiNumber": "IMEI number (if any)",

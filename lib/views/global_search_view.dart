@@ -171,10 +171,10 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
       icon = Icons.inventory;
     } else if (item is QuickInputCode) {
       title = item.name;
-      subtitle = item.type == 'PHONE' 
+      subtitle = item.type == 'ĐIỆN_THOẠI' 
           ? '${item.brand ?? ''} ${item.model ?? ''}'.trim()
           : item.description ?? '';
-      icon = item.type == 'PHONE' ? Icons.smartphone : Icons.inventory_2;
+      icon = item.type == 'ĐIỆN_THOẠI' ? Icons.smartphone : Icons.inventory_2;
     } else if (item is Map) {
       title = item['customerName'];
       subtitle = item['phone'];

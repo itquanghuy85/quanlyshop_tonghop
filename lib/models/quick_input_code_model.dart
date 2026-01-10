@@ -4,7 +4,7 @@ class QuickInputCode {
   String? shopId; // Shop ID để đồng bộ giữa các thiết bị
   String? code; // Mã code (có thể là firestoreId hoặc custom)
   String name; // Tên template
-  String type; // 'PHONE' hoặc 'linh-phụ kiện'
+  String type; // 'ĐIỆN_THOẠI' hoặc 'linh-phụ kiện'
   String? brand; // Thương hiệu (cho phone)
   String? model; // Model (cho phone)
   String? capacity; // Dung lượng (cho phone)
@@ -72,7 +72,7 @@ class QuickInputCode {
       shopId: map['shopId'],
       code: map['code'],
       name: map['name'] ?? '',
-      type: map['type'] ?? 'PHONE',
+      type: map['type'] ?? 'ĐIỆN_THOẠI',
       brand: map['brand'],
       model: map['model'],
       capacity: map['capacity'],

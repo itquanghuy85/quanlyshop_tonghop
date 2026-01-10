@@ -1382,7 +1382,7 @@ abstract class AppLocalizations {
   /// No description provided for @phone.
   ///
   /// In en, this message translates to:
-  /// **'PHONE'**
+  /// **'ĐIỆN_THOẠI'**
   String get phone;
 
   /// No description provided for @accessory.

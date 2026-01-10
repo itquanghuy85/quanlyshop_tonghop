@@ -336,7 +336,7 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
       );
 
   Widget _buildCodeCard(QuickInputCode code) {
-    final isPhone = code.type == 'PHONE';
+    final isPhone = code.type == 'ĐIỆN_THOẠI';
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -593,7 +593,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   final _descriptionCtrl = TextEditingController();
   final _supplierCtrl = TextEditingController();
 
-  String _type = 'PHONE';
+  String _type = 'ĐIỆN_THOẠI';
   String? _paymentMethod;
 
   @override
@@ -639,11 +639,11 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
       firestoreId: widget.code?.firestoreId,
       name: _nameCtrl.text.trim().toUpperCase(),
       type: _type,
-      brand: _type == 'PHONE' ? _brandCtrl.text.trim().toUpperCase() : null,
-      model: _type == 'PHONE' ? _modelCtrl.text.trim().toUpperCase() : null,
-      capacity: _type == 'PHONE' ? _capacityCtrl.text.trim() : null,
-      color: _type == 'PHONE' ? _colorCtrl.text.trim() : null,
-      condition: _type == 'PHONE' ? _conditionCtrl.text.trim() : null,
+      brand: _type == 'ĐIỆN_THOẠI' ? _brandCtrl.text.trim().toUpperCase() : null,
+      model: _type == 'ĐIỆN_THOẠI' ? _modelCtrl.text.trim().toUpperCase() : null,
+      capacity: _type == 'ĐIỆN_THOẠI' ? _capacityCtrl.text.trim() : null,
+      color: _type == 'ĐIỆN_THOẠI' ? _colorCtrl.text.trim() : null,
+      condition: _type == 'ĐIỆN_THOẠI' ? _conditionCtrl.text.trim() : null,
       cost: int.tryParse(_costCtrl.text.replaceAll(',', '')),
       price: int.tryParse(_priceCtrl.text.replaceAll(',', '')),
       description: _descriptionCtrl.text.trim(),
@@ -673,7 +673,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                 value: _type,
                 decoration: const InputDecoration(labelText: 'Loại sản phẩm'),
                 items: const [
-                  DropdownMenuItem(value: 'PHONE', child: Text('Điện thoại')),
+                  DropdownMenuItem(value: 'ĐIỆN_THOẠI', child: Text('Điện thoại')),
                   DropdownMenuItem(value: 'PHỤ KIỆN', child: Text('Phụ kiện/Linh kiện')),
                 ],
                 onChanged: (val) => setState(() => _type = val!),
@@ -690,7 +690,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
               ),
               const SizedBox(height: 12),
 
-              if (_type == 'PHONE') ...[
+              if (_type == 'ĐIỆN_THOẠI') ...[
                 // Phone fields
                 ValidatedTextField(
                   controller: _brandCtrl,

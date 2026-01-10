@@ -88,7 +88,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       final phones = await db.getInStockProducts();
       _expectedPhones = phones
           .where(
-            (p) => p.type == 'ĐIỆN THOẠI' && p.imei != null && p.imei!.isNotEmpty,
+            (p) => p.type == 'ĐIỆN_THOẠI' && p.imei != null && p.imei!.isNotEmpty,
           )
           .toList();
 
@@ -274,7 +274,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       final qrMap = QRParser.parse(qrData);
       final type = qrMap['type'];
 
-      if (type == 'ĐIỆN THOẠI') {
+      if (type == 'ĐIỆN_THOẠI') {
         _handlePhoneScan(qrMap);
       } else if (type == 'PHỤ KIỆN') {
         _handleAccessoryScan(qrMap);
@@ -320,7 +320,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         name: 'Không có trong kho',
         brand: '',
         createdAt: DateTime.now().millisecondsSinceEpoch,
-        type: 'ĐIỆN THOẠI',
+        type: 'ĐIỆN_THOẠI',
         imei: imei,
       ),
     );
@@ -441,7 +441,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     if (imeiResult.hasIMEI) {
       // Sử dụng IMEI đầu tiên được tìm thấy
       final imei = imeiResult.imei!;
-      final legacyQrMap = {'imei': imei, 'type': 'ĐIỆN THOẠI'};
+      final legacyQrMap = {'imei': imei, 'type': 'ĐIỆN_THOẠI'};
       _handlePhoneScan(legacyQrMap);
 
       // Thông báo nếu QR có nhiều IMEI
@@ -458,7 +458,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     if (qrMap.isEmpty) {
       // Check if it's a number (IMEI)
       if (RegExp(r'^\d+$').hasMatch(qrData) && qrData.length >= 5) {
-        final legacyQrMap = {'imei': qrData, 'type': 'ĐIỆN THOẠI'};
+        final legacyQrMap = {'imei': qrData, 'type': 'ĐIỆN_THOẠI'};
         _handlePhoneScan(legacyQrMap);
         return;
       }
@@ -493,11 +493,11 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       }
 
       // Determine if it's a phone or accessory based on type and IMEI
-      if (product.type == 'ĐIỆN THOẠI' &&
+      if (product.type == 'ĐIỆN_THOẠI' &&
           product.imei != null &&
           product.imei!.isNotEmpty) {
         // Handle as phone
-        final legacyQrMap = {'imei': product.imei!, 'type': 'ĐIỆN THOẠI'};
+        final legacyQrMap = {'imei': product.imei!, 'type': 'ĐIỆN_THOẠI'};
         _handlePhoneScan(legacyQrMap);
       } else if (product.type == 'PHỤ KIỆN') {
         // Handle as accessory using firestoreId or id as code

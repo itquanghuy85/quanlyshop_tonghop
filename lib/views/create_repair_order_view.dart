@@ -637,7 +637,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                       Expanded(
                         child: _input(
                           phoneCtrl,
-                          "SỐ ĐIỆN THOẠI *",
+                          "SỐ ĐIỆN_THOẠI *",
                           Icons.phone,
                           type: TextInputType.phone,
                           f: phoneF,
