@@ -1,690 +1,718 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ============================================================
-    // PRODUCTION SECURITY RULES - Quản Lý Shop (HULUCA)
-    // Version: 4.0 | Date: 2026-01-10
-    // Author: Firebase Security Architect
-    // ============================================================
-    // 
-    // CUSTOM CLAIMS (set by Cloud Functions):
-    // - shopId: string (user's assigned shop)
-    // - role: string (owner|manager|employee|technician|user)
-    // - isSuperAdmin: boolean (true for admin@huluca.com)
-    //
-    // SECURITY PRINCIPLES:
-    // 1. All read/write require authentication
-    // 2. Multi-tenant isolation via shopId from Custom Claims
-    // 3. Role-based access control (owner > manager > employee > technician)
-    // 4. Schema validation on all writes
-    // 5. Protected fields: role, shopId, isAdmin, balance, ownerUid
-    // 6. Soft deletes only (allow delete: if false)
-    // 7. Super Admin bypasses all restrictions
-    // ============================================================
+    // ╔══════════════════════════════════════════════════════════════════╗
+    // ║  PRODUCTION SECURITY RULES - Quản Lý Shop (HULUCA)               ║
+    // ║  Version: 5.0 | Date: 2026-01-10                                 ║
+    // ║  Author: Firebase Security Architect                             ║
+    // ╠══════════════════════════════════════════════════════════════════╣
+    // ║  CUSTOM CLAIMS (set by Cloud Functions only):                    ║
+    // ║  • isSuperAdmin: boolean (true for admin@huluca.com)             ║
+    // ║  • shopId: string (user's assigned shop)                         ║
+    // ║  • role: owner | manager | employee | technician | user          ║
+    // ╠══════════════════════════════════════════════════════════════════╣
+    // ║  ROLE HIERARCHY: superAdmin > owner > manager > employee/tech    ║
+    // ╠══════════════════════════════════════════════════════════════════╣
+    // ║  COLLECTIONS BY GROUP:                                           ║
+    // ║  [AUTH]     users, shops, invites                                ║
+    // ║  [BUSINESS] repairs, sales, products, customers                  ║
+    // ║  [FINANCE]  expenses, debts, debt_payments, cash_closings        ║
+    // ║  [SUPPLIER] suppliers, supplier_payments, purchase_orders        ║
+    // ║  [PARTNER]  repair_partners, repair_partner_payments             ║
+    // ║  [HR]       attendance                                           ║
+    // ║  [CHAT]     chats, chat_messages                                 ║
+    // ║  [NOTIFY]   notifications, shop_notifications                    ║
+    // ║  [SYSTEM]   audit_logs, quick_input_codes, repair_parts          ║
+    // ╚══════════════════════════════════════════════════════════════════╝
 
-    // ==================== BLOCK 1: AUTHENTICATION ====================
-    
-    function isAuthenticated() {
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                    SECTION 1: CORE FUNCTIONS                     │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 1.1 AUTHENTICATION ═══════════
+    function isAuth() {
       return request.auth != null;
     }
     
-    function currentUserId() {
+    function uid() {
       return request.auth.uid;
     }
 
-    // ==================== BLOCK 2: SUPER ADMIN ====================
-    // Uses isSuperAdmin claim set by Cloud Function
-    
+    // ═══════════ 1.2 SUPER ADMIN (from isSuperAdmin claim) ═══════════
     function isSuperAdmin() {
-      return isAuthenticated() && 
-             request.auth.token.isSuperAdmin == true;
+      return isAuth() && request.auth.token.isSuperAdmin == true;
     }
 
-    // ==================== BLOCK 3: MULTI-TENANT ISOLATION ====================
-    // All data access is restricted to user's shopId from Custom Claims
-    
-    // Get shopId from Custom Claims (PRIMARY - no Firestore read)
-    function getShopId() {
+    // ═══════════ 1.3 MULTI-TENANT ISOLATION ═══════════
+    // shopId from Custom Claims - NO Firestore read needed
+    function myShopId() {
       return request.auth.token.shopId;
     }
     
-    // Check if user belongs to a specific shop
-    function belongsToShop(shopId) {
-      return isSuperAdmin() || getShopId() == shopId;
+    function belongsTo(shopId) {
+      return isSuperAdmin() || myShopId() == shopId;
     }
     
-    // Check if EXISTING document belongs to user's shop
-    function docInUserShop() {
+    function docInMyShop() {
       return isSuperAdmin() || 
-             ('shopId' in resource.data && resource.data.shopId == getShopId());
+             ('shopId' in resource.data && resource.data.shopId == myShopId());
     }
     
-    // Check if INCOMING data has correct shopId
-    function incomingShopIdValid() {
-      return isSuperAdmin() || 
-             request.resource.data.shopId == getShopId();
+    function newDocInMyShop() {
+      return isSuperAdmin() || request.resource.data.shopId == myShopId();
     }
 
-    // ==================== BLOCK 4: ROLE-BASED ACCESS ====================
-    // Hierarchy: admin(super) > owner > manager > employee > technician > user
-    
-    // Get role from Custom Claims (PRIMARY - no Firestore read)
-    function getRole() {
+    // ═══════════ 1.4 ROLE-BASED ACCESS ═══════════
+    // role from Custom Claims - NO Firestore read needed
+    function myRole() {
       return request.auth.token.role;
     }
     
     function isOwner() {
-      return isSuperAdmin() || getRole() == 'owner';
+      return isSuperAdmin() || myRole() == 'owner';
     }
     
-    function isManagerOrAbove() {
-      return isOwner() || getRole() == 'manager';
+    function isManager() {
+      return isOwner() || myRole() == 'manager';
     }
     
-    function isEmployeeOrAbove() {
-      return isManagerOrAbove() || getRole() == 'employee';
+    function isEmployee() {
+      return isManager() || myRole() == 'employee';
     }
     
-    function isTechnicianOrAbove() {
-      return isManagerOrAbove() || getRole() == 'technician';
+    function isTechnician() {
+      return isManager() || myRole() == 'technician';
     }
     
-    function isAnyStaff() {
-      return isEmployeeOrAbove() || isTechnicianOrAbove();
+    function isStaff() {
+      return isEmployee() || isTechnician();
     }
 
-    // ==================== BLOCK 5: PROTECTED FIELDS ====================
-    // These fields can ONLY be modified by Cloud Functions
-    
-    function fieldChanged(field) {
+    // ═══════════ 1.5 PROTECTED FIELDS ═══════════
+    // Client CANNOT modify these - Cloud Functions only
+    function changed(field) {
       return field in resource.data && 
              field in request.resource.data &&
              request.resource.data[field] != resource.data[field];
     }
     
-    // CRITICAL: Block client from changing role or shopId
-    function protectedFieldsUnchanged() {
+    function protectedOK() {
       return isSuperAdmin() || (
-        !fieldChanged('role') &&
-        !fieldChanged('shopId') &&
-        !fieldChanged('isAdmin') &&
-        !fieldChanged('isSuperAdmin') &&
-        !fieldChanged('balance') &&
-        !fieldChanged('ownerUid') &&
-        !fieldChanged('claimsSyncedAt') &&
-        !fieldChanged('_claimsVersion')
+        !changed('role') &&
+        !changed('shopId') &&
+        !changed('isAdmin') &&
+        !changed('isSuperAdmin') &&
+        !changed('balance') &&
+        !changed('ownerUid') &&
+        !changed('claimsSyncedAt')
       );
     }
     
-    // For create: block setting protected fields
-    function noProtectedFieldsOnCreate() {
-      return isSuperAdmin() || (
-        !('isAdmin' in request.resource.data) &&
-        !('isSuperAdmin' in request.resource.data) &&
-        !('balance' in request.resource.data)
-      );
+    function shopIdLocked() {
+      return isSuperAdmin() || !changed('shopId');
     }
 
-    // ==================== BLOCK 6: SCHEMA VALIDATION ====================
-    
-    function hasFields(fields) {
+    // ═══════════ 1.6 SCHEMA VALIDATION ═══════════
+    function has(fields) {
       return request.resource.data.keys().hasAll(fields);
     }
     
-    function isString(field, minLen, maxLen) {
-      return field in request.resource.data &&
-             request.resource.data[field] is string &&
-             request.resource.data[field].size() >= minLen &&
-             request.resource.data[field].size() <= maxLen;
+    function str(f, min, max) {
+      return f in request.resource.data &&
+             request.resource.data[f] is string &&
+             request.resource.data[f].size() >= min &&
+             request.resource.data[f].size() <= max;
     }
     
-    function isOptionalString(field) {
-      return !(field in request.resource.data) ||
-             request.resource.data[field] == null ||
-             request.resource.data[field] is string;
+    function optStr(f) {
+      return !(f in request.resource.data) ||
+             request.resource.data[f] == null ||
+             request.resource.data[f] is string;
     }
     
-    function isInt(field) {
-      return field in request.resource.data &&
-             request.resource.data[field] is int;
+    function num(f) {
+      return f in request.resource.data && request.resource.data[f] is int;
     }
     
-    function isNonNegativeInt(field) {
-      return field in request.resource.data &&
-             request.resource.data[field] is int &&
-             request.resource.data[field] >= 0;
+    function numGte0(f) {
+      return f in request.resource.data &&
+             request.resource.data[f] is int &&
+             request.resource.data[f] >= 0;
     }
     
-    function isOptionalInt(field) {
-      return !(field in request.resource.data) ||
-             request.resource.data[field] == null ||
-             request.resource.data[field] is int;
+    function optNum(f) {
+      return !(f in request.resource.data) ||
+             request.resource.data[f] == null ||
+             request.resource.data[f] is int;
     }
     
-    function isOptionalNonNegativeInt(field) {
-      return !(field in request.resource.data) ||
-             request.resource.data[field] == null ||
-             (request.resource.data[field] is int && request.resource.data[field] >= 0);
+    function optNumGte0(f) {
+      return !(f in request.resource.data) ||
+             request.resource.data[f] == null ||
+             (request.resource.data[f] is int && request.resource.data[f] >= 0);
     }
     
-    function isBool(field) {
-      return field in request.resource.data &&
-             request.resource.data[field] is bool;
-    }
-    
-    function isOptionalBool(field) {
-      return !(field in request.resource.data) ||
-             request.resource.data[field] == null ||
-             request.resource.data[field] is bool;
-    }
-    
-    function isValidStatus(field, min, max) {
-      return field in request.resource.data &&
-             request.resource.data[field] is int &&
-             request.resource.data[field] >= min &&
-             request.resource.data[field] <= max;
+    function status(f, min, max) {
+      return f in request.resource.data &&
+             request.resource.data[f] is int &&
+             request.resource.data[f] >= min &&
+             request.resource.data[f] <= max;
     }
 
-    // ==================== COLLECTION: users ====================
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │              SECTION 2: AUTH & USER MANAGEMENT                   │
+    // │              Collections: users, shops, invites                  │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 2.1 USERS ═══════════
     match /users/{userId} {
-      // READ: Any authenticated user can read profiles (for collaboration)
-      allow read: if isAuthenticated();
+      // READ: Any authenticated user (for collaboration features)
+      allow read: if isAuth();
       
-      // CREATE: User can only create their own profile
-      allow create: if isAuthenticated() && 
-                       currentUserId() == userId &&
-                       hasFields(['email']) &&
-                       noProtectedFieldsOnCreate() &&
-                       // Cannot self-assign privileged role
+      // CREATE: Own profile only, cannot self-assign admin roles
+      allow create: if isAuth() && 
+                       uid() == userId &&
+                       has(['email']) &&
                        (!('role' in request.resource.data) || 
                         request.resource.data.role in ['user', 'employee', 'technician']);
       
-      // UPDATE: Own profile OR manager in same shop
-      allow update: if isAuthenticated() &&
-                       (currentUserId() == userId || 
+      // UPDATE: Own profile OR manager of same shop
+      // CRITICAL: Protected fields enforced
+      allow update: if isAuth() &&
+                       (uid() == userId || 
                         isSuperAdmin() || 
-                        (isManagerOrAbove() && belongsToShop(resource.data.shopId))) &&
-                       // CRITICAL: Protected fields check
-                       protectedFieldsUnchanged();
-      
-      // DELETE: Soft delete only (set deleted: true)
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: shops ====================
-    match /shops/{shopId} {
-      // READ: Only shop members
-      allow read: if isAuthenticated() && belongsToShop(shopId);
-      
-      // CREATE: Any authenticated user can create shop (becomes owner)
-      allow create: if isAuthenticated() &&
-                       hasFields(['ownerUid', 'name']) &&
-                       request.resource.data.ownerUid == currentUserId() &&
-                       isString('name', 1, 100);
-      
-      // UPDATE: Only owner of the shop
-      allow update: if isAuthenticated() && 
-                       (isSuperAdmin() || resource.data.ownerUid == currentUserId()) &&
-                       !fieldChanged('ownerUid');
-      
-      // DELETE: Never (soft delete)
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: repairs ====================
-    match /repairs/{repairId} {
-      // READ: Shop members only
-      allow read: if isAuthenticated() && docInUserShop();
-      
-      // CREATE: Any staff can create
-      allow create: if isAuthenticated() &&
-                       isAnyStaff() &&
-                       incomingShopIdValid() &&
-                       hasFields(['customerName', 'phone', 'model', 'issue', 'createdAt', 'status', 'shopId']) &&
-                       isString('customerName', 1, 100) &&
-                       isString('model', 1, 100) &&
-                       isValidStatus('status', 1, 4) &&
-                       isOptionalNonNegativeInt('price') &&
-                       isOptionalNonNegativeInt('cost');
-      
-      // UPDATE: Shop members, cannot change shopId
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId') &&
-                       isValidStatus('status', 1, 4) &&
-                       isOptionalNonNegativeInt('price') &&
-                       isOptionalNonNegativeInt('cost');
+                        (isManager() && belongsTo(resource.data.shopId))) &&
+                       protectedOK();
       
       // DELETE: Soft delete only
       allow delete: if false;
     }
 
-    // ==================== COLLECTION: sales ====================
-    match /sales/{saleId} {
-      allow read: if isAuthenticated() && docInUserShop();
+    // ═══════════ 2.2 SHOPS ═══════════
+    match /shops/{shopId} {
+      // READ: Shop members only
+      allow read: if isAuth() && belongsTo(shopId);
       
-      allow create: if isAuthenticated() && 
-                       isEmployeeOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['customerName', 'productNames', 'totalPrice', 'soldAt', 'shopId']) &&
-                       isString('customerName', 1, 100) &&
-                       isNonNegativeInt('totalPrice') &&
-                       isOptionalNonNegativeInt('totalCost');
+      // CREATE: Any user can create shop (becomes owner)
+      allow create: if isAuth() &&
+                       has(['ownerUid', 'name']) &&
+                       request.resource.data.ownerUid == uid() &&
+                       str('name', 1, 100);
       
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId') &&
-                       isNonNegativeInt('totalPrice') &&
-                       isOptionalNonNegativeInt('totalCost');
+      // UPDATE: Shop owner only
+      allow update: if isAuth() && 
+                       (isSuperAdmin() || resource.data.ownerUid == uid()) &&
+                       !changed('ownerUid');
       
+      // DELETE: Never
       allow delete: if false;
     }
 
-    // ==================== COLLECTION: products ====================
-    match /products/{productId} {
-      allow read: if isAuthenticated() && docInUserShop();
-      
-      allow create: if isAuthenticated() && 
-                       isEmployeeOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['name', 'shopId']) &&
-                       isString('name', 1, 200) &&
-                       isOptionalNonNegativeInt('cost') &&
-                       isOptionalNonNegativeInt('price') &&
-                       isOptionalNonNegativeInt('quantity');
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId') &&
-                       isOptionalNonNegativeInt('cost') &&
-                       isOptionalNonNegativeInt('price') &&
-                       isOptionalNonNegativeInt('quantity');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: expenses ====================
-    // Financial data - Manager+ only
-    match /expenses/{expenseId} {
-      allow read: if isAuthenticated() && docInUserShop() && isManagerOrAbove();
-      
-      allow create: if isAuthenticated() && 
-                       isManagerOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['title', 'amount', 'category', 'date', 'shopId']) &&
-                       isString('title', 1, 200) &&
-                       isNonNegativeInt('amount');
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       isManagerOrAbove() &&
-                       !fieldChanged('shopId') &&
-                       isNonNegativeInt('amount');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: attendance ====================
-    match /attendance/{attendanceId} {
-      // READ: Own records or manager sees all
-      allow read: if isAuthenticated() && 
-                     docInUserShop() &&
-                     (isManagerOrAbove() || resource.data.userId == currentUserId());
-      
-      // CREATE: Own attendance or manager
-      allow create: if isAuthenticated() && 
-                       incomingShopIdValid() &&
-                       hasFields(['userId', 'dateKey', 'createdAt', 'shopId']) &&
-                       (isManagerOrAbove() || request.resource.data.userId == currentUserId());
-      
-      // UPDATE: Own (limited) or manager (full)
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId') &&
-                       (isManagerOrAbove() || 
-                        (resource.data.userId == currentUserId() &&
-                         !fieldChanged('status') && 
-                         !fieldChanged('locked') && 
-                         !fieldChanged('approvedBy')));
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: debts ====================
-    // Financial - Manager+ only
-    match /debts/{debtId} {
-      allow read: if isAuthenticated() && docInUserShop() && isManagerOrAbove();
-      
-      allow create: if isAuthenticated() && 
-                       isManagerOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['personName', 'totalAmount', 'type', 'createdAt', 'shopId']) &&
-                       isNonNegativeInt('totalAmount') &&
-                       isOptionalNonNegativeInt('paidAmount');
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       isManagerOrAbove() &&
-                       !fieldChanged('shopId') &&
-                       isNonNegativeInt('totalAmount') &&
-                       isOptionalNonNegativeInt('paidAmount');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: debt_payments ====================
-    match /debt_payments/{paymentId} {
-      allow read: if isAuthenticated() && docInUserShop() && isManagerOrAbove();
-      
-      allow create: if isAuthenticated() && 
-                       isManagerOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['debtId', 'amount', 'paidAt', 'shopId']) &&
-                       isNonNegativeInt('amount');
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       isManagerOrAbove() &&
-                       !fieldChanged('shopId') &&
-                       isNonNegativeInt('amount');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: suppliers ====================
-    match /suppliers/{supplierId} {
-      allow read: if isAuthenticated() && docInUserShop();
-      
-      allow create: if isAuthenticated() && 
-                       isEmployeeOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['name', 'shopId']) &&
-                       isString('name', 1, 200);
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: supplier_payments ====================
-    match /supplier_payments/{paymentId} {
-      allow read: if isAuthenticated() && docInUserShop() && isManagerOrAbove();
-      
-      allow create: if isAuthenticated() && 
-                       isManagerOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['supplierId', 'amount', 'paidAt', 'shopId']) &&
-                       isNonNegativeInt('amount');
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       isManagerOrAbove() &&
-                       !fieldChanged('shopId') &&
-                       isNonNegativeInt('amount');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: customers ====================
-    match /customers/{customerId} {
-      allow read: if isAuthenticated() && docInUserShop();
-      
-      allow create: if isAuthenticated() && 
-                       incomingShopIdValid() &&
-                       hasFields(['name', 'shopId']) &&
-                       isString('name', 1, 100);
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: repair_partners ====================
-    match /repair_partners/{partnerId} {
-      allow read: if isAuthenticated() && docInUserShop();
-      
-      allow create: if isAuthenticated() && 
-                       isEmployeeOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['name', 'shopId']) &&
-                       isString('name', 1, 200);
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: repair_partner_payments ====================
-    match /repair_partner_payments/{paymentId} {
-      allow read: if isAuthenticated() && docInUserShop() && isManagerOrAbove();
-      
-      allow create: if isAuthenticated() && 
-                       isManagerOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['partnerId', 'amount', 'paidAt', 'shopId']) &&
-                       isNonNegativeInt('amount');
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       isManagerOrAbove() &&
-                       !fieldChanged('shopId') &&
-                       isNonNegativeInt('amount');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: partner_repair_history ====================
-    match /partner_repair_history/{historyId} {
-      allow read: if isAuthenticated() && docInUserShop();
-      
-      allow create: if isAuthenticated() && 
-                       isEmployeeOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['partnerId', 'repairId', 'shopId']);
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: purchase_orders ====================
-    match /purchase_orders/{orderId} {
-      allow read: if isAuthenticated() && docInUserShop() && isManagerOrAbove();
-      
-      allow create: if isAuthenticated() && 
-                       isManagerOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['shopId']);
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       isManagerOrAbove() &&
-                       !fieldChanged('shopId');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: quick_input_codes ====================
-    match /quick_input_codes/{codeId} {
-      allow read: if isAuthenticated() && docInUserShop();
-      
-      allow create: if isAuthenticated() && 
-                       incomingShopIdValid() &&
-                       hasFields(['code', 'shopId']);
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId');
-      
-      // This collection allows delete for cleanup
-      allow delete: if isAuthenticated() && docInUserShop();
-    }
-
-    // ==================== COLLECTION: cash_closings ====================
-    match /cash_closings/{closingId} {
-      allow read: if isAuthenticated() && docInUserShop() && isManagerOrAbove();
-      
-      allow create: if isAuthenticated() && 
-                       isManagerOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['shopId', 'date']);
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       isManagerOrAbove() &&
-                       !fieldChanged('shopId');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: audit_logs ====================
-    // IMMUTABLE: Write-once, never modify or delete
-    match /audit_logs/{logId} {
-      allow read: if isAuthenticated() && docInUserShop() && isManagerOrAbove();
-      
-      allow create: if isAuthenticated() && 
-                       incomingShopIdValid() &&
-                       hasFields(['action', 'userId', 'createdAt', 'shopId']);
-      
-      // IMMUTABLE
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: repair_parts ====================
-    match /repair_parts/{partId} {
-      allow read: if isAuthenticated() && docInUserShop();
-      
-      allow create: if isAuthenticated() && 
-                       isEmployeeOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['name', 'shopId']) &&
-                       isString('name', 1, 200);
-      
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId');
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: chats ====================
-    match /chats/{chatId} {
-      allow read: if isAuthenticated() && docInUserShop();
-      
-      allow create: if isAuthenticated() && 
-                       incomingShopIdValid() &&
-                       hasFields(['message', 'senderId', 'shopId']) &&
-                       request.resource.data.senderId == currentUserId();
-      
-      allow update: if isAuthenticated() && docInUserShop();
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: notifications ====================
-    match /notifications/{notificationId} {
-      // READ: Shop notifications OR own notifications
-      allow read: if isAuthenticated() && 
-                     (docInUserShop() || 
-                      resource.data.userId == currentUserId() ||
-                      resource.data.userId == null);
-      
-      allow create: if isAuthenticated() && incomingShopIdValid();
-      
-      allow update: if isAuthenticated() && 
-                       (docInUserShop() || resource.data.userId == currentUserId());
-      
-      allow delete: if false;
-    }
-
-    // ==================== COLLECTION: shop_notifications ====================
-    match /shop_notifications/{notificationId} {
-      allow read: if isAuthenticated() && docInUserShop();
-      
-      allow create: if isAuthenticated() && incomingShopIdValid();
-      
-      allow update: if isAuthenticated() && docInUserShop();
-      
-      allow delete: if isAuthenticated() && docInUserShop() && isManagerOrAbove();
-    }
-
-    // ==================== COLLECTION: invites ====================
+    // ═══════════ 2.3 INVITES ═══════════
     match /invites/{inviteCode} {
-      // READ: Anyone authenticated (to validate invite)
-      allow read: if isAuthenticated();
+      // READ: Any authenticated (to validate invite code)
+      allow read: if isAuth();
       
-      // CREATE: Manager+ can create invites
-      allow create: if isAuthenticated() && 
-                       isManagerOrAbove() &&
-                       hasFields(['shopId', 'role', 'createdBy']);
+      // CREATE: Manager+ only
+      allow create: if isAuth() && 
+                       isManager() &&
+                       has(['shopId', 'role', 'createdBy']);
       
       // UPDATE: Only mark as used
-      allow update: if isAuthenticated() && 
+      allow update: if isAuth() && 
                        request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['used', 'usedBy', 'usedAt']);
       
       // DELETE: Owner only
-      allow delete: if isAuthenticated() && isOwner();
+      allow delete: if isAuth() && isOwner();
     }
 
-    // ==================== COLLECTION: supplier_import_history ====================
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                SECTION 3: CORE BUSINESS                          │
+    // │         Collections: repairs, sales, products, customers         │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 3.1 REPAIRS ═══════════
+    match /repairs/{repairId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() &&
+                       isStaff() &&
+                       newDocInMyShop() &&
+                       has(['customerName', 'phone', 'model', 'issue', 'createdAt', 'status', 'shopId']) &&
+                       str('customerName', 1, 100) &&
+                       str('model', 1, 100) &&
+                       status('status', 1, 4) &&
+                       optNumGte0('price') &&
+                       optNumGte0('cost');
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked() &&
+                       status('status', 1, 4) &&
+                       optNumGte0('price') &&
+                       optNumGte0('cost');
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 3.2 SALES ═══════════
+    match /sales/{saleId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['customerName', 'productNames', 'totalPrice', 'soldAt', 'shopId']) &&
+                       str('customerName', 1, 100) &&
+                       numGte0('totalPrice') &&
+                       optNumGte0('totalCost');
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked() &&
+                       numGte0('totalPrice') &&
+                       optNumGte0('totalCost');
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 3.3 PRODUCTS ═══════════
+    match /products/{productId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['name', 'shopId']) &&
+                       str('name', 1, 200) &&
+                       optNumGte0('cost') &&
+                       optNumGte0('price') &&
+                       optNumGte0('quantity');
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked() &&
+                       optNumGte0('cost') &&
+                       optNumGte0('price') &&
+                       optNumGte0('quantity');
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 3.4 CUSTOMERS ═══════════
+    match /customers/{customerId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       newDocInMyShop() &&
+                       has(['name', 'shopId']) &&
+                       str('name', 1, 100);
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked();
+      
+      allow delete: if false;
+    }
+
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                   SECTION 4: FINANCE                             │
+    // │      Collections: expenses, debts, debt_payments, cash_closings  │
+    // │      Access: Manager+ only (sensitive financial data)            │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 4.1 EXPENSES ═══════════
+    match /expenses/{expenseId} {
+      allow read: if isAuth() && docInMyShop() && isManager();
+      
+      allow create: if isAuth() && 
+                       isManager() &&
+                       newDocInMyShop() &&
+                       has(['title', 'amount', 'category', 'date', 'shopId']) &&
+                       str('title', 1, 200) &&
+                       numGte0('amount');
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       isManager() &&
+                       shopIdLocked() &&
+                       numGte0('amount');
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 4.2 DEBTS ═══════════
+    match /debts/{debtId} {
+      allow read: if isAuth() && docInMyShop() && isManager();
+      
+      allow create: if isAuth() && 
+                       isManager() &&
+                       newDocInMyShop() &&
+                       has(['personName', 'totalAmount', 'type', 'createdAt', 'shopId']) &&
+                       numGte0('totalAmount') &&
+                       optNumGte0('paidAmount');
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       isManager() &&
+                       shopIdLocked() &&
+                       numGte0('totalAmount') &&
+                       optNumGte0('paidAmount');
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 4.3 DEBT_PAYMENTS ═══════════
+    match /debt_payments/{paymentId} {
+      allow read: if isAuth() && docInMyShop() && isManager();
+      
+      allow create: if isAuth() && 
+                       isManager() &&
+                       newDocInMyShop() &&
+                       has(['debtId', 'amount', 'paidAt', 'shopId']) &&
+                       numGte0('amount');
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       isManager() &&
+                       shopIdLocked() &&
+                       numGte0('amount');
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 4.4 CASH_CLOSINGS ═══════════
+    match /cash_closings/{closingId} {
+      allow read: if isAuth() && docInMyShop() && isManager();
+      
+      allow create: if isAuth() && 
+                       isManager() &&
+                       newDocInMyShop() &&
+                       has(['shopId', 'date']);
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       isManager() &&
+                       shopIdLocked();
+      
+      allow delete: if false;
+    }
+
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                   SECTION 5: SUPPLIERS                           │
+    // │   Collections: suppliers, supplier_payments, purchase_orders,    │
+    // │                supplier_import_history, supplier_product_prices  │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 5.1 SUPPLIERS ═══════════
+    match /suppliers/{supplierId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['name', 'shopId']) &&
+                       str('name', 1, 200);
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked();
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 5.2 SUPPLIER_PAYMENTS ═══════════
+    match /supplier_payments/{paymentId} {
+      allow read: if isAuth() && docInMyShop() && isManager();
+      
+      allow create: if isAuth() && 
+                       isManager() &&
+                       newDocInMyShop() &&
+                       has(['supplierId', 'amount', 'paidAt', 'shopId']) &&
+                       numGte0('amount');
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       isManager() &&
+                       shopIdLocked() &&
+                       numGte0('amount');
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 5.3 PURCHASE_ORDERS ═══════════
+    match /purchase_orders/{orderId} {
+      allow read: if isAuth() && docInMyShop() && isManager();
+      
+      allow create: if isAuth() && 
+                       isManager() &&
+                       newDocInMyShop() &&
+                       has(['shopId']);
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       isManager() &&
+                       shopIdLocked();
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 5.4 SUPPLIER_IMPORT_HISTORY ═══════════
     match /supplier_import_history/{historyId} {
-      allow read: if isAuthenticated() && docInUserShop();
+      allow read: if isAuth() && docInMyShop();
       
-      allow create: if isAuthenticated() && 
-                       isEmployeeOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['supplierId', 'shopId']);
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['supplierId', 'shopId']);
       
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId');
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked();
       
       allow delete: if false;
     }
 
-    // ==================== COLLECTION: supplier_product_prices ====================
+    // ═══════════ 5.5 SUPPLIER_PRODUCT_PRICES ═══════════
     match /supplier_product_prices/{priceId} {
-      allow read: if isAuthenticated() && docInUserShop();
+      allow read: if isAuth() && docInMyShop();
       
-      allow create: if isAuthenticated() && 
-                       isEmployeeOrAbove() &&
-                       incomingShopIdValid() &&
-                       hasFields(['supplierId', 'productName', 'price', 'shopId']) &&
-                       isNonNegativeInt('price');
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['supplierId', 'productName', 'price', 'shopId']) &&
+                       numGte0('price');
       
-      allow update: if isAuthenticated() && 
-                       docInUserShop() &&
-                       !fieldChanged('shopId') &&
-                       isNonNegativeInt('price');
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked() &&
+                       numGte0('price');
       
-      allow delete: if isAuthenticated() && docInUserShop() && isManagerOrAbove();
+      allow delete: if isAuth() && docInMyShop() && isManager();
     }
 
-    // ==================== COLLECTION: chat_messages ====================
-    match /chat_messages/{messageId} {
-      allow read: if isAuthenticated() && docInUserShop();
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                   SECTION 6: REPAIR PARTNERS                     │
+    // │   Collections: repair_partners, repair_partner_payments,         │
+    // │                partner_repair_history                            │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 6.1 REPAIR_PARTNERS ═══════════
+    match /repair_partners/{partnerId} {
+      allow read: if isAuth() && docInMyShop();
       
-      allow create: if isAuthenticated() && 
-                       incomingShopIdValid() &&
-                       hasFields(['message', 'senderId', 'shopId']);
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['name', 'shopId']) &&
+                       str('name', 1, 200);
       
-      allow update: if isAuthenticated() && docInUserShop();
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked();
       
       allow delete: if false;
     }
 
-    // ==================== CATCH-ALL: DENY ALL OTHER COLLECTIONS ====================
-    // CRITICAL: Any collection not explicitly defined is DENIED
+    // ═══════════ 6.2 REPAIR_PARTNER_PAYMENTS ═══════════
+    match /repair_partner_payments/{paymentId} {
+      allow read: if isAuth() && docInMyShop() && isManager();
+      
+      allow create: if isAuth() && 
+                       isManager() &&
+                       newDocInMyShop() &&
+                       has(['partnerId', 'amount', 'paidAt', 'shopId']) &&
+                       numGte0('amount');
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       isManager() &&
+                       shopIdLocked() &&
+                       numGte0('amount');
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 6.3 PARTNER_REPAIR_HISTORY ═══════════
+    match /partner_repair_history/{historyId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['partnerId', 'repairId', 'shopId']);
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked();
+      
+      allow delete: if false;
+    }
+
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                   SECTION 7: HR & ATTENDANCE                     │
+    // │                   Collection: attendance                         │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 7.1 ATTENDANCE ═══════════
+    match /attendance/{attendanceId} {
+      // READ: Own records OR manager sees all
+      allow read: if isAuth() && 
+                     docInMyShop() &&
+                     (isManager() || resource.data.userId == uid());
+      
+      // CREATE: Own attendance OR manager can create for anyone
+      allow create: if isAuth() && 
+                       newDocInMyShop() &&
+                       has(['userId', 'dateKey', 'createdAt', 'shopId']) &&
+                       (isManager() || request.resource.data.userId == uid());
+      
+      // UPDATE: Manager full access, employee limited (no status/locked/approval changes)
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked() &&
+                       (isManager() || 
+                        (resource.data.userId == uid() &&
+                         !changed('status') && 
+                         !changed('locked') && 
+                         !changed('approvedBy')));
+      
+      allow delete: if false;
+    }
+
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                   SECTION 8: CHAT & MESSAGING                    │
+    // │              Collections: chats, chat_messages                   │
+    // │              Real-time collaboration features                    │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 8.1 CHATS ═══════════
+    match /chats/{chatId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      // CREATE: Must be sender, must have message
+      allow create: if isAuth() && 
+                       newDocInMyShop() &&
+                       has(['message', 'senderId', 'shopId']) &&
+                       request.resource.data.senderId == uid();
+      
+      // UPDATE: Shop members can update (for read receipts, etc.)
+      allow update: if isAuth() && docInMyShop();
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 8.2 CHAT_MESSAGES ═══════════
+    match /chat_messages/{messageId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       newDocInMyShop() &&
+                       has(['message', 'senderId', 'shopId']);
+      
+      allow update: if isAuth() && docInMyShop();
+      
+      allow delete: if false;
+    }
+
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                   SECTION 9: NOTIFICATIONS                       │
+    // │           Collections: notifications, shop_notifications         │
+    // │           User personal + shop-wide broadcasts                   │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 9.1 NOTIFICATIONS (personal) ═══════════
+    match /notifications/{notificationId} {
+      // READ: Shop-wide OR own notifications OR broadcast (userId=null)
+      allow read: if isAuth() && 
+                     (docInMyShop() || 
+                      resource.data.userId == uid() ||
+                      resource.data.userId == null);
+      
+      allow create: if isAuth() && newDocInMyShop();
+      
+      // UPDATE: Mark as read
+      allow update: if isAuth() && 
+                       (docInMyShop() || resource.data.userId == uid());
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 9.2 SHOP_NOTIFICATIONS (broadcast) ═══════════
+    match /shop_notifications/{notificationId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && newDocInMyShop();
+      
+      allow update: if isAuth() && docInMyShop();
+      
+      // DELETE: Manager+ can clear old notifications
+      allow delete: if isAuth() && docInMyShop() && isManager();
+    }
+
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                   SECTION 10: SYSTEM DATA                        │
+    // │     Collections: audit_logs, quick_input_codes, repair_parts     │
+    // │     audit_logs: IMMUTABLE (write-once)                           │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 10.1 AUDIT_LOGS (IMMUTABLE) ═══════════
+    // Critical: Once written, cannot be modified or deleted
+    match /audit_logs/{logId} {
+      // READ: Manager+ only
+      allow read: if isAuth() && docInMyShop() && isManager();
+      
+      // CREATE: Any authenticated shop member
+      allow create: if isAuth() && 
+                       newDocInMyShop() &&
+                       has(['action', 'userId', 'createdAt', 'shopId']);
+      
+      // UPDATE: NEVER - audit logs are immutable
+      allow update: if false;
+      
+      // DELETE: NEVER - audit logs are immutable
+      allow delete: if false;
+    }
+
+    // ═══════════ 10.2 QUICK_INPUT_CODES ═══════════
+    match /quick_input_codes/{codeId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       newDocInMyShop() &&
+                       has(['code', 'shopId']);
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked();
+      
+      // DELETE: Allowed for cleanup
+      allow delete: if isAuth() && docInMyShop();
+    }
+
+    // ═══════════ 10.3 REPAIR_PARTS ═══════════
+    match /repair_parts/{partId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['name', 'shopId']) &&
+                       str('name', 1, 200);
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked();
+      
+      allow delete: if false;
+    }
+
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                   SECTION 11: CATCH-ALL DENY                     │
+    // │         CRITICAL: Any undefined collection is DENIED             │
+    // └──────────────────────────────────────────────────────────────────┘
+    
     match /{document=**} {
       allow read, write: if false;
     }
