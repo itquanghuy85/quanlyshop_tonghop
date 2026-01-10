@@ -1581,7 +1581,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
             ),
           // Banner cho nhân viên mới - CHỈ HIỆN KHI MÁY CÓ ÍT HƠN 5 RECORDS (máy mới/đổi máy)
-          if (_totalLocalRecords < 5) _buildNewStaffBanner(),
+          if (_totalLocalRecords < 5) _buildNewStaffBannerSimple(),
 
           // LỜI CHÀO NGƯỜI DÙNG
           _buildGreetingCard(),
@@ -1797,6 +1797,67 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildNewStaffBannerSimple() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade400, Colors.blue.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.waving_hand,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Chào mừng nhân viên mới!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Vào Cài đặt Shop → Tải dữ liệu shop để đồng bộ dữ liệu',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 16),
+        ],
+      ),
+    );
+  }
+
+  // Giữ lại _buildNewStaffBanner cũ nhưng không dùng - có thể xóa sau
   Widget _buildNewStaffBanner() {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

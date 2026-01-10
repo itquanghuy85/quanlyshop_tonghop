@@ -75,6 +75,85 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  Future<void> _showForgotPasswordDialog() async {
+    final emailController = TextEditingController(text: _emailC.text.trim());
+    final messenger = ScaffoldMessenger.of(context);
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.lock_reset, color: AppColors.primary),
+            const SizedBox(width: 8),
+            const Text('Quên mật khẩu'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Nhập email đã đăng ký, chúng tôi sẽ gửi link đặt lại mật khẩu.',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                prefixIcon: const Icon(Icons.email),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('HỦY'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isEmpty || !email.contains('@')) {
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Vui lòng nhập email hợp lệ'), backgroundColor: Colors.orange),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              try {
+                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Đã gửi email đặt lại mật khẩu tới $email'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 5),
+                  ),
+                );
+              } on FirebaseAuthException catch (e) {
+                String errorMsg = 'Lỗi gửi email';
+                if (e.code == 'user-not-found') {
+                  errorMsg = 'Email chưa được đăng ký';
+                } else if (e.code == 'invalid-email') {
+                  errorMsg = 'Email không hợp lệ';
+                }
+                messenger.showSnackBar(
+                  SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('GỬI EMAIL', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    emailController.dispose();
+  }
+
   Locale _selectedLocale = const Locale('vi');
   @override
   Widget build(BuildContext context) {
@@ -216,7 +295,13 @@ class _LoginViewState extends State<LoginView> {
 
 
                 child: Text('Chưa có tài khoản? Đăng ký ngay', style: AppTextStyles.body2.copyWith(color: AppColors.primary)),
-              ),              const SizedBox(height: 30),
+              ),
+              // Quên mật khẩu
+              TextButton(
+                onPressed: _showForgotPasswordDialog,
+                child: Text('Quên mật khẩu?', style: AppTextStyles.body2.copyWith(color: Colors.grey[600])),
+              ),
+              const SizedBox(height: 30),
               _buildCalendarCard(),
             ],
           ),

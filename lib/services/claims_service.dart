@@ -229,4 +229,15 @@ class ClaimsService {
     await _auth.currentUser?.getIdToken(true);
     await getClaimsFromToken(forceRefresh: true);
   }
+
+  /// Start claims sync - placeholder for future implementation
+  void startClaimsSync() {
+    // Future: Add listener for claims changes
+    _clearCache();
+  }
+
+  /// Stop claims sync - placeholder for cleanup
+  void stopClaimsSync() {
+    _clearCache();
+  }
 }

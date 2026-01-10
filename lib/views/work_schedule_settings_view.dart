@@ -71,7 +71,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> wit
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _loadSettings();
   }
 
@@ -159,17 +159,22 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> wit
       final db = FirebaseFirestore.instance;
       Query query = db.collection('users');
 
-      // Filter by shop if not super admin
-      if (!_isSuperAdmin && _currentShopId != null) {
+      // Filter by shop - super admin cũng cần filter theo shop đã chọn
+      if (_currentShopId != null) {
         query = query.where('shopId', isEqualTo: _currentShopId);
+      } else if (!_isSuperAdmin) {
+        // Không có shopId và không phải super admin = không load gì
+        staffList = [];
+        return;
       }
+      // Super admin không có shopId = load tất cả users (đã có list shops riêng)
 
       final snapshot = await query.get();
       staffList = snapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         return {
           'id': doc.id,
-          'name': data['name'] ?? data['email']?.split('@').first ?? 'Unknown',
+          'name': data['name'] ?? data['displayName'] ?? data['email']?.toString().split('@').first ?? 'Unknown',
           'email': data['email'] ?? '',
           'role': data['role'] ?? 'user',
         };
@@ -311,23 +316,377 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> wit
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Giờ làm việc'),
-            Tab(text: 'Ngày nghỉ'),
-            Tab(text: 'Tăng ca'),
-            Tab(text: 'Lương NV'),
-            Tab(text: 'Chấm công'),
+            Tab(text: 'Cài đặt chung'),
+            Tab(text: 'Nhân viên'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildWorkScheduleTab(),
-          _buildWorkDaysTab(),
-          _buildOvertimeTab(),
-          _buildStaffSalaryTab(),
-          _buildAttendanceTab(),
+          _buildGeneralSettingsTab(),
+          _buildStaffManagementTab(),
         ],
+      ),
+    );
+  }
+
+  // Tab 1: Gộp Giờ làm việc + Ngày nghỉ + Tăng ca
+  Widget _buildGeneralSettingsTab() {
+    final dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // === SECTION: Giờ làm việc ===
+          _buildSectionTitle('Giờ làm việc', Icons.access_time),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildCompactTimeCard('Bắt đầu', startTimeCtrl)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildCompactTimeCard('Kết thúc', endTimeCtrl)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildCompactNumberCard('Nghỉ trưa', breakTimeCtrl, 'giờ')),
+              const SizedBox(width: 12),
+              Expanded(child: _buildCompactNumberCard('OT tối đa', maxOtHoursCtrl, 'giờ')),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // === SECTION: Ngày làm việc ===
+          _buildSectionTitle('Ngày làm việc', Icons.calendar_today),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: List.generate(7, (index) {
+              return FilterChip(
+                label: Text(dayNames[index]),
+                selected: workDays[index],
+                onSelected: (selected) => setState(() => workDays[index] = selected ?? false),
+              );
+            }),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Ngày nghỉ lễ
+          Row(
+            children: [
+              const Expanded(
+                child: Text('Ngày nghỉ lễ:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              ),
+              TextButton.icon(
+                onPressed: _addHoliday,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Thêm'),
+              ),
+            ],
+          ),
+          if (holidays.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: holidays.map((holiday) {
+                return Chip(
+                  label: Text(holiday, style: const TextStyle(fontSize: 12)),
+                  deleteIcon: const Icon(Icons.close, size: 14),
+                  onDeleted: () => setState(() => holidays.remove(holiday)),
+                  visualDensity: VisualDensity.compact,
+                );
+              }).toList(),
+            ),
+
+          const SizedBox(height: 24),
+
+          // === SECTION: Tăng ca ===
+          _buildSectionTitle('Hệ số tăng ca', Icons.timer),
+          const SizedBox(height: 12),
+          _buildCompactNumberCard('Ngày thường', weekdayOtRateCtrl, '%'),
+          const SizedBox(height: 8),
+          _buildCompactNumberCard('Cuối tuần', weekendOtRateCtrl, '%'),
+          const SizedBox(height: 8),
+          _buildCompactNumberCard('Ngày lễ', holidayOtRateCtrl, '%'),
+
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _saveWorkSchedule,
+              icon: const Icon(Icons.save),
+              label: const Text('LƯU CÀI ĐẶT', style: TextStyle(fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Tab 2: Gộp Lương NV + Chấm công
+  Widget _buildStaffManagementTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // === SECTION: Lương nhân viên ===
+          _buildSectionTitle('Cài đặt lương', Icons.attach_money),
+          const SizedBox(height: 12),
+          Card(
+            elevation: 1,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: selectedStaff,
+                    decoration: const InputDecoration(
+                      labelText: 'Chọn nhân viên',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: staffList.map((staff) {
+                      return DropdownMenuItem<String>(
+                        value: staff['id'] as String,
+                        child: Text('${staff['name']} (${_getShortRoleName(staff['role'])})'),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setState(() => selectedStaff = value),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: staffSalaryCtrl,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            NumberTextInputFormatter(),
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'Lương cơ bản (VNĐ)',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _saveStaffSalary,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        ),
+                        child: const Text('Lưu', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Danh sách lương
+          if (staffSalaries.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ...staffSalaries.entries.map((entry) {
+              final staff = staffList.firstWhere(
+                (s) => s['id'] == entry.key,
+                orElse: () => {'name': 'Unknown', 'role': 'user'},
+              );
+              return Card(
+                child: ListTile(
+                  dense: true,
+                  title: Text('${staff['name']} (${_getShortRoleName(staff['role'])})'),
+                  trailing: Text(
+                    '${NumberFormat('#,###').format(entry.value)} đ',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                  ),
+                ),
+              );
+            }),
+          ],
+
+          const SizedBox(height: 24),
+
+          // === SECTION: Chấm công ===
+          _buildSectionTitle('Tra cứu chấm công', Icons.fingerprint),
+          const SizedBox(height: 12),
+
+          // Date + Staff picker
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                      lastDate: DateTime.now().add(const Duration(days: 30)),
+                    );
+                    if (date != null) {
+                      setState(() => selectedDate = date);
+                      await _loadAttendanceRecords();
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today, size: 18),
+                        const SizedBox(width: 8),
+                        Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: selectedStaffForAttendance,
+            decoration: const InputDecoration(
+              labelText: 'Nhân viên',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: staffList.map((staff) {
+              return DropdownMenuItem<String>(
+                value: staff['id'] as String,
+                child: Text('${staff['name']} (${_getShortRoleName(staff['role'])})'),
+              );
+            }).toList(),
+            onChanged: (value) async {
+              setState(() => selectedStaffForAttendance = value);
+              await _loadAttendanceRecords();
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          // Attendance info
+          if (selectedStaffForAttendance != null) ...[
+            if (attendanceRecords.isEmpty)
+              Card(
+                color: Colors.grey.shade100,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: Text(
+                      'Không có dữ liệu chấm công ngày ${DateFormat('dd/MM').format(selectedDate)}',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ),
+                ),
+              )
+            else
+              ...attendanceRecords.map((record) => Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (record.checkInAt != null) ...[
+                            const Icon(Icons.login, color: Colors.green, size: 18),
+                            const SizedBox(width: 4),
+                            Text('Vào: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkInAt!))}'),
+                          ],
+                          const SizedBox(width: 16),
+                          if (record.checkOutAt != null) ...[
+                            const Icon(Icons.logout, color: Colors.red, size: 18),
+                            const SizedBox(width: 4),
+                            Text('Ra: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!))}'),
+                          ],
+                        ],
+                      ),
+                      if (record.status.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Chip(
+                          label: Text(
+                            record.status == 'approved' ? 'Đã duyệt' :
+                            record.status == 'rejected' ? 'Từ chối' : 'Chờ duyệt',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          backgroundColor: record.status == 'approved' ? Colors.green.shade100 :
+                                         record.status == 'rejected' ? Colors.red.shade100 : Colors.orange.shade100,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              )),
+          ] else
+            Card(
+              color: Colors.blue.shade50,
+              child: const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(
+                  child: Text('Chọn nhân viên để xem chấm công', style: TextStyle(color: Colors.blue)),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.blue.shade700),
+        const SizedBox(width: 8),
+        Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade700)),
+      ],
+    );
+  }
+
+  Widget _buildCompactTimeCard(String label, TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      readOnly: true,
+      onTap: () => _selectTime(controller),
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        suffixIcon: const Icon(Icons.access_time, size: 20),
+        isDense: true,
+      ),
+    );
+  }
+
+  Widget _buildCompactNumberCard(String label, TextEditingController controller, String unit) {
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        suffixText: unit,
+        isDense: true,
       ),
     );
   }

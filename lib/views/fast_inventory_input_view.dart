@@ -7,8 +7,10 @@ import '../controllers/fast_inventory_input_controller.dart';
 import '../models/product_model.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
+import '../utils/imei_extractor.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/validated_text_field.dart';
+import '../widgets/imei_scan_result_dialog.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'fast_stock_in_view.dart';
@@ -146,96 +148,18 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
     }
   }
 
-  /// Mở scanner QR/Barcode để quét IMEI - chỉ quét 1 lần, lấy 5 số cuối
+  /// Mở scanner QR/Barcode để quét IMEI - xử lý thông minh QR nhiều dòng
   void _openQRScannerForIMEI() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.6,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'QUÉT QR/BARCODE IMEI',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                'Hướng camera vào mã QR hoặc Barcode IMEI.\nChỉ lấy 5 số cuối để nhập vào trường IMEI.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            // Scanner
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: MobileScanner(
-                  controller: MobileScannerController(
-                    detectionTimeoutMs: 1000,
-                    returnImage: false,
-                  ),
-                  onDetect: (capture) {
-                    final barcodes = capture.barcodes;
-                    if (barcodes.isNotEmpty) {
-                      final rawValue = barcodes.first.rawValue ?? '';
-                      if (rawValue.isNotEmpty) {
-                        // Lấy 5 số cuối từ IMEI
-                        final digitsOnly = rawValue.replaceAll(
-                          RegExp(r'[^0-9]'),
-                          '',
-                        );
-                        final last5 = digitsOnly.length >= 5
-                            ? digitsOnly.substring(digitsOnly.length - 5)
-                            : digitsOnly;
-
-                        // Đóng scanner và set IMEI
-                        Navigator.pop(ctx);
-                        setState(() {
-                          _imeiController.text = last5;
-                        });
-                        NotificationService.showSnackBar(
-                          'Đã quét: $rawValue → 5 số cuối: $last5',
-                          color: Colors.green,
-                        );
-                      }
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
+      builder: (ctx) => _IMEIScannerSheet(
+        onIMEISelected: (imei) {
+          setState(() {
+            _imeiController.text = imei;
+          });
+        },
       ),
     );
   }
@@ -518,6 +442,305 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
                 ),
         ),
       ],
+    );
+  }
+}
+
+// ============================================================
+// IMEI SCANNER SHEET - Xử lý thông minh QR nhiều dòng
+// ============================================================
+
+class _IMEIScannerSheet extends StatefulWidget {
+  final Function(String imei) onIMEISelected;
+
+  const _IMEIScannerSheet({required this.onIMEISelected});
+
+  @override
+  State<_IMEIScannerSheet> createState() => _IMEIScannerSheetState();
+}
+
+class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
+  MobileScannerController? _controller;
+  bool _isProcessing = false;
+  String? _lastScannedData;
+  DateTime? _lastScanTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = MobileScannerController(
+      detectionTimeoutMs: 500,
+      returnImage: false,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _onDetect(BarcodeCapture capture) async {
+    if (_isProcessing) return;
+
+    final barcodes = capture.barcodes;
+    if (barcodes.isEmpty) return;
+
+    final rawValue = barcodes.first.rawValue ?? '';
+    if (rawValue.isEmpty) return;
+
+    // Debounce: Tránh quét trùng trong 2 giây
+    final now = DateTime.now();
+    if (_lastScannedData == rawValue &&
+        _lastScanTime != null &&
+        now.difference(_lastScanTime!) < const Duration(seconds: 2)) {
+      return;
+    }
+
+    _lastScannedData = rawValue;
+    _lastScanTime = now;
+
+    setState(() => _isProcessing = true);
+
+    try {
+      // Trích xuất IMEI từ QR data
+      final result = IMEIExtractor.extract(rawValue);
+
+      // Nếu có 1 IMEI duy nhất và không phải multi-line phức tạp
+      if (result.candidates.length == 1 && !result.isMultiLine) {
+        // Auto-select với 5 số cuối
+        final imei = result.candidates.first;
+        final last5 = IMEIExtractor.getLast5Digits(imei);
+
+        Navigator.of(context).pop();
+        widget.onIMEISelected(last5);
+        NotificationService.showSnackBar(
+          '✅ IMEI: ${IMEIExtractor.formatIMEI(imei)} → 5 số cuối: $last5',
+          color: Colors.green,
+        );
+      }
+      // Nếu có nhiều candidates hoặc QR phức tạp -> hiện dialog chọn
+      else if (result.candidates.isNotEmpty) {
+        // Tạm dừng camera
+        await _controller?.stop();
+
+        if (!mounted) return;
+
+        // Hiện dialog chọn IMEI
+        final selected = await IMEIScanResultDialog.show(context, result);
+
+        if (selected != null && selected.isNotEmpty) {
+          Navigator.of(context).pop();
+          widget.onIMEISelected(selected);
+          NotificationService.showSnackBar(
+            '✅ Đã chọn: $selected',
+            color: Colors.green,
+          );
+        } else {
+          // User đóng dialog, resume camera
+          await _controller?.start();
+        }
+      }
+      // Không tìm thấy IMEI -> thử lấy raw digits
+      else {
+        // Fallback: lấy 5 số cuối từ raw data
+        final digitsOnly = rawValue.replaceAll(RegExp(r'[^0-9]'), '');
+        if (digitsOnly.length >= 5) {
+          final last5 = digitsOnly.substring(digitsOnly.length - 5);
+
+          Navigator.of(context).pop();
+          widget.onIMEISelected(last5);
+          NotificationService.showSnackBar(
+            '⚠️ Không tìm thấy IMEI, dùng 5 số cuối: $last5',
+            color: Colors.orange,
+          );
+        } else {
+          NotificationService.showSnackBar(
+            '❌ Không tìm thấy số IMEI trong QR',
+            color: Colors.red,
+          );
+        }
+      }
+    } catch (e) {
+      NotificationService.showSnackBar('❌ Lỗi xử lý QR: $e', color: Colors.red);
+    } finally {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.qr_code_scanner, color: Colors.green),
+                    SizedBox(width: 8),
+                    Text(
+                      'QUÉT QR/BARCODE IMEI',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+
+          // Hướng dẫn
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            color: Colors.blue.shade50,
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline, size: 20, color: Colors.blue),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Hỗ trợ QR nhiều dòng (Apple, Samsung...).\n'
+                    'Tự động trích xuất IMEI và cho phép chọn nếu có nhiều số.',
+                    style: TextStyle(fontSize: 12, color: Colors.blue),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Scanner area với overlay
+          Expanded(
+            child: Stack(
+              children: [
+                // Camera
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: MobileScanner(
+                    controller: _controller,
+                    onDetect: _onDetect,
+                  ),
+                ),
+
+                // Scan area overlay
+                Center(
+                  child: Container(
+                    width: 280,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.green, width: 3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.center_focus_weak,
+                          size: 40,
+                          color: Colors.green,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Đưa mã QR/Barcode vào khung',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            shadows: [
+                              Shadow(color: Colors.black, blurRadius: 4),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Processing indicator
+                if (_isProcessing)
+                  Container(
+                    color: Colors.black54,
+                    child: const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(color: Colors.white),
+                          SizedBox(height: 16),
+                          Text(
+                            'Đang xử lý...',
+                            style: TextStyle(color: Colors.white, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Bottom controls
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Torch button
+                IconButton(
+                  onPressed: () => _controller?.toggleTorch(),
+                  icon: const Icon(Icons.flashlight_on),
+                  tooltip: 'Bật/tắt đèn flash',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.grey.shade200,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Switch camera button
+                IconButton(
+                  onPressed: () => _controller?.switchCamera(),
+                  icon: const Icon(Icons.cameraswitch),
+                  tooltip: 'Đổi camera',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.grey.shade200,
+                  ),
+                ),
+                const Spacer(),
+                // Manual input button
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // Trả về empty để user biết cần nhập thủ công
+                    widget.onIMEISelected('');
+                  },
+                  icon: const Icon(Icons.keyboard),
+                  label: const Text('Nhập thủ công'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

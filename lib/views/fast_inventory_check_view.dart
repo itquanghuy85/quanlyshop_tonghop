@@ -7,6 +7,7 @@ import '../models/product_model.dart';
 import '../models/inventory_zone_model.dart';
 import '../services/notification_service.dart';
 import '../utils/qr_parser.dart';
+import '../utils/imei_extractor.dart';
 
 class FastInventoryCheckView extends StatefulWidget {
   const FastInventoryCheckView({super.key});
@@ -30,11 +31,13 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
 
   // Check results
   final Set<String> _checkedPhoneImeis = {}; // IMEI-based for phones
-  final Map<String, int> _scannedAccessoryCounts = {}; // Count-based for accessories
+  final Map<String, int> _scannedAccessoryCounts =
+      {}; // Count-based for accessories
   final Map<String, int> _expectedAccessoryCounts = {}; // Expected counts
 
   // Scanned items checklist
-  final List<Map<String, dynamic>> _scannedItems = []; // List of scanned items for display
+  final List<Map<String, dynamic>> _scannedItems =
+      []; // List of scanned items for display
 
   bool _isLoading = true;
   bool _isScanning = false;
@@ -46,13 +49,18 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   bool _isProcessingScan = false;
   bool _isScanInProgress = false; // Track if async processing is running
   DateTime? _lastScanTime;
-  static const Duration _scanDebounceDuration = Duration(seconds: 1); // Increased to 1 second to prevent multiple notifications
-  static const Duration _duplicateScanWarningDuration = Duration(seconds: 2); // Reduced to 2 seconds
+  static const Duration _scanDebounceDuration = Duration(
+    seconds: 1,
+  ); // Increased to 1 second to prevent multiple notifications
+  static const Duration _duplicateScanWarningDuration = Duration(
+    seconds: 2,
+  ); // Reduced to 2 seconds
 
   // Duplicate scan tracking
   String? _lastScannedCode;
   Timer? _duplicateWarningTimer;
-  final Map<String, DateTime> _recentlyProcessedQRs = {}; // Track processed QR codes to prevent duplicates
+  final Map<String, DateTime> _recentlyProcessedQRs =
+      {}; // Track processed QR codes to prevent duplicates
 
   // User preferences
   bool _enableSoundFeedback = true;
@@ -78,17 +86,24 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     try {
       // Load phones (IMEI-based inventory)
       final phones = await db.getInStockProducts();
-      _expectedPhones = phones.where((p) => p.type == 'PHONE' && p.imei != null && p.imei!.isNotEmpty).toList();
+      _expectedPhones = phones
+          .where(
+            (p) => p.type == 'PHONE' && p.imei != null && p.imei!.isNotEmpty,
+          )
+          .toList();
 
       // Load accessories (quantity-based inventory)
       final accessories = await db.getInStockProducts();
-      final accessoryProducts = accessories.where((p) => p.type == 'ACCESSORY').toList();
+      final accessoryProducts = accessories
+          .where((p) => p.type == 'ACCESSORY')
+          .toList();
 
       // Group accessories by code and count quantities
       _expectedAccessoryCounts.clear();
       for (final accessory in accessoryProducts) {
         final code = accessory.firestoreId ?? accessory.id.toString();
-        _expectedAccessoryCounts[code] = (_expectedAccessoryCounts[code] ?? 0) + 1;
+        _expectedAccessoryCounts[code] =
+            (_expectedAccessoryCounts[code] ?? 0) + 1;
       }
       _expectedAccessories = accessoryProducts;
 
@@ -100,7 +115,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       }
     } catch (e) {
       if (mounted) {
-        NotificationService.showSnackBar('Lỗi tải dữ liệu kho: $e', color: Colors.red);
+        NotificationService.showSnackBar(
+          'Lỗi tải dữ liệu kho: $e',
+          color: Colors.red,
+        );
         setState(() => _isLoading = false);
       }
     }
@@ -175,26 +193,30 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     _recentlyProcessedQRs[qrData] = now;
 
     // Clean up old entries from the map (older than 5 seconds)
-    _recentlyProcessedQRs.removeWhere((key, time) => now.difference(time) > const Duration(seconds: 5));
+    _recentlyProcessedQRs.removeWhere(
+      (key, time) => now.difference(time) > const Duration(seconds: 5),
+    );
 
     // Process the scan asynchronously
-    _processQRScan(qrData).then((_) {
-      // Reset processing flags after successful processing
-      if (mounted) {
-        setState(() {
-          _isProcessingScan = false;
-          _isScanInProgress = false;
+    _processQRScan(qrData)
+        .then((_) {
+          // Reset processing flags after successful processing
+          if (mounted) {
+            setState(() {
+              _isProcessingScan = false;
+              _isScanInProgress = false;
+            });
+          }
+        })
+        .catchError((error) {
+          // Reset processing flags on error
+          if (mounted) {
+            setState(() {
+              _isProcessingScan = false;
+              _isScanInProgress = false;
+            });
+          }
         });
-      }
-    }).catchError((error) {
-      // Reset processing flags on error
-      if (mounted) {
-        setState(() {
-          _isProcessingScan = false;
-          _isScanInProgress = false;
-        });
-      }
-    });
 
     // Set debounce timer to prevent rapid scanning
     _scanDebounceTimer = Timer(_scanDebounceDuration, () {
@@ -206,7 +228,8 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     if (_lastScannedCode == null || _lastScanTime == null) return false;
 
     final timeSinceLastScan = DateTime.now().difference(_lastScanTime!);
-    return _lastScannedCode == qrData && timeSinceLastScan < _duplicateScanWarningDuration;
+    return _lastScannedCode == qrData &&
+        timeSinceLastScan < _duplicateScanWarningDuration;
   }
 
   void _showDuplicateScanWarning(String qrData) {
@@ -273,7 +296,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     final imei = qrMap['imei'];
     if (imei == null || imei.isEmpty) {
       _provideScanFeedback(isSuccess: false);
-      NotificationService.showSnackBar('❌ QR điện thoại thiếu IMEI', color: Colors.red);
+      NotificationService.showSnackBar(
+        '❌ QR điện thoại thiếu IMEI',
+        color: Colors.red,
+      );
       return;
     }
 
@@ -284,7 +310,8 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         // If QR IMEI is 5 digits, compare with last 5 digits of stored IMEI
         // If QR IMEI is longer, compare directly
         if (imei.length == 5) {
-          return p.imei!.length >= 5 && p.imei!.substring(p.imei!.length - 5) == imei;
+          return p.imei!.length >= 5 &&
+              p.imei!.substring(p.imei!.length - 5) == imei;
         } else {
           return p.imei == imei;
         }
@@ -298,7 +325,8 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       ),
     );
 
-    if (expectedProduct.imei != null && expectedProduct.name != 'Không có trong kho') {
+    if (expectedProduct.imei != null &&
+        expectedProduct.name != 'Không có trong kho') {
       // Valid phone found - use the stored IMEI for tracking
       final storedImei = expectedProduct.imei!;
       if (!_checkedPhoneImeis.contains(storedImei)) {
@@ -307,21 +335,35 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
           _totalScanned++;
         });
         _provideScanFeedback(isSuccess: true);
-        NotificationService.showSnackBar('✅ ${expectedProduct.name} (${storedImei.substring(storedImei.length - 5)})');
+        NotificationService.showSnackBar(
+          '✅ ${expectedProduct.name} (${storedImei.substring(storedImei.length - 5)})',
+        );
 
         // Update zone progress
         _updateZoneProgress(storedImei, 1);
 
         // Add to checklist
-        _addToChecklist('📱', expectedProduct.name, storedImei.substring(storedImei.length - 5));
+        _addToChecklist(
+          '📱',
+          expectedProduct.name,
+          storedImei.substring(storedImei.length - 5),
+        );
       }
     } else {
       // Unexpected phone
       _provideScanFeedback(isSuccess: false);
-      NotificationService.showSnackBar('🚨 Thừa: ${imei.substring(imei.length - 5)}', color: Colors.red);
+      NotificationService.showSnackBar(
+        '🚨 Thừa: ${imei.substring(imei.length - 5)}',
+        color: Colors.red,
+      );
 
       // Add to checklist as extra
-      _addToChecklist('📱', 'Thừa: ${imei.substring(imei.length - 5)}', imei, status: '🚨');
+      _addToChecklist(
+        '📱',
+        'Thừa: ${imei.substring(imei.length - 5)}',
+        imei,
+        status: '🚨',
+      );
     }
   }
 
@@ -329,7 +371,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     final code = qrMap['code'];
     if (code == null || code.isEmpty) {
       _provideScanFeedback(isSuccess: false);
-      NotificationService.showSnackBar('❌ QR phụ kiện thiếu code', color: Colors.red);
+      NotificationService.showSnackBar(
+        '❌ QR phụ kiện thiếu code',
+        color: Colors.red,
+      );
       return;
     }
 
@@ -343,14 +388,23 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     final expectedCount = _expectedAccessoryCounts[code] ?? 0;
 
     final accessoryName = _expectedAccessories
-        .firstWhere((a) => (a.firestoreId ?? a.id.toString()) == code,
-            orElse: () => Product(name: 'Phụ kiện không xác định', brand: '', createdAt: 0, type: 'ACCESSORY'))
+        .firstWhere(
+          (a) => (a.firestoreId ?? a.id.toString()) == code,
+          orElse: () => Product(
+            name: 'Phụ kiện không xác định',
+            brand: '',
+            createdAt: 0,
+            type: 'ACCESSORY',
+          ),
+        )
         .name;
 
     _provideScanFeedback(isSuccess: true);
 
     // Always show as successful scan with current count
-    NotificationService.showSnackBar('✅ $accessoryName (đã quét: $currentCount)');
+    NotificationService.showSnackBar(
+      '✅ $accessoryName (đã quét: $currentCount)',
+    );
 
     // Update zone progress
     _updateZoneProgress(code, 1);
@@ -382,7 +436,25 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       return;
     }
 
-    // Case 3: No key-value pairs, just raw data
+    // Case 3: Try smart IMEI extraction for multi-line QR (Apple, Samsung, etc)
+    final imeiResult = IMEIExtractor.extract(qrData);
+    if (imeiResult.hasIMEI) {
+      // Sử dụng IMEI đầu tiên được tìm thấy
+      final imei = imeiResult.imei!;
+      final legacyQrMap = {'imei': imei, 'type': 'PHONE'};
+      _handlePhoneScan(legacyQrMap);
+
+      // Thông báo nếu QR có nhiều IMEI
+      if (imeiResult.hasMultipleCandidates) {
+        NotificationService.showSnackBar(
+          'ℹ️ QR có ${imeiResult.candidates.length} IMEI, đã dùng IMEI đầu tiên',
+          color: Colors.blue,
+        );
+      }
+      return;
+    }
+
+    // Case 4: No key-value pairs, just raw data (single line number)
     if (qrMap.isEmpty) {
       // Check if it's a number (IMEI)
       if (RegExp(r'^\d+$').hasMatch(qrData) && qrData.length >= 5) {
@@ -398,9 +470,12 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       }
     }
 
-    // Case 4: Malformed or unknown format
+    // Case 5: Malformed or unknown format
     HapticFeedback.vibrate();
-    NotificationService.showSnackBar('⚠️ QR không hợp lệ cho kiểm kho - cần IMEI hoặc code sản phẩm', color: Colors.orange);
+    NotificationService.showSnackBar(
+      '⚠️ QR không hợp lệ cho kiểm kho - cần IMEI hoặc code sản phẩm',
+      color: Colors.orange,
+    );
   }
 
   /// Handle legacy inventory check format: check_inv:ID
@@ -410,12 +485,17 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       final product = await db.getProductById(int.tryParse(productId) ?? -1);
       if (product == null) {
         HapticFeedback.vibrate();
-        NotificationService.showSnackBar('🚨 Không tìm thấy sản phẩm với ID: $productId', color: Colors.red);
+        NotificationService.showSnackBar(
+          '🚨 Không tìm thấy sản phẩm với ID: $productId',
+          color: Colors.red,
+        );
         return;
       }
 
       // Determine if it's a phone or accessory based on type and IMEI
-      if (product.type == 'PHONE' && product.imei != null && product.imei!.isNotEmpty) {
+      if (product.type == 'PHONE' &&
+          product.imei != null &&
+          product.imei!.isNotEmpty) {
         // Handle as phone
         final legacyQrMap = {'imei': product.imei!, 'type': 'PHONE'};
         _handlePhoneScan(legacyQrMap);
@@ -426,11 +506,17 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         _handleAccessoryScan(legacyQrMap);
       } else {
         HapticFeedback.vibrate();
-        NotificationService.showSnackBar('⚠️ Sản phẩm không hỗ trợ kiểm kho: ${product.name}', color: Colors.orange);
+        NotificationService.showSnackBar(
+          '⚠️ Sản phẩm không hỗ trợ kiểm kho: ${product.name}',
+          color: Colors.orange,
+        );
       }
     } catch (e) {
       HapticFeedback.vibrate();
-      NotificationService.showSnackBar('❌ Lỗi kiểm tra sản phẩm: $e', color: Colors.red);
+      NotificationService.showSnackBar(
+        '❌ Lỗi kiểm tra sản phẩm: $e',
+        color: Colors.red,
+      );
     }
   }
 
@@ -515,7 +601,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
 
   Map<String, int> _getAccessoryResults() {
     // For accessories, we just count total scanned items since each scan represents checking one item
-    final totalScanned = _scannedAccessoryCounts.values.fold(0, (sum, count) => sum + count);
+    final totalScanned = _scannedAccessoryCounts.values.fold(
+      0,
+      (sum, count) => sum + count,
+    );
 
     // Since accessories can be scanned multiple times for same type, we don't calculate missing/extra
     // All scanned accessories are considered "checked"
@@ -526,12 +615,17 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     if (_currentZone == null) return;
 
     setState(() {
-      final updatedScannedCounts = Map<String, int>.from(_currentZone!.scannedCounts);
-      updatedScannedCounts[productCode] = (updatedScannedCounts[productCode] ?? 0) + count;
+      final updatedScannedCounts = Map<String, int>.from(
+        _currentZone!.scannedCounts,
+      );
+      updatedScannedCounts[productCode] =
+          (updatedScannedCounts[productCode] ?? 0) + count;
 
       _inventoryZones = _inventoryZones.map((zone) {
         if (zone.id == _currentZone!.id) {
-          final updatedZone = zone.copyWith(scannedCounts: updatedScannedCounts);
+          final updatedZone = zone.copyWith(
+            scannedCounts: updatedScannedCounts,
+          );
           // Check if zone is completed
           if (updatedZone.progress >= 1.0 && !updatedZone.isCompleted) {
             return updatedZone.copyWith(
@@ -545,14 +639,18 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       }).toList();
 
       // Update current zone reference
-      _currentZone = _inventoryZones.firstWhere((zone) => zone.id == _currentZone!.id);
+      _currentZone = _inventoryZones.firstWhere(
+        (zone) => zone.id == _currentZone!.id,
+      );
     });
   }
 
   void _selectZone(InventoryZone zone) {
     setState(() {
       // Deactivate all zones
-      _inventoryZones = _inventoryZones.map((z) => z.copyWith(isActive: false)).toList();
+      _inventoryZones = _inventoryZones
+          .map((z) => z.copyWith(isActive: false))
+          .toList();
 
       // Activate selected zone
       _inventoryZones = _inventoryZones.map((z) {
@@ -570,11 +668,19 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   }
 
   /// Add scanned item to checklist (smart grouping for accessories)
-  void _addToChecklist(String type, String name, String identifier, {String? status}) {
+  void _addToChecklist(
+    String type,
+    String name,
+    String identifier, {
+    String? status,
+  }) {
     // For accessories, check if we already have this item and update count instead of adding new
     if (type == '🔧') {
-      final existingIndex = _scannedItems.indexWhere((item) =>
-        item['type'] == type && item['name'] == name && item['status'] == (status ?? '✅')
+      final existingIndex = _scannedItems.indexWhere(
+        (item) =>
+            item['type'] == type &&
+            item['name'] == name &&
+            item['status'] == (status ?? '✅'),
       );
 
       if (existingIndex != -1) {
@@ -610,9 +716,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final phoneResults = _getPhoneResults();
@@ -626,8 +730,12 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         actions: [
           // Zone selector
           TextButton.icon(
-            onPressed: () => setState(() => _showZoneSelector = !_showZoneSelector),
-            icon: Icon(_showZoneSelector ? Icons.expand_less : Icons.expand_more, color: Colors.white),
+            onPressed: () =>
+                setState(() => _showZoneSelector = !_showZoneSelector),
+            icon: Icon(
+              _showZoneSelector ? Icons.expand_less : Icons.expand_more,
+              color: Colors.white,
+            ),
             label: Text(
               _currentZone?.name ?? 'Chọn Zone',
               style: const TextStyle(color: Colors.white, fontSize: 14),
@@ -637,7 +745,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             ),
           ),
           IconButton(
-            icon: Icon(_showChecklist ? Icons.checklist : Icons.checklist_outlined),
+            icon: Icon(
+              _showChecklist ? Icons.checklist : Icons.checklist_outlined,
+            ),
             onPressed: () => setState(() => _showChecklist = !_showChecklist),
             tooltip: _showChecklist ? 'Ẩn checklist' : 'Hiện checklist',
           ),
@@ -674,12 +784,36 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildStatusItem('📱 Đã kiểm', phoneResults['checked']!, Colors.green),
-                _buildStatusItem('📱 Thiếu', phoneResults['missing']!, Colors.red),
-                _buildStatusItem('📱 Thừa', phoneResults['extra']!, Colors.orange),
-                _buildStatusItem('🔧 Đã kiểm', accessoryResults['checked']!, Colors.green),
-                _buildStatusItem('🔧 Thiếu', accessoryResults['missing']!, Colors.red),
-                _buildStatusItem('🔧 Thừa', accessoryResults['extra']!, Colors.orange),
+                _buildStatusItem(
+                  '📱 Đã kiểm',
+                  phoneResults['checked']!,
+                  Colors.green,
+                ),
+                _buildStatusItem(
+                  '📱 Thiếu',
+                  phoneResults['missing']!,
+                  Colors.red,
+                ),
+                _buildStatusItem(
+                  '📱 Thừa',
+                  phoneResults['extra']!,
+                  Colors.orange,
+                ),
+                _buildStatusItem(
+                  '🔧 Đã kiểm',
+                  accessoryResults['checked']!,
+                  Colors.green,
+                ),
+                _buildStatusItem(
+                  '🔧 Thiếu',
+                  accessoryResults['missing']!,
+                  Colors.red,
+                ),
+                _buildStatusItem(
+                  '🔧 Thừa',
+                  accessoryResults['extra']!,
+                  Colors.orange,
+                ),
               ],
             ),
           ),
@@ -702,11 +836,18 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.qr_code_scanner, size: 100, color: Colors.grey),
+                                  Icon(
+                                    Icons.qr_code_scanner,
+                                    size: 100,
+                                    color: Colors.grey,
+                                  ),
                                   const SizedBox(height: 16),
                                   const Text(
                                     'Nhấn nút scan để bắt đầu kiểm kho',
-                                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.grey,
+                                    ),
                                     textAlign: TextAlign.center,
                                   ),
                                   const SizedBox(height: 8),
@@ -728,7 +869,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
                                 ),
                                 SizedBox(height: 16),
                                 Text(
@@ -753,7 +896,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                     width: 200,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border(left: BorderSide(color: Colors.grey.shade300)),
+                      border: Border(
+                        left: BorderSide(color: Colors.grey.shade300),
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.1),
@@ -780,7 +925,8 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.close, size: 16),
-                                onPressed: () => setState(() => _showChecklist = false),
+                                onPressed: () =>
+                                    setState(() => _showChecklist = false),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
                               ),
@@ -795,9 +941,16 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                             itemBuilder: (context, index) {
                               final item = _scannedItems[index];
                               return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
@@ -808,17 +961,24 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             '${item['type']} ${item['name']}',
-                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           Text(
                                             item['identifier'],
-                                            style: TextStyle(fontSize: 9, color: Colors.grey[600]),
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              color: Colors.grey[600],
+                                            ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
@@ -929,7 +1089,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                       side: BorderSide(
-                        color: isSelected ? const Color(0xFF2962FF) : Colors.grey.shade300,
+                        color: isSelected
+                            ? const Color(0xFF2962FF)
+                            : Colors.grey.shade300,
                         width: isSelected ? 2 : 1,
                       ),
                     ),
@@ -944,13 +1106,21 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                             Row(
                               children: [
                                 Icon(
-                                  zone.isCompleted ? Icons.check_circle : Icons.location_on,
-                                  color: zone.isCompleted ? Colors.green : const Color(0xFF2962FF),
+                                  zone.isCompleted
+                                      ? Icons.check_circle
+                                      : Icons.location_on,
+                                  color: zone.isCompleted
+                                      ? Colors.green
+                                      : const Color(0xFF2962FF),
                                   size: 20,
                                 ),
                                 const Spacer(),
                                 if (isSelected)
-                                  const Icon(Icons.check, color: Color(0xFF2962FF), size: 16),
+                                  const Icon(
+                                    Icons.check,
+                                    color: Color(0xFF2962FF),
+                                    size: 16,
+                                  ),
                               ],
                             ),
                             const SizedBox(height: 4),
@@ -959,7 +1129,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
-                                color: isSelected ? const Color(0xFF2962FF) : Colors.black87,
+                                color: isSelected
+                                    ? const Color(0xFF2962FF)
+                                    : Colors.black87,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -1017,10 +1189,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                     ),
                     Text(
                       zone.description,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),

@@ -8,6 +8,7 @@ import '../data/db_helper.dart';
 import '../models/sale_order_model.dart';
 import '../models/repair_model.dart';
 import '../services/user_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/money_utils.dart';
 
@@ -841,6 +842,7 @@ class _CashClosingViewState extends State<CashClosingView>
     cashEndCtrl.text = expectedCash.toString();
     bankEndCtrl.text = expectedBank.toString();
     noteCtrl.clear();
+    bool isSavingClosing = false;
     showModalBottomSheet(
       context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(builder: (context, setModalState) {
@@ -849,6 +851,7 @@ class _CashClosingViewState extends State<CashClosingView>
         final cashDiff = actualCash - expectedCash;
         final bankDiff = actualBank - expectedBank;
         final hasDiff = cashDiff != 0 || bankDiff != 0;
+        final canSubmit = !hasDiff || noteCtrl.text.trim().isNotEmpty;
         return Container(
           padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -867,19 +870,29 @@ class _CashClosingViewState extends State<CashClosingView>
                 const SizedBox(height: 16),
                 TextField(
                   controller: noteCtrl, maxLines: 2,
+                  onChanged: (_) => setModalState(() {}),
                   decoration: InputDecoration(labelText: "Ghi chú chênh lệch (bắt buộc)", hintText: "Giải thích lý do chênh lệch...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: Colors.orange.shade50),
                 ),
               ],
               const SizedBox(height: 24),
               Row(children: [
-                Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(ctx), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)), child: const Text("HỦY"))),
+                Expanded(child: OutlinedButton(onPressed: isSavingClosing ? null : () => Navigator.pop(ctx), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)), child: const Text("HỦY"))),
                 const SizedBox(width: 12),
                 Expanded(
                   flex: 2,
                   child: ElevatedButton.icon(
-                    onPressed: (hasDiff && noteCtrl.text.trim().isEmpty) ? null : () async { await _saveClosing(); if (mounted) Navigator.pop(ctx); },
-                    icon: const Icon(Icons.check),
-                    label: const Text("XÁC NHẬN CHỐT"),
+                    onPressed: (!canSubmit || isSavingClosing) ? null : () async {
+                      setModalState(() => isSavingClosing = true);
+                      try {
+                        await _saveClosing();
+                        if (mounted) Navigator.pop(ctx);
+                      } catch (e) {
+                        setModalState(() => isSavingClosing = false);
+                        NotificationService.showSnackBar("Lỗi: $e", color: Colors.red);
+                      }
+                    },
+                    icon: isSavingClosing ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.check),
+                    label: Text(isSavingClosing ? "ĐANG LƯU..." : "XÁC NHẬN CHỐT"),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
                   ),
                 ),

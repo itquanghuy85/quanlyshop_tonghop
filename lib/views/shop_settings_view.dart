@@ -9,6 +9,7 @@ import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../services/data_migration_service.dart';
+import '../services/sync_service.dart';
 import '../widgets/validated_text_field.dart';
 import 'adjustment_history_view.dart';
 
@@ -317,6 +318,13 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                     _buildSection("KHÔI PHỤC DỮ LIỆU"),
                     const SizedBox(height: 16),
                     _buildDataMigrationSection(),
+
+                    const SizedBox(height: 32),
+
+                    // Download Shop Data Section
+                    _buildSection("TẢI DỮ LIỆU SHOP"),
+                    const SizedBox(height: 16),
+                    _buildDownloadShopDataSection(),
 
                     const SizedBox(height: 32),
 
@@ -907,6 +915,212 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       case 'employee': return 'Nhân viên';
       default: return 'Thành viên';
     }
+  }
+
+  Widget _buildDownloadShopDataSection() {
+    return Column(
+      children: [
+        Card(
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.cloud_download, color: Colors.blue.shade700),
+            ),
+            title: const Text(
+              'Tải dữ liệu từ cloud',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text(
+              'Đồng bộ dữ liệu shop về máy này',
+              style: TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _showDownloadDataDialog,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Dành cho nhân viên mới hoặc khi cần đồng bộ lại dữ liệu từ cloud. Quá trình có thể mất vài phút.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showDownloadDataDialog() async {
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.cloud_download, color: Colors.blue.shade600),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                "TẢI DỮ LIỆU SHOP",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(color: Colors.black87, fontSize: 14),
+                children: [
+                  const TextSpan(text: 'Tải dữ liệu của shop '),
+                  TextSpan(
+                    text: '"$_shopName"',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  const TextSpan(text: ' từ đám mây về máy này.'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDataItem(Icons.build, 'Đơn sửa chữa'),
+                  _buildDataItem(Icons.shopping_cart, 'Đơn bán hàng'),
+                  _buildDataItem(Icons.inventory, 'Sản phẩm trong kho'),
+                  _buildDataItem(Icons.receipt, 'Công nợ & Chi phí'),
+                  _buildDataItem(Icons.people, 'Khách hàng & NCC'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Chỉ tải dữ liệu của shop này, không ảnh hưởng shop khác.',
+                      style: TextStyle(fontSize: 11, color: Colors.orange.shade800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Quá trình có thể mất vài phút tùy lượng dữ liệu.",
+              style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("HỦY"),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.download, size: 18),
+            label: const Text("BẮT ĐẦU TẢI"),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      // Show loading overlay
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => PopScope(
+          canPop: false,
+          child: AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text(
+                  'Đang tải dữ liệu shop...',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Vui lòng đợi trong giây lát',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      try {
+        await SyncService.downloadAllFromCloud();
+        if (mounted) Navigator.of(context).pop(); // Close loading dialog
+        NotificationService.showSnackBar(
+          "✅ Đã tải xong dữ liệu shop!",
+          color: Colors.green,
+        );
+      } catch (e) {
+        if (mounted) Navigator.of(context).pop(); // Close loading dialog
+        NotificationService.showSnackBar("❌ Lỗi: $e", color: Colors.red);
+      }
+    }
+  }
+
+  Widget _buildDataItem(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.blue.shade600),
+          const SizedBox(width: 8),
+          Text(text, style: const TextStyle(fontSize: 13)),
+        ],
+      ),
+    );
   }
 
   Widget _buildLocationSection() {
