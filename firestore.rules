@@ -173,11 +173,12 @@ service cloud.firestore {
       allow read: if isAuth();
       
       // CREATE: Own profile only, cannot self-assign admin roles
+      // Allow 'owner' role ONLY when user creates their own profile (new signup)
       allow create: if isAuth() && 
                        uid() == userId &&
                        has(['email']) &&
                        (!('role' in request.resource.data) || 
-                        request.resource.data.role in ['user', 'employee', 'technician']);
+                        request.resource.data.role in ['user', 'employee', 'technician', 'owner']);
       
       // UPDATE: Own profile OR manager of same shop
       // CRITICAL: Protected fields enforced
