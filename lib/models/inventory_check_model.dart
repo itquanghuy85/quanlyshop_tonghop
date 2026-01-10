@@ -1,7 +1,7 @@
 class InventoryCheck {
   int? id;
   String? firestoreId;
-  String checkType; // 'PHONE' hoặc 'ACCESSORY'
+  String checkType; // 'PHONE' hoặc 'PHỤ KIỆN'
   int checkDate;
   String checkedBy;
   List<InventoryCheckItem> items;
@@ -57,7 +57,7 @@ class InventoryCheck {
 class InventoryCheckItem {
   String itemId; // firestoreId của Product hoặc Part
   String itemName;
-  String itemType; // 'PHONE' hoặc 'ACCESSORY'
+  String itemType; // 'PHONE' hoặc 'PHỤ KIỆN'
   String? imei;
   String? color;
   int quantity;

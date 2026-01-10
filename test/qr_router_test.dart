@@ -34,14 +34,14 @@ void main() {
       expect(QRParser.getType(result), 'PHONE');
     });
 
-    test('Parse ACCESSORY QR correctly', () {
-      const qrData = 'type=ACCESSORY&code=CASE001';
+    test('Parse PHỤ KIỆN QR correctly', () {
+      const qrData = 'type=PHỤ KIỆN&code=CASE001';
       final result = QRParser.parse(qrData);
 
-      expect(result['type'], 'ACCESSORY');
+      expect(result['type'], 'PHỤ KIỆN');
       expect(result['code'], 'CASE001');
       expect(QRParser.isValidQR(result), true);
-      expect(QRParser.getType(result), 'ACCESSORY');
+      expect(QRParser.getType(result), 'PHỤ KIỆN');
     });
 
     test('Handle invalid QR (missing type)', () {

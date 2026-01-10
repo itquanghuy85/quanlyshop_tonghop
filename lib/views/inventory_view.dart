@@ -1393,7 +1393,7 @@ class _InventoryViewState extends State<InventoryView>
                     child: Text("📱 Điện thoại"),
                   ),
                   DropdownMenuItem(
-                    value: "ACCESSORY",
+                    value: "PHỤ KIỆN",
                     child: Text("🔧 Phụ kiện"),
                   ),
                 ],
@@ -2267,7 +2267,7 @@ class _InventoryViewState extends State<InventoryView>
                         child: Text("ĐIỆN THOẠI"),
                       ),
                       DropdownMenuItem(
-                        value: "ACCESSORY",
+                        value: "PHỤ KIỆN",
                         child: Text("PHỤ KIỆN"),
                       ),
                     ],
@@ -2610,7 +2610,7 @@ class _InventoryViewState extends State<InventoryView>
                         child: Text("ĐIỆN THOẠI"),
                       ),
                       DropdownMenuItem(
-                        value: "ACCESSORY",
+                        value: "PHỤ KIỆN",
                         child: Text("PHỤ KIỆN"),
                       ),
                     ],

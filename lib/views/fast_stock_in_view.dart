@@ -206,7 +206,7 @@ class _FastStockInViewState extends State<FastStockInView> {
     }
 
     // For accessories, set quantity to 1 by default (user can change)
-    if (code.type == 'ACCESSORY') {
+    if (code.type == 'PHỤ KIỆN') {
       quantityCtrl.text = '1';
     }
   }

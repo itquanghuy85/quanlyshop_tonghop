@@ -8,7 +8,7 @@ class QRRouter {
   static const String TYPE_ORDER = 'ORDER';
   static const String TYPE_REPAIR = 'REPAIR';
   static const String TYPE_PHONE = 'PHONE';
-  static const String TYPE_ACCESSORY = 'ACCESSORY';
+  static const String TYPE_PHU_KIEN = 'PHỤ KIỆN';
 
   /// Central QR routing method
   /// Automatically routes based on QR type
@@ -41,7 +41,7 @@ class QRRouter {
         case TYPE_PHONE:
           await _handlePhoneInventoryQR(context, qrMap);
           break;
-        case TYPE_ACCESSORY:
+        case TYPE_PHU_KIEN:
           await _handleAccessoryInventoryQR(context, qrMap);
           break;
         default:
@@ -163,7 +163,7 @@ class QRRouter {
     _showInventoryResult(context, 'Điện thoại', product.name, imei, code);
   }
 
-  /// Handle ACCESSORY inventory type QR
+  /// Handle PHỤ KIỆN inventory type QR
   static Future<void> _handleAccessoryInventoryQR(BuildContext context, Map<String, String> qrMap) async {
     final code = qrMap['code'];
     if (code == null || code.isEmpty) {

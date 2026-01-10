@@ -38,9 +38,12 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    // ═══════════ 1.2 SUPER ADMIN (from isSuperAdmin claim) ═══════════
+    // ═══════════ 1.2 SUPER ADMIN (from isSuperAdmin claim OR email fallback) ═══════════
     function isSuperAdmin() {
-      return isAuth() && request.auth.token.isSuperAdmin == true;
+      return isAuth() && (
+        request.auth.token.isSuperAdmin == true ||
+        request.auth.token.email == 'admin@huluca.com'
+      );
     }
 
     // ═══════════ 1.3 MULTI-TENANT ISOLATION ═══════════

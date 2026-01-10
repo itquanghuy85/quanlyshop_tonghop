@@ -180,14 +180,16 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
     
     // Super admin: Tự động logout khi thoát app (paused/detached) để bảo mật
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null && user.email?.toLowerCase() == 'admin@huluca.com') {
-        debugPrint('🔒 Super admin leaving app - signing out for security...');
-        UserService.clearCache();
-        FirebaseAuth.instance.signOut();
-      }
-    }
+    // NOTE: Tạm tắt để Super Admin có thể sync claims trước
+    // TODO: Bật lại sau khi claims đã được sync
+    // if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    //   final user = FirebaseAuth.instance.currentUser;
+    //   if (user != null && user.email?.toLowerCase() == 'admin@huluca.com') {
+    //     debugPrint('🔒 Super admin leaving app - signing out for security...');
+    //     UserService.clearCache();
+    //     FirebaseAuth.instance.signOut();
+    //   }
+    // }
   }
 
   void _initNotificationListener() {

@@ -1089,7 +1089,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildTypeChip(
-                              'ACCESSORY',
+                              'PHỤ KIỆN',
                               'Phụ kiện',
                               Icons.inventory_2,
                               Colors.orange,

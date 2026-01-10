@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/user_service.dart';
 import '../services/sync_service.dart';
+import '../services/claims_service.dart';
 import '../data/db_helper.dart';
 import 'home_view.dart';
 
@@ -20,6 +21,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
   List<Map<String, dynamic>> _shops = [];
   bool _loading = true;
   bool _switching = false;
+  bool _isSyncingClaims = false;
   String? _selectedShopId;
   String? _error;
 
@@ -228,6 +230,9 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
           ),
         ),
 
+        // Claims Sync Card
+        _buildClaimsSyncCard(),
+
         // Shop list
         Expanded(
           child: ListView.builder(
@@ -327,5 +332,115 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
         ),
       ],
     );
+  }
+
+  /// Build Claims Sync Card
+  Widget _buildClaimsSyncCard() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Đồng bộ Custom Claims',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Nếu các tài khoản không thể truy cập dữ liệu, hãy bấm nút bên dưới để đồng bộ quyền truy cập cho tất cả user.',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isSyncingClaims ? null : _syncAllClaims,
+              icon: _isSyncingClaims
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.cloud_sync),
+              label: Text(_isSyncingClaims ? 'Đang đồng bộ...' : 'ĐỒNG BỘ TẤT CẢ CLAIMS'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Sync all claims for all users
+  Future<void> _syncAllClaims() async {
+    setState(() => _isSyncingClaims = true);
+
+    try {
+      final result = await ClaimsService().batchSyncAllClaims();
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        // Safely cast stats map
+        final statsRaw = result['stats'];
+        final stats = statsRaw is Map ? Map<String, dynamic>.from(statsRaw) : <String, dynamic>{};
+        final total = stats['total'] ?? 0;
+        final success = stats['success'] ?? 0;
+        final skipped = stats['skipped'] ?? 0;
+        final failed = stats['failed'] ?? 0;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ Đồng bộ hoàn tất!\n'
+              'Tổng: $total | Thành công: $success | Bỏ qua: $skipped | Lỗi: $failed',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Lỗi: ${result['error'] ?? 'Không xác định'}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Lỗi: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncingClaims = false);
+      }
+    }
   }
 }

@@ -31,7 +31,7 @@ class _StockInViewState extends State<StockInView> {
   bool _saving = false;
 
   // Controllers
-  final typeCtrl = TextEditingController(text: 'PHONE');
+  final typeCtrl = TextEditingController(text: 'ĐIỆN THOẠI');
   final brandCtrl = TextEditingController();
   final modelCtrl = TextEditingController();
   final capacityCtrl = TextEditingController();
@@ -77,13 +77,13 @@ class _StockInViewState extends State<StockInView> {
   bool _notesChanged = false;
 
   // Dropdown options
-  final List<String> types = ['PHONE', 'ACCESSORY', 'LINHKIEN'];
+  final List<String> types = ['ĐIỆN THOẠI', 'PHỤ KIỆN', 'LINH KIỆN'];
   // Đồng bộ với fast_stock_in_view.dart
   final List<String> conditions = ['MỚI', '99', 'KHÁC'];
   List<Map<String, dynamic>> suppliers = [];
 
   // Computed property to check if current type is accessory or linh kiện
-  bool get _isAccessoryOrLinhKien => typeCtrl.text == 'ACCESSORY' || typeCtrl.text == 'LINHKIEN';
+  bool get _isAccessoryOrLinhKien => typeCtrl.text == 'PHỤ KIỆN' || typeCtrl.text == 'LINHKIEN';
 
   @override
   void initState() {
@@ -124,7 +124,7 @@ class _StockInViewState extends State<StockInView> {
   void _fillPrefilledData() {
     final data = widget.prefilledData!;
     setState(() {
-      typeCtrl.text = data['type'] ?? 'PHONE';
+      typeCtrl.text = data['type'] ?? 'ĐIỆN THOẠI';
       brandCtrl.text = data['brand'] ?? '';
       modelCtrl.text = data['model'] ?? '';
       capacityCtrl.text = data['capacity'] ?? '';
@@ -828,7 +828,7 @@ class _StockInViewState extends State<StockInView> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: CurrencyTextField(
                   controller: priceCtrl,
-                  label: typeCtrl.text == 'ACCESSORY' ? 'Giá (VNĐ)' : 'Giá thay (VNĐ)',
+                  label: typeCtrl.text == 'PHỤ KIỆN' ? 'Giá (VNĐ)' : 'Giá thay (VNĐ)',
                   icon: Icons.sell,
                   autoMultiply1000: true,
                   onSubmitted: () => FocusScope.of(context).requestFocus(notesF),

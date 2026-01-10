@@ -95,7 +95,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       // Load accessories (quantity-based inventory)
       final accessories = await db.getInStockProducts();
       final accessoryProducts = accessories
-          .where((p) => p.type == 'ACCESSORY')
+          .where((p) => p.type == 'PHỤ KIỆN')
           .toList();
 
       // Group accessories by code and count quantities
@@ -276,7 +276,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
 
       if (type == 'PHONE') {
         _handlePhoneScan(qrMap);
-      } else if (type == 'ACCESSORY') {
+      } else if (type == 'PHỤ KIỆN') {
         _handleAccessoryScan(qrMap);
       } else {
         // Try to handle legacy QR codes (just IMEI) or other formats
@@ -394,7 +394,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             name: 'Phụ kiện không xác định',
             brand: '',
             createdAt: 0,
-            type: 'ACCESSORY',
+            type: 'PHỤ KIỆN',
           ),
         )
         .name;
@@ -464,7 +464,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       }
       // Check if it's text (accessory code)
       else if (qrData.isNotEmpty) {
-        final legacyQrMap = {'code': qrData, 'type': 'ACCESSORY'};
+        final legacyQrMap = {'code': qrData, 'type': 'PHỤ KIỆN'};
         _handleAccessoryScan(legacyQrMap);
         return;
       }
@@ -499,10 +499,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         // Handle as phone
         final legacyQrMap = {'imei': product.imei!, 'type': 'PHONE'};
         _handlePhoneScan(legacyQrMap);
-      } else if (product.type == 'ACCESSORY') {
+      } else if (product.type == 'PHỤ KIỆN') {
         // Handle as accessory using firestoreId or id as code
         final code = product.firestoreId ?? product.id.toString();
-        final legacyQrMap = {'code': code, 'type': 'ACCESSORY'};
+        final legacyQrMap = {'code': code, 'type': 'PHỤ KIỆN'};
         _handleAccessoryScan(legacyQrMap);
       } else {
         HapticFeedback.vibrate();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/user_service.dart';
+import '../services/claims_service.dart';
 
 String getRoleDisplayName(String role) {
   switch (role) {
@@ -53,8 +54,65 @@ class SuperAdminView extends StatelessWidget {
   }
 }
 
-class ShopsTab extends StatelessWidget {
+class ShopsTab extends StatefulWidget {
   const ShopsTab({super.key});
+
+  @override
+  State<ShopsTab> createState() => _ShopsTabState();
+}
+
+class _ShopsTabState extends State<ShopsTab> {
+  bool _isSyncingClaims = false;
+
+  Future<void> _syncAllClaims() async {
+    setState(() => _isSyncingClaims = true);
+    
+    try {
+      final result = await ClaimsService().batchSyncAllClaims();
+      
+      if (!mounted) return;
+      
+      if (result['success'] == true) {
+        // Safely cast stats map
+        final statsRaw = result['stats'];
+        final stats = statsRaw is Map ? Map<String, dynamic>.from(statsRaw) : <String, dynamic>{};
+        final total = stats['total'] ?? 0;
+        final success = stats['success'] ?? 0;
+        final skipped = stats['skipped'] ?? 0;
+        final failed = stats['failed'] ?? 0;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ Đồng bộ hoàn tất!\n'
+              'Tổng: $total | Thành công: $success | Bỏ qua: $skipped | Lỗi: $failed',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Lỗi: ${result['error'] ?? 'Không xác định'}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Lỗi: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncingClaims = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +136,8 @@ class ShopsTab extends StatelessWidget {
           padding: const EdgeInsets.all(15),
           children: [
             _buildIntroCard(context),
+            const SizedBox(height: 12),
+            _buildClaimsSyncCard(),
             const SizedBox(height: 12),
             _buildStatsCard(shops.length),
             const SizedBox(height: 12),
@@ -406,6 +466,59 @@ class ShopsTab extends StatelessWidget {
             Text(
               'Ứng dụng được xây dựng và vận hành bởi HULUCA (admin@huluca.com) với mục tiêu hỗ trợ các cửa hàng sửa chữa điện thoại vừa và nhỏ quản lý công việc hiệu quả, minh bạch và chuyên nghiệp hơn.',
               style: TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildClaimsSyncCard() {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: Colors.deepPurple.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.sync, color: Colors.deepPurple),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Đồng bộ Custom Claims',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Sau khi thay đổi Firestore Rules để sử dụng Custom Claims, bạn cần đồng bộ claims cho TẤT CẢ user để họ có thể truy cập được dữ liệu.',
+              style: TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isSyncingClaims ? null : _syncAllClaims,
+                icon: _isSyncingClaims 
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.cloud_sync),
+                label: Text(_isSyncingClaims ? 'Đang đồng bộ...' : 'ĐỒNG BỘ TẤT CẢ CLAIMS'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
             ),
           ],
         ),

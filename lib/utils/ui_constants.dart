@@ -296,7 +296,7 @@ extension UIConstantsExtension on BuildContext {
     if (name.startsWith("IP-") || name.contains("IPHONE")) return UIConstants.brandIPhone;
     if (name.startsWith("SS-") || name.contains("SAMSUNG")) return UIConstants.brandSamsung;
     if (name.startsWith("PIN-") || name.startsWith("MH-")) return UIConstants.brandParts;
-    if (name.startsWith("PK-") || name.startsWith("ACCESSORY")) return UIConstants.brandAccessory;
+    if (name.startsWith("PK-") || name.startsWith("PHỤ KIỆN")) return UIConstants.brandAccessory;
     return UIConstants.brandOther;
   }
 

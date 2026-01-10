@@ -1388,7 +1388,7 @@ abstract class AppLocalizations {
   /// No description provided for @accessory.
   ///
   /// In en, this message translates to:
-  /// **'ACCESSORY'**
+  /// **'PHỤ KIỆN'**
   String get accessory;
 
   /// No description provided for @productName.
