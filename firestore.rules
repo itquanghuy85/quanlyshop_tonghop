@@ -3,101 +3,168 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // ============================================================
     // PRODUCTION SECURITY RULES - Quản Lý Shop (HULUCA)
-    // Version: 2.0 | Date: 2026-01-10
+    // Version: 3.0 | Date: 2026-01-10
+    // Author: Firebase Security Architect
     // ============================================================
     // 
     // ARCHITECTURE:
-    // - Multi-tenant: Each shop isolated by shopId
-    // - Role-based: owner, manager, employee, technician, user
+    // - Multi-tenant: Each shop isolated by shopId via Custom Claims
+    // - Role-based: owner > manager > employee > technician
     // - Super Admin: admin@huluca.com has global access
     //
     // SECURITY PRINCIPLES:
-    // 1. All writes require authentication
-    // 2. Data isolation by shopId
-    // 3. Schema validation on writes
-    // 4. Protected sensitive fields (role, isAdmin, balance)
-    // 5. Soft deletes (deleted: true) instead of hard deletes
+    // 1. All read/write require authentication (request.auth != null)
+    // 2. Data isolation by shopId from Custom Claims
+    // 3. Schema validation on all writes
+    // 4. Protected fields: role, isAdmin, balance, ownerUid, shopId
+    // 5. Soft deletes only (allow delete: if false)
+    // 6. Super Admin bypasses all restrictions
+    //
+    // CUSTOM CLAIMS REQUIRED:
+    // - shopId: string (assigned shop)
+    // - role: string (owner|manager|employee|technician)
+    // Set via Cloud Functions when user joins shop
     // ============================================================
 
-    // ==================== HELPER FUNCTIONS ====================
+    // ==================== CORE AUTHENTICATION ====================
     
-    // Check if user is authenticated
+    // [AUTH-01] Check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
     
-    // Check if user is super admin (admin@huluca.com)
+    // [AUTH-02] Check if user is super admin (admin@huluca.com)
+    // Super admin bypasses ALL shop restrictions
     function isSuperAdmin() {
       return isAuthenticated() && 
              request.auth.token.email == 'admin@huluca.com';
     }
     
-    // Get current user's UID
+    // [AUTH-03] Get current user's UID
     function currentUserId() {
       return request.auth.uid;
     }
+
+    // ==================== MULTI-TENANT ISOLATION ====================
+    // Uses Custom Claims for performance (no extra Firestore reads)
+    // Fallback to Firestore read if claims not set
     
-    // Get user document data
+    // [TENANT-01] Get user's shopId from Custom Claims (primary)
+    function getClaimShopId() {
+      return request.auth.token.shopId;
+    }
+    
+    // [TENANT-02] Get user's shopId from Firestore (fallback)
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
-    // Get user's shopId
-    function getUserShopId() {
+    function getFirestoreShopId() {
       return getUserData().shopId;
     }
     
-    // Check if user belongs to the shop
+    // [TENANT-03] Get effective shopId (claims first, then Firestore)
+    function getUserShopId() {
+      return getClaimShopId() != null ? getClaimShopId() : getFirestoreShopId();
+    }
+    
+    // [TENANT-04] Check if user belongs to a specific shop
     function belongsToShop(shopId) {
       return isSuperAdmin() || getUserShopId() == shopId;
     }
     
-    // Check if document belongs to user's shop
+    // [TENANT-05] Check if existing document belongs to user's shop
     function docBelongsToUserShop() {
-      return isSuperAdmin() || resource.data.shopId == getUserShopId();
+      return isSuperAdmin() || 
+             (resource.data.shopId != null && resource.data.shopId == getUserShopId());
     }
     
-    // Check if incoming data has valid shopId
+    // [TENANT-06] Check if incoming data has valid shopId (must match user's shop)
     function incomingShopIdValid() {
-      return isSuperAdmin() || request.resource.data.shopId == getUserShopId();
+      return isSuperAdmin() || 
+             request.resource.data.shopId == getUserShopId();
     }
     
-    // Get user role
+    // [TENANT-07] Ensure shopId cannot be changed after creation
+    function shopIdNotChanged() {
+      return !('shopId' in request.resource.data) || 
+             request.resource.data.shopId == resource.data.shopId;
+    }
+
+    // ==================== ROLE-BASED ACCESS CONTROL ====================
+    // Hierarchy: owner > manager > employee > technician
+    // Uses Custom Claims for performance
+    
+    // [RBAC-01] Get user's role from Custom Claims (primary)
+    function getClaimRole() {
+      return request.auth.token.role;
+    }
+    
+    // [RBAC-02] Get effective role (claims first, then Firestore)
     function getUserRole() {
-      return getUserData().role;
+      return getClaimRole() != null ? getClaimRole() : getUserData().role;
     }
     
-    // Check role hierarchy
+    // [RBAC-03] Role hierarchy checks
     function isOwner() {
       return isSuperAdmin() || getUserRole() == 'owner';
     }
     
-    function isManager() {
+    function isManagerOrAbove() {
       return isOwner() || getUserRole() == 'manager';
     }
     
+    function isEmployeeOrAbove() {
+      return isManagerOrAbove() || getUserRole() == 'employee';
+    }
+    
+    function isTechnicianOrAbove() {
+      return isManagerOrAbove() || getUserRole() == 'technician';
+    }
+    
+    // [RBAC-04] Alias functions for readability
+    function isManager() {
+      return isManagerOrAbove();
+    }
+    
     function isEmployee() {
-      return isManager() || getUserRole() == 'employee';
+      return isEmployeeOrAbove();
     }
     
-    function isTechnician() {
-      return isManager() || getUserRole() == 'technician';
+    // [RBAC-05] Technician can only access assigned repairs
+    function isAssignedTechnician(repairDoc) {
+      return getUserRole() == 'technician' && 
+             repairDoc.data.repairedBy == currentUserId();
+    }
+
+    // ==================== PROTECTED FIELDS ====================
+    // These fields CANNOT be modified by client
+    
+    // [PROTECT-01] List of absolutely protected fields
+    function protectedFieldsNotModified() {
+      let protected = ['role', 'isAdmin', 'isSuperAdmin', 'balance', 'ownerUid'];
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(protected);
     }
     
-    // Check if field is being modified
+    // [PROTECT-02] Check if specific field changed
     function fieldChanged(field) {
-      return request.resource.data[field] != resource.data[field];
+      return field in request.resource.data && 
+             field in resource.data &&
+             request.resource.data[field] != resource.data[field];
     }
     
-    // Check if sensitive fields are NOT being modified
-    function sensitiveFieldsProtected() {
-      return !request.resource.data.diff(resource.data).affectedKeys()
-              .hasAny(['role', 'isAdmin', 'isSuperAdmin', 'balance', 'ownerUid']);
+    // [PROTECT-03] Ensure shopId not changed on update
+    function shopIdProtected() {
+      return !fieldChanged('shopId');
     }
+
+    // ==================== SCHEMA VALIDATION ====================
+    // All writes must pass schema validation
     
-    // Validate string field
+    // [SCHEMA-01] Validate required string field
     function isValidString(field, minLen, maxLen) {
-      return request.resource.data[field] is string &&
+      return field in request.resource.data &&
+             request.resource.data[field] is string &&
              request.resource.data[field].size() >= minLen &&
              request.resource.data[field].size() <= maxLen;
     }
@@ -196,8 +263,8 @@ service cloud.firestore {
                        isValidString('customerName', 1, 100) &&
                        isValidString('model', 1, 100) &&
                        isValidInt('status', 1, 4) &&
-                       isNonNegativeInt('price') &&
-                       isNonNegativeInt('cost');
+                       isOptionalInt('price') &&
+                       isOptionalInt('cost');
       
       allow update: if isAuthenticated() && 
                        docBelongsToUserShop() &&
@@ -206,8 +273,8 @@ service cloud.firestore {
                        !fieldChanged('shopId') &&
                        // Schema validation
                        isValidInt('status', 1, 4) &&
-                       isNonNegativeInt('price') &&
-                       isNonNegativeInt('cost');
+                       isOptionalInt('price') &&
+                       isOptionalInt('cost');
       
       // Soft delete only (set deleted: true)
       allow delete: if false; // Use update with deleted: true instead
@@ -224,14 +291,14 @@ service cloud.firestore {
                        request.resource.data.keys().hasAll(['customerName', 'productNames', 'totalPrice', 'soldAt', 'shopId']) &&
                        isValidString('customerName', 1, 100) &&
                        isNonNegativeInt('totalPrice') &&
-                       isNonNegativeInt('totalCost');
+                       isOptionalInt('totalCost');
       
       allow update: if isAuthenticated() && 
                        docBelongsToUserShop() &&
                        incomingShopIdValid() &&
                        !fieldChanged('shopId') &&
                        isNonNegativeInt('totalPrice') &&
-                       isNonNegativeInt('totalCost');
+                       isOptionalInt('totalCost');
       
       allow delete: if false;
     }
@@ -245,17 +312,17 @@ service cloud.firestore {
                        incomingShopIdValid() &&
                        request.resource.data.keys().hasAll(['name', 'shopId']) &&
                        isValidString('name', 1, 200) &&
-                       isNonNegativeInt('cost') &&
-                       isNonNegativeInt('price') &&
-                       isNonNegativeInt('quantity');
+                       isOptionalInt('cost') &&
+                       isOptionalInt('price') &&
+                       isOptionalInt('quantity');
       
       allow update: if isAuthenticated() && 
                        docBelongsToUserShop() &&
                        incomingShopIdValid() &&
                        !fieldChanged('shopId') &&
-                       isNonNegativeInt('cost') &&
-                       isNonNegativeInt('price') &&
-                       isNonNegativeInt('quantity');
+                       isOptionalInt('cost') &&
+                       isOptionalInt('price') &&
+                       isOptionalInt('quantity');
       
       allow delete: if false;
     }
@@ -316,7 +383,7 @@ service cloud.firestore {
                        incomingShopIdValid() &&
                        request.resource.data.keys().hasAll(['personName', 'totalAmount', 'type', 'createdAt', 'shopId']) &&
                        isNonNegativeInt('totalAmount') &&
-                       isNonNegativeInt('paidAmount');
+                       isOptionalInt('paidAmount');
       
       allow update: if isAuthenticated() && 
                        docBelongsToUserShop() &&
@@ -324,7 +391,7 @@ service cloud.firestore {
                        incomingShopIdValid() &&
                        !fieldChanged('shopId') &&
                        isNonNegativeInt('totalAmount') &&
-                       isNonNegativeInt('paidAmount');
+                       isOptionalInt('paidAmount');
       
       allow delete: if false;
     }

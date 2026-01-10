@@ -2,9 +2,36 @@
 
 ## 📋 Tổng quan
 
-**Version:** 2.0  
+**Version:** 3.0  
 **Deploy Date:** 2026-01-10  
 **Status:** Production Ready ✅
+
+## 🆕 Version 3.0 Changes
+
+### Custom Claims Support
+- **Primary**: Sử dụng Custom Claims (`request.auth.token.shopId`, `request.auth.token.role`)
+- **Fallback**: Đọc từ Firestore `/users/{uid}` nếu claims chưa được set
+- **Performance**: Loại bỏ Firestore read mỗi request (tiết kiệm cost)
+
+### Enhanced Role Functions
+```javascript
+// Role hierarchy checks with alias functions
+function isOwner() { return isSuperAdmin() || getUserRole() == 'owner'; }
+function isManagerOrAbove() { return isOwner() || getUserRole() == 'manager'; }
+function isEmployeeOrAbove() { return isManagerOrAbove() || getUserRole() == 'employee'; }
+function isTechnicianOrAbove() { return isManagerOrAbove() || getUserRole() == 'technician'; }
+
+// Alias for readability
+function isManager() { return isManagerOrAbove(); }
+function isEmployee() { return isEmployeeOrAbove(); }
+```
+
+### Schema Validation
+- Tất cả create/update đều validate schema
+- Optional fields được handle đúng (không require nếu null)
+- Protected fields không thể modified bởi client
+
+---
 
 ## 🏗️ Kiến trúc bảo mật
 
@@ -38,8 +65,23 @@ function isAuthenticated() {
 ```
 **Tất cả operations đều yêu cầu đăng nhập.**
 
-### 2. Data Isolation
+### 2. Data Isolation (Custom Claims)
 ```javascript
+// Primary: từ Custom Claims (fast, no read)
+function getClaimShopId() {
+  return request.auth.token.shopId;
+}
+
+// Fallback: từ Firestore (nếu claims chưa set)
+function getFirestoreShopId() {
+  return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.shopId;
+}
+
+// Auto-select best method
+function getUserShopId() {
+  return getClaimShopId() != null ? getClaimShopId() : getFirestoreShopId();
+}
+
 function docBelongsToUserShop() {
   return isSuperAdmin() || resource.data.shopId == getUserShopId();
 }
@@ -47,7 +89,6 @@ function docBelongsToUserShop() {
 **User chỉ đọc/ghi dữ liệu của shop mình.**
 
 ### 3. Schema Validation
-```javascript
 // Validate string
 isValidString('customerName', 1, 100)
 
@@ -143,6 +184,14 @@ firebase firestore:rules:compile firestore.rules
 
 ## 📝 Changelog
 
+### v3.0 (2026-01-10)
+- ✨ Custom Claims support cho performance optimization
+- ✨ Fallback mechanism: Claims → Firestore
+- ✨ Enhanced RBAC với alias functions (`isManager()`, `isEmployee()`)
+- ✨ Optional field validation improvements
+- ✨ Reserved functions cho future use (`isAssignedTechnician`, `shopIdProtected`)
+- 🔧 Fixed schema validation cho optional fields (price, cost, etc.)
+
 ### v2.0 (2026-01-10)
 - Chuyển từ Test Mode sang Production Mode
 - Thêm multi-tenant isolation với shopId
@@ -154,6 +203,106 @@ firebase firestore:rules:compile firestore.rules
 
 ### v1.0 (Legacy)
 - Test mode: `allow read, write: if request.auth != null`
+
+---
+
+## ⚡ Custom Claims Setup (Cloud Functions)
+
+### Tại sao cần Custom Claims?
+- **Performance**: Không cần Firestore read mỗi request
+- **Cost**: Giảm số lượng reads đáng kể
+- **Security**: Claims được Firebase verify, không thể giả mạo
+
+### Cloud Function để set Custom Claims
+
+```javascript
+// functions/index.js
+const functions = require('firebase-functions');
+const admin = require('firebase-admin');
+admin.initializeApp();
+
+// Set claims when user joins a shop
+exports.setUserClaims = functions.firestore
+  .document('users/{userId}')
+  .onWrite(async (change, context) => {
+    const userId = context.params.userId;
+    const userData = change.after.data();
+    
+    if (!userData) return; // User deleted
+    
+    const customClaims = {
+      shopId: userData.shopId || null,
+      role: userData.role || 'user',
+    };
+    
+    try {
+      await admin.auth().setCustomUserClaims(userId, customClaims);
+      console.log(`Set claims for ${userId}:`, customClaims);
+      
+      // Mark claims as synced
+      await change.after.ref.update({
+        claimsSynced: true,
+        claimsSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error setting claims:', error);
+    }
+  });
+
+// Manual claim refresh (callable)
+exports.refreshClaims = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
+  }
+  
+  const userId = context.auth.uid;
+  const userDoc = await admin.firestore().doc(`users/${userId}`).get();
+  const userData = userDoc.data();
+  
+  if (!userData) {
+    throw new functions.https.HttpsError('not-found', 'User not found');
+  }
+  
+  const customClaims = {
+    shopId: userData.shopId || null,
+    role: userData.role || 'user',
+  };
+  
+  await admin.auth().setCustomUserClaims(userId, customClaims);
+  return { success: true, claims: customClaims };
+});
+```
+
+### Deploy Cloud Function
+```bash
+cd functions
+npm install
+firebase deploy --only functions:setUserClaims,functions:refreshClaims
+```
+
+### Refresh Token trong Flutter App
+```dart
+// Sau khi user join shop hoặc role thay đổi
+Future<void> refreshUserClaims() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    // Force token refresh để lấy claims mới
+    await user.getIdToken(true);
+  }
+}
+
+// Hoặc gọi Cloud Function
+Future<void> callRefreshClaims() async {
+  final callable = FirebaseFunctions.instance.httpsCallable('refreshClaims');
+  final result = await callable.call();
+  print('Claims refreshed: ${result.data}');
+  
+  // Force token refresh
+  await FirebaseAuth.instance.currentUser?.getIdToken(true);
+}
+```
+
+---
 
 ## 🔗 Related Files
 - [firestore.rules](../firestore.rules) - Rules file
