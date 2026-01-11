@@ -462,10 +462,6 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     // Lấy linh kiện từ CẢ 2 nguồn: repair_parts (kho cũ) + products type='LINH KIỆN' (kho mới)
     final parts = await db.getAllPartsUnified();
-    debugPrint('🔧 Parts loaded: ${parts.length} items');
-    for (var p in parts) {
-      debugPrint('  - ${p['partName']} (${p['source']}): qty=${p['quantity']}');
-    }
     if (parts.isEmpty) {
       // Thử load products để xem có nhưng chưa đánh đúng loại
       final allProducts = await db.getAllProducts();
@@ -486,202 +482,39 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       return;
     }
 
-    // Map để lưu số lượng chọn cho mỗi part (key = "source_id")
-    final Map<String, int> selectedQuantities = {};
-
-    final result = await showDialog<bool>(
+    // Hiển thị dialog chọn linh kiện
+    final result = await showDialog<Map<String, int>?>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.inventory_2, color: Colors.purple),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  "CHỌN PHỤ TÙNG / LINH KIỆN",
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
-            ],
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 400,
-            child: ListView.builder(
-              itemCount: parts.length,
-              itemBuilder: (context, index) {
-                final part = parts[index];
-                final partId = part['id'] as int;
-                final source = part['source'] as String;
-                final uniqueKey = "${source}_$partId";
-                final partName = part['partName'] ?? '';
-                final partQty = part['quantity'] as int? ?? 0;
-                final partCost = part['cost'] as int? ?? 0;
-                final partPrice = part['price'] as int? ?? 0;
-                final selectedQty = selectedQuantities[uniqueKey] ?? 0;
-                final isFromProducts = source == 'products';
-
-                return Card(
-                  color: isFromProducts ? Colors.blue.shade50 : null,
-                  child: ListTile(
-                    leading: Icon(
-                      isFromProducts ? Icons.inventory : Icons.build,
-                      color: isFromProducts ? Colors.blue : Colors.purple,
-                      size: 20,
-                    ),
-                    title: Text(
-                      partName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(
-                              "Tồn: $partQty",
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isFromProducts
-                                    ? Colors.blue.withOpacity(0.2)
-                                    : Colors.purple.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                isFromProducts ? "Kho tổng" : "Kho cũ",
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: isFromProducts
-                                      ? Colors.blue
-                                      : Colors.purple,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          "Vốn: ${MoneyUtils.formatCurrency(partCost)} | Bán: ${MoneyUtils.formatCurrency(partPrice)}",
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                      ],
-                    ),
-                    trailing: partQty > 0
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.remove_circle_outline,
-                                  size: 20,
-                                ),
-                                onPressed: selectedQty > 0
-                                    ? () => setDialogState(() {
-                                        selectedQuantities[uniqueKey] =
-                                            selectedQty - 1;
-                                        if (selectedQuantities[uniqueKey] ==
-                                            0) {
-                                          selectedQuantities.remove(uniqueKey);
-                                        }
-                                      })
-                                    : null,
-                              ),
-                              Text(
-                                '$selectedQty',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.add_circle_outline,
-                                  size: 20,
-                                ),
-                                onPressed: selectedQty < partQty
-                                    ? () => setDialogState(() {
-                                        selectedQuantities[uniqueKey] =
-                                            selectedQty + 1;
-                                      })
-                                    : null,
-                              ),
-                            ],
-                          )
-                        : const Text(
-                            "Hết hàng",
-                            style: TextStyle(color: Colors.red, fontSize: 12),
-                          ),
-                  ),
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text("HỦY"),
-            ),
-            ElevatedButton(
-              onPressed: selectedQuantities.isNotEmpty
-                  ? () => Navigator.pop(ctx, true)
-                  : null,
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
-              child: const Text(
-                "XÁC NHẬN",
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
+      builder: (ctx) => _PartsSelectionDialog(parts: parts),
     );
 
-    if (result == true && selectedQuantities.isNotEmpty) {
-      debugPrint('🔧 Parts selection confirmed: ${selectedQuantities.length} items selected');
+    if (result != null && result.isNotEmpty) {
       int totalCost = 0;
       List<String> usedParts = [];
 
-      for (var entry in selectedQuantities.entries) {
+      for (var entry in result.entries) {
         final uniqueKey = entry.key;
         final qty = entry.value;
-        debugPrint('🔧 Processing: $uniqueKey x$qty');
 
-        // Parse uniqueKey = "source_id"
-        final keyParts = uniqueKey.split('_');
-        final source = keyParts[0];
-        final partId = int.parse(keyParts[1]);
-        debugPrint('🔧 Parsed: source=$source, partId=$partId');
+        // Parse uniqueKey = "source_id" (source có thể chứa underscore như "repair_parts")
+        // Lấy phần cuối cùng sau dấu _ làm id
+        final lastUnderscoreIndex = uniqueKey.lastIndexOf('_');
+        final source = uniqueKey.substring(0, lastUnderscoreIndex);
+        final partId = int.parse(uniqueKey.substring(lastUnderscoreIndex + 1));
 
         final part = parts.firstWhere(
           (p) => p['id'] == partId && p['source'] == source,
         );
         final partName = part['partName'] ?? '';
         final partCost = part['cost'] as int? ?? 0;
-        debugPrint('🔧 Part found: $partName, cost=$partCost');
 
         // Trừ kho từ nguồn phù hợp
         final success = await db.deductPartQuantityUnified(partId, source, qty);
-        debugPrint('🔧 Deduct result: $success');
         if (success) {
           totalCost += partCost * qty;
           usedParts.add("$partName x$qty");
-        } else {
-          debugPrint('❌ Failed to deduct: $partName x$qty');
         }
       }
-
-      debugPrint('🔧 Total cost to add: $totalCost, parts: ${usedParts.join(', ')}');
-      debugPrint('🔧 Before update: r.cost=${r.cost}, r.partsUsed=${r.partsUsed}');
 
       // Cập nhật giá vốn và partsUsed
       setState(() {
@@ -693,16 +526,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         }
       });
 
-      debugPrint('🔧 After update: r.cost=${r.cost}, r.partsUsed=${r.partsUsed}');
-
       await _saveData();
 
       NotificationService.showSnackBar(
         "Đã thêm phụ tùng và trừ kho: ${usedParts.join(', ')}",
         color: Colors.green,
       );
-    } else {
-      debugPrint('🔧 Dialog result: result=$result, selectedQuantities.isEmpty=${selectedQuantities.isEmpty}');
     }
   }
 
@@ -1355,5 +1184,208 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     } finally {
       if (mounted) setState(() => _isPrinting = false);
     }
+  }
+}
+
+/// Dialog widget riêng biệt để chọn linh kiện - tách ra để quản lý state đúng cách
+class _PartsSelectionDialog extends StatefulWidget {
+  final List<Map<String, dynamic>> parts;
+  
+  const _PartsSelectionDialog({required this.parts});
+  
+  @override
+  State<_PartsSelectionDialog> createState() => _PartsSelectionDialogState();
+}
+
+class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
+  final Map<String, int> selectedQuantities = {};
+  
+  int get totalSelected => selectedQuantities.values.fold(0, (a, b) => a + b);
+  
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Row(
+        children: [
+          Icon(Icons.inventory_2, color: Colors.purple),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "CHỌN PHỤ TÙNG / LINH KIỆN",
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: ListView.builder(
+          itemCount: widget.parts.length,
+          itemBuilder: (context, index) {
+            final part = widget.parts[index];
+            final partId = part['id'] as int;
+            final source = part['source'] as String;
+            final uniqueKey = "${source}_$partId";
+            final partName = part['partName'] ?? '';
+            final partQty = part['quantity'] as int? ?? 0;
+            final partCost = part['cost'] as int? ?? 0;
+            final partPrice = part['price'] as int? ?? 0;
+            final isFromProducts = source == 'products';
+            final currentQty = selectedQuantities[uniqueKey] ?? 0;
+
+            return Card(
+              color: currentQty > 0 
+                  ? Colors.green.shade50 
+                  : (isFromProducts ? Colors.blue.shade50 : null),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Dòng 1: Icon + Tên + Tag nguồn
+                    Row(
+                      children: [
+                        Icon(
+                          isFromProducts ? Icons.inventory : Icons.build,
+                          color: isFromProducts ? Colors.blue : Colors.purple,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            partName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isFromProducts
+                                ? Colors.blue.withOpacity(0.2)
+                                : Colors.purple.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isFromProducts ? "Kho tổng" : "Kho cũ",
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isFromProducts ? Colors.blue : Colors.purple,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // Dòng 2: Tồn + Giá
+                    Text(
+                      "Tồn: $partQty | Vốn: ${MoneyUtils.formatCurrency(partCost)} | Bán: ${MoneyUtils.formatCurrency(partPrice)}",
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                    ),
+                    const SizedBox(height: 8),
+                    // Dòng 3: Nút +/- 
+                    if (partQty > 0)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Nút trừ
+                          Material(
+                            color: currentQty > 0 ? Colors.red : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(8),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: currentQty > 0 ? () {
+                                setState(() {
+                                  if (currentQty <= 1) {
+                                    selectedQuantities.remove(uniqueKey);
+                                  } else {
+                                    selectedQuantities[uniqueKey] = currentQty - 1;
+                                  }
+                                });
+                              } : null,
+                              child: Container(
+                                width: 48,
+                                height: 40,
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.remove, color: Colors.white, size: 24),
+                              ),
+                            ),
+                          ),
+                          // Số lượng
+                          Container(
+                            width: 60,
+                            alignment: Alignment.center,
+                            child: Text(
+                              '$currentQty',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: currentQty > 0 ? Colors.green.shade700 : Colors.grey,
+                              ),
+                            ),
+                          ),
+                          // Nút cộng
+                          Material(
+                            color: currentQty < partQty ? Colors.green : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(8),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: currentQty < partQty ? () {
+                                setState(() {
+                                  selectedQuantities[uniqueKey] = currentQty + 1;
+                                });
+                              } : null,
+                              child: Container(
+                                width: 48,
+                                height: 40,
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.add, color: Colors.white, size: 24),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          "HẾT HÀNG",
+                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, null),
+          child: const Text("HỦY"),
+        ),
+        ElevatedButton(
+          onPressed: totalSelected > 0 
+              ? () => Navigator.pop(context, Map<String, int>.from(selectedQuantities))
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.purple,
+            disabledBackgroundColor: Colors.grey.shade300,
+          ),
+          child: Text(
+            totalSelected > 0 ? "XÁC NHẬN ($totalSelected)" : "XÁC NHẬN",
+            style: TextStyle(
+              color: totalSelected > 0 ? Colors.white : Colors.grey,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
