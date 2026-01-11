@@ -7,6 +7,7 @@ import '../services/supplier_service.dart';
 import '../services/event_bus.dart';
 import '../services/audit_service.dart';
 import '../services/adjustment_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 
@@ -312,7 +313,22 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
 
                     if (part == null) {
                       final shopId = await UserService.getCurrentShopId();
+                      
+                      // Generate firestoreId for sync
+                      final firestoreId = 'part_${now}_${partName.hashCode}';
+                      data['firestoreId'] = firestoreId;
+                      data['shopId'] = shopId;
+                      
                       final insertedId = await db.insertPart(data);
+
+                      // Queue sync to cloud via SyncOrchestrator
+                      await SyncOrchestrator().enqueue(
+                        entityType: SyncEntityType.repairPart,
+                        entityId: insertedId,
+                        firestoreId: firestoreId,
+                        operation: SyncOperation.create,
+                        data: {...data, 'id': insertedId},
+                      );
 
                       final supplierName = _getSupplierName(selectedSupplierId);
                       await AuditService.logAction(
@@ -413,6 +429,19 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           where: 'id = ?',
                           whereArgs: [part['id']],
                         );
+                        
+                        // Queue sync update to cloud via SyncOrchestrator
+                        final partFirestoreId = part['firestoreId'] as String?;
+                        if (partFirestoreId != null && partFirestoreId.isNotEmpty) {
+                          await SyncOrchestrator().enqueue(
+                            entityType: SyncEntityType.repairPart,
+                            entityId: part['id'] as int,
+                            firestoreId: partFirestoreId,
+                            operation: SyncOperation.update,
+                            data: {...data, 'id': part['id'], 'firestoreId': partFirestoreId},
+                          );
+                        }
+                        
                         await AuditService.logAction(
                           action: 'PART_UPDATE',
                           entityType: 'repair_part',
@@ -471,6 +500,29 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           where: 'id = ?',
                           whereArgs: [part['id']],
                         );
+                        
+                        // Queue sync update to cloud via SyncOrchestrator
+                        final partFirestoreId = part['firestoreId'] as String?;
+                        if (partFirestoreId != null && partFirestoreId.isNotEmpty) {
+                          await SyncOrchestrator().enqueue(
+                            entityType: SyncEntityType.repairPart,
+                            entityId: part['id'] as int,
+                            firestoreId: partFirestoreId,
+                            operation: SyncOperation.update,
+                            data: {
+                              'id': part['id'],
+                              'firestoreId': partFirestoreId,
+                              'partName': partName,
+                              'compatibleModels': modelC.text.toUpperCase(),
+                              'cost': cost,
+                              'price': price,
+                              'quantity': qty,
+                              'supplierId': selectedSupplierId,
+                              'paymentMethod': paymentMethod,
+                              'updatedAt': now,
+                            },
+                          );
+                        }
                       }
                     }
 

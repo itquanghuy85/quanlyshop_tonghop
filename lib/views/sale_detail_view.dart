@@ -249,7 +249,18 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     });
 
     await db.updateSale(s);
-    EventBus().emit('sales_changed');
+    
+    // Sync settlement to Firestore
+    if (s.firestoreId != null) {
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.sale,
+        entityId: s.id!,
+        firestoreId: s.firestoreId,
+        operation: SyncOperation.update,
+        data: s.toMap(),
+      );
+    }
+    
     EventBus().emit('sales_changed');
 
     if (fee > 0) {

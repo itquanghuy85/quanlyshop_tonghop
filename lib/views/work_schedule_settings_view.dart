@@ -206,13 +206,14 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
       // Query users với shopId filter
       debugPrint('📋 Querying users with shopId: $_currentShopId');
       
-      // Thực hiện 2 queries song song:
+      // Thực hiện queries:
       // 1. Users có shopId trùng với _currentShopId
-      // 2. User hiện tại (nếu họ là owner và shopId trùng uid)
+      // 2. Users có shopId trùng uid của owner (nếu khác _currentShopId)
+      // 3. User hiện tại (owner case)
       final List<Map<String, dynamic>> allStaff = [];
       final Set<String> addedIds = {};
       
-      // Query 1: Users có shopId
+      // Query 1: Users có shopId == _currentShopId
       try {
         final snapshot = await db
             .collection('users')
@@ -236,9 +237,35 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
         debugPrint('❌ Query users with shopId failed: $e');
       }
       
-      // Query 2: Nếu chưa có staff nào và shopId == currentUser.uid (owner case)
-      // thì thêm chính owner vào danh sách
-      if (allStaff.isEmpty && currentUser != null && _currentShopId == currentUser.uid) {
+      // Query 2: Nếu shopId khác uid, thử query thêm với uid làm shopId (owner's employees)
+      if (currentUser != null && _currentShopId != currentUser.uid) {
+        try {
+          final snapshot2 = await db
+              .collection('users')
+              .where('shopId', isEqualTo: currentUser.uid)
+              .get();
+          debugPrint('📋 Found ${snapshot2.docs.length} staff with shopId=${currentUser.uid} (owner uid)');
+          
+          for (var doc in snapshot2.docs) {
+            if (!addedIds.contains(doc.id)) {
+              final data = doc.data();
+              allStaff.add({
+                'id': doc.id,
+                'name': data['name'] ?? data['displayName'] ?? data['email']?.toString().split('@').first ?? 'Unknown',
+                'email': data['email'] ?? '',
+                'role': data['role'] ?? 'user',
+              });
+              addedIds.add(doc.id);
+            }
+          }
+        } catch (e) {
+          debugPrint('❌ Query users with owner uid failed: $e');
+        }
+      }
+      
+      // Query 3: Nếu chưa có staff nào, thêm chính owner/current user vào danh sách
+      // Điều kiện: allStaff rỗng VÀ có currentUser VÀ (shopId == uid HOẶC không có ai khác)
+      if (allStaff.isEmpty && currentUser != null) {
         try {
           final ownerDoc = await db.collection('users').doc(currentUser.uid).get();
           if (ownerDoc.exists && !addedIds.contains(currentUser.uid)) {
@@ -250,7 +277,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
               'role': data['role'] ?? 'owner',
             });
             addedIds.add(currentUser.uid);
-            debugPrint('📋 Added owner to staff list: ${currentUser.uid}');
+            debugPrint('📋 Added owner/current user to staff list: ${currentUser.uid}');
           }
         } catch (e) {
           debugPrint('❌ Query owner doc failed: $e');

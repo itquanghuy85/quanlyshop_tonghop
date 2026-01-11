@@ -41,6 +41,7 @@ import 'about_developer_view.dart';
 import 'cash_closing_view.dart';
 import 'transaction_detail_view.dart';
 import 'customer_receivables_view.dart';
+import 'bank_installment_report_view.dart';
 import '../data/db_helper.dart';
 import '../widgets/unified_sync_button.dart';
 import '../widgets/notification_badge.dart';
@@ -3339,6 +3340,25 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   Colors.orange,
                   () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerReceivablesView())),
                 ),
+                _financeQuickCard(
+                  "Thống kê\nTrả góp NH",
+                  Icons.account_balance_wallet,
+                  Colors.indigo,
+                  () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BankInstallmentReportView())),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 12),
+            // Row 2: Warranty
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.5,
+              children: [
                 _financeQuickCard(
                   "Theo dõi\nBảo hành",
                   Icons.verified_user,

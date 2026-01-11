@@ -217,6 +217,87 @@ class CashClosingNotifier {
     return false;
   }
   
+  /// Kiểm tra và hiển thị cảnh báo nếu ngày hôm nay đã chốt quỹ
+  /// Trả về true nếu được phép thực hiện giao dịch, false nếu bị block
+  Future<bool> canPerformTransaction({
+    required BuildContext context,
+    String? customMessage,
+  }) async {
+    if (!_isTodayLocked) return true;
+    
+    // Hiển thị dialog cảnh báo
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.lock, color: Colors.orange.shade700),
+            const SizedBox(width: 8),
+            const Text("ĐÃ CHỐT QUỸ", style: TextStyle(fontSize: 18)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              customMessage ?? "Ngày hôm nay đã được chốt quỹ bởi $_lockedBy.",
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "⚠️ Giao dịch sẽ được ghi nhận vào NGÀY MAI",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Hoặc liên hệ quản lý để MỞ KHÓA ngày hôm nay.",
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("HỦY"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("TIẾP TỤC (GHI NGÀY MAI)"),
+          ),
+        ],
+      ),
+    );
+    
+    return result == true;
+  }
+  
+  /// Lấy ngày giao dịch thực tế (nếu hôm nay đã chốt → dùng ngày mai)
+  DateTime getEffectiveTransactionDate() {
+    if (_isTodayLocked) {
+      return DateTime.now().add(const Duration(days: 1));
+    }
+    return DateTime.now();
+  }
+  
   /// Cleanup
   void dispose() {
     _subscription?.cancel();

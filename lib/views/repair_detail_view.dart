@@ -243,6 +243,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     if (newStatus == 3) r.finishedAt = DateTime.now().millisecondsSinceEpoch;
 
+    // Update lastCaredAt for conflict resolution during sync
+    r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
+    r.isSynced = false; // Mark as needing sync
+
     setState(() {
       r.status = newStatus;
       _isUpdating = true;
@@ -330,6 +334,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     setState(() => _isUpdating = true);
     HapticFeedback.mediumImpact();
     try {
+      // Update lastCaredAt for conflict resolution during sync
+      r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
+      r.isSynced = false; // Mark as needing sync
+      
       await db.upsertRepair(r);
 
       // Ghi nhật ký sửa đơn

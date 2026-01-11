@@ -62,7 +62,45 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   Future<void> _loadShopData() async {
     try {
       final shopId = await UserService.getCurrentShopId();
-      if (shopId == null) {
+      if (shopId == null || shopId.isEmpty) {
+        // Fallback: thử dùng uid của user làm shopId (owner case)
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) {
+          NotificationService.showSnackBar("Vui lòng đăng nhập", color: Colors.red);
+          setState(() => _loading = false);
+          return;
+        }
+        
+        // Thử load với uid làm shopId
+        final fallbackShopId = user.uid;
+        try {
+          final shopDoc = await FirebaseFirestore.instance.collection('shops').doc(fallbackShopId).get();
+          if (shopDoc.exists) {
+            final data = shopDoc.data()!;
+            setState(() {
+              _shopName = data['name'] ?? '';
+              _shopAddress = data['address'] ?? '';
+              _shopPhone = data['phone'] ?? '';
+              _shopEmail = data['email'] ?? '';
+              _shopDescription = data['description'] ?? '';
+              _shopLogoUrl = data['logoUrl'] ?? '';
+              _shopLatitude = data['latitude']?.toDouble();
+              _shopLongitude = data['longitude']?.toDouble();
+
+              _nameController.text = _shopName;
+              _addressController.text = _shopAddress;
+              _phoneController.text = _shopPhone;
+              _emailController.text = _shopEmail;
+              _descriptionController.text = _shopDescription;
+            });
+            await _syncToSharedPreferences(_shopName, _shopAddress, _shopPhone);
+            setState(() => _loading = false);
+            return;
+          }
+        } catch (e) {
+          debugPrint('Fallback shop load failed: $e');
+        }
+        
         setState(() => _loading = false);
         return;
       }
@@ -127,8 +165,16 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
     setState(() => _saving = true);
 
     try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId == null) {
+      var shopId = await UserService.getCurrentShopId();
+      // Fallback: thử dùng uid của user làm shopId (owner case)
+      if (shopId == null || shopId.isEmpty) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          shopId = user.uid;
+        }
+      }
+      
+      if (shopId == null || shopId.isEmpty) {
         NotificationService.showSnackBar("Không tìm thấy thông tin shop", color: Colors.red);
         return;
       }

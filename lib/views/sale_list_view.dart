@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import '../data/db_helper.dart';
 import '../models/sale_order_model.dart';
+import '../services/event_bus.dart';
 import 'sale_detail_view.dart';
 import 'create_sale_view.dart';
 import '../theme/app_colors.dart';
@@ -35,6 +36,16 @@ class _SaleListViewState extends State<SaleListView> {
       _timeFilter = 'today';
     }
     _refresh();
+    // Listen to sales changes (e.g., when settlement is received)
+    EventBus().on('sales_changed', (_) {
+      if (mounted) _refresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    // EventBus auto-manages listeners via weak references
+    super.dispose();
   }
 
   Future<void> _refresh() async {

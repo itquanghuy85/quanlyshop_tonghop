@@ -355,11 +355,13 @@ service cloud.firestore {
     }
 
     // ═══════════ 4.2 DEBTS ═══════════
+    // Note: isEmployee() allows staff to create debts during sales (CÔNG NỢ payment)
+    // Update still requires isManager() to prevent unauthorized debt modifications
     match /debts/{debtId} {
-      allow read: if isAuth() && docInMyShop() && isManager();
+      allow read: if isAuth() && docInMyShop() && isStaff();
       
       allow create: if isAuth() && 
-                       isManager() &&
+                       isEmployee() &&
                        newDocInMyShop() &&
                        has(['personName', 'totalAmount', 'type', 'createdAt', 'shopId']) &&
                        numGte0('totalAmount') &&
@@ -367,7 +369,7 @@ service cloud.firestore {
       
       allow update: if isAuth() && 
                        docInMyShop() &&
-                       isManager() &&
+                       isStaff() &&
                        shopIdLocked() &&
                        numGte0('totalAmount') &&
                        optNumGte0('paidAmount');
@@ -376,18 +378,19 @@ service cloud.firestore {
     }
 
     // ═══════════ 4.3 DEBT_PAYMENTS ═══════════
+    // Note: isEmployee() allows staff to record debt payments from customers
     match /debt_payments/{paymentId} {
-      allow read: if isAuth() && docInMyShop() && isManager();
+      allow read: if isAuth() && docInMyShop() && isStaff();
       
       allow create: if isAuth() && 
-                       isManager() &&
+                       isEmployee() &&
                        newDocInMyShop() &&
-                       has(['debtId', 'amount', 'paidAt', 'shopId']) &&
+                       has(['amount', 'paidAt', 'shopId']) &&
                        numGte0('amount');
       
       allow update: if isAuth() && 
                        docInMyShop() &&
-                       isManager() &&
+                       isStaff() &&
                        shopIdLocked() &&
                        numGte0('amount');
       
@@ -704,14 +707,15 @@ service cloud.firestore {
     }
 
     // ═══════════ 10.3 REPAIR_PARTS ═══════════
+    // Note: partName is the field name used by the app (not 'name')
     match /repair_parts/{partId} {
       allow read: if isAuth() && docInMyShop();
       
       allow create: if isAuth() && 
                        isEmployee() &&
                        newDocInMyShop() &&
-                       has(['name', 'shopId']) &&
-                       str('name', 1, 200);
+                       has(['partName', 'shopId']) &&
+                       str('partName', 1, 200);
       
       allow update: if isAuth() && 
                        docInMyShop() &&

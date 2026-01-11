@@ -76,6 +76,9 @@ class _StaffListViewState extends State<StaffListView> {
     // Load current invite code if owner
     if (role == 'owner' && shopId != null) {
       _loadCurrentInviteCode();
+    }
+    // Load shop name for all roles (owner, manager, employee, technician)
+    if (shopId != null) {
       _loadShopName();
     }
   }

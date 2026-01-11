@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 import '../data/db_helper.dart';
 import '../models/sale_order_model.dart';
 import '../models/repair_model.dart';
 import '../services/sync_service.dart';
+import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
 import '../utils/money_utils.dart';
 import 'sale_detail_view.dart';
@@ -34,6 +36,7 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
   List<Repair> _repairs = [];
   List<Map<String, dynamic>> _expenses = [];
   bool _dataLoaded = false; // Prevent unnecessary reloads
+  StreamSubscription<String>? _eventSub;
 
   @override
   void initState() {
@@ -50,11 +53,19 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
         if (mounted && !_isLoading) _loadAllData();
       });
     }
+    
+    // Listen to global events for data changes
+    _eventSub = EventBus().stream.where((e) => 
+      e == 'repairs_changed' || e == 'sales_changed' || e == 'expenses_changed'
+    ).listen((_) {
+      if (mounted && !_isLoading) _loadAllData();
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _eventSub?.cancel();
     super.dispose();
   }
 
@@ -345,13 +356,22 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
   }
 
   Widget _buildRepairsTab() {
-    final filtered = _repairs
-        .where((r) =>
-            r.status == 4 &&
-            r.deliveredAt != null &&
-            _isInFilterPeriod(r.deliveredAt!))
-        .toList();
-    filtered.sort((a, b) => (b.deliveredAt ?? 0).compareTo(a.deliveredAt ?? 0));
+    // Filter: Hiển thị đơn sửa chữa đã giao (status == 4)
+    // Ưu tiên dùng deliveredAt, nếu không có thì dùng finishedAt hoặc createdAt
+    final filtered = _repairs.where((r) {
+      if (r.status != 4) return false;
+      
+      // Lấy timestamp để filter
+      final timestamp = r.deliveredAt ?? r.finishedAt ?? r.createdAt;
+      return _isInFilterPeriod(timestamp);
+    }).toList();
+    
+    // Sort theo thời gian giao (ưu tiên deliveredAt)
+    filtered.sort((a, b) {
+      final timeA = a.deliveredAt ?? a.finishedAt ?? a.createdAt;
+      final timeB = b.deliveredAt ?? b.finishedAt ?? b.createdAt;
+      return timeB.compareTo(timeA);
+    });
 
     if (filtered.isEmpty) {
       return _emptyState("Không có đơn sửa chữa đã giao", Icons.build_outlined);
@@ -397,6 +417,8 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
             itemCount: filtered.length,
             itemBuilder: (ctx, i) {
               final r = filtered[i];
+              // Lấy timestamp hiển thị (ưu tiên deliveredAt)
+              final displayTime = r.deliveredAt ?? r.finishedAt ?? r.createdAt;
               return ListTile(
                 leading: CircleAvatar(
                   backgroundColor: Colors.blue.shade100,
@@ -407,7 +429,7 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text(
-                  "${r.customerName} • ${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!))}",
+                  "${r.customerName} • ${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(displayTime))}",
                 ),
                 trailing: Text(
                   "+${MoneyUtils.formatVND(r.price)}",

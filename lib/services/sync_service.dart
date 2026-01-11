@@ -15,6 +15,7 @@ import 'storage_service.dart';
 import 'user_service.dart';
 import 'encryption_service.dart';
 import 'sync_orchestrator.dart';
+import 'event_bus.dart';
 
 class SyncService {
   static final _db = FirebaseFirestore.instance;
@@ -274,7 +275,11 @@ class SyncService {
           debugPrint("SYNC_TRACE: Error syncing repair $docId: $e");
         }
       },
-      onBatchDone: onDataChanged,
+      onBatchDone: () {
+        onDataChanged();
+        // Emit event để cập nhật UI sửa chữa
+        EventBus().emit('repairs_changed');
+      },
     );
 
     // 2. Đồng bộ SALES
@@ -403,7 +408,11 @@ class SyncService {
           debugPrint("Lỗi sync debt $docId: $e");
         }
       },
-      onBatchDone: onDataChanged,
+      onBatchDone: () {
+        onDataChanged();
+        // Emit event để cập nhật UI công nợ
+        EventBus().emit('debts_changed');
+      },
     );
 
     // 6. Đồng bộ USERS (cập nhật cache khi có thay đổi)
