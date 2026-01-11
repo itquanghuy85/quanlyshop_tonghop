@@ -1600,11 +1600,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           // LỜI CHÀO NGƯỜI DÙNG
           _buildGreetingCard(),
 
-          // TỔNG QUAN TÀI CHÍNH
-          _buildSectionHeader("TỔNG QUAN TÀI CHÍNH"),
-          _buildDashboardOverview(),
-
-          const SizedBox(height: 20),
+          // TỔNG QUAN TÀI CHÍNH - Chỉ hiện cho owner/superadmin
+          if (widget.role == 'owner' || _isSuperAdmin) ...[
+            _buildSectionHeader("TỔNG QUAN TÀI CHÍNH"),
+            _buildDashboardOverview(),
+            const SizedBox(height: 20),
+          ],
 
           // THAO TÁC NHANH
           _buildSectionHeader("THAO TÁC NHANH"),

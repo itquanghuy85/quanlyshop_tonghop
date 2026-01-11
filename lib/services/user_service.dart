@@ -173,9 +173,9 @@ class UserService {
           isTechnician ||
           isAdmin ||
           isUser,
-      'allowViewRevenue': isOwner || isManager || isAdmin,
-      'allowViewExpenses': isOwner || isManager || isAdmin,
-      'allowViewDebts': isOwner || isManager || isAdmin,
+      'allowViewRevenue': isOwner, // Chỉ chủ shop được xem tài chính
+      'allowViewExpenses': isOwner, // Chỉ chủ shop được xem chi phí
+      'allowViewDebts': isOwner, // Chỉ chủ shop được xem công nợ
       'allowViewSettings': isOwner || isManager || isAdmin,
       'allowManageStaff': isOwner || isManager || isAdmin,
       'shopAppLocked': false,

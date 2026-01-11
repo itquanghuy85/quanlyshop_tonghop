@@ -1889,7 +1889,43 @@ class _CashClosingViewState extends State<CashClosingView>
 
   List<Map<String, dynamic>> _getExpenseTransactions(DateTime date) {
     final list = <Map<String, dynamic>>[];
-    for (var e in _expenses.where((e) => _isSameDay(e['date'] as int, date))) {
+    
+    // Debug log
+    debugPrint('=== _getExpenseTransactions for ${DateFormat('dd/MM/yyyy').format(date)} ===');
+    debugPrint('Total expenses: ${_expenses.length}');
+    debugPrint('Total supplierImports: ${_supplierImports.length}');
+    debugPrint('Total supplierPayments: ${_supplierPayments.length}');
+    debugPrint('Total debtPayments: ${_debtPayments.length}');
+    
+    // Chi phí thường
+    for (var e in _expenses) {
+      final expenseDate = e['date'] as int?;
+      if (expenseDate == null) {
+        debugPrint('Skipping expense with null date: ${e['category']}');
+        continue;
+      }
+      if (!_isSameDay(expenseDate, date)) continue;
+      
+      // Loại bỏ các chi phí nhập hàng (đã được tính ở supplierImports)
+      final category = (e['category'] as String? ?? '').toUpperCase();
+      final description = (e['description'] as String? ?? '').toUpperCase();
+      final title = (e['title'] as String? ?? '').toUpperCase();
+      final isImportExpense = category.contains('NHẬP HÀNG') ||
+          category.contains('NHẬP LINH KIỆN') ||
+          category.contains('PURCHASE') ||
+          category.contains('STOCK') ||
+          category.contains('ĐƠN NHẬP') ||
+          category.contains('LINH KIỆN') ||
+          category.contains('REPAIR_PARTS') ||
+          description.contains('NHẬP LINH KIỆN') ||
+          description.contains('NHẬP HÀNG') ||
+          title.contains('NHẬP LINH KIỆN') ||
+          title.contains('NHẬP HÀNG');
+      if (isImportExpense) {
+        debugPrint('Skipping import expense: ${e['category']}');
+        continue;
+      }
+      
       list.add({
         'icon': '💸',
         'title': e['category'] ?? 'Chi phí',
@@ -1897,7 +1933,7 @@ class _CashClosingViewState extends State<CashClosingView>
             '${e['note'] ?? ''} • ${(e['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
         'time': DateFormat(
           'HH:mm',
-        ).format(DateTime.fromMillisecondsSinceEpoch(e['date'] as int)),
+        ).format(DateTime.fromMillisecondsSinceEpoch(expenseDate)),
         'amount': e['amount'] as int? ?? 0,
       });
     }
