@@ -77,6 +77,12 @@ post_install do |installer|
       
       # Fix module map issues
       config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -no-verify-emitted-module-interface'
+      
+      # FIX: Suppress "sending" warnings (Swift concurrency Sendable) in Xcode 16.2
+      # These warnings occur when passing non-Sendable types across actor boundaries
+      config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
+      config.build_settings['OTHER_SWIFT_FLAGS'] ||= ''
+      config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -no-verify-emitted-module-interface -Xfrontend -disable-availability-checking'
     end
   end
   

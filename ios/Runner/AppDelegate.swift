@@ -3,7 +3,9 @@ import UIKit
 import FirebaseCore
 import FirebaseMessaging
 
+// Mark AppDelegate as @MainActor to fix Sendable warnings in Xcode 16.2
 @main
+@MainActor
 @objc class AppDelegate: FlutterAppDelegate {
   override func application(
     _ application: UIApplication,
@@ -45,12 +47,15 @@ import FirebaseMessaging
 
 // MARK: - MessagingDelegate
 extension AppDelegate: MessagingDelegate {
-  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+  nonisolated func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
     let dataDict: [String: String] = ["token": fcmToken ?? ""]
-    NotificationCenter.default.post(
-      name: Notification.Name("FCMToken"),
-      object: nil,
-      userInfo: dataDict
-    )
+    // Use MainActor to post notification safely
+    Task { @MainActor in
+      NotificationCenter.default.post(
+        name: Notification.Name("FCMToken"),
+        object: nil,
+        userInfo: dataDict
+      )
+    }
   }
 }
