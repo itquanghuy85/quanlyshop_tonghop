@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:quanlyshop/data/db_helper.dart';
-import 'package:quanlyshop/models/quick_input_code_model.dart';
 
 void main() {
   // Initialize sqflite for ffi (tests)

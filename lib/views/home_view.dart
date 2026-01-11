@@ -19,7 +19,6 @@ import 'sale_list_view.dart';
 import 'expense_view.dart';
 import 'debt_view.dart';
 import 'warranty_view.dart';
-import 'settings_view.dart';
 import 'shop_settings_view.dart';
 import 'chat_view.dart';
 import 'thermal_printer_design_view.dart';
@@ -468,7 +467,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ),
           child: Row(
             children: [
-              Icon(Icons.access_time_rounded, color: AppColors.info, size: 20),
+              const Icon(Icons.access_time_rounded, color: AppColors.info, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -663,7 +662,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.arrow_forward_ios_rounded,
                 color: Colors.white,
                 size: 16,
@@ -1197,18 +1196,32 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
     int totalIn = salesIncome + repairsIncome;
 
-    // CHI HÔM NAY = tổng expenses (LOẠI TRỪ nhập hàng/purchase vì đã tính trong giá vốn)
+    // CHI HÔM NAY = tổng expenses (LOẠI TRỪ nhập hàng/linh kiện/purchase vì đã tính trong giá vốn)
     int totalOut = 0;
     for (var e in fExpenses) {
       final category = (e['category'] as String? ?? '').toUpperCase();
+      final description = (e['description'] as String? ?? '').toUpperCase();
+      final title = (e['title'] as String? ?? '').toUpperCase();
       final amount = e['amount'] as int;
-      // Loại trừ các chi phí nhập hàng/purchase vì sẽ được tính qua giá vốn khi bán
-      // Category có thể là: NHẬP HÀNG, PURCHASE, STOCK (auto-created khi nhập kho)
-      if (category.contains('NHẬP HÀNG') || 
+      
+      // Loại trừ các chi phí nhập hàng/linh kiện/purchase vì sẽ được tính qua giá vốn khi bán/sửa
+      // Kiểm tra cả category, description và title để đảm bảo không bỏ sót
+      final isImportExpense = 
+          category.contains('NHẬP HÀNG') || 
+          category.contains('NHẬP LINH KIỆN') ||
           category.contains('PURCHASE') || 
           category.contains('STOCK') ||
-          category.contains('ĐƠN NHẬP')) {
-        debugPrint('LOẠI TRỪ expense nhập hàng: category=$category, amount=$amount');
+          category.contains('LINH KIỆN') ||
+          category.contains('ĐƠN NHẬP') ||
+          category.contains('REPAIR_PARTS') ||
+          description.contains('NHẬP LINH KIỆN') ||
+          description.contains('NHẬP HÀNG') ||
+          description.contains('Nhập linh kiện') ||
+          title.contains('NHẬP LINH KIỆN') ||
+          title.contains('NHẬP HÀNG');
+          
+      if (isImportExpense) {
+        debugPrint('LOẠI TRỪ expense nhập hàng/linh kiện: category=$category, amount=$amount');
       } else {
         totalOut += amount;
         debugPrint('TÍNH expense: category=$category, amount=$amount');
@@ -1352,7 +1365,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           elevation: 0,
           title: Row(
             children: [
-              Icon(Icons.store_rounded, color: AppColors.primary, size: 22),
+              const Icon(Icons.store_rounded, color: AppColors.primary, size: 22),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -1390,7 +1403,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   builder: (_) => QrScanView(role: widget.role),
                 ),
               ),
-              icon: Icon(
+              icon: const Icon(
                 Icons.qr_code_scanner_rounded,
                 color: AppColors.primary,
               ),
@@ -1402,7 +1415,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   builder: (_) => GlobalSearchView(role: widget.role),
                 ),
               ),
-              icon: Icon(Icons.search, color: AppColors.primary, size: 28),
+              icon: const Icon(Icons.search, color: AppColors.primary, size: 28),
               tooltip: 'Tìm kiếm toàn app',
             ),
             // Simple sync indicator - tự động sync, tap để force sync
@@ -1422,13 +1435,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   debugPrint('Logout error: $e');
                 }
               },
-              icon: Icon(Icons.logout_rounded, color: AppColors.error),
+              icon: const Icon(Icons.logout_rounded, color: AppColors.error),
             ),
           ],
         ),
         body: IndexedStack(
           key: ValueKey(
-            'indexed_stack_${_rebuildCounter}',
+            'indexed_stack_$_rebuildCounter',
           ), // Force rebuild when stats change
           index: _currentIndex,
           children: _tabWidgets,
@@ -1549,10 +1562,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Widget _buildHomeTab() {
-    debugPrint('_buildHomeTab called with _rebuildCounter=${_rebuildCounter}');
+    debugPrint('_buildHomeTab called with _rebuildCounter=$_rebuildCounter');
     return RefreshIndicator(
       key: ValueKey(
-        'home_tab_${_rebuildCounter}',
+        'home_tab_$_rebuildCounter',
       ), // Force rebuild when stats change
       onRefresh: () => _syncNow(),
       child: ListView(
@@ -1722,7 +1735,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.person_rounded,
                   color: Colors.white,
                   size: 28,
@@ -2245,7 +2258,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 child: InkWell(
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => FastInventoryInputView()),
+                    MaterialPageRoute(builder: (_) => const FastInventoryInputView()),
                   ),
                   borderRadius: BorderRadius.circular(15),
                   child: Padding(
@@ -2294,7 +2307,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 child: InkWell(
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => FastInventoryCheckView()),
+                    MaterialPageRoute(builder: (_) => const FastInventoryCheckView()),
                   ),
                   borderRadius: BorderRadius.circular(15),
                   child: Padding(
@@ -2616,7 +2629,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 AppColors.success,
                 () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => FastInventoryInputView()),
+                  MaterialPageRoute(builder: (_) => const FastInventoryInputView()),
                 ),
               ),
             ),
@@ -2628,7 +2641,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 AppColors.warning,
                 () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => FastInventoryCheckView()),
+                  MaterialPageRoute(builder: (_) => const FastInventoryCheckView()),
                 ),
               ),
             ),
@@ -2919,14 +2932,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             subtitle: "Xem, tìm kiếm và theo dõi tất cả đơn sửa chữa.",
           ),
           _tabMenuItem(
-            "Kho Linh Kiện",
+            "Kho Phụ Tùng",
             Icons.build,
             Colors.orange,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const PartsInventoryView()),
             ),
-            subtitle: "Quản lý tồn Kho Linh Kiện cho sửa chữa.",
+            subtitle: "Quản lý tồn Kho Phụ Tùng cho sửa chữa.",
           ),
         ],
       ),
@@ -2958,7 +2971,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FastInventoryInputView(),
+                        builder: (_) => const FastInventoryInputView(),
                       ),
                     ),
                     borderRadius: BorderRadius.circular(15),
@@ -3009,7 +3022,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FastInventoryCheckView(),
+                        builder: (_) => const FastInventoryCheckView(),
                       ),
                     ),
                     borderRadius: BorderRadius.circular(15),
@@ -3175,7 +3188,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 "Lịch làm\nViệc",
                 Icons.schedule,
                 Colors.purple,
-                () => Navigator.push(context, MaterialPageRoute(builder: (_) => WorkScheduleSettingsView())),
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WorkScheduleSettingsView())),
               ),
               _staffQuickCard(
                 "Phân quyền\nNhân viên",
@@ -3499,7 +3512,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   value: _todayTotalIn,
                   color: AppColors.success,
                   detail:
-                      "${_todaySaleOrderCount} bán + ${_todayRepairCount} sửa",
+                      "$_todaySaleOrderCount bán + $_todayRepairCount sửa",
                 ),
               ),
               const SizedBox(width: 12),
@@ -3606,7 +3619,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.receipt_long_rounded,
                     color: AppColors.warning,
                     size: 24,
@@ -4098,13 +4111,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           // Header Section
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [AppColors.primary, AppColors.primaryDark],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: const BorderRadius.only(
+              borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
               ),
@@ -4192,7 +4205,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         value: _todayTotalIn,
                         color: AppColors.success,
                         subLabel:
-                            "${_todaySaleOrderCount} đơn bán + ${_todayRepairCount} đơn sửa",
+                            "$_todaySaleOrderCount đơn bán + $_todayRepairCount đơn sửa",
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -4514,7 +4527,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         ),
         child: Row(
           children: [
-            Icon(
+            const Icon(
               Icons.notification_important,
               color: AppColors.onError,
               size: 28,
@@ -4540,7 +4553,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, color: AppColors.onError, size: 16),
+            const Icon(Icons.arrow_forward_ios, color: AppColors.onError, size: 16),
           ],
         ),
       ),

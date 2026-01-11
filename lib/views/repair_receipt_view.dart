@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import '../utils/money_utils.dart';
 import '../services/event_bus.dart';
 import 'package:esc_pos_utils/esc_pos_utils.dart';
-import '../services/firestore_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/unified_printer_service.dart';
 import '../services/user_service.dart';

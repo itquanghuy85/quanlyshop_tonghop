@@ -4,7 +4,6 @@ import '../models/quick_input_code_model.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_service.dart';
-import '../services/firestore_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../data/db_helper.dart';
 import 'stock_in_view.dart';
@@ -419,7 +418,7 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView> {
                           code.isActive ? Icons.visibility_off : Icons.visibility,
                           size: 20,
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Text(code.isActive ? 'Tắt' : 'Bật'),
                       ],
                     ),
@@ -481,8 +480,8 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView> {
       floatingActionButton: FloatingActionButton(
         heroTag: 'quick_input_management_fab',
         onPressed: _showCreateDialog,
-        child: const Icon(Icons.add),
         tooltip: 'Tạo mã mới',
+        child: const Icon(Icons.add),
       ),
     );
   }

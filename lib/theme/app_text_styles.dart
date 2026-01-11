@@ -75,7 +75,7 @@ class AppTextStyles {
 
   // HEADINGS
   /// Heading 1 - Page titles, main headings
-  static TextStyle get headline1 => TextStyle(
+  static TextStyle get headline1 => const TextStyle(
         fontFamily: fontFamily,
         fontSize: h1,
         fontWeight: FontWeight.w700,
@@ -85,7 +85,7 @@ class AppTextStyles {
       );
 
   /// Heading 2 - Section headings
-  static TextStyle get headline2 => TextStyle(
+  static TextStyle get headline2 => const TextStyle(
         fontFamily: fontFamily,
         fontSize: h2,
         fontWeight: FontWeight.w600,
@@ -95,7 +95,7 @@ class AppTextStyles {
       );
 
   /// Heading 3 - Subsection headings
-  static TextStyle get headline3 => TextStyle(
+  static TextStyle get headline3 => const TextStyle(
         fontFamily: fontFamily,
         fontSize: h3,
         fontWeight: FontWeight.w600,
@@ -105,7 +105,7 @@ class AppTextStyles {
       );
 
   /// Heading 4 - Card titles, dialog titles
-  static TextStyle get headline4 => TextStyle(
+  static TextStyle get headline4 => const TextStyle(
         fontFamily: fontFamily,
         fontSize: h4,
         fontWeight: FontWeight.w600,
@@ -115,7 +115,7 @@ class AppTextStyles {
       );
 
   /// Heading 5 - AppBar titles
-  static TextStyle get headline5 => TextStyle(
+  static TextStyle get headline5 => const TextStyle(
         fontFamily: fontFamily,
         fontSize: h5,
         fontWeight: FontWeight.w600,
@@ -125,7 +125,7 @@ class AppTextStyles {
       );
 
   /// Heading 6 - Small headings, list item titles
-  static TextStyle get headline6 => TextStyle(
+  static TextStyle get headline6 => const TextStyle(
         fontFamily: fontFamily,
         fontSize: h6,
         fontWeight: FontWeight.w600,
@@ -155,7 +155,7 @@ class AppTextStyles {
 
   // BODY TEXT
   /// Body 1 - Main content text
-  static TextStyle get body1 => TextStyle(
+  static TextStyle get body1 => const TextStyle(
         fontFamily: fontFamily,
         fontSize: body1Size,
         fontWeight: FontWeight.w400,
@@ -164,7 +164,7 @@ class AppTextStyles {
       );
 
   /// Body 2 - Secondary content text
-  static TextStyle get body2 => TextStyle(
+  static TextStyle get body2 => const TextStyle(
         fontFamily: fontFamily,
         fontSize: body2Size,
         fontWeight: FontWeight.w400,
@@ -174,7 +174,7 @@ class AppTextStyles {
 
   // BUTTON TEXT
   /// Button - Button labels
-  static TextStyle get button => TextStyle(
+  static TextStyle get button => const TextStyle(
         fontFamily: fontFamily,
         fontSize: buttonSize,
         fontWeight: FontWeight.w500,
@@ -239,7 +239,7 @@ class AppTextStyles {
   }
 
   /// Tạo text style cho price/money
-  static TextStyle get priceStyle => TextStyle(
+  static TextStyle get priceStyle => const TextStyle(
         fontFamily: numberFontFamily,
         fontSize: body1Size,
         fontWeight: FontWeight.w600,
@@ -248,7 +248,7 @@ class AppTextStyles {
       );
 
   /// Tạo text style cho quantity
-  static TextStyle get quantityStyle => TextStyle(
+  static TextStyle get quantityStyle => const TextStyle(
         fontFamily: numberFontFamily,
         fontSize: body2Size,
         fontWeight: FontWeight.w500,
@@ -265,7 +265,7 @@ class AppTextStyles {
       );
 
   /// Tạo text style cho error text
-  static TextStyle get errorStyle => TextStyle(
+  static TextStyle get errorStyle => const TextStyle(
         fontFamily: fontFamily,
         fontSize: captionSize,
         fontWeight: FontWeight.w500,
@@ -273,7 +273,7 @@ class AppTextStyles {
       );
 
   /// Tạo text style cho success text
-  static TextStyle get successStyle => TextStyle(
+  static TextStyle get successStyle => const TextStyle(
         fontFamily: fontFamily,
         fontSize: captionSize,
         fontWeight: FontWeight.w500,
@@ -281,7 +281,7 @@ class AppTextStyles {
       );
 
   /// Tạo text style cho warning text
-  static TextStyle get warningStyle => TextStyle(
+  static TextStyle get warningStyle => const TextStyle(
         fontFamily: fontFamily,
         fontSize: captionSize,
         fontWeight: FontWeight.w500,

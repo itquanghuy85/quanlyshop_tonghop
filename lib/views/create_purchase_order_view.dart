@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../core/utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../models/purchase_order_model.dart';
-import '../models/product_model.dart';
 import '../models/debt_model.dart';
-import '../services/firestore_service.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
@@ -219,7 +216,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
       } else {
         // If payment method is cash/bank transfer, create expense record
         final ts = DateTime.now().millisecondsSinceEpoch;
-        final fId = "exp_purchase_${ts}";
+        final fId = "exp_purchase_$ts";
         final exp = {
           'firestoreId': fId,
           'title': 'Đơn nhập hàng ${order.orderCode}',
@@ -577,7 +574,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _paymentMethod,
+                      initialValue: _paymentMethod,
                       decoration: const InputDecoration(labelText: "Phương thức thanh toán", border: OutlineInputBorder()),
                       items: const [
                         DropdownMenuItem(value: "TIỀN MẶT", child: Text("TIỀN MẶT")),

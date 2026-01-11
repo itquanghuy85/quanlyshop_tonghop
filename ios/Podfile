@@ -1,9 +1,12 @@
 # Uncomment this line to define a global platform for your project
-# iOS 14.0 minimum for Firebase and other dependencies
-platform :ios, '14.0'
+# iOS 13.0 minimum for Firebase and other dependencies (macOS 14.8 + Xcode 16.2)
+platform :ios, '13.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+# Fix for Xcode 16.2 compatibility
+ENV['SWIFT_VERSION'] = '5'
 
 project 'Runner', {
   'Debug' => :debug,
@@ -42,12 +45,13 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # iOS deployment target
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      # iOS deployment target - minimum iOS 13
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
       
-      # Xcode 16.2 compatibility fixes
+      # Xcode 16.2 + macOS 14.8 compatibility fixes
       config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
       config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'NO'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       
       # Fix DT_TOOLCHAIN_DIR warning in Xcode 16
       xcconfig_path = config.base_configuration_reference&.real_path
@@ -57,7 +61,7 @@ post_install do |installer|
         File.write(xcconfig_path, new_xcconfig)
       end
       
-      # Fix for Xcode 16 - disable code signing for resource bundles
+      # Fix for Xcode 16.2 - disable code signing for resource bundles
       if target.respond_to?(:product_type) and target.product_type == "com.apple.product-type.bundle"
         config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
       end
@@ -67,12 +71,19 @@ post_install do |installer|
       
       # Suppress deprecation warnings for older APIs
       config.build_settings['GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS'] = 'NO'
+      
+      # Fix Swift version for Xcode 16.2
+      config.build_settings['SWIFT_VERSION'] = '5.0'
+      
+      # Fix module map issues
+      config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -no-verify-emitted-module-interface'
     end
   end
   
-  # Fix Xcode 16 signing issues for Pods project
+  # Fix Xcode 16.2 signing issues for Pods project
   installer.pods_project.build_configurations.each do |config|
     config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
     config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
   end
 end

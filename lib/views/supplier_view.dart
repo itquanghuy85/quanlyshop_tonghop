@@ -122,7 +122,7 @@ class _SupplierViewState extends State<SupplierView> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
+            const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
             const SizedBox(width: 12),
             Text("XÓA NHÀ CUNG CẤP", style: AppTextStyles.headline6.copyWith(color: AppColors.error)),
           ],
@@ -167,7 +167,7 @@ class _SupplierViewState extends State<SupplierView> {
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle, color: AppColors.onSuccess, size: 20),
+                const Icon(Icons.check_circle, color: AppColors.onSuccess, size: 20),
                 const SizedBox(width: 8),
                 Text('ĐÃ XÓA NHÀ CUNG CẤP', style: AppTextStyles.body2.copyWith(color: AppColors.onSuccess)),
               ],
@@ -219,7 +219,7 @@ class _SupplierViewState extends State<SupplierView> {
                       color: AppColors.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(Icons.business, color: AppColors.primary, size: 24),
+                    child: const Icon(Icons.business, color: AppColors.primary, size: 24),
                   ),
                   const SizedBox(width: 12),
                   Text("THÊM NHÀ CUNG CẤP", style: AppTextStyles.headline5.copyWith(color: AppColors.primary)),
@@ -295,7 +295,7 @@ class _SupplierViewState extends State<SupplierView> {
                             SnackBar(
                               content: Row(
                                 children: [
-                                  Icon(Icons.check_circle, color: AppColors.onSuccess, size: 20),
+                                  const Icon(Icons.check_circle, color: AppColors.onSuccess, size: 20),
                                   const SizedBox(width: 8),
                                   Text('Đã thêm nhà cung cấp thành công', style: AppTextStyles.body2.copyWith(color: AppColors.onSuccess)),
                                 ],
@@ -343,15 +343,15 @@ class _SupplierViewState extends State<SupplierView> {
             prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.outline),
+              borderSide: const BorderSide(color: AppColors.outline),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.outline),
+              borderSide: const BorderSide(color: AppColors.outline),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.primary, width: 2),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
             filled: true,
             fillColor: AppColors.surface,
@@ -369,7 +369,7 @@ class _SupplierViewState extends State<SupplierView> {
       appBar: AppBar(
         title: Row(
           children: [
-            Icon(Icons.business_center, color: AppColors.onPrimary, size: 28),
+            const Icon(Icons.business_center, color: AppColors.onPrimary, size: 28),
             const SizedBox(width: 12),
             Text("QUẢN LÝ NHÀ CUNG CẤP", style: AppTextStyles.headline6.copyWith(color: AppColors.onPrimary)),
           ],
@@ -414,7 +414,7 @@ class _SupplierViewState extends State<SupplierView> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: AppColors.onPrimary, width: 2),
+                  borderSide: const BorderSide(color: AppColors.onPrimary, width: 2),
                 ),
                 filled: true,
                 fillColor: AppColors.onPrimary.withOpacity(0.1),
@@ -429,7 +429,7 @@ class _SupplierViewState extends State<SupplierView> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CircularProgressIndicator(color: AppColors.primary),
+                const CircularProgressIndicator(color: AppColors.primary),
                 const SizedBox(height: 16),
                 Text("Đang tải danh sách...", style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.7))),
               ],
@@ -592,7 +592,7 @@ class _SupplierViewState extends State<SupplierView> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.sync_problem, size: 12, color: AppColors.warning),
+                          const Icon(Icons.sync_problem, size: 12, color: AppColors.warning),
                           const SizedBox(width: 4),
                           Text('Chưa đồng bộ', style: AppTextStyles.caption.copyWith(color: AppColors.warning)),
                         ],
@@ -625,7 +625,7 @@ class _SupplierViewState extends State<SupplierView> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.account_balance_wallet, color: AppColors.primary, size: 24),
+                  const Icon(Icons.account_balance_wallet, color: AppColors.primary, size: 24),
                   const SizedBox(width: 12),
                   Text(
                     "TỔNG GIÁ TRỊ NHẬP:",
@@ -679,7 +679,7 @@ class _SupplierViewState extends State<SupplierView> {
                     icon: const Icon(Icons.history, size: 20),
                     label: Text("LỊCH SỬ", style: AppTextStyles.button),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: AppColors.primary, width: 1.5),
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
                       foregroundColor: AppColors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -766,7 +766,7 @@ class _SupplierViewState extends State<SupplierView> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.lock, color: AppColors.primary, size: 24),
+            const Icon(Icons.lock, color: AppColors.primary, size: 24),
             const SizedBox(width: 12),
             Text('XÁC NHẬN XÓA', style: AppTextStyles.headline6.copyWith(color: AppColors.primary)),
           ],
@@ -787,18 +787,18 @@ class _SupplierViewState extends State<SupplierView> {
               decoration: InputDecoration(
                 hintText: 'Mật khẩu',
                 hintStyle: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.5)),
-                prefixIcon: Icon(Icons.password, color: AppColors.primary, size: 20),
+                prefixIcon: const Icon(Icons.password, color: AppColors.primary, size: 20),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.outline),
+                  borderSide: const BorderSide(color: AppColors.outline),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.outline),
+                  borderSide: const BorderSide(color: AppColors.outline),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 2),
                 ),
                 filled: true,
                 fillColor: AppColors.surface,

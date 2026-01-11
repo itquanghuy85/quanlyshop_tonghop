@@ -366,7 +366,7 @@ class _PayrollViewState extends State<PayrollView> {
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 12),
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius), boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 6)]),
+                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius), boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 6)]),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

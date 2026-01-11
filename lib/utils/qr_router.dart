@@ -132,7 +132,7 @@ class QRRouter {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => RepairDetailView(repair: repair!),
+          builder: (context) => RepairDetailView(repair: repair),
         ),
       );
     } catch (e) {

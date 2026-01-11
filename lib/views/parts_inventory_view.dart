@@ -148,9 +148,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: Colors.orange.withOpacity(0.5)),
                         ),
-                        child: Row(
+                        child: const Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Icon(Icons.lock_clock, color: Colors.orange, size: 18),
                             SizedBox(width: 8),
                             Expanded(
@@ -170,8 +170,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.orange.withOpacity(0.3)),
                         ),
-                        child: Row(
-                          children: const [
+                        child: const Row(
+                          children: [
                             Icon(Icons.info_outline, color: Colors.orange, size: 18),
                             SizedBox(width: 8),
                             Expanded(child: Text('Chưa có nhà cung cấp, thêm trong trang NCC.')),
@@ -180,7 +180,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       )
                     else
                       DropdownButtonFormField<int?>(
-                        value: selectedSupplierId,
+                        initialValue: selectedSupplierId,
                         decoration: InputDecoration(
                           labelText: "Nhà cung cấp (${_suppliers.length} NCC)",
                           prefixIcon: const Icon(Icons.store),
@@ -260,10 +260,10 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           ),
                         ),
                       if (paymentMethod == 'CÔNG NỢ' && selectedSupplierId == null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8.0),
                           child: Row(
-                            children: const [
+                            children: [
                               Icon(Icons.error_outline, color: Colors.red, size: 18),
                               SizedBox(width: 8),
                               Expanded(

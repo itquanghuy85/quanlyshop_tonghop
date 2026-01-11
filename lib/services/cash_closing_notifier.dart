@@ -90,7 +90,7 @@ class CashClosingNotifier {
         _lockedAt = lockedAt;
         
         // Sync to local DB
-        await _syncToLocalDb(dateKey ?? '', data);;
+        await _syncToLocalDb(dateKey ?? '', data);
         
         // Notify nếu trạng thái thay đổi
         if (wasLocked != isLocked) {

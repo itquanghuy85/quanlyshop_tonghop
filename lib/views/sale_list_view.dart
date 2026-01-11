@@ -337,7 +337,7 @@ class _SaleListViewState extends State<SaleListView> {
               // Summary stats bar
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.surface,
                   boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 4)],
                 ),
@@ -398,7 +398,7 @@ class _SaleListViewState extends State<SaleListView> {
                           decoration: BoxDecoration(
                             color: AppColors.surface, 
                             borderRadius: BorderRadius.circular(20), 
-                            boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 10)]
+                            boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 10)]
                           ),
                           child: ListTile(
                             onTap: () {
@@ -495,7 +495,7 @@ class _SaleListViewState extends State<SaleListView> {
           const SizedBox(width: 4),
           GestureDetector(
             onTap: onRemove,
-            child: Icon(Icons.close, size: 16, color: AppColors.primary),
+            child: const Icon(Icons.close, size: 16, color: AppColors.primary),
           ),
         ],
       ),

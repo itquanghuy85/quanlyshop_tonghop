@@ -140,7 +140,7 @@ class _DebtAnalysisViewState extends State<DebtAnalysisView> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: AppColors.primary),
+                  const CircularProgressIndicator(color: AppColors.primary),
                   const SizedBox(height: 16),
                   Text(
                     'Đang phân tích dữ liệu...',
@@ -190,7 +190,7 @@ class _DebtAnalysisViewState extends State<DebtAnalysisView> {
         children: [
           Row(
             children: [
-              Icon(Icons.analytics_rounded, color: AppColors.primary, size: 24),
+              const Icon(Icons.analytics_rounded, color: AppColors.primary, size: 24),
               const SizedBox(width: 8),
               Text(
                 'TỔNG QUAN',
@@ -295,7 +295,7 @@ class _DebtAnalysisViewState extends State<DebtAnalysisView> {
         children: [
           Row(
             children: [
-              Icon(Icons.description_rounded, color: AppColors.primary, size: 24),
+              const Icon(Icons.description_rounded, color: AppColors.primary, size: 24),
               const SizedBox(width: 8),
               Text(
                 'CHI TIẾT PHÂN TÍCH',

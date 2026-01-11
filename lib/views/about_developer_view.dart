@@ -171,7 +171,7 @@ class AboutDeveloperView extends StatelessWidget {
               fontSize: 16,
               color: Colors.white.withOpacity(0.95),
               fontWeight: FontWeight.w400,
-              shadows: [
+              shadows: const [
                 Shadow(
                   color: Colors.black26,
                   offset: Offset(0, 1),

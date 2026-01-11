@@ -170,7 +170,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 6)],
+        boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 6)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,7 +300,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 6)],
+        boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 6)],
       ),
       child: Row(
         children: [
@@ -310,7 +310,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
               color: AppColors.success.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.check_circle, color: AppColors.success, size: 24),
+            child: const Icon(Icons.check_circle, color: AppColors.success, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -435,7 +435,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 6)],
+        boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 6)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

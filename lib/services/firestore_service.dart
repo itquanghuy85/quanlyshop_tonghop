@@ -7,8 +7,6 @@ import '../models/sale_order_model.dart';
 import '../models/purchase_order_model.dart';
 import '../models/attendance_model.dart';
 import '../models/quick_input_code_model.dart';
-import '../models/repair_partner_model.dart';
-import '../models/partner_repair_history_model.dart';
 import 'user_service.dart';
 import 'notification_service.dart';
 import 'encryption_service.dart';
@@ -1042,9 +1040,13 @@ class FirestoreService {
   }) async {
     try {
       final shopId = await UserService.getCurrentShopId();
+      final currentUser = FirebaseAuth.instance.currentUser;
+      
       if (shopId == null) {
         return {'success': false, 'error': 'Không tìm thấy thông tin shop'};
       }
+      
+      debugPrint('🛒 executeSaleTransaction: shopId=$shopId, userId=${currentUser?.uid}');
 
       String? saleDocId;
       List<String> outOfStockItems = [];
@@ -1068,10 +1070,22 @@ class FirestoreService {
           
           productDocs[firestoreId] = docSnapshot;
           
-          // Kiểm tra stock
+          // Kiểm tra stock và shopId
           final data = docSnapshot.data() as Map<String, dynamic>;
+          final productShopId = data['shopId'] as String?;
           final cloudStock = (data['quantity'] ?? 0) as int;
           final requestedQty = item['quantity'] as int;
+          
+          // Debug log để kiểm tra shopId mismatch
+          debugPrint('📦 Product: ${item['productName']}');
+          debugPrint('   - Product shopId: $productShopId');
+          debugPrint('   - User shopId: $shopId');
+          debugPrint('   - Match: ${productShopId == shopId}');
+          
+          // Kiểm tra sản phẩm có thuộc shop của user không
+          if (productShopId != null && productShopId != shopId) {
+            throw Exception('SHOP_MISMATCH:Sản phẩm "${item['productName']}" thuộc shop khác');
+          }
           
           if (cloudStock < requestedQty) {
             outOfStockItems.add('${item['productName']} (còn: $cloudStock, cần: $requestedQty)');
@@ -1139,6 +1153,28 @@ class FirestoreService {
             'outOfStockItems': itemsStr.split('|'),
           };
         }
+      }
+      
+      // Parse lỗi shop mismatch
+      if (errorMsg.contains('SHOP_MISMATCH:')) {
+        final parts = errorMsg.split('SHOP_MISMATCH:');
+        if (parts.length > 1) {
+          final msg = parts[1].replaceAll('Exception: ', '').trim();
+          return {
+            'success': false,
+            'error': msg,
+            'shopMismatch': true,
+          };
+        }
+      }
+      
+      // Lỗi permission-denied thường do shopId trong claims không khớp
+      if (errorMsg.contains('permission-denied')) {
+        return {
+          'success': false,
+          'error': 'Không có quyền truy cập. Vui lòng đăng xuất và đăng nhập lại.',
+          'needRelogin': true,
+        };
       }
       
       return {'success': false, 'error': errorMsg};

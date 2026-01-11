@@ -4,12 +4,12 @@ import 'package:firebase_core/firebase_core.dart';
 void main() async {
   await Firebase.initializeApp();
 
-  final shopId = 'honC8KnKhOUG19wcYOFDTGVdKWP2';
+  const shopId = 'honC8KnKhOUG19wcYOFDTGVdKWP2';
 
   try {
     final userDocs = await FirebaseFirestore.instance
         .collection('users')
-        .where('shopId', '==', shopId)
+        .where('shopId', isEqualTo: shopId)
         .get();
 
     print('Found ${userDocs.docs.length} users in shop $shopId:');

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../core/utils/money_utils.dart';
 import '../models/product_model.dart';
 import '../theme/app_text_styles.dart';
@@ -8,7 +7,7 @@ class PartsSelectionDialog extends StatefulWidget {
   final List<Product> products;
   final String currentParts;
   
-  const PartsSelectionDialog({required this.products, required this.currentParts});
+  const PartsSelectionDialog({super.key, required this.products, required this.currentParts});
   
   @override
   State<PartsSelectionDialog> createState() => _PartsSelectionDialogState();
@@ -22,7 +21,7 @@ class _PartsSelectionDialogState extends State<PartsSelectionDialog> {
     if (_searchQuery.isEmpty) return widget.products;
     return widget.products.where((p) => 
       p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-      (p.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false)
+      (p.description.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false)
     ).toList();
   }
   

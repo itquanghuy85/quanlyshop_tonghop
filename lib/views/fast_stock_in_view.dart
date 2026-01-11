@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
@@ -14,7 +13,6 @@ import '../services/firestore_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
-import '../core/utils/money_utils.dart';
 import '../utils/sku_generator.dart';
 import '../utils/imei_extractor.dart';
 import '../widgets/currency_text_field.dart';
@@ -86,20 +84,22 @@ class _FastStockInViewState extends State<FastStockInView> {
   // Model suggestions based on brand
   final Map<String, List<String>> modelSuggestions = {
     'IPHONE': [
-      '17',
-      '16',
-      '15',
-      '14',
-      '13',
-      '12',
-      '11',
-      'XS MAX',
-      'XS',
-      'X',
-      'SE',
-      '8',
-      'PRO',
-      'PROMAX',
+      // iPhone 17 series
+      '17 PRO MAX', '17 PRO', '17 PLUS', '17',
+      // iPhone 16 series
+      '16 PRO MAX', '16 PRO', '16 PLUS', '16',
+      // iPhone 15 series
+      '15 PRO MAX', '15 PRO', '15 PLUS', '15',
+      // iPhone 14 series
+      '14 PRO MAX', '14 PRO', '14 PLUS', '14',
+      // iPhone 13 series
+      '13 PRO MAX', '13 PRO', '13 MINI', '13',
+      // iPhone 12 series
+      '12 PRO MAX', '12 PRO', '12 MINI', '12',
+      // iPhone 11 series
+      '11 PRO MAX', '11 PRO', '11',
+      // Older models
+      'XS MAX', 'XS', 'XR', 'X', 'SE 2022', 'SE 2020', '8 PLUS', '8',
     ],
     'SAMSUNG': ['S24', 'S23', 'S22', 'S21', 'A54', 'A34', 'A14'],
     'OPPO': ['A18', 'A17', 'A16', 'A15', 'F11', 'F9'],
@@ -234,11 +234,12 @@ class _FastStockInViewState extends State<FastStockInView> {
       // Handle timeout or other errors
       debugPrint('FastStockIn: load suppliers error: $e');
       _loadingError = 'Lỗi tải dữ liệu, thử lại.';
-      if (mounted)
+      if (mounted) {
         NotificationService.showSnackBar(
           'Lỗi tải nhà cung cấp: $e',
           color: Colors.red,
         );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -614,7 +615,7 @@ class _FastStockInViewState extends State<FastStockInView> {
   Future<void> _saveProduct() async {
     // Finalize currency fields trước khi xử lý
     CurrencyTextField.finalizeAll();
-    
+
     if (selectedBrand == null ||
         selectedCapacity == null ||
         selectedColor == null ||
@@ -678,7 +679,7 @@ class _FastStockInViewState extends State<FastStockInView> {
 
       final ts = DateTime.now().millisecondsSinceEpoch;
       final imei = imeiCtrl.text.trim();
-      final fId = "prod_${ts}_${imei}";
+      final fId = "prod_${ts}_$imei";
 
       final product = Product(
         firestoreId: fId,
@@ -801,7 +802,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         );
 
         // Set firestoreId to prevent duplicates
-        debt.firestoreId = "debt_${ts}_${supplierPhone}";
+        debt.firestoreId = "debt_${ts}_$supplierPhone";
 
         try {
           debugPrint(
@@ -841,7 +842,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         }
       } else {
         // Xử lý thanh toán tiền mặt/chuyển khoản - tạo expense record
-        final expFId = "exp_stock_${ts}";
+        final expFId = "exp_stock_$ts";
         final exp = {
           'firestoreId': expFId,
           'title': 'Nhập hàng - $selectedSupplier',
@@ -955,9 +956,9 @@ class _FastStockInViewState extends State<FastStockInView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Nhà cung cấp',
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 11,
             color: Colors.black87,
@@ -1015,7 +1016,7 @@ class _FastStockInViewState extends State<FastStockInView> {
             // Nút xóa nhà cung cấp đang chọn
             IconButton(
               onPressed: validSelectedSupplier != null
-                  ? () => _deleteSupplier(validSelectedSupplier!)
+                  ? () => _deleteSupplier(validSelectedSupplier)
                   : null,
               icon: Icon(
                 Icons.delete_outline,
@@ -1040,9 +1041,9 @@ class _FastStockInViewState extends State<FastStockInView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Model',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
         ),
         const SizedBox(height: 4),
         TextField(
@@ -1065,8 +1066,8 @@ class _FastStockInViewState extends State<FastStockInView> {
           const SizedBox(height: 4),
           Wrap(
             spacing: 4,
+            runSpacing: 4,
             children: suggestions
-                .take(5)
                 .map(
                   (model) => GestureDetector(
                     onTap: () => setState(() => modelCtrl.text = model),
@@ -1134,12 +1135,7 @@ class _FastStockInViewState extends State<FastStockInView> {
     TextEditingController controller,
     IconData icon,
   ) {
-    return CurrencyTextField(
-      controller: controller,
-      label: title,
-      icon: icon,
-      autoMultiply1000: true,
-    );
+    return CurrencyTextField(controller: controller, label: title, icon: icon);
   }
 
   Future<void> _selectFromLibrary() async {
@@ -1357,9 +1353,9 @@ class _FastStockInViewState extends State<FastStockInView> {
                     (v) => setState(() => selectedPaymentMethod = v),
                   ),
 
-                  Text(
+                  const Text(
                     'IMEI/Serial *',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
                     ),
@@ -1406,9 +1402,9 @@ class _FastStockInViewState extends State<FastStockInView> {
                   ),
                   const SizedBox(height: 8),
 
-                  Text(
+                  const Text(
                     'Số lượng',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
                     ),

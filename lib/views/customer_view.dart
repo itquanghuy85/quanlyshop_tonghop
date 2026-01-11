@@ -6,16 +6,11 @@ import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
 import '../services/user_service.dart';
-import '../services/firestore_service.dart';
 import '../services/sync_orchestrator.dart';
 import 'repair_detail_view.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
 import 'sale_detail_view.dart';
-import '../theme/app_theme.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
-import '../theme/app_button_styles.dart';
 
 class CustomerListView extends StatefulWidget {
   final String role;
@@ -267,13 +262,13 @@ class _CustomerListViewState extends State<CustomerListView> {
         ),
         actions: _isSelectionMode ? [
           IconButton(
-            icon: Icon(Icons.close, color: AppColors.onPrimary),
+            icon: const Icon(Icons.close, color: AppColors.onPrimary),
             onPressed: _cancelSelection,
             tooltip: "Hủy chọn",
           ),
           if (_isAdmin)
             IconButton(
-              icon: Icon(Icons.delete_forever, color: AppColors.onPrimary),
+              icon: const Icon(Icons.delete_forever, color: AppColors.onPrimary),
               onPressed: _isDeleting ? null : _deleteSelectedCustomers,
               tooltip: "Xóa các khách đã chọn",
             ),
@@ -343,7 +338,7 @@ class _CustomerListViewState extends State<CustomerListView> {
                   ),
                   if (!_isSelectionMode && canDelete)
                     IconButton(
-                      icon: Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                      icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
                       tooltip: "Xóa khách khỏi danh sách",
                       onPressed: () => _confirmDeleteCustomer(c),
                     ),
@@ -441,11 +436,11 @@ class _CustomerListViewState extends State<CustomerListView> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColors.primary,
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(Icons.person, color: AppColors.onPrimary, size: 24),
+                          child: const Icon(Icons.person, color: AppColors.onPrimary, size: 24),
                         ),
                         const SizedBox(width: 16),
                         Expanded(

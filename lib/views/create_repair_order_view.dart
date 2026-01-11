@@ -6,7 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../services/notification_service.dart';
-import '../services/firestore_service.dart';
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
@@ -62,7 +61,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   final accF = FocusNode();
 
   // Services with partners
-  List<RepairService> _services = [];
+  final List<RepairService> _services = [];
   List<RepairPartner> _partners = [];
 
   final List<String> brands = ["IPHONE", "SAMSUNG", "OPPO", "REDMI", "VIVO"];
@@ -86,7 +85,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       if (phoneCtrl.text.length == 10) _smartFill();
       setState(() {}); // Refresh UI for add customer button
     });
-    nameCtrl.addListener(() => setState(() {})); // Refresh UI for add customer button
+    nameCtrl.addListener(
+      () => setState(() {}),
+    ); // Refresh UI for add customer button
     _loadPartners();
   }
 
@@ -115,27 +116,46 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
   Future<void> _selectCustomer() async {
     debugPrint("_selectCustomer: bắt đầu chọn khách hàng");
-    // Sync customers from cloud first
+    // Sync customers from cloud first (ignore errors)
     debugPrint("_selectCustomer: bắt đầu sync từ cloud");
-    await SyncService.syncCustomersFromCloud();
-    debugPrint("_selectCustomer: đã sync xong từ cloud");
+    try {
+      await SyncService.syncCustomersFromCloud();
+      debugPrint("_selectCustomer: đã sync xong từ cloud");
+    } catch (e) {
+      debugPrint("_selectCustomer: lỗi sync từ cloud (ignored): $e");
+    }
 
-    List<Customer> customers = await customerService.getCustomers();
-    debugPrint("_selectCustomer: lấy được ${customers.length} customers từ local DB");
+    List<Customer> customers = [];
+    try {
+      customers = await customerService.getCustomers();
+      debugPrint(
+        "_selectCustomer: lấy được ${customers.length} customers từ local DB",
+      );
+    } catch (e) {
+      debugPrint("_selectCustomer: lỗi lấy customers: $e");
+    }
 
     // Fallback: lấy danh sách khách độc nhất từ lịch sử nếu chưa có trong bảng customers
     if (customers.isEmpty) {
-      final unique = await db.getUniqueCustomersAll();
-      customers = unique
-          .map((c) => Customer(
+      try {
+        final unique = await db.getUniqueCustomersAll();
+        customers = unique
+            .map(
+              (c) => Customer(
                 name: (c['customerName'] ?? '').toString(),
                 phone: (c['phone'] ?? '').toString(),
                 address: (c['address'] ?? '').toString(),
                 createdAt: DateTime.now().millisecondsSinceEpoch,
-              ))
-          .where((c) => c.phone.isNotEmpty)
-          .toList();
-      debugPrint("_selectCustomer: fallback ${customers.length} customers từ history");
+              ),
+            )
+            .where((c) => c.phone.isNotEmpty)
+            .toList();
+        debugPrint(
+          "_selectCustomer: fallback ${customers.length} customers từ history",
+        );
+      } catch (e) {
+        debugPrint("_selectCustomer: lỗi fallback: $e");
+      }
     }
     if (!mounted) return;
 
@@ -178,8 +198,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     try {
       // Kiểm tra khách hàng đã tồn tại chưa
       final existingCustomers = await customerService.getCustomers();
-      final existing = existingCustomers.where((c) => c.phone == phone).toList();
-      
+      final existing = existingCustomers
+          .where((c) => c.phone == phone)
+          .toList();
+
       if (existing.isNotEmpty) {
         NotificationService.showSnackBar(
           "Khách hàng với SĐT này đã tồn tại: ${existing.first.name}",
@@ -195,7 +217,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         createdAt: DateTime.now().millisecondsSinceEpoch,
       );
       await customerService.addCustomer(newCustomer);
-      
+
       NotificationService.showSnackBar(
         "Đã thêm khách hàng: $name",
         color: Colors.green,
@@ -219,11 +241,13 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     debugPrint('🔧 _saveOrderProcess: Starting...');
     // Finalize currency fields trước khi xử lý
     CurrencyTextField.finalizeAll();
-    
+
     // Kiểm tra ngày hôm nay đã chốt quỹ chưa
     final today = DateTime.now();
     debugPrint('🔧 _saveOrderProcess: Checking canEditDirectly for today...');
-    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    final canEdit = await AdjustmentService.canEditDirectly(
+      today.millisecondsSinceEpoch,
+    );
     debugPrint('🔧 _saveOrderProcess: canEdit = $canEdit');
     if (!canEdit && mounted) {
       NotificationService.showSnackBar(
@@ -232,9 +256,11 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       );
       return null;
     }
-    
+
     if (phoneCtrl.text.isEmpty || modelCtrl.text.isEmpty) {
-      debugPrint('🔧 _saveOrderProcess: Validation failed - phone or model empty');
+      debugPrint(
+        '🔧 _saveOrderProcess: Validation failed - phone or model empty',
+      );
       NotificationService.showSnackBar(
         "Vui lòng nhập SĐT và Model máy",
         color: Colors.red,
@@ -291,7 +317,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
       // Lưu local trước
       await db.upsertRepair(r);
-      
+
       // Lấy local ID để enqueue
       final savedRepair = await db.getRepairByFirestoreId(r.firestoreId!);
       if (savedRepair == null || savedRepair.id == null) {
@@ -300,7 +326,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
       // Create customer if not exists
       final existingCustomers = await customerService.getCustomers();
-      final existing = existingCustomers.where((c) => c.phone == phoneCtrl.text.trim()).toList();
+      final existing = existingCustomers
+          .where((c) => c.phone == phoneCtrl.text.trim())
+          .toList();
       if (existing.isEmpty) {
         final newCustomer = Customer(
           name: nameCtrl.text.trim().toUpperCase(),
@@ -319,10 +347,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         operation: SyncOperation.create,
         data: r.toMap(),
       );
-      
+
       // Trigger sync ngay nếu có mạng
       SyncOrchestrator().syncAll();
-      
+
       final rWithCloudId = savedRepair;
       await db.logAction(
         userId: FirebaseAuth.instance.currentUser?.uid ?? "0",
@@ -330,7 +358,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         action: "NHẬP ĐƠN SỬA",
         type: "REPAIR",
         targetId: rWithCloudId.firestoreId,
-        desc: "Đã nhập đơn sửa ${rWithCloudId.model} cho khách ${rWithCloudId.customerName}",
+        desc:
+            "Đã nhập đơn sửa ${rWithCloudId.model} cho khách ${rWithCloudId.customerName}",
       );
 
       // Handle partner outsourcing for services that have partners
@@ -376,7 +405,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   Future<void> _onlySave() async {
     debugPrint('🔧 _onlySave: Starting save process...');
     final r = await _saveOrderProcess();
-    debugPrint('🔧 _onlySave: _saveOrderProcess returned: ${r != null ? 'success' : 'null'}');
+    debugPrint(
+      '🔧 _onlySave: _saveOrderProcess returned: ${r != null ? 'success' : 'null'}',
+    );
     if (r != null) {
       HapticFeedback.mediumImpact();
 
@@ -497,7 +528,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   controller: serviceCtrl,
                   decoration: const InputDecoration(labelText: "Tên dịch vụ *"),
                   textCapitalization: TextCapitalization.characters,
-                  validator: (v) => (v ?? '').trim().isEmpty ? 'Vui lòng nhập tên dịch vụ' : null,
+                  validator: (v) => (v ?? '').trim().isEmpty
+                      ? 'Vui lòng nhập tên dịch vụ'
+                      : null,
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
@@ -505,14 +538,18 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   keyboardType: TextInputType.number,
                   inputFormatters: [MoneyUtils.currencyInputFormatter()],
                   decoration: const InputDecoration(labelText: "Chi phí (VNĐ)"),
-                  validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Chi phí'),
+                  validator: (v) => MoneyUtils.validateAmount(
+                    v ?? '',
+                    min: 1,
+                    fieldName: 'Chi phí',
+                  ),
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<RepairPartner>(
                   decoration: const InputDecoration(
                     labelText: "Đối tác (tùy chọn)",
                   ),
-                  value: selectedPartner,
+                  initialValue: selectedPartner,
                   items: [
                     const DropdownMenuItem(
                       value: null,
@@ -536,7 +573,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
               onPressed: () {
                 if (!(formKey.currentState?.validate() ?? false)) return;
                 final parsed = MoneyUtils.parseCurrency(costCtrl.text);
-                final cost = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
+                final cost = parsed >= 1000 && parsed < 100000
+                    ? parsed * 1000
+                    : parsed;
                 final service = RepairService(
                   serviceName: serviceCtrl.text.trim().toUpperCase(),
                   cost: cost,
@@ -570,7 +609,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [const Color(0xFF2962FF), const Color(0xFF2962FF).withOpacity(0.7)],
+              colors: [
+                const Color(0xFF2962FF),
+                const Color(0xFF2962FF).withOpacity(0.7),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -581,8 +623,14 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("NHẬP ĐƠN SỬA CHỮA", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            Text("Điền thông tin khách và máy", style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text(
+              "NHẬP ĐƠN SỬA CHỮA",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            Text(
+              "Điền thông tin khách và máy",
+              style: TextStyle(fontSize: 11, color: Colors.white70),
+            ),
           ],
         ),
         automaticallyImplyLeading: true,
@@ -651,12 +699,16 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                       Tooltip(
                         message: 'Thêm nhanh khách hàng vào danh sách',
                         child: IconButton(
-                          onPressed: (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty)
+                          onPressed:
+                              (nameCtrl.text.trim().isNotEmpty &&
+                                  phoneCtrl.text.trim().isNotEmpty)
                               ? _addCustomerQuick
                               : null,
                           icon: Icon(
                             Icons.person_add,
-                            color: (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty)
+                            color:
+                                (nameCtrl.text.trim().isNotEmpty &&
+                                    phoneCtrl.text.trim().isNotEmpty)
                                 ? Colors.green
                                 : Colors.grey,
                           ),
@@ -692,7 +744,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                       controller: priceCtrl,
                       label: "GIÁ DỰ KIẾN (VNĐ)",
                       icon: Icons.monetization_on,
-                      onSubmitted: () => FocusScope.of(context).requestFocus(passF),
+                      onSubmitted: () =>
+                          FocusScope.of(context).requestFocus(passF),
                     ),
                   ),
 
@@ -883,7 +936,6 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     TextInputType type = TextInputType.text,
     FocusNode? f,
     FocusNode? next,
-    String? suffix,
     int? maxLines,
   }) {
     return Padding(
@@ -1049,24 +1101,36 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(customer.phone),
-                              if (customer.address != null && customer.address!.isNotEmpty)
+                              if (customer.address != null &&
+                                  customer.address!.isNotEmpty)
                                 Text(
                                   'Địa chỉ: ${customer.address}',
-                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                              if (customer.notes != null && customer.notes!.isNotEmpty)
+                              if (customer.notes != null &&
+                                  customer.notes!.isNotEmpty)
                                 Text(
                                   'Ghi chú: ${customer.notes}',
-                                  style: const TextStyle(fontSize: 12, color: Colors.blue, fontStyle: FontStyle.italic),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue,
+                                    fontStyle: FontStyle.italic,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                             ],
                           ),
-                          isThreeLine: (customer.address != null && customer.address!.isNotEmpty) || 
-                                       (customer.notes != null && customer.notes!.isNotEmpty),
+                          isThreeLine:
+                              (customer.address != null &&
+                                  customer.address!.isNotEmpty) ||
+                              (customer.notes != null &&
+                                  customer.notes!.isNotEmpty),
                           onTap: () => widget.onSelect(customer),
                         );
                       },

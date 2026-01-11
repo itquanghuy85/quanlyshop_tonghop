@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../models/repair_partner_model.dart';
 import '../models/partner_repair_history_model.dart';
@@ -26,7 +25,7 @@ class RepairPartnerService {
     final now = DateTime.now().millisecondsSinceEpoch;
     
     // Tạo firestoreId TRƯỚC khi insert để tránh duplicate từ realtime sync
-    final firestoreId = 'partner_${now}';
+    final firestoreId = 'partner_$now';
     
     partnerMap['shopId'] = shopId;
     partnerMap['createdAt'] = now;

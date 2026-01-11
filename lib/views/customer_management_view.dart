@@ -31,8 +31,12 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
   Future<void> _loadCustomers() async {
     setState(() => _isLoading = true);
     try {
-      // Sync customers from cloud first
-      await SyncService.syncCustomersFromCloud();
+      // Sync customers from cloud first (ignore errors)
+      try {
+        await SyncService.syncCustomersFromCloud();
+      } catch (syncError) {
+        debugPrint('Sync customers error (ignored): $syncError');
+      }
       
       final customers = await _customerService.getCustomers();
       setState(() {
@@ -42,9 +46,11 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi tải danh sách khách hàng: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải danh sách khách hàng: $e')),
+        );
+      }
     }
   }
 
@@ -288,7 +294,7 @@ class CustomerListItem extends StatelessWidget {
           backgroundColor: AppColors.primary.withOpacity(0.1),
           child: Text(
             customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?',
-            style: TextStyle(
+            style: const TextStyle(
               color: AppColors.primary,
               fontWeight: FontWeight.bold,
             ),
@@ -563,7 +569,7 @@ class CustomerHistoryDialog extends StatelessWidget {
                   backgroundColor: AppColors.primary.withOpacity(0.1),
                   child: Text(
                     customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.bold,
                     ),

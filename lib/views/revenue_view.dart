@@ -10,14 +10,10 @@ import '../models/sale_order_model.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/sync_service.dart';
-import '../services/firestore_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../widgets/currency_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import 'debt_view.dart';
-import 'warranty_view.dart';
-import 'customer_receivables_view.dart';
 
 class RevenueView extends StatefulWidget {
   const RevenueView({super.key});
@@ -246,11 +242,13 @@ class _RevenueViewState extends State<RevenueView>
         final monthStart = DateTime(now.year, now.month, 1);
         return !dt.isBefore(monthStart);
       case 'custom':
-        if (_customStartDate != null && dt.isBefore(_customStartDate!))
+        if (_customStartDate != null && dt.isBefore(_customStartDate!)) {
           return false;
+        }
         if (_customEndDate != null &&
-            dt.isAfter(_customEndDate!.add(const Duration(days: 1))))
+            dt.isAfter(_customEndDate!.add(const Duration(days: 1)))) {
           return false;
+        }
         return true;
       default:
         return true;
@@ -460,10 +458,11 @@ class _RevenueViewState extends State<RevenueView>
 
   @override
   Widget build(BuildContext context) {
-    if (!_hasRevenueAccess)
+    if (!_hasRevenueAccess) {
       return const Scaffold(
         body: Center(child: Text("Bạn không có quyền truy cập")),
       );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -614,7 +613,7 @@ class _RevenueViewState extends State<RevenueView>
               onSelectionChanged: (Set<int> selected) {
                 setState(() => _detailSubTab = selected.first);
               },
-              style: ButtonStyle(visualDensity: VisualDensity.compact),
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
             ),
           ),
         ),
@@ -932,7 +931,7 @@ class _RevenueViewState extends State<RevenueView>
                   color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.swap_vert_rounded,
                   color: AppColors.primary,
                   size: 18,
@@ -1598,7 +1597,7 @@ class _RevenueViewState extends State<RevenueView>
               ),
               child: Text(
                 '${transactions.length}',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary,
@@ -1740,10 +1739,11 @@ class _RevenueViewState extends State<RevenueView>
           );
           todayTrans.add(item);
           if (!item.isDebt) {
-            if (item.method == "TIỀN MẶT")
+            if (item.method == "TIỀN MẶT") {
               cashIn += item.amount;
-            else
+            } else {
               bankIn += item.amount;
+            }
           } else {
             debtAmount += item.amount;
           }
@@ -1759,10 +1759,11 @@ class _RevenueViewState extends State<RevenueView>
         );
         todayTrans.add(item);
         if (!item.isDebt) {
-          if (item.method == "TIỀN MẶT")
+          if (item.method == "TIỀN MẶT") {
             cashIn += item.amount;
-          else
+          } else {
             bankIn += item.amount;
+          }
         } else {
           debtAmount += item.amount;
         }
@@ -1805,10 +1806,11 @@ class _RevenueViewState extends State<RevenueView>
       );
       todayTrans.add(item);
       if (!item.isDebt) {
-        if (item.method == "TIỀN MẶT")
+        if (item.method == "TIỀN MẶT") {
           cashIn += item.amount;
-        else
+        } else {
           bankIn += item.amount;
+        }
       } else {
         debtAmount += item.amount;
       }
@@ -1827,10 +1829,11 @@ class _RevenueViewState extends State<RevenueView>
         isDebt: false,
       );
       todayTrans.add(item);
-      if (item.method == "TIỀN MẶT")
+      if (item.method == "TIỀN MẶT") {
         cashOut += item.amount;
-      else
+      } else {
         bankOut += item.amount;
+      }
     }
 
     // Supplier imports (Nhập hàng từ NCC) - CHỈ tính khi thanh toán ngay (không nợ)
@@ -1854,10 +1857,11 @@ class _RevenueViewState extends State<RevenueView>
         isDebt: false,
       );
       todayTrans.add(item);
-      if (item.method == "TIỀN MẶT")
+      if (item.method == "TIỀN MẶT") {
         cashOut += item.amount;
-      else
+      } else {
         bankOut += item.amount;
+      }
     }
 
     // Supplier payments (Thanh toán NCC - bao gồm trả nợ NCC)
@@ -1877,10 +1881,11 @@ class _RevenueViewState extends State<RevenueView>
         isDebt: false,
       );
       todayTrans.add(item);
-      if (item.method == "TIỀN MẶT")
+      if (item.method == "TIỀN MẶT") {
         cashOut += item.amount;
-      else
+      } else {
         bankOut += item.amount;
+      }
     }
 
     // Debt payments
@@ -1900,15 +1905,17 @@ class _RevenueViewState extends State<RevenueView>
       );
       todayTrans.add(item);
       if (item.type == "IN") {
-        if (item.method == "TIỀN MẶT")
+        if (item.method == "TIỀN MẶT") {
           cashIn += item.amount;
-        else
+        } else {
           bankIn += item.amount;
+        }
       } else {
-        if (item.method == "TIỀN MẶT")
+        if (item.method == "TIỀN MẶT") {
           cashOut += item.amount;
-        else
+        } else {
           bankOut += item.amount;
+        }
       }
     }
 
@@ -2035,7 +2042,7 @@ class _RevenueViewState extends State<RevenueView>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.lock_outline, color: Colors.blue),
             SizedBox(width: 8),
@@ -2047,10 +2054,10 @@ class _RevenueViewState extends State<RevenueView>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Tiền mặt: ${NumberFormat('#,###').format(cash)} đ'),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text('Ngân hàng: ${NumberFormat('#,###').format(bank)} đ'),
-            SizedBox(height: 12),
-            Text(
+            const SizedBox(height: 12),
+            const Text(
               'Sau khi chốt, bạn sẽ không thể sửa/xóa các phiếu trong ngày.',
               style: TextStyle(fontSize: 12, color: Colors.orange),
             ),
@@ -2059,12 +2066,12 @@ class _RevenueViewState extends State<RevenueView>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('HỦY'),
+            child: const Text('HỦY'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: Text('CHỐT QUỸ', style: TextStyle(color: Colors.white)),
+            child: const Text('CHỐT QUỸ', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -3123,7 +3130,7 @@ class _RevenueViewState extends State<RevenueView>
                   child: Center(
                     child: Text(
                       '$index',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary,
                         fontSize: 10,

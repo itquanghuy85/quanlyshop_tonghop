@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
 import '../models/sale_order_model.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import 'debt_view.dart';
@@ -29,7 +28,7 @@ class _CustomerReceivablesViewState extends State<CustomerReceivablesView>
   bool _isLoading = true;
 
   // Filter
-  String _statusFilter = 'all'; // all, pending, partial, paid
+  final String _statusFilter = 'all'; // all, pending, partial, paid
 
   @override
   void initState() {

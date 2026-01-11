@@ -8,7 +8,6 @@ import 'package:fl_chart/fl_chart.dart';
 import '../utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../services/notification_service.dart';
-import '../services/firestore_service.dart';
 import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/user_service.dart';
@@ -611,7 +610,7 @@ class _ExpenseViewState extends State<ExpenseView> {
           IconButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => FastStockInView()),
+              MaterialPageRoute(builder: (_) => const FastStockInView()),
             ),
             icon: const Icon(Icons.inventory_2_outlined, color: Colors.white),
             tooltip: 'Nhập kho',

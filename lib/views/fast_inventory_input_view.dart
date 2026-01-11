@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../core/utils/money_utils.dart';
 import '../controllers/fast_inventory_input_controller.dart';
@@ -8,7 +7,6 @@ import '../models/product_model.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import '../utils/imei_extractor.dart';
-import '../widgets/currency_text_field.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/imei_scan_result_dialog.dart';
 import '../theme/app_colors.dart';
@@ -43,13 +41,13 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
   );
 
   // SKU generation
-  String _selectedGroup = 'IP';
+  final String _selectedGroup = 'IP';
   final TextEditingController _modelController = TextEditingController();
   final TextEditingController _infoController = TextEditingController();
   final TextEditingController _skuController = TextEditingController();
 
   // Settings
-  String _selectedType = 'DIEN_THOAI';
+  final String _selectedType = 'DIEN_THOAI';
   String _selectedSupplier = '';
   List<Map<String, dynamic>> _suppliers = [];
   bool _isSaving = false;
@@ -380,7 +378,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
               if (_batchItems.isNotEmpty)
                 ElevatedButton.icon(
                   onPressed: _saveBatch,
-                  icon: Icon(Icons.save, color: AppColors.onSuccess),
+                  icon: const Icon(Icons.save, color: AppColors.onSuccess),
                   label: Text("LƯU TẤT CẢ", style: AppTextStyles.button),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.success,
@@ -396,19 +394,19 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.inventory_2_outlined,
                         size: 80,
                         color: Colors.grey,
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       Text(
                         "Chưa có sản phẩm nào trong batch",
                         style: AppTextStyles.body2.copyWith(
                           color: AppColors.onSurface.withOpacity(0.6),
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         "Chuyển sang tab 'Nhập đơn' và bật chế độ batch",
                         style: AppTextStyles.caption.copyWith(

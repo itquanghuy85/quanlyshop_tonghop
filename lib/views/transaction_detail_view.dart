@@ -5,7 +5,6 @@ import '../models/sale_order_model.dart';
 import '../models/repair_model.dart';
 import '../services/sync_service.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
 import '../utils/money_utils.dart';
 import 'sale_detail_view.dart';
 import 'repair_detail_view.dart';

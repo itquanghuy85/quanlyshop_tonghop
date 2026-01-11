@@ -20,7 +20,7 @@ class AuditService {
       final role = user != null ? await UserService.getUserRole(user.uid) : null;
       final userName = user?.email?.split('@').first.toUpperCase() ?? 'SYSTEM';
       final now = DateTime.now().millisecondsSinceEpoch;
-      final firestoreId = 'audit_${now}_${entityType}_${entityId}';
+      final firestoreId = 'audit_${now}_${entityType}_$entityId';
       
       // 1. Ghi vào local DB trước (để hiển thị ngay lập tức)
       final localData = {

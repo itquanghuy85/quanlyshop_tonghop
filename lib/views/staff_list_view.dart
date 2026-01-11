@@ -18,7 +18,6 @@ import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/app_button_styles.dart';
 
 ImageProvider? _safeImageProvider(String? path) {
   if (path == null || path.isEmpty) return null;
@@ -41,7 +40,7 @@ class _StaffListViewState extends State<StaffListView> {
   bool _isSuperAdmin = false;
   bool _loadingRole = true;
   bool _hasManageStaffAccess = false;
-  
+
   // Invite code QR
   String? _currentInviteCode;
   String? _currentShopName;
@@ -83,13 +82,13 @@ class _StaffListViewState extends State<StaffListView> {
 
   Future<void> _loadShopName() async {
     if (_currentShopId == null) return;
-    
+
     try {
       final doc = await FirebaseFirestore.instance
           .collection('shops')
           .doc(_currentShopId)
           .get();
-      
+
       if (doc.exists) {
         final data = doc.data();
         setState(() => _currentShopName = data?['name'] ?? 'Shop không tên');
@@ -103,7 +102,7 @@ class _StaffListViewState extends State<StaffListView> {
 
   Future<void> _loadCurrentInviteCode() async {
     if (_currentShopId == null) return;
-    
+
     try {
       final query = await FirebaseFirestore.instance
           .collection('invites')
@@ -112,7 +111,7 @@ class _StaffListViewState extends State<StaffListView> {
           .orderBy('createdAt', descending: true)
           .limit(1)
           .get();
-      
+
       if (query.docs.isNotEmpty) {
         final inviteData = query.docs.first.data();
         final expiresAt = DateTime.tryParse(inviteData['expiresAt']);
@@ -125,7 +124,8 @@ class _StaffListViewState extends State<StaffListView> {
     }
   }
 
-  bool get _canManageStaff => _isSuperAdmin || _currentRole == 'owner' || _currentRole == 'manager';
+  bool get _canManageStaff =>
+      _isSuperAdmin || _currentRole == 'owner' || _currentRole == 'manager';
 
   Future<void> _generateInviteCode() async {
     final messenger = ScaffoldMessenger.of(context);
@@ -144,9 +144,7 @@ class _StaffListViewState extends State<StaffListView> {
         const SnackBar(content: Text('Đã tạo mã mời mới!')),
       );
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Lỗi tạo mã mời: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Lỗi tạo mã mời: $e')));
     } finally {
       if (mounted) setState(() => _generatingInvite = false);
     }
@@ -207,9 +205,13 @@ class _StaffListViewState extends State<StaffListView> {
                         icon: const Icon(Icons.copy, color: AppColors.primary),
                         onPressed: () async {
                           final messenger = ScaffoldMessenger.of(context);
-                          await Clipboard.setData(ClipboardData(text: _currentInviteCode!));
+                          await Clipboard.setData(
+                            ClipboardData(text: _currentInviteCode!),
+                          );
                           messenger.showSnackBar(
-                            const SnackBar(content: Text('Đã sao chép mã mời vào clipboard')),
+                            const SnackBar(
+                              content: Text('Đã sao chép mã mời vào clipboard'),
+                            ),
                           );
                         },
                       ),
@@ -237,9 +239,13 @@ class _StaffListViewState extends State<StaffListView> {
           ),
           ElevatedButton.icon(
             onPressed: _generatingInvite ? null : _generateInviteCode,
-            icon: _generatingInvite 
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.refresh),
+            icon: _generatingInvite
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
             label: Text(_generatingInvite ? 'ĐANG TẠO...' : 'TẠO MÃ MỚI'),
           ),
         ],
@@ -261,15 +267,18 @@ class _StaffListViewState extends State<StaffListView> {
         String role = 'employee'; // Default to employee instead of user
         String? errorText;
         bool submitting = false;
-        bool autoGeneratePassword = false; // Changed to false to allow manual password entry
+        bool autoGeneratePassword =
+            false; // Changed to false to allow manual password entry
 
         // Auto-generate strong password
         String generatePassword() {
-          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#\$%^&*';
+          const chars =
+              'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#\$%^&*';
           final random = DateTime.now().millisecondsSinceEpoch.toString();
           String password = '';
           for (int i = 0; i < 10; i++) {
-            password += chars[random.codeUnitAt(i % random.length) % chars.length];
+            password +=
+                chars[random.codeUnitAt(i % random.length) % chars.length];
           }
           return password;
         }
@@ -277,17 +286,25 @@ class _StaffListViewState extends State<StaffListView> {
         Future<void> submit() async {
           if (submitting) return;
           final email = emailC.text.trim();
-          final password = autoGeneratePassword ? generatePassword() : passC.text.trim();
+          final password = autoGeneratePassword
+              ? generatePassword()
+              : passC.text.trim();
           final displayName = nameC.text.trim();
-          if (email.isEmpty || (!autoGeneratePassword && password.length < 6) || displayName.isEmpty) {
-            setState(() => errorText = autoGeneratePassword
-                ? 'Nhập email và họ tên'
-                : 'Nhập email, mật khẩu >= 6 ký tự và họ tên');
+          if (email.isEmpty ||
+              (!autoGeneratePassword && password.length < 6) ||
+              displayName.isEmpty) {
+            setState(
+              () => errorText = autoGeneratePassword
+                  ? 'Nhập email và họ tên'
+                  : 'Nhập email, mật khẩu >= 6 ký tự và họ tên',
+            );
             return;
           }
 
           if (_isSuperAdmin && shopC.text.trim().isEmpty) {
-            setState(() => errorText = 'Nhập shopId khi tạo từ tài khoản super admin');
+            setState(
+              () => errorText = 'Nhập shopId khi tạo từ tài khoản super admin',
+            );
             return;
           }
 
@@ -300,7 +317,9 @@ class _StaffListViewState extends State<StaffListView> {
           final navigator = Navigator.of(ctx);
 
           try {
-            final callable = FirebaseFunctions.instanceFor(region: 'asia-southeast1').httpsCallable('createStaffAccount');
+            final callable = FirebaseFunctions.instanceFor(
+              region: 'asia-southeast1',
+            ).httpsCallable('createStaffAccount');
             final payload = {
               'email': email,
               'password': password,
@@ -322,7 +341,9 @@ class _StaffListViewState extends State<StaffListView> {
             debugPrint('Firebase Functions result: $result');
             final resultData = result.data;
             final createdShop =
-                resultData is Map && resultData['shopId'] != null ? resultData['shopId'] : (_currentShopId ?? '');
+                resultData is Map && resultData['shopId'] != null
+                ? resultData['shopId']
+                : (_currentShopId ?? '');
             if (!mounted) return;
             navigator.pop();
 
@@ -333,13 +354,18 @@ class _StaffListViewState extends State<StaffListView> {
 
             messenger.showSnackBar(
               SnackBar(
-                content: Text('Đã tạo tài khoản nhân viên cho ${displayName.toUpperCase()} (shop: $createdShop)$passwordMessage'),
+                content: Text(
+                  'Đã tạo tài khoản nhân viên cho ${displayName.toUpperCase()} (shop: $createdShop)$passwordMessage',
+                ),
                 duration: const Duration(seconds: 8),
               ),
             );
           } on FirebaseFunctionsException catch (e) {
             debugPrint('Firebase Functions error: ${e.code} - ${e.message}');
-            setState(() => errorText = 'Lỗi Firebase: ${e.message ?? 'Không thể tạo tài khoản'}');
+            setState(
+              () => errorText =
+                  'Lỗi Firebase: ${e.message ?? 'Không thể tạo tài khoản'}',
+            );
           } catch (e) {
             debugPrint('General error: $e');
             setState(() => errorText = 'Lỗi: $e');
@@ -359,29 +385,38 @@ class _StaffListViewState extends State<StaffListView> {
                     TextField(
                       controller: emailC,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(labelText: 'Email đăng nhập'),
+                      decoration: const InputDecoration(
+                        labelText: 'Email đăng nhập',
+                      ),
                     ),
                     // Auto-generate password option
                     CheckboxListTile(
                       title: const Text('Tự động tạo mật khẩu mạnh'),
                       subtitle: const Text('Bỏ chọn để tự nhập mật khẩu'),
                       value: autoGeneratePassword,
-                      onChanged: (value) => setState(() => autoGeneratePassword = value ?? false),
+                      onChanged: (value) =>
+                          setState(() => autoGeneratePassword = value ?? false),
                     ),
                     if (!autoGeneratePassword)
                       TextField(
                         controller: passC,
                         obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Mật khẩu (>=6 ký tự)'),
+                        decoration: const InputDecoration(
+                          labelText: 'Mật khẩu (>=6 ký tự)',
+                        ),
                       ),
                     TextField(
                       controller: nameC,
-                      decoration: const InputDecoration(labelText: 'Họ tên nhân viên'),
+                      decoration: const InputDecoration(
+                        labelText: 'Họ tên nhân viên',
+                      ),
                     ),
                     TextField(
                       controller: phoneC,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(labelText: 'Số điện thoại'),
+                      decoration: const InputDecoration(
+                        labelText: 'Số điện thoại',
+                      ),
                     ),
                     TextField(
                       controller: addressC,
@@ -395,24 +430,44 @@ class _StaffListViewState extends State<StaffListView> {
                         DropdownButton<String>(
                           value: role,
                           items: const [
-                            DropdownMenuItem(value: 'employee', child: Text('Nhân viên')),
-                            DropdownMenuItem(value: 'technician', child: Text('Kỹ thuật')),
-                            DropdownMenuItem(value: 'manager', child: Text('Quản lý')),
-                            DropdownMenuItem(value: 'owner', child: Text('Chủ shop')),
+                            DropdownMenuItem(
+                              value: 'employee',
+                              child: Text('Nhân viên'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'technician',
+                              child: Text('Kỹ thuật'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'manager',
+                              child: Text('Quản lý'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'owner',
+                              child: Text('Chủ shop'),
+                            ),
                           ],
-                          onChanged: (v) => setState(() => role = v ?? 'employee'),
+                          onChanged: (v) =>
+                              setState(() => role = v ?? 'employee'),
                         ),
                       ],
                     ),
                     if (_isSuperAdmin)
                       TextField(
                         controller: shopC,
-                        decoration: const InputDecoration(labelText: 'Shop ID (nhập khi tạo từ super admin)'),
+                        decoration: const InputDecoration(
+                          labelText: 'Shop ID (nhập khi tạo từ super admin)',
+                        ),
                       ),
                     if (errorText != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(errorText!, style: AppTextStyles.caption.copyWith(color: AppColors.error)),
+                        child: Text(
+                          errorText!,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.error,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -425,7 +480,11 @@ class _StaffListViewState extends State<StaffListView> {
                 ElevatedButton(
                   onPressed: submitting ? null : submit,
                   child: submitting
-                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('TẠO TÀI KHOẢN'),
                 ),
               ],
@@ -458,7 +517,8 @@ class _StaffListViewState extends State<StaffListView> {
                 return;
               }
 
-              final emails = emailsText.split('\n')
+              final emails = emailsText
+                  .split('\n')
                   .map((e) => e.trim())
                   .where((e) => e.isNotEmpty)
                   .toList();
@@ -470,10 +530,15 @@ class _StaffListViewState extends State<StaffListView> {
 
               // Validate email format
               final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-              final invalidEmails = emails.where((email) => !emailRegex.hasMatch(email)).toList();
+              final invalidEmails = emails
+                  .where((email) => !emailRegex.hasMatch(email))
+                  .toList();
 
               if (invalidEmails.isNotEmpty) {
-                setState(() => errorText = 'Email không hợp lệ: ${invalidEmails.join(', ')}');
+                setState(
+                  () => errorText =
+                      'Email không hợp lệ: ${invalidEmails.join(', ')}',
+                );
                 return;
               }
 
@@ -492,7 +557,9 @@ class _StaffListViewState extends State<StaffListView> {
 
                 for (final email in emails) {
                   try {
-                    final callable = FirebaseFunctions.instanceFor(region: 'asia-southeast1').httpsCallable('createStaffAccount');
+                    final callable = FirebaseFunctions.instanceFor(
+                      region: 'asia-southeast1',
+                    ).httpsCallable('createStaffAccount');
                     final payload = {
                       'email': email,
                       'password': _generateTempPassword(),
@@ -515,7 +582,8 @@ class _StaffListViewState extends State<StaffListView> {
 
                 String message = 'Đã mời $successCount nhân viên thành công';
                 if (failCount > 0) {
-                  message += ', $failCount thất bại: ${failedEmails.join(', ')}';
+                  message +=
+                      ', $failCount thất bại: ${failedEmails.join(', ')}';
                 }
 
                 messenger.showSnackBar(
@@ -560,18 +628,33 @@ class _StaffListViewState extends State<StaffListView> {
                         DropdownButton<String>(
                           value: role,
                           items: const [
-                            DropdownMenuItem(value: 'employee', child: Text('Nhân viên')),
-                            DropdownMenuItem(value: 'technician', child: Text('Kỹ thuật')),
-                            DropdownMenuItem(value: 'manager', child: Text('Quản lý')),
+                            DropdownMenuItem(
+                              value: 'employee',
+                              child: Text('Nhân viên'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'technician',
+                              child: Text('Kỹ thuật'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'manager',
+                              child: Text('Quản lý'),
+                            ),
                           ],
-                          onChanged: (v) => setState(() => role = v ?? 'employee'),
+                          onChanged: (v) =>
+                              setState(() => role = v ?? 'employee'),
                         ),
                       ],
                     ),
                     if (errorText != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(errorText!, style: AppTextStyles.caption.copyWith(color: AppColors.error)),
+                        child: Text(
+                          errorText!,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.error,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -584,7 +667,11 @@ class _StaffListViewState extends State<StaffListView> {
                 ElevatedButton(
                   onPressed: submitting ? null : submit,
                   child: submitting
-                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('GỬI LỜI MỜI'),
                 ),
               ],
@@ -596,7 +683,8 @@ class _StaffListViewState extends State<StaffListView> {
   }
 
   String _generateTempPassword() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#\$%^&*';
+    const chars =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#\$%^&*';
     final random = DateTime.now().millisecondsSinceEpoch.toString();
     String password = '';
     for (int i = 0; i < 12; i++) {
@@ -627,7 +715,10 @@ class _StaffListViewState extends State<StaffListView> {
                 final csvData = const CsvToListConverter().convert(content);
 
                 if (csvData.isEmpty || csvData[0].length < 2) {
-                  setState(() => errorText = 'File CSV không hợp lệ. Cần ít nhất 2 cột: Email, Họ tên');
+                  setState(
+                    () => errorText =
+                        'File CSV không hợp lệ. Cần ít nhất 2 cột: Email, Họ tên',
+                  );
                   return;
                 }
 
@@ -640,8 +731,12 @@ class _StaffListViewState extends State<StaffListView> {
                       'email': row[0]?.toString().trim() ?? '',
                       'displayName': row[1]?.toString().trim() ?? '',
                       'phone': row.length > 2 ? row[2]?.toString().trim() : '',
-                      'address': row.length > 3 ? row[3]?.toString().trim() : '',
-                      'role': row.length > 4 ? row[4]?.toString().trim() : 'employee',
+                      'address': row.length > 3
+                          ? row[3]?.toString().trim()
+                          : '',
+                      'role': row.length > 4
+                          ? row[4]?.toString().trim()
+                          : 'employee',
                     });
                   }
                 }
@@ -671,7 +766,9 @@ class _StaffListViewState extends State<StaffListView> {
 
                 for (final staff in parsedData!) {
                   try {
-                    final callable = FirebaseFunctions.instanceFor(region: 'asia-southeast1').httpsCallable('createStaffAccount');
+                    final callable = FirebaseFunctions.instanceFor(
+                      region: 'asia-southeast1',
+                    ).httpsCallable('createStaffAccount');
                     final payload = {
                       'email': staff['email'],
                       'password': _generateTempPassword(),
@@ -696,7 +793,8 @@ class _StaffListViewState extends State<StaffListView> {
 
                 String message = 'Đã import $successCount nhân viên thành công';
                 if (failCount > 0) {
-                  message += ', $failCount thất bại: ${failedEmails.join(', ')}';
+                  message +=
+                      ', $failCount thất bại: ${failedEmails.join(', ')}';
                 }
 
                 messenger.showSnackBar(
@@ -733,13 +831,21 @@ class _StaffListViewState extends State<StaffListView> {
                         padding: const EdgeInsets.only(top: 10),
                         child: Text(
                           'Đã tải ${parsedData!.length} nhân viên',
-                          style: AppTextStyles.body2.copyWith(color: AppColors.success, fontWeight: FontWeight.bold),
+                          style: AppTextStyles.body2.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     if (errorText != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(errorText!, style: AppTextStyles.caption.copyWith(color: AppColors.error)),
+                        child: Text(
+                          errorText!,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.error,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -750,9 +856,15 @@ class _StaffListViewState extends State<StaffListView> {
                   child: const Text('HỦY'),
                 ),
                 ElevatedButton(
-                  onPressed: (parsedData != null && !submitting) ? submit : null,
+                  onPressed: (parsedData != null && !submitting)
+                      ? submit
+                      : null,
                   child: submitting
-                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('IMPORT'),
                 ),
               ],
@@ -766,9 +878,7 @@ class _StaffListViewState extends State<StaffListView> {
   @override
   Widget build(BuildContext context) {
     if (_loadingRole) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // Kiểm tra quyền truy cập
@@ -782,8 +892,8 @@ class _StaffListViewState extends State<StaffListView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.people, size: 64, color: AppColors.inactive),
-              SizedBox(height: 16),
+              const Icon(Icons.people, size: 64, color: AppColors.inactive),
+              const SizedBox(height: 16),
               Text(
                 "Bạn không có quyền truy cập\nmàn hình quản lý nhân viên",
                 textAlign: TextAlign.center,
@@ -812,9 +922,18 @@ class _StaffListViewState extends State<StaffListView> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("QUẢN LÝ NHÂN VIÊN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const Text(
+              "QUẢN LÝ NHÂN VIÊN",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
             if (_currentRole != null)
-              Text("Vai trò: ${_currentRole!.toUpperCase()}", style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8))),
+              Text(
+                "Vai trò: ${_currentRole!.toUpperCase()}",
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withOpacity(0.8),
+                ),
+              ),
           ],
         ),
         automaticallyImplyLeading: true,
@@ -866,53 +985,63 @@ class _StaffListViewState extends State<StaffListView> {
       body: _loadingRole
           ? const Center(child: CircularProgressIndicator())
           : _currentShopId == null && !_isSuperAdmin
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.warning_amber_rounded, size: 64, color: AppColors.warning),
-                      const SizedBox(height: 16),
-                      Text(
-                        "Chưa có thông tin shop\nVui lòng đăng xuất và đăng nhập lại",
-                        textAlign: TextAlign.center,
-                        style: AppTextStyles.body1.copyWith(color: AppColors.warning),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () async {
-                          // Thử load lại shopId
-                          final shopId = await UserService.getCurrentShopId();
-                          if (shopId != null && mounted) {
-                            setState(() => _currentShopId = shopId);
-                          }
-                        },
-                        child: const Text('Thử lại'),
-                      ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    size: 64,
+                    color: AppColors.warning,
                   ),
-                )
-              : StreamBuilder<QuerySnapshot>(
-              stream: _isSuperAdmin 
+                  const SizedBox(height: 16),
+                  Text(
+                    "Chưa có thông tin shop\nVui lòng đăng xuất và đăng nhập lại",
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.body1.copyWith(
+                      color: AppColors.warning,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () async {
+                      // Thử load lại shopId
+                      final shopId = await UserService.getCurrentShopId();
+                      if (shopId != null && mounted) {
+                        setState(() => _currentShopId = shopId);
+                      }
+                    },
+                    child: const Text('Thử lại'),
+                  ),
+                ],
+              ),
+            )
+          : StreamBuilder<QuerySnapshot>(
+              stream: _isSuperAdmin
                   ? UserService.getAllUsersStream()
-                  : (_currentShopId != null 
-                      ? UserService.getUsersStreamByShopId(_currentShopId!)
-                      : UserService.getAllUsersStream()),
+                  : (_currentShopId != null
+                        ? UserService.getUsersStreamByShopId(_currentShopId!)
+                        : UserService.getAllUsersStream()),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                
+
                 if (snapshot.hasError) {
                   return Center(
                     child: Text(
                       "Lỗi tải dữ liệu: ${snapshot.error}\nShopId: $_currentShopId",
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.body1.copyWith(color: AppColors.error),
+                      style: AppTextStyles.body1.copyWith(
+                        color: AppColors.error,
+                      ),
                     ),
                   );
                 }
-                
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
                 final users = snapshot.data!.docs;
                 if (users.isEmpty) {
@@ -920,7 +1049,9 @@ class _StaffListViewState extends State<StaffListView> {
                     child: Text(
                       "Chưa có dữ liệu nhân viên\nMỗi tài khoản sẽ tự xuất hiện sau khi đăng nhập",
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.body1.copyWith(color: AppColors.inactive),
+                      style: AppTextStyles.body1.copyWith(
+                        color: AppColors.inactive,
+                      ),
                     ),
                   );
                 }
@@ -933,58 +1064,195 @@ class _StaffListViewState extends State<StaffListView> {
                     final uid = users[i].id;
                     final email = userData['email'] ?? "Chưa có email";
                     final role = userData['role'] ?? 'user';
-                    final displayName = userData['displayName'] ?? email.split('@').first.toUpperCase();
+                    final displayName =
+                        userData['displayName'] ??
+                        email.split('@').first.toUpperCase();
                     final phone = userData['phone'] ?? "Chưa có SĐT";
                     final photoUrl = userData['photoUrl'];
                     final shopId = userData['shopId'];
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundImage: _safeImageProvider(photoUrl),
-                          backgroundColor: role == 'owner' ? AppColors.primary.withOpacity(0.1) : role == 'manager' ? AppColors.secondary.withOpacity(0.1) : role == 'employee' ? AppColors.info.withOpacity(0.1) : role == 'technician' ? AppColors.success.withOpacity(0.1) : role == 'admin' ? AppColors.error.withOpacity(0.1) : AppColors.inactive.withOpacity(0.1),
-                          child: photoUrl == null ? Icon(role == 'owner' ? Icons.business : role == 'manager' ? Icons.supervisor_account : role == 'employee' ? Icons.work : role == 'technician' ? Icons.build : role == 'admin' ? Icons.admin_panel_settings : Icons.person, color: role == 'owner' ? AppColors.primary : role == 'manager' ? AppColors.secondary : role == 'employee' ? AppColors.info : role == 'technician' ? AppColors.success : role == 'admin' ? AppColors.error : AppColors.inactive) : null,
+                          backgroundColor: role == 'owner'
+                              ? AppColors.primary.withOpacity(0.1)
+                              : role == 'manager'
+                              ? AppColors.secondary.withOpacity(0.1)
+                              : role == 'employee'
+                              ? AppColors.info.withOpacity(0.1)
+                              : role == 'technician'
+                              ? AppColors.success.withOpacity(0.1)
+                              : role == 'admin'
+                              ? AppColors.error.withOpacity(0.1)
+                              : AppColors.inactive.withOpacity(0.1),
+                          child: photoUrl == null
+                              ? Icon(
+                                  role == 'owner'
+                                      ? Icons.business
+                                      : role == 'manager'
+                                      ? Icons.supervisor_account
+                                      : role == 'employee'
+                                      ? Icons.work
+                                      : role == 'technician'
+                                      ? Icons.build
+                                      : role == 'admin'
+                                      ? Icons.admin_panel_settings
+                                      : Icons.person,
+                                  color: role == 'owner'
+                                      ? AppColors.primary
+                                      : role == 'manager'
+                                      ? AppColors.secondary
+                                      : role == 'employee'
+                                      ? AppColors.info
+                                      : role == 'technician'
+                                      ? AppColors.success
+                                      : role == 'admin'
+                                      ? AppColors.error
+                                      : AppColors.inactive,
+                                )
+                              : null,
                         ),
-                        title: Text(displayName, style: AppTextStyles.headline6),
+                        title: Text(
+                          displayName,
+                          style: AppTextStyles.headline6,
+                        ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(email, style: AppTextStyles.caption.copyWith(fontSize: 11)),
-                            Text("SĐT: $phone", style: AppTextStyles.caption.copyWith(fontSize: 11)),
-                            role == 'admin' 
-                              ? Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error,
-                                    borderRadius: BorderRadius.circular(4),
+                            Text(
+                              email,
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 11,
+                              ),
+                            ),
+                            Text(
+                              "SĐT: $phone",
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 11,
+                              ),
+                            ),
+                            role == 'admin'
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.error,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      "Vai trò: Admin",
+                                      style: AppTextStyles.caption.copyWith(
+                                        fontSize: 11,
+                                        color: AppColors.warning,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    "Vai trò: ${role == 'owner'
+                                        ? 'Chủ shop'
+                                        : role == 'manager'
+                                        ? 'Quản lý'
+                                        : role == 'employee'
+                                        ? 'Nhân viên'
+                                        : role == 'technician'
+                                        ? 'Kỹ thuật'
+                                        : role == 'admin'
+                                        ? 'Admin'
+                                        : role == 'user'
+                                        ? 'Người dùng'
+                                        : role}",
+                                    style: AppTextStyles.caption.copyWith(
+                                      fontSize: 11,
+                                    ),
                                   ),
-                                  child: Text("Vai trò: Admin", style: AppTextStyles.caption.copyWith(fontSize: 11, color: AppColors.warning, fontWeight: FontWeight.bold)),
-                                )
-                              : Text("Vai trò: ${role == 'owner' ? 'Chủ shop' : role == 'manager' ? 'Quản lý' : role == 'employee' ? 'Nhân viên' : role == 'technician' ? 'Kỹ thuật' : role == 'admin' ? 'Admin' : role == 'user' ? 'Người dùng' : role}", style: AppTextStyles.caption.copyWith(fontSize: 11)),
                             if (shopId != null)
                               FutureBuilder<DocumentSnapshot>(
-                                future: FirebaseFirestore.instance.collection('shops').doc(shopId).get(),
+                                future: FirebaseFirestore.instance
+                                    .collection('shops')
+                                    .doc(shopId)
+                                    .get(),
                                 builder: (context, snapshot) {
-                                  if (snapshot.hasData && snapshot.data!.exists) {
-                                    final shopData = snapshot.data!.data() as Map<String, dynamic>;
-                                    final shopName = shopData['name'] ?? 'Shop không tên';
-                                    return Text("Shop: $shopName", style: AppTextStyles.caption.copyWith(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w500));
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return Text(
+                                      "Shop: Đang tải...",
+                                      style: AppTextStyles.caption.copyWith(
+                                        fontSize: 11,
+                                        color: AppColors.secondary,
+                                      ),
+                                    );
+                                  }
+                                  if (snapshot.hasData &&
+                                      snapshot.data!.exists) {
+                                    final shopData =
+                                        snapshot.data!.data()
+                                            as Map<String, dynamic>;
+                                    final shopName =
+                                        shopData['name'] ?? 'Shop không tên';
+                                    return Text(
+                                      "Shop: $shopName",
+                                      style: AppTextStyles.caption.copyWith(
+                                        fontSize: 11,
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    );
                                   } else if (snapshot.hasError) {
-                                    return Text("Shop: Lỗi tải", style: AppTextStyles.caption.copyWith(fontSize: 11, color: AppColors.error));
+                                    // Permission denied hoặc lỗi khác - hiển thị shop ID thay vì lỗi
+                                    final shortId = shopId.length > 8
+                                        ? '${shopId.substring(0, 8)}...'
+                                        : shopId;
+                                    return Text(
+                                      "Shop: $shortId",
+                                      style: AppTextStyles.caption.copyWith(
+                                        fontSize: 11,
+                                        color: AppColors.secondary,
+                                      ),
+                                    );
                                   } else {
-                                    return Text("Shop: $shopId", style: AppTextStyles.caption.copyWith(fontSize: 11, color: AppColors.primary));
+                                    final shortId = shopId.length > 8
+                                        ? '${shopId.substring(0, 8)}...'
+                                        : shopId;
+                                    return Text(
+                                      "Shop: $shortId",
+                                      style: AppTextStyles.caption.copyWith(
+                                        fontSize: 11,
+                                        color: AppColors.primary,
+                                      ),
+                                    );
                                   }
                                 },
                               )
                             else
-                              Text("Shop: Chưa gán", style: AppTextStyles.caption.copyWith(fontSize: 11, color: AppColors.secondary)),
+                              Text(
+                                "Shop: Chưa gán",
+                                style: AppTextStyles.caption.copyWith(
+                                  fontSize: 11,
+                                  color: AppColors.secondary,
+                                ),
+                              ),
                           ],
                         ),
                         isThreeLine: true,
-                        trailing: const Icon(Icons.edit_note_rounded, color: Colors.blueAccent),
-                        onTap: () => _showStaffActivityCenter(uid, displayName, email, role, userData),
+                        trailing: const Icon(
+                          Icons.edit_note_rounded,
+                          color: Colors.blueAccent,
+                        ),
+                        onTap: () => _showStaffActivityCenter(
+                          uid,
+                          displayName,
+                          email,
+                          role,
+                          userData,
+                        ),
                       ),
                     );
                   },
@@ -994,7 +1262,13 @@ class _StaffListViewState extends State<StaffListView> {
     );
   }
 
-  void _showStaffActivityCenter(String uid, String name, String email, String currentRole, Map<String, dynamic> fullData) {
+  void _showStaffActivityCenter(
+    String uid,
+    String name,
+    String email,
+    String currentRole,
+    Map<String, dynamic> fullData,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1015,16 +1289,24 @@ class _StaffActivityCenter extends StatefulWidget {
   final String uid, name, email, role;
   final Map<String, dynamic> fullData;
   final bool isSuperAdmin;
-  const _StaffActivityCenter({required this.uid, required this.name, required this.email, required this.role, required this.fullData, required this.isSuperAdmin});
+  const _StaffActivityCenter({
+    required this.uid,
+    required this.name,
+    required this.email,
+    required this.role,
+    required this.fullData,
+    required this.isSuperAdmin,
+  });
 
   @override
   State<_StaffActivityCenter> createState() => _StaffActivityCenterState();
 }
 
-class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleTickerProviderStateMixin {
+class _StaffActivityCenterState extends State<_StaffActivityCenter>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final db = DBHelper();
-  
+
   // Controllers cho phần chỉnh sửa thông tin
   final nameCtrl = TextEditingController();
   final phoneCtrl = TextEditingController();
@@ -1064,7 +1346,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
     super.initState();
     try {
       _tabController = TabController(length: 4, vsync: this);
-      
+
       // Gán dữ liệu ban đầu
       nameCtrl.text = widget.fullData['displayName'] ?? widget.name;
       phoneCtrl.text = widget.fullData['phone'] ?? "";
@@ -1072,7 +1354,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
       _photoPath = widget.fullData['photoUrl'];
       // Đảm bảo role nằm trong danh sách dropdown, nếu không dùng mặc định 'employee'
       const validRoles = ['owner', 'manager', 'employee', 'technician'];
-      _selectedRole = validRoles.contains(widget.role) ? widget.role : 'employee';
+      _selectedRole = validRoles.contains(widget.role)
+          ? widget.role
+          : 'employee';
       _staffShopId = widget.fullData['shopId'];
 
       // Quyền xem nội dung (mặc định: chỉ quản lý thấy toàn bộ tài chính)
@@ -1148,9 +1432,21 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
       final allS = await db.getAllSales();
       if (!mounted) return;
       setState(() {
-        _repairsReceived = allR.where((r) => r.createdBy?.toUpperCase() == widget.name.toUpperCase()).toList();
-        _repairsDelivered = allR.where((r) => r.deliveredBy?.toUpperCase() == widget.name.toUpperCase()).toList();
-        _sales = allS.where((s) => s.sellerName.toUpperCase() == widget.name.toUpperCase()).toList();
+        _repairsReceived = allR
+            .where(
+              (r) => r.createdBy?.toUpperCase() == widget.name.toUpperCase(),
+            )
+            .toList();
+        _repairsDelivered = allR
+            .where(
+              (r) => r.deliveredBy?.toUpperCase() == widget.name.toUpperCase(),
+            )
+            .toList();
+        _sales = allS
+            .where(
+              (s) => s.sellerName.toUpperCase() == widget.name.toUpperCase(),
+            )
+            .toList();
       });
     } catch (e) {
       debugPrint('Error loading staff data: $e');
@@ -1176,10 +1472,18 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
   }
 
   void _editWorkScheduleForStaff() async {
-    final startTimeCtrl = TextEditingController(text: _workSchedule?['startTime'] ?? '08:00');
-    final endTimeCtrl = TextEditingController(text: _workSchedule?['endTime'] ?? '17:00');
-    final breakTimeCtrl = TextEditingController(text: (_workSchedule?['breakTime'] ?? 1).toString());
-    final maxOtCtrl = TextEditingController(text: (_workSchedule?['maxOtHours'] ?? 4).toString());
+    final startTimeCtrl = TextEditingController(
+      text: _workSchedule?['startTime'] ?? '08:00',
+    );
+    final endTimeCtrl = TextEditingController(
+      text: _workSchedule?['endTime'] ?? '17:00',
+    );
+    final breakTimeCtrl = TextEditingController(
+      text: (_workSchedule?['breakTime'] ?? 1).toString(),
+    );
+    final maxOtCtrl = TextEditingController(
+      text: (_workSchedule?['maxOtHours'] ?? 4).toString(),
+    );
 
     await showDialog(
       context: context,
@@ -1190,11 +1494,15 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
           children: [
             TextField(
               controller: startTimeCtrl,
-              decoration: const InputDecoration(labelText: 'Giờ bắt đầu (HH:mm)'),
+              decoration: const InputDecoration(
+                labelText: 'Giờ bắt đầu (HH:mm)',
+              ),
             ),
             TextField(
               controller: endTimeCtrl,
-              decoration: const InputDecoration(labelText: 'Giờ kết thúc (HH:mm)'),
+              decoration: const InputDecoration(
+                labelText: 'Giờ kết thúc (HH:mm)',
+              ),
             ),
             TextField(
               controller: breakTimeCtrl,
@@ -1203,13 +1511,18 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
             ),
             TextField(
               controller: maxOtCtrl,
-              decoration: const InputDecoration(labelText: 'OT tối đa (giờ/ngày)'),
+              decoration: const InputDecoration(
+                labelText: 'OT tối đa (giờ/ngày)',
+              ),
               keyboardType: TextInputType.number,
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('HỦY')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('HỦY'),
+          ),
           ElevatedButton(
             onPressed: () async {
               final newSchedule = {
@@ -1228,7 +1541,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
               await _loadWorkSchedule();
               navigator.pop();
               messenger.showSnackBar(
-                const SnackBar(content: Text("Đã cập nhật lịch làm việc"), backgroundColor: Colors.green),
+                const SnackBar(
+                  content: Text("Đã cập nhật lịch làm việc"),
+                  backgroundColor: Colors.green,
+                ),
               );
             },
             child: const Text('LƯU'),
@@ -1239,7 +1555,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
   }
 
   Future<void> _pickPhoto() async {
-    final f = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 50);
+    final f = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+    );
     if (f != null) setState(() => _photoPath = f.path);
   }
 
@@ -1250,9 +1569,16 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
       String? photoUrl = _photoPath;
       if (_photoPath != null && !_photoPath!.startsWith('http')) {
         print('Uploading photo: $_photoPath');
-        photoUrl = await StorageService.uploadAndGetUrl(_photoPath!, 'user_photos');
+        photoUrl = await StorageService.uploadAndGetUrl(
+          _photoPath!,
+          'user_photos',
+        );
         if (photoUrl == null) {
-          messenger.showSnackBar(const SnackBar(content: Text("Lỗi khi upload ảnh - kiểm tra kết nối internet")));
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text("Lỗi khi upload ảnh - kiểm tra kết nối internet"),
+            ),
+          );
           return;
         }
         print('Photo uploaded successfully: $photoUrl');
@@ -1289,7 +1615,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
 
       if (!mounted) return;
       setState(() => _isEditing = false);
-      messenger.showSnackBar(const SnackBar(content: Text("ĐÃ CẬP NHẬT HỒ SƠ NHÂN VIÊN!")));
+      messenger.showSnackBar(
+        const SnackBar(content: Text("ĐÃ CẬP NHẬT HỒ SƠ NHÂN VIÊN!")),
+      );
     } catch (e) {
       print('Error saving staff info: $e');
       if (!mounted) return;
@@ -1299,7 +1627,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
 
   Future<void> _assignToMyShop() async {
     if (_currentUserShopId == null || _currentUserShopId!.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Không xác định được cửa hàng hiện tại")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Không xác định được cửa hàng hiện tại")),
+      );
       return;
     }
     final messenger = ScaffoldMessenger.of(context);
@@ -1310,10 +1640,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
       setState(() {
         _staffShopId = _currentUserShopId;
       });
-      messenger.showSnackBar(const SnackBar(content: Text("ĐÃ GÁN NHÂN VIÊN VÀO CỬA HÀNG CỦA BẠN")));
+      messenger.showSnackBar(
+        const SnackBar(content: Text("ĐÃ GÁN NHÂN VIÊN VÀO CỬA HÀNG CỦA BẠN")),
+      );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text("Lỗi khi gán cửa hàng: $e")));
+      messenger.showSnackBar(
+        SnackBar(content: Text("Lỗi khi gán cửa hàng: $e")),
+      );
     } finally {
       if (mounted) setState(() => _assigningShop = false);
     }
@@ -1323,12 +1657,22 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
-      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
       child: Column(
         children: [
           const SizedBox(height: 10),
-          Container(width: 40, height: 5, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
-          
+          Container(
+            width: 40,
+            height: 5,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+
           Padding(
             padding: const EdgeInsets.all(20),
             child: Row(
@@ -1339,7 +1683,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
                     radius: 30,
                     backgroundImage: _safeImageProvider(_photoPath),
                     backgroundColor: Colors.blue.withAlpha(25),
-                    child: _photoPath == null ? const Icon(Icons.camera_alt, color: Colors.blue) : null,
+                    child: _photoPath == null
+                        ? const Icon(Icons.camera_alt, color: Colors.blue)
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 15),
@@ -1347,15 +1693,36 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text(widget.email, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(
+                        widget.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        widget.email,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
                       if (widget.isSuperAdmin)
-                        Text("UID: ${widget.uid}", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        Text(
+                          "UID: ${widget.uid}",
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: Icon(_isEditing ? Icons.check_circle : Icons.edit, color: _isEditing ? Colors.green : Colors.blue),
+                  icon: Icon(
+                    _isEditing ? Icons.check_circle : Icons.edit,
+                    color: _isEditing ? Colors.green : Colors.blue,
+                  ),
                   onPressed: () {
                     if (_isEditing) {
                       _saveStaffInfo();
@@ -1363,7 +1730,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
                       setState(() => _isEditing = true);
                     }
                   },
-                )
+                ),
               ],
             ),
           ),
@@ -1376,21 +1743,52 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      _editInput(nameCtrl, "Họ và tên nhân viên", Icons.person_outline),
-                      _editInput(phoneCtrl, "Số điện thoại liên hệ", Icons.phone_android_outlined, type: TextInputType.phone),
-                      _editInput(addressCtrl, "Địa chỉ thường trú", Icons.location_on_outlined),
+                      _editInput(
+                        nameCtrl,
+                        "Họ và tên nhân viên",
+                        Icons.person_outline,
+                      ),
+                      _editInput(
+                        phoneCtrl,
+                        "Số điện thoại liên hệ",
+                        Icons.phone_android_outlined,
+                        type: TextInputType.phone,
+                      ),
+                      _editInput(
+                        addressCtrl,
+                        "Địa chỉ thường trú",
+                        Icons.location_on_outlined,
+                      ),
                       const SizedBox(height: 10),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Quyền hệ thống:", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          const Text(
+                            "Quyền hệ thống:",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           DropdownButton<String>(
                             value: _selectedRole,
                             items: const [
-                              DropdownMenuItem(value: 'owner', child: Text("CHỦ SHOP")),
-                              DropdownMenuItem(value: 'manager', child: Text("QUẢN LÝ")),
-                              DropdownMenuItem(value: 'employee', child: Text("NHÂN VIÊN")),
-                              DropdownMenuItem(value: 'technician', child: Text("KỸ THUẬT")),
+                              DropdownMenuItem(
+                                value: 'owner',
+                                child: Text("CHỦ SHOP"),
+                              ),
+                              DropdownMenuItem(
+                                value: 'manager',
+                                child: Text("QUẢN LÝ"),
+                              ),
+                              DropdownMenuItem(
+                                value: 'employee',
+                                child: Text("NHÂN VIÊN"),
+                              ),
+                              DropdownMenuItem(
+                                value: 'technician',
+                                child: Text("KỸ THUẬT"),
+                              ),
                             ],
                             onChanged: (v) {
                               setState(() {
@@ -1408,20 +1806,33 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
                           Expanded(
                             child: Text(
                               "Cửa hàng của nhân viên: ${_staffShopId ?? 'Chưa gán'}",
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
                           ),
                           if (!_loadingShop && _currentUserShopId != null)
                             TextButton.icon(
-                              onPressed: _assigningShop ? null : _assignToMyShop,
+                              onPressed: _assigningShop
+                                  ? null
+                                  : _assignToMyShop,
                               icon: _assigningShop
                                   ? const SizedBox(
                                       width: 14,
                                       height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     )
-                                  : const Icon(Icons.store_mall_directory, size: 18),
-                              label: const Text("GÁN VÀO SHOP CỦA TÔI", style: TextStyle(fontSize: 11)),
+                                  : const Icon(
+                                      Icons.store_mall_directory,
+                                      size: 18,
+                                    ),
+                              label: const Text(
+                                "GÁN VÀO SHOP CỦA TÔI",
+                                style: TextStyle(fontSize: 11),
+                              ),
                             ),
                         ],
                       ),
@@ -1431,7 +1842,11 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
                         alignment: Alignment.centerLeft,
                         child: Text(
                           "PHÂN QUYỀN NỘI DUNG CHO NHÂN VIÊN",
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey[700]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blueGrey[700],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -1443,113 +1858,261 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
                         ),
                         child: Column(
                           children: [
-                            if (_selectedRole == 'owner' || _selectedRole == 'manager')
+                            if (_selectedRole == 'owner' ||
+                                _selectedRole == 'manager')
                               const Padding(
                                 padding: EdgeInsets.all(10),
                                 child: Text(
                                   "Tài khoản CHỦ SHOP/QUẢN LÝ luôn được xem đầy đủ mọi nội dung trong hệ thống.",
-                                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
                                 ),
                               )
                             else ...[
                               const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
                                 child: Align(
                                   alignment: Alignment.centerLeft,
                                   child: Text(
                                     "MÀN HÌNH NGHIỆP VỤ",
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blueGrey,
+                                    ),
                                   ),
                                 ),
                               ),
                               SwitchListTile(
-                                title: const Text("BÁN HÀNG", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Xem và tạo đơn bán máy / phụ kiện", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "BÁN HÀNG",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Xem và tạo đơn bán máy / phụ kiện",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewSales,
-                                onChanged: (v) => setState(() => _canViewSales = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewSales = v),
                               ),
                               SwitchListTile(
-                                title: const Text("SỬA CHỮA", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Xem danh sách đơn sửa, tạo đơn mới", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "SỬA CHỮA",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Xem danh sách đơn sửa, tạo đơn mới",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewRepairs,
-                                onChanged: (v) => setState(() => _canViewRepairs = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewRepairs = v),
                               ),
                               SwitchListTile(
-                                title: const Text("KHO", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Xem hàng tồn kho và phụ kiện", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "KHO",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Xem hàng tồn kho và phụ kiện",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewInventory,
-                                onChanged: (v) => setState(() => _canViewInventory = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewInventory = v),
                               ),
                               SwitchListTile(
-                                title: const Text("KHO LINH KIỆN SỬA CHỮA", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Quản lý linh kiện dùng cho sửa chữa", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "KHO LINH KIỆN SỬA CHỮA",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Quản lý linh kiện dùng cho sửa chữa",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewParts,
-                                onChanged: (v) => setState(() => _canViewParts = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewParts = v),
                               ),
                               SwitchListTile(
-                                title: const Text("NHÀ CUNG CẤP", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Xem sổ nhà phân phối, lịch sử nhập hàng", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "NHÀ CUNG CẤP",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Xem sổ nhà phân phối, lịch sử nhập hàng",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewSuppliers,
-                                onChanged: (v) => setState(() => _canViewSuppliers = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewSuppliers = v),
                               ),
                               SwitchListTile(
-                                title: const Text("KHÁCH HÀNG", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Xem danh sách khách và lịch sử mua/sửa", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "KHÁCH HÀNG",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Xem danh sách khách và lịch sử mua/sửa",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewCustomers,
-                                onChanged: (v) => setState(() => _canViewCustomers = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewCustomers = v),
                               ),
                               SwitchListTile(
-                                title: const Text("BẢO HÀNH", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Truy cập sổ bảo hành của cửa hàng", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "BẢO HÀNH",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Truy cập sổ bảo hành của cửa hàng",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewWarranty,
-                                onChanged: (v) => setState(() => _canViewWarranty = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewWarranty = v),
                               ),
                               SwitchListTile(
-                                title: const Text("CHAT NỘI BỘ", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Cho phép sử dụng phòng chat trong cửa hàng", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "CHAT NỘI BỘ",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Cho phép sử dụng phòng chat trong cửa hàng",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewChat,
-                                onChanged: (v) => setState(() => _canViewChat = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewChat = v),
                               ),
                               SwitchListTile(
-                                title: const Text("CHẤM CÔNG", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Cho phép chấm công và xem báo cáo chấm công", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "CHẤM CÔNG",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Cho phép chấm công và xem báo cáo chấm công",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewAttendance,
-                                onChanged: (v) => setState(() => _canViewAttendance = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewAttendance = v),
                               ),
                               SwitchListTile(
-                                title: const Text("CẤU HÌNH MÁY IN", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Kết nối và in hóa đơn qua Bluetooth", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "CẤU HÌNH MÁY IN",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Kết nối và in hóa đơn qua Bluetooth",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewPrinter,
-                                onChanged: (v) => setState(() => _canViewPrinter = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewPrinter = v),
                               ),
 
                               const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
                                 child: Align(
                                   alignment: Alignment.centerLeft,
                                   child: Text(
                                     "MÀN HÌNH TÀI CHÍNH NHẠY CẢM",
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blueGrey,
+                                    ),
                                   ),
                                 ),
                               ),
                               SwitchListTile(
-                                title: const Text("Cho phép xem màn DOANH THU", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Bao gồm báo cáo lời/lỗ, doanh số bán và sửa", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "Cho phép xem màn DOANH THU",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Bao gồm báo cáo lời/lỗ, doanh số bán và sửa",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewRevenue,
-                                onChanged: (v) => setState(() => _canViewRevenue = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewRevenue = v),
                               ),
                               SwitchListTile(
-                                title: const Text("Cho phép xem màn CHI PHÍ", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Xem và quản lý các khoản chi ra của cửa hàng", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "Cho phép xem màn CHI PHÍ",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Xem và quản lý các khoản chi ra của cửa hàng",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewExpenses,
-                                onChanged: (v) => setState(() => _canViewExpenses = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewExpenses = v),
                               ),
                               SwitchListTile(
-                                title: const Text("Cho phép xem SỔ CÔNG NỢ", style: TextStyle(fontSize: 12)),
-                                subtitle: const Text("Bao gồm khách nợ shop và shop nợ nhà cung cấp", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                title: const Text(
+                                  "Cho phép xem SỔ CÔNG NỢ",
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                subtitle: const Text(
+                                  "Bao gồm khách nợ shop và shop nợ nhà cung cấp",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                                 value: _canViewDebts,
-                                onChanged: (v) => setState(() => _canViewDebts = v),
+                                onChanged: (v) =>
+                                    setState(() => _canViewDebts = v),
                               ),
                             ],
                           ],
@@ -1567,11 +2130,20 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
             controller: _tabController,
             labelColor: Colors.blueAccent,
             unselectedLabelColor: Colors.grey,
-            labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            labelStyle: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
             tabs: const [
-              Tab(text: "ĐÃ NHẬN", icon: Icon(Icons.move_to_inbox_rounded, size: 20)),
+              Tab(
+                text: "ĐÃ NHẬN",
+                icon: Icon(Icons.move_to_inbox_rounded, size: 20),
+              ),
               Tab(text: "ĐÃ GIAO", icon: Icon(Icons.outbox_rounded, size: 20)),
-              Tab(text: "ĐÃ BÁN", icon: Icon(Icons.shopping_cart_checkout_rounded, size: 20)),
+              Tab(
+                text: "ĐÃ BÁN",
+                icon: Icon(Icons.shopping_cart_checkout_rounded, size: 20),
+              ),
               Tab(text: "LỊCH LÀM VIỆC", icon: Icon(Icons.schedule, size: 20)),
             ],
           ),
@@ -1592,7 +2164,12 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
     );
   }
 
-  Widget _editInput(TextEditingController ctrl, String label, IconData icon, {TextInputType type = TextInputType.text}) {
+  Widget _editInput(
+    TextEditingController ctrl,
+    String label,
+    IconData icon, {
+    TextInputType type = TextInputType.text,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: TextField(
@@ -1626,27 +2203,57 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
   }
 
   Widget _buildRepairList(List<Repair> list) {
-    if (list.isEmpty) return const Center(child: Text("Không có dữ liệu", style: TextStyle(color: Colors.grey, fontSize: 12)));
+    if (list.isEmpty) {
+      return const Center(
+        child: Text(
+          "Không có dữ liệu",
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
+      );
+    }
     return ListView.builder(
       padding: const EdgeInsets.all(10),
       itemCount: list.length,
       itemBuilder: (ctx, i) => ListTile(
-        title: Text(list[i].model, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-        subtitle: Text("KH: ${list[i].customerName} | ${DateFormat('dd/MM').format(DateTime.fromMillisecondsSinceEpoch(list[i].createdAt))}"),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RepairDetailView(repair: list[i]))),
+        title: Text(
+          list[i].model,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+        subtitle: Text(
+          "KH: ${list[i].customerName} | ${DateFormat('dd/MM').format(DateTime.fromMillisecondsSinceEpoch(list[i].createdAt))}",
+        ),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => RepairDetailView(repair: list[i])),
+        ),
       ),
     );
   }
 
   Widget _buildSaleList(List<SaleOrder> list) {
-    if (list.isEmpty) return const Center(child: Text("Không có dữ liệu", style: TextStyle(color: Colors.grey, fontSize: 12)));
+    if (list.isEmpty) {
+      return const Center(
+        child: Text(
+          "Không có dữ liệu",
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
+      );
+    }
     return ListView.builder(
       padding: const EdgeInsets.all(10),
       itemCount: list.length,
       itemBuilder: (ctx, i) => ListTile(
-        title: Text(list[i].productNames, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-        subtitle: Text("KH: ${list[i].customerName} | ${NumberFormat('#,###').format(list[i].totalPrice)} đ"),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SaleDetailView(sale: list[i]))),
+        title: Text(
+          list[i].productNames,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+        subtitle: Text(
+          "KH: ${list[i].customerName} | ${NumberFormat('#,###').format(list[i].totalPrice)} đ",
+        ),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => SaleDetailView(sale: list[i])),
+        ),
       ),
     );
   }
@@ -1689,7 +2296,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter> with SingleT
                         const SizedBox(width: 8),
                         Text(
                           "Giờ làm việc: ${_workSchedule!['startTime']} - ${_workSchedule!['endTime']}",
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),

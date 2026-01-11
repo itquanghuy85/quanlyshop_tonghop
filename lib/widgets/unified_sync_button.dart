@@ -7,7 +7,6 @@ import '../services/sync_orchestrator.dart';
 import '../services/sync_health_check.dart';
 import '../services/notification_service.dart';
 import '../services/data_migration_service.dart';
-import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 
 /// Widget hiển thị nút sync thống nhất trên AppBar
@@ -220,7 +219,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    Icon(Icons.cloud_sync, color: AppColors.primary, size: 28),
+                    const Icon(Icons.cloud_sync, color: AppColors.primary, size: 28),
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Column(

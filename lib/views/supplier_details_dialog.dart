@@ -71,7 +71,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: AppColors.surface,
-      child: Container(
+      child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.95,
         height: MediaQuery.of(context).size.height * 0.85,
         child: Column(
@@ -79,13 +79,13 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
             // Header với gradient
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [AppColors.primary, AppColors.primaryLight],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: const BorderRadius.only(
+                borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
                 ),
@@ -101,7 +101,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
                           color: AppColors.onPrimary.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(Icons.business, color: AppColors.onPrimary, size: 28),
+                        child: const Icon(Icons.business, color: AppColors.onPrimary, size: 28),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -117,7 +117,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
                       ),
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.close, color: AppColors.onPrimary),
+                        icon: const Icon(Icons.close, color: AppColors.onPrimary),
                         style: IconButton.styleFrom(
                           backgroundColor: AppColors.onPrimary.withOpacity(0.1),
                         ),
@@ -139,7 +139,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
                         const SizedBox(width: 8),
                         _buildStatCard(
                           'Tổng tiền',
-                          '${NumberFormat('#,###').format(_stats!['totalAmount'] ?? 0)}',
+                          NumberFormat('#,###').format(_stats!['totalAmount'] ?? 0),
                           'đ',
                           Icons.account_balance_wallet,
                           AppColors.warning,
@@ -224,7 +224,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircularProgressIndicator(color: AppColors.primary),
+                        const CircularProgressIndicator(color: AppColors.primary),
                         const SizedBox(height: 16),
                         Text('Đang tải dữ liệu...', style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.7))),
                       ],
@@ -348,11 +348,11 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.outline.withOpacity(0.3)),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
                 color: AppColors.shadow,
                 blurRadius: 4,
-                offset: const Offset(0, 2),
+                offset: Offset(0, 2),
               ),
             ],
           ),
@@ -369,7 +369,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
                         color: AppColors.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Icon(Icons.inventory, color: AppColors.primary, size: 16),
+                      child: const Icon(Icons.inventory, color: AppColors.primary, size: 16),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -560,11 +560,11 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.outline.withOpacity(0.3)),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
                 color: AppColors.shadow,
                 blurRadius: 4,
-                offset: const Offset(0, 2),
+                offset: Offset(0, 2),
               ),
             ],
           ),
@@ -581,7 +581,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
                         color: AppColors.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Icon(Icons.inventory_2, color: AppColors.primary, size: 16),
+                      child: const Icon(Icons.inventory_2, color: AppColors.primary, size: 16),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -637,7 +637,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.attach_money, size: 16, color: AppColors.success),
+                                const Icon(Icons.attach_money, size: 16, color: AppColors.success),
                                 const SizedBox(width: 6),
                                 Text(
                                   'Giá nhập',
@@ -674,7 +674,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.update, size: 16, color: AppColors.primary),
+                                const Icon(Icons.update, size: 16, color: AppColors.primary),
                                 const SizedBox(width: 6),
                                 Text(
                                   'Cập nhật',
@@ -872,11 +872,11 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.outline.withOpacity(0.3)),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 8,
-            offset: const Offset(0, 2),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -1035,14 +1035,17 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
 
     // Simple rating based on activity and diversity
     int score = 0;
-    if (totalImports > 10) score += 2;
-    else if (totalImports > 5) score += 1;
+    if (totalImports > 10) {
+      score += 2;
+    } else if (totalImports > 5) score += 1;
 
-    if (totalAmount > 10000000) score += 2; // 10M VND
-    else if (totalAmount > 5000000) score += 1; // 5M VND
+    if (totalAmount > 10000000) {
+      score += 2; // 10M VND
+    } else if (totalAmount > 5000000) score += 1; // 5M VND
 
-    if (uniqueProducts > 5) score += 2;
-    else if (uniqueProducts > 2) score += 1;
+    if (uniqueProducts > 5) {
+      score += 2;
+    } else if (uniqueProducts > 2) score += 1;
 
     if (score >= 5) return '⭐⭐⭐⭐⭐ Xuất sắc';
     if (score >= 4) return '⭐⭐⭐⭐ Tốt';

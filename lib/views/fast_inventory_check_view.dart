@@ -836,7 +836,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(
+                                  const Icon(
                                     Icons.qr_code_scanner,
                                     size: 100,
                                     color: Colors.grey,
@@ -1010,7 +1010,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                     'Đã scan: $_totalScanned',
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
-                  Text(
+                  const Text(
                     'Giữ yên QR trước camera',
                     style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),

@@ -206,7 +206,7 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 6)],
+        boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 6)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

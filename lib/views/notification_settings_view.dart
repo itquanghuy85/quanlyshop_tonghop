@@ -263,7 +263,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
           children: [
             Row(
               children: [
-                Icon(Icons.person, color: Colors.blue),
+                const Icon(Icons.person, color: Colors.blue),
                 const SizedBox(width: 8),
                 Text(
                   'Vai trò của bạn: $roleDisplayName',
@@ -361,7 +361,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
         trailing: Switch(
           value: value,
           onChanged: enabled ? onChanged : null,
-          activeColor: color,
+          activeThumbColor: color,
         ),
       ),
     );

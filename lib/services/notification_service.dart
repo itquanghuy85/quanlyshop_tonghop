@@ -6,16 +6,20 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
 import '../core/utils/money_utils.dart';
 import 'user_service.dart';
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
-  static final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+  static final GlobalKey<ScaffoldMessengerState> messengerKey =
+      GlobalKey<ScaffoldMessengerState>();
   static final _db = FirebaseFirestore.instance;
-  static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  static final DateTime _appStartTime = DateTime.now().subtract(const Duration(minutes: 1));
+  static final FirebaseMessaging _firebaseMessaging =
+      FirebaseMessaging.instance;
+  static final DateTime _appStartTime = DateTime.now().subtract(
+    const Duration(minutes: 1),
+  );
 
   // Rate limiting: max 3 notifications per 10 seconds
   static final List<DateTime> _recentNotifications = [];
@@ -24,7 +28,9 @@ class NotificationService {
 
   // FCM Token management
   static DateTime? _lastTokenCheck;
-  static const Duration _tokenCheckInterval = Duration(hours: 6); // Kiểm tra token mỗi 6 giờ
+  static const Duration _tokenCheckInterval = Duration(
+    hours: 6,
+  ); // Kiểm tra token mỗi 6 giờ
   static String? _cachedToken;
 
   // Notification settings keys
@@ -50,7 +56,8 @@ class NotificationService {
     await _requestPermissions();
 
     // Initialize local notifications
-    const AndroidInitializationSettings androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const AndroidInitializationSettings androidInit =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     const DarwinInitializationSettings iosInit = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -75,11 +82,14 @@ class NotificationService {
 
   static Future<void> _requestPermissions() async {
     // Request notification permission with Android 13+ support
-    if (await Permission.notification.isDenied || await Permission.notification.isPermanentlyDenied) {
+    if (await Permission.notification.isDenied ||
+        await Permission.notification.isPermanentlyDenied) {
       final status = await Permission.notification.request();
       if (status.isPermanentlyDenied) {
         // Show dialog to guide user to settings
-        debugPrint('Notification permission permanently denied, user needs to enable in settings');
+        debugPrint(
+          'Notification permission permanently denied, user needs to enable in settings',
+        );
         // Note: UI dialog should be handled by calling widget
       }
     }
@@ -100,7 +110,8 @@ class NotificationService {
     // Handle Android 13+ specific permission states
     if (settings.authorizationStatus == AuthorizationStatus.denied) {
       debugPrint('FCM permission denied - notifications may not work');
-    } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
+    } else if (settings.authorizationStatus ==
+        AuthorizationStatus.provisional) {
       debugPrint('FCM provisional permission - limited notifications');
     }
   }
@@ -125,7 +136,9 @@ class NotificationService {
       final token = await _firebaseMessaging.getToken();
       hasFcmToken = token != null && token.isNotEmpty;
 
-      debugPrint('Notification status check: permission=$permissionGranted, fcmToken=$hasFcmToken');
+      debugPrint(
+        'Notification status check: permission=$permissionGranted, fcmToken=$hasFcmToken',
+      );
     } catch (e) {
       debugPrint('Error checking notification status: $e');
     }
@@ -142,31 +155,110 @@ class NotificationService {
     return await openAppSettings();
   }
 
+  /// Hiển thị banner trạng thái thông báo - gọi ở màn hình chính
+  /// Trả về true nếu thông báo đang hoạt động bình thường
+  static Future<bool> showNotificationStatusIfNeeded() async {
+    try {
+      final status = await checkNotificationStatus();
+      final isWorking = status['isFullyWorking'] ?? false;
+
+      if (!isWorking) {
+        final permissionGranted = status['permissionGranted'] ?? false;
+        final hasFcmToken = status['hasFcmToken'] ?? false;
+
+        String message;
+        if (!permissionGranted) {
+          message = '⚠️ Thông báo bị tắt. Bấm để bật thông báo.';
+        } else if (!hasFcmToken) {
+          message = '⚠️ Không thể nhận thông báo đẩy. Bấm để làm mới.';
+        } else {
+          message = '⚠️ Thông báo có thể không hoạt động.';
+        }
+
+        final messenger = messengerKey.currentState;
+        if (messenger != null) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(
+                    Icons.notifications_off,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.orange.shade700,
+              duration: const Duration(seconds: 8),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              action: SnackBarAction(
+                label: permissionGranted ? 'LÀM MỚI' : 'BẬT',
+                textColor: Colors.white,
+                onPressed: () async {
+                  if (!permissionGranted) {
+                    await openNotificationSettings();
+                  } else {
+                    final success = await forceRefreshFCMToken();
+                    showSnackBar(
+                      success
+                          ? '✅ Đã làm mới thông báo'
+                          : '❌ Không thể làm mới, thử lại sau',
+                      color: success ? Colors.green : Colors.red,
+                    );
+                  }
+                },
+              ),
+            ),
+          );
+        }
+        return false;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error checking notification status: $e');
+      return false;
+    }
+  }
+
   static Future<void> _createNotificationChannels() async {
-    const AndroidNotificationChannel newOrderChannel = AndroidNotificationChannel(
-      'new_order_channel',
-      'Đơn hàng mới',
-      description: 'Thông báo khi có đơn hàng mới',
-      importance: Importance.high,
-      playSound: true,
-      sound: RawResourceAndroidNotificationSound('notification_sound'),
-    );
+    const AndroidNotificationChannel newOrderChannel =
+        AndroidNotificationChannel(
+          'new_order_channel',
+          'Đơn hàng mới',
+          description: 'Thông báo khi có đơn hàng mới',
+          importance: Importance.high,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('notification_sound'),
+        );
 
-    const AndroidNotificationChannel paymentChannel = AndroidNotificationChannel(
-      'payment_channel',
-      'Thanh toán',
-      description: 'Thông báo về thanh toán',
-      importance: Importance.high,
-      playSound: true,
-    );
+    const AndroidNotificationChannel paymentChannel =
+        AndroidNotificationChannel(
+          'payment_channel',
+          'Thanh toán',
+          description: 'Thông báo về thanh toán',
+          importance: Importance.high,
+          playSound: true,
+        );
 
-    const AndroidNotificationChannel inventoryChannel = AndroidNotificationChannel(
-      'inventory_channel',
-      'Kho hàng',
-      description: 'Thông báo về tình trạng kho',
-      importance: Importance.defaultImportance,
-      playSound: false,
-    );
+    const AndroidNotificationChannel inventoryChannel =
+        AndroidNotificationChannel(
+          'inventory_channel',
+          'Kho hàng',
+          description: 'Thông báo về tình trạng kho',
+          importance: Importance.defaultImportance,
+          playSound: false,
+        );
 
     const AndroidNotificationChannel staffChannel = AndroidNotificationChannel(
       'staff_channel',
@@ -184,7 +276,10 @@ class NotificationService {
       playSound: false,
     );
 
-    final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await androidPlugin?.createNotificationChannel(newOrderChannel);
     await androidPlugin?.createNotificationChannel(paymentChannel);
     await androidPlugin?.createNotificationChannel(inventoryChannel);
@@ -246,14 +341,14 @@ class NotificationService {
 
       // Kiểm tra xem có cần refresh token không (mỗi 6 giờ)
       final now = DateTime.now();
-      if (_lastTokenCheck != null && 
+      if (_lastTokenCheck != null &&
           now.difference(_lastTokenCheck!) < _tokenCheckInterval) {
         debugPrint('ensureFCMTokenValid: Token was checked recently, skipping');
         return;
       }
 
       debugPrint('ensureFCMTokenValid: Checking FCM token validity...');
-      
+
       // Lấy token hiện tại
       String? currentToken = await _firebaseMessaging.getToken();
       if (currentToken == null || currentToken.isEmpty) {
@@ -274,7 +369,9 @@ class NotificationService {
       final serverToken = userDoc.data()?['fcmToken'] as String?;
 
       if (serverToken != currentToken) {
-        debugPrint('ensureFCMTokenValid: Token mismatch! Server: ${serverToken?.substring(0, 20) ?? "null"}... Current: ${currentToken.substring(0, 20)}...');
+        debugPrint(
+          'ensureFCMTokenValid: Token mismatch! Server: ${serverToken?.substring(0, 20) ?? "null"}... Current: ${currentToken.substring(0, 20)}...',
+        );
         await _saveFCMToken(currentToken);
       } else {
         debugPrint('ensureFCMTokenValid: Token is valid and up-to-date');
@@ -282,7 +379,6 @@ class NotificationService {
 
       _lastTokenCheck = now;
       _cachedToken = currentToken;
-
     } catch (e) {
       debugPrint('ensureFCMTokenValid error: $e');
     }
@@ -296,21 +392,23 @@ class NotificationService {
 
       debugPrint('forceRefreshFCMToken: Deleting old token...');
       await _firebaseMessaging.deleteToken();
-      
+
       debugPrint('forceRefreshFCMToken: Getting new token...');
       final newToken = await _firebaseMessaging.getToken();
-      
+
       if (newToken == null || newToken.isEmpty) {
         debugPrint('forceRefreshFCMToken: Failed to get new token!');
         return false;
       }
 
-      debugPrint('forceRefreshFCMToken: Saving new token: ${newToken.substring(0, 30)}...');
+      debugPrint(
+        'forceRefreshFCMToken: Saving new token: ${newToken.substring(0, 30)}...',
+      );
       await _saveFCMToken(newToken);
-      
+
       _cachedToken = newToken;
       _lastTokenCheck = DateTime.now();
-      
+
       debugPrint('forceRefreshFCMToken: Success!');
       return true;
     } catch (e) {
@@ -327,7 +425,7 @@ class NotificationService {
 
       final userDoc = await _db.collection('users').doc(user.uid).get();
       final serverToken = userDoc.data()?['fcmToken'] as String?;
-      
+
       return serverToken != null && serverToken.isNotEmpty;
     } catch (e) {
       debugPrint('hasFCMTokenOnServer error: $e');
@@ -352,10 +450,10 @@ class NotificationService {
       // Check for duplicate tokens with better error handling
       try {
         final existingTokens = await _db
-          .collection('users')
-          .where('fcmToken', isEqualTo: token)
-          .where('shopId', isEqualTo: shopId)
-          .get();
+            .collection('users')
+            .where('fcmToken', isEqualTo: token)
+            .where('shopId', isEqualTo: shopId)
+            .get();
 
         // Remove duplicate tokens from other users
         final batch = _db.batch();
@@ -366,7 +464,7 @@ class NotificationService {
             batch.update(doc.reference, {
               'fcmToken': FieldValue.delete(),
               'fcmTokenUpdatedAt': FieldValue.delete(),
-              'updatedAt': FieldValue.serverTimestamp()
+              'updatedAt': FieldValue.serverTimestamp(),
             });
             hasDuplicates = true;
             debugPrint('Removing duplicate FCM token from user: ${doc.id}');
@@ -377,7 +475,6 @@ class NotificationService {
           await batch.commit();
           debugPrint('Cleaned up duplicate FCM tokens');
         }
-
       } catch (e) {
         debugPrint('Error checking for duplicate tokens: $e');
         // Continue with token save even if duplicate check fails
@@ -392,7 +489,6 @@ class NotificationService {
       }, SetOptions(merge: true));
 
       debugPrint('FCM token saved successfully for user: ${user.uid}');
-
     } catch (e) {
       debugPrint('Error saving FCM token: $e');
       // Don't throw - token save failure shouldn't crash the app
@@ -499,7 +595,9 @@ class NotificationService {
   }
 
   // MẠCH LẮNG NGHE GIA CỐ (KHÓA CHẶT SHOP ID)
-  static void listenToNotifications(Function(String, String) onMessageReceived) {
+  static void listenToNotifications(
+    Function(String, String) onMessageReceived,
+  ) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -507,35 +605,47 @@ class NotificationService {
     UserService.getCurrentShopId().then((shopId) {
       if (shopId == null) return;
 
-      _db.collection('shop_notifications')
-        .where('shopId', isEqualTo: shopId)
-        .where('createdAt', isGreaterThan: Timestamp.fromDate(_appStartTime))
-        .snapshots().listen((snapshot) {
-          debugPrint('Received ${snapshot.docChanges.length} notification changes');
-          for (var change in snapshot.docChanges) {
-            if (change.type == DocumentChangeType.added) {
-              final data = change.doc.data() as Map<String, dynamic>;
-              debugPrint('New notification: ${data['title']} from ${data['senderId']} (current user: ${user.uid})');
-              // Hiển thị thông báo nếu không phải do chính mình gửi, HOẶC là thông báo hệ thống test
-              if (data['senderId'] != user.uid || data['type'] == 'system') {
-                String title = data['title'] ?? "THÔNG BÁO MỚI";
-                String body = data['body'] ?? "";
-                String type = data['type'] ?? 'system';
+      _db
+          .collection('shop_notifications')
+          .where('shopId', isEqualTo: shopId)
+          .where('createdAt', isGreaterThan: Timestamp.fromDate(_appStartTime))
+          .snapshots()
+          .listen((snapshot) {
+            debugPrint(
+              'Received ${snapshot.docChanges.length} notification changes',
+            );
+            for (var change in snapshot.docChanges) {
+              if (change.type == DocumentChangeType.added) {
+                final data = change.doc.data() as Map<String, dynamic>;
+                debugPrint(
+                  'New notification: ${data['title']} from ${data['senderId']} (current user: ${user.uid})',
+                );
+                // Hiển thị thông báo nếu không phải do chính mình gửi, HOẶC là thông báo hệ thống test
+                if (data['senderId'] != user.uid || data['type'] == 'system') {
+                  String title = data['title'] ?? "THÔNG BÁO MỚI";
+                  String body = data['body'] ?? "";
+                  String type = data['type'] ?? 'system';
 
-                // Check if notification should be shown
-                _shouldShowNotification(type).then((shouldShow) {
-                  debugPrint('Should show notification for type $type: $shouldShow');
-                  if (shouldShow) {
-                    _showLocalNotification(title, body, channelId: _getChannelId(type));
-                    onMessageReceived(title, body);
-                  }
-                });
-              } else {
-                debugPrint('Skipping notification from self');
+                  // Check if notification should be shown
+                  _shouldShowNotification(type).then((shouldShow) {
+                    debugPrint(
+                      'Should show notification for type $type: $shouldShow',
+                    );
+                    if (shouldShow) {
+                      _showLocalNotification(
+                        title,
+                        body,
+                        channelId: _getChannelId(type),
+                      );
+                      onMessageReceived(title, body);
+                    }
+                  });
+                } else {
+                  debugPrint('Skipping notification from self');
+                }
               }
             }
-          }
-        }, onError: (e) => debugPrint("LỖI MẠCH THÔNG BÁO: $e"));
+          }, onError: (e) => debugPrint("LỖI MẠCH THÔNG BÁO: $e"));
     });
   }
 
@@ -579,41 +689,55 @@ class NotificationService {
     }
   }
 
-  static Future<void> _sendFCMNotification(Map<String, dynamic> notificationData) async {
+  static Future<void> _sendFCMNotification(
+    Map<String, dynamic> notificationData,
+  ) async {
     const int maxRetries = 3;
     int retryCount = 0;
 
     while (retryCount < maxRetries) {
       try {
-        debugPrint('Sending FCM notification (attempt ${retryCount + 1}): ${notificationData['title']}');
+        debugPrint(
+          'Sending FCM notification (attempt ${retryCount + 1}): ${notificationData['title']}',
+        );
 
-        final callable = FirebaseFunctions.instanceFor(region: 'asia-southeast1').httpsCallable('sendShopNotification');
+        final callable = FirebaseFunctions.instanceFor(
+          region: 'asia-southeast1',
+        ).httpsCallable('sendShopNotification');
 
         final shopId = await UserService.getCurrentShopId();
 
-        final result = await callable.call({
-          'title': notificationData['title'],
-          'body': notificationData['body'],
-          'type': notificationData['type'],
-          'targetUserId': notificationData['targetUserId'],
-          'shopId': shopId,
-        }).timeout(const Duration(seconds: 30)); // Add timeout
+        final result = await callable
+            .call({
+              'title': notificationData['title'],
+              'body': notificationData['body'],
+              'type': notificationData['type'],
+              'targetUserId': notificationData['targetUserId'],
+              'shopId': shopId,
+            })
+            .timeout(const Duration(seconds: 30)); // Add timeout
 
         final data = result.data as Map<String, dynamic>;
-        debugPrint('FCM sent successfully: ${data['sentCount']} success, ${data['failedCount']} failed');
+        debugPrint(
+          'FCM sent successfully: ${data['sentCount']} success, ${data['failedCount']} failed',
+        );
 
         // If some messages failed, log but don't retry (Cloud Function handles individual failures)
         if (data['failedCount'] > 0) {
-          debugPrint('Warning: ${data['failedCount']} FCM messages failed to send');
+          debugPrint(
+            'Warning: ${data['failedCount']} FCM messages failed to send',
+          );
         }
 
         return; // Success, exit retry loop
-
       } on FirebaseFunctionsException catch (e) {
-        debugPrint('Firebase Functions error (attempt ${retryCount + 1}): ${e.code} - ${e.message}');
+        debugPrint(
+          'Firebase Functions error (attempt ${retryCount + 1}): ${e.code} - ${e.message}',
+        );
 
         // Don't retry for certain errors
-        if (e.code == 'functions/cancelled' || e.code == 'functions/invalid-argument') {
+        if (e.code == 'functions/cancelled' ||
+            e.code == 'functions/invalid-argument') {
           debugPrint('Non-retryable error, giving up');
           break;
         }
@@ -625,7 +749,6 @@ class NotificationService {
           debugPrint('Retrying FCM send in ${delay.inSeconds} seconds...');
           await Future.delayed(delay);
         }
-
       } catch (e) {
         debugPrint('General FCM error (attempt ${retryCount + 1}): $e');
 
@@ -639,7 +762,9 @@ class NotificationService {
     }
 
     // All retries failed, fallback to local notification
-    debugPrint('FCM failed after $maxRetries attempts, falling back to local notification');
+    debugPrint(
+      'FCM failed after $maxRetries attempts, falling back to local notification',
+    );
     _showLocalNotification(
       notificationData['title'],
       notificationData['body'],
@@ -663,20 +788,22 @@ class NotificationService {
     // Kiểm tra permission trước
     final permissionStatus = await Permission.notification.status;
     final hasPermission = permissionStatus.isGranted;
-    
+
     if (hasPermission) {
       try {
         final int id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-        final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-          channelId, _getChannelName(channelId),
-          channelDescription: _getChannelDescription(channelId),
-          importance: _getChannelImportance(channelId),
-          priority: Priority.high,
-          showWhen: true,
-          icon: '@mipmap/launcher_icon',
-          playSound: _shouldPlaySound(channelId),
-        );
+        final AndroidNotificationDetails androidDetails =
+            AndroidNotificationDetails(
+              channelId,
+              _getChannelName(channelId),
+              channelDescription: _getChannelDescription(channelId),
+              importance: _getChannelImportance(channelId),
+              priority: Priority.high,
+              showWhen: true,
+              icon: '@mipmap/launcher_icon',
+              playSound: _shouldPlaySound(channelId),
+            );
 
         const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
           presentAlert: true,
@@ -689,14 +816,20 @@ class NotificationService {
           iOS: iosDetails,
         );
 
-        await _localNotifications.show(id, title, body, details, payload: payload);
+        await _localNotifications.show(
+          id,
+          title,
+          body,
+          details,
+          payload: payload,
+        );
         return; // Success, no need fallback
       } catch (e) {
         debugPrint('Error showing local notification: $e');
         // Fall through to in-app fallback
       }
     }
-    
+
     // Fallback: Hiển thị thông báo trên màn hình khi push notification không hoạt động
     if (showInAppFallback) {
       _showInAppNotification(title, body);
@@ -716,12 +849,19 @@ class NotificationService {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.notifications_active, color: Colors.white, size: 18),
+                    const Icon(
+                      Icons.notifications_active,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -743,7 +883,9 @@ class NotificationService {
             duration: const Duration(seconds: 5),
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             action: SnackBarAction(
               label: 'BẬT TB',
               textColor: Colors.yellow,
@@ -827,15 +969,17 @@ class NotificationService {
 
   static bool _isWithinRateLimit() {
     final now = DateTime.now();
-    
+
     // Remove old notifications outside the rate limit period
-    _recentNotifications.removeWhere((time) => now.difference(time) > _rateLimitPeriod);
-    
+    _recentNotifications.removeWhere(
+      (time) => now.difference(time) > _rateLimitPeriod,
+    );
+
     // Check if we're within the limit
     if (_recentNotifications.length >= _maxNotificationsPerPeriod) {
       return false;
     }
-    
+
     // Add current notification to the list
     _recentNotifications.add(now);
     return true;
@@ -878,41 +1022,60 @@ class NotificationService {
   // Business Logic Integration Methods
 
   // Inventory monitoring - called when stock levels change
-  static Future<void> checkAndNotifyLowInventory(String productId, String productName, int currentStock, int minStock) async {
+  static Future<void> checkAndNotifyLowInventory(
+    String productId,
+    String productName,
+    int currentStock,
+    int minStock,
+  ) async {
     if (currentStock <= minStock) {
       await sendLowInventoryNotification(productName, currentStock, minStock);
     }
   }
 
   // Attendance tracking - called when staff check in/out
-  static Future<void> notifyStaffAttendance(String staffName, String action, DateTime timestamp) async {
-    final timeString = '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+  static Future<void> notifyStaffAttendance(
+    String staffName,
+    String action,
+    DateTime timestamp,
+  ) async {
+    final timeString =
+        '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
     final status = action == 'check_in' ? 'đã check-in' : 'đã check-out';
 
     await sendAttendanceNotification(staffName, status, timeString);
   }
 
   // Payment processing - called when payment is completed
-  static Future<void> notifyPaymentCompleted(String orderId, double amount, String paymentMethod) async {
+  static Future<void> notifyPaymentCompleted(
+    String orderId,
+    double amount,
+    String paymentMethod,
+  ) async {
     await sendPaymentNotification(orderId, amount, paymentMethod);
   }
 
   // New repair order notifications - Admin & Technician roles
-  static Future<void> sendNewOrderNotification(String orderId, String customerName, int price) async {
-    final title = 'ĐƠN SỬA MỚI';
+  static Future<void> sendNewOrderNotification(
+    String orderId,
+    String customerName,
+    int price,
+  ) async {
+    const title = 'ĐƠN SỬA MỚI';
     final body = 'Khách $customerName - ${MoneyUtils.formatVND(price)}đ';
 
     // Check role-based permission
-    if (!await _hasRolePermission('repair', ['admin', 'owner', 'manager', 'technician'])) {
+    if (!await _hasRolePermission('repair', [
+      'admin',
+      'owner',
+      'manager',
+      'technician',
+    ])) {
       debugPrint('Repair notification blocked by role permissions');
       return;
     }
 
-    await sendCloudNotification(
-      title: title,
-      body: body,
-      type: 'repair',
-    );
+    await sendCloudNotification(title: title, body: body, type: 'repair');
   }
 
   // System maintenance notifications
@@ -922,54 +1085,65 @@ class NotificationService {
 
   // Critical alerts for all users
   static Future<void> notifyCriticalAlert(String title, String message) async {
-    await sendCloudNotification(
-      title: title,
-      body: message,
-      type: 'system',
-    );
+    await sendCloudNotification(title: title, body: message, type: 'system');
   }
 
   // Business Logic Notifications with Role-based Permissions
 
   // Payment notifications - Admin & Sales roles
-  static Future<void> sendPaymentNotification(String orderId, double amount, String paymentMethod) async {
-    final title = 'THANH TOÁN THÀNH CÔNG';
+  static Future<void> sendPaymentNotification(
+    String orderId,
+    double amount,
+    String paymentMethod,
+  ) async {
+    const title = 'THANH TOÁN THÀNH CÔNG';
     final body = '${amount.toStringAsFixed(0)}đ qua $paymentMethod';
 
     // Check role-based permission
-    if (!await _hasRolePermission('payment', ['admin', 'owner', 'manager', 'employee'])) {
+    if (!await _hasRolePermission('payment', [
+      'admin',
+      'owner',
+      'manager',
+      'employee',
+    ])) {
       debugPrint('Payment notification blocked by role permissions');
       return;
     }
 
-    await sendCloudNotification(
-      title: title,
-      body: body,
-      type: 'payment',
-    );
+    await sendCloudNotification(title: title, body: body, type: 'payment');
   }
 
   // Low inventory notifications - Admin & Technician roles
-  static Future<void> sendLowInventoryNotification(String productName, int currentStock, int minStock) async {
-    final title = 'CẢNH BÁO KHO HÀNG';
-    final body = '$productName chỉ còn $currentStock sản phẩm (tối thiểu: $minStock)';
+  static Future<void> sendLowInventoryNotification(
+    String productName,
+    int currentStock,
+    int minStock,
+  ) async {
+    const title = 'CẢNH BÁO KHO HÀNG';
+    final body =
+        '$productName chỉ còn $currentStock sản phẩm (tối thiểu: $minStock)';
 
     // Check role-based permission
-    if (!await _hasRolePermission('inventory', ['admin', 'owner', 'manager', 'technician'])) {
+    if (!await _hasRolePermission('inventory', [
+      'admin',
+      'owner',
+      'manager',
+      'technician',
+    ])) {
       debugPrint('Inventory notification blocked by role permissions');
       return;
     }
 
-    await sendCloudNotification(
-      title: title,
-      body: body,
-      type: 'inventory',
-    );
+    await sendCloudNotification(title: title, body: body, type: 'inventory');
   }
 
   // Attendance notifications - Admin & Manager roles
-  static Future<void> sendAttendanceNotification(String staffName, String status, String time) async {
-    final title = 'ĐIỂM DANH NHÂN VIÊN';
+  static Future<void> sendAttendanceNotification(
+    String staffName,
+    String status,
+    String time,
+  ) async {
+    const title = 'ĐIỂM DANH NHÂN VIÊN';
     final body = '$staffName đã $status lúc $time';
 
     // Check role-based permission
@@ -978,16 +1152,15 @@ class NotificationService {
       return;
     }
 
-    await sendCloudNotification(
-      title: title,
-      body: body,
-      type: 'staff',
-    );
+    await sendCloudNotification(title: title, body: body, type: 'staff');
   }
 
   // Critical system alerts - All roles
-  static Future<void> sendSystemAlert(String message, {String? targetUserId}) async {
-    final title = 'CẢNH BÁO HỆ THỐNG';
+  static Future<void> sendSystemAlert(
+    String message, {
+    String? targetUserId,
+  }) async {
+    const title = 'CẢNH BÁO HỆ THỐNG';
 
     // System alerts go to all users regardless of role
     await sendCloudNotification(
@@ -999,7 +1172,10 @@ class NotificationService {
   }
 
   // Role-based permission checker
-  static Future<bool> _hasRolePermission(String notificationType, List<String> allowedRoles) async {
+  static Future<bool> _hasRolePermission(
+    String notificationType,
+    List<String> allowedRoles,
+  ) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
@@ -1016,8 +1192,11 @@ class NotificationService {
     }
   }
 
-  static Future<void> sendStaffNotification(String message, {String? targetUserId}) async {
-    final title = 'THÔNG BÁO NHÂN VIÊN';
+  static Future<void> sendStaffNotification(
+    String message, {
+    String? targetUserId,
+  }) async {
+    const title = 'THÔNG BÁO NHÂN VIÊN';
     await sendCloudNotification(
       title: title,
       body: message,
@@ -1027,15 +1206,14 @@ class NotificationService {
   }
 
   static Future<void> sendSystemNotification(String message) async {
-    final title = 'THÔNG BÁO HỆ THỐNG';
-    await sendCloudNotification(
-      title: title,
-      body: message,
-      type: 'system',
-    );
+    const title = 'THÔNG BÁO HỆ THỐNG';
+    await sendCloudNotification(title: title, body: message, type: 'system');
   }
 
-  static Future<bool> _shouldSendNotification(String type, String? targetUserId) async {
+  static Future<bool> _shouldSendNotification(
+    String type,
+    String? targetUserId,
+  ) async {
     // Nếu là broadcast, kiểm tra settings của từng user
     if (targetUserId == null) {
       // Cho broadcast, chỉ gửi nếu type được bật mặc định
@@ -1058,10 +1236,10 @@ class NotificationService {
 
       // Lấy tất cả users có token trong shop
       final usersWithTokens = await _db
-        .collection('users')
-        .where('shopId', isEqualTo: shopId)
-        .where('fcmToken', isNotEqualTo: null)
-        .get();
+          .collection('users')
+          .where('shopId', isEqualTo: shopId)
+          .where('fcmToken', isNotEqualTo: null)
+          .get();
 
       for (final doc in usersWithTokens.docs) {
         final userData = doc.data();
@@ -1069,7 +1247,9 @@ class NotificationService {
 
         // Xóa token nếu không update quá 30 ngày
         if (lastUpdate != null) {
-          final daysSinceUpdate = DateTime.now().difference(lastUpdate.toDate()).inDays;
+          final daysSinceUpdate = DateTime.now()
+              .difference(lastUpdate.toDate())
+              .inDays;
           if (daysSinceUpdate > 30) {
             await doc.reference.update({
               'fcmToken': FieldValue.delete(),
@@ -1088,7 +1268,10 @@ class NotificationService {
     messengerKey.currentState?.hideCurrentSnackBar();
     messengerKey.currentState?.showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

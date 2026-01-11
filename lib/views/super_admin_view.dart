@@ -420,7 +420,7 @@ class _ShopsTabState extends State<ShopsTab> {
       ),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       value: value,
-      activeColor: isDestructive ? Colors.red : Colors.blue,
+      activeThumbColor: isDestructive ? Colors.red : Colors.blue,
       onChanged: onChanged,
     );
   }

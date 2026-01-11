@@ -235,7 +235,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
                       Text("SĐT: $phone", style: const TextStyle(fontSize: 11, color: Colors.grey)),
                       Row(
                         children: [
-                          Text("Vai trò: ", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          const Text("Vai trò: ", style: TextStyle(fontSize: 11, color: Colors.grey)),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
@@ -300,7 +300,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
                               ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.verified, color: Colors.green, size: 20),
+                                  const Icon(Icons.verified, color: Colors.green, size: 20),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
@@ -352,7 +352,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
           Switch(
             value: value,
             onChanged: (newValue) => _updateUserPermission(uid, permissionKey, newValue),
-            activeColor: Colors.blue,
+            activeThumbColor: Colors.blue,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ],

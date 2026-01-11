@@ -218,8 +218,9 @@ class _SettingsViewState extends State<SettingsView> {
       } catch (e) {
         debugPrint('Logout error: $e');
       }
-      if (mounted)
+      if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      }
     }
   }
 
@@ -241,8 +242,9 @@ class _SettingsViewState extends State<SettingsView> {
                   title: const Text("Ngôn ngữ ứng dụng"),
                   trailing: const Text("Tiếng Việt"),
                   onTap: () {
-                    if (widget.setLocale != null)
+                    if (widget.setLocale != null) {
                       widget.setLocale!(const Locale('vi'));
+                    }
                   },
                 ),
                 const Divider(),
@@ -474,7 +476,7 @@ class _SettingsViewState extends State<SettingsView> {
                             )
                           else
                             DropdownButtonFormField<String>(
-                              value: _selectedShopId,
+                              initialValue: _selectedShopId,
                               decoration: InputDecoration(
                                 labelText: "Chọn shop",
                                 border: OutlineInputBorder(

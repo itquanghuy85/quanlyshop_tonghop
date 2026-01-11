@@ -856,6 +856,19 @@ class DBHelper {
               );
               debugPrint('v49: added isSynced to cash_closings');
             }
+            // Thêm closedBy và closedAt để ghi nhận ai đã chốt
+            if (!colNames.contains('closedBy')) {
+              await db.execute(
+                'ALTER TABLE cash_closings ADD COLUMN closedBy TEXT',
+              );
+              debugPrint('v49: added closedBy to cash_closings');
+            }
+            if (!colNames.contains('closedAt')) {
+              await db.execute(
+                'ALTER TABLE cash_closings ADD COLUMN closedAt INTEGER',
+              );
+              debugPrint('v49: added closedAt to cash_closings');
+            }
           } catch (e) {
             debugPrint('v49 error (cash_closings columns): $e');
           }
@@ -1555,7 +1568,7 @@ class DBHelper {
           ? DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!).toLocal()
           : null;
       debugPrint(
-        "DB_TRACE: Repair - id: ${r.id}, firestoreId: ${r.firestoreId}, status: ${r.status}, price: ${r.price}, totalCost: ${r.totalCost}, createdAt: ${r.createdAt} (${createdDate}), deliveredAt: ${r.deliveredAt} (${deliveredDate})",
+        "DB_TRACE: Repair - id: ${r.id}, firestoreId: ${r.firestoreId}, status: ${r.status}, price: ${r.price}, totalCost: ${r.totalCost}, createdAt: ${r.createdAt} ($createdDate), deliveredAt: ${r.deliveredAt} ($deliveredDate)",
       );
     }
     return repairs;
@@ -1616,7 +1629,7 @@ class DBHelper {
     for (var s in sales) {
       final soldDate = DateTime.fromMillisecondsSinceEpoch(s.soldAt).toLocal();
       debugPrint(
-        "DB_TRACE: Sale - id: ${s.id}, firestoreId: ${s.firestoreId}, totalPrice: ${s.totalPrice}, totalCost: ${s.totalCost}, soldAt: ${s.soldAt} (${soldDate}), customerName: ${s.customerName}",
+        "DB_TRACE: Sale - id: ${s.id}, firestoreId: ${s.firestoreId}, totalPrice: ${s.totalPrice}, totalCost: ${s.totalCost}, soldAt: ${s.soldAt} ($soldDate), customerName: ${s.customerName}",
       );
     }
     return sales;
@@ -1657,6 +1670,77 @@ class DBHelper {
   Future<List<Product>> getAllProducts() async {
     final maps = await (await database).query('products');
     return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
+  }
+
+  /// Lấy sản phẩm theo loại (DIEN_THOAI, PHỤ KIỆN, LINH KIỆN)
+  Future<List<Product>> getProductsByType(
+    String type, {
+    bool inStockOnly = true,
+  }) async {
+    final maps = await (await database).query(
+      'products',
+      where: inStockOnly
+          ? 'type = ? AND quantity > 0 AND (status = 1 OR status IS NULL)'
+          : 'type = ?',
+      whereArgs: [type],
+      orderBy: 'createdAt DESC',
+    );
+    return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
+  }
+
+  /// Lấy tất cả linh kiện (từ cả bảng repair_parts và products type='LINH KIỆN')
+  /// Trả về dạng Map để tương thích với code cũ
+  Future<List<Map<String, dynamic>>> getAllPartsUnified() async {
+    final List<Map<String, dynamic>> result = [];
+
+    // 1. Lấy từ bảng repair_parts (kho cũ)
+    final oldParts = await getAllParts();
+    for (var p in oldParts) {
+      result.add({
+        'id': p['id'],
+        'source': 'repair_parts', // Đánh dấu nguồn
+        'partName': p['partName'] ?? '',
+        'compatibleModels': p['compatibleModels'] ?? '',
+        'quantity': p['quantity'] ?? 0,
+        'cost': p['cost'] ?? 0,
+        'price': p['price'] ?? 0,
+        'supplierId': p['supplierId'],
+      });
+    }
+
+    // 2. Lấy từ bảng products với type = 'LINH KIỆN' (kho mới)
+    final newParts = await getProductsByType('LINH KIỆN', inStockOnly: true);
+    for (var p in newParts) {
+      result.add({
+        'id': p.id,
+        'source': 'products', // Đánh dấu nguồn
+        'partName': p.name,
+        'compatibleModels': p.model ?? '',
+        'quantity': p.quantity,
+        'cost': p.cost,
+        'price': p.price,
+        'supplierId': null, // Products không có supplierId trực tiếp
+      });
+    }
+
+    return result;
+  }
+
+  /// Trừ số lượng linh kiện từ nguồn phù hợp (repair_parts hoặc products)
+  Future<bool> deductPartQuantityUnified(
+    int partId,
+    String source,
+    int quantity,
+  ) async {
+    if (source == 'repair_parts') {
+      return await deductPartQuantity(partId, quantity);
+    } else if (source == 'products') {
+      final product = await getProductById(partId);
+      if (product == null || product.quantity < quantity) return false;
+      await deductProductQuantity(partId, quantity);
+      return true;
+    }
+    return false;
   }
 
   Future<Product?> getProductByFirestoreId(String firestoreId) async {
@@ -2057,23 +2141,39 @@ class DBHelper {
   Future<void> upsertCashClosing(Map<String, dynamic> data) async {
     final dateKey = data['dateKey'] as String?;
     if (dateKey == null) return;
-    
+
     final db = await database;
+    
+    // Lấy danh sách các cột hợp lệ trong bảng cash_closings
+    final cols = await db.rawQuery('PRAGMA table_info(cash_closings)');
+    final validColumns = cols.map((c) => c['name'] as String).toSet();
+    
+    // Lọc chỉ giữ lại các trường có trong schema
+    final filteredData = <String, dynamic>{};
+    data.forEach((key, value) {
+      if (validColumns.contains(key)) {
+        filteredData[key] = value;
+      }
+    });
+    
+    debugPrint('upsertCashClosing: valid columns=$validColumns');
+    debugPrint('upsertCashClosing: filtered data keys=${filteredData.keys.toList()}');
+    
     final existing = await db.query(
       'cash_closings',
       where: 'dateKey = ?',
       whereArgs: [dateKey],
     );
-    
+
     if (existing.isNotEmpty) {
       await db.update(
         'cash_closings',
-        data,
+        filteredData,
         where: 'dateKey = ?',
         whereArgs: [dateKey],
       );
     } else {
-      await db.insert('cash_closings', data);
+      await db.insert('cash_closings', filteredData);
     }
   }
 
@@ -2245,7 +2345,9 @@ class DBHelper {
     String type,
   ) async {
     final db = await database;
-    if (type == 'DIEN_THOAI') return await db.query('products', where: 'status = 1');
+    if (type == 'DIEN_THOAI') {
+      return await db.query('products', where: 'status = 1');
+    }
     return await db.query('repair_parts');
   }
 
@@ -2504,12 +2606,13 @@ class DBHelper {
   Future<Map<String, dynamic>> getPayrollSettings() async {
     final db = await database;
     final res = await db.query('payroll_settings', limit: 1);
-    if (res.isEmpty)
+    if (res.isEmpty) {
       return {
         'baseSalary': 0,
         'saleCommPercent': 1.0,
         'repairProfitPercent': 10.0,
       };
+    }
     return res.first;
   }
 

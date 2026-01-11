@@ -27,12 +27,10 @@ class AppTheme {
         secondary: AppColors.secondary,
         secondaryContainer: AppColors.secondaryLight,
         surface: AppColors.surface,
-        background: Color.fromARGB(255, 107, 243, 11),
         error: AppColors.error,
         onPrimary: AppColors.onPrimary,
         onSecondary: AppColors.onSecondary,
         onSurface: AppColors.onSurface,
-        onBackground: AppColors.onBackground,
         onError: AppColors.onError,
       ),
 
@@ -51,7 +49,7 @@ class AppTheme {
           color: AppColors.onPrimary,
           fontWeight: FontWeight.w600,
         ),
-        iconTheme: IconThemeData(
+        iconTheme: const IconThemeData(
           color: AppColors.onPrimary,
         ),
       ),
@@ -113,23 +111,23 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius),
-          borderSide: BorderSide(color: AppColors.outline),
+          borderSide: const BorderSide(color: AppColors.outline),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius),
-          borderSide: BorderSide(color: AppColors.outline),
+          borderSide: const BorderSide(color: AppColors.outline),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius),
-          borderSide: BorderSide(color: AppColors.error),
+          borderSide: const BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius),
-          borderSide: BorderSide(color: AppColors.error, width: 2),
+          borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
         labelStyle: AppTextStyles.body2.copyWith(
           color: AppColors.onSurface.withOpacity(0.7),
@@ -183,7 +181,7 @@ class AppTheme {
       ),
 
       // ========== FLOATING ACTION BUTTON ==========
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.secondary,
         foregroundColor: AppColors.onSecondary,
         elevation: 6,
@@ -193,13 +191,13 @@ class AppTheme {
       ),
 
       // ========== ICON THEME ==========
-      iconTheme: IconThemeData(
+      iconTheme: const IconThemeData(
         color: AppColors.onSurface,
         size: 24,
       ),
 
       // ========== DIVIDER ==========
-      dividerTheme: DividerThemeData(
+      dividerTheme: const DividerThemeData(
         color: AppColors.divider,
         thickness: 1,
         space: 1,
@@ -214,14 +212,14 @@ class AppTheme {
 
       // ========== SWITCH ==========
       switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary;
           }
           return AppColors.onSurface.withOpacity(0.5);
         }),
-        trackColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary.withOpacity(0.3);
           }
           return AppColors.onSurface.withOpacity(0.2);
@@ -230,20 +228,20 @@ class AppTheme {
 
       // ========== CHECKBOX ==========
       checkboxTheme: CheckboxThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary;
           }
           return Colors.transparent;
         }),
-        checkColor: MaterialStateProperty.all(AppColors.onPrimary),
+        checkColor: WidgetStateProperty.all(AppColors.onPrimary),
         side: BorderSide(color: AppColors.onSurface.withOpacity(0.5)),
       ),
 
       // ========== RADIO ==========
       radioTheme: RadioThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary;
           }
           return AppColors.onSurface.withOpacity(0.5);

@@ -6,13 +6,10 @@ import '../services/supplier_service.dart';
 import '../data/db_helper.dart';
 import '../utils/money_utils.dart';
 import '../services/notification_service.dart';
-import '../services/firestore_service.dart';
-import '../services/user_service.dart';
 import '../services/event_bus.dart';
 import '../services/sync_orchestrator.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/app_button_styles.dart';
 
 class SupplierDetailView extends StatefulWidget {
   final Supplier supplier;

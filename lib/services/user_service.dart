@@ -214,7 +214,7 @@ class UserService {
     // Cache không hợp lệ hoặc user khác - cần load lại
     if (_cachedUid != null && _cachedUid != currentUser.uid) {
       debugPrint(
-        "getCurrentShopId: User đã thay đổi (${_cachedUid} -> ${currentUser.uid}), xóa cache",
+        "getCurrentShopId: User đã thay đổi ($_cachedUid -> ${currentUser.uid}), xóa cache",
       );
       clearCache();
     }
@@ -299,7 +299,8 @@ class UserService {
     // Super admin xem được toàn bộ
     if (currentUser != null && _isSuperAdmin(currentUser)) {
       // Nếu super admin đã chọn shop cụ thể, lọc theo shop đó
-      if (_adminSelectedShopId != null && _adminSelectedShopId!.trim().isNotEmpty) {
+      if (_adminSelectedShopId != null &&
+          _adminSelectedShopId!.trim().isNotEmpty) {
         return _db
             .collection('users')
             .where('shopId', isEqualTo: _adminSelectedShopId)
@@ -352,22 +353,43 @@ class UserService {
       );
     }
 
+    // Refresh token để đảm bảo custom claims được cập nhật
+    try {
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
+    } catch (e) {
+      debugPrint('Could not refresh token before updating user info: $e');
+    }
+
     // Cập nhật dữ liệu người dùng
-    final updateData = {
+    // Role có thể được thay đổi bởi owner của shop (theo Firestore rules)
+    final updateData = <String, dynamic>{
       'displayName': name.toUpperCase(),
+      'name': name.toUpperCase(), // Thêm name field cho compatibility
       'phone': phone,
       'address': address.toUpperCase(),
-      'role': role,
+      'role': role, // Owner có thể thay đổi role theo rules
       'photoUrl': photoUrl,
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    if (shopId != null) {
+    
+    // Chỉ SuperAdmin mới được cập nhật shopId
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final isSuperAdmin = currentUser?.email == 'admin@huluca.com';
+    if (shopId != null && isSuperAdmin) {
       updateData['shopId'] = shopId;
     }
-    await _db
-        .collection('users')
-        .doc(uid)
-        .set(updateData, SetOptions(merge: true));
+    
+    debugPrint('UserService.updateUserInfo: updating uid=$uid with ${updateData.keys.toList()}');
+    try {
+      await _db
+          .collection('users')
+          .doc(uid)
+          .set(updateData, SetOptions(merge: true));
+      debugPrint('UserService.updateUserInfo: success for uid=$uid');
+    } catch (e) {
+      debugPrint('UserService.updateUserInfo: error for uid=$uid: $e');
+      rethrow;
+    }
 
     // Đồng bộ dữ liệu liên quan (ví dụ: cập nhật tên, số điện thoại ở các bảng khác nếu cần)
     // TODO: Nếu có bảng orders, repair_orders,... thì cập nhật thông tin liên quan ở đó
@@ -423,6 +445,19 @@ class UserService {
       userData.addAll(extra);
     }
     await userRef.set(userData, SetOptions(merge: true));
+
+    // Đợi Cloud Function syncUserClaims có thời gian trigger và set claims
+    // Rồi force refresh token để lấy claims mới nhất
+    await Future.delayed(const Duration(seconds: 2));
+    try {
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
+      await ClaimsService().forceRefresh();
+      debugPrint(
+        'syncUserInfo: refreshed custom claims after Firestore update',
+      );
+    } catch (e) {
+      debugPrint('syncUserInfo: failed to refresh claims: $e');
+    }
   }
 
   /// GÁN một nhân viên vào cùng cửa hàng với user hiện tại
@@ -710,21 +745,35 @@ class UserService {
     required bool allowViewExpenses,
     required bool allowViewDebts,
   }) async {
-    await _db.collection('users').doc(uid).set({
-      'allowViewSales': allowViewSales,
-      'allowViewRepairs': allowViewRepairs,
-      'allowViewInventory': allowViewInventory,
-      'allowViewParts': allowViewParts,
-      'allowViewSuppliers': allowViewSuppliers,
-      'allowViewCustomers': allowViewCustomers,
-      'allowViewWarranty': allowViewWarranty,
-      'allowViewChat': allowViewChat,
-      'allowViewAttendance': allowViewAttendance,
-      'allowViewPrinter': allowViewPrinter,
-      'allowViewRevenue': allowViewRevenue,
-      'allowViewExpenses': allowViewExpenses,
-      'allowViewDebts': allowViewDebts,
-    }, SetOptions(merge: true));
+    // Refresh token để đảm bảo custom claims (role, shopId) được cập nhật
+    try {
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
+    } catch (e) {
+      debugPrint('Could not refresh token before updating permissions: $e');
+    }
+    
+    try {
+      await _db.collection('users').doc(uid).set({
+        'allowViewSales': allowViewSales,
+        'allowViewRepairs': allowViewRepairs,
+        'allowViewInventory': allowViewInventory,
+        'allowViewParts': allowViewParts,
+        'allowViewSuppliers': allowViewSuppliers,
+        'allowViewCustomers': allowViewCustomers,
+        'allowViewWarranty': allowViewWarranty,
+        'allowViewChat': allowViewChat,
+        'allowViewAttendance': allowViewAttendance,
+        'allowViewPrinter': allowViewPrinter,
+        'allowViewRevenue': allowViewRevenue,
+        'allowViewExpenses': allowViewExpenses,
+        'allowViewDebts': allowViewDebts,
+        'permissionsUpdatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint('✅ Updated permissions for user $uid');
+    } catch (e) {
+      debugPrint('❌ Error updating permissions for user $uid: $e');
+      rethrow;
+    }
   }
 
   /// Cập nhật các flag điều khiển shop (dành cho super admin)

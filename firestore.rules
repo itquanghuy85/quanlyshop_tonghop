@@ -99,9 +99,9 @@ service cloud.firestore {
              request.resource.data[field] != resource.data[field];
     }
     
+    // Protected fields - nhưng owner có thể thay đổi role của nhân viên trong shop
     function protectedOK() {
       return isSuperAdmin() || (
-        !changed('role') &&
         !changed('shopId') &&
         !changed('isAdmin') &&
         !changed('isSuperAdmin') &&
@@ -109,6 +109,13 @@ service cloud.firestore {
         !changed('ownerUid') &&
         !changed('claimsSyncedAt')
       );
+    }
+    
+    // Kiểm tra role change hợp lệ - owner có thể thay đổi role của người khác trong shop
+    function roleChangeOK() {
+      return isSuperAdmin() || 
+             !changed('role') ||
+             (isOwner() && 'shopId' in resource.data && belongsTo(resource.data.shopId));
     }
     
     function shopIdLocked() {
@@ -181,12 +188,13 @@ service cloud.firestore {
                         request.resource.data.role in ['user', 'employee', 'technician', 'owner']);
       
       // UPDATE: Own profile OR manager of same shop
-      // CRITICAL: Protected fields enforced
+      // Owner can change role of staff in their shop
       allow update: if isAuth() &&
                        (uid() == userId || 
                         isSuperAdmin() || 
                         (isManager() && belongsTo(resource.data.shopId))) &&
-                       protectedOK();
+                       protectedOK() &&
+                       roleChangeOK();
       
       // DELETE: Soft delete only
       allow delete: if false;

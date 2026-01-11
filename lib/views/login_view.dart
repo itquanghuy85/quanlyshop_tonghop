@@ -82,11 +82,11 @@ class _LoginViewState extends State<LoginView> {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.lock_reset, color: AppColors.primary),
-            const SizedBox(width: 8),
-            const Text('Quên mật khẩu'),
+            SizedBox(width: 8),
+            Text('Quên mật khẩu'),
           ],
         ),
         content: Column(
@@ -181,7 +181,7 @@ class _LoginViewState extends State<LoginView> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.language, color: AppColors.primary, size: 20),
+                    const Icon(Icons.language, color: AppColors.primary, size: 20),
                     const SizedBox(width: 8),
                     Text(
                       localizations.selectLanguage,
@@ -200,7 +200,7 @@ class _LoginViewState extends State<LoginView> {
                     DropdownButton<Locale>(
                       value: _selectedLocale,
                       underline: const SizedBox(),
-                      icon: Icon(Icons.arrow_drop_down, color: AppColors.primary),
+                      icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
                       style: AppTextStyles.body2.copyWith(
                         fontWeight: FontWeight.w500,
                         color: AppColors.primary,
@@ -373,7 +373,7 @@ class _LoginViewState extends State<LoginView> {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [AppColors.primary, AppColors.primaryLight],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,

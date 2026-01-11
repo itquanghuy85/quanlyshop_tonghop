@@ -340,7 +340,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         action: 'SỬA ĐƠN SỬA',
         type: 'REPAIR',
         targetId: r.firestoreId,
-        desc: 'Cập nhật đơn sửa ${r.model} - ${r.customerName} - Giá: ${r.price}đ',
+        desc:
+            'Cập nhật đơn sửa ${r.model} - ${r.customerName} - Giá: ${r.price}đ',
       );
 
       // Queue sync repair to cloud via SyncOrchestrator
@@ -451,27 +452,33 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       if (proceed != true) return;
     }
 
-    final parts = await db.getAllParts();
+    // Lấy linh kiện từ CẢ 2 nguồn: repair_parts (kho cũ) + products type='LINH KIỆN' (kho mới)
+    final parts = await db.getAllPartsUnified();
     if (parts.isEmpty) {
       NotificationService.showSnackBar(
-        "Kho Linh Kiện trống. Vui lòng thêm phụ tùng trước.",
+        "Kho Linh Kiện trống. Vui lòng nhập linh kiện trong trang Kho với loại 'LINH KIỆN'.",
         color: Colors.orange,
       );
       return;
     }
 
-    // Map để lưu số lượng chọn cho mỗi part
-    final Map<int, int> selectedQuantities = {};
+    // Map để lưu số lượng chọn cho mỗi part (key = "source_id")
+    final Map<String, int> selectedQuantities = {};
 
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Row(
+          title: const Row(
             children: [
-              const Icon(Icons.inventory_2, color: Colors.purple),
-              const SizedBox(width: 10),
-              const Text("CHỌN PHỤ TÙNG"),
+              Icon(Icons.inventory_2, color: Colors.purple),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "CHỌN PHỤ TÙNG / LINH KIỆN",
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
             ],
           ),
           content: SizedBox(
@@ -482,22 +489,63 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               itemBuilder: (context, index) {
                 final part = parts[index];
                 final partId = part['id'] as int;
+                final source = part['source'] as String;
+                final uniqueKey = "${source}_$partId";
                 final partName = part['partName'] ?? '';
                 final partQty = part['quantity'] as int? ?? 0;
                 final partCost = part['cost'] as int? ?? 0;
                 final partPrice = part['price'] as int? ?? 0;
-                final selectedQty = selectedQuantities[partId] ?? 0;
+                final selectedQty = selectedQuantities[uniqueKey] ?? 0;
+                final isFromProducts = source == 'products';
 
                 return Card(
+                  color: isFromProducts ? Colors.blue.shade50 : null,
                   child: ListTile(
+                    leading: Icon(
+                      isFromProducts ? Icons.inventory : Icons.build,
+                      color: isFromProducts ? Colors.blue : Colors.purple,
+                      size: 20,
+                    ),
                     title: Text(
                       partName,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Tồn kho: $partQty"),
+                        Row(
+                          children: [
+                            Text(
+                              "Tồn: $partQty",
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isFromProducts
+                                    ? Colors.blue.withOpacity(0.2)
+                                    : Colors.purple.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                isFromProducts ? "Kho tổng" : "Kho cũ",
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: isFromProducts
+                                      ? Colors.blue
+                                      : Colors.purple,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         Text(
                           "Vốn: ${MoneyUtils.formatCurrency(partCost)} | Bán: ${MoneyUtils.formatCurrency(partPrice)}",
                           style: const TextStyle(fontSize: 11),
@@ -509,13 +557,17 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.remove_circle_outline),
+                                icon: const Icon(
+                                  Icons.remove_circle_outline,
+                                  size: 20,
+                                ),
                                 onPressed: selectedQty > 0
                                     ? () => setDialogState(() {
-                                        selectedQuantities[partId] =
+                                        selectedQuantities[uniqueKey] =
                                             selectedQty - 1;
-                                        if (selectedQuantities[partId] == 0) {
-                                          selectedQuantities.remove(partId);
+                                        if (selectedQuantities[uniqueKey] ==
+                                            0) {
+                                          selectedQuantities.remove(uniqueKey);
                                         }
                                       })
                                     : null,
@@ -528,10 +580,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.add_circle_outline),
+                                icon: const Icon(
+                                  Icons.add_circle_outline,
+                                  size: 20,
+                                ),
                                 onPressed: selectedQty < partQty
                                     ? () => setDialogState(() {
-                                        selectedQuantities[partId] =
+                                        selectedQuantities[uniqueKey] =
                                             selectedQty + 1;
                                       })
                                     : null,
@@ -540,7 +595,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           )
                         : const Text(
                             "Hết hàng",
-                            style: TextStyle(color: Colors.red),
+                            style: TextStyle(color: Colors.red, fontSize: 12),
                           ),
                   ),
                 );
@@ -572,14 +627,22 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       List<String> usedParts = [];
 
       for (var entry in selectedQuantities.entries) {
-        final partId = entry.key;
+        final uniqueKey = entry.key;
         final qty = entry.value;
-        final part = parts.firstWhere((p) => p['id'] == partId);
+
+        // Parse uniqueKey = "source_id"
+        final keyParts = uniqueKey.split('_');
+        final source = keyParts[0];
+        final partId = int.parse(keyParts[1]);
+
+        final part = parts.firstWhere(
+          (p) => p['id'] == partId && p['source'] == source,
+        );
         final partName = part['partName'] ?? '';
         final partCost = part['cost'] as int? ?? 0;
 
-        // Trừ kho
-        final success = await db.deductPartQuantity(partId, qty);
+        // Trừ kho từ nguồn phù hợp
+        final success = await db.deductPartQuantityUnified(partId, source, qty);
         if (success) {
           totalCost += partCost * qty;
           usedParts.add("$partName x$qty");
@@ -682,33 +745,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             ? parsedCost * 1000
             : parsedCost;
       });
-      // If cost increased, create expense for the additional cost
-      if (r.cost > oldCost) {
-        final additionalCost = r.cost - oldCost;
-        final ts = DateTime.now().millisecondsSinceEpoch;
-        final expFId = "exp_repair_${ts}";
-        final exp = {
-          'firestoreId': expFId,
-          'title': 'Chi phí linh kiện bổ sung - ${r.model}',
-          'amount': additionalCost,
-          'category': 'REPAIR_PARTS',
-          'date': ts,
-          'note': 'Chi phí linh kiện bổ sung cho đơn sửa ${r.firestoreId}',
-          'paymentMethod': 'TIỀN MẶT', // Assume cash for now
-          'createdAt': ts,
-        };
-        final expenseId = await db.insertExpense(exp);
-
-        // Queue sync expense to cloud via SyncOrchestrator
-        await SyncOrchestrator().enqueue(
-          entityType: SyncEntityType.expense,
-          entityId: expenseId,
-          firestoreId: expFId,
-          operation: SyncOperation.create,
-          data: exp,
-        );
-        EventBus().emit('expenses_changed');
-      }
+      // Note: Chi phí linh kiện được theo dõi qua repair.cost và tính vào repairCost trong báo cáo
+      // Không cần tạo expense riêng để tránh double-counting
       _saveData();
     }
   }

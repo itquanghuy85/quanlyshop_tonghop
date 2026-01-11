@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../models/customer_model.dart';
 import '../services/firestore_service.dart';

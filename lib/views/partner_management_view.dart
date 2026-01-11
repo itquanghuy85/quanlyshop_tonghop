@@ -232,8 +232,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final partner = _repairPartners[i];
         return Card(
           child: ListTile(
-            title: Text(partner.name, style: TextStyle(fontSize: 14)),
-            subtitle: Text(partner.phone ?? 'Không có SĐT', style: TextStyle(fontSize: 12)),
+            title: Text(partner.name, style: const TextStyle(fontSize: 14)),
+            subtitle: Text(partner.phone ?? 'Không có SĐT', style: const TextStyle(fontSize: 12)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -260,8 +260,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final supplier = _suppliers[i];
         return Card(
           child: ListTile(
-            title: Text(supplier.name, style: TextStyle(fontSize: 14)),
-            subtitle: Text('${supplier.phone ?? ''} - ${supplier.email ?? ''}', style: TextStyle(fontSize: 12)),
+            title: Text(supplier.name, style: const TextStyle(fontSize: 14)),
+            subtitle: Text('${supplier.phone ?? ''} - ${supplier.email ?? ''}', style: const TextStyle(fontSize: 12)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -312,8 +312,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final history = _partnerImportHistory[i];
         return Card(
           child: ListTile(
-            title: Text('Lô ${history.batchId}', style: TextStyle(fontSize: 14)),
-            subtitle: Text('Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}', style: TextStyle(fontSize: 12)),
+            title: Text('Lô ${history.batchId}', style: const TextStyle(fontSize: 14)),
+            subtitle: Text('Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}', style: const TextStyle(fontSize: 12)),
           ),
         );
       },
@@ -327,8 +327,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final history = _supplierImportHistory[i];
         return Card(
           child: ListTile(
-            title: Text('Lô ${history.batchId}', style: TextStyle(fontSize: 14)),
-            subtitle: Text('Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}', style: TextStyle(fontSize: 12)),
+            title: Text('Lô ${history.batchId}', style: const TextStyle(fontSize: 14)),
+            subtitle: Text('Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}', style: const TextStyle(fontSize: 12)),
           ),
         );
       },
@@ -342,8 +342,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final price = _supplierProductPrices[i];
         return Card(
           child: ListTile(
-            title: Text(price.productId, style: TextStyle(fontSize: 14)),
-            subtitle: Text('Giá nhập: ${MoneyUtils.formatVND(price.costPrice.toInt())}₫ - Giá bán: ${MoneyUtils.formatVND(price.sellingPrice.toInt())}₫', style: TextStyle(fontSize: 12)),
+            title: Text(price.productId, style: const TextStyle(fontSize: 14)),
+            subtitle: Text('Giá nhập: ${MoneyUtils.formatVND(price.costPrice.toInt())}₫ - Giá bán: ${MoneyUtils.formatVND(price.sellingPrice.toInt())}₫', style: const TextStyle(fontSize: 12)),
           ),
         );
       },
@@ -357,8 +357,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final payment = _partnerPayments[i];
         return Card(
           child: ListTile(
-            title: Text('${MoneyUtils.formatVND(payment.amount)}₫ - ${payment.paymentMethod}', style: TextStyle(fontSize: 14)),
-            subtitle: Text('${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(payment.paidAt))} - ${payment.note ?? ''}', style: TextStyle(fontSize: 12)),
+            title: Text('${MoneyUtils.formatVND(payment.amount)}₫ - ${payment.paymentMethod}', style: const TextStyle(fontSize: 14)),
+            subtitle: Text('${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(payment.paidAt))} - ${payment.note ?? ''}', style: const TextStyle(fontSize: 12)),
           ),
         );
       },
@@ -372,8 +372,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final payment = _supplierPayments[i];
         return Card(
           child: ListTile(
-            title: Text('${MoneyUtils.formatVND(payment.amount)}₫ - ${payment.paymentMethod}', style: TextStyle(fontSize: 14)),
-            subtitle: Text('${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(payment.paidAt))} - ${payment.note ?? ''}', style: TextStyle(fontSize: 12)),
+            title: Text('${MoneyUtils.formatVND(payment.amount)}₫ - ${payment.paymentMethod}', style: const TextStyle(fontSize: 14)),
+            subtitle: Text('${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(payment.paidAt))} - ${payment.note ?? ''}', style: const TextStyle(fontSize: 12)),
           ),
         );
       },
@@ -463,8 +463,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           
           // Chi tiết công nợ theo supplier
           if (supplierDebtStats.isNotEmpty) ...[
-            Text('📋 CHI TIẾT CÔNG NỢ THEO NCC:', 
-                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('📋 CHI TIẾT CÔNG NỢ THEO NCC:', 
+                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             ...supplierDebtStats.entries.map((entry) => 
               Container(
@@ -499,8 +499,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           ],
           
           // Biểu đồ thanh toán
-          Text('📊 THỐNG KÊ THANH TOÁN:', 
-               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('📊 THỐNG KÊ THANH TOÁN:', 
+               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           SizedBox(
             height: 200,

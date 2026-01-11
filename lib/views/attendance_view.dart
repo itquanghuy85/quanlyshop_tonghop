@@ -13,7 +13,6 @@ import '../services/storage_service.dart';
 import 'work_schedule_settings_view.dart'; // Import màn hình cài đặt lịch
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/app_button_styles.dart';
 
 class AttendanceView extends StatefulWidget {
   const AttendanceView({super.key});
@@ -353,7 +352,7 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
           const SizedBox(height: 20),
           const Divider(),
           ListTile(
-            leading: Icon(Icons.calendar_month, color: AppColors.primary),
+            leading: const Icon(Icons.calendar_month, color: AppColors.primary),
             title: Text("Cấu hình lịch làm việc", style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold)),
             subtitle: Text("Thiết lập giờ vào/ra cho thợ", style: AppTextStyles.caption),
             trailing: const Icon(Icons.chevron_right, size: 18),
@@ -368,7 +367,7 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
     final now = DateTime.now();
     return Container(
       width: double.infinity, padding: const EdgeInsets.all(30),
-      decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.primaryDark, AppColors.primary]), borderRadius: BorderRadius.circular(25), boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 15)]),
+      decoration: BoxDecoration(gradient: const LinearGradient(colors: [AppColors.primaryDark, AppColors.primary]), borderRadius: BorderRadius.circular(25), boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 15)]),
       child: Column(children: [
         Text(DateFormat('HH:mm').format(now), style: AppTextStyles.headline1.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w900)),
         Text(DateFormat('EEEE, dd MMMM', 'vi_VN').format(now).toUpperCase(), style: AppTextStyles.overline.copyWith(color: AppColors.onPrimary.withOpacity(0.7), letterSpacing: 1.2)),
@@ -439,7 +438,7 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
                         color: AppColors.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(Icons.photo_library, color: AppColors.primary, size: 18),
+                      child: const Icon(Icons.photo_library, color: AppColors.primary, size: 18),
                     ),
                   const SizedBox(width: 8),
                   const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
@@ -479,7 +478,7 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
                     color: AppColors.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.event_note, color: AppColors.primary),
+                  child: const Icon(Icons.event_note, color: AppColors.primary),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -487,7 +486,7 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('CHI TIẾT CHẤM CÔNG', style: AppTextStyles.headline6.copyWith(fontWeight: FontWeight.bold)),
-                      Text(item.dateKey, style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text(item.dateKey, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -579,7 +578,7 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
                 width: double.infinity,
                 loadingBuilder: (ctx, child, progress) {
                   if (progress == null) return child;
-                  return Center(child: CircularProgressIndicator(strokeWidth: 2));
+                  return const Center(child: CircularProgressIndicator(strokeWidth: 2));
                 },
                 errorBuilder: (ctx, e, s) => const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
               ),

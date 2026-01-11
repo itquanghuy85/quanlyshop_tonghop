@@ -5,7 +5,6 @@ import '../services/user_service.dart';
 import '../widgets/validated_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/app_button_styles.dart';
 
 class MyProfileView extends StatefulWidget {
   const MyProfileView({super.key});
@@ -19,8 +18,8 @@ class _MyProfileViewState extends State<MyProfileView> {
   final phoneCtrl = TextEditingController();
   final addressCtrl = TextEditingController();
   String? _photoPath;
-  String _role = 'user';
-  bool _loading = true;
+  final String _role = 'user';
+  final bool _loading = true;
   bool _saving = false;
 
   @override
@@ -108,7 +107,7 @@ class _MyProfileViewState extends State<MyProfileView> {
                     child: ElevatedButton(
                       onPressed: _saving ? null : _save,
                       child: _saving
-                          ? CircularProgressIndicator(color: AppColors.onPrimary)
+                          ? const CircularProgressIndicator(color: AppColors.onPrimary)
                           : Text('LƯU THAY ĐỔI', style: AppTextStyles.button.copyWith(fontWeight: FontWeight.bold)),
                     ),
                   )

@@ -143,7 +143,7 @@ class _DebtViewState extends State<DebtView>
             const Divider(height: 30),
             if (payments.isEmpty) ...[
               Padding(
-                padding: EdgeInsets.all(40),
+                padding: const EdgeInsets.all(40),
                 child: Text(
                   "Chưa có lịch sử trả nợ",
                   style: AppTextStyles.body1.copyWith(
@@ -577,12 +577,12 @@ class _DebtViewState extends State<DebtView>
             : _tabController.index == 1
             ? Colors.blueAccent
             : Colors.purpleAccent,
-        child: const Icon(Icons.add, color: Colors.white),
         tooltip: _tabController.index == 0
             ? 'Tạo nợ khách hàng'
             : _tabController.index == 1
             ? 'Tạo nợ nhà cung cấp'
             : 'Tạo công nợ khác',
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -887,7 +887,7 @@ class _DebtViewState extends State<DebtView>
                 child: Center(
                   child: Text(
                     '$index',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
                       fontSize: 12,
@@ -1152,13 +1152,13 @@ class _DebtViewState extends State<DebtView>
                 final now = DateTime.now().millisecondsSinceEpoch;
 
                 final newDebtData = {
-                  'firestoreId': "debt_other_${now}",
+                  'firestoreId': "debt_other_$now",
                   'personName': nameC.text.trim(),
                   'phone': phoneC.text.trim(),
                   'totalAmount': debtAmount,
                   'paidAmount': 0,
                   'type':
-                      'OTHER_${debtType}', // OTHER_CUSTOMER_OWES or OTHER_SHOP_OWES
+                      'OTHER_$debtType', // OTHER_CUSTOMER_OWES or OTHER_SHOP_OWES
                   'status': 'unpaid',
                   'createdAt': now,
                   'note': noteC.text.trim().isEmpty ? null : noteC.text.trim(),
@@ -1267,7 +1267,7 @@ class _DebtViewState extends State<DebtView>
                 final now = DateTime.now().millisecondsSinceEpoch;
 
                 final newDebtData = {
-                  'firestoreId': "debt_customer_${now}",
+                  'firestoreId': "debt_customer_$now",
                   'personName': nameC.text.trim(),
                   'phone': phoneC.text.trim(),
                   'totalAmount': debtAmount,
@@ -1397,7 +1397,7 @@ class _DebtViewState extends State<DebtView>
                 final now = DateTime.now().millisecondsSinceEpoch;
 
                 final newDebtData = {
-                  'firestoreId': "debt_supplier_${now}",
+                  'firestoreId': "debt_supplier_$now",
                   'personName': nameC.text.trim(),
                   'phone': phoneC.text.trim(),
                   'totalAmount': debtAmount,

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/utils/qr_parser.dart';
+import 'package:quanlyshop/utils/qr_parser.dart';
 
 void main() {
   group('Fast Inventory Check QR Parsing Tests', () {

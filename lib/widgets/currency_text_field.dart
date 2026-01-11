@@ -6,16 +6,14 @@ import '../theme/app_colors.dart';
 
 /// Widget nhập tiền chuẩn hóa cho toàn app.
 ///
-/// QUY TẮC:
-/// 1. Trong lúc nhập: không thay đổi giá trị, chỉ cho nhập số
-/// 2. Khi nhập xong (mất focus / Enter / Xác nhận): tự động thêm 000
-/// 3. Hiển thị dạng: x.xxx.xxx (dấu chấm ngăn cách hàng nghìn)
-/// 4. Lưu số nguyên đầy đủ (VNĐ)
+/// QUY TẮC ĐƠN GIẢN:
+/// 1. Người dùng nhập số tiền đầy đủ (VD: 500000 cho 500k)
+/// 2. Hiển thị dạng: x.xxx.xxx (dấu chấm ngăn cách hàng nghìn)
+/// 3. Lưu số nguyên đầy đủ (VNĐ)
 ///
 /// Ví dụ:
-/// - Nhập "500" → Hiển thị "500.000" → Lưu 500000
-/// - Nhập "1500" → Hiển thị "1.500.000" → Lưu 1500000
-/// - Nhập "1500000" (>= 100000) → Hiển thị "1.500.000" → Lưu 1500000 (không nhân)
+/// - Nhập "500000" → Hiển thị "500.000" → Lưu 500000
+/// - Nhập "1500000" → Hiển thị "1.500.000" → Lưu 1500000
 class CurrencyTextField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
@@ -26,14 +24,17 @@ class CurrencyTextField extends StatefulWidget {
   final VoidCallback? onSubmitted;
   final Function(String)? onChanged; // Legacy callback - trả về string
   final Function(int)? onValueChanged; // New callback - trả về int
-  final bool
-  autoMultiply1000; // Mặc định true - tự động nhân 1000 khi số < 100000
+  final bool autoMultiply1000; // DEPRECATED - Không còn sử dụng, luôn = false
 
   /// Global key registry để finalize tất cả currency fields trước khi submit
-  static final Map<TextEditingController, GlobalKey<_CurrencyTextFieldState>> _stateKeys = {};
+  static final Map<TextEditingController, GlobalKey<_CurrencyTextFieldState>>
+  _stateKeys = {};
 
   /// Đăng ký state key cho controller
-  static void _registerState(TextEditingController controller, GlobalKey<_CurrencyTextFieldState> key) {
+  static void _registerState(
+    TextEditingController controller,
+    GlobalKey<_CurrencyTextFieldState> key,
+  ) {
     _stateKeys[controller] = key;
   }
 
@@ -66,31 +67,26 @@ class CurrencyTextField extends StatefulWidget {
     this.onSubmitted,
     this.onChanged,
     this.onValueChanged,
-    this.autoMultiply1000 = true,
+    this.autoMultiply1000 =
+        false, // DEPRECATED - mặc định false, không còn auto multiply
   });
 
   @override
   State<CurrencyTextField> createState() => _CurrencyTextFieldState();
 
-  /// Lấy giá trị số nguyên (VNĐ) từ controller - CHỈ PARSE, KHÔNG NHÂN 1000
-  /// ⚠️ KHÔNG NÊN DÙNG nếu muốn áp dụng rule x1000
-  /// Dùng [getValueWithMultiply] thay thế
+  /// Lấy giá trị số nguyên (VNĐ) từ controller
   static int getValue(TextEditingController controller) {
     final text = controller.text.replaceAll(RegExp(r'[^0-9]'), '');
     return int.tryParse(text) ?? 0;
   }
 
-  /// Lấy giá trị số nguyên (VNĐ) từ controller VỚI RULE NHÂN 1000 nếu < 100000
-  /// ✅ PHẢI DÙNG method này khi lưu dữ liệu để đảm bảo nhất quán
+  /// Lấy giá trị số nguyên (VNĐ) từ controller
+  /// NOTE: autoMultiply1000 không còn sử dụng - luôn trả về giá trị đã nhập
   static int getValueWithMultiply(
     TextEditingController controller, {
-    bool autoMultiply1000 = true,
+    bool autoMultiply1000 = false,
   }) {
-    final rawAmount = parseValue(controller.text);
-    if (autoMultiply1000 && rawAmount < 100000) {
-      return rawAmount * 1000;
-    }
-    return rawAmount;
+    return getValue(controller);
   }
 
   /// Format số thành chuỗi hiển thị (x.xxx.xxx)
@@ -99,23 +95,18 @@ class CurrencyTextField extends StatefulWidget {
     return MoneyUtils.formatCurrency(value).replaceAll(',', '.');
   }
 
-  /// Parse chuỗi thành số nguyên - CHỈ PARSE, KHÔNG NHÂN 1000
-  /// ⚠️ KHÔNG NÊN DÙNG trực tiếp nếu muốn áp dụng rule x1000
+  /// Parse chuỗi thành số nguyên
   static int parseValue(String text) {
     return MoneyUtils.parseCurrency(text);
   }
 
-  /// Parse chuỗi thành số nguyên VỚI RULE NHÂN 1000 nếu < 100000
-  /// ✅ PHẢI DÙNG method này khi lưu dữ liệu để đảm bảo nhất quán
+  /// Parse chuỗi thành số nguyên
+  /// NOTE: autoMultiply1000 không còn sử dụng - luôn trả về giá trị đã nhập
   static int parseValueWithMultiply(
     String text, {
-    bool autoMultiply1000 = true,
+    bool autoMultiply1000 = false,
   }) {
-    final rawAmount = parseValue(text);
-    if (autoMultiply1000 && rawAmount < 100000) {
-      return rawAmount * 1000;
-    }
-    return rawAmount;
+    return parseValue(text);
   }
 }
 
@@ -151,10 +142,7 @@ class _CurrencyTextFieldState extends State<CurrencyTextField> {
       _isEditing = true;
       final currentValue = CurrencyTextField.parseValue(widget.controller.text);
       if (currentValue > 0) {
-        // Hiển thị số gốc (chia 1000 nếu đã nhân trước đó)
-        final rawValue = widget.autoMultiply1000 && currentValue >= 1000
-            ? (currentValue ~/ 1000).toString()
-            : currentValue.toString();
+        final rawValue = currentValue.toString();
         widget.controller.value = TextEditingValue(
           text: rawValue,
           selection: TextSelection.collapsed(offset: rawValue.length),
@@ -202,13 +190,8 @@ class _CurrencyTextFieldState extends State<CurrencyTextField> {
       return;
     }
 
-    // Tính giá trị thực:
-    // - Nếu < 100000 và autoMultiply1000 = true → nhân 1000
-    // - Ngược lại giữ nguyên
+    // Không còn auto multiply - giữ nguyên giá trị đã nhập
     int actualAmount = rawAmount;
-    if (widget.autoMultiply1000 && rawAmount < 100000) {
-      actualAmount = rawAmount * 1000;
-    }
 
     // Format và hiển thị
     final formatted = CurrencyTextField.formatDisplay(actualAmount);
@@ -242,13 +225,9 @@ class _CurrencyTextFieldState extends State<CurrencyTextField> {
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           decoration: InputDecoration(
             labelText: widget.required ? '${widget.label} *' : widget.label,
-            hintText:
-                widget.hint ??
-                (widget.autoMultiply1000
-                    ? 'Nhập số (500 = 500.000đ)'
-                    : 'Nhập số tiền'),
+            hintText: widget.hint ?? 'Nhập số tiền đầy đủ (VD: 500000)',
             prefixIcon: widget.icon != null ? Icon(widget.icon) : null,
-            suffixText: widget.autoMultiply1000 ? '.000' : 'đ',
+            suffixText: 'đ',
             suffixStyle: AppTextStyles.caption.copyWith(
               color: AppColors.primary,
               fontWeight: FontWeight.bold,

@@ -121,7 +121,7 @@ class _ChatViewState extends State<ChatView> {
 🔧 Vấn đề: ${repair.issue}
 📍 Địa chỉ: ${repair.address ?? 'N/A'}
 📞 SĐT: ${repair.phone}
-💰 Giá: ${repair.price != null && repair.price > 0 ? '${repair.price}đ' : 'Chưa báo giá'}
+💰 Giá: ${repair.price > 0 ? '${repair.price}đ' : 'Chưa báo giá'}
 📊 Trạng thái: ${getStatusText(repair.status)}
 📝 Ghi chú: ${repair.accessories ?? 'Không có'}
 ''';

@@ -7,6 +7,7 @@
 /// - 2: REPAIRING (ĐANG SỬA) - In progress
 /// - 3: COMPLETED (ĐÃ XONG) - Repair finished
 /// - 4: DELIVERED (ĐÃ GIAO) - Terminal state
+library;
 
 class RepairStatusValidator {
   /// Status constants

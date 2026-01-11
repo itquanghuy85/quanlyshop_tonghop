@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../utils/imei_extractor.dart';
-import '../theme/app_colors.dart';
 
 /// Dialog hiển thị kết quả quét QR IMEI cho user chọn
 class IMEIScanResultDialog extends StatelessWidget {

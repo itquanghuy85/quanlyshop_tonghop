@@ -6,10 +6,10 @@ import '../models/repair_partner_model.dart';
 import '../services/supplier_service.dart';
 import '../services/repair_partner_service.dart';
 import '../services/repair_partner_payment_service.dart';
+import '../services/user_service.dart';
 import '../data/db_helper.dart';
 import '../utils/money_utils.dart';
 import '../services/notification_service.dart';
-import '../services/firestore_service.dart';
 import '../services/event_bus.dart';
 import '../services/audit_service.dart';
 import '../services/sync_orchestrator.dart';
@@ -20,6 +20,8 @@ import 'supplier_form_view.dart';
 import 'supplier_detail_view.dart';
 import 'repair_partner_form_view.dart';
 import 'repair_partner_detail_view.dart';
+import 'create_sale_view.dart';
+import 'inventory_view.dart';
 
 class SupplierListView extends StatefulWidget {
   const SupplierListView({super.key});
@@ -282,6 +284,29 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
             Text('${_items.length} NCC • ${_partners.length} đối tác', style: const TextStyle(fontSize: 11, color: Colors.white70)),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart),
+            tooltip: 'Tạo đơn bán hàng',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CreateSaleView()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.inventory_2),
+            tooltip: 'Quản lý kho',
+            onPressed: () async {
+              final role = await UserService.getRoleFast();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => InventoryView(role: role)),
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -453,7 +478,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -529,7 +554,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
                 label: const Text('Xóa'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.error,
-                  side: BorderSide(color: AppColors.error),
+                  side: const BorderSide(color: AppColors.error),
                 ),
               ),
             ],
@@ -742,7 +767,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -937,7 +962,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.lock, color: AppColors.primary, size: 24),
+            const Icon(Icons.lock, color: AppColors.primary, size: 24),
             const SizedBox(width: 12),
             Text('XÁC NHẬN XÓA', style: AppTextStyles.headline6.copyWith(color: AppColors.primary)),
           ],
@@ -958,18 +983,18 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
               decoration: InputDecoration(
                 hintText: 'Mật khẩu',
                 hintStyle: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.5)),
-                prefixIcon: Icon(Icons.password, color: AppColors.primary, size: 20),
+                prefixIcon: const Icon(Icons.password, color: AppColors.primary, size: 20),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.outline),
+                  borderSide: const BorderSide(color: AppColors.outline),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.outline),
+                  borderSide: const BorderSide(color: AppColors.outline),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 2),
                 ),
                 filled: true,
                 fillColor: AppColors.surface,
@@ -1048,7 +1073,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
+            const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
             const SizedBox(width: 12),
             Text("XÓA NHÀ CUNG CẤP", style: AppTextStyles.headline6.copyWith(color: AppColors.error)),
           ],
@@ -1090,7 +1115,7 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle, color: AppColors.onSuccess, size: 20),
+                const Icon(Icons.check_circle, color: AppColors.onSuccess, size: 20),
                 const SizedBox(width: 8),
                 Text('ĐÃ XÓA NHÀ CUNG CẤP', style: AppTextStyles.body2.copyWith(color: AppColors.onSuccess)),
               ],

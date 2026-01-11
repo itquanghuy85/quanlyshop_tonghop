@@ -142,18 +142,18 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
             // Partner list
             Expanded(
               child: _filteredPartners.isEmpty
-                ? Center(
+                ? const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.business, size: 64, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      const Text(
+                      Icon(Icons.business, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text(
                         'Chưa có đối tác nào',
                         style: TextStyle(fontSize: 18, color: Colors.grey),
                       ),
-                      const SizedBox(height: 8),
-                      const Text(
+                      SizedBox(height: 8),
+                      Text(
                         'Nhấn + để thêm đối tác mới',
                         style: TextStyle(color: Colors.grey),
                       ),
@@ -206,10 +206,10 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
               ),
             ),
             if (partner.firestoreId == null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(Icons.sync_problem, size: 14, color: Colors.orange),
                     SizedBox(width: 4),
                     Text('Chưa đồng bộ', style: TextStyle(fontSize: 12, color: Colors.orange)),
@@ -221,13 +221,13 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
         trailing: PopupMenuButton<String>(
           onSelected: (value) => _handleMenuAction(context, value, partner),
           itemBuilder: (context) => [
-            PopupMenuItem(
+            const PopupMenuItem(
               value: 'edit',
               child: Row(
                 children: [
-                  const Icon(Icons.edit, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('Chỉnh sửa'),
+                  Icon(Icons.edit, size: 20),
+                  SizedBox(width: 8),
+                  Text('Chỉnh sửa'),
                 ],
               ),
             ),
@@ -244,13 +244,13 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
                 ],
               ),
             ),
-            PopupMenuItem(
+            const PopupMenuItem(
               value: 'delete',
               child: Row(
                 children: [
-                  const Icon(Icons.delete, color: Colors.red, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('Xóa', style: TextStyle(color: Colors.red)),
+                  Icon(Icons.delete, color: Colors.red, size: 20),
+                  SizedBox(width: 8),
+                  Text('Xóa', style: TextStyle(color: Colors.red)),
                 ],
               ),
             ),
@@ -459,7 +459,7 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
             if (partner.phone?.isNotEmpty ?? false) Text('SĐT: ${partner.phone}'),
             if (partner.note?.isNotEmpty ?? false) ...[
               const SizedBox(height: 8),
-              Text('Ghi chú:'),
+              const Text('Ghi chú:'),
               Text(partner.note!),
             ],
             const SizedBox(height: 12),

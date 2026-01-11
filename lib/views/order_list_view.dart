@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
-import '../services/firestore_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import 'repair_detail_view.dart';
@@ -101,13 +100,15 @@ class OrderListViewState extends State<OrderListView> {
   List<Repair> _applyFilters(List<Repair> list) {
     return list.where((r) {
       if (widget.statusFilter != null &&
-          !widget.statusFilter!.contains(r.status))
+          !widget.statusFilter!.contains(r.status)) {
         return false;
+      }
       if (widget.todayOnly) {
         final d = DateTime.fromMillisecondsSinceEpoch(r.createdAt);
         final now = DateTime.now();
-        if (!(d.year == now.year && d.month == now.month && d.day == now.day))
+        if (!(d.year == now.year && d.month == now.month && d.day == now.day)) {
           return false;
+        }
       }
       // Time filter
       if (_timeFilter != 'all' && !widget.todayOnly) {
@@ -128,11 +129,13 @@ class OrderListViewState extends State<OrderListView> {
             if (d.isBefore(monthStart)) return false;
             break;
           case 'custom':
-            if (_customStartDate != null && d.isBefore(_customStartDate!))
+            if (_customStartDate != null && d.isBefore(_customStartDate!)) {
               return false;
+            }
             if (_customEndDate != null &&
-                d.isAfter(_customEndDate!.add(const Duration(days: 1))))
+                d.isAfter(_customEndDate!.add(const Duration(days: 1)))) {
               return false;
+            }
             break;
         }
       }

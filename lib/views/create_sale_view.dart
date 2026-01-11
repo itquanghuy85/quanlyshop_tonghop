@@ -13,13 +13,15 @@ import '../services/sync_orchestrator.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
 import '../services/adjustment_service.dart';
+import '../services/claims_service.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
-import 'stock_in_view.dart'; // Restored stock_in_view import
+import 'stock_in_view.dart';
+import 'supplier_list_view.dart';
 
 class CreateSaleView extends StatefulWidget {
   final Product? preSelectedProduct;
@@ -48,7 +50,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   String _saleWarranty = "12 THÁNG";
   bool _autoCalcTotal = true;
 
-  List<Map<String, dynamic>> _selectedItems = [];
+  final List<Map<String, dynamic>> _selectedItems = [];
   List<Map<String, dynamic>> _suggestCustomers = [];
   List<Product> _allInStock = [];
   List<Product> _filteredInStock = [];
@@ -103,15 +105,47 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     debugPrint("_selectCustomer: bắt đầu chọn khách hàng");
     final customerService = CustomerService();
 
-    // Sync customers from cloud first
+    // Sync customers from cloud first (ignore errors)
     debugPrint("_selectCustomer: bắt đầu sync từ cloud");
-    await SyncService.syncCustomersFromCloud();
-    debugPrint("_selectCustomer: đã sync xong từ cloud");
+    try {
+      await SyncService.syncCustomersFromCloud();
+      debugPrint("_selectCustomer: đã sync xong từ cloud");
+    } catch (e) {
+      debugPrint("_selectCustomer: lỗi sync từ cloud (ignored): $e");
+    }
 
-    final customers = await customerService.getCustomers();
-    debugPrint(
-      "_selectCustomer: lấy được ${customers.length} customers từ local DB",
-    );
+    List<Customer> customers = [];
+    try {
+      customers = await customerService.getCustomers();
+      debugPrint(
+        "_selectCustomer: lấy được ${customers.length} customers từ local DB",
+      );
+    } catch (e) {
+      debugPrint("_selectCustomer: lỗi lấy customers: $e");
+    }
+
+    // Fallback: lấy danh sách khách độc nhất từ lịch sử nếu chưa có trong bảng customers
+    if (customers.isEmpty) {
+      try {
+        final unique = await db.getUniqueCustomersAll();
+        customers = unique
+            .map(
+              (c) => Customer(
+                name: (c['customerName'] ?? '').toString(),
+                phone: (c['phone'] ?? '').toString(),
+                address: (c['address'] ?? '').toString(),
+                createdAt: DateTime.now().millisecondsSinceEpoch,
+              ),
+            )
+            .where((c) => c.phone.isNotEmpty)
+            .toList();
+        debugPrint(
+          "_selectCustomer: fallback ${customers.length} customers từ history",
+        );
+      } catch (e) {
+        debugPrint("_selectCustomer: lỗi fallback: $e");
+      }
+    }
 
     if (!mounted) return;
 
@@ -266,12 +300,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     _calculateInstallment();
   }
 
-  int _parseCurrency(String value, {bool autoMultiply1000 = true}) {
-    final parsed = MoneyUtils.parseCurrency(value);
-    if (autoMultiply1000 && parsed >= 1000 && parsed < 100000) {
-      return parsed * 1000;
-    }
-    return parsed;
+  int _parseCurrency(String value) {
+    // Không còn auto multiply - nhập đủ số tiền
+    return MoneyUtils.parseCurrency(value);
   }
 
   String _formatCurrency(int amount) => MoneyUtils.formatCurrency(amount);
@@ -489,8 +520,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       int paidAmount = _parseCurrency(downPaymentCtrl.text);
       if (_paymentMethod != "CÔNG NỢ" &&
           _paymentMethod != "TRẢ GÓP (NH)" &&
-          paidAmount == 0)
+          paidAmount == 0) {
         paidAmount = totalPrice;
+      }
 
       int totalCost = _selectedItems.fold(
         0,
@@ -542,7 +574,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               if (product.type == 'DIEN_THOAI') {
                 return product.imei ?? "NO_IMEI";
               } else {
-                return "PKx${quantity}";
+                return "PKx$quantity";
               }
             })
             .join(', '),
@@ -583,11 +615,31 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       // === FIRESTORE TRANSACTION: KIỂM TRA + TRỪ KHO + TẠO SALE (ATOMIC) ===
       // Tránh race condition khi 2 nhân viên bán cùng 1 món
 
+      // Refresh token và claims để đảm bảo shopId được cập nhật trước transaction
+      try {
+        // Gọi Cloud Function để sync claims từ Firestore lên JWT
+        final claimsResult = await ClaimsService().refreshMyClaims();
+        debugPrint('✅ Claims refresh result: $claimsResult');
+        
+        // Force refresh token để áp dụng claims mới
+        await FirebaseAuth.instance.currentUser?.getIdToken(true);
+        debugPrint('✅ Token refreshed before sale transaction');
+      } catch (e) {
+        debugPrint('⚠️ Could not refresh claims/token: $e');
+        // Tiếp tục thử transaction, có thể vẫn hoạt động nếu claims đã đúng
+      }
+
+      // Kiểm tra xem tất cả sản phẩm đã có firestoreId chưa
+      bool allHaveFirestoreId = _selectedItems.every((item) {
+        final p = item['product'] as Product;
+        return p.firestoreId != null && p.firestoreId!.isNotEmpty;
+      });
+
       // Chuẩn bị data cho transaction
       final transactionItems = _selectedItems.map((item) {
         final p = item['product'] as Product;
         return {
-          'firestoreId': p.firestoreId,
+          'firestoreId': p.firestoreId ?? '',
           'quantity': item['quantity'] as int,
           'productName': p.name,
           'type': p.type,
@@ -612,32 +664,79 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         };
       }
 
-      // Thực hiện Firestore transaction
-      final transactionResult = await FirestoreService.executeSaleTransaction(
-        items: transactionItems,
-        saleData: sale.toMap(),
-        debtData: debtDataForTransaction,
-      );
+      // Thực hiện Firestore transaction (chỉ khi tất cả sản phẩm đã sync)
+      Map<String, dynamic> transactionResult;
+      if (allHaveFirestoreId) {
+        transactionResult = await FirestoreService.executeSaleTransaction(
+          items: transactionItems,
+          saleData: sale.toMap(),
+          debtData: debtDataForTransaction,
+        );
+      } else {
+        // Fallback: Bán local trước, sync sau
+        debugPrint('⚠️ Some products missing firestoreId, using local-first sale');
+        transactionResult = {'success': true, 'localOnly': true};
+      }
 
       if (!transactionResult['success']) {
         // Transaction failed
         final outOfStockItems =
             transactionResult['outOfStockItems'] as List<dynamic>?;
-        if (outOfStockItems != null && outOfStockItems.isNotEmpty) {
+        final needRelogin = transactionResult['needRelogin'] == true;
+        final errorMsg = transactionResult['error']?.toString() ?? '';
+        
+        // Nếu lỗi permission-denied, cho phép bán local và sync sau
+        if (errorMsg.contains('permission-denied') || needRelogin) {
+          debugPrint('⚠️ Firestore permission denied, falling back to local-first sale');
+          // Hiển thị thông báo và cho phép bán local
+          if (mounted) {
+            final shouldContinue = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Lỗi đồng bộ'),
+                content: const Text(
+                  'Không thể đồng bộ với server.\n\n'
+                  'Bạn có muốn tiếp tục bán hàng offline? Dữ liệu sẽ được đồng bộ sau.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Hủy'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                    child: const Text('Tiếp tục bán'),
+                  ),
+                ],
+              ),
+            );
+            
+            if (shouldContinue == true) {
+              // Tiếp tục với local-first sale
+              transactionResult = {'success': true, 'localOnly': true};
+            } else {
+              setState(() => _isSaving = false);
+              return;
+            }
+          }
+        } else if (outOfStockItems != null && outOfStockItems.isNotEmpty) {
           NotificationService.showSnackBar(
             "⚠️ Hàng đã được bán bởi nhân viên khác!\n${outOfStockItems.join('\n')}",
             color: Colors.red,
           );
+          await _loadData();
+          setState(() => _isSaving = false);
+          return;
         } else {
           NotificationService.showSnackBar(
             "❌ Lỗi: ${transactionResult['error']}",
             color: Colors.red,
           );
+          await _loadData();
+          setState(() => _isSaving = false);
+          return;
         }
-        // Refresh lại danh sách sản phẩm
-        await _loadData();
-        setState(() => _isSaving = false);
-        return;
       }
 
       // Transaction thành công → Cập nhật local DB để đồng bộ
@@ -804,6 +903,18 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           ),
         ),
         automaticallyImplyLeading: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.business_center),
+            tooltip: 'Quản lý NCC & Đối tác',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SupplierListView()),
+              );
+            },
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -1096,7 +1207,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 10)],
+        boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 10)],
       ),
       child: ListView.builder(
         shrinkWrap: true,
@@ -1165,7 +1276,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.delete, color: AppColors.error),
+                      icon: const Icon(Icons.delete, color: AppColors.error),
                       onPressed: () {
                         setState(() {
                           _selectedItems.remove(item);
@@ -1309,7 +1420,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.inventory_2_outlined,
                 color: AppColors.warning,
                 size: 28,
@@ -1462,7 +1573,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                               customer.name.isNotEmpty
                                   ? customer.name[0].toUpperCase()
                                   : '?',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.bold,
                               ),

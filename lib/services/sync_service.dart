@@ -946,8 +946,9 @@ class SyncService {
             final firestoreId = expense.firestoreId;
             if (firestoreId != null &&
                 firestoreId.isNotEmpty &&
-                expense.isSynced)
+                expense.isSynced) {
               continue;
+            }
 
             try {
               Map<String, dynamic> data = expense.toMap();
@@ -1040,8 +1041,9 @@ class SyncService {
         );
         final WriteBatch attendanceBatch = _db.batch();
         for (var a in attendance) {
-          if (a.firestoreId != null && a.firestoreId!.isNotEmpty)
+          if (a.firestoreId != null && a.firestoreId!.isNotEmpty) {
             continue; // Đã sync rồi
+          }
 
           try {
             Map<String, dynamic> data = a.toMap();
@@ -1157,8 +1159,9 @@ class SyncService {
           for (var supplierMap in suppliers) {
             // Skip nếu đã có firestoreId (đã sync)
             if (supplierMap['firestoreId'] != null &&
-                supplierMap['firestoreId'].toString().isNotEmpty)
+                supplierMap['firestoreId'].toString().isNotEmpty) {
               continue;
+            }
 
             try {
               Map<String, dynamic> data = Map<String, dynamic>.from(
@@ -1200,8 +1203,9 @@ class SyncService {
           for (var partnerMap in partners) {
             // Skip nếu đã có firestoreId (đã sync)
             if (partnerMap['firestoreId'] != null &&
-                partnerMap['firestoreId'].toString().isNotEmpty)
+                partnerMap['firestoreId'].toString().isNotEmpty) {
               continue;
+            }
 
             try {
               Map<String, dynamic> data = Map<String, dynamic>.from(partnerMap);
@@ -1245,8 +1249,9 @@ class SyncService {
                 debtMap['isSynced'] == 1 || debtMap['isSynced'] == true;
             if (firestoreId != null &&
                 firestoreId.toString().isNotEmpty &&
-                isSynced)
+                isSynced) {
               continue;
+            }
 
             try {
               Map<String, dynamic> data = Map<String, dynamic>.from(debtMap);
@@ -1289,8 +1294,9 @@ class SyncService {
                 paymentMap['isSynced'] == 1 || paymentMap['isSynced'] == true;
             if (firestoreId != null &&
                 firestoreId.toString().isNotEmpty &&
-                isSynced)
+                isSynced) {
               continue;
+            }
 
             try {
               Map<String, dynamic> data = Map<String, dynamic>.from(paymentMap);
@@ -1617,12 +1623,25 @@ class SyncService {
         "syncCustomersFromCloud: shopId = $shopId, isSuperAdmin = $isSuperAdmin",
       );
 
+      // Nếu không có shopId và không phải super admin, bỏ qua
+      if (!isSuperAdmin && (shopId == null || shopId.isEmpty)) {
+        debugPrint("syncCustomersFromCloud: Không có shopId, bỏ qua");
+        return;
+      }
+
       final dbHelper = DBHelper();
 
       // Query customers từ Firestore
       Query query = _db.collection('customers');
       if (!isSuperAdmin && shopId != null) {
         query = query.where('shopId', isEqualTo: shopId);
+      }
+
+      // Refresh token trước khi query để đảm bảo claims được cập nhật
+      try {
+        await user.getIdToken(true);
+      } catch (e) {
+        debugPrint("syncCustomersFromCloud: Không thể refresh token: $e");
       }
 
       final querySnapshot = await query.get();

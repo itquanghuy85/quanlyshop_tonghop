@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../data/db_helper.dart';
 import '../models/quick_input_code_model.dart';
 import '../services/sync_service.dart';
@@ -673,7 +672,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
             children: [
               // Type selector
               DropdownButtonFormField<String>(
-                value: _type,
+                initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Loại sản phẩm'),
                 items: const [
                   DropdownMenuItem(value: 'DIEN_THOAI', child: Text('Điện thoại')),
@@ -719,7 +718,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                 const SizedBox(height: 12),
                 // Dropdown cho tình trạng - đồng bộ với fast_stock_in_view
                 DropdownButtonFormField<String>(
-                  value: _conditionCtrl.text.isNotEmpty ? _conditionCtrl.text : null,
+                  initialValue: _conditionCtrl.text.isNotEmpty ? _conditionCtrl.text : null,
                   decoration: const InputDecoration(labelText: 'Tình trạng'),
                   items: const [
                     DropdownMenuItem(value: null, child: Text('Chưa chọn')),
@@ -759,7 +758,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
 
               // Payment method
               DropdownButtonFormField<String>(
-                value: _paymentMethod,
+                initialValue: _paymentMethod,
                 decoration: const InputDecoration(labelText: 'Phương thức thanh toán'),
                 items: const [
                   DropdownMenuItem(value: null, child: Text('Chưa chọn')),

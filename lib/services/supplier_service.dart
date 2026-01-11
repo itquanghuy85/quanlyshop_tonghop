@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../data/db_helper.dart';
@@ -59,10 +58,8 @@ class SupplierService {
     if (suppliers.isEmpty) {
       try {
         Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('suppliers');
-        if (shopId != null) {
-          query = query.where('shopId', isEqualTo: shopId);
-        }
-        final snapshot = await query.get();
+        query = query.where('shopId', isEqualTo: shopId);
+              final snapshot = await query.get();
         for (final doc in snapshot.docs) {
           final data = doc.data();
           final mapped = {

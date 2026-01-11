@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 class QRParser {
   /// Parse QR string into key-value map

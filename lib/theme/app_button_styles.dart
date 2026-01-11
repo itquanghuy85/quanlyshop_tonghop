@@ -52,30 +52,30 @@ class AppButtonStyles {
       textStyle: AppTextStyles.button,
     ).copyWith(
       // Hover state
-      overlayColor: MaterialStateProperty.all(
+      overlayColor: WidgetStateProperty.all(
         AppColors.onPrimary.withOpacity(0.1),
       ),
       // Disabled state
-      backgroundColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
           return AppColors.grey400;
         }
         return AppColors.primary;
       }),
-      foregroundColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
           return AppColors.grey600;
         }
         return AppColors.onPrimary;
       }),
-      elevation: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
+      elevation: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
           return 0;
         }
-        if (states.contains(MaterialState.hovered)) {
+        if (states.contains(WidgetState.hovered)) {
           return 4;
         }
-        if (states.contains(MaterialState.pressed)) {
+        if (states.contains(WidgetState.pressed)) {
           return 1;
         }
         return 2;
@@ -86,16 +86,16 @@ class AppButtonStyles {
   /// Style cho ElevatedButton nhỏ
   static ButtonStyle get smallElevatedButtonStyle {
     return elevatedButtonStyle.copyWith(
-      minimumSize: MaterialStateProperty.all(
+      minimumSize: WidgetStateProperty.all(
         const Size(0, smallButtonHeight),
       ),
-      padding: MaterialStateProperty.all(
+      padding: WidgetStateProperty.all(
         const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 8,
         ),
       ),
-      textStyle: MaterialStateProperty.all(
+      textStyle: WidgetStateProperty.all(
         AppTextStyles.button.copyWith(fontSize: 12),
       ),
     );
@@ -104,16 +104,16 @@ class AppButtonStyles {
   /// Style cho ElevatedButton lớn
   static ButtonStyle get largeElevatedButtonStyle {
     return elevatedButtonStyle.copyWith(
-      minimumSize: MaterialStateProperty.all(
+      minimumSize: WidgetStateProperty.all(
         const Size(double.infinity, largeButtonHeight),
       ),
-      padding: MaterialStateProperty.all(
+      padding: WidgetStateProperty.all(
         const EdgeInsets.symmetric(
           horizontal: 24,
           vertical: 16,
         ),
       ),
-      textStyle: MaterialStateProperty.all(
+      textStyle: WidgetStateProperty.all(
         AppTextStyles.button.copyWith(fontSize: 16),
       ),
     );
@@ -122,32 +122,32 @@ class AppButtonStyles {
   /// Style cho ElevatedButton secondary
   static ButtonStyle get secondaryElevatedButtonStyle {
     return elevatedButtonStyle.copyWith(
-      backgroundColor: MaterialStateProperty.all(AppColors.secondary),
-      foregroundColor: MaterialStateProperty.all(AppColors.onSecondary),
+      backgroundColor: WidgetStateProperty.all(AppColors.secondary),
+      foregroundColor: WidgetStateProperty.all(AppColors.onSecondary),
     );
   }
 
   /// Style cho ElevatedButton success
   static ButtonStyle get successElevatedButtonStyle {
     return elevatedButtonStyle.copyWith(
-      backgroundColor: MaterialStateProperty.all(AppColors.success),
-      foregroundColor: MaterialStateProperty.all(Colors.white),
+      backgroundColor: WidgetStateProperty.all(AppColors.success),
+      foregroundColor: WidgetStateProperty.all(Colors.white),
     );
   }
 
   /// Style cho ElevatedButton warning
   static ButtonStyle get warningElevatedButtonStyle {
     return elevatedButtonStyle.copyWith(
-      backgroundColor: MaterialStateProperty.all(AppColors.warning),
-      foregroundColor: MaterialStateProperty.all(Colors.white),
+      backgroundColor: WidgetStateProperty.all(AppColors.warning),
+      foregroundColor: WidgetStateProperty.all(Colors.white),
     );
   }
 
   /// Style cho ElevatedButton error
   static ButtonStyle get errorElevatedButtonStyle {
     return elevatedButtonStyle.copyWith(
-      backgroundColor: MaterialStateProperty.all(AppColors.error),
-      foregroundColor: MaterialStateProperty.all(AppColors.onError),
+      backgroundColor: WidgetStateProperty.all(AppColors.error),
+      foregroundColor: WidgetStateProperty.all(AppColors.onError),
     );
   }
 
@@ -157,7 +157,7 @@ class AppButtonStyles {
     return OutlinedButton.styleFrom(
       foregroundColor: AppColors.primary,
       backgroundColor: Colors.transparent,
-      side: BorderSide(color: AppColors.primary, width: 1.5),
+      side: const BorderSide(color: AppColors.primary, width: 1.5),
       minimumSize: const Size(double.infinity, buttonHeight),
       padding: const EdgeInsets.symmetric(
         horizontal: horizontalPadding,
@@ -171,18 +171,18 @@ class AppButtonStyles {
       ),
     ).copyWith(
       // Hover state
-      overlayColor: MaterialStateProperty.all(
+      overlayColor: WidgetStateProperty.all(
         AppColors.primary.withOpacity(0.1),
       ),
       // Disabled state
-      side: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
-          return BorderSide(color: AppColors.grey400, width: 1);
+      side: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return const BorderSide(color: AppColors.grey400, width: 1);
         }
-        return BorderSide(color: AppColors.primary, width: 1.5);
+        return const BorderSide(color: AppColors.primary, width: 1.5);
       }),
-      foregroundColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
           return AppColors.grey600;
         }
         return AppColors.primary;
@@ -193,16 +193,16 @@ class AppButtonStyles {
   /// Style cho OutlinedButton nhỏ
   static ButtonStyle get smallOutlinedButtonStyle {
     return outlinedButtonStyle.copyWith(
-      minimumSize: MaterialStateProperty.all(
+      minimumSize: WidgetStateProperty.all(
         const Size(0, smallButtonHeight),
       ),
-      padding: MaterialStateProperty.all(
+      padding: WidgetStateProperty.all(
         const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 8,
         ),
       ),
-      textStyle: MaterialStateProperty.all(
+      textStyle: WidgetStateProperty.all(
         AppTextStyles.button.copyWith(fontSize: 12, color: AppColors.primary),
       ),
     );
@@ -227,12 +227,12 @@ class AppButtonStyles {
       ),
     ).copyWith(
       // Hover state
-      overlayColor: MaterialStateProperty.all(
+      overlayColor: WidgetStateProperty.all(
         AppColors.primary.withOpacity(0.1),
       ),
       // Disabled state
-      foregroundColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
           return AppColors.grey600;
         }
         return AppColors.primary;
@@ -243,16 +243,16 @@ class AppButtonStyles {
   /// Style cho TextButton nhỏ
   static ButtonStyle get smallTextButtonStyle {
     return textButtonStyle.copyWith(
-      minimumSize: MaterialStateProperty.all(
+      minimumSize: WidgetStateProperty.all(
         const Size(0, smallButtonHeight),
       ),
-      padding: MaterialStateProperty.all(
+      padding: WidgetStateProperty.all(
         const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 8,
         ),
       ),
-      textStyle: MaterialStateProperty.all(
+      textStyle: WidgetStateProperty.all(
         AppTextStyles.button.copyWith(fontSize: 12, color: AppColors.primary),
       ),
     );
@@ -271,7 +271,7 @@ class AppButtonStyles {
       ),
     ).copyWith(
       // Hover state
-      overlayColor: MaterialStateProperty.all(
+      overlayColor: WidgetStateProperty.all(
         AppColors.onSurface.withOpacity(0.1),
       ),
     );
@@ -291,7 +291,7 @@ class AppButtonStyles {
       shadowColor: AppColors.shadow,
     ).copyWith(
       // Hover state
-      overlayColor: MaterialStateProperty.all(
+      overlayColor: WidgetStateProperty.all(
         AppColors.onSurface.withOpacity(0.1),
       ),
     );
@@ -301,8 +301,8 @@ class AppButtonStyles {
   /// Style cho FloatingActionButton
   static ButtonStyle get fabStyle {
     return ButtonStyle(
-      backgroundColor: MaterialStateProperty.all(AppColors.secondary),
-      foregroundColor: MaterialStateProperty.all(AppColors.onSecondary),
+      backgroundColor: WidgetStateProperty.all(AppColors.secondary),
+      foregroundColor: WidgetStateProperty.all(AppColors.onSecondary),
     );
   }
 
@@ -332,15 +332,15 @@ class AppButtonStyles {
   /// Tạo button style với màu tùy chỉnh
   static ButtonStyle withColor(ButtonStyle style, Color backgroundColor, Color foregroundColor) {
     return style.copyWith(
-      backgroundColor: MaterialStateProperty.all(backgroundColor),
-      foregroundColor: MaterialStateProperty.all(foregroundColor),
+      backgroundColor: WidgetStateProperty.all(backgroundColor),
+      foregroundColor: WidgetStateProperty.all(foregroundColor),
     );
   }
 
   /// Tạo button style với size tùy chỉnh
   static ButtonStyle withSize(ButtonStyle style, double height, double? width) {
     return style.copyWith(
-      minimumSize: MaterialStateProperty.all(
+      minimumSize: WidgetStateProperty.all(
         Size(width ?? double.infinity, height),
       ),
     );
@@ -349,7 +349,7 @@ class AppButtonStyles {
   /// Tạo button style với border radius tùy chỉnh
   static ButtonStyle withBorderRadius(ButtonStyle style, double radius) {
     return style.copyWith(
-      shape: MaterialStateProperty.all(
+      shape: WidgetStateProperty.all(
         RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radius),
         ),

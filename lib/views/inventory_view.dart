@@ -47,6 +47,8 @@ class _InventoryViewState extends State<InventoryView>
   bool _hasInventoryAccess = false;
   String _searchQuery = "";
   bool _showOutOfStock = false; // Hiển thị cả hàng hết
+  String _filterType =
+      'TẤT CẢ'; // Filter theo loại: TẤT CẢ, DIEN_THOAI, PHỤ KIỆN, LINH KIỆN
 
   final Set<int> _selectedIds = {};
   bool _isSelectionMode = false;
@@ -175,10 +177,7 @@ class _InventoryViewState extends State<InventoryView>
             _detailItem("Chi tiết máy", p.capacity ?? ""),
             _detailItem("IMEI/Serial", p.imei ?? "N/A"),
             _detailItem("Nhà cung cấp", p.supplier ?? "N/A"),
-            _detailItem(
-              "Giá nhập",
-              "${MoneyUtils.formatCurrency(p.cost)} đ",
-            ),
+            _detailItem("Giá nhập", "${MoneyUtils.formatCurrency(p.cost)} đ"),
             _detailItem(
               "Giá bán",
               "${MoneyUtils.formatCurrency(p.price)} đ",
@@ -387,9 +386,7 @@ class _InventoryViewState extends State<InventoryView>
     final priceCtrl = TextEditingController(
       text: MoneyUtils.formatCurrency(p.price),
     );
-    final quantityCtrl = TextEditingController(
-      text: p.quantity.toString(),
-    );
+    final quantityCtrl = TextEditingController(text: p.quantity.toString());
 
     showDialog(
       context: context,
@@ -404,7 +401,7 @@ class _InventoryViewState extends State<InventoryView>
                 label: 'Tên sản phẩm',
                 uppercase: true,
                 customValidator: (val) =>
-                  val.isEmpty ? 'Vui lòng nhập tên sản phẩm' : null,
+                    val.isEmpty ? 'Vui lòng nhập tên sản phẩm' : null,
               ),
               const SizedBox(height: 12),
               ValidatedTextField(
@@ -429,8 +426,9 @@ class _InventoryViewState extends State<InventoryView>
                 keyboardType: TextInputType.number,
                 customValidator: (val) {
                   final qty = int.tryParse(val);
-                  if (qty == null || qty < 0)
+                  if (qty == null || qty < 0) {
                     return 'Số lượng phải là số không âm';
+                  }
                   return null;
                 },
               ),
@@ -567,7 +565,7 @@ class _InventoryViewState extends State<InventoryView>
                             ),
                           ),
                           const SizedBox(height: 12),
-                          Text(
+                          const Text(
                             'Để cập nhật chính xác, bạn cần sửa lại từng đơn hàng đã tạo.',
                             style: TextStyle(
                               color: AppColors.error,
@@ -614,7 +612,7 @@ class _InventoryViewState extends State<InventoryView>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.edit, color: AppColors.primary),
+              leading: const Icon(Icons.edit, color: AppColors.primary),
               title: const Text('Chỉnh sửa'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -622,7 +620,7 @@ class _InventoryViewState extends State<InventoryView>
               },
             ),
             ListTile(
-              leading: Icon(Icons.delete, color: AppColors.error),
+              leading: const Icon(Icons.delete, color: AppColors.error),
               title: const Text('Xóa hàng trong kho'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -707,7 +705,7 @@ class _InventoryViewState extends State<InventoryView>
       // Xóa thực sự khỏi database
       if (p.id != null) {
         await db.deleteProduct(p.id!);
-        
+
         // Queue delete sync via SyncOrchestrator
         await SyncOrchestrator().enqueue(
           entityType: SyncEntityType.product,
@@ -770,7 +768,7 @@ class _InventoryViewState extends State<InventoryView>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.inventory_2_outlined, size: 80, color: AppColors.grey400),
+          const Icon(Icons.inventory_2_outlined, size: 80, color: AppColors.grey400),
           const SizedBox(height: 10),
           Text(
             "KHO HÀNG ĐANG TRỐNG",
@@ -906,7 +904,7 @@ class _InventoryViewState extends State<InventoryView>
             desc: "Đã xóa ${p.name} (IMEI: ${p.imei})",
           );
           await db.deleteProduct(id);
-          
+
           // Queue delete sync via SyncOrchestrator
           await SyncOrchestrator().enqueue(
             entityType: SyncEntityType.product,
@@ -1264,30 +1262,30 @@ class _InventoryViewState extends State<InventoryView>
         )
         .toList();
 
+    // Lọc theo loại hàng
+    if (_filterType != 'TẤT CẢ') {
+      filteredList = filteredList.where((p) => p.type == _filterType).toList();
+    }
+
     // Nếu không bật showOutOfStock, chỉ hiện còn hàng (quantity > 0)
     if (!_showOutOfStock) {
       filteredList = filteredList.where((p) => p.quantity > 0).toList();
     }
 
-    // Tính tổng kho và vốn trên TẤT CẢ sản phẩm còn hàng (không phụ thuộc filter)
-    final inStockProducts = _products.where((p) => p.quantity > 0).toList();
-    int totalQty = inStockProducts.fold(0, (sum, item) => sum + item.quantity);
-    int totalCapital = inStockProducts.fold(
+    // Tính tổng kho và vốn THEO FILTER (thay đổi theo loại hàng đang lọc)
+    List<Product> summaryProducts;
+    if (_filterType == 'TẤT CẢ') {
+      summaryProducts = _products.where((p) => p.quantity > 0).toList();
+    } else {
+      summaryProducts = _products
+          .where((p) => p.quantity > 0 && p.type == _filterType)
+          .toList();
+    }
+    int totalQty = summaryProducts.fold(0, (sum, item) => sum + item.quantity);
+    int totalCapital = summaryProducts.fold(
       0,
       (sum, item) => sum + (item.cost * item.quantity),
     );
-
-    // DEBUG: In ra để kiểm tra
-    debugPrint('📦 INVENTORY DEBUG:');
-    debugPrint('   Total products: ${_products.length}');
-    debugPrint('   In-stock products: ${inStockProducts.length}');
-    debugPrint('   Filtered list: ${filteredList.length}');
-    for (var p in inStockProducts) {
-      debugPrint(
-        '   - ${p.name}: qty=${p.quantity}, cost=${p.cost}, subtotal=${p.cost * p.quantity}',
-      );
-    }
-    debugPrint('   TOTAL QTY: $totalQty, TOTAL CAPITAL: $totalCapital');
 
     return Stack(
       children: [
@@ -1301,7 +1299,7 @@ class _InventoryViewState extends State<InventoryView>
                 children: [
                   if (_isSelectionMode) ...[
                     IconButton(
-                      icon: Icon(Icons.close, color: AppColors.error),
+                      icon: const Icon(Icons.close, color: AppColors.error),
                       onPressed: () => setState(() {
                         _isSelectionMode = false;
                         _selectedIds.clear();
@@ -1737,66 +1735,178 @@ class _InventoryViewState extends State<InventoryView>
     // Đếm sản phẩm hết hàng
     final outOfStockCount = _products.where((p) => p.quantity <= 0).length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              onChanged: (v) => setState(() => _searchQuery = v),
-              decoration: InputDecoration(
-                hintText: "Tìm máy, phụ kiện hoặc IMEI...",
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF2962FF)),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                  borderSide: BorderSide.none,
+    return Column(
+      children: [
+        // Filter theo loại hàng
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildTypeFilterChip('TẤT CẢ', Icons.apps, Colors.blue),
+                const SizedBox(width: 8),
+                _buildTypeFilterChip(
+                  'DIEN_THOAI',
+                  Icons.smartphone,
+                  Colors.indigo,
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              ),
+                const SizedBox(width: 8),
+                _buildTypeFilterChip(
+                  'PHỤ KIỆN',
+                  Icons.headset_mic,
+                  Colors.green,
+                ),
+                const SizedBox(width: 8),
+                _buildTypeFilterChip('LINH KIỆN', Icons.build, Colors.orange),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          // Toggle hiển thị hàng hết
-          InkWell(
-            onTap: () => setState(() => _showOutOfStock = !_showOutOfStock),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              decoration: BoxDecoration(
-                color: _showOutOfStock
-                    ? Colors.orange.shade100
-                    : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _showOutOfStock ? Colors.orange : Colors.grey.shade300,
+        ),
+        // Search box và toggle hết hàng
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  onChanged: (v) => setState(() => _searchQuery = v),
+                  decoration: InputDecoration(
+                    hintText: "Tìm máy, phụ kiện hoặc IMEI...",
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: Color(0xFF2962FF),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _showOutOfStock ? Icons.visibility : Icons.visibility_off,
-                    size: 18,
-                    color: _showOutOfStock ? Colors.orange : Colors.grey,
+              const SizedBox(width: 8),
+              // Toggle hiển thị hàng hết
+              InkWell(
+                onTap: () => setState(() => _showOutOfStock = !_showOutOfStock),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
                   ),
-                  if (outOfStockCount > 0) ...[
-                    const SizedBox(width: 4),
-                    Text(
-                      "$outOfStockCount",
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                  decoration: BoxDecoration(
+                    color: _showOutOfStock
+                        ? Colors.orange.shade100
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _showOutOfStock
+                          ? Colors.orange
+                          : Colors.grey.shade300,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _showOutOfStock
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        size: 18,
                         color: _showOutOfStock ? Colors.orange : Colors.grey,
                       ),
-                    ),
-                  ],
-                ],
+                      if (outOfStockCount > 0) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          "$outOfStockCount",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: _showOutOfStock
+                                ? Colors.orange
+                                : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTypeFilterChip(String type, IconData icon, Color color) {
+    final isSelected = _filterType == type;
+    final label = type == 'DIEN_THOAI'
+        ? 'Điện thoại'
+        : type == 'PHỤ KIỆN'
+        ? 'Phụ kiện'
+        : type == 'LINH KIỆN'
+        ? 'Linh kiện'
+        : 'Tất cả';
+
+    // Đếm số lượng theo type
+    int count = type == 'TẤT CẢ'
+        ? _products.where((p) => p.quantity > 0 || _showOutOfStock).length
+        : _products
+              .where(
+                (p) => p.type == type && (p.quantity > 0 || _showOutOfStock),
+              )
+              .length;
+
+    return InkWell(
+      onTap: () => setState(() => _filterType = type),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.15) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: isSelected ? color : Colors.grey),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? color : Colors.grey.shade700,
               ),
             ),
-          ),
-        ],
+            if (count > 0) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected ? color : Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1844,7 +1954,7 @@ class _InventoryViewState extends State<InventoryView>
                   child: Center(
                     child: Text(
                       '$index',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                         color: AppColors.primary,
@@ -1861,7 +1971,9 @@ class _InventoryViewState extends State<InventoryView>
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  p.type == 'DIEN_THOAI' ? Icons.phone_iphone : Icons.headset_mic,
+                  p.type == 'DIEN_THOAI'
+                      ? Icons.phone_iphone
+                      : Icons.headset_mic,
                   color: _getBrandColor(p.name),
                   size: _iconSize,
                 ),
@@ -2052,7 +2164,7 @@ class _InventoryViewState extends State<InventoryView>
           Future<void> saveProcess({bool next = false}) async {
             // Finalize currency fields trước khi xử lý
             CurrencyTextField.finalizeAll();
-            
+
             if (skuC.text.isEmpty) {
               NotificationService.showSnackBar(
                 "Vui lòng tạo mã hàng trước!",
@@ -2112,7 +2224,7 @@ class _InventoryViewState extends State<InventoryView>
                   'note': "Nhập từ $supplier",
                 };
                 final expenseId = await db.insertExpense(expData);
-                
+
                 // Queue sync via SyncOrchestrator
                 await SyncOrchestrator().enqueue(
                   entityType: SyncEntityType.expense,
@@ -2122,7 +2234,7 @@ class _InventoryViewState extends State<InventoryView>
                   data: expData,
                 );
               } else {
-                final debtFId = 'debt_inv_${ts}';
+                final debtFId = 'debt_inv_$ts';
                 final debtData = {
                   'firestoreId': debtFId,
                   'personName': supplier,
@@ -2134,7 +2246,7 @@ class _InventoryViewState extends State<InventoryView>
                   'note': "Nợ tiền máy ${p.name}",
                 };
                 final debtId = await db.insertDebt(debtData);
-                
+
                 // Queue sync via SyncOrchestrator
                 await SyncOrchestrator().enqueue(
                   entityType: SyncEntityType.debt,
@@ -2145,9 +2257,11 @@ class _InventoryViewState extends State<InventoryView>
                 );
               }
               await db.upsertProduct(p);
-              
+
               // Get product ID and queue sync
-              final savedProduct = await db.getProductByFirestoreId(p.firestoreId ?? 'prod_${p.createdAt}');
+              final savedProduct = await db.getProductByFirestoreId(
+                p.firestoreId ?? 'prod_${p.createdAt}',
+              );
               if (savedProduct?.id != null) {
                 await SyncOrchestrator().enqueue(
                   entityType: SyncEntityType.product,
@@ -2526,7 +2640,7 @@ class _InventoryViewState extends State<InventoryView>
           Future<void> saveProcess() async {
             // Finalize currency fields trước khi xử lý
             CurrencyTextField.finalizeAll();
-            
+
             if (supplier == null) {
               NotificationService.showSnackBar(
                 "Vui lòng chọn Nhà cung cấp!",
@@ -2567,9 +2681,11 @@ class _InventoryViewState extends State<InventoryView>
                 desc: "Đã chỉnh sửa máy ${p.name}",
               );
               await db.upsertProduct(updatedP);
-              
+
               // Get product ID and queue sync
-              final savedProduct = await db.getProductByFirestoreId(updatedP.firestoreId ?? 'prod_${updatedP.createdAt}');
+              final savedProduct = await db.getProductByFirestoreId(
+                updatedP.firestoreId ?? 'prod_${updatedP.createdAt}',
+              );
               if (savedProduct?.id != null) {
                 await SyncOrchestrator().enqueue(
                   entityType: SyncEntityType.product,
@@ -2609,7 +2725,7 @@ class _InventoryViewState extends State<InventoryView>
                 children: [
                   // Loại hàng
                   DropdownButtonFormField<String>(
-                    value: type,
+                    initialValue: type,
                     items: const [
                       DropdownMenuItem(
                         value: "DIEN_THOAI",
@@ -2680,7 +2796,7 @@ class _InventoryViewState extends State<InventoryView>
                       Expanded(
                         flex: 2,
                         child: DropdownButtonFormField<String>(
-                          value: supplier,
+                          initialValue: supplier,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: "Nhà cung cấp *",

@@ -5,7 +5,6 @@ import '../models/quick_input_code_model.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_service.dart';
-import '../services/firestore_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../data/db_helper.dart';
 import '../widgets/validated_text_field.dart';
@@ -940,7 +939,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   String? _paymentMethod;
 
   // Danh sách gợi ý
-  final List<String> _brandSuggestions = ['APPLE', 'SAMSUNG', 'XIAOMI', 'OPPO', 'VIVO', 'REALME', 'HUAWEI', 'NOKIA', 'ASUS', 'GOOGLE'];
+  final List<String> _brandSuggestions = ['IPHONE', 'SAMSUNG', 'XIAOMI', 'OPPO', 'VIVO', 'REALME', 'HUAWEI', 'NOKIA', 'ASUS', 'GOOGLE'];
   final List<String> _capacitySuggestions = ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'];
   // Đồng bộ với fast_stock_in_view.dart
   final List<String> _conditionSuggestions = ['MỚI', '99', 'KHÁC'];
@@ -1109,7 +1108,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         hint: 'VD: IPHONE 15 PRO MAX 256GB',
                         uppercase: true,
                         customValidator: (val) =>
-                            val?.isEmpty ?? true ? 'Vui lòng nhập tên' : null,
+                            val.isEmpty ?? true ? 'Vui lòng nhập tên' : null,
                       ),
                       const SizedBox(height: 16),
 
@@ -1201,7 +1200,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
 
                         // Tình trạng - Dropdown để tránh nhập sai
                         DropdownButtonFormField<String>(
-                          value: _conditionCtrl.text.isNotEmpty ? _conditionCtrl.text : null,
+                          initialValue: _conditionCtrl.text.isNotEmpty ? _conditionCtrl.text : null,
                           decoration: InputDecoration(
                             labelText: 'Tình trạng',
                             border: OutlineInputBorder(
@@ -1280,7 +1279,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
 
                       // Phương thức thanh toán
                       DropdownButtonFormField<String>(
-                        value: _paymentMethod,
+                        initialValue: _paymentMethod,
                         decoration: InputDecoration(
                           labelText: 'Phương thức thanh toán',
                           border: OutlineInputBorder(

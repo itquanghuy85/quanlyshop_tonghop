@@ -11,10 +11,10 @@ import '../services/supplier_service.dart';
 import '../services/event_bus.dart';
 import '../services/sync_orchestrator.dart';
 import '../utils/imei_extractor.dart';
-import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/imei_scan_result_dialog.dart';
 import 'fast_stock_in_view.dart';
+import 'supplier_list_view.dart';
 import '../models/debt_model.dart';
 
 class StockInView extends StatefulWidget {
@@ -83,7 +83,8 @@ class _StockInViewState extends State<StockInView> {
   List<Map<String, dynamic>> suppliers = [];
 
   // Computed property to check if current type is accessory or linh kiện
-  bool get _isAccessoryOrLinhKien => typeCtrl.text == 'PHỤ KIỆN' || typeCtrl.text == 'LINHKIEN';
+  bool get _isAccessoryOrLinhKien =>
+      typeCtrl.text == 'PHỤ KIỆN' || typeCtrl.text == 'LINH KIỆN';
 
   @override
   void initState() {
@@ -102,18 +103,52 @@ class _StockInViewState extends State<StockInView> {
     });
 
     // Add listeners to track field changes
-    brandCtrl.addListener(() => _onFieldChanged(brandCtrl, (changed) => _brandChanged = changed));
-    modelCtrl.addListener(() => _onFieldChanged(modelCtrl, (changed) => _modelChanged = changed));
-    capacityCtrl.addListener(() => _onFieldChanged(capacityCtrl, (changed) => _capacityChanged = changed));
-    colorCtrl.addListener(() => _onFieldChanged(colorCtrl, (changed) => _colorChanged = changed));
-    conditionCtrl.addListener(() => _onFieldChanged(conditionCtrl, (changed) => _conditionChanged = changed));
-    imeiCtrl.addListener(() => _onFieldChanged(imeiCtrl, (changed) => _imeiChanged = changed));
-    quantityCtrl.addListener(() => _onFieldChanged(quantityCtrl, (changed) => _quantityChanged = changed));
-    costCtrl.addListener(() => _onFieldChanged(costCtrl, (changed) => _costChanged = changed));
-    priceCtrl.addListener(() => _onFieldChanged(priceCtrl, (changed) => _priceChanged = changed));
+    brandCtrl.addListener(
+      () => _onFieldChanged(brandCtrl, (changed) => _brandChanged = changed),
+    );
+    modelCtrl.addListener(
+      () => _onFieldChanged(modelCtrl, (changed) => _modelChanged = changed),
+    );
+    capacityCtrl.addListener(
+      () => _onFieldChanged(
+        capacityCtrl,
+        (changed) => _capacityChanged = changed,
+      ),
+    );
+    colorCtrl.addListener(
+      () => _onFieldChanged(colorCtrl, (changed) => _colorChanged = changed),
+    );
+    conditionCtrl.addListener(
+      () => _onFieldChanged(
+        conditionCtrl,
+        (changed) => _conditionChanged = changed,
+      ),
+    );
+    imeiCtrl.addListener(
+      () => _onFieldChanged(imeiCtrl, (changed) => _imeiChanged = changed),
+    );
+    quantityCtrl.addListener(
+      () => _onFieldChanged(
+        quantityCtrl,
+        (changed) => _quantityChanged = changed,
+      ),
+    );
+    costCtrl.addListener(
+      () => _onFieldChanged(costCtrl, (changed) => _costChanged = changed),
+    );
+    priceCtrl.addListener(
+      () => _onFieldChanged(priceCtrl, (changed) => _priceChanged = changed),
+    );
     // CurrencyTextField handles formatting automatically - no need for format listeners
-    supplierCtrl.addListener(() => _onFieldChanged(supplierCtrl, (changed) => _supplierChanged = changed));
-    notesCtrl.addListener(() => _onFieldChanged(notesCtrl, (changed) => _notesChanged = changed));
+    supplierCtrl.addListener(
+      () => _onFieldChanged(
+        supplierCtrl,
+        (changed) => _supplierChanged = changed,
+      ),
+    );
+    notesCtrl.addListener(
+      () => _onFieldChanged(notesCtrl, (changed) => _notesChanged = changed),
+    );
 
     // Fill data from prefilledData if available
     if (widget.prefilledData != null) {
@@ -132,13 +167,19 @@ class _StockInViewState extends State<StockInView> {
       conditionCtrl.text = data['condition'] ?? 'MỚI';
       imeiCtrl.text = data['imei'] ?? '';
       quantityCtrl.text = data['quantity']?.toString() ?? '1';
-      costCtrl.text = data['cost'] != null ? CurrencyTextField.formatDisplay(data['cost'] as int) : '';
-      priceCtrl.text = data['price'] != null ? CurrencyTextField.formatDisplay(data['price'] as int) : '';
+      costCtrl.text = data['cost'] != null
+          ? CurrencyTextField.formatDisplay(data['cost'] as int)
+          : '';
+      priceCtrl.text = data['price'] != null
+          ? CurrencyTextField.formatDisplay(data['price'] as int)
+          : '';
       supplierCtrl.text = data['supplier'] ?? '';
       selectedPaymentMethod = data['paymentMethod'] ?? 'Công nợ';
       notesCtrl.text = data['notes'] ?? '';
       // Set brand from SKU if available and brand is empty
-      if (brandCtrl.text.isEmpty && data['name'] != null && data['name'].toString().isNotEmpty) {
+      if (brandCtrl.text.isEmpty &&
+          data['name'] != null &&
+          data['name'].toString().isNotEmpty) {
         brandCtrl.text = _extractBrandFromSKU(data['name']);
       }
 
@@ -173,9 +214,13 @@ class _StockInViewState extends State<StockInView> {
 
   // _formatCost and _formatPrice removed - CurrencyTextField handles formatting automatically
 
-  void _onFieldChanged(TextEditingController controller, Function(bool) setChanged) {
+  void _onFieldChanged(
+    TextEditingController controller,
+    Function(bool) setChanged,
+  ) {
     final hasText = controller.text.trim().isNotEmpty;
-    if (hasText != setChanged) { // Only update if state actually changed
+    if (hasText != setChanged) {
+      // Only update if state actually changed
       setState(() => setChanged(hasText));
     }
   }
@@ -184,18 +229,52 @@ class _StockInViewState extends State<StockInView> {
   void dispose() {
     imeiCtrl.removeListener(_onImeiChanged);
     // Remove field change listeners
-    brandCtrl.removeListener(() => _onFieldChanged(brandCtrl, (changed) => _brandChanged = changed));
-    modelCtrl.removeListener(() => _onFieldChanged(modelCtrl, (changed) => _modelChanged = changed));
-    capacityCtrl.removeListener(() => _onFieldChanged(capacityCtrl, (changed) => _capacityChanged = changed));
-    colorCtrl.removeListener(() => _onFieldChanged(colorCtrl, (changed) => _colorChanged = changed));
-    conditionCtrl.removeListener(() => _onFieldChanged(conditionCtrl, (changed) => _conditionChanged = changed));
-    imeiCtrl.removeListener(() => _onFieldChanged(imeiCtrl, (changed) => _imeiChanged = changed));
-    quantityCtrl.removeListener(() => _onFieldChanged(quantityCtrl, (changed) => _quantityChanged = changed));
-    costCtrl.removeListener(() => _onFieldChanged(costCtrl, (changed) => _costChanged = changed));
-    priceCtrl.removeListener(() => _onFieldChanged(priceCtrl, (changed) => _priceChanged = changed));
+    brandCtrl.removeListener(
+      () => _onFieldChanged(brandCtrl, (changed) => _brandChanged = changed),
+    );
+    modelCtrl.removeListener(
+      () => _onFieldChanged(modelCtrl, (changed) => _modelChanged = changed),
+    );
+    capacityCtrl.removeListener(
+      () => _onFieldChanged(
+        capacityCtrl,
+        (changed) => _capacityChanged = changed,
+      ),
+    );
+    colorCtrl.removeListener(
+      () => _onFieldChanged(colorCtrl, (changed) => _colorChanged = changed),
+    );
+    conditionCtrl.removeListener(
+      () => _onFieldChanged(
+        conditionCtrl,
+        (changed) => _conditionChanged = changed,
+      ),
+    );
+    imeiCtrl.removeListener(
+      () => _onFieldChanged(imeiCtrl, (changed) => _imeiChanged = changed),
+    );
+    quantityCtrl.removeListener(
+      () => _onFieldChanged(
+        quantityCtrl,
+        (changed) => _quantityChanged = changed,
+      ),
+    );
+    costCtrl.removeListener(
+      () => _onFieldChanged(costCtrl, (changed) => _costChanged = changed),
+    );
+    priceCtrl.removeListener(
+      () => _onFieldChanged(priceCtrl, (changed) => _priceChanged = changed),
+    );
     // CurrencyTextField handles formatting - no format listeners to remove
-    supplierCtrl.removeListener(() => _onFieldChanged(supplierCtrl, (changed) => _supplierChanged = changed));
-    notesCtrl.removeListener(() => _onFieldChanged(notesCtrl, (changed) => _notesChanged = changed));
+    supplierCtrl.removeListener(
+      () => _onFieldChanged(
+        supplierCtrl,
+        (changed) => _supplierChanged = changed,
+      ),
+    );
+    notesCtrl.removeListener(
+      () => _onFieldChanged(notesCtrl, (changed) => _notesChanged = changed),
+    );
     // Disable EventBus listener to prevent memory leak
     _eventListenerAttached = false;
     // Dispose controllers and focus nodes
@@ -256,24 +335,37 @@ class _StockInViewState extends State<StockInView> {
 
   Future<bool> _validateForm() async {
     if (brandCtrl.text.isEmpty) {
-      NotificationService.showSnackBar("Vui lòng nhập loại!", color: Colors.red);
+      NotificationService.showSnackBar(
+        "Vui lòng nhập loại!",
+        color: Colors.red,
+      );
       return false;
     }
 
     // Chỉ validate model và capacity cho phone
     if (!_isAccessoryOrLinhKien) {
       if (modelCtrl.text.isEmpty) {
-        NotificationService.showSnackBar("Vui lòng nhập model!", color: Colors.red);
+        NotificationService.showSnackBar(
+          "Vui lòng nhập model!",
+          color: Colors.red,
+        );
         return false;
       }
       if (capacityCtrl.text.isEmpty) {
-        NotificationService.showSnackBar("Vui lòng nhập dung lượng!", color: Colors.red);
+        NotificationService.showSnackBar(
+          "Vui lòng nhập dung lượng!",
+          color: Colors.red,
+        );
         return false;
       }
     }
 
-    if (colorCtrl.text.isEmpty) {
-      NotificationService.showSnackBar("Vui lòng nhập màu sắc!", color: Colors.red);
+    // Màu sắc chỉ bắt buộc cho điện thoại
+    if (!_isAccessoryOrLinhKien && colorCtrl.text.isEmpty) {
+      NotificationService.showSnackBar(
+        "Vui lòng nhập màu sắc!",
+        color: Colors.red,
+      );
       return false;
     }
 
@@ -281,22 +373,34 @@ class _StockInViewState extends State<StockInView> {
 
     final quantity = int.tryParse(quantityCtrl.text);
     if (quantity == null || quantity <= 0) {
-      NotificationService.showSnackBar("Số lượng phải là số dương!", color: Colors.red);
+      NotificationService.showSnackBar(
+        "Số lượng phải là số dương!",
+        color: Colors.red,
+      );
       return false;
     }
     final cost = _parseMoneyWithK(costCtrl.text);
     if (cost <= 0) {
-      NotificationService.showSnackBar("Giá nhập phải lớn hơn 0!", color: Colors.red);
+      NotificationService.showSnackBar(
+        "Giá nhập phải lớn hơn 0!",
+        color: Colors.red,
+      );
       return false;
     }
     final price = _parseMoneyWithK(priceCtrl.text);
     if (price < 0) {
-      NotificationService.showSnackBar("Giá bán không được âm!", color: Colors.red);
+      NotificationService.showSnackBar(
+        "Giá bán không được âm!",
+        color: Colors.red,
+      );
       return false;
     }
 
     if (supplierCtrl.text.isEmpty) {
-      NotificationService.showSnackBar("Vui lòng chọn nhà cung cấp!", color: Colors.red);
+      NotificationService.showSnackBar(
+        "Vui lòng chọn nhà cung cấp!",
+        color: Colors.red,
+      );
       return false;
     }
     return true;
@@ -305,7 +409,7 @@ class _StockInViewState extends State<StockInView> {
   Future<void> _saveProduct() async {
     // Finalize currency fields trước khi xử lý
     CurrencyTextField.finalizeAll();
-    
+
     if (!(await _validateForm())) return;
 
     setState(() => _saving = true);
@@ -314,8 +418,10 @@ class _StockInViewState extends State<StockInView> {
       final ts = selectedDate.millisecondsSinceEpoch;
       final imei = imeiCtrl.text.trim();
       // Tạo unique firestoreId để tránh conflict
-      final uniqueSuffix = imei.isNotEmpty ? imei : "${ts}_${DateTime.now().millisecondsSinceEpoch}";
-      final fId = "prod_${ts}_${uniqueSuffix}";
+      final uniqueSuffix = imei.isNotEmpty
+          ? imei
+          : "${ts}_${DateTime.now().millisecondsSinceEpoch}";
+      final fId = "prod_${ts}_$uniqueSuffix";
 
       final quantity = int.tryParse(quantityCtrl.text) ?? 0;
 
@@ -323,9 +429,11 @@ class _StockInViewState extends State<StockInView> {
       final productName = _isAccessoryOrLinhKien
           ? '${brandCtrl.text} ${colorCtrl.text}'.trim().toUpperCase()
           : '${brandCtrl.text} ${modelCtrl.text}'.trim().toUpperCase();
-      
+
       if (productName.isEmpty || productName == brandCtrl.text.toUpperCase()) {
-        throw Exception("Tên sản phẩm không hợp lệ. Vui lòng nhập đầy đủ thông tin!");
+        throw Exception(
+          "Tên sản phẩm không hợp lệ. Vui lòng nhập đầy đủ thông tin!",
+        );
       }
 
       final product = Product(
@@ -345,7 +453,9 @@ class _StockInViewState extends State<StockInView> {
         type: typeCtrl.text,
         quantity: quantity,
         color: colorCtrl.text.trim().toUpperCase(),
-        capacity: !_isAccessoryOrLinhKien ? capacityCtrl.text.trim().toUpperCase() : null,
+        capacity: !_isAccessoryOrLinhKien
+            ? capacityCtrl.text.trim().toUpperCase()
+            : null,
         paymentMethod: selectedPaymentMethod,
       );
 
@@ -358,19 +468,22 @@ class _StockInViewState extends State<StockInView> {
       }
 
       await db.upsertProduct(product);
-      
+
       // Generate firestoreId if needed and queue sync
       if (product.firestoreId == null || product.firestoreId!.isEmpty) {
         final shopId = await UserService.getCurrentShopId();
-        product.firestoreId = 'product_${shopId}_${DateTime.now().millisecondsSinceEpoch}';
+        product.firestoreId =
+            'product_${shopId}_${DateTime.now().millisecondsSinceEpoch}';
       }
       product.isSynced = false;
       await db.upsertProduct(product);
-      
+
       // Get product ID after upsert
-      final productFromDb = await db.getProductByFirestoreId(product.firestoreId!);
+      final productFromDb = await db.getProductByFirestoreId(
+        product.firestoreId!,
+      );
       final productId = productFromDb?.id ?? 0;
-      
+
       // Queue sync via SyncOrchestrator
       await SyncOrchestrator().enqueue(
         entityType: SyncEntityType.product,
@@ -382,7 +495,10 @@ class _StockInViewState extends State<StockInView> {
 
       // Lưu lịch sử nhập hàng từ nhà cung cấp
       if (supplierCtrl.text.isNotEmpty) {
-        final supplierData = suppliers.firstWhere((s) => s['name'] == supplierCtrl.text, orElse: () => {});
+        final supplierData = suppliers.firstWhere(
+          (s) => s['name'] == supplierCtrl.text,
+          orElse: () => {},
+        );
         final supplierId = supplierData['id'];
         if (supplierId != null) {
           // Log action
@@ -410,7 +526,12 @@ class _StockInViewState extends State<StockInView> {
           await db.insertSupplierImportHistory(importHistory);
 
           // Cập nhật giá nhà cung cấp
-          await db.deactivateSupplierProductPrice(supplierId, product.name, product.brand, product.model);
+          await db.deactivateSupplierProductPrice(
+            supplierId,
+            product.name,
+            product.brand,
+            product.model,
+          );
           final supplierPrice = {
             'supplierId': supplierId,
             'productName': product.name,
@@ -425,7 +546,11 @@ class _StockInViewState extends State<StockInView> {
           await db.insertSupplierProductPrice(supplierPrice);
 
           // Cập nhật thống kê nhà cung cấp
-          await db.updateSupplierStats(supplierId, product.cost * quantity, quantity);
+          await db.updateSupplierStats(
+            supplierId,
+            product.cost * quantity,
+            quantity,
+          );
         }
       }
 
@@ -441,11 +566,15 @@ class _StockInViewState extends State<StockInView> {
         desc: "Đã nhập ${product.name}",
       );
 
-      NotificationService.showSnackBar("Nhập kho thành công!", color: Colors.green);
+      NotificationService.showSnackBar(
+        "Nhập kho thành công!",
+        color: Colors.green,
+      );
 
       // Send chat notification
       await FirestoreService.sendChat(
-        message: "📦 Đã nhập kho: ${product.name} (${product.imei ?? 'No IMEI'}) - SL: ${quantityCtrl.text} - NCC: ${supplierCtrl.text.isNotEmpty ? supplierCtrl.text : 'N/A'}",
+        message:
+            "📦 Đã nhập kho: ${product.name} (${product.imei ?? 'No IMEI'}) - SL: ${quantityCtrl.text} - NCC: ${supplierCtrl.text.isNotEmpty ? supplierCtrl.text : 'N/A'}",
         senderId: user?.uid ?? "system",
         senderName: userName,
         linkedType: "PRODUCT",
@@ -455,7 +584,10 @@ class _StockInViewState extends State<StockInView> {
 
       // Chi phí/công nợ NCC
       if (selectedPaymentMethod == 'CÔNG NỢ') {
-        final supplierData = suppliers.firstWhere((s) => s['name'] == supplierCtrl.text, orElse: () => {});
+        final supplierData = suppliers.firstWhere(
+          (s) => s['name'] == supplierCtrl.text,
+          orElse: () => {},
+        );
         final supplierPhone = supplierData['phone']?.toString() ?? '';
         final debt = Debt(
           personName: supplierCtrl.text,
@@ -468,7 +600,8 @@ class _StockInViewState extends State<StockInView> {
           note: 'Công nợ nhập hàng ${product.name}',
           linkedId: product.firestoreId,
         );
-        debt.firestoreId = "debt_${ts}_${supplierPhone.isNotEmpty ? supplierPhone : supplierCtrl.text.hashCode}";
+        debt.firestoreId =
+            "debt_${ts}_${supplierPhone.isNotEmpty ? supplierPhone : supplierCtrl.text.hashCode}";
         try {
           await db.upsertDebt(debt);
           // Get debt ID after upsert and queue sync
@@ -482,7 +615,10 @@ class _StockInViewState extends State<StockInView> {
           );
         } catch (e) {
           debugPrint('StockIn: Debt creation error: $e');
-          NotificationService.showSnackBar("Lỗi tạo công nợ: $e", color: Colors.red);
+          NotificationService.showSnackBar(
+            "Lỗi tạo công nợ: $e",
+            color: Colors.red,
+          );
         }
       } else {
         await _addStockInExpense(product);
@@ -492,7 +628,10 @@ class _StockInViewState extends State<StockInView> {
       EventBus().emit('suppliers_changed');
       Navigator.of(context).pop();
     } catch (e) {
-      NotificationService.showSnackBar("Lỗi khi nhập kho: $e", color: Colors.red);
+      NotificationService.showSnackBar(
+        "Lỗi khi nhập kho: $e",
+        color: Colors.red,
+      );
     } finally {
       setState(() => _saving = false);
     }
@@ -504,12 +643,14 @@ class _StockInViewState extends State<StockInView> {
       final user = FirebaseAuth.instance.currentUser;
       final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
       final shopId = await UserService.getCurrentShopId();
-      final firestoreId = 'expense_${shopId}_${DateTime.now().millisecondsSinceEpoch}';
+      final firestoreId =
+          'expense_${shopId}_${DateTime.now().millisecondsSinceEpoch}';
 
       final expense = {
         'amount': product.cost * product.quantity,
         'category': 'NHẬP HÀNG',
-        'description': 'Nhập kho thủ công: ${product.name} - SL: ${product.quantity}',
+        'description':
+            'Nhập kho thủ công: ${product.name} - SL: ${product.quantity}',
         'createdAt': DateTime.now().millisecondsSinceEpoch,
         'createdBy': userName,
         'linkedId': product.firestoreId,
@@ -534,7 +675,9 @@ class _StockInViewState extends State<StockInView> {
       // Notify expense change
       EventBus().emit('expenses_changed');
 
-      debugPrint('Đã thêm chi phí nhập kho: ${product.cost * product.quantity} cho ${product.name}');
+      debugPrint(
+        'Đã thêm chi phí nhập kho: ${product.cost * product.quantity} cho ${product.name}',
+      );
     } catch (e) {
       debugPrint('Lỗi thêm chi phí nhập kho: $e');
       // Không throw error để không làm fail stock in
@@ -580,7 +723,13 @@ class _StockInViewState extends State<StockInView> {
           color: hasChanged ? const Color(0xFF1976D2) : Colors.black87,
           fontWeight: hasChanged ? FontWeight.bold : FontWeight.normal,
         ),
-        prefixIcon: icon != null ? Icon(icon, size: 16, color: hasChanged ? const Color(0xFF1976D2) : Colors.black54) : null,
+        prefixIcon: icon != null
+            ? Icon(
+                icon,
+                size: 16,
+                color: hasChanged ? const Color(0xFF1976D2) : Colors.black54,
+              )
+            : null,
         border: const OutlineInputBorder(),
         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         filled: false, // Override theme to not fill background
@@ -598,10 +747,17 @@ class _StockInViewState extends State<StockInView> {
           ),
         ),
       ),
-      items: items.map((item) => DropdownMenuItem(
-        value: item,
-        child: Text(item, style: const TextStyle(fontSize: 12, color: Colors.black87)),
-      )).toList(),
+      items: items
+          .map(
+            (item) => DropdownMenuItem(
+              value: item,
+              child: Text(
+                item,
+                style: const TextStyle(fontSize: 12, color: Colors.black87),
+              ),
+            ),
+          )
+          .toList(),
       onChanged: (value) {
         setState(() {
           controller.text = value!;
@@ -632,7 +788,9 @@ class _StockInViewState extends State<StockInView> {
       inputFormatters: inputFormatters,
       style: TextStyle(
         fontSize: 12,
-        color: hasChanged ? const Color(0xFF1976D2) : Colors.black87, // Blue color when changed
+        color: hasChanged
+            ? const Color(0xFF1976D2)
+            : Colors.black87, // Blue color when changed
         fontWeight: hasChanged ? FontWeight.bold : FontWeight.normal,
       ),
       decoration: InputDecoration(
@@ -642,7 +800,13 @@ class _StockInViewState extends State<StockInView> {
           color: hasChanged ? const Color(0xFF1976D2) : Colors.black87,
           fontWeight: hasChanged ? FontWeight.bold : FontWeight.normal,
         ),
-        prefixIcon: icon != null ? Icon(icon, size: 16, color: hasChanged ? const Color(0xFF1976D2) : Colors.black54) : null,
+        prefixIcon: icon != null
+            ? Icon(
+                icon,
+                size: 16,
+                color: hasChanged ? const Color(0xFF1976D2) : Colors.black54,
+              )
+            : null,
         suffixText: suffix,
         suffixStyle: const TextStyle(fontSize: 10, color: Colors.grey),
         border: const OutlineInputBorder(),
@@ -691,6 +855,16 @@ class _StockInViewState extends State<StockInView> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const FastStockInView()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.business_center),
+            tooltip: 'Quản lý NCC & Đối tác',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SupplierListView()),
               );
             },
           ),
@@ -770,29 +944,34 @@ class _StockInViewState extends State<StockInView> {
             const SizedBox(height: 8),
 
             // IMEI/Serial (chỉ cho phone)
-            if (!_isAccessoryOrLinhKien) ...[              Row(
+            if (!_isAccessoryOrLinhKien) ...[
+              Row(
                 children: [
                   Expanded(
-                    child:
-              _buildTextField(
-                controller: imeiCtrl,
-                label: 'IMEI/Serial (5 số cuối)',
-                focusNode: imeiF,
-                nextFocus: quantityF,
-                keyboardType: TextInputType.number,
-                icon: Icons.qr_code,
-                inputFormatters: [LengthLimitingTextInputFormatter(5)],
-                hasChanged: _imeiChanged,
-              ),
+                    child: _buildTextField(
+                      controller: imeiCtrl,
+                      label: 'IMEI/Serial (5 số cuối)',
+                      focusNode: imeiF,
+                      nextFocus: quantityF,
+                      keyboardType: TextInputType.number,
+                      icon: Icons.qr_code,
+                      inputFormatters: [LengthLimitingTextInputFormatter(5)],
+                      hasChanged: _imeiChanged,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
                     onPressed: _openQRScannerForIMEI,
-                    icon: const Icon(Icons.qr_code_scanner, color: Colors.green),
+                    icon: const Icon(
+                      Icons.qr_code_scanner,
+                      color: Colors.green,
+                    ),
                     tooltip: 'Quét QR/Barcode IMEI',
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.green.withOpacity(0.1),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ],
@@ -819,7 +998,6 @@ class _StockInViewState extends State<StockInView> {
                 controller: costCtrl,
                 label: 'Giá nhập (VNĐ) *',
                 icon: Icons.attach_money,
-                autoMultiply1000: true,
                 onSubmitted: () => FocusScope.of(context).requestFocus(priceF),
               ),
             ),
@@ -831,10 +1009,12 @@ class _StockInViewState extends State<StockInView> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: CurrencyTextField(
                   controller: priceCtrl,
-                  label: typeCtrl.text == 'PHỤ KIỆN' ? 'Giá (VNĐ)' : 'Giá thay (VNĐ)',
+                  label: typeCtrl.text == 'PHỤ KIỆN'
+                      ? 'Giá (VNĐ)'
+                      : 'Giá thay (VNĐ)',
                   icon: Icons.sell,
-                  autoMultiply1000: true,
-                  onSubmitted: () => FocusScope.of(context).requestFocus(notesF),
+                  onSubmitted: () =>
+                      FocusScope.of(context).requestFocus(notesF),
                 ),
               ),
               const SizedBox(height: 8),
@@ -846,8 +1026,8 @@ class _StockInViewState extends State<StockInView> {
                   controller: priceCtrl,
                   label: 'Giá bán (VNĐ)',
                   icon: Icons.sell,
-                  autoMultiply1000: true,
-                  onSubmitted: () => FocusScope.of(context).requestFocus(notesF),
+                  onSubmitted: () =>
+                      FocusScope.of(context).requestFocus(notesF),
                 ),
               ),
               const SizedBox(height: 8),
@@ -857,55 +1037,84 @@ class _StockInViewState extends State<StockInView> {
             Builder(
               builder: (context) {
                 // Fix: đảm bảo value nằm trong danh sách suppliers
-                final supplierNames = suppliers.map((s) => s['name'] as String).toList();
-                final validValue = (supplierCtrl.text.isNotEmpty && supplierNames.contains(supplierCtrl.text)) 
-                    ? supplierCtrl.text 
+                final supplierNames = suppliers
+                    .map((s) => s['name'] as String)
+                    .toList();
+                final validValue =
+                    (supplierCtrl.text.isNotEmpty &&
+                        supplierNames.contains(supplierCtrl.text))
+                    ? supplierCtrl.text
                     : null;
                 return DropdownButtonFormField<String>(
                   initialValue: validValue,
                   style: TextStyle(
                     fontSize: 12,
-                    color: _supplierChanged ? const Color(0xFF1976D2) : Colors.black87,
-                fontWeight: _supplierChanged ? FontWeight.bold : FontWeight.normal,
-              ),
-              dropdownColor: Colors.white,
-              decoration: InputDecoration(
-                labelText: 'Nhà cung cấp *',
-                labelStyle: TextStyle(
-                  fontSize: 12,
-                  color: _supplierChanged ? const Color(0xFF1976D2) : Colors.black87,
-                  fontWeight: _supplierChanged ? FontWeight.bold : FontWeight.normal,
-                ),
-                prefixIcon: Icon(
-                  Icons.business_center,
-                  size: 16,
-                  color: _supplierChanged ? const Color(0xFF1976D2) : Colors.black54,
-                ),
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                filled: false,
-                fillColor: _supplierChanged ? const Color(0xFFE3F2FD).withAlpha(50) : null,
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: _supplierChanged ? const Color(0xFF1976D2) : Colors.grey.shade400,
-                    width: _supplierChanged ? 1.5 : 1.0,
+                    color: _supplierChanged
+                        ? const Color(0xFF1976D2)
+                        : Colors.black87,
+                    fontWeight: _supplierChanged
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
-                ),
-                focusedBorder: const OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.blue, width: 1.0),
-                ),
-              ),
-              items: suppliers.map((supplier) => DropdownMenuItem<String>(
-                value: supplier['name'] as String,
-                child: Text(
-                  supplier['name'] as String,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _supplierChanged ? const Color(0xFF1976D2) : Colors.black87,
-                    fontWeight: _supplierChanged ? FontWeight.bold : FontWeight.normal,
+                  dropdownColor: Colors.white,
+                  decoration: InputDecoration(
+                    labelText: 'Nhà cung cấp *',
+                    labelStyle: TextStyle(
+                      fontSize: 12,
+                      color: _supplierChanged
+                          ? const Color(0xFF1976D2)
+                          : Colors.black87,
+                      fontWeight: _supplierChanged
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.business_center,
+                      size: 16,
+                      color: _supplierChanged
+                          ? const Color(0xFF1976D2)
+                          : Colors.black54,
+                    ),
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    filled: false,
+                    fillColor: _supplierChanged
+                        ? const Color(0xFFE3F2FD).withAlpha(50)
+                        : null,
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: _supplierChanged
+                            ? const Color(0xFF1976D2)
+                            : Colors.grey.shade400,
+                        width: _supplierChanged ? 1.5 : 1.0,
+                      ),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.blue, width: 1.0),
+                    ),
                   ),
-                ),
-              )).toList(),
+                  items: suppliers
+                      .map(
+                        (supplier) => DropdownMenuItem<String>(
+                          value: supplier['name'] as String,
+                          child: Text(
+                            supplier['name'] as String,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _supplierChanged
+                                  ? const Color(0xFF1976D2)
+                                  : Colors.black87,
+                              fontWeight: _supplierChanged
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (value) {
                     setState(() {
                       supplierCtrl.text = value!;
@@ -920,35 +1129,50 @@ class _StockInViewState extends State<StockInView> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Phương thức thanh toán', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Phương thức thanh toán',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
                 Row(
                   children: [
                     Expanded(
                       child: RadioListTile<String>(
-                        title: const Text('Công nợ', style: TextStyle(fontSize: 12)),
+                        title: const Text(
+                          'Công nợ',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         value: 'CÔNG NỢ',
                         groupValue: selectedPaymentMethod,
-                        onChanged: (value) => setState(() => selectedPaymentMethod = value!),
+                        onChanged: (value) =>
+                            setState(() => selectedPaymentMethod = value!),
                         dense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
                     Expanded(
                       child: RadioListTile<String>(
-                        title: const Text('Tiền mặt', style: TextStyle(fontSize: 12)),
+                        title: const Text(
+                          'Tiền mặt',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         value: 'TIỀN MẶT',
                         groupValue: selectedPaymentMethod,
-                        onChanged: (value) => setState(() => selectedPaymentMethod = value!),
+                        onChanged: (value) =>
+                            setState(() => selectedPaymentMethod = value!),
                         dense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
                     Expanded(
                       child: RadioListTile<String>(
-                        title: const Text('Chuyển khoản', style: TextStyle(fontSize: 12)),
+                        title: const Text(
+                          'Chuyển khoản',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         value: 'CHUYỂN KHOẢN',
                         groupValue: selectedPaymentMethod,
-                        onChanged: (value) => setState(() => selectedPaymentMethod = value!),
+                        onChanged: (value) =>
+                            setState(() => selectedPaymentMethod = value!),
                         dense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
@@ -968,7 +1192,10 @@ class _StockInViewState extends State<StockInView> {
                   labelStyle: TextStyle(fontSize: 12),
                   prefixIcon: Icon(Icons.calendar_today, size: 16),
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
                 ),
                 child: Text(
                   '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
@@ -995,7 +1222,13 @@ class _StockInViewState extends State<StockInView> {
               ),
               child: _saving
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('LƯU', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  : const Text(
+                      'LƯU',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ],
         ),
@@ -1115,10 +1348,7 @@ class _SmartIMEIScannerSheetState extends State<_SmartIMEIScannerSheet> {
         }
       }
     } catch (e) {
-      NotificationService.showSnackBar(
-        '❌ Lỗi xử lý QR: $e',
-        color: Colors.red,
-      );
+      NotificationService.showSnackBar('❌ Lỗi xử lý QR: $e', color: Colors.red);
     } finally {
       if (mounted) {
         setState(() => _isProcessing = false);
@@ -1141,7 +1371,9 @@ class _SmartIMEIScannerSheetState extends State<_SmartIMEIScannerSheet> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.green.shade50,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
