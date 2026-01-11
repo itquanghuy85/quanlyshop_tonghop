@@ -269,27 +269,35 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     };
   }
 
-  /// Kiểm tra và xóa local data nếu shop thay đổi
+  /// Kiểm tra và xóa local data nếu shop hoặc user thay đổi
   Future<void> _checkAndClearLocalDataIfShopChanged(String? currentShopId) async {
     if (currentShopId == null) return; // Super admin - không kiểm tra
     
     final prefs = await SharedPreferences.getInstance();
     final lastShopId = prefs.getString('last_synced_shop_id');
+    final lastUserId = prefs.getString('last_synced_user_id');
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     
     // Xóa data nếu:
     // 1. lastShopId khác currentShopId (đổi shop)
-    // 2. lastShopId == null (lần đầu đăng nhập với shop này - xóa dữ liệu cũ có thể còn từ account/device khác)
-    final needClear = lastShopId == null || lastShopId != currentShopId;
+    // 2. lastShopId == null (lần đầu đăng nhập với shop này)
+    // 3. lastUserId khác currentUserId (đổi user cùng shop - để tránh data lẫn do permission khác nhau)
+    final needClear = lastShopId == null || 
+                      lastShopId != currentShopId || 
+                      (lastUserId != null && lastUserId != currentUserId);
     
     if (needClear) {
-      debugPrint('⚠️ Shop mới hoặc đã thay đổi: $lastShopId -> $currentShopId. Xóa local data cũ...');
+      debugPrint('⚠️ Shop hoặc User thay đổi: shop=$lastShopId->$currentShopId, user=$lastUserId->$currentUserId. Xóa local data cũ...');
       await DBHelper().clearAllData();
       debugPrint('✅ Đã xóa local data cũ');
     }
     
-    // Lưu shopId hiện tại
+    // Lưu shopId và userId hiện tại
     await prefs.setString('last_synced_shop_id', currentShopId);
-    debugPrint('📝 Đã lưu last_synced_shop_id = $currentShopId');
+    if (currentUserId != null) {
+      await prefs.setString('last_synced_user_id', currentUserId);
+    }
+    debugPrint('📝 Đã lưu last_synced: shopId=$currentShopId, userId=$currentUserId');
   }
 
   @override

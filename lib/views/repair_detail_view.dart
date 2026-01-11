@@ -647,31 +647,41 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
 
     if (result == true && selectedQuantities.isNotEmpty) {
+      debugPrint('🔧 Parts selection confirmed: ${selectedQuantities.length} items selected');
       int totalCost = 0;
       List<String> usedParts = [];
 
       for (var entry in selectedQuantities.entries) {
         final uniqueKey = entry.key;
         final qty = entry.value;
+        debugPrint('🔧 Processing: $uniqueKey x$qty');
 
         // Parse uniqueKey = "source_id"
         final keyParts = uniqueKey.split('_');
         final source = keyParts[0];
         final partId = int.parse(keyParts[1]);
+        debugPrint('🔧 Parsed: source=$source, partId=$partId');
 
         final part = parts.firstWhere(
           (p) => p['id'] == partId && p['source'] == source,
         );
         final partName = part['partName'] ?? '';
         final partCost = part['cost'] as int? ?? 0;
+        debugPrint('🔧 Part found: $partName, cost=$partCost');
 
         // Trừ kho từ nguồn phù hợp
         final success = await db.deductPartQuantityUnified(partId, source, qty);
+        debugPrint('🔧 Deduct result: $success');
         if (success) {
           totalCost += partCost * qty;
           usedParts.add("$partName x$qty");
+        } else {
+          debugPrint('❌ Failed to deduct: $partName x$qty');
         }
       }
+
+      debugPrint('🔧 Total cost to add: $totalCost, parts: ${usedParts.join(', ')}');
+      debugPrint('🔧 Before update: r.cost=${r.cost}, r.partsUsed=${r.partsUsed}');
 
       // Cập nhật giá vốn và partsUsed
       setState(() {
@@ -683,12 +693,16 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         }
       });
 
+      debugPrint('🔧 After update: r.cost=${r.cost}, r.partsUsed=${r.partsUsed}');
+
       await _saveData();
 
       NotificationService.showSnackBar(
         "Đã thêm phụ tùng và trừ kho: ${usedParts.join(', ')}",
         color: Colors.green,
       );
+    } else {
+      debugPrint('🔧 Dialog result: result=$result, selectedQuantities.isEmpty=${selectedQuantities.isEmpty}');
     }
   }
 
