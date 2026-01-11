@@ -75,18 +75,14 @@ post_install do |installer|
       # Fix Swift version for Xcode 16.2
       config.build_settings['SWIFT_VERSION'] = '5.0'
       
-      # Fix module map issues
-      config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -no-verify-emitted-module-interface'
-      
-      # FIX: Suppress "sending" keyword errors (Swift 6 feature) in Xcode 16.2
-      # The 'sending' keyword is a Swift 6 concurrency feature not fully supported yet
+      # FIX SwiftEmitModule error: Disable module interface verification
       config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
+      config.build_settings['SWIFT_EMIT_LOC_STRINGS'] = 'NO'
       
-      # CRITICAL: Force Swift 5 language mode to avoid Swift 6 "sending" keyword parsing errors
-      # This tells the compiler to treat code as Swift 5, where 'sending' is not a keyword
-      config.build_settings['SWIFT_UPCOMING_FEATURE_INFER_SENDABLE_FROM_CAPTURES'] = 'NO'
-      config.build_settings['SWIFT_UPCOMING_FEATURE_GLOBAL_CONCURRENCY'] = 'NO'
-      config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -no-verify-emitted-module-interface -Xfrontend -disable-upcoming-feature -Xfrontend InferSendableFromCaptures -swift-version 5'
+      # Critical: Fix module emission for Xcode 16.2
+      # Remove problematic flags that cause SwiftEmitModule to fail
+      config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -Xfrontend -module-interface-preserve-types-as-written'
+      config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
     end
   end
   
