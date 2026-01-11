@@ -2186,6 +2186,7 @@ class _CashClosingViewState extends State<CashClosingView>
       bankIn: bankIn,
       bankOut: bankOut,
       saleIncome: saleIncome,
+      settlementIncome: settlementIncome,
       repairIncome: repairIncome,
       debtCollected: debtCollected,
       expenseOut: expenseOut,
@@ -2199,7 +2200,7 @@ class _CashClosingViewState extends State<CashClosingView>
 
 class _TransactionAnalysis {
   final int cashIn, cashOut, bankIn, bankOut;
-  final int saleIncome, repairIncome, debtCollected;
+  final int saleIncome, settlementIncome, repairIncome, debtCollected;
   final int expenseOut, importOut, supplierPaid;
   final int saleCost, repairCost; // Giá vốn hàng đã bán và sửa chữa
   _TransactionAnalysis({
@@ -2208,6 +2209,7 @@ class _TransactionAnalysis {
     required this.bankIn,
     required this.bankOut,
     required this.saleIncome,
+    required this.settlementIncome,
     required this.repairIncome,
     required this.debtCollected,
     required this.expenseOut,
@@ -2217,10 +2219,11 @@ class _TransactionAnalysis {
     required this.repairCost,
   });
 
-  /// Lợi nhuận ròng = (Doanh thu bán + sửa chữa + thu nợ) - (Chi phí + giá vốn)
+  /// Lợi nhuận ròng = (Doanh thu bán + tất toán + sửa chữa + thu nợ) - (Chi phí + giá vốn)
   /// Không tính nhập hàng vào vì đó là dòng tiền, không phải chi phí
   int get netProfit =>
       saleIncome +
+      settlementIncome +
       repairIncome +
       debtCollected -
       expenseOut -
