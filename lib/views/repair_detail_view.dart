@@ -462,11 +462,27 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     // Lấy linh kiện từ CẢ 2 nguồn: repair_parts (kho cũ) + products type='LINH KIỆN' (kho mới)
     final parts = await db.getAllPartsUnified();
+    debugPrint('🔧 Parts loaded: ${parts.length} items');
+    for (var p in parts) {
+      debugPrint('  - ${p['partName']} (${p['source']}): qty=${p['quantity']}');
+    }
     if (parts.isEmpty) {
-      NotificationService.showSnackBar(
-        "Kho Linh Kiện trống. Vui lòng nhập linh kiện trong trang Kho với loại 'LINH KIỆN'.",
-        color: Colors.orange,
-      );
+      // Thử load products để xem có nhưng chưa đánh đúng loại
+      final allProducts = await db.getAllProducts();
+      final linhKienProducts = allProducts.where((p) => p.type == 'LINH KIỆN').toList();
+      final phuKienProducts = allProducts.where((p) => p.type == 'PHỤ KIỆN').toList();
+      
+      String msg = "Kho Linh Kiện trống. ";
+      if (allProducts.isEmpty) {
+        msg += "Chưa có sản phẩm nào trong kho.";
+      } else {
+        msg += "Tổng: ${allProducts.length}, LINH KIỆN: ${linhKienProducts.length}. ";
+        if (linhKienProducts.isEmpty) {
+          msg += "Vào Kho → Nhập SP → Chọn loại 'LINH KIỆN'";
+        }
+      }
+      
+      NotificationService.showSnackBar(msg, color: Colors.orange);
       return;
     }
 

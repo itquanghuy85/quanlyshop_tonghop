@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../services/sync_orchestrator.dart';
@@ -372,7 +373,33 @@ class OrderListViewState extends State<OrderListView> {
                   password: passCtrl.text,
                 );
                 await user.reauthenticateWithCredential(cred);
-                await db.deleteRepairByFirestoreId(r.firestoreId ?? "");
+                
+                // Lưu id trước khi xóa để dùng cho sync
+                final repairId = r.id;
+                final repairFirestoreId = r.firestoreId;
+                
+                // Nếu có firestoreId, xóa trực tiếp trên Firestore trước
+                if (repairFirestoreId != null && repairFirestoreId.isNotEmpty) {
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('repairs')
+                        .doc(repairFirestoreId)
+                        .update({
+                      'deleted': true,
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    });
+                  } catch (e) {
+                    debugPrint('❌ Failed to soft delete on Firestore: $e');
+                    // Tiếp tục xóa local dù Firestore fail
+                  }
+                }
+                
+                // Xóa local bằng firestoreId nếu có, nếu không thì xóa bằng id
+                if (repairFirestoreId != null && repairFirestoreId.isNotEmpty) {
+                  await db.deleteRepairByFirestoreId(repairFirestoreId);
+                } else if (repairId != null) {
+                  await db.deleteRepair(repairId);
+                }
 
                 // Ghi nhật ký xóa đơn
                 await db.logAction(
@@ -380,16 +407,16 @@ class OrderListViewState extends State<OrderListView> {
                   userName: user.email?.split('@').first.toUpperCase() ?? 'NV',
                   action: 'XÓA ĐƠN SỬA',
                   type: 'REPAIR',
-                  targetId: r.firestoreId,
+                  targetId: repairFirestoreId,
                   desc: 'Đã xóa đơn sửa ${r.model} - ${r.customerName} - ${r.phone}',
                 );
 
-                // Queue delete sync via SyncOrchestrator
-                if (r.id != null) {
+                // Queue delete sync via SyncOrchestrator (backup nếu Firestore direct fail)
+                if (repairId != null && repairFirestoreId != null) {
                   await SyncOrchestrator().enqueue(
                     entityType: SyncEntityType.repair,
-                    entityId: r.id!,
-                    firestoreId: r.firestoreId,
+                    entityId: repairId,
+                    firestoreId: repairFirestoreId,
                     operation: SyncOperation.delete,
                     data: null,
                   );
