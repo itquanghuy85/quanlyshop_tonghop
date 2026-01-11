@@ -1858,16 +1858,24 @@ class _CashClosingViewState extends State<CashClosingView>
              _isSameDay(s.settlementReceivedAt!, date) &&
              s.settlementAmount > 0,
     )) {
-      list.add({
-        'icon': '🏦',
-        'title': 'Tất toán NH: ${s.bankName ?? "Ngân hàng"}',
-        'subtitle':
-            '${s.customerName ?? 'KH'} • Đơn #${s.firestoreId?.substring(0, 8) ?? s.id}',
-        'time': DateFormat(
-          'HH:mm',
-        ).format(DateTime.fromMillisecondsSinceEpoch(s.settlementReceivedAt!)),
-        'amount': s.settlementAmount,
-      });
+      // Tính số tiền thực nhận từ settlement (clamp để tránh đúp khi set sai)
+      final isSameDayAsSale = _isSameDay(s.soldAt, date);
+      final actualAmount = isSameDayAsSale 
+          ? s.settlementAmount.clamp(0, s.loanAmount) 
+          : s.settlementAmount;
+      
+      if (actualAmount > 0) {
+        list.add({
+          'icon': '🏦',
+          'title': 'Tất toán NH: ${s.bankName ?? "Ngân hàng"}',
+          'subtitle':
+              '${s.customerName ?? 'KH'} • Đơn #${s.firestoreId?.substring(0, 8) ?? s.id}',
+          'time': DateFormat(
+            'HH:mm',
+          ).format(DateTime.fromMillisecondsSinceEpoch(s.settlementReceivedAt!)),
+          'amount': actualAmount,
+        });
+      }
     }
     
     for (var r in _repairs.where(
@@ -1901,6 +1909,23 @@ class _CashClosingViewState extends State<CashClosingView>
           'HH:mm',
         ).format(DateTime.fromMillisecondsSinceEpoch(p['paidAt'] as int)),
         'amount': p['amount'] as int? ?? 0,
+      });
+    }
+    // Tiền tất toán từ ngân hàng (trả góp đã nhận tiền trong ngày)
+    for (var s in _sales.where(
+      (s) => s.isInstallment && 
+             s.settlementReceivedAt != null && 
+             _isSameDay(s.settlementReceivedAt!, date) &&
+             s.settlementAmount > 0,
+    )) {
+      list.add({
+        'icon': '🏦',
+        'title': 'Tất toán NH: ${s.bankName ?? "Ngân hàng"}',
+        'subtitle': '${s.customerName ?? 'KH'} • 🏦 CHUYỂN KHOẢN',
+        'time': DateFormat('HH:mm').format(
+          DateTime.fromMillisecondsSinceEpoch(s.settlementReceivedAt!),
+        ),
+        'amount': s.settlementAmount,
       });
     }
     list.sort((a, b) => (b['time'] as String).compareTo(a['time'] as String));
@@ -2029,14 +2054,31 @@ class _CashClosingViewState extends State<CashClosingView>
              _isSameDay(s.settlementReceivedAt!, now) &&
              s.settlementAmount > 0,
     )) {
-      settlementIncome += s.settlementAmount;
-      // Tiền tất toán luôn qua ngân hàng
-      bankIn += s.settlementAmount;
-      
-      // Tính giá vốn còn lại (phần chưa tính khi nhận downPayment)
-      final downPaymentRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0.0;
-      final remainingCostRatio = 1.0 - downPaymentRatio;
-      saleCost += (s.totalCost * remainingCostRatio).round();
+      // CHỈ tính settlement nếu KHÁC ngày bán (để tránh đúp)
+      // Nếu cùng ngày bán, đã tính downPayment ở trên rồi
+      final isSameDayAsSale = _isSameDay(s.soldAt, now);
+      if (isSameDayAsSale) {
+        // Cùng ngày: chỉ cộng thêm phần chênh lệch (settlement - downPayment đã tính)
+        // settlement thực tế = loanAmount = totalPrice - downPayment
+        // Nên chỉ cần cộng (settlementAmount) nếu settlementAmount <= loanAmount
+        final actualSettlement = s.settlementAmount.clamp(0, s.loanAmount);
+        if (actualSettlement > 0) {
+          settlementIncome += actualSettlement;
+          bankIn += actualSettlement;
+          // Tính giá vốn phần còn lại
+          final downPaymentRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0.0;
+          final remainingCostRatio = 1.0 - downPaymentRatio;
+          saleCost += (s.totalCost * remainingCostRatio).round();
+        }
+      } else {
+        // Khác ngày: tính toàn bộ settlementAmount
+        settlementIncome += s.settlementAmount;
+        bankIn += s.settlementAmount;
+        // Tính giá vốn còn lại
+        final downPaymentRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0.0;
+        final remainingCostRatio = 1.0 - downPaymentRatio;
+        saleCost += (s.totalCost * remainingCostRatio).round();
+      }
     }
     
     for (var r in _repairs.where(
@@ -2136,6 +2178,22 @@ class _CashClosingViewState extends State<CashClosingView>
         } else {
           bankIn += amount;
         }
+      }
+    }
+    // Tiền tất toán từ ngân hàng (trả góp đã nhận tiền trong ngày) - CHUYỂN KHOẢN
+    for (var s in _sales.where(
+      (s) => s.isInstallment && 
+             s.settlementReceivedAt != null && 
+             _isSameDay(s.settlementReceivedAt!, now) &&
+             s.settlementAmount > 0,
+    )) {
+      bankIn += s.settlementAmount;
+      // Tính giá vốn còn lại = (totalCost - downPayment đã nhận) * tỷ lệ settlementAmount/loanAmount
+      if (s.loanAmount > 0 && s.totalCost > 0) {
+        final remainingCostRatio = s.settlementAmount / s.loanAmount;
+        final costForDownPayment = (s.downPayment / s.totalPrice * s.totalCost).round();
+        final remainingCost = s.totalCost - costForDownPayment;
+        saleCost += (remainingCost * remainingCostRatio).round();
       }
     }
     return _TransactionAnalysis(
