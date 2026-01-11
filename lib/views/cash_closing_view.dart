@@ -89,18 +89,24 @@ class _CashClosingViewState extends State<CashClosingView>
     final shopId = await UserService.getCurrentShopId();
     if (shopId == null) return;
     
-    final shopRef = FirebaseFirestore.instance.collection('shops').doc(shopId);
+    final firestore = FirebaseFirestore.instance;
+    final shopRef = firestore.collection('shops').doc(shopId);
     
     // Listen to all relevant collections - khi có thay đổi thì schedule reload
     _closingSubscription = shopRef.collection('cash_closings').snapshots().listen((_) {
       _scheduleReload();
     });
     
-    _debtPaymentsSubscription = shopRef.collection('debt_payments').snapshots().listen((_) {
+    // debt_payments và supplier_payments ở ROOT collection, filter theo shopId
+    _debtPaymentsSubscription = firestore.collection('debt_payments')
+        .where('shopId', isEqualTo: shopId)
+        .snapshots().listen((_) {
       _scheduleReload();
     });
     
-    _supplierPaymentsSubscription = shopRef.collection('supplier_payments').snapshots().listen((_) {
+    _supplierPaymentsSubscription = firestore.collection('supplier_payments')
+        .where('shopId', isEqualTo: shopId)
+        .snapshots().listen((_) {
       _scheduleReload();
     });
     
@@ -131,15 +137,19 @@ class _CashClosingViewState extends State<CashClosingView>
         return;
       }
       
-      final shopRef = FirebaseFirestore.instance.collection('shops').doc(shopId);
+      final firestore = FirebaseFirestore.instance;
+      final shopRef = firestore.collection('shops').doc(shopId);
       
-      // Load từ Firestore song song - lấy tất cả và filter locally
+      // Load từ Firestore song song
+      // Lưu ý: sales, repairs, expenses nằm trong shops/{shopId}/...
+      // Còn debt_payments, supplier_payments nằm ở ROOT collection với filter shopId
       final results = await Future.wait([
         shopRef.collection('sales').get(),
         shopRef.collection('repairs').get(),
         shopRef.collection('expenses').get(),
-        shopRef.collection('debt_payments').get(),
-        shopRef.collection('supplier_payments').get(),
+        // debt_payments và supplier_payments ở ROOT collection, filter theo shopId
+        firestore.collection('debt_payments').where('shopId', isEqualTo: shopId).get(),
+        firestore.collection('supplier_payments').where('shopId', isEqualTo: shopId).get(),
       ]);
       
       // Parse sales - filter deleted
