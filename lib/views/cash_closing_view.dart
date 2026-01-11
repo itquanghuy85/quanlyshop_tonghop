@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../models/sale_order_model.dart';
 import '../models/repair_model.dart';
+import '../models/expense_model.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../utils/money_utils.dart';
@@ -40,18 +41,28 @@ class _CashClosingViewState extends State<CashClosingView>
   final bankEndCtrl = TextEditingController();
   final noteCtrl = TextEditingController();
   StreamSubscription? _closingSubscription;
+  StreamSubscription? _debtPaymentsSubscription;
+  StreamSubscription? _supplierPaymentsSubscription;
+  StreamSubscription? _salesSubscription;
+  StreamSubscription? _repairsSubscription;
+  StreamSubscription? _expensesSubscription;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _loadAllData();
-    _initClosingRealTimeSync();
+    _initRealTimeSync();
   }
 
   @override
   void dispose() {
     _closingSubscription?.cancel();
+    _debtPaymentsSubscription?.cancel();
+    _supplierPaymentsSubscription?.cancel();
+    _salesSubscription?.cancel();
+    _repairsSubscription?.cancel();
+    _expensesSubscription?.cancel();
     _tabController.dispose();
     cashEndCtrl.dispose();
     bankEndCtrl.dispose();
@@ -59,17 +70,126 @@ class _CashClosingViewState extends State<CashClosingView>
     super.dispose();
   }
 
-  Future<void> _initClosingRealTimeSync() async {
+  Future<void> _initRealTimeSync() async {
     final shopId = await UserService.getCurrentShopId();
     if (shopId == null) return;
-    _closingSubscription = FirebaseFirestore.instance
-        .collection('shops')
-        .doc(shopId)
+    
+    final shopRef = FirebaseFirestore.instance.collection('shops').doc(shopId);
+    
+    // Listen to cash_closings
+    _closingSubscription = shopRef
         .collection('cash_closings')
         .snapshots()
         .listen((_) {
           if (mounted) _loadAllData();
         });
+    
+    // Listen to debt_payments (thu/trả nợ) - sync trực tiếp vào local DB
+    _debtPaymentsSubscription = shopRef
+        .collection('debt_payments')
+        .snapshots()
+        .listen((snapshot) async {
+          for (var change in snapshot.docChanges) {
+            final data = change.doc.data();
+            if (data == null) continue;
+            data['firestoreId'] = change.doc.id;
+            data['isSynced'] = 1;
+            if (data['deleted'] == true) {
+              await db.deleteDebtPaymentByFirestoreId(change.doc.id);
+            } else {
+              await db.upsertDebtPayment(data);
+            }
+          }
+          if (mounted) _loadAllData();
+        });
+    
+    // Listen to supplier_payments (trả nợ NCC) - sync trực tiếp vào local DB
+    _supplierPaymentsSubscription = shopRef
+        .collection('supplier_payments')
+        .snapshots()
+        .listen((snapshot) async {
+          for (var change in snapshot.docChanges) {
+            final data = change.doc.data();
+            if (data == null) continue;
+            data['firestoreId'] = change.doc.id;
+            data['isSynced'] = 1;
+            if (data['deleted'] == true) {
+              await db.deleteSupplierPaymentByFirestoreId(change.doc.id);
+            } else {
+              await db.upsertSupplierPayment(data);
+            }
+          }
+          if (mounted) _loadAllData();
+        });
+    
+    // Listen to sales - sync trực tiếp vào local DB
+    _salesSubscription = shopRef
+        .collection('sales')
+        .snapshots()
+        .listen((snapshot) async {
+          for (var change in snapshot.docChanges) {
+            final data = change.doc.data();
+            if (data == null) continue;
+            data['firestoreId'] = change.doc.id;
+            data['isSynced'] = 1;
+            _convertTimestampFields(data);
+            if (data['deleted'] == true) {
+              await db.deleteSaleByFirestoreId(change.doc.id);
+            } else {
+              await db.upsertSale(SaleOrder.fromMap(data));
+            }
+          }
+          if (mounted) _loadAllData();
+        });
+    
+    // Listen to repairs - sync trực tiếp vào local DB
+    _repairsSubscription = shopRef
+        .collection('repairs')
+        .snapshots()
+        .listen((snapshot) async {
+          for (var change in snapshot.docChanges) {
+            final data = change.doc.data();
+            if (data == null) continue;
+            data['firestoreId'] = change.doc.id;
+            data['isSynced'] = 1;
+            _convertTimestampFields(data);
+            if (data['deleted'] == true) {
+              await db.deleteRepairByFirestoreId(change.doc.id);
+            } else {
+              await db.upsertRepair(Repair.fromMap(data));
+            }
+          }
+          if (mounted) _loadAllData();
+        });
+    
+    // Listen to expenses - sync trực tiếp vào local DB
+    _expensesSubscription = shopRef
+        .collection('expenses')
+        .snapshots()
+        .listen((snapshot) async {
+          for (var change in snapshot.docChanges) {
+            final data = change.doc.data();
+            if (data == null) continue;
+            data['firestoreId'] = change.doc.id;
+            data['isSynced'] = 1;
+            _convertTimestampFields(data);
+            if (data['deleted'] == true) {
+              await db.deleteExpenseByFirestoreId(change.doc.id);
+            } else {
+              await db.upsertExpense(Expense.fromMap(data));
+            }
+          }
+          if (mounted) _loadAllData();
+        });
+  }
+  
+  /// Chuyển đổi Timestamp fields sang milliseconds
+  void _convertTimestampFields(Map<String, dynamic> data) {
+    for (var key in data.keys.toList()) {
+      if (data[key] is Timestamp) {
+        data[key] = (data[key] as Timestamp).millisecondsSinceEpoch;
+      }
+    }
   }
 
   Future<void> _loadAllData() async {
