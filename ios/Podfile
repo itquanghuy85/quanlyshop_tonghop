@@ -5,7 +5,7 @@ platform :ios, '14.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-# Fix for Xcode 16.2 compatibility
+# Fix for Xcode 16.2 compatibility - Force Swift 5 mode to avoid Swift 6 "sending" keyword issues
 ENV['SWIFT_VERSION'] = '5'
 
 project 'Runner', {
@@ -78,11 +78,15 @@ post_install do |installer|
       # Fix module map issues
       config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -no-verify-emitted-module-interface'
       
-      # FIX: Suppress "sending" warnings (Swift concurrency Sendable) in Xcode 16.2
-      # These warnings occur when passing non-Sendable types across actor boundaries
+      # FIX: Suppress "sending" keyword errors (Swift 6 feature) in Xcode 16.2
+      # The 'sending' keyword is a Swift 6 concurrency feature not fully supported yet
       config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
-      config.build_settings['OTHER_SWIFT_FLAGS'] ||= ''
-      config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -no-verify-emitted-module-interface -Xfrontend -disable-availability-checking'
+      
+      # CRITICAL: Force Swift 5 language mode to avoid Swift 6 "sending" keyword parsing errors
+      # This tells the compiler to treat code as Swift 5, where 'sending' is not a keyword
+      config.build_settings['SWIFT_UPCOMING_FEATURE_INFER_SENDABLE_FROM_CAPTURES'] = 'NO'
+      config.build_settings['SWIFT_UPCOMING_FEATURE_GLOBAL_CONCURRENCY'] = 'NO'
+      config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -no-verify-emitted-module-interface -Xfrontend -disable-upcoming-feature -Xfrontend InferSendableFromCaptures -swift-version 5'
     end
   end
   
@@ -91,5 +95,17 @@ post_install do |installer|
     config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
     config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
     config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+  end
+  
+  # CRITICAL FIX: Patch FirebaseSharedSwift to remove Swift 6 "sending" keyword
+  # This keyword causes build errors on Xcode 16.2 with Swift 5
+  firebase_data_encoder_path = "#{installer.sandbox.root}/FirebaseSharedSwift/FirebaseSharedSwift/Sources/third_party/FirebaseDataEncoder/FirebaseDataEncoder.swift"
+  if File.exist?(firebase_data_encoder_path)
+    content = File.read(firebase_data_encoder_path)
+    # Remove 'sending' keyword which is Swift 6 only
+    # Pattern: "func encode<T>(_ value: sending T)" -> "func encode<T>(_ value: T)"
+    patched_content = content.gsub(/sending\s+/, '')
+    File.write(firebase_data_encoder_path, patched_content)
+    puts "✅ Patched FirebaseDataEncoder.swift to remove Swift 6 'sending' keyword"
   end
 end
