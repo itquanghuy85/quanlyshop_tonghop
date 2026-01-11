@@ -2180,22 +2180,6 @@ class _CashClosingViewState extends State<CashClosingView>
         }
       }
     }
-    // Tiền tất toán từ ngân hàng (trả góp đã nhận tiền trong ngày) - CHUYỂN KHOẢN
-    for (var s in _sales.where(
-      (s) => s.isInstallment && 
-             s.settlementReceivedAt != null && 
-             _isSameDay(s.settlementReceivedAt!, now) &&
-             s.settlementAmount > 0,
-    )) {
-      bankIn += s.settlementAmount;
-      // Tính giá vốn còn lại = (totalCost - downPayment đã nhận) * tỷ lệ settlementAmount/loanAmount
-      if (s.loanAmount > 0 && s.totalCost > 0) {
-        final remainingCostRatio = s.settlementAmount / s.loanAmount;
-        final costForDownPayment = (s.downPayment / s.totalPrice * s.totalCost).round();
-        final remainingCost = s.totalCost - costForDownPayment;
-        saleCost += (remainingCost * remainingCostRatio).round();
-      }
-    }
     return _TransactionAnalysis(
       cashIn: cashIn,
       cashOut: cashOut,

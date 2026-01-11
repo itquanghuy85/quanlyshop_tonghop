@@ -1163,19 +1163,20 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         continue;
       }
       if (s.isInstallment) {
-        // Trả góp: chỉ tính downPayment + settlementAmount (nếu đã nhận)
+        // Trả góp: tính downPayment + settlementAmount (clamp để tránh đúp)
         salesIncome += s.downPayment;
         if (s.settlementReceivedAt != null &&
             _isSameDay(s.settlementReceivedAt!)) {
-          salesIncome += s.settlementAmount;
+          // Clamp settlementAmount để không vượt quá loanAmount (tránh đúp khi nhập sai)
+          final actualSettlement = s.settlementAmount.clamp(0, s.loanAmount);
+          salesIncome += actualSettlement;
         }
         // Giá vốn tính theo tỷ lệ đã thu
-        final totalPaid =
-            s.downPayment +
-            (s.settlementReceivedAt != null &&
-                    _isSameDay(s.settlementReceivedAt!)
-                ? s.settlementAmount
-                : 0);
+        final actualSettlementForCost = (s.settlementReceivedAt != null &&
+                _isSameDay(s.settlementReceivedAt!))
+            ? s.settlementAmount.clamp(0, s.loanAmount)
+            : 0;
+        final totalPaid = s.downPayment + actualSettlementForCost;
         final ratio = s.totalPrice > 0 ? totalPaid / s.totalPrice : 0.0;
         salesCost += (s.totalCost * ratio).round();
       } else {
