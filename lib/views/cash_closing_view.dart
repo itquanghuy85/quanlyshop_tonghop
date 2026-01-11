@@ -1850,6 +1850,26 @@ class _CashClosingViewState extends State<CashClosingView>
         'amount': s.isInstallment ? s.downPayment : s.totalPrice,
       });
     }
+    
+    // Thêm tiền tất toán từ ngân hàng (trả góp đã nhận tiền trong ngày)
+    for (var s in _sales.where(
+      (s) => s.isInstallment && 
+             s.settlementReceivedAt != null && 
+             _isSameDay(s.settlementReceivedAt!, date) &&
+             s.settlementAmount > 0,
+    )) {
+      list.add({
+        'icon': '🏦',
+        'title': 'Tất toán NH: ${s.bankName ?? "Ngân hàng"}',
+        'subtitle':
+            '${s.customerName ?? 'KH'} • Đơn #${s.firestoreId?.substring(0, 8) ?? s.id}',
+        'time': DateFormat(
+          'HH:mm',
+        ).format(DateTime.fromMillisecondsSinceEpoch(s.settlementReceivedAt!)),
+        'amount': s.settlementAmount,
+      });
+    }
+    
     for (var r in _repairs.where(
       (r) =>
           r.status == 4 &&
@@ -1954,8 +1974,11 @@ class _CashClosingViewState extends State<CashClosingView>
       });
     }
     for (var p in _debtPayments.where(
-      (p) =>
-          _isSameDay(p['paidAt'] as int, date) && p['debtType'] == 'SHOP_OWES',
+      (p) {
+        final paidAt = p['paidAt'];
+        if (paidAt == null) return false;
+        return _isSameDay(paidAt as int, date) && p['debtType'] == 'SHOP_OWES';
+      },
     )) {
       list.add({
         'icon': '💳',
@@ -1977,6 +2000,7 @@ class _CashClosingViewState extends State<CashClosingView>
     int saleIncome = 0, repairIncome = 0, debtCollected = 0;
     int expenseOut = 0, importOut = 0, supplierPaid = 0;
     int saleCost = 0, repairCost = 0; // Giá vốn
+    int settlementIncome = 0; // Tiền tất toán từ ngân hàng
 
     for (var s in _sales.where((s) => _isSameDay(s.soldAt, now))) {
       if (s.paymentMethod == 'CÔNG NỢ') continue;
@@ -1997,6 +2021,24 @@ class _CashClosingViewState extends State<CashClosingView>
         saleCost += s.totalCost;
       }
     }
+    
+    // Tính tiền tất toán từ ngân hàng nhận trong ngày
+    for (var s in _sales.where(
+      (s) => s.isInstallment && 
+             s.settlementReceivedAt != null && 
+             _isSameDay(s.settlementReceivedAt!, now) &&
+             s.settlementAmount > 0,
+    )) {
+      settlementIncome += s.settlementAmount;
+      // Tiền tất toán luôn qua ngân hàng
+      bankIn += s.settlementAmount;
+      
+      // Tính giá vốn còn lại (phần chưa tính khi nhận downPayment)
+      final downPaymentRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0.0;
+      final remainingCostRatio = 1.0 - downPaymentRatio;
+      saleCost += (s.totalCost * remainingCostRatio).round();
+    }
+    
     for (var r in _repairs.where(
       (r) =>
           r.status == 4 &&
@@ -2073,9 +2115,11 @@ class _CashClosingViewState extends State<CashClosingView>
         bankOut += amount;
       }
     }
-    for (var p in _debtPayments.where(
-      (p) => _isSameDay(p['paidAt'] as int, now),
-    )) {
+    for (var p in _debtPayments.where((p) {
+      final paidAt = p['paidAt'];
+      if (paidAt == null) return false;
+      return _isSameDay(paidAt as int, now);
+    })) {
       final isShopPay = p['debtType'] == 'SHOP_OWES';
       final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
       final amount = p['amount'] as int? ?? 0;
