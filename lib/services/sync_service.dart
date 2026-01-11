@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../models/product_model.dart';
@@ -16,6 +17,7 @@ import 'user_service.dart';
 import 'encryption_service.dart';
 import 'sync_orchestrator.dart';
 import 'event_bus.dart';
+import 'claims_service.dart';
 
 class SyncService {
   static final _db = FirebaseFirestore.instance;
@@ -229,6 +231,39 @@ class SyncService {
       "⚡ initRealTimeSync: user=${user.uid}, email=${user.email}, shopId=$shopId, isSuperAdmin=$isSuperAdmin",
     );
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // QUAN TRỌNG: Kiểm tra và refresh Custom Claims nếu cần
+    // Firestore Rules yêu cầu token phải có shopId claim để truy cập data
+    // ═══════════════════════════════════════════════════════════════════════
+    if (!isSuperAdmin && shopId != null) {
+      try {
+        // Lấy claims từ token để kiểm tra
+        final claims = await ClaimsService().getClaimsFromToken(forceRefresh: true);
+        final tokenShopId = claims?['shopId'];
+        
+        debugPrint("🔑 Token claims: shopId=$tokenShopId, role=${claims?['role']}");
+        
+        // Nếu shopId trong token không khớp với shopId từ Firestore, refresh claims
+        if (tokenShopId != shopId) {
+          debugPrint("⚠️ Token shopId ($tokenShopId) != Firestore shopId ($shopId), refreshing claims...");
+          
+          // Gọi Cloud Function để refresh claims
+          final result = await ClaimsService().refreshMyClaims();
+          debugPrint("🔄 refreshMyClaims result: $result");
+          
+          // Chờ và refresh token lại
+          await Future.delayed(const Duration(seconds: 1));
+          await user.getIdToken(true);
+          
+          // Kiểm tra lại claims sau khi refresh
+          final newClaims = await ClaimsService().getClaimsFromToken(forceRefresh: true);
+          debugPrint("✅ New token claims after refresh: shopId=${newClaims?['shopId']}, role=${newClaims?['role']}");
+        }
+      } catch (e) {
+        debugPrint("⚠️ Error checking/refreshing claims: $e");
+      }
+    }
+
     // Super admin phải chọn shop trước khi init real-time sync
     if (shopId == null) {
       if (isSuperAdmin) {
@@ -434,20 +469,40 @@ class SyncService {
       onBatchDone: onDataChanged,
     );
 
-    // 7. Đồng bộ SHOPS (cập nhật cache khi có thay đổi)
-    _subscribeToCollection(
-      collection: 'shops',
-      shopId: shopId,
-      onChanged: (data, docId) async {
-        try {
-          // Shop data changed, có thể trigger UI update nếu cần
-          debugPrint("Shop data changed: $docId");
-        } catch (e) {
-          debugPrint("Lỗi sync shop $docId: $e");
-        }
-      },
-      onBatchDone: onDataChanged,
-    );
+    // 7. Đồng bộ SHOPS (subscribe trực tiếp vào document, không query by shopId)
+    // Collection 'shops' sử dụng document ID = shopId, không có field 'shopId'
+    if (shopId != null) {
+      final shopSub = _db.collection('shops').doc(shopId).snapshots().listen(
+        (snapshot) async {
+          if (!snapshot.exists) return;
+          final data = snapshot.data();
+          if (data == null) return;
+          
+          try {
+            debugPrint("📡 Shop data changed for shopId: $shopId");
+            
+            // Cập nhật SharedPreferences để các màn hình khác có thể đọc
+            final prefs = await SharedPreferences.getInstance();
+            final shopName = data['name']?.toString() ?? '';
+            final shopAddress = data['address']?.toString() ?? '';
+            final shopPhone = data['phone']?.toString() ?? '';
+            
+            await prefs.setString('shop_name', shopName);
+            await prefs.setString('shop_address', shopAddress);
+            await prefs.setString('shop_phone', shopPhone);
+            
+            debugPrint("✅ Synced shop info to SharedPreferences: $shopName, $shopAddress, $shopPhone");
+            
+            // Trigger UI update
+            onDataChanged();
+          } catch (e) {
+            debugPrint("Lỗi sync shop $shopId: $e");
+          }
+        },
+        onError: (e) => debugPrint("Sync error in shops/$shopId: $e"),
+      );
+      _subscriptions.add(shopSub);
+    }
 
     // 8. Đồng bộ ATTENDANCE
     try {

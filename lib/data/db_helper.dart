@@ -27,7 +27,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 53,
+      version: 55,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT)',
@@ -54,7 +54,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS attendance(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, dateKey TEXT, checkInAt INTEGER, checkOutAt INTEGER, overtimeOn INTEGER DEFAULT 0, photoIn TEXT, photoOut TEXT, note TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, locked INTEGER DEFAULT 0, createdAt INTEGER, location TEXT, isLate INTEGER DEFAULT 0, isEarlyLeave INTEGER DEFAULT 0, workSchedule TEXT, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, userName TEXT, action TEXT, targetType TEXT, targetId TEXT, description TEXT, createdAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT)',
+          'CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, userName TEXT, action TEXT, targetType TEXT, targetId TEXT, description TEXT, createdAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, summary TEXT, role TEXT, email TEXT, payload TEXT, entityType TEXT, entityId TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS inventory_checks(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, type TEXT, checkDate INTEGER, itemsJson TEXT, status TEXT, createdBy TEXT, isSynced INTEGER DEFAULT 0, isCompleted INTEGER DEFAULT 0)',
@@ -1028,6 +1028,33 @@ class DBHelper {
             debugPrint('v53 error (debt_payments updatedAt): $e');
           }
           debugPrint('DB upgrade v53: debt_payments updatedAt completed');
+        }
+        if (oldV < 54) {
+          // v54: Thêm cột summary vào bảng audit_logs để hỗ trợ sync từ Firestore
+          debugPrint('DB upgrade v54: Adding summary to audit_logs...');
+          try {
+            await db.execute(
+              'ALTER TABLE audit_logs ADD COLUMN summary TEXT',
+            );
+            debugPrint('v54: added summary to audit_logs');
+          } catch (e) {
+            debugPrint('v54 error (audit_logs summary): $e');
+          }
+          debugPrint('DB upgrade v54: audit_logs summary completed');
+        }
+        if (oldV < 55) {
+          // v55: Thêm các cột còn thiếu vào bảng audit_logs để hỗ trợ sync từ Firestore
+          debugPrint('DB upgrade v55: Adding missing columns to audit_logs...');
+          final columnsToAdd = ['role', 'email', 'payload', 'entityType', 'entityId'];
+          for (final col in columnsToAdd) {
+            try {
+              await db.execute('ALTER TABLE audit_logs ADD COLUMN $col TEXT');
+              debugPrint('v55: added $col to audit_logs');
+            } catch (e) {
+              debugPrint('v55 error (audit_logs $col): $e');
+            }
+          }
+          debugPrint('DB upgrade v55: audit_logs columns completed');
         }
         debugPrint('DB upgrade completed');
       },
