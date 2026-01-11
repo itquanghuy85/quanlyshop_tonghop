@@ -1897,7 +1897,8 @@ class _CashClosingViewState extends State<CashClosingView>
     debugPrint('Total supplierPayments: ${_supplierPayments.length}');
     debugPrint('Total debtPayments: ${_debtPayments.length}');
     
-    // Chi phí thường
+    // Chi phí thường - HIỂN THỊ TẤT CẢ (bao gồm nhập hàng, trả nợ...)
+    // Lưu ý: Logic loại trừ chỉ áp dụng trong _analyzeTransactions để tránh double-counting cashFlow
     for (var e in _expenses) {
       final expenseDate = e['date'] as int?;
       if (expenseDate == null) {
@@ -1906,29 +1907,12 @@ class _CashClosingViewState extends State<CashClosingView>
       }
       if (!_isSameDay(expenseDate, date)) continue;
       
-      // Loại bỏ các chi phí nhập hàng (đã được tính ở supplierImports)
-      final category = (e['category'] as String? ?? '').toUpperCase();
-      final description = (e['description'] as String? ?? '').toUpperCase();
-      final title = (e['title'] as String? ?? '').toUpperCase();
-      final isImportExpense = category.contains('NHẬP HÀNG') ||
-          category.contains('NHẬP LINH KIỆN') ||
-          category.contains('PURCHASE') ||
-          category.contains('STOCK') ||
-          category.contains('ĐƠN NHẬP') ||
-          category.contains('LINH KIỆN') ||
-          category.contains('REPAIR_PARTS') ||
-          description.contains('NHẬP LINH KIỆN') ||
-          description.contains('NHẬP HÀNG') ||
-          title.contains('NHẬP LINH KIỆN') ||
-          title.contains('NHẬP HÀNG');
-      if (isImportExpense) {
-        debugPrint('Skipping import expense: ${e['category']}');
-        continue;
-      }
+      final category = e['category'] as String? ?? 'Chi phí';
+      debugPrint('Adding expense to list: $category, amount=${e['amount']}');
       
       list.add({
         'icon': '💸',
-        'title': e['category'] ?? 'Chi phí',
+        'title': category,
         'subtitle':
             '${e['note'] ?? ''} • ${(e['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
         'time': DateFormat(
@@ -2028,15 +2012,26 @@ class _CashClosingViewState extends State<CashClosingView>
       }
       repairCost += r.totalCost; // Giá vốn linh kiện sửa chữa
     }
-    for (var e in _expenses.where((e) => _isSameDay(e['date'] as int, now))) {
+    for (var e in _expenses.where((e) {
+      final dateVal = e['date'];
+      if (dateVal == null) return false;
+      return _isSameDay(dateVal as int, now);
+    })) {
       final method = e['paymentMethod'] as String? ?? 'TIỀN MẶT';
       final amount = e['amount'] as int? ?? 0;
       final category = (e['category'] as String? ?? '').toUpperCase();
       final description = (e['description'] as String? ?? '').toUpperCase();
       final title = (e['title'] as String? ?? '').toUpperCase();
-      // Loại trừ nhập hàng/purchase/stock/linh kiện khỏi chi phí VÀ dòng tiền
-      // (vì đã được tính trong supplier_imports hoặc repairCost - tránh double counting)
-      // Kiểm tra cả category, description và title để đảm bảo không bỏ sót
+      
+      // LUÔN tính vào dòng tiền (cashOut/bankOut) - đây là tiền thực chi ra
+      if (method == 'TIỀN MẶT') {
+        cashOut += amount;
+      } else {
+        bankOut += amount;
+      }
+      
+      // Chỉ loại trừ nhập hàng/purchase khỏi expenseOut (dùng cho tính profit)
+      // vì chi phí nhập hàng sẽ được tính qua giá vốn khi bán/sửa
       final isImportExpense =
           category.contains('NHẬP HÀNG') ||
           category.contains('NHẬP LINH KIỆN') ||
@@ -2051,12 +2046,6 @@ class _CashClosingViewState extends State<CashClosingView>
           title.contains('NHẬP HÀNG');
       if (!isImportExpense) {
         expenseOut += amount;
-        // Chỉ tính vào dòng tiền cho chi phí thường (không phải nhập hàng)
-        if (method == 'TIỀN MẶT') {
-          cashOut += amount;
-        } else {
-          bankOut += amount;
-        }
       }
     }
     for (var imp in _supplierImports.where(
