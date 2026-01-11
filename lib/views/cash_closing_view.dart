@@ -46,6 +46,10 @@ class _CashClosingViewState extends State<CashClosingView>
   StreamSubscription? _salesSubscription;
   StreamSubscription? _repairsSubscription;
   StreamSubscription? _expensesSubscription;
+  
+  // Debounce để tránh load quá nhiều lần
+  Timer? _debounceTimer;
+  bool _isLoadingFromFirestore = false;
 
   @override
   void initState() {
@@ -57,6 +61,7 @@ class _CashClosingViewState extends State<CashClosingView>
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _closingSubscription?.cancel();
     _debtPaymentsSubscription?.cancel();
     _supplierPaymentsSubscription?.cancel();
@@ -69,6 +74,16 @@ class _CashClosingViewState extends State<CashClosingView>
     noteCtrl.dispose();
     super.dispose();
   }
+  
+  /// Debounced reload - tránh load quá nhiều lần
+  void _scheduleReload() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted && !_isLoadingFromFirestore) {
+        _loadAllDataFromFirestore();
+      }
+    });
+  }
 
   Future<void> _initRealTimeSync() async {
     final shopId = await UserService.getCurrentShopId();
@@ -76,124 +91,147 @@ class _CashClosingViewState extends State<CashClosingView>
     
     final shopRef = FirebaseFirestore.instance.collection('shops').doc(shopId);
     
-    // Listen to cash_closings
-    _closingSubscription = shopRef
-        .collection('cash_closings')
-        .snapshots()
-        .listen((_) {
-          if (mounted) _loadAllData();
-        });
+    // Listen to all relevant collections - khi có thay đổi thì schedule reload
+    _closingSubscription = shopRef.collection('cash_closings').snapshots().listen((_) {
+      _scheduleReload();
+    });
     
-    // Listen to debt_payments (thu/trả nợ) - sync trực tiếp vào local DB
-    _debtPaymentsSubscription = shopRef
-        .collection('debt_payments')
-        .snapshots()
-        .listen((snapshot) async {
-          for (var change in snapshot.docChanges) {
-            final data = change.doc.data();
-            if (data == null) continue;
-            data['firestoreId'] = change.doc.id;
-            data['isSynced'] = 1;
-            if (data['deleted'] == true) {
-              await db.deleteDebtPaymentByFirestoreId(change.doc.id);
-            } else {
-              await db.upsertDebtPayment(data);
-            }
-          }
-          if (mounted) _loadAllData();
-        });
+    _debtPaymentsSubscription = shopRef.collection('debt_payments').snapshots().listen((_) {
+      _scheduleReload();
+    });
     
-    // Listen to supplier_payments (trả nợ NCC) - sync trực tiếp vào local DB
-    _supplierPaymentsSubscription = shopRef
-        .collection('supplier_payments')
-        .snapshots()
-        .listen((snapshot) async {
-          for (var change in snapshot.docChanges) {
-            final data = change.doc.data();
-            if (data == null) continue;
-            data['firestoreId'] = change.doc.id;
-            data['isSynced'] = 1;
-            if (data['deleted'] == true) {
-              await db.deleteSupplierPaymentByFirestoreId(change.doc.id);
-            } else {
-              await db.upsertSupplierPayment(data);
-            }
-          }
-          if (mounted) _loadAllData();
-        });
+    _supplierPaymentsSubscription = shopRef.collection('supplier_payments').snapshots().listen((_) {
+      _scheduleReload();
+    });
     
-    // Listen to sales - sync trực tiếp vào local DB
-    _salesSubscription = shopRef
-        .collection('sales')
-        .snapshots()
-        .listen((snapshot) async {
-          for (var change in snapshot.docChanges) {
-            final data = change.doc.data();
-            if (data == null) continue;
-            data['firestoreId'] = change.doc.id;
-            data['isSynced'] = 1;
-            _convertTimestampFields(data);
-            if (data['deleted'] == true) {
-              await db.deleteSaleByFirestoreId(change.doc.id);
-            } else {
-              await db.upsertSale(SaleOrder.fromMap(data));
-            }
-          }
-          if (mounted) _loadAllData();
-        });
+    _salesSubscription = shopRef.collection('sales').snapshots().listen((_) {
+      _scheduleReload();
+    });
     
-    // Listen to repairs - sync trực tiếp vào local DB
-    _repairsSubscription = shopRef
-        .collection('repairs')
-        .snapshots()
-        .listen((snapshot) async {
-          for (var change in snapshot.docChanges) {
-            final data = change.doc.data();
-            if (data == null) continue;
-            data['firestoreId'] = change.doc.id;
-            data['isSynced'] = 1;
-            _convertTimestampFields(data);
-            if (data['deleted'] == true) {
-              await db.deleteRepairByFirestoreId(change.doc.id);
-            } else {
-              await db.upsertRepair(Repair.fromMap(data));
-            }
-          }
-          if (mounted) _loadAllData();
-        });
+    _repairsSubscription = shopRef.collection('repairs').snapshots().listen((_) {
+      _scheduleReload();
+    });
     
-    // Listen to expenses - sync trực tiếp vào local DB
-    _expensesSubscription = shopRef
-        .collection('expenses')
-        .snapshots()
-        .listen((snapshot) async {
-          for (var change in snapshot.docChanges) {
-            final data = change.doc.data();
-            if (data == null) continue;
-            data['firestoreId'] = change.doc.id;
-            data['isSynced'] = 1;
-            _convertTimestampFields(data);
-            if (data['deleted'] == true) {
-              await db.deleteExpenseByFirestoreId(change.doc.id);
-            } else {
-              await db.upsertExpense(Expense.fromMap(data));
-            }
-          }
-          if (mounted) _loadAllData();
-        });
+    _expensesSubscription = shopRef.collection('expenses').snapshots().listen((_) {
+      _scheduleReload();
+    });
   }
   
-  /// Chuyển đổi Timestamp fields sang milliseconds
-  void _convertTimestampFields(Map<String, dynamic> data) {
-    for (var key in data.keys.toList()) {
-      if (data[key] is Timestamp) {
-        data[key] = (data[key] as Timestamp).millisecondsSinceEpoch;
+  /// Load dữ liệu trực tiếp từ Firestore để đảm bảo đồng bộ giữa các thiết bị
+  Future<void> _loadAllDataFromFirestore() async {
+    if (!mounted || _isLoadingFromFirestore) return;
+    _isLoadingFromFirestore = true;
+    setState(() => _isLoading = true);
+    
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) {
+        setState(() => _isLoading = false);
+        _isLoadingFromFirestore = false;
+        return;
       }
+      
+      final shopRef = FirebaseFirestore.instance.collection('shops').doc(shopId);
+      
+      // Load từ Firestore song song - lấy tất cả và filter locally
+      final results = await Future.wait([
+        shopRef.collection('sales').get(),
+        shopRef.collection('repairs').get(),
+        shopRef.collection('expenses').get(),
+        shopRef.collection('debt_payments').get(),
+        shopRef.collection('supplier_payments').get(),
+      ]);
+      
+      // Parse sales - filter deleted
+      final sales = results[0].docs
+          .where((doc) => doc.data()['deleted'] != true)
+          .map((doc) {
+            final data = doc.data();
+            data['firestoreId'] = doc.id;
+            _convertTimestampFields(data);
+            return SaleOrder.fromMap(data);
+          }).toList();
+      
+      // Parse repairs - filter deleted
+      final repairs = results[1].docs
+          .where((doc) => doc.data()['deleted'] != true)
+          .map((doc) {
+            final data = doc.data();
+            data['firestoreId'] = doc.id;
+            _convertTimestampFields(data);
+            return Repair.fromMap(data);
+          }).toList();
+      
+      // Parse expenses - filter deleted
+      final expenses = results[2].docs
+          .where((doc) => doc.data()['deleted'] != true)
+          .map((doc) {
+            final data = doc.data();
+            data['firestoreId'] = doc.id;
+            _convertTimestampFields(data);
+            return data;
+          }).toList();
+      
+      // Parse debt_payments - filter deleted
+      final debtPayments = results[3].docs
+          .where((doc) => doc.data()['deleted'] != true)
+          .map((doc) {
+            final data = doc.data();
+            data['firestoreId'] = doc.id;
+            _convertTimestampFields(data);
+            return data;
+          }).toList();
+      
+      // Parse supplier_payments - filter deleted
+      final supplierPayments = results[4].docs
+          .where((doc) => doc.data()['deleted'] != true)
+          .map((doc) {
+            final data = doc.data();
+            data['firestoreId'] = doc.id;
+            _convertTimestampFields(data);
+            return data;
+          }).toList();
+      
+      // Load supplier imports từ local (không cần sync realtime)
+      final supplierImports = await db.getAllSupplierImportHistory();
+      
+      // Load closings
+      final yesterday = _selectedDate.subtract(const Duration(days: 1));
+      final yesterdayKey = DateFormat('yyyy-MM-dd').format(yesterday);
+      final todayKey = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      
+      final closingResults = await Future.wait([
+        shopRef.collection('cash_closings').doc(yesterdayKey).get(),
+        shopRef.collection('cash_closings').doc(todayKey).get(),
+      ]);
+      
+      final previousClosing = closingResults[0].exists ? closingResults[0].data() : null;
+      final todayClosing = closingResults[1].exists ? closingResults[1].data() : null;
+
+      if (mounted) {
+        setState(() {
+          _sales = sales;
+          _repairs = repairs;
+          _expenses = expenses.cast<Map<String, dynamic>>();
+          _debtPayments = debtPayments.cast<Map<String, dynamic>>();
+          _supplierImports = supplierImports;
+          _supplierPayments = supplierPayments.cast<Map<String, dynamic>>();
+          _previousDayClosing = previousClosing;
+          _todayClosing = todayClosing;
+          _isLoading = false;
+        });
+      }
+      _isLoadingFromFirestore = false;
+    } catch (e) {
+      debugPrint('Error loading from Firestore: $e');
+      _isLoadingFromFirestore = false;
+      // Fallback to local DB if Firestore fails
+      if (mounted) await _loadAllDataFromLocalDB();
     }
   }
-
-  Future<void> _loadAllData() async {
-    setState(() => _isLoading = true);
+  
+  /// Fallback: Load từ local DB khi offline
+  Future<void> _loadAllDataFromLocalDB() async {
     final sales = await db.getAllSales();
     final repairs = await db.getAllRepairs();
     final expenses = await db.getAllExpenses();
@@ -219,6 +257,20 @@ class _CashClosingViewState extends State<CashClosingView>
         _isLoading = false;
       });
     }
+  }
+  
+  /// Chuyển đổi Timestamp fields sang milliseconds
+  void _convertTimestampFields(Map<String, dynamic> data) {
+    for (var key in data.keys.toList()) {
+      if (data[key] is Timestamp) {
+        data[key] = (data[key] as Timestamp).millisecondsSinceEpoch;
+      }
+    }
+  }
+
+  /// Load tất cả dữ liệu - ưu tiên từ Firestore
+  Future<void> _loadAllData() async {
+    await _loadAllDataFromFirestore();
   }
 
   bool _isSameDay(int timestamp, DateTime target) {
