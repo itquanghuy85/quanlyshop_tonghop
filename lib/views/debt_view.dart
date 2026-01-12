@@ -331,11 +331,12 @@ class _DebtViewState extends State<DebtView>
                   // Transaction thành công → cập nhật local DB
                   await db.updateDebtPaid(debt['id'], payAmount);
                   
-                  // Lưu payment vào local
+                  // Lưu payment vào local (thêm debtType để cash_closing phân biệt được)
                   final paymentData = {
                     'firestoreId': txResult['paymentDocId'] ?? "pay_${now}_${user?.uid}",
                     'debtId': debt['id'],
                     'debtFirestoreId': debtFId,
+                    'debtType': debt['type'] ?? 'CUSTOMER_OWES',
                     'amount': payAmount,
                     'paidAt': now,
                     'paymentMethod': method,
@@ -349,6 +350,7 @@ class _DebtViewState extends State<DebtView>
                     'firestoreId': "pay_${now}_${user?.uid}",
                     'debtId': debt['id'],
                     'debtFirestoreId': debt['firestoreId'],
+                    'debtType': debt['type'] ?? 'CUSTOMER_OWES',
                     'amount': payAmount,
                     'paidAt': now,
                     'paymentMethod': method,

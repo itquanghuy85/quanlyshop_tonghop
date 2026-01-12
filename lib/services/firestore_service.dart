@@ -985,9 +985,13 @@ class FirestoreService {
         paymentDocId = 'pay_${now}_$createdBy';
         final paymentRef = _db.collection('debt_payments').doc(paymentDocId);
         
+        // Lấy debtType từ debt để cash_closing có thể phân biệt thu nợ KH vs trả nợ shop
+        final debtType = debtData['type'] as String? ?? 'CUSTOMER_OWES';
+        
         final paymentData = {
           'firestoreId': paymentDocId,
           'debtFirestoreId': debtFirestoreId,
+          'debtType': debtType,
           'amount': payAmount,
           'paidAt': now,
           'paymentMethod': paymentMethod,
