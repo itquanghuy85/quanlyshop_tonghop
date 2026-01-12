@@ -28,7 +28,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
   final searchCtrl = TextEditingController();
   String _searchQuery = '';
   bool _isAdmin = false;
-  
+
   // Multi-select mode
   bool _isSelectionMode = false;
   final Set<int> _selectedIds = {};
@@ -71,10 +71,18 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
 
   void _applyFilter() {
     _filteredParts = _parts
-        .where((p) => _searchQuery.isEmpty
-            ? true
-            : (p['partName']?.toString().toUpperCase().contains(_searchQuery.toUpperCase()) ?? false) ||
-                (p['compatibleModels']?.toString().toUpperCase().contains(_searchQuery.toUpperCase()) ?? false))
+        .where(
+          (p) => _searchQuery.isEmpty
+              ? true
+              : (p['partName']?.toString().toUpperCase().contains(
+                          _searchQuery.toUpperCase(),
+                        ) ??
+                        false) ||
+                    (p['compatibleModels']?.toString().toUpperCase().contains(
+                          _searchQuery.toUpperCase(),
+                        ) ??
+                        false),
+        )
         .toList();
   }
 
@@ -108,7 +116,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
           nameC.addListener(() => setS(() {}));
           // Check locked day for edit
           if (part != null) {
-            final createdAt = part['createdAt'] as int? ?? DateTime.now().millisecondsSinceEpoch;
+            final createdAt =
+                part['createdAt'] as int? ??
+                DateTime.now().millisecondsSinceEpoch;
             AdjustmentService.canEditDirectly(createdAt).then((can) {
               if (!mounted) return;
               if (isLockedDay != !can) {
@@ -147,17 +157,26 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         decoration: BoxDecoration(
                           color: Colors.orange.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                          border: Border.all(
+                            color: Colors.orange.withOpacity(0.5),
+                          ),
                         ),
                         child: const Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.lock_clock, color: Colors.orange, size: 18),
+                            Icon(
+                              Icons.lock_clock,
+                              color: Colors.orange,
+                              size: 18,
+                            ),
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'Ngày đã chốt quỹ. Sửa sẽ cần lý do điều chỉnh và tạo bút toán.',
-                                style: TextStyle(color: Colors.orange, height: 1.3),
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  height: 1.3,
+                                ),
                               ),
                             ),
                           ],
@@ -169,13 +188,23 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         decoration: BoxDecoration(
                           color: Colors.orange.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                          border: Border.all(
+                            color: Colors.orange.withOpacity(0.3),
+                          ),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.orange,
+                              size: 18,
+                            ),
                             SizedBox(width: 8),
-                            Expanded(child: Text('Chưa có nhà cung cấp, thêm trong trang NCC.')),
+                            Expanded(
+                              child: Text(
+                                'Chưa có nhà cung cấp, thêm trong trang NCC.',
+                              ),
+                            ),
                           ],
                         ),
                       )
@@ -185,15 +214,25 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         decoration: InputDecoration(
                           labelText: "Nhà cung cấp (${_suppliers.length} NCC)",
                           prefixIcon: const Icon(Icons.store),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                         items: [
-                          const DropdownMenuItem<int?>(value: null, child: Text('-- Chọn NCC --')),
-                          ..._suppliers.map((s) => DropdownMenuItem<int?>(
-                                value: s['id'] as int?,
-                                child: Text(s['name']?.toString() ?? 'N/A'),
-                              )),
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('-- Chọn NCC --'),
+                          ),
+                          ..._suppliers.map(
+                            (s) => DropdownMenuItem<int?>(
+                              value: s['id'] as int?,
+                              child: Text(s['name']?.toString() ?? 'N/A'),
+                            ),
+                          ),
                         ],
                         onChanged: (v) => setS(() => selectedSupplierId = v),
                       ),
@@ -220,7 +259,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: qtyC,
-                      decoration: const InputDecoration(labelText: "Số lượng nhập"),
+                      decoration: const InputDecoration(
+                        labelText: "Số lượng nhập",
+                      ),
                       keyboardType: TextInputType.number,
                       validator: (v) {
                         final parsed = int.tryParse((v ?? '').trim()) ?? 0;
@@ -230,26 +271,41 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     ),
                     const SizedBox(height: 12),
                     if (part == null) ...[
-                      const Text('Hình thức thanh toán:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text(
+                        'Hình thức thanh toán:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
-                        children: ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'].map((m) {
+                        children: ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'].map((
+                          m,
+                        ) {
                           final selected = paymentMethod == m;
                           return ChoiceChip(
-                            label: Text(m, style: TextStyle(color: selected ? Colors.white : Colors.black)),
+                            label: Text(
+                              m,
+                              style: TextStyle(
+                                color: selected ? Colors.white : Colors.black,
+                              ),
+                            ),
                             selected: selected,
                             selectedColor: Colors.purple,
                             onSelected: (_) => setS(() => paymentMethod = m),
                           );
                         }).toList(),
                       ),
-                      if (paymentMethod == 'CÔNG NỢ' && selectedSupplierId != null)
+                      if (paymentMethod == 'CÔNG NỢ' &&
+                          selectedSupplierId != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Row(
                             children: [
-                              const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 18),
+                              const Icon(
+                                Icons.warning_amber_rounded,
+                                color: Colors.orange,
+                                size: 18,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -260,12 +316,17 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             ],
                           ),
                         ),
-                      if (paymentMethod == 'CÔNG NỢ' && selectedSupplierId == null)
+                      if (paymentMethod == 'CÔNG NỢ' &&
+                          selectedSupplierId == null)
                         const Padding(
                           padding: EdgeInsets.only(top: 8.0),
                           child: Row(
                             children: [
-                              Icon(Icons.error_outline, color: Colors.red, size: 18),
+                              Icon(
+                                Icons.error_outline,
+                                color: Colors.red,
+                                size: 18,
+                              ),
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -290,13 +351,17 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                 onPressed: () async {
                   // Finalize currency fields trước khi xử lý
                   CurrencyTextField.finalizeAll();
-                  
+
                   if (!(formKey.currentState?.validate() ?? false)) return;
                   try {
                     final now = DateTime.now().millisecondsSinceEpoch;
                     final partName = nameC.text.toUpperCase();
-                    final cost = CurrencyTextField.parseValueWithMultiply(costC.text);
-                    final price = CurrencyTextField.parseValueWithMultiply(priceC.text);
+                    final cost = CurrencyTextField.parseValueWithMultiply(
+                      costC.text,
+                    );
+                    final price = CurrencyTextField.parseValueWithMultiply(
+                      priceC.text,
+                    );
                     final qty = int.tryParse(qtyC.text) ?? 0;
                     if (qty <= 0) return;
 
@@ -313,12 +378,12 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
 
                     if (part == null) {
                       final shopId = await UserService.getCurrentShopId();
-                      
+
                       // Generate firestoreId for sync
                       final firestoreId = 'part_${now}_${partName.hashCode}';
                       data['firestoreId'] = firestoreId;
                       data['shopId'] = shopId;
-                      
+
                       final insertedId = await db.insertPart(data);
 
                       // Queue sync to cloud via SyncOrchestrator
@@ -335,7 +400,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         action: 'PART_IMPORT',
                         entityType: 'repair_part',
                         entityId: insertedId.toString(),
-                        summary: 'Nhập linh kiện: $partName x$qty - ${NumberFormat('#,###').format(cost * qty)}đ ($paymentMethod)',
+                        summary:
+                            'Nhập linh kiện: $partName x$qty - ${NumberFormat('#,###').format(cost * qty)}đ ($paymentMethod)',
                         payload: {
                           'partName': partName,
                           'quantity': qty,
@@ -349,7 +415,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       // Ghi lịch sử nhập hàng từ NCC (để hiển thị trong trang chi tiết NCC)
                       if (selectedSupplierId != null) {
                         final user = FirebaseAuth.instance.currentUser;
-                        final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
+                        final userName =
+                            user?.email?.split('@').first.toUpperCase() ?? "NV";
                         final importHistory = {
                           'supplierId': selectedSupplierId,
                           'supplierName': supplierName,
@@ -367,10 +434,25 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           'shopId': shopId,
                           'isSynced': 0,
                         };
-                        await db.insertSupplierImportHistory(importHistory);
+                        final importHistoryId = await db
+                            .insertSupplierImportHistory(importHistory);
+
+                        // FIX BUG-001: Enqueue để sync lên Firestore
+                        if (importHistoryId > 0) {
+                          await SyncOrchestrator().enqueueSupplierImportHistory(
+                            importHistoryId,
+                            firestoreId:
+                                importHistory['firestoreId'] as String?,
+                            operation: SyncOperation.create,
+                          );
+                        }
 
                         // Cập nhật thống kê nhà cung cấp
-                        await db.updateSupplierStats(selectedSupplierId!, cost * qty, qty);
+                        await db.updateSupplierStats(
+                          selectedSupplierId!,
+                          cost * qty,
+                          qty,
+                        );
                       }
 
                       if (paymentMethod == 'CÔNG NỢ') {
@@ -378,7 +460,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         if (selectedSupplierId == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('⚠️ CÔNG NỢ phải chọn Nhà cung cấp!'),
+                              content: Text(
+                                '⚠️ CÔNG NỢ phải chọn Nhà cung cấp!',
+                              ),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -388,7 +472,12 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           'firestoreId': 'debt_part_${now}_$insertedId',
                           'type': 'SHOP_OWES',
                           'personName': supplierName,
-                          'phone': _suppliers.firstWhere((s) => s['id'] == selectedSupplierId, orElse: () => {})['phone'] ?? '',
+                          'phone':
+                              _suppliers.firstWhere(
+                                (s) => s['id'] == selectedSupplierId,
+                                orElse: () => {},
+                              )['phone'] ??
+                              '',
                           'totalAmount': cost * qty,
                           'paidAmount': 0,
                           'note': 'Nhập linh kiện: $partName x$qty',
@@ -403,7 +492,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         await db.insertExpense({
                           'firestoreId': 'exp_part_${now}_$insertedId',
                           'category': 'NHẬP LINH KIỆN',
-                          'description': 'Nhập linh kiện: $partName x$qty${selectedSupplierId != null ? " từ $supplierName" : ""}',
+                          'description':
+                              'Nhập linh kiện: $partName x$qty${selectedSupplierId != null ? " từ $supplierName" : ""}',
                           'amount': cost * qty,
                           'date': now,
                           'paymentMethod': paymentMethod,
@@ -416,10 +506,12 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       }
                     } else {
                       final originalDate = part['createdAt'] as int? ?? now;
-                      final canEditDirectly = await AdjustmentService.canEditDirectly(originalDate);
+                      final canEditDirectly =
+                          await AdjustmentService.canEditDirectly(originalDate);
                       final oldCost = part['cost'] as int? ?? 0;
                       final oldQty = part['quantity'] as int? ?? 0;
-                      final oldPaymentMethod = part['paymentMethod'] as String? ?? 'TIỀN MẶT';
+                      final oldPaymentMethod =
+                          part['paymentMethod'] as String? ?? 'TIỀN MẶT';
 
                       if (canEditDirectly) {
                         data['isSynced'] = 0;
@@ -429,19 +521,24 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           where: 'id = ?',
                           whereArgs: [part['id']],
                         );
-                        
+
                         // Queue sync update to cloud via SyncOrchestrator
                         final partFirestoreId = part['firestoreId'] as String?;
-                        if (partFirestoreId != null && partFirestoreId.isNotEmpty) {
+                        if (partFirestoreId != null &&
+                            partFirestoreId.isNotEmpty) {
                           await SyncOrchestrator().enqueue(
                             entityType: SyncEntityType.repairPart,
                             entityId: part['id'] as int,
                             firestoreId: partFirestoreId,
                             operation: SyncOperation.update,
-                            data: {...data, 'id': part['id'], 'firestoreId': partFirestoreId},
+                            data: {
+                              ...data,
+                              'id': part['id'],
+                              'firestoreId': partFirestoreId,
+                            },
                           );
                         }
-                        
+
                         await AuditService.logAction(
                           action: 'PART_UPDATE',
                           entityType: 'repair_part',
@@ -455,7 +552,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           },
                         );
                       } else {
-                        final reason = await _showAdjustmentReasonDialog(context);
+                        final reason = await _showAdjustmentReasonDialog(
+                          context,
+                        );
                         if (reason == null || reason.isEmpty) return;
 
                         if (cost != oldCost) {
@@ -476,7 +575,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(result.message),
-                                backgroundColor: result.success ? Colors.green : Colors.red,
+                                backgroundColor: result.success
+                                    ? Colors.green
+                                    : Colors.red,
                               ),
                             );
                           }
@@ -500,10 +601,11 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           where: 'id = ?',
                           whereArgs: [part['id']],
                         );
-                        
+
                         // Queue sync update to cloud via SyncOrchestrator
                         final partFirestoreId = part['firestoreId'] as String?;
-                        if (partFirestoreId != null && partFirestoreId.isNotEmpty) {
+                        if (partFirestoreId != null &&
+                            partFirestoreId.isNotEmpty) {
                           await SyncOrchestrator().enqueue(
                             entityType: SyncEntityType.repairPart,
                             entityId: part['id'] as int,
@@ -593,7 +695,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc muốn xóa $count linh kiện đã chọn?\n\nHành động này không thể hoàn tác.'),
+        content: Text(
+          'Bạn có chắc muốn xóa $count linh kiện đã chọn?\n\nHành động này không thể hoàn tác.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -613,7 +717,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
     try {
       final database = await db.database;
       int deletedCount = 0;
-      
+
       for (var id in _selectedIds) {
         // Soft delete - mark as deleted
         await database.update(
@@ -627,7 +731,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
           whereArgs: [id],
         );
         deletedCount++;
-        
+
         // Log audit
         final part = _parts.firstWhere((p) => p['id'] == id, orElse: () => {});
         if (part.isNotEmpty) {
@@ -641,7 +745,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
       }
 
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Đã xóa $deletedCount linh kiện'),
@@ -653,25 +757,23 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
         _isSelectionMode = false;
         _selectedIds.clear();
       });
-      
+
       await _refreshParts();
       EventBus().emit('repair_parts_changed');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lỗi khi xóa: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Lỗi khi xóa: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool allSelected = _filteredParts.isNotEmpty && 
+    final bool allSelected =
+        _filteredParts.isNotEmpty &&
         _selectedIds.length == _filteredParts.length;
-    
+
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(
@@ -684,7 +786,10 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
         title: _isSelectionMode
             ? Text(
                 '${_selectedIds.length} đã chọn',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               )
             : const Text(
                 "KHO LINH KIỆN SỬA CHỮA",
@@ -708,14 +813,14 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                 ),
               ]
             : _isAdmin
-                ? [
-                    IconButton(
-                      icon: const Icon(Icons.checklist),
-                      tooltip: 'Chọn nhiều',
-                      onPressed: _toggleSelectionMode,
-                    ),
-                  ]
-                : null,
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.checklist),
+                  tooltip: 'Chọn nhiều',
+                  onPressed: _toggleSelectionMode,
+                ),
+              ]
+            : null,
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: _primaryColor))
@@ -734,26 +839,35 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
                       hintText: 'Tìm linh kiện theo tên / dòng máy',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                     ),
                   ),
                 ),
                 Expanded(
                   child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 8,
+                    ),
                     itemCount: _filteredParts.length,
                     itemBuilder: (ctx, i) {
                       final p = _filteredParts[i];
                       final int? partId = p['id'] as int?;
-                      final bool isSelected = partId != null && _selectedIds.contains(partId);
+                      final bool isSelected =
+                          partId != null && _selectedIds.contains(partId);
                       final bool isLow = (p['quantity'] as int? ?? 0) < 3;
-                      
+
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
-                          side: isSelected 
+                          side: isSelected
                               ? BorderSide(color: Colors.red.shade700, width: 2)
                               : BorderSide.none,
                         ),
@@ -763,7 +877,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                               ? Checkbox(
                                   value: isSelected,
                                   activeColor: Colors.red.shade700,
-                                  onChanged: partId != null 
+                                  onChanged: partId != null
                                       ? (_) => _toggleSelection(partId)
                                       : null,
                                 )
@@ -796,9 +910,14 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                                   ),
                                 ),
                           onTap: _isSelectionMode
-                              ? (partId != null ? () => _toggleSelection(partId) : null)
-                              : (_isAdmin ? () => _showAddPartDialog(part: p) : null),
-                          onLongPress: !_isSelectionMode && _isAdmin && partId != null
+                              ? (partId != null
+                                    ? () => _toggleSelection(partId)
+                                    : null)
+                              : (_isAdmin
+                                    ? () => _showAddPartDialog(part: p)
+                                    : null),
+                          onLongPress:
+                              !_isSelectionMode && _isAdmin && partId != null
                               ? () {
                                   setState(() {
                                     _isSelectionMode = true;
@@ -816,13 +935,13 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
       floatingActionButton: _isSelectionMode
           ? null
           : (_isAdmin
-              ? FloatingActionButton.extended(
-                  onPressed: () => _showAddPartDialog(),
-                  label: const Text("NHẬP LINH KIỆN"),
-                  icon: const Icon(Icons.add),
-                  backgroundColor: _primaryColor,
-                )
-              : null),
+                ? FloatingActionButton.extended(
+                    onPressed: () => _showAddPartDialog(),
+                    label: const Text("NHẬP LINH KIỆN"),
+                    icon: const Icon(Icons.add),
+                    backgroundColor: _primaryColor,
+                  )
+                : null),
     );
   }
 
@@ -839,7 +958,10 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
           decoration: const InputDecoration(hintText: 'Nhập lý do điều chỉnh'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('HỦY')),
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx),
+            child: const Text('HỦY'),
+          ),
           ElevatedButton(
             onPressed: () {
               final val = reasonC.text.trim();

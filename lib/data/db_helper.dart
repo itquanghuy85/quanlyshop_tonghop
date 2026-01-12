@@ -1033,9 +1033,7 @@ class DBHelper {
           // v54: Thêm cột summary vào bảng audit_logs để hỗ trợ sync từ Firestore
           debugPrint('DB upgrade v54: Adding summary to audit_logs...');
           try {
-            await db.execute(
-              'ALTER TABLE audit_logs ADD COLUMN summary TEXT',
-            );
+            await db.execute('ALTER TABLE audit_logs ADD COLUMN summary TEXT');
             debugPrint('v54: added summary to audit_logs');
           } catch (e) {
             debugPrint('v54 error (audit_logs summary): $e');
@@ -1045,7 +1043,13 @@ class DBHelper {
         if (oldV < 55) {
           // v55: Thêm các cột còn thiếu vào bảng audit_logs để hỗ trợ sync từ Firestore
           debugPrint('DB upgrade v55: Adding missing columns to audit_logs...');
-          final columnsToAdd = ['role', 'email', 'payload', 'entityType', 'entityId'];
+          final columnsToAdd = [
+            'role',
+            'email',
+            'payload',
+            'entityType',
+            'entityId',
+          ];
           for (final col in columnsToAdd) {
             try {
               await db.execute('ALTER TABLE audit_logs ADD COLUMN $col TEXT');
@@ -1060,7 +1064,9 @@ class DBHelper {
           // v56: Thêm cột debtType vào bảng debt_payments để phân biệt thu nợ KH vs trả nợ shop
           debugPrint('DB upgrade v56: Adding debtType to debt_payments...');
           try {
-            await db.execute('ALTER TABLE debt_payments ADD COLUMN debtType TEXT');
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN debtType TEXT',
+            );
             debugPrint('v56: added debtType to debt_payments');
           } catch (e) {
             debugPrint('v56 error (debt_payments debtType): $e');
@@ -2194,11 +2200,11 @@ class DBHelper {
     if (dateKey == null) return;
 
     final db = await database;
-    
+
     // Lấy danh sách các cột hợp lệ trong bảng cash_closings
     final cols = await db.rawQuery('PRAGMA table_info(cash_closings)');
     final validColumns = cols.map((c) => c['name'] as String).toSet();
-    
+
     // Lọc chỉ giữ lại các trường có trong schema
     final filteredData = <String, dynamic>{};
     data.forEach((key, value) {
@@ -2206,10 +2212,12 @@ class DBHelper {
         filteredData[key] = value;
       }
     });
-    
+
     debugPrint('upsertCashClosing: valid columns=$validColumns');
-    debugPrint('upsertCashClosing: filtered data keys=${filteredData.keys.toList()}');
-    
+    debugPrint(
+      'upsertCashClosing: filtered data keys=${filteredData.keys.toList()}',
+    );
+
     final existing = await db.query(
       'cash_closings',
       where: 'dateKey = ?',
@@ -2944,6 +2952,63 @@ class DBHelper {
     await _upsert('supplier_product_prices', price, firestoreId);
   }
 
+  /// FIX BUG-001: Upsert supplier_product_prices cho real-time sync
+  Future<void> upsertSupplierProductPrice(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'];
+    // Loại bỏ id vì SQLite auto-generate
+    final cleanData = Map<String, dynamic>.from(data);
+    cleanData.remove('id');
+
+    // Convert bool to int for SQLite
+    if (cleanData['isSynced'] is bool) {
+      cleanData['isSynced'] = (cleanData['isSynced'] as bool) ? 1 : 0;
+    }
+    if (cleanData['isActive'] is bool) {
+      cleanData['isActive'] = (cleanData['isActive'] as bool) ? 1 : 0;
+    }
+
+    if (firestoreId == null) {
+      await db.insert(
+        'supplier_product_prices',
+        cleanData,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      return;
+    }
+    final existing = await db.query(
+      'supplier_product_prices',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+    if (existing.isEmpty) {
+      await db.insert(
+        'supplier_product_prices',
+        cleanData,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } else {
+      await db.update(
+        'supplier_product_prices',
+        cleanData,
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+    }
+  }
+
+  /// FIX BUG-001: Delete supplier_product_prices bằng firestoreId (cho soft delete sync)
+  Future<int> deleteSupplierProductPriceByFirestoreId(
+    String firestoreId,
+  ) async {
+    final db = await database;
+    return await db.delete(
+      'supplier_product_prices',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
+
   Future<int> updateSupplierProductPrice(
     int id,
     Map<String, dynamic> price,
@@ -3097,6 +3162,63 @@ class DBHelper {
   Future<List<Map<String, dynamic>>> getUnsyncedSupplierImportHistory() async {
     final db = await database;
     return await db.query('supplier_import_history', where: 'isSynced = 0');
+  }
+
+  /// FIX BUG-001: Upsert supplier_import_history cho real-time sync
+  Future<void> upsertSupplierImportHistory(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'];
+    // Loại bỏ id vì SQLite auto-generate
+    final cleanData = Map<String, dynamic>.from(data);
+    cleanData.remove('id');
+
+    // Convert bool to int for SQLite
+    if (cleanData['isSynced'] is bool) {
+      cleanData['isSynced'] = (cleanData['isSynced'] as bool) ? 1 : 0;
+    }
+    if (cleanData['deleted'] is bool) {
+      cleanData['deleted'] = (cleanData['deleted'] as bool) ? 1 : 0;
+    }
+
+    if (firestoreId == null) {
+      await db.insert(
+        'supplier_import_history',
+        cleanData,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      return;
+    }
+    final existing = await db.query(
+      'supplier_import_history',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+    if (existing.isEmpty) {
+      await db.insert(
+        'supplier_import_history',
+        cleanData,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } else {
+      await db.update(
+        'supplier_import_history',
+        cleanData,
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+    }
+  }
+
+  /// FIX BUG-001: Delete supplier_import_history bằng firestoreId (cho soft delete sync)
+  Future<int> deleteSupplierImportHistoryByFirestoreId(
+    String firestoreId,
+  ) async {
+    final db = await database;
+    return await db.delete(
+      'supplier_import_history',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
   }
 
   Future<int> markSupplierImportHistorySynced(String firestoreId) async {

@@ -35,9 +35,20 @@ class SyncService {
   /// Để lưu vào SQLite (không hỗ trợ Firestore Timestamp)
   static void _convertTimestampFields(Map<String, dynamic> data) {
     final timestampFields = [
-      'createdAt', 'updatedAt', 'checkInAt', 'checkOutAt', 'approvedAt',
-      'startedAt', 'finishedAt', 'deliveredAt', 'lastCaredAt', 'soldAt',
-      'paidAt', 'lastVisitAt', 'settlementPlannedAt', 'settlementReceivedAt',
+      'createdAt',
+      'updatedAt',
+      'checkInAt',
+      'checkOutAt',
+      'approvedAt',
+      'startedAt',
+      'finishedAt',
+      'deliveredAt',
+      'lastCaredAt',
+      'soldAt',
+      'paidAt',
+      'lastVisitAt',
+      'settlementPlannedAt',
+      'settlementReceivedAt',
     ];
     for (final field in timestampFields) {
       if (data[field] is Timestamp) {
@@ -55,15 +66,15 @@ class SyncService {
   }) async {
     final db = DBHelper();
     final cloudUpdatedAt = _getTimestamp(cloudData['updatedAt']);
-    
+
     // Nếu cloud không có updatedAt, dùng createdAt
-    final cloudTime = cloudUpdatedAt > 0 
-        ? cloudUpdatedAt 
+    final cloudTime = cloudUpdatedAt > 0
+        ? cloudUpdatedAt
         : _getTimestamp(cloudData['createdAt']);
-    
+
     int localUpdatedAt = 0;
     bool localIsSynced = true;
-    
+
     try {
       switch (collection) {
         case 'repairs':
@@ -100,7 +111,8 @@ class SyncService {
         case 'debts':
           final local = await db.getDebtByFirestoreId(firestoreId);
           if (local != null) {
-            localUpdatedAt = local['updatedAt'] as int? ?? local['createdAt'] as int? ?? 0;
+            localUpdatedAt =
+                local['updatedAt'] as int? ?? local['createdAt'] as int? ?? 0;
             localIsSynced = (local['isSynced'] as int?) == 1;
           }
           break;
@@ -112,25 +124,33 @@ class SyncService {
       debugPrint('⚠️ Conflict check error for $collection/$firestoreId: $e');
       return true; // Nếu lỗi, accept cloud data
     }
-    
+
     // Nếu local chưa tồn tại → accept cloud
     if (localUpdatedAt == 0) {
-      debugPrint('✅ SYNC: $collection/$firestoreId - Local không tồn tại, accept cloud');
+      debugPrint(
+        '✅ SYNC: $collection/$firestoreId - Local không tồn tại, accept cloud',
+      );
       return true;
     }
-    
+
     // Nếu local đã sync (không có thay đổi pending) → accept cloud
     if (localIsSynced) {
-      debugPrint('✅ SYNC: $collection/$firestoreId - Local đã sync, accept cloud');
+      debugPrint(
+        '✅ SYNC: $collection/$firestoreId - Local đã sync, accept cloud',
+      );
       return true;
     }
-    
+
     // Local có thay đổi chưa sync → so sánh timestamp
     if (cloudTime >= localUpdatedAt) {
-      debugPrint('✅ SYNC: $collection/$firestoreId - Cloud mới hơn (cloud: $cloudTime >= local: $localUpdatedAt), accept cloud');
+      debugPrint(
+        '✅ SYNC: $collection/$firestoreId - Cloud mới hơn (cloud: $cloudTime >= local: $localUpdatedAt), accept cloud',
+      );
       return true;
     } else {
-      debugPrint('🔒 SYNC: $collection/$firestoreId - Local mới hơn (local: $localUpdatedAt > cloud: $cloudTime), SKIP cloud, enqueue local');
+      debugPrint(
+        '🔒 SYNC: $collection/$firestoreId - Local mới hơn (local: $localUpdatedAt > cloud: $cloudTime), SKIP cloud, enqueue local',
+      );
       // Enqueue local data để push lên cloud
       await _enqueueLocalForSync(collection, firestoreId);
       return false;
@@ -138,10 +158,13 @@ class SyncService {
   }
 
   /// Helper: Enqueue local data để push lên cloud khi local mới hơn
-  static Future<void> _enqueueLocalForSync(String collection, String firestoreId) async {
+  static Future<void> _enqueueLocalForSync(
+    String collection,
+    String firestoreId,
+  ) async {
     final db = DBHelper();
     final orchestrator = SyncOrchestrator();
-    
+
     try {
       switch (collection) {
         case 'repairs':
@@ -238,26 +261,36 @@ class SyncService {
     if (!isSuperAdmin && shopId != null) {
       try {
         // Lấy claims từ token để kiểm tra
-        final claims = await ClaimsService().getClaimsFromToken(forceRefresh: true);
+        final claims = await ClaimsService().getClaimsFromToken(
+          forceRefresh: true,
+        );
         final tokenShopId = claims?['shopId'];
-        
-        debugPrint("🔑 Token claims: shopId=$tokenShopId, role=${claims?['role']}");
-        
+
+        debugPrint(
+          "🔑 Token claims: shopId=$tokenShopId, role=${claims?['role']}",
+        );
+
         // Nếu shopId trong token không khớp với shopId từ Firestore, refresh claims
         if (tokenShopId != shopId) {
-          debugPrint("⚠️ Token shopId ($tokenShopId) != Firestore shopId ($shopId), refreshing claims...");
-          
+          debugPrint(
+            "⚠️ Token shopId ($tokenShopId) != Firestore shopId ($shopId), refreshing claims...",
+          );
+
           // Gọi Cloud Function để refresh claims
           final result = await ClaimsService().refreshMyClaims();
           debugPrint("🔄 refreshMyClaims result: $result");
-          
+
           // Chờ và refresh token lại
           await Future.delayed(const Duration(seconds: 1));
           await user.getIdToken(true);
-          
+
           // Kiểm tra lại claims sau khi refresh
-          final newClaims = await ClaimsService().getClaimsFromToken(forceRefresh: true);
-          debugPrint("✅ New token claims after refresh: shopId=${newClaims?['shopId']}, role=${newClaims?['role']}");
+          final newClaims = await ClaimsService().getClaimsFromToken(
+            forceRefresh: true,
+          );
+          debugPrint(
+            "✅ New token claims after refresh: shopId=${newClaims?['shopId']}, role=${newClaims?['role']}",
+          );
         }
       } catch (e) {
         debugPrint("⚠️ Error checking/refreshing claims: $e");
@@ -296,7 +329,7 @@ class SyncService {
               firestoreId: docId,
               cloudData: data,
             );
-            
+
             if (shouldAccept) {
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
@@ -339,7 +372,7 @@ class SyncService {
               firestoreId: docId,
               cloudData: data,
             );
-            
+
             if (shouldAccept) {
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
@@ -372,7 +405,7 @@ class SyncService {
               firestoreId: docId,
               cloudData: data,
             );
-            
+
             if (shouldAccept) {
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
@@ -402,7 +435,7 @@ class SyncService {
               firestoreId: docId,
               cloudData: data,
             );
-            
+
             if (shouldAccept) {
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
@@ -432,7 +465,7 @@ class SyncService {
               firestoreId: docId,
               cloudData: data,
             );
-            
+
             if (shouldAccept) {
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
@@ -472,35 +505,36 @@ class SyncService {
     // 7. Đồng bộ SHOPS (subscribe trực tiếp vào document, không query by shopId)
     // Collection 'shops' sử dụng document ID = shopId, không có field 'shopId'
     if (shopId != null) {
-      final shopSub = _db.collection('shops').doc(shopId).snapshots().listen(
-        (snapshot) async {
-          if (!snapshot.exists) return;
-          final data = snapshot.data();
-          if (data == null) return;
-          
-          try {
-            debugPrint("📡 Shop data changed for shopId: $shopId");
-            
-            // Cập nhật SharedPreferences để các màn hình khác có thể đọc
-            final prefs = await SharedPreferences.getInstance();
-            final shopName = data['name']?.toString() ?? '';
-            final shopAddress = data['address']?.toString() ?? '';
-            final shopPhone = data['phone']?.toString() ?? '';
-            
-            await prefs.setString('shop_name', shopName);
-            await prefs.setString('shop_address', shopAddress);
-            await prefs.setString('shop_phone', shopPhone);
-            
-            debugPrint("✅ Synced shop info to SharedPreferences: $shopName, $shopAddress, $shopPhone");
-            
-            // Trigger UI update
-            onDataChanged();
-          } catch (e) {
-            debugPrint("Lỗi sync shop $shopId: $e");
-          }
-        },
-        onError: (e) => debugPrint("Sync error in shops/$shopId: $e"),
-      );
+      final shopSub = _db.collection('shops').doc(shopId).snapshots().listen((
+        snapshot,
+      ) async {
+        if (!snapshot.exists) return;
+        final data = snapshot.data();
+        if (data == null) return;
+
+        try {
+          debugPrint("📡 Shop data changed for shopId: $shopId");
+
+          // Cập nhật SharedPreferences để các màn hình khác có thể đọc
+          final prefs = await SharedPreferences.getInstance();
+          final shopName = data['name']?.toString() ?? '';
+          final shopAddress = data['address']?.toString() ?? '';
+          final shopPhone = data['phone']?.toString() ?? '';
+
+          await prefs.setString('shop_name', shopName);
+          await prefs.setString('shop_address', shopAddress);
+          await prefs.setString('shop_phone', shopPhone);
+
+          debugPrint(
+            "✅ Synced shop info to SharedPreferences: $shopName, $shopAddress, $shopPhone",
+          );
+
+          // Trigger UI update
+          onDataChanged();
+        } catch (e) {
+          debugPrint("Lỗi sync shop $shopId: $e");
+        }
+      }, onError: (e) => debugPrint("Sync error in shops/$shopId: $e"));
       _subscriptions.add(shopSub);
     }
 
@@ -519,19 +553,24 @@ class SyncService {
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
               // Chuyển đổi Timestamp sang milliseconds cho SQLite
               if (data['checkInAt'] is Timestamp) {
-                data['checkInAt'] = (data['checkInAt'] as Timestamp).millisecondsSinceEpoch;
+                data['checkInAt'] =
+                    (data['checkInAt'] as Timestamp).millisecondsSinceEpoch;
               }
               if (data['checkOutAt'] is Timestamp) {
-                data['checkOutAt'] = (data['checkOutAt'] as Timestamp).millisecondsSinceEpoch;
+                data['checkOutAt'] =
+                    (data['checkOutAt'] as Timestamp).millisecondsSinceEpoch;
               }
               if (data['createdAt'] is Timestamp) {
-                data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
+                data['createdAt'] =
+                    (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
               }
               if (data['updatedAt'] is Timestamp) {
-                data['updatedAt'] = (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
+                data['updatedAt'] =
+                    (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
               }
               if (data['approvedAt'] is Timestamp) {
-                data['approvedAt'] = (data['approvedAt'] as Timestamp).millisecondsSinceEpoch;
+                data['approvedAt'] =
+                    (data['approvedAt'] as Timestamp).millisecondsSinceEpoch;
               }
               await db.upsertAttendance(Attendance.fromMap(data));
             }
@@ -710,14 +749,20 @@ class SyncService {
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
               // Chuyển đổi Timestamp sang milliseconds cho SQLite
               if (data['createdAt'] is Timestamp) {
-                data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
+                data['createdAt'] =
+                    (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
               }
               // Map userName từ cloud
-              data['userName'] = data['userName'] ?? data['email']?.toString().split('@').first.toUpperCase() ?? 'SYSTEM';
+              data['userName'] =
+                  data['userName'] ??
+                  data['email']?.toString().split('@').first.toUpperCase() ??
+                  'SYSTEM';
               // Map description từ summary
-              data['description'] = data['summary'] ?? data['description'] ?? '';
+              data['description'] =
+                  data['summary'] ?? data['description'] ?? '';
               // Map targetType và targetId từ entityType và entityId
-              data['targetType'] = data['targetType'] ?? data['entityType'] ?? '';
+              data['targetType'] =
+                  data['targetType'] ?? data['entityType'] ?? '';
               data['targetId'] = data['targetId'] ?? data['entityId'] ?? '';
               await db.upsertAuditLog(data);
             }
@@ -746,10 +791,12 @@ class SyncService {
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
               // Chuyển đổi Timestamp sang milliseconds cho SQLite
               if (data['createdAt'] is Timestamp) {
-                data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
+                data['createdAt'] =
+                    (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
               }
               if (data['updatedAt'] is Timestamp) {
-                data['updatedAt'] = (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
+                data['updatedAt'] =
+                    (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
               }
               await db.upsertRepairPart(data);
             }
@@ -761,6 +808,59 @@ class SyncService {
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo repair_parts sync: $e");
+    }
+
+    // 17. Đồng bộ SUPPLIER IMPORT HISTORY (Lịch sử nhập hàng)
+    // FIX BUG-001: Thêm real-time sync cho supplier_import_history
+    try {
+      _subscribeToCollection(
+        collection: 'supplier_import_history',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteSupplierImportHistoryByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertSupplierImportHistory(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync supplier_import_history $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo supplier_import_history sync: $e");
+    }
+
+    // 18. Đồng bộ SUPPLIER PRODUCT PRICES (Giá NCC)
+    try {
+      _subscribeToCollection(
+        collection: 'supplier_product_prices',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteSupplierProductPriceByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertSupplierProductPrice(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync supplier_product_price $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo supplier_product_prices sync: $e");
     }
 
     debugPrint(
@@ -856,7 +956,9 @@ class SyncService {
           await db.deleteRepairPartByFirestoreId(firestoreId);
           break;
       }
-      debugPrint("  -> Deleted local $collection record: $firestoreId (soft-deleted on cloud)");
+      debugPrint(
+        "  -> Deleted local $collection record: $firestoreId (soft-deleted on cloud)",
+      );
     } catch (e) {
       debugPrint("  -> Error deleting local $collection $firestoreId: $e");
     }
@@ -1548,7 +1650,7 @@ class SyncService {
               data = EncryptionService.decryptMap(data);
               data['firestoreId'] = doc.id;
               data['isSynced'] = 1; // QUAN TRỌNG: Đánh dấu đã sync từ cloud
-              
+
               // Chuyển đổi tất cả Timestamp fields sang milliseconds cho SQLite
               _convertTimestampFields(data);
 

@@ -523,7 +523,18 @@ class _StockInViewState extends State<StockInView> {
             'shopId': shopId,
             'isSynced': 0,
           };
-          await db.insertSupplierImportHistory(importHistory);
+          final importHistoryId = await db.insertSupplierImportHistory(
+            importHistory,
+          );
+
+          // FIX BUG-001: Enqueue để sync lên Firestore
+          if (importHistoryId > 0) {
+            await SyncOrchestrator().enqueueSupplierImportHistory(
+              importHistoryId,
+              firestoreId: importHistory['firestoreId'] as String?,
+              operation: SyncOperation.create,
+            );
+          }
 
           // Cập nhật giá nhà cung cấp
           await db.deactivateSupplierProductPrice(

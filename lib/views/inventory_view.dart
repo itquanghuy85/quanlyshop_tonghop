@@ -768,7 +768,11 @@ class _InventoryViewState extends State<InventoryView>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.inventory_2_outlined, size: 80, color: AppColors.grey400),
+          const Icon(
+            Icons.inventory_2_outlined,
+            size: 80,
+            color: AppColors.grey400,
+          ),
           const SizedBox(height: 10),
           Text(
             "KHO HÀNG ĐANG TRỐNG",
@@ -2298,7 +2302,18 @@ class _InventoryViewState extends State<InventoryView>
                     'shopId': shopId,
                     'isSynced': 0,
                   };
-                  await db.insertSupplierImportHistory(importHistory);
+                  final importHistoryId = await db.insertSupplierImportHistory(
+                    importHistory,
+                  );
+
+                  // FIX BUG-001: Enqueue để sync lên Firestore
+                  if (importHistoryId > 0) {
+                    await SyncOrchestrator().enqueueSupplierImportHistory(
+                      importHistoryId,
+                      firestoreId: importHistory['firestoreId'] as String?,
+                      operation: SyncOperation.create,
+                    );
+                  }
 
                   // Cập nhật thống kê nhà cung cấp
                   await db.updateSupplierStats(

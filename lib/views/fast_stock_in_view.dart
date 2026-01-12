@@ -752,7 +752,18 @@ class _FastStockInViewState extends State<FastStockInView> {
           'shopId': shopId,
           'isSynced': 0,
         };
-        await db.insertSupplierImportHistory(importHistory);
+        final importHistoryId = await db.insertSupplierImportHistory(
+          importHistory,
+        );
+
+        // FIX BUG-001: Enqueue để sync lên Firestore
+        if (importHistoryId > 0) {
+          await SyncOrchestrator().enqueueSupplierImportHistory(
+            importHistoryId,
+            firestoreId: importHistory['firestoreId'] as String?,
+            operation: SyncOperation.create,
+          );
+        }
 
         // Cập nhật giá nhà cung cấp
         await db.deactivateSupplierProductPrice(
@@ -1355,10 +1366,7 @@ class _FastStockInViewState extends State<FastStockInView> {
 
                   const Text(
                     'IMEI/Serial *',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
                   ),
                   Row(
                     children: [
@@ -1404,10 +1412,7 @@ class _FastStockInViewState extends State<FastStockInView> {
 
                   const Text(
                     'Số lượng',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
                   ),
                   TextField(
                     controller: quantityCtrl,

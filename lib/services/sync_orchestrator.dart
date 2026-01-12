@@ -27,14 +27,11 @@ enum SyncEntityType {
   cashClosing,
   adjustmentEntry,
   purchaseOrder,
+  supplierImportHistory, // FIX BUG-001: Thêm entity type cho supplier import history
 }
 
 /// Enum định nghĩa operation
-enum SyncOperation {
-  create,
-  update,
-  delete,
-}
+enum SyncOperation { create, update, delete }
 
 /// Model cho sync queue item
 class SyncQueueItem {
@@ -133,38 +130,40 @@ class SyncOrchestrator {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final DBHelper _db = DBHelper();
-  
+
   // Stream controller để notify UI về pending count
   final _pendingCountController = StreamController<int>.broadcast();
   Stream<int> get pendingCountStream => _pendingCountController.stream;
-  
+
   // Stream controller để notify UI về sync status
   final _syncStatusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncStatusController.stream;
-  
+
   // Connectivity subscription
   StreamSubscription? _connectivitySubscription;
-  
+
   // Current pending count cache
   int _pendingCount = 0;
   int get pendingCount => _pendingCount;
-  
+
   // Is syncing flag
   bool _isSyncing = false;
   bool get isSyncing => _isSyncing;
-  
+
   // Max retry before marking as failed
   static const int maxRetries = 3;
-  
+
   /// Khởi tạo orchestrator
   Future<void> init() async {
     debugPrint('🔄 SyncOrchestrator: Initializing...');
-    
+
     // Load initial pending count
     await _refreshPendingCount();
-    
+
     // Listen to connectivity changes
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      results,
+    ) {
       final hasConnection = results.any((r) => r != ConnectivityResult.none);
       if (hasConnection && _pendingCount > 0) {
         debugPrint('🔄 SyncOrchestrator: Network restored, auto-syncing...');
@@ -172,17 +171,19 @@ class SyncOrchestrator {
         syncAll();
       }
     });
-    
-    debugPrint('🔄 SyncOrchestrator: Initialized with $_pendingCount pending items');
+
+    debugPrint(
+      '🔄 SyncOrchestrator: Initialized with $_pendingCount pending items',
+    );
   }
-  
+
   /// Dispose resources
   void dispose() {
     _connectivitySubscription?.cancel();
     _pendingCountController.close();
     _syncStatusController.close();
   }
-  
+
   /// Thêm item vào sync queue
   Future<void> enqueue({
     required SyncEntityType entityType,
@@ -192,14 +193,14 @@ class SyncOrchestrator {
     Map<String, dynamic>? data,
   }) async {
     final db = await _db.database;
-    
+
     // Check if already exists in queue
     final existing = await db.query(
       'sync_queue',
       where: 'entityType = ? AND entityId = ? AND status IN (?, ?)',
       whereArgs: [entityType.name, entityId, 'pending', 'processing'],
     );
-    
+
     if (existing.isNotEmpty) {
       // Update existing entry
       await db.update(
@@ -214,7 +215,9 @@ class SyncOrchestrator {
         where: 'id = ?',
         whereArgs: [existing.first['id']],
       );
-      debugPrint('🔄 SyncOrchestrator: Updated existing queue item for ${entityType.name}#$entityId');
+      debugPrint(
+        '🔄 SyncOrchestrator: Updated existing queue item for ${entityType.name}#$entityId',
+      );
     } else {
       // Create new entry
       final item = SyncQueueItem(
@@ -225,23 +228,25 @@ class SyncOrchestrator {
         data: data,
         createdAt: DateTime.now().millisecondsSinceEpoch,
       );
-      
+
       await db.insert('sync_queue', item.toMap());
-      debugPrint('🔄 SyncOrchestrator: Enqueued ${entityType.name}#$entityId (${operation.name})');
+      debugPrint(
+        '🔄 SyncOrchestrator: Enqueued ${entityType.name}#$entityId (${operation.name})',
+      );
     }
-    
+
     await _refreshPendingCount();
   }
-  
+
   /// Lấy số lượng pending
   Future<int> getPendingCount() async {
     final db = await _db.database;
     final result = await db.rawQuery(
-      "SELECT COUNT(*) as count FROM sync_queue WHERE status IN ('pending', 'processing')"
+      "SELECT COUNT(*) as count FROM sync_queue WHERE status IN ('pending', 'processing')",
     );
     return Sqflite.firstIntValue(result) ?? 0;
   }
-  
+
   /// Lấy danh sách pending items
   Future<List<SyncQueueItem>> getPendingItems({int limit = 50}) async {
     final db = await _db.database;
@@ -253,49 +258,57 @@ class SyncOrchestrator {
     );
     return results.map((r) => SyncQueueItem.fromMap(r)).toList();
   }
-  
+
   /// Sync tất cả pending items
   Future<SyncResult> syncAll() async {
     if (_isSyncing) {
       debugPrint('🔄 SyncOrchestrator: Already syncing, skipping...');
       return SyncResult(success: 0, failed: 0, total: 0, skipped: true);
     }
-    
+
     // Check connectivity
     final connectivityResults = await Connectivity().checkConnectivity();
-    final hasConnection = connectivityResults.any((r) => r != ConnectivityResult.none);
+    final hasConnection = connectivityResults.any(
+      (r) => r != ConnectivityResult.none,
+    );
     if (!hasConnection) {
       debugPrint('🔄 SyncOrchestrator: No network, skipping sync');
       _syncStatusController.add(SyncStatus.noNetwork);
       return SyncResult(success: 0, failed: 0, total: 0, noNetwork: true);
     }
-    
+
     _isSyncing = true;
     _syncStatusController.add(SyncStatus.syncing);
-    
+
     int successCount = 0;
     int failedCount = 0;
-    
+
     try {
       final items = await getPendingItems();
       debugPrint('🔄 SyncOrchestrator: Starting sync of ${items.length} items');
-      
+
       for (final item in items) {
         try {
           await _processSyncItem(item);
           successCount++;
         } catch (e) {
-          debugPrint('🔄 SyncOrchestrator: Failed to sync ${item.entityType.name}#${item.entityId}: $e');
+          debugPrint(
+            '🔄 SyncOrchestrator: Failed to sync ${item.entityType.name}#${item.entityId}: $e',
+          );
           await _markItemFailed(item, e.toString());
           failedCount++;
         }
       }
-      
-      debugPrint('🔄 SyncOrchestrator: Sync completed - success: $successCount, failed: $failedCount');
-      
+
+      debugPrint(
+        '🔄 SyncOrchestrator: Sync completed - success: $successCount, failed: $failedCount',
+      );
+
       await _refreshPendingCount();
-      _syncStatusController.add(_pendingCount > 0 ? SyncStatus.hasPending : SyncStatus.synced);
-      
+      _syncStatusController.add(
+        _pendingCount > 0 ? SyncStatus.hasPending : SyncStatus.synced,
+      );
+
       return SyncResult(
         success: successCount,
         failed: failedCount,
@@ -305,11 +318,11 @@ class SyncOrchestrator {
       _isSyncing = false;
     }
   }
-  
+
   /// Process single sync item
   Future<void> _processSyncItem(SyncQueueItem item) async {
     final db = await _db.database;
-    
+
     // Mark as processing
     await db.update(
       'sync_queue',
@@ -317,14 +330,14 @@ class SyncOrchestrator {
       where: 'id = ?',
       whereArgs: [item.id],
     );
-    
+
     final shopId = await UserService.getCurrentShopId();
     if (shopId == null) {
       throw Exception('No shopId available');
     }
-    
+
     String? newFirestoreId;
-    
+
     switch (item.operation) {
       case SyncOperation.create:
         newFirestoreId = await _handleCreate(item, shopId);
@@ -336,63 +349,76 @@ class SyncOrchestrator {
         await _handleDelete(item, shopId);
         break;
     }
-    
+
     // Mark as completed and remove from queue
-    await db.delete(
-      'sync_queue',
-      where: 'id = ?',
-      whereArgs: [item.id],
-    );
-    
+    await db.delete('sync_queue', where: 'id = ?', whereArgs: [item.id]);
+
     // Update local entity with firestoreId if created
     if (newFirestoreId != null && item.operation == SyncOperation.create) {
-      await _updateLocalFirestoreId(item.entityType, item.entityId, newFirestoreId);
+      await _updateLocalFirestoreId(
+        item.entityType,
+        item.entityId,
+        newFirestoreId,
+      );
     }
-    
+
     // Mark local entity as synced
     await _markLocalAsSynced(item.entityType, item.entityId);
-    
-    debugPrint('🔄 SyncOrchestrator: Successfully synced ${item.entityType.name}#${item.entityId}');
+
+    debugPrint(
+      '🔄 SyncOrchestrator: Successfully synced ${item.entityType.name}#${item.entityId}',
+    );
   }
-  
+
   /// Handle create operation
   Future<String> _handleCreate(SyncQueueItem item, String shopId) async {
     final collection = _getCollectionName(item.entityType);
     if (collection == null) {
       throw Exception('Unknown entity type: ${item.entityType}');
     }
-    
-    final data = item.data ?? await _getEntityData(item.entityType, item.entityId);
+
+    final data =
+        item.data ?? await _getEntityData(item.entityType, item.entityId);
     if (data == null) {
-      throw Exception('No data found for ${item.entityType.name}#${item.entityId}');
+      throw Exception(
+        'No data found for ${item.entityType.name}#${item.entityId}',
+      );
     }
-    
+
     // Add shopId if not present
     data['shopId'] = shopId;
     data['updatedAt'] = FieldValue.serverTimestamp();
-    
+
     // Remove local-only fields
     data.remove('id');
     data.remove('isSynced');
-    
+
     // FIX: Sử dụng firestoreId đã có (local-generated) làm document ID
     // thay vì để Firestore auto-generate, tránh race condition với realtime listener
-    final existingFirestoreId = item.firestoreId ?? data['firestoreId'] as String?;
-    
+    final existingFirestoreId =
+        item.firestoreId ?? data['firestoreId'] as String?;
+
     if (existingFirestoreId != null && existingFirestoreId.isNotEmpty) {
       // Set document với ID đã có sẵn
       data.remove('firestoreId'); // Không lưu field này, dùng document ID
-      await _firestore.collection(collection).doc(existingFirestoreId).set(data);
-      debugPrint('🔄 SyncOrchestrator: Created doc with existing ID: $existingFirestoreId');
+      await _firestore
+          .collection(collection)
+          .doc(existingFirestoreId)
+          .set(data);
+      debugPrint(
+        '🔄 SyncOrchestrator: Created doc with existing ID: $existingFirestoreId',
+      );
       return existingFirestoreId;
     } else {
       // Fallback: auto-generate ID nếu không có
       final docRef = await _firestore.collection(collection).add(data);
-      debugPrint('🔄 SyncOrchestrator: Created doc with auto-generated ID: ${docRef.id}');
+      debugPrint(
+        '🔄 SyncOrchestrator: Created doc with auto-generated ID: ${docRef.id}',
+      );
       return docRef.id;
     }
   }
-  
+
   /// Handle update operation
   Future<void> _handleUpdate(SyncQueueItem item, String shopId) async {
     if (item.firestoreId == null) {
@@ -401,65 +427,64 @@ class SyncOrchestrator {
       await _updateLocalFirestoreId(item.entityType, item.entityId, newId);
       return;
     }
-    
+
     final collection = _getCollectionName(item.entityType);
     if (collection == null) {
       throw Exception('Unknown entity type: ${item.entityType}');
     }
-    
-    final data = item.data ?? await _getEntityData(item.entityType, item.entityId);
+
+    final data =
+        item.data ?? await _getEntityData(item.entityType, item.entityId);
     if (data == null) {
-      throw Exception('No data found for ${item.entityType.name}#${item.entityId}');
+      throw Exception(
+        'No data found for ${item.entityType.name}#${item.entityId}',
+      );
     }
-    
+
     // Add shopId and timestamp
     data['shopId'] = shopId;
     data['updatedAt'] = FieldValue.serverTimestamp();
-    
+
     // Remove local-only fields
     data.remove('id');
     data.remove('isSynced');
     data.remove('firestoreId');
-    
+
     await _firestore
         .collection(collection)
         .doc(item.firestoreId)
         .set(data, SetOptions(merge: true));
   }
-  
+
   /// Handle delete operation
   Future<void> _handleDelete(SyncQueueItem item, String shopId) async {
     if (item.firestoreId == null) {
       // Never synced, just remove from queue
       return;
     }
-    
+
     final collection = _getCollectionName(item.entityType);
     if (collection == null) {
       throw Exception('Unknown entity type: ${item.entityType}');
     }
-    
+
     // Soft delete
     await _firestore.collection(collection).doc(item.firestoreId).update({
       'deleted': true,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
-  
+
   /// Mark item as failed
   Future<void> _markItemFailed(SyncQueueItem item, String error) async {
     final db = await _db.database;
     final newRetryCount = item.retryCount + 1;
-    
+
     if (newRetryCount >= maxRetries) {
       // Mark as permanently failed
       await db.update(
         'sync_queue',
-        {
-          'status': 'failed',
-          'lastError': error,
-          'retryCount': newRetryCount,
-        },
+        {'status': 'failed', 'lastError': error, 'retryCount': newRetryCount},
         where: 'id = ?',
         whereArgs: [item.id],
       );
@@ -467,23 +492,19 @@ class SyncOrchestrator {
       // Reset to pending for retry
       await db.update(
         'sync_queue',
-        {
-          'status': 'pending',
-          'lastError': error,
-          'retryCount': newRetryCount,
-        },
+        {'status': 'pending', 'lastError': error, 'retryCount': newRetryCount},
         where: 'id = ?',
         whereArgs: [item.id],
       );
     }
   }
-  
+
   /// Refresh pending count
   Future<void> _refreshPendingCount() async {
     _pendingCount = await getPendingCount();
     _pendingCountController.add(_pendingCount);
   }
-  
+
   /// Get collection name for entity type
   String? _getCollectionName(SyncEntityType type) {
     switch (type) {
@@ -523,9 +544,11 @@ class SyncOrchestrator {
         return 'adjustment_entries';
       case SyncEntityType.purchaseOrder:
         return 'purchase_orders';
+      case SyncEntityType.supplierImportHistory:
+        return 'supplier_import_history';
     }
   }
-  
+
   /// Get table name for entity type
   String? _getTableName(SyncEntityType type) {
     switch (type) {
@@ -565,30 +588,39 @@ class SyncOrchestrator {
         return 'adjustment_entries';
       case SyncEntityType.purchaseOrder:
         return 'purchase_orders';
+      case SyncEntityType.supplierImportHistory:
+        return 'supplier_import_history';
     }
   }
-  
+
   /// Get entity data from local DB
-  Future<Map<String, dynamic>?> _getEntityData(SyncEntityType type, int entityId) async {
+  Future<Map<String, dynamic>?> _getEntityData(
+    SyncEntityType type,
+    int entityId,
+  ) async {
     final table = _getTableName(type);
     if (table == null) return null;
-    
+
     final db = await _db.database;
     final results = await db.query(
       table,
       where: 'id = ?',
       whereArgs: [entityId],
     );
-    
+
     if (results.isEmpty) return null;
     return Map<String, dynamic>.from(results.first);
   }
-  
+
   /// Update local entity with firestoreId
-  Future<void> _updateLocalFirestoreId(SyncEntityType type, int entityId, String firestoreId) async {
+  Future<void> _updateLocalFirestoreId(
+    SyncEntityType type,
+    int entityId,
+    String firestoreId,
+  ) async {
     final table = _getTableName(type);
     if (table == null) return;
-    
+
     final db = await _db.database;
     await db.update(
       table,
@@ -597,12 +629,12 @@ class SyncOrchestrator {
       whereArgs: [entityId],
     );
   }
-  
+
   /// Mark local entity as synced
   Future<void> _markLocalAsSynced(SyncEntityType type, int entityId) async {
     final table = _getTableName(type);
     if (table == null) return;
-    
+
     final db = await _db.database;
     await db.update(
       table,
@@ -611,29 +643,25 @@ class SyncOrchestrator {
       whereArgs: [entityId],
     );
   }
-  
+
   /// Clear failed items (admin function)
   Future<int> clearFailedItems() async {
     final db = await _db.database;
-    final count = await db.delete(
-      'sync_queue',
-      where: "status = 'failed'",
-    );
+    final count = await db.delete('sync_queue', where: "status = 'failed'");
     await _refreshPendingCount();
     return count;
   }
-  
+
   /// Retry failed items
   Future<void> retryFailedItems() async {
     final db = await _db.database;
-    await db.update(
-      'sync_queue',
-      {'status': 'pending', 'retryCount': 0},
-      where: "status = 'failed'",
-    );
+    await db.update('sync_queue', {
+      'status': 'pending',
+      'retryCount': 0,
+    }, where: "status = 'failed'");
     await _refreshPendingCount();
   }
-  
+
   /// Get failed items
   Future<List<SyncQueueItem>> getFailedItems() async {
     final db = await _db.database;
@@ -644,31 +672,35 @@ class SyncOrchestrator {
     );
     return results.map((r) => SyncQueueItem.fromMap(r)).toList();
   }
-  
+
   /// Get sync stats
   Future<Map<String, int>> getSyncStats() async {
     final db = await _db.database;
     final pending = await db.rawQuery(
-      "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'pending'"
+      "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'pending'",
     );
     final processing = await db.rawQuery(
-      "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'processing'"
+      "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'processing'",
     );
     final failed = await db.rawQuery(
-      "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'failed'"
+      "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'failed'",
     );
-    
+
     return {
       'pending': Sqflite.firstIntValue(pending) ?? 0,
       'processing': Sqflite.firstIntValue(processing) ?? 0,
       'failed': Sqflite.firstIntValue(failed) ?? 0,
     };
   }
-  
+
   // ============== CONVENIENCE METHODS ==============
-  
+
   /// Enqueue a repair for sync
-  Future<void> enqueueRepair(int id, {String? firestoreId, SyncOperation operation = SyncOperation.update}) async {
+  Future<void> enqueueRepair(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
     await enqueue(
       entityType: SyncEntityType.repair,
       entityId: id,
@@ -676,9 +708,13 @@ class SyncOrchestrator {
       operation: operation,
     );
   }
-  
+
   /// Enqueue a sale for sync
-  Future<void> enqueueSale(int id, {String? firestoreId, SyncOperation operation = SyncOperation.update}) async {
+  Future<void> enqueueSale(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
     await enqueue(
       entityType: SyncEntityType.sale,
       entityId: id,
@@ -686,9 +722,13 @@ class SyncOrchestrator {
       operation: operation,
     );
   }
-  
+
   /// Enqueue a product for sync
-  Future<void> enqueueProduct(int id, {String? firestoreId, SyncOperation operation = SyncOperation.update}) async {
+  Future<void> enqueueProduct(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
     await enqueue(
       entityType: SyncEntityType.product,
       entityId: id,
@@ -696,9 +736,13 @@ class SyncOrchestrator {
       operation: operation,
     );
   }
-  
+
   /// Enqueue an expense for sync
-  Future<void> enqueueExpense(int id, {String? firestoreId, SyncOperation operation = SyncOperation.update}) async {
+  Future<void> enqueueExpense(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
     await enqueue(
       entityType: SyncEntityType.expense,
       entityId: id,
@@ -706,9 +750,13 @@ class SyncOrchestrator {
       operation: operation,
     );
   }
-  
+
   /// Enqueue a debt for sync
-  Future<void> enqueueDebt(int id, {String? firestoreId, SyncOperation operation = SyncOperation.update}) async {
+  Future<void> enqueueDebt(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
     await enqueue(
       entityType: SyncEntityType.debt,
       entityId: id,
@@ -716,9 +764,13 @@ class SyncOrchestrator {
       operation: operation,
     );
   }
-  
+
   /// Enqueue a customer for sync
-  Future<void> enqueueCustomer(int id, {String? firestoreId, SyncOperation operation = SyncOperation.update}) async {
+  Future<void> enqueueCustomer(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
     await enqueue(
       entityType: SyncEntityType.customer,
       entityId: id,
@@ -726,9 +778,13 @@ class SyncOrchestrator {
       operation: operation,
     );
   }
-  
+
   /// Enqueue a supplier for sync
-  Future<void> enqueueSupplier(int id, {String? firestoreId, SyncOperation operation = SyncOperation.update}) async {
+  Future<void> enqueueSupplier(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
     await enqueue(
       entityType: SyncEntityType.supplier,
       entityId: id,
@@ -736,9 +792,13 @@ class SyncOrchestrator {
       operation: operation,
     );
   }
-  
+
   /// Enqueue attendance for sync
-  Future<void> enqueueAttendance(int id, {String? firestoreId, SyncOperation operation = SyncOperation.update}) async {
+  Future<void> enqueueAttendance(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
     await enqueue(
       entityType: SyncEntityType.attendance,
       entityId: id,
@@ -746,9 +806,13 @@ class SyncOrchestrator {
       operation: operation,
     );
   }
-  
+
   /// Enqueue repair part for sync
-  Future<void> enqueueRepairPart(int id, {String? firestoreId, SyncOperation operation = SyncOperation.update}) async {
+  Future<void> enqueueRepairPart(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
     await enqueue(
       entityType: SyncEntityType.repairPart,
       entityId: id,
@@ -756,11 +820,43 @@ class SyncOrchestrator {
       operation: operation,
     );
   }
-  
+
   /// Enqueue debt payment for sync
-  Future<void> enqueueDebtPayment(int id, {String? firestoreId, SyncOperation operation = SyncOperation.update}) async {
+  Future<void> enqueueDebtPayment(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
     await enqueue(
       entityType: SyncEntityType.debtPayment,
+      entityId: id,
+      firestoreId: firestoreId,
+      operation: operation,
+    );
+  }
+
+  /// FIX BUG-002: Enqueue supplier payment for sync
+  Future<void> enqueueSupplierPayment(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
+    await enqueue(
+      entityType: SyncEntityType.supplierPayment,
+      entityId: id,
+      firestoreId: firestoreId,
+      operation: operation,
+    );
+  }
+
+  /// Enqueue supplier import history for sync
+  Future<void> enqueueSupplierImportHistory(
+    int id, {
+    String? firestoreId,
+    SyncOperation operation = SyncOperation.update,
+  }) async {
+    await enqueue(
+      entityType: SyncEntityType.supplierImportHistory,
       entityId: id,
       firestoreId: firestoreId,
       operation: operation,
@@ -770,11 +866,11 @@ class SyncOrchestrator {
 
 /// Sync status enum
 enum SyncStatus {
-  synced,      // All data synced
-  hasPending,  // Has pending items
-  syncing,     // Currently syncing
-  noNetwork,   // No network available
-  error,       // Sync error occurred
+  synced, // All data synced
+  hasPending, // Has pending items
+  syncing, // Currently syncing
+  noNetwork, // No network available
+  error, // Sync error occurred
 }
 
 /// Sync result class
@@ -784,7 +880,7 @@ class SyncResult {
   final int total;
   final bool skipped;
   final bool noNetwork;
-  
+
   SyncResult({
     required this.success,
     required this.failed,
@@ -792,7 +888,7 @@ class SyncResult {
     this.skipped = false,
     this.noNetwork = false,
   });
-  
+
   @override
   String toString() {
     if (noNetwork) return 'Không có mạng';
