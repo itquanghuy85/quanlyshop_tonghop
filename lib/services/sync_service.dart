@@ -1573,13 +1573,37 @@ class SyncService {
     try {
       final db = DBHelper();
       final user = FirebaseAuth.instance.currentUser;
-      final String? shopId = await UserService.getCurrentShopId();
+      if (user == null) {
+        debugPrint("downloadAllFromCloud: Không có user, bỏ qua");
+        return;
+      }
+
       final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
+      String? shopId = await UserService.getCurrentShopId();
 
       // LOG QUAN TRỌNG: Hiển thị shopId được sử dụng
       debugPrint(
-        "⚡ downloadAllFromCloud: user=${user?.uid}, email=${user?.email}, shopId=$shopId, isSuperAdmin=$isSuperAdmin",
+        "⚡ downloadAllFromCloud: user=${user.uid}, email=${user.email}, shopId=$shopId, isSuperAdmin=$isSuperAdmin",
       );
+
+      // Retry lấy shopId nếu chưa có (claims có thể chưa sync)
+      if (shopId == null && !isSuperAdmin) {
+        debugPrint("⚠️ shopId null, thử refresh claims...");
+        for (int retry = 0; retry < 3; retry++) {
+          await Future.delayed(const Duration(seconds: 2));
+          try {
+            await user.getIdToken(true);
+            await ClaimsService().forceRefresh();
+            shopId = await UserService.getCurrentShopId();
+            if (shopId != null) {
+              debugPrint("✅ Lấy được shopId sau retry ${retry + 1}: $shopId");
+              break;
+            }
+          } catch (e) {
+            debugPrint("Retry ${retry + 1}/3 lấy shopId: $e");
+          }
+        }
+      }
 
       // Cần có shopId để sync (super admin phải chọn shop trước)
       if (shopId == null) {
@@ -1588,7 +1612,9 @@ class SyncService {
             "⚠️ Super admin chưa chọn shop, bỏ qua downloadAllFromCloud",
           );
         } else {
-          debugPrint("Không có shopId, bỏ qua downloadAllFromCloud");
+          debugPrint(
+            "⚠️ Không có shopId sau 3 retry, bỏ qua downloadAllFromCloud",
+          );
         }
         return;
       }

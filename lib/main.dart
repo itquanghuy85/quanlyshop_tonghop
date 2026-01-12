@@ -22,6 +22,7 @@ import 'services/sync_service.dart';
 import 'services/sync_health_check.dart'; // Kiểm tra sync health
 import 'services/sync_orchestrator.dart'; // Quản lý đồng bộ local -> cloud
 import 'services/cash_closing_notifier.dart'; // Realtime notify chốt quỹ
+import 'services/claims_service.dart'; // Custom claims management
 import 'data/db_helper.dart'; // Local database helper
 import 'package:firebase_messaging/firebase_messaging.dart';
 
@@ -29,45 +30,48 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Initialize Firebase if needed
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Handle background message
   await NotificationService.handleBackgroundMessage(message);
 }
 
 Future<void> main() async {
-  await runZonedGuarded<Future<void>>(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    await initializeDateFormatting('vi_VN');
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+  await runZonedGuarded<Future<void>>(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      await initializeDateFormatting('vi_VN');
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
 
-      // Set up Firebase Messaging background handler
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    } catch (e) {
-      debugPrint('Firebase initialization failed: $e');
-      rethrow;
-    }
-    try {
-      await NotificationService.init();
-    } catch (e) {
-      debugPrint('NotificationService initialization failed: $e');
-      // Continue, as notifications are not critical for launch
-    }
-    try {
-      await ConnectivityService.instance.initialize();
-    } catch (e) {
-      debugPrint('ConnectivityService initialization failed: $e');
-      // Continue, as connectivity monitoring is not critical for launch
-    }
-    runApp(const MyApp());
-  }, (error, stack) {
-    debugPrint('GLOBAL ERROR: $error');
-  });
+        // Set up Firebase Messaging background handler
+        FirebaseMessaging.onBackgroundMessage(
+          _firebaseMessagingBackgroundHandler,
+        );
+      } catch (e) {
+        debugPrint('Firebase initialization failed: $e');
+        rethrow;
+      }
+      try {
+        await NotificationService.init();
+      } catch (e) {
+        debugPrint('NotificationService initialization failed: $e');
+        // Continue, as notifications are not critical for launch
+      }
+      try {
+        await ConnectivityService.instance.initialize();
+      } catch (e) {
+        debugPrint('ConnectivityService initialization failed: $e');
+        // Continue, as connectivity monitoring is not critical for launch
+      }
+      runApp(const MyApp());
+    },
+    (error, stack) {
+      debugPrint('GLOBAL ERROR: $error');
+    },
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -100,7 +104,9 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _locale = locale;
     });
-    SharedPreferences.getInstance().then((p) => p.setString('app_language', locale.languageCode));
+    SharedPreferences.getInstance().then(
+      (p) => p.setString('app_language', locale.languageCode),
+    );
   }
 
   @override
@@ -126,10 +132,10 @@ class _MyAppState extends State<MyApp> {
         }
         return supportedLocales.first;
       },
-      routes: {
-        '/currency-demo': (context) => const CurrencyInputDemo(),
-      },
-      home: SplashView(setLocale: setLocale), // Luôn bắt đầu từ SplashView để khởi tạo mượt mà
+      routes: {'/currency-demo': (context) => const CurrencyInputDemo()},
+      home: SplashView(
+        setLocale: setLocale,
+      ), // Luôn bắt đầu từ SplashView để khởi tạo mượt mà
     );
   }
 }
@@ -178,7 +184,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       debugPrint('App resumed - checking FCM token validity...');
       NotificationService.ensureFCMTokenValid();
     }
-    
+
     // Super admin: Tự động logout khi thoát app (paused/detached) để bảo mật
     // NOTE: Tạm tắt để Super Admin có thể sync claims trước
     // TODO: Bật lại sau khi claims đã được sync
@@ -195,16 +201,25 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   void _initNotificationListener() {
     NotificationService.listenToNotifications((title, body) {
       if (mounted) {
-        NotificationService.showSnackBar("$title: $body", color: const Color(0xFF2962FF));
+        NotificationService.showSnackBar(
+          "$title: $body",
+          color: const Color(0xFF2962FF),
+        );
       }
     });
   }
 
   /// Lấy hoặc tạo future cho user - chỉ tạo mới khi user thay đổi
-  Future<Map<String, dynamic>> _getOrCreateRoleFuture(String uid, String email) {
+  Future<Map<String, dynamic>> _getOrCreateRoleFuture(
+    String uid,
+    String email,
+  ) {
     if (_roleFuture == null || _currentUid != uid) {
       _currentUid = uid;
-      _roleFuture = _getRoleAfterSync(uid, email).timeout(const Duration(seconds: 30));
+      _roleFuture = _getRoleAfterSync(
+        uid,
+        email,
+      ).timeout(const Duration(seconds: 30));
     }
     return _roleFuture!;
   }
@@ -217,41 +232,62 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   /// Kiểm tra role và xử lý super admin
   /// Trả về Map với 'role' và 'isSuperAdmin'
-  Future<Map<String, dynamic>> _getRoleAfterSync(String uid, String email) async {
-    await UserService.syncUserInfo(uid, email);
-    
+  Future<Map<String, dynamic>> _getRoleAfterSync(
+    String uid,
+    String email,
+  ) async {
+    try {
+      await UserService.syncUserInfo(uid, email);
+    } catch (e) {
+      debugPrint('⚠️ syncUserInfo error (continuing): $e');
+    }
+
     // Kiểm tra super admin TRƯỚC - không cần sync data
     final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
     if (isSuperAdmin) {
       debugPrint('🔑 Super admin đăng nhập - chờ chọn shop');
       // Super admin: Không download data, chờ chọn shop
-      return {
-        'role': 'admin',
-        'isSuperAdmin': true,
-      };
+      return {'role': 'admin', 'isSuperAdmin': true};
     }
-    
+
     // User thường: Kiểm tra và sync data
-    final currentShopId = await UserService.getCurrentShopId();
-    await _checkAndClearLocalDataIfShopChanged(currentShopId);
-    
+    String? currentShopId;
+    try {
+      currentShopId = await UserService.getCurrentShopId();
+      // Nếu vẫn null, thử refresh claims
+      if (currentShopId == null) {
+        debugPrint('⚠️ shopId null, thử refresh claims lần cuối...');
+        await ClaimsService().refreshMyClaims();
+        await Future.delayed(const Duration(seconds: 2));
+        currentShopId = await UserService.getCurrentShopId();
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error getting shopId: $e');
+    }
+
+    if (currentShopId != null) {
+      await _checkAndClearLocalDataIfShopChanged(currentShopId);
+    } else {
+      debugPrint('⚠️ Vẫn không có shopId, tiếp tục với data rỗng...');
+    }
+
     // Download dữ liệu từ cloud về
     try {
       await SyncService.downloadAllFromCloud().timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 20),
         onTimeout: () {
-          debugPrint('⚠️ Sync timeout sau 15s, tiếp tục với data local...');
+          debugPrint('⚠️ Sync timeout sau 20s, tiếp tục với data local...');
         },
       );
       debugPrint('✅ Sync hoàn thành');
-      
+
       // Khởi tạo CashClosingNotifier để theo dõi trạng thái chốt quỹ realtime
       await CashClosingNotifier.instance.init();
       debugPrint('✅ CashClosingNotifier initialized');
     } catch (e) {
       debugPrint('❌ Lỗi đồng bộ: $e');
     }
-    
+
     // Chạy health check ngầm
     // ignore: unawaited_futures
     Future.microtask(() async {
@@ -261,43 +297,47 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         debugPrint('❌ Lỗi health check: $e');
       }
     });
-    
+
     final role = await UserService.getUserRole(uid);
-    return {
-      'role': role,
-      'isSuperAdmin': false,
-    };
+    return {'role': role, 'isSuperAdmin': false};
   }
 
   /// Kiểm tra và xóa local data nếu shop hoặc user thay đổi
-  Future<void> _checkAndClearLocalDataIfShopChanged(String? currentShopId) async {
+  Future<void> _checkAndClearLocalDataIfShopChanged(
+    String? currentShopId,
+  ) async {
     if (currentShopId == null) return; // Super admin - không kiểm tra
-    
+
     final prefs = await SharedPreferences.getInstance();
     final lastShopId = prefs.getString('last_synced_shop_id');
     final lastUserId = prefs.getString('last_synced_user_id');
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    
+
     // Xóa data nếu:
     // 1. lastShopId khác currentShopId (đổi shop)
     // 2. lastShopId == null (lần đầu đăng nhập với shop này)
     // 3. lastUserId khác currentUserId (đổi user cùng shop - để tránh data lẫn do permission khác nhau)
-    final needClear = lastShopId == null || 
-                      lastShopId != currentShopId || 
-                      (lastUserId != null && lastUserId != currentUserId);
-    
+    final needClear =
+        lastShopId == null ||
+        lastShopId != currentShopId ||
+        (lastUserId != null && lastUserId != currentUserId);
+
     if (needClear) {
-      debugPrint('⚠️ Shop hoặc User thay đổi: shop=$lastShopId->$currentShopId, user=$lastUserId->$currentUserId. Xóa local data cũ...');
+      debugPrint(
+        '⚠️ Shop hoặc User thay đổi: shop=$lastShopId->$currentShopId, user=$lastUserId->$currentUserId. Xóa local data cũ...',
+      );
       await DBHelper().clearAllData();
       debugPrint('✅ Đã xóa local data cũ');
     }
-    
+
     // Lưu shopId và userId hiện tại
     await prefs.setString('last_synced_shop_id', currentShopId);
     if (currentUserId != null) {
       await prefs.setString('last_synced_user_id', currentUserId);
     }
-    debugPrint('📝 Đã lưu last_synced: shopId=$currentShopId, userId=$currentUserId');
+    debugPrint(
+      '📝 Đã lưu last_synced: shopId=$currentShopId, userId=$currentUserId',
+    );
   }
 
   @override
@@ -308,7 +348,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         if (snap.connectionState == ConnectionState.waiting) {
           return _buildLoadingScreen('Đang kiểm tra phiên đăng nhập...');
         }
-        
+
         // Không có user = đã đăng xuất
         if (snap.hasError || !snap.hasData) {
           _resetCache(); // Reset cache khi đăng xuất
@@ -325,7 +365,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
               // Super admin kiểm tra nhanh hơn vì không cần sync
               final isSuperAdmin = email == 'admin@huluca.com';
               return _buildLoadingScreen(
-                isSuperAdmin ? 'Đang kiểm tra quyền...' : 'Đang đồng bộ dữ liệu cửa hàng...',
+                isSuperAdmin
+                    ? 'Đang kiểm tra quyền...'
+                    : 'Đang đồng bộ dữ liệu cửa hàng...',
               );
             }
             if (roleSnap.hasError || !roleSnap.hasData) {
@@ -334,16 +376,16 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
               FirebaseAuth.instance.signOut();
               return LoginView(setLocale: widget.setLocale);
             }
-            
+
             final data = roleSnap.data!;
             final role = data['role'] as String;
             final isSuperAdmin = data['isSuperAdmin'] as bool;
-            
+
             // Super admin: Chuyển đến màn hình chọn shop
             if (isSuperAdmin) {
               return ShopSelectorView(setLocale: widget.setLocale);
             }
-            
+
             // User thường: Vào HomeView
             return HomeView(role: role, setLocale: widget.setLocale);
           },
@@ -380,7 +422,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                     height: 50,
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2962FF)),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFF2962FF),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -396,10 +440,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                   const SizedBox(height: 8),
                   Text(
                     'Vui lòng đợi trong giây lát...',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   ),
                 ],
               ),

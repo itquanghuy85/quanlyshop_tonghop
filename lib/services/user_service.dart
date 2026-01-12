@@ -371,15 +371,17 @@ class UserService {
       'photoUrl': photoUrl,
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    
+
     // Chỉ SuperAdmin mới được cập nhật shopId
     final currentUser = FirebaseAuth.instance.currentUser;
     final isSuperAdmin = currentUser?.email == 'admin@huluca.com';
     if (shopId != null && isSuperAdmin) {
       updateData['shopId'] = shopId;
     }
-    
-    debugPrint('UserService.updateUserInfo: updating uid=$uid with ${updateData.keys.toList()}');
+
+    debugPrint(
+      'UserService.updateUserInfo: updating uid=$uid with ${updateData.keys.toList()}',
+    );
     try {
       await _db
           .collection('users')
@@ -446,17 +448,48 @@ class UserService {
     }
     await userRef.set(userData, SetOptions(merge: true));
 
-    // Đợi Cloud Function syncUserClaims có thời gian trigger và set claims
-    // Rồi force refresh token để lấy claims mới nhất
-    await Future.delayed(const Duration(seconds: 2));
-    try {
-      await FirebaseAuth.instance.currentUser?.getIdToken(true);
-      await ClaimsService().forceRefresh();
+    // Đợi Cloud Function syncUserClaims trigger và set claims
+    // Cần retry nhiều lần vì Cloud Function có thể chậm (cold start)
+    debugPrint('syncUserInfo: waiting for claims sync...');
+
+    bool claimsSynced = false;
+    for (int retry = 0; retry < 5; retry++) {
+      await Future.delayed(const Duration(seconds: 2));
+      try {
+        // Force refresh token để lấy claims mới nhất
+        await FirebaseAuth.instance.currentUser?.getIdToken(true);
+        await ClaimsService().forceRefresh();
+
+        // Verify claims đã có shopId
+        final claims = await ClaimsService().getClaimsFromToken(
+          forceRefresh: true,
+        );
+        final claimsShopId = claims?['shopId'];
+
+        if (claimsShopId != null && claimsShopId == shopId) {
+          debugPrint(
+            'syncUserInfo: claims synced successfully! shopId=$claimsShopId',
+          );
+          claimsSynced = true;
+          break;
+        } else {
+          debugPrint(
+            'syncUserInfo: retry ${retry + 1}/5 - claims shopId=$claimsShopId, expected=$shopId',
+          );
+          // Gọi refreshMyClaims để trigger sync nhanh hơn
+          if (retry >= 2) {
+            await ClaimsService().refreshMyClaims();
+          }
+        }
+      } catch (e) {
+        debugPrint('syncUserInfo: retry ${retry + 1}/5 error: $e');
+      }
+    }
+
+    if (!claimsSynced) {
       debugPrint(
-        'syncUserInfo: refreshed custom claims after Firestore update',
+        '⚠️ syncUserInfo: claims not synced after 5 retries, continuing anyway...',
       );
-    } catch (e) {
-      debugPrint('syncUserInfo: failed to refresh claims: $e');
     }
   }
 
@@ -751,7 +784,7 @@ class UserService {
     } catch (e) {
       debugPrint('Could not refresh token before updating permissions: $e');
     }
-    
+
     try {
       await _db.collection('users').doc(uid).set({
         'allowViewSales': allowViewSales,
