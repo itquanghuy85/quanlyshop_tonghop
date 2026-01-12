@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -41,35 +43,78 @@ Future<void> main() async {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
       await initializeDateFormatting('vi_VN');
-      try {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
+      
+      // iOS-specific: Run app FIRST to show splash screen immediately
+      // This prevents the "freeze" perception on iOS
+      final bool isIOS = !kIsWeb && Platform.isIOS;
+      
+      if (isIOS) {
+        // On iOS, start app immediately to show UI, then init Firebase in background
+        runApp(const MyApp());
+        
+        // Initialize Firebase and services after first frame renders
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          try {
+            await Firebase.initializeApp(
+              options: DefaultFirebaseOptions.currentPlatform,
+            );
+            
+            // Set up Firebase Messaging background handler
+            FirebaseMessaging.onBackgroundMessage(
+              _firebaseMessagingBackgroundHandler,
+            );
+            
+            debugPrint('✅ Firebase initialized (iOS deferred)');
+          } catch (e) {
+            debugPrint('Firebase initialization failed: $e');
+          }
+          
+          // Delay notification init to avoid blocking UI
+          await Future.delayed(const Duration(milliseconds: 300));
+          
+          try {
+            await NotificationService.init();
+          } catch (e) {
+            debugPrint('NotificationService initialization failed: $e');
+          }
+          try {
+            await ConnectivityService.instance.initialize();
+          } catch (e) {
+            debugPrint('ConnectivityService initialization failed: $e');
+          }
+        });
+      } else {
+        // Android/Web: Initialize Firebase before running app (original behavior)
+        try {
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          );
 
-        // Set up Firebase Messaging background handler
-        FirebaseMessaging.onBackgroundMessage(
-          _firebaseMessagingBackgroundHandler,
-        );
-      } catch (e) {
-        debugPrint('Firebase initialization failed: $e');
-        rethrow;
+          // Set up Firebase Messaging background handler
+          FirebaseMessaging.onBackgroundMessage(
+            _firebaseMessagingBackgroundHandler,
+          );
+        } catch (e) {
+          debugPrint('Firebase initialization failed: $e');
+          rethrow;
+        }
+        
+        // Defer heavy initialization to next frame to allow splash screen to render
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          try {
+            await NotificationService.init();
+          } catch (e) {
+            debugPrint('NotificationService initialization failed: $e');
+          }
+          try {
+            await ConnectivityService.instance.initialize();
+          } catch (e) {
+            debugPrint('ConnectivityService initialization failed: $e');
+          }
+        });
+        
+        runApp(const MyApp());
       }
-      
-      // Defer heavy initialization to next frame to allow splash screen to render
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        try {
-          await NotificationService.init();
-        } catch (e) {
-          debugPrint('NotificationService initialization failed: $e');
-        }
-        try {
-          await ConnectivityService.instance.initialize();
-        } catch (e) {
-          debugPrint('ConnectivityService initialization failed: $e');
-        }
-      });
-      
-      runApp(const MyApp());
     },
     (error, stack) {
       debugPrint('GLOBAL ERROR: $error');

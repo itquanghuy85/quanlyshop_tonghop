@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../main.dart';
 import 'intro_view.dart';
 
@@ -27,6 +28,23 @@ class _SplashViewState extends State<SplashView> {
     
     await Future.delayed(const Duration(milliseconds: 800));
     if (mounted) setState(() => _status = "Đang kết nối đám mây an toàn...");
+    
+    // iOS-specific: Wait for Firebase to be initialized
+    // On iOS, Firebase is initialized asynchronously after first frame
+    int waitCount = 0;
+    while (!Firebase.apps.isNotEmpty && waitCount < 50) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      waitCount++;
+      if (waitCount % 10 == 0) {
+        debugPrint('⏳ Waiting for Firebase init... ($waitCount)');
+      }
+    }
+    
+    if (Firebase.apps.isEmpty) {
+      debugPrint('⚠️ Firebase still not initialized after 5s, continuing anyway');
+    } else {
+      debugPrint('✅ Firebase ready, proceeding with navigation');
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final isFirstTime = prefs.getBool('is_first_time') ?? true;
