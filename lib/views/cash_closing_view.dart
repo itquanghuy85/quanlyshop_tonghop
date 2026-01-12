@@ -46,7 +46,7 @@ class _CashClosingViewState extends State<CashClosingView>
   StreamSubscription? _salesSubscription;
   StreamSubscription? _repairsSubscription;
   StreamSubscription? _expensesSubscription;
-  
+
   // Debounce để tránh load quá nhiều lần
   Timer? _debounceTimer;
   bool _isLoadingFromFirestore = false;
@@ -74,7 +74,7 @@ class _CashClosingViewState extends State<CashClosingView>
     noteCtrl.dispose();
     super.dispose();
   }
-  
+
   /// Debounced reload - tránh load quá nhiều lần
   void _scheduleReload() {
     _debounceTimer?.cancel();
@@ -88,47 +88,58 @@ class _CashClosingViewState extends State<CashClosingView>
   Future<void> _initRealTimeSync() async {
     final shopId = await UserService.getCurrentShopId();
     if (shopId == null) return;
-    
+
     final firestore = FirebaseFirestore.instance;
     final shopRef = firestore.collection('shops').doc(shopId);
-    
+
     // Listen to all relevant collections - khi có thay đổi thì schedule reload
-    _closingSubscription = shopRef.collection('cash_closings').snapshots().listen((_) {
-      _scheduleReload();
-    });
-    
+    _closingSubscription = shopRef
+        .collection('cash_closings')
+        .snapshots()
+        .listen((_) {
+          _scheduleReload();
+        });
+
     // debt_payments và supplier_payments ở ROOT collection, filter theo shopId
-    _debtPaymentsSubscription = firestore.collection('debt_payments')
+    _debtPaymentsSubscription = firestore
+        .collection('debt_payments')
         .where('shopId', isEqualTo: shopId)
-        .snapshots().listen((_) {
-      _scheduleReload();
-    });
-    
-    _supplierPaymentsSubscription = firestore.collection('supplier_payments')
+        .snapshots()
+        .listen((_) {
+          _scheduleReload();
+        });
+
+    _supplierPaymentsSubscription = firestore
+        .collection('supplier_payments')
         .where('shopId', isEqualTo: shopId)
-        .snapshots().listen((_) {
-      _scheduleReload();
-    });
-    
+        .snapshots()
+        .listen((_) {
+          _scheduleReload();
+        });
+
     _salesSubscription = shopRef.collection('sales').snapshots().listen((_) {
       _scheduleReload();
     });
-    
-    _repairsSubscription = shopRef.collection('repairs').snapshots().listen((_) {
+
+    _repairsSubscription = shopRef.collection('repairs').snapshots().listen((
+      _,
+    ) {
       _scheduleReload();
     });
-    
-    _expensesSubscription = shopRef.collection('expenses').snapshots().listen((_) {
+
+    _expensesSubscription = shopRef.collection('expenses').snapshots().listen((
+      _,
+    ) {
       _scheduleReload();
     });
   }
-  
+
   /// Load dữ liệu trực tiếp từ Firestore để đảm bảo đồng bộ giữa các thiết bị
   Future<void> _loadAllDataFromFirestore() async {
     if (!mounted || _isLoadingFromFirestore) return;
     _isLoadingFromFirestore = true;
     setState(() => _isLoading = true);
-    
+
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) {
@@ -136,10 +147,10 @@ class _CashClosingViewState extends State<CashClosingView>
         _isLoadingFromFirestore = false;
         return;
       }
-      
+
       final firestore = FirebaseFirestore.instance;
       final shopRef = firestore.collection('shops').doc(shopId);
-      
+
       // Load từ Firestore song song
       // Lưu ý: sales, repairs, expenses nằm trong shops/{shopId}/...
       // Còn debt_payments, supplier_payments nằm ở ROOT collection với filter shopId
@@ -148,10 +159,16 @@ class _CashClosingViewState extends State<CashClosingView>
         shopRef.collection('repairs').get(),
         shopRef.collection('expenses').get(),
         // debt_payments và supplier_payments ở ROOT collection, filter theo shopId
-        firestore.collection('debt_payments').where('shopId', isEqualTo: shopId).get(),
-        firestore.collection('supplier_payments').where('shopId', isEqualTo: shopId).get(),
+        firestore
+            .collection('debt_payments')
+            .where('shopId', isEqualTo: shopId)
+            .get(),
+        firestore
+            .collection('supplier_payments')
+            .where('shopId', isEqualTo: shopId)
+            .get(),
       ]);
-      
+
       // Parse sales - filter deleted
       final sales = results[0].docs
           .where((doc) => doc.data()['deleted'] != true)
@@ -160,8 +177,9 @@ class _CashClosingViewState extends State<CashClosingView>
             data['firestoreId'] = doc.id;
             _convertTimestampFields(data);
             return SaleOrder.fromMap(data);
-          }).toList();
-      
+          })
+          .toList();
+
       // Parse repairs - filter deleted
       final repairs = results[1].docs
           .where((doc) => doc.data()['deleted'] != true)
@@ -170,8 +188,9 @@ class _CashClosingViewState extends State<CashClosingView>
             data['firestoreId'] = doc.id;
             _convertTimestampFields(data);
             return Repair.fromMap(data);
-          }).toList();
-      
+          })
+          .toList();
+
       // Parse expenses - filter deleted
       final expenses = results[2].docs
           .where((doc) => doc.data()['deleted'] != true)
@@ -180,8 +199,9 @@ class _CashClosingViewState extends State<CashClosingView>
             data['firestoreId'] = doc.id;
             _convertTimestampFields(data);
             return data;
-          }).toList();
-      
+          })
+          .toList();
+
       // Parse debt_payments - filter deleted
       final debtPayments = results[3].docs
           .where((doc) => doc.data()['deleted'] != true)
@@ -190,8 +210,9 @@ class _CashClosingViewState extends State<CashClosingView>
             data['firestoreId'] = doc.id;
             _convertTimestampFields(data);
             return data;
-          }).toList();
-      
+          })
+          .toList();
+
       // Parse supplier_payments - filter deleted
       final supplierPayments = results[4].docs
           .where((doc) => doc.data()['deleted'] != true)
@@ -200,23 +221,39 @@ class _CashClosingViewState extends State<CashClosingView>
             data['firestoreId'] = doc.id;
             _convertTimestampFields(data);
             return data;
-          }).toList();
-      
-      // Load supplier imports từ local (không cần sync realtime)
-      final supplierImports = await db.getAllSupplierImportHistory();
-      
+          })
+          .toList();
+
+      // FIX BUG-007: Load supplier imports từ Firestore thay vì SQLite
+      // Để đảm bảo sync giữa các thiết bị (Device A == Device B)
+      final supplierImportsSnapshot = await firestore
+          .collection('supplier_import_history')
+          .where('shopId', isEqualTo: shopId)
+          .where('deleted', isNotEqualTo: true)
+          .get();
+      final supplierImports = supplierImportsSnapshot.docs.map((doc) {
+        final data = doc.data();
+        data['firestoreId'] = doc.id;
+        _convertTimestampFields(data);
+        return data;
+      }).toList();
+
       // Load closings
       final yesterday = _selectedDate.subtract(const Duration(days: 1));
       final yesterdayKey = DateFormat('yyyy-MM-dd').format(yesterday);
       final todayKey = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      
+
       final closingResults = await Future.wait([
         shopRef.collection('cash_closings').doc(yesterdayKey).get(),
         shopRef.collection('cash_closings').doc(todayKey).get(),
       ]);
-      
-      final previousClosing = closingResults[0].exists ? closingResults[0].data() : null;
-      final todayClosing = closingResults[1].exists ? closingResults[1].data() : null;
+
+      final previousClosing = closingResults[0].exists
+          ? closingResults[0].data()
+          : null;
+      final todayClosing = closingResults[1].exists
+          ? closingResults[1].data()
+          : null;
 
       if (mounted) {
         setState(() {
@@ -239,14 +276,37 @@ class _CashClosingViewState extends State<CashClosingView>
       if (mounted) await _loadAllDataFromLocalDB();
     }
   }
-  
+
   /// Fallback: Load từ local DB khi offline
+  /// Lưu ý: supplier_import_history vẫn load từ Firestore nếu có thể để sync
   Future<void> _loadAllDataFromLocalDB() async {
     final sales = await db.getAllSales();
     final repairs = await db.getAllRepairs();
     final expenses = await db.getAllExpenses();
     final debtPayments = await db.getAllDebtPaymentsWithDetails();
-    final supplierImports = await db.getAllSupplierImportHistory();
+    // FIX BUG-007: Ưu tiên load supplier imports từ Firestore, fallback SQLite
+    List<Map<String, dynamic>> supplierImports = [];
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId != null) {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('supplier_import_history')
+            .where('shopId', isEqualTo: shopId)
+            .get();
+        supplierImports = snapshot.docs
+            .where((doc) => doc.data()['deleted'] != true)
+            .map((doc) {
+              final data = doc.data();
+              data['firestoreId'] = doc.id;
+              _convertTimestampFields(data);
+              return data;
+            })
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Fallback to SQLite for supplier_import_history: $e');
+      supplierImports = await db.getAllSupplierImportHistory();
+    }
     final supplierPayments = await db.getAllSupplierPayments();
     final yesterday = _selectedDate.subtract(const Duration(days: 1));
     final yesterdayKey = DateFormat('yyyy-MM-dd').format(yesterday);
@@ -268,7 +328,7 @@ class _CashClosingViewState extends State<CashClosingView>
       });
     }
   }
-  
+
   /// Chuyển đổi Timestamp fields sang milliseconds
   void _convertTimestampFields(Map<String, dynamic> data) {
     for (var key in data.keys.toList()) {
@@ -1963,7 +2023,7 @@ class _CashClosingViewState extends State<CashClosingView>
   Future<void> _saveClosing() async {
     try {
       final dateKey = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      
+
       // Data cho local DB - chỉ dùng fields có trong schema
       final localData = {
         'dateKey': dateKey,
@@ -1972,10 +2032,10 @@ class _CashClosingViewState extends State<CashClosingView>
         'note': noteCtrl.text.trim(),
         'createdAt': DateTime.now().millisecondsSinceEpoch,
       };
-      
+
       // Lưu local trước
       await db.upsertCashClosing(localData);
-      
+
       // Sync to Firestore (best effort)
       final shopId = await UserService.getCurrentShopId();
       if (shopId != null) {
@@ -1993,10 +2053,12 @@ class _CashClosingViewState extends State<CashClosingView>
               .set(firestoreData, SetOptions(merge: true));
         } catch (e) {
           // Firestore sync failed but local is saved - log but don't show error
-          debugPrint('Firestore sync failed for cash closing (local saved): $e');
+          debugPrint(
+            'Firestore sync failed for cash closing (local saved): $e',
+          );
         }
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -2032,34 +2094,35 @@ class _CashClosingViewState extends State<CashClosingView>
         'amount': s.isInstallment ? s.downPayment : s.totalPrice,
       });
     }
-    
+
     // Thêm tiền tất toán từ ngân hàng (trả góp đã nhận tiền trong ngày)
     for (var s in _sales.where(
-      (s) => s.isInstallment && 
-             s.settlementReceivedAt != null && 
-             _isSameDay(s.settlementReceivedAt!, date) &&
-             s.settlementAmount > 0,
+      (s) =>
+          s.isInstallment &&
+          s.settlementReceivedAt != null &&
+          _isSameDay(s.settlementReceivedAt!, date) &&
+          s.settlementAmount > 0,
     )) {
       // Tính số tiền thực nhận từ settlement (clamp để tránh đúp khi set sai)
       final isSameDayAsSale = _isSameDay(s.soldAt, date);
-      final actualAmount = isSameDayAsSale 
-          ? s.settlementAmount.clamp(0, s.loanAmount) 
+      final actualAmount = isSameDayAsSale
+          ? s.settlementAmount.clamp(0, s.loanAmount)
           : s.settlementAmount;
-      
+
       if (actualAmount > 0) {
         list.add({
           'icon': '🏦',
           'title': 'Tất toán NH: ${s.bankName ?? "Ngân hàng"}',
           'subtitle':
               '${s.customerName ?? 'KH'} • Đơn #${s.firestoreId?.substring(0, 8) ?? s.id}',
-          'time': DateFormat(
-            'HH:mm',
-          ).format(DateTime.fromMillisecondsSinceEpoch(s.settlementReceivedAt!)),
+          'time': DateFormat('HH:mm').format(
+            DateTime.fromMillisecondsSinceEpoch(s.settlementReceivedAt!),
+          ),
           'amount': actualAmount,
         });
       }
     }
-    
+
     for (var r in _repairs.where(
       (r) =>
           r.status == 4 &&
@@ -2100,14 +2163,16 @@ class _CashClosingViewState extends State<CashClosingView>
 
   List<Map<String, dynamic>> _getExpenseTransactions(DateTime date) {
     final list = <Map<String, dynamic>>[];
-    
+
     // Debug log
-    debugPrint('=== _getExpenseTransactions for ${DateFormat('dd/MM/yyyy').format(date)} ===');
+    debugPrint(
+      '=== _getExpenseTransactions for ${DateFormat('dd/MM/yyyy').format(date)} ===',
+    );
     debugPrint('Total expenses: ${_expenses.length}');
     debugPrint('Total supplierImports: ${_supplierImports.length}');
     debugPrint('Total supplierPayments: ${_supplierPayments.length}');
     debugPrint('Total debtPayments: ${_debtPayments.length}');
-    
+
     // Chi phí thường - HIỂN THỊ TẤT CẢ (bao gồm nhập hàng, trả nợ...)
     // Lưu ý: Logic loại trừ chỉ áp dụng trong _analyzeTransactions để tránh double-counting cashFlow
     for (var e in _expenses) {
@@ -2117,10 +2182,10 @@ class _CashClosingViewState extends State<CashClosingView>
         continue;
       }
       if (!_isSameDay(expenseDate, date)) continue;
-      
+
       final category = e['category'] as String? ?? 'Chi phí';
       debugPrint('Adding expense to list: $category, amount=${e['amount']}');
-      
+
       list.add({
         'icon': '💸',
         'title': category,
@@ -2164,13 +2229,11 @@ class _CashClosingViewState extends State<CashClosingView>
         'amount': (pay['amount'] ?? 0) as int,
       });
     }
-    for (var p in _debtPayments.where(
-      (p) {
-        final paidAt = p['paidAt'];
-        if (paidAt == null) return false;
-        return _isSameDay(paidAt as int, date) && p['debtType'] == 'SHOP_OWES';
-      },
-    )) {
+    for (var p in _debtPayments.where((p) {
+      final paidAt = p['paidAt'];
+      if (paidAt == null) return false;
+      return _isSameDay(paidAt as int, date) && p['debtType'] == 'SHOP_OWES';
+    })) {
       list.add({
         'icon': '💳',
         'title': 'Trả nợ khách',
@@ -2187,175 +2250,182 @@ class _CashClosingViewState extends State<CashClosingView>
   }
 
   _TransactionAnalysis _analyzeTransactions(DateTime now) {
-  int cashIn = 0, cashOut = 0, bankIn = 0, bankOut = 0;
-  int saleIncome = 0, repairIncome = 0, debtCollected = 0;
-  int expenseOut = 0, importOut = 0, supplierPaid = 0;
-  int saleCost = 0, repairCost = 0;
-  int settlementIncome = 0;
+    int cashIn = 0, cashOut = 0, bankIn = 0, bankOut = 0;
+    int saleIncome = 0, repairIncome = 0, debtCollected = 0;
+    int expenseOut = 0, importOut = 0, supplierPaid = 0;
+    int saleCost = 0, repairCost = 0;
+    int settlementIncome = 0;
 
-  // ===== SALES =====
-  for (var s in _sales.where((s) => _isSameDay(s.soldAt, now))) {
-    if (s.paymentMethod == 'CÔNG NỢ') continue;
+    // ===== SALES =====
+    for (var s in _sales.where((s) => _isSameDay(s.soldAt, now))) {
+      if (s.paymentMethod == 'CÔNG NỢ') continue;
 
-    final paidToday = s.isInstallment ? s.downPayment : s.totalPrice;
-    saleIncome += paidToday;
+      final paidToday = s.isInstallment ? s.downPayment : s.totalPrice;
+      saleIncome += paidToday;
 
-    if (s.paymentMethod == 'TIỀN MẶT') {
-      cashIn += paidToday;
-    } else {
-      bankIn += paidToday;
-    }
-
-    // Giá vốn chỉ tính theo phần đã thu hôm nay
-    final ratio = s.totalPrice > 0 ? paidToday / s.totalPrice : 0;
-    saleCost += (s.totalCost * ratio).round();
-  }
-
-  // ===== BANK SETTLEMENT =====
-  for (var s in _sales.where((s) =>
-      s.isInstallment &&
-      s.settlementReceivedAt != null &&
-      _isSameDay(s.settlementReceivedAt!, now))) {
-    final amount = s.settlementAmount.clamp(0, s.loanAmount);
-
-    if (amount > 0) {
-      settlementIncome += amount;
-      bankIn += amount;
-
-      // Giá vốn phần còn lại
-      final downRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0;
-      final remainRatio = 1.0 - downRatio;
-      saleCost += (s.totalCost * remainRatio).round();
-    }
-  }
-
-  // ===== REPAIRS =====
-  for (var r in _repairs.where((r) =>
-      r.status == 4 &&
-      r.deliveredAt != null &&
-      _isSameDay(r.deliveredAt!, now))) {
-    if (r.paymentMethod == 'CÔNG NỢ') continue;
-
-    repairIncome += r.price;
-
-    if (r.paymentMethod == 'TIỀN MẶT') {
-      cashIn += r.price;
-    } else {
-      bankIn += r.price;
-    }
-
-    repairCost += r.totalCost;
-  }
-
-  // ===== EXPENSES =====
-  for (var e in _expenses.where((e) =>
-      e['date'] != null && _isSameDay(e['date'] as int, now))) {
-    final amount = e['amount'] as int? ?? 0;
-    final method = e['paymentMethod'] as String? ?? 'TIỀN MẶT';
-    final category = (e['category'] ?? '').toString().toUpperCase();
-
-    final isImport = category.contains('NHẬP') || category.contains('LINH KIỆN');
-
-    if (method == 'TIỀN MẶT') {
-      cashOut += amount;
-    } else {
-      bankOut += amount;
-    }
-
-    if (!isImport) {
-      expenseOut += amount;
-    }
-  }
-
-  // ===== SUPPLIER IMPORT =====
-  // Nhập hàng từ NCC - CHỈ tính nếu KHÔNG có expense tương ứng (tránh double-count)
-  // Vì stock_in_view tạo cả expense VÀ supplier_import_history
-  // Còn fast_stock_in chỉ tạo supplier_import_history
-  for (var imp in _supplierImports.where((i) =>
-      _isSameDay((i['importDate'] ?? i['createdAt'] ?? 0) as int, now))) {
-    final method = imp['paymentMethod'] as String? ?? 'TIỀN MẶT';
-    if (method == 'CÔNG NỢ') continue;
-    
-    final amount = (imp['totalAmount'] ?? imp['costPrice'] ?? 0) as int;
-    importOut += amount;
-    
-    // Kiểm tra xem đã có expense NHẬP HÀNG cùng ngày với cùng amount chưa
-    // Nếu có thì KHÔNG tính cash/bank (đã tính trong expenses loop)
-    final hasMatchingExpense = _expenses.any((e) {
-      if (e['date'] == null) return false;
-      if (!_isSameDay(e['date'] as int, now)) return false;
-      final cat = (e['category'] ?? '').toString().toUpperCase();
-      if (!cat.contains('NHẬP') && !cat.contains('LINH KIỆN')) return false;
-      final expAmount = e['amount'] as int? ?? 0;
-      // Match nếu amount gần bằng (có thể có sai số nhỏ)
-      return (expAmount - amount).abs() < 1000;
-    });
-    
-    if (!hasMatchingExpense) {
-      // Chỉ tính cash/bank nếu KHÔNG có expense tương ứng
-      if (method == 'TIỀN MẶT') {
-        cashOut += amount;
+      if (s.paymentMethod == 'TIỀN MẶT') {
+        cashIn += paidToday;
       } else {
-        bankOut += amount;
+        bankIn += paidToday;
       }
+
+      // Giá vốn chỉ tính theo phần đã thu hôm nay
+      final ratio = s.totalPrice > 0 ? paidToday / s.totalPrice : 0;
+      saleCost += (s.totalCost * ratio).round();
     }
-  }
 
+    // ===== BANK SETTLEMENT =====
+    for (var s in _sales.where(
+      (s) =>
+          s.isInstallment &&
+          s.settlementReceivedAt != null &&
+          _isSameDay(s.settlementReceivedAt!, now),
+    )) {
+      final amount = s.settlementAmount.clamp(0, s.loanAmount);
 
-  // ===== SUPPLIER PAYMENTS =====
-  for (var p in _supplierPayments.where((p) =>
-      _isSameDay((p['paidAt'] ?? 0) as int, now))) {
-    final amount = p['amount'] as int? ?? 0;
-    final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
-
-    supplierPaid += amount;
-
-    if (method == 'TIỀN MẶT') {
-      cashOut += amount;
-    } else {
-      bankOut += amount;
-    }
-  }
-
-  // ===== DEBTS =====
-  for (var p in _debtPayments.where((p) =>
-      p['paidAt'] != null && _isSameDay(p['paidAt'] as int, now))) {
-    final amount = p['amount'] as int? ?? 0;
-    final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
-
-    if (p['debtType'] == 'SHOP_OWES') {
-      if (method == 'TIỀN MẶT') {
-        cashOut += amount;
-      } else {
-        bankOut += amount;
-      }
-    } else {
-      debtCollected += amount;
-      if (method == 'TIỀN MẶT') {
-        cashIn += amount;
-      } else {
+      if (amount > 0) {
+        settlementIncome += amount;
         bankIn += amount;
+
+        // Giá vốn phần còn lại
+        final downRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0;
+        final remainRatio = 1.0 - downRatio;
+        saleCost += (s.totalCost * remainRatio).round();
       }
     }
+
+    // ===== REPAIRS =====
+    for (var r in _repairs.where(
+      (r) =>
+          r.status == 4 &&
+          r.deliveredAt != null &&
+          _isSameDay(r.deliveredAt!, now),
+    )) {
+      if (r.paymentMethod == 'CÔNG NỢ') continue;
+
+      repairIncome += r.price;
+
+      if (r.paymentMethod == 'TIỀN MẶT') {
+        cashIn += r.price;
+      } else {
+        bankIn += r.price;
+      }
+
+      repairCost += r.totalCost;
+    }
+
+    // ===== EXPENSES =====
+    for (var e in _expenses.where(
+      (e) => e['date'] != null && _isSameDay(e['date'] as int, now),
+    )) {
+      final amount = e['amount'] as int? ?? 0;
+      final method = e['paymentMethod'] as String? ?? 'TIỀN MẶT';
+      final category = (e['category'] ?? '').toString().toUpperCase();
+
+      final isImport =
+          category.contains('NHẬP') || category.contains('LINH KIỆN');
+
+      if (method == 'TIỀN MẶT') {
+        cashOut += amount;
+      } else {
+        bankOut += amount;
+      }
+
+      if (!isImport) {
+        expenseOut += amount;
+      }
+    }
+
+    // ===== SUPPLIER IMPORT =====
+    // Nhập hàng từ NCC - CHỈ tính nếu KHÔNG có expense tương ứng (tránh double-count)
+    // Vì stock_in_view tạo cả expense VÀ supplier_import_history
+    // Còn fast_stock_in chỉ tạo supplier_import_history
+    for (var imp in _supplierImports.where(
+      (i) => _isSameDay((i['importDate'] ?? i['createdAt'] ?? 0) as int, now),
+    )) {
+      final method = imp['paymentMethod'] as String? ?? 'TIỀN MẶT';
+      if (method == 'CÔNG NỢ') continue;
+
+      final amount = (imp['totalAmount'] ?? imp['costPrice'] ?? 0) as int;
+      importOut += amount;
+
+      // Kiểm tra xem đã có expense NHẬP HÀNG cùng ngày với cùng amount chưa
+      // Nếu có thì KHÔNG tính cash/bank (đã tính trong expenses loop)
+      final hasMatchingExpense = _expenses.any((e) {
+        if (e['date'] == null) return false;
+        if (!_isSameDay(e['date'] as int, now)) return false;
+        final cat = (e['category'] ?? '').toString().toUpperCase();
+        if (!cat.contains('NHẬP') && !cat.contains('LINH KIỆN')) return false;
+        final expAmount = e['amount'] as int? ?? 0;
+        // Match nếu amount gần bằng (có thể có sai số nhỏ)
+        return (expAmount - amount).abs() < 1000;
+      });
+
+      if (!hasMatchingExpense) {
+        // Chỉ tính cash/bank nếu KHÔNG có expense tương ứng
+        if (method == 'TIỀN MẶT') {
+          cashOut += amount;
+        } else {
+          bankOut += amount;
+        }
+      }
+    }
+
+    // ===== SUPPLIER PAYMENTS =====
+    for (var p in _supplierPayments.where(
+      (p) => _isSameDay((p['paidAt'] ?? 0) as int, now),
+    )) {
+      final amount = p['amount'] as int? ?? 0;
+      final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
+
+      supplierPaid += amount;
+
+      if (method == 'TIỀN MẶT') {
+        cashOut += amount;
+      } else {
+        bankOut += amount;
+      }
+    }
+
+    // ===== DEBTS =====
+    for (var p in _debtPayments.where(
+      (p) => p['paidAt'] != null && _isSameDay(p['paidAt'] as int, now),
+    )) {
+      final amount = p['amount'] as int? ?? 0;
+      final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
+
+      if (p['debtType'] == 'SHOP_OWES') {
+        if (method == 'TIỀN MẶT') {
+          cashOut += amount;
+        } else {
+          bankOut += amount;
+        }
+      } else {
+        debtCollected += amount;
+        if (method == 'TIỀN MẶT') {
+          cashIn += amount;
+        } else {
+          bankIn += amount;
+        }
+      }
+    }
+
+    return _TransactionAnalysis(
+      cashIn: cashIn,
+      cashOut: cashOut,
+      bankIn: bankIn,
+      bankOut: bankOut,
+      saleIncome: saleIncome,
+      settlementIncome: settlementIncome,
+      repairIncome: repairIncome,
+      debtCollected: debtCollected,
+      expenseOut: expenseOut,
+      importOut: importOut,
+      supplierPaid: supplierPaid,
+      saleCost: saleCost,
+      repairCost: repairCost,
+    );
   }
-
-  return _TransactionAnalysis(
-    cashIn: cashIn,
-    cashOut: cashOut,
-    bankIn: bankIn,
-    bankOut: bankOut,
-    saleIncome: saleIncome,
-    settlementIncome: settlementIncome,
-    repairIncome: repairIncome,
-    debtCollected: debtCollected,
-    expenseOut: expenseOut,
-    importOut: importOut,
-    supplierPaid: supplierPaid,
-    saleCost: saleCost,
-    repairCost: repairCost,
-  );
-}
-
 }
 
 class _TransactionAnalysis {

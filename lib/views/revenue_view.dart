@@ -148,7 +148,28 @@ class _RevenueViewState extends State<RevenueView>
     final sales = await db.getAllSales();
     final expenses = await db.getAllExpenses();
     final debtPayments = await db.getAllDebtPaymentsWithDetails();
-    final supplierImports = await db.getAllSupplierImportHistory();
+    // FIX BUG-007: Load supplier imports từ Firestore để sync giữa các thiết bị
+    final shopId = await UserService.getCurrentShopId();
+    List<Map<String, dynamic>> supplierImports = [];
+    if (shopId != null) {
+      try {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('supplier_import_history')
+            .where('shopId', isEqualTo: shopId)
+            .get();
+        supplierImports = snapshot.docs
+            .where((doc) => doc.data()['deleted'] != true)
+            .map((doc) {
+              final data = doc.data();
+              data['firestoreId'] = doc.id;
+              return data;
+            })
+            .toList();
+      } catch (e) {
+        debugPrint('Error loading supplier imports from Firestore: $e');
+        supplierImports = await db.getAllSupplierImportHistory();
+      }
+    }
     final supplierPayments = await db.getAllSupplierPayments();
 
     final dbRaw = await db.database;
@@ -2034,7 +2055,7 @@ class _RevenueViewState extends State<RevenueView>
   Future<void> _saveClosing() async {
     // Finalize currency fields trước khi xử lý
     CurrencyTextField.finalizeAll();
-    
+
     final cash = CurrencyTextField.parseValue(cashEndCtrl.text);
     final bank = CurrencyTextField.parseValue(bankEndCtrl.text);
 
@@ -2071,7 +2092,10 @@ class _RevenueViewState extends State<RevenueView>
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: const Text('CHỐT QUỸ', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'CHỐT QUỸ',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -2195,7 +2219,8 @@ class _RevenueViewState extends State<RevenueView>
           salesIncome += actualSettlement;
         }
         // Giá vốn tính theo tỷ lệ đã thu
-        final actualSettlementForCost = (s.settlementReceivedAt != null &&
+        final actualSettlementForCost =
+            (s.settlementReceivedAt != null &&
                 _isInFilterPeriod(s.settlementReceivedAt!))
             ? s.settlementAmount.clamp(0, s.loanAmount)
             : 0;
@@ -2221,15 +2246,17 @@ class _RevenueViewState extends State<RevenueView>
 
     int totalIn = salesIncome + repairsIncome;
     // CHI PHÍ = tổng expenses (LOẠI TRỪ nhập hàng/purchase vì đã tính trong giá vốn)
-    int totalOut = fExpenses.where((e) {
-      final category = (e['category'] as String? ?? '').toUpperCase();
-      // Loại trừ các chi phí nhập hàng/purchase vì sẽ được tính qua giá vốn khi bán
-      // Category có thể là: NHẬP HÀNG, PURCHASE, STOCK (auto-created khi nhập kho)
-      return !category.contains('NHẬP HÀNG') && 
-             !category.contains('PURCHASE') && 
-             !category.contains('STOCK') &&
-             !category.contains('ĐƠN NHẬP');
-    }).fold<int>(0, (sum, e) => sum + (e['amount'] as int));
+    int totalOut = fExpenses
+        .where((e) {
+          final category = (e['category'] as String? ?? '').toUpperCase();
+          // Loại trừ các chi phí nhập hàng/purchase vì sẽ được tính qua giá vốn khi bán
+          // Category có thể là: NHẬP HÀNG, PURCHASE, STOCK (auto-created khi nhập kho)
+          return !category.contains('NHẬP HÀNG') &&
+              !category.contains('PURCHASE') &&
+              !category.contains('STOCK') &&
+              !category.contains('ĐƠN NHẬP');
+        })
+        .fold<int>(0, (sum, e) => sum + (e['amount'] as int));
     // LỢI NHUẬN RÒNG = THU - CHI - GIÁ VỐN (chỉ tính đơn đã thu tiền)
     int profit = totalIn - totalOut - salesCost - repairsCost;
 
@@ -2262,7 +2289,11 @@ class _RevenueViewState extends State<RevenueView>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.calendar_today, size: 18, color: Colors.white70),
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: Colors.white70,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       _getFilterLabel(),
@@ -2277,7 +2308,10 @@ class _RevenueViewState extends State<RevenueView>
                 const SizedBox(height: 4),
                 Text(
                   'Báo cáo tổng quan tài chính',
-                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -2291,23 +2325,48 @@ class _RevenueViewState extends State<RevenueView>
           // Revenue Cards Row
           Row(
             children: [
-              _modernIncomeCard("DOANH THU", totalIn, Colors.green, Icons.arrow_downward_rounded),
+              _modernIncomeCard(
+                "DOANH THU",
+                totalIn,
+                Colors.green,
+                Icons.arrow_downward_rounded,
+              ),
               const SizedBox(width: 12),
-              _modernIncomeCard("CHI PHÍ", totalOut, Colors.red, Icons.arrow_upward_rounded),
+              _modernIncomeCard(
+                "CHI PHÍ",
+                totalOut,
+                Colors.red,
+                Icons.arrow_upward_rounded,
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              _modernIncomeCard("GIÁ VỐN", salesCost + repairsCost, Colors.orange, Icons.inventory_2),
+              _modernIncomeCard(
+                "GIÁ VỐN",
+                salesCost + repairsCost,
+                Colors.orange,
+                Icons.inventory_2,
+              ),
               const SizedBox(width: 12),
-              _modernIncomeCard("LỢI NHUẬN", profit, profit >= 0 ? Colors.teal : Colors.red, Icons.trending_up),
+              _modernIncomeCard(
+                "LỢI NHUẬN",
+                profit,
+                profit >= 0 ? Colors.teal : Colors.red,
+                Icons.trending_up,
+              ),
             ],
           ),
           const SizedBox(height: 24),
 
           // Mini Revenue Chart
-          _buildMiniRevenueChart(salesIncome, repairsIncome, totalOut, salesCost + repairsCost),
+          _buildMiniRevenueChart(
+            salesIncome,
+            repairsIncome,
+            totalOut,
+            salesCost + repairsCost,
+          ),
           const SizedBox(height: 24),
 
           // Quick Stats Section
@@ -2335,7 +2394,11 @@ class _RevenueViewState extends State<RevenueView>
                         color: Colors.indigo.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.analytics, color: Colors.indigo, size: 18),
+                      child: const Icon(
+                        Icons.analytics,
+                        color: Colors.indigo,
+                        size: 18,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     const Text(
@@ -2351,16 +2414,42 @@ class _RevenueViewState extends State<RevenueView>
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    Expanded(child: _modernStatCard("Đơn bán", fSales.length.toString(), Icons.shopping_cart, Colors.blue)),
+                    Expanded(
+                      child: _modernStatCard(
+                        "Đơn bán",
+                        fSales.length.toString(),
+                        Icons.shopping_cart,
+                        Colors.blue,
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    Expanded(child: _modernStatCard("Sửa chữa", fRepairs.length.toString(), Icons.build, Colors.orange)),
+                    Expanded(
+                      child: _modernStatCard(
+                        "Sửa chữa",
+                        fRepairs.length.toString(),
+                        Icons.build,
+                        Colors.orange,
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    Expanded(child: _modernStatCard("Chi phí", fExpenses.length.toString(), Icons.receipt, Colors.red)),
+                    Expanded(
+                      child: _modernStatCard(
+                        "Chi phí",
+                        fExpenses.length.toString(),
+                        Icons.receipt,
+                        Colors.red,
+                      ),
+                    ),
                   ],
                 ),
                 const Divider(height: 24),
                 // Chi tiết nguồn thu
-                _buildRevenueBreakdown(salesIncome, repairsIncome, fSales.length, fRepairs.length),
+                _buildRevenueBreakdown(
+                  salesIncome,
+                  repairsIncome,
+                  fSales.length,
+                  fRepairs.length,
+                ),
               ],
             ),
           ),
@@ -2370,7 +2459,12 @@ class _RevenueViewState extends State<RevenueView>
   }
 
   /// Widget hiển thị biểu đồ mini doanh thu
-  Widget _buildMiniRevenueChart(int salesIncome, int repairsIncome, int expenses, int cost) {
+  Widget _buildMiniRevenueChart(
+    int salesIncome,
+    int repairsIncome,
+    int expenses,
+    int cost,
+  ) {
     final total = salesIncome + repairsIncome + expenses + cost;
     if (total == 0) {
       return Container(
@@ -2414,7 +2508,11 @@ class _RevenueViewState extends State<RevenueView>
                   color: Colors.purple.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.pie_chart, color: Colors.purple, size: 18),
+                child: const Icon(
+                  Icons.pie_chart,
+                  color: Colors.purple,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 10),
               const Text(
@@ -2465,10 +2563,26 @@ class _RevenueViewState extends State<RevenueView>
             spacing: 16,
             runSpacing: 8,
             children: [
-              _chartLegend("Bán hàng", Colors.green.shade400, "${salesPct.toStringAsFixed(0)}%"),
-              _chartLegend("Sửa chữa", Colors.blue.shade400, "${repairsPct.toStringAsFixed(0)}%"),
-              _chartLegend("Chi phí", Colors.red.shade400, "${expensesPct.toStringAsFixed(0)}%"),
-              _chartLegend("Giá vốn", Colors.orange.shade400, "${costPct.toStringAsFixed(0)}%"),
+              _chartLegend(
+                "Bán hàng",
+                Colors.green.shade400,
+                "${salesPct.toStringAsFixed(0)}%",
+              ),
+              _chartLegend(
+                "Sửa chữa",
+                Colors.blue.shade400,
+                "${repairsPct.toStringAsFixed(0)}%",
+              ),
+              _chartLegend(
+                "Chi phí",
+                Colors.red.shade400,
+                "${expensesPct.toStringAsFixed(0)}%",
+              ),
+              _chartLegend(
+                "Giá vốn",
+                Colors.orange.shade400,
+                "${costPct.toStringAsFixed(0)}%",
+              ),
             ],
           ),
         ],
@@ -2497,12 +2611,25 @@ class _RevenueViewState extends State<RevenueView>
     );
   }
 
-  Widget _buildRevenueBreakdown(int salesIncome, int repairsIncome, int salesCount, int repairsCount) {
+  Widget _buildRevenueBreakdown(
+    int salesIncome,
+    int repairsIncome,
+    int salesCount,
+    int repairsCount,
+  ) {
     return Column(
       children: [
-        _revenueBreakdownRow("Bán hàng ($salesCount đơn)", salesIncome, Colors.green),
+        _revenueBreakdownRow(
+          "Bán hàng ($salesCount đơn)",
+          salesIncome,
+          Colors.green,
+        ),
         const SizedBox(height: 8),
-        _revenueBreakdownRow("Sửa chữa ($repairsCount đơn)", repairsIncome, Colors.blue),
+        _revenueBreakdownRow(
+          "Sửa chữa ($repairsCount đơn)",
+          repairsIncome,
+          Colors.blue,
+        ),
       ],
     );
   }
@@ -2537,7 +2664,12 @@ class _RevenueViewState extends State<RevenueView>
     );
   }
 
-  Widget _modernIncomeCard(String label, int amount, Color color, IconData icon) {
+  Widget _modernIncomeCard(
+    String label,
+    int amount,
+    Color color,
+    IconData icon,
+  ) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -2593,7 +2725,12 @@ class _RevenueViewState extends State<RevenueView>
     );
   }
 
-  Widget _modernStatCard(String title, String value, IconData icon, Color color) {
+  Widget _modernStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
