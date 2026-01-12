@@ -2093,23 +2093,7 @@ class _CashClosingViewState extends State<CashClosingView>
         'amount': p['amount'] as int? ?? 0,
       });
     }
-    // Tiền tất toán từ ngân hàng (trả góp đã nhận tiền trong ngày)
-    for (var s in _sales.where(
-      (s) => s.isInstallment && 
-             s.settlementReceivedAt != null && 
-             _isSameDay(s.settlementReceivedAt!, date) &&
-             s.settlementAmount > 0,
-    )) {
-      list.add({
-        'icon': '🏦',
-        'title': 'Tất toán NH: ${s.bankName ?? "Ngân hàng"}',
-        'subtitle': '${s.customerName ?? 'KH'} • 🏦 CHUYỂN KHOẢN',
-        'time': DateFormat('HH:mm').format(
-          DateTime.fromMillisecondsSinceEpoch(s.settlementReceivedAt!),
-        ),
-        'amount': s.settlementAmount,
-      });
-    }
+    // Settlement đã được add ở loop trên (sau repairs), không cần add lại
     list.sort((a, b) => (b['time'] as String).compareTo(a['time'] as String));
     return list;
   }
@@ -2236,27 +2220,27 @@ class _CashClosingViewState extends State<CashClosingView>
              _isSameDay(s.settlementReceivedAt!, now) &&
              s.settlementAmount > 0,
     )) {
-      // CHỈ tính settlement nếu KHÁC ngày bán (để tránh đúp)
-      // Nếu cùng ngày bán, đã tính downPayment ở trên rồi
+      // Nếu cùng ngày bán, downPayment đã được tính vào saleIncome ở loop trên
+      // Chỉ cần cộng thêm phần settlement (loanAmount) - KHÔNG TÍNH LẠI GIÁ VỐN
       final isSameDayAsSale = _isSameDay(s.soldAt, now);
       if (isSameDayAsSale) {
-        // Cùng ngày: chỉ cộng thêm phần chênh lệch (settlement - downPayment đã tính)
-        // settlement thực tế = loanAmount = totalPrice - downPayment
-        // Nên chỉ cần cộng (settlementAmount) nếu settlementAmount <= loanAmount
+        // Cùng ngày bán: cộng thêm phần settlement vào thu nhập
+        // Giá vốn ĐÃ ĐƯỢC TÍNH ĐẦY ĐỦ ở loop sales (s.totalCost * ratio với ratio = downPayment/totalPrice)
+        // và chưa tính phần còn lại, nên cần tính giá vốn phần loan
         final actualSettlement = s.settlementAmount.clamp(0, s.loanAmount);
         if (actualSettlement > 0) {
           settlementIncome += actualSettlement;
           bankIn += actualSettlement;
-          // Tính giá vốn phần còn lại
+          // Tính giá vốn phần còn lại (từ loan)
           final downPaymentRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0.0;
           final remainingCostRatio = 1.0 - downPaymentRatio;
           saleCost += (s.totalCost * remainingCostRatio).round();
         }
       } else {
-        // Khác ngày: tính toàn bộ settlementAmount
+        // Khác ngày: tính toàn bộ settlementAmount và giá vốn còn lại
         settlementIncome += s.settlementAmount;
         bankIn += s.settlementAmount;
-        // Tính giá vốn còn lại
+        // Tính giá vốn còn lại (chưa tính ngày bán vì khác ngày)
         final downPaymentRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0.0;
         final remainingCostRatio = 1.0 - downPaymentRatio;
         saleCost += (s.totalCost * remainingCostRatio).round();
