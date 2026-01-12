@@ -858,7 +858,8 @@ class _FastStockInViewState extends State<FastStockInView> {
           'firestoreId': expFId,
           'title': 'Nhập hàng - $selectedSupplier',
           'amount': cost * quantity,
-          'category': 'PURCHASE',
+          // CHUẨN HÓA: Dùng 'NHẬP HÀNG' thay vì 'PURCHASE' để đồng nhất với stock_in_view.dart
+          'category': 'NHẬP HÀNG',
           'date': ts,
           'note': 'Chi phí nhập hàng ${product.name}',
           'paymentMethod': selectedPaymentMethod,

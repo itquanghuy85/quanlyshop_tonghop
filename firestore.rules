@@ -123,7 +123,11 @@ service cloud.firestore {
     function roleChangeOK() {
       return isSuperAdmin() || 
              !changed('role') ||
-             (isOwner() && 'shopId' in resource.data && belongsTo(resource.data.shopId));
+             (isOwner() && 'shopId' in resource.data && belongsTo(resource.data.shopId)) ||
+             // Fallback: Check if current user is the shop owner directly
+             ('shopId' in resource.data && 
+              exists(/databases/$(database)/documents/shops/$(resource.data.shopId)) &&
+              get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid == uid());
     }
     
     function shopIdLocked() {
@@ -195,12 +199,18 @@ service cloud.firestore {
                        (!('role' in request.resource.data) || 
                         request.resource.data.role in ['user', 'employee', 'technician', 'owner']);
       
-      // UPDATE: Own profile OR manager of same shop
+      // UPDATE: Own profile OR manager/owner of same shop
       // Owner can change role of staff in their shop
+      // Also allow if current user owns the shop that the target user belongs to
       allow update: if isAuth() &&
                        (uid() == userId || 
                         isSuperAdmin() || 
-                        (isManager() && belongsTo(resource.data.shopId))) &&
+                        (isManager() && belongsTo(resource.data.shopId)) ||
+                        // Fallback: Check if current user is the shop owner directly
+                        ('shopId' in resource.data && 
+                         exists(/databases/$(database)/documents/shops/$(resource.data.shopId)) &&
+                         get(/databases/$(database)/documents/shops/$(resource.data.shopId)).data.ownerUid == uid())
+                       ) &&
                        protectedOK() &&
                        roleChangeOK();
       
@@ -211,7 +221,11 @@ service cloud.firestore {
     // ═══════════ 2.2 SHOPS ═══════════
     match /shops/{shopId} {
       // READ: Shop members only
-      allow read: if isAuth() && belongsTo(shopId);
+      // Also allow owner to read their own shop (before claims are synced)
+      allow read: if isAuth() && (
+        belongsTo(shopId) || 
+        resource.data.ownerUid == uid()
+      );
       
       // CREATE: Any user can create shop (becomes owner)
       allow create: if isAuth() &&

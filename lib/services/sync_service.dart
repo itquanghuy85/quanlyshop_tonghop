@@ -483,6 +483,34 @@ class SyncService {
       },
     );
 
+    // 5b. Đồng bộ DEBT PAYMENTS (thanh toán công nợ)
+    // FIX: Thêm real-time listener cho debt_payments - trước đây bị thiếu
+    _subscribeToCollection(
+      collection: 'debt_payments',
+      shopId: shopId,
+      onChanged: (data, docId) async {
+        try {
+          final db = DBHelper();
+          if (data['deleted'] == true) {
+            await db.deleteDebtPaymentByFirestoreId(docId);
+          } else {
+            data['firestoreId'] = docId;
+            data['isSynced'] = 1;
+            _convertTimestampFields(data);
+            await db.upsertDebtPayment(data);
+          }
+        } catch (e) {
+          debugPrint("Lỗi sync debt_payment $docId: $e");
+        }
+      },
+      onBatchDone: () {
+        onDataChanged();
+        EventBus().emit(
+          'debts_changed',
+        ); // Debt payments cũng ảnh hưởng debt view
+      },
+    );
+
     // 6. Đồng bộ USERS (cập nhật cache khi có thay đổi)
     _subscribeToCollection(
       collection: 'users',
@@ -861,6 +889,85 @@ class SyncService {
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo supplier_product_prices sync: $e");
+    }
+
+    // 19. FIX BUG-CC-002: Đồng bộ CASH CLOSINGS (Chốt quỹ)
+    // Để đảm bảo khi máy A chốt quỹ, máy B sẽ nhận được update ngay lập tức
+    try {
+      _subscribeToCollection(
+        collection: 'cash_closings',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteCashClosingByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertCashClosing(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync cash_closing $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo cash_closings sync: $e");
+    }
+
+    // 20. Đồng bộ ADJUSTMENT ENTRIES (Bút toán điều chỉnh)
+    try {
+      _subscribeToCollection(
+        collection: 'adjustment_entries',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteAdjustmentEntryByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertAdjustmentEntry(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync adjustment_entry $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo adjustment_entries sync: $e");
+    }
+
+    // 21. Đồng bộ PURCHASE ORDERS (Đơn đặt hàng NCC)
+    try {
+      _subscribeToCollection(
+        collection: 'purchase_orders',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deletePurchaseOrderByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertPurchaseOrder(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync purchase_order $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo purchase_orders sync: $e");
     }
 
     debugPrint(
@@ -1644,11 +1751,16 @@ class SyncService {
         'suppliers',
         'repair_partners',
         'repair_parts',
+        'supplier_import_history',
+        'supplier_product_prices',
+        'audit_logs', // FIX: Thêm để device mới download được lịch sử thao tác
       ];
       // Lưu ý: 'users' và 'shops' không có shopId field nên không tải ở đây
-      // 'supplier_import_history' và 'supplier_product_prices' quản lý locally
 
       for (var col in collections) {
+        // Yield to UI thread between collections to prevent ANR/frame drops
+        await Future.delayed(Duration.zero);
+
         try {
           debugPrint("Downloading collection: $col...");
           // Luôn filter theo shopId (super admin đã chọn shop nên cũng có shopId)
@@ -1662,7 +1774,15 @@ class SyncService {
           int skipCount = 0;
           int errorCount = 0;
 
-          for (var doc in snap.docs) {
+          // Process in batches of 50 to avoid blocking main thread
+          final docs = snap.docs;
+          for (int i = 0; i < docs.length; i++) {
+            // Yield every 50 documents to prevent frame drops
+            if (i > 0 && i % 50 == 0) {
+              await Future.delayed(Duration.zero);
+            }
+
+            final doc = docs[i];
             try {
               var data = doc.data();
               if (data['deleted'] == true) {
@@ -1708,6 +1828,22 @@ class SyncService {
                 await db.upsertRepairPartner(data);
               } else if (col == 'repair_parts') {
                 await db.upsertRepairPart(data);
+              } else if (col == 'supplier_import_history') {
+                await db.upsertSupplierImportHistory(data);
+              } else if (col == 'supplier_product_prices') {
+                await db.upsertSupplierProductPrice(data);
+              } else if (col == 'audit_logs') {
+                // Map fields cho audit_logs
+                data['userName'] =
+                    data['userName'] ??
+                    data['email']?.toString().split('@').first.toUpperCase() ??
+                    'SYSTEM';
+                data['description'] =
+                    data['summary'] ?? data['description'] ?? '';
+                data['targetType'] =
+                    data['targetType'] ?? data['entityType'] ?? '';
+                data['targetId'] = data['targetId'] ?? data['entityId'] ?? '';
+                await db.upsertAuditLog(data);
               }
               successCount++;
             } catch (e) {

@@ -54,18 +54,21 @@ Future<void> main() async {
         debugPrint('Firebase initialization failed: $e');
         rethrow;
       }
-      try {
-        await NotificationService.init();
-      } catch (e) {
-        debugPrint('NotificationService initialization failed: $e');
-        // Continue, as notifications are not critical for launch
-      }
-      try {
-        await ConnectivityService.instance.initialize();
-      } catch (e) {
-        debugPrint('ConnectivityService initialization failed: $e');
-        // Continue, as connectivity monitoring is not critical for launch
-      }
+      
+      // Defer heavy initialization to next frame to allow splash screen to render
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          await NotificationService.init();
+        } catch (e) {
+          debugPrint('NotificationService initialization failed: $e');
+        }
+        try {
+          await ConnectivityService.instance.initialize();
+        } catch (e) {
+          debugPrint('ConnectivityService initialization failed: $e');
+        }
+      });
+      
       runApp(const MyApp());
     },
     (error, stack) {
@@ -153,17 +156,25 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   Future<Map<String, dynamic>>? _roleFuture;
   String? _currentUid;
 
+  // Track if sync orchestrator is initialized
+  bool _syncOrchestratorInitialized = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initNotificationListener();
-    _initSyncOrchestrator();
+    // Delay notification listener to next frame to avoid blocking startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initNotificationListener();
+    });
   }
 
-  void _initSyncOrchestrator() async {
+  /// Initialize SyncOrchestrator - called after user login completes
+  Future<void> _initSyncOrchestrator() async {
+    if (_syncOrchestratorInitialized) return;
     try {
       await SyncOrchestrator().init();
+      _syncOrchestratorInitialized = true;
       debugPrint('✅ SyncOrchestrator initialized');
     } catch (e) {
       debugPrint('❌ SyncOrchestrator init failed: $e');
@@ -280,6 +291,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         },
       );
       debugPrint('✅ Sync hoàn thành');
+
+      // Initialize SyncOrchestrator AFTER successful login and data sync
+      // This prevents blocking startup
+      await _initSyncOrchestrator();
 
       // Khởi tạo CashClosingNotifier để theo dõi trạng thái chốt quỹ realtime
       await CashClosingNotifier.instance.init();

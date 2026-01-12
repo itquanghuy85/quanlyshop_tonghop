@@ -92,17 +92,20 @@ class _CashClosingViewState extends State<CashClosingView>
     if (shopId == null) return;
 
     final firestore = FirebaseFirestore.instance;
-    final shopRef = firestore.collection('shops').doc(shopId);
 
-    // Listen to all relevant collections - khi có thay đổi thì schedule reload
-    _closingSubscription = shopRef
+    // FIX BUG-CC-001: Tất cả collections đều là ROOT collections với shopId filter
+    // Đồng nhất với cách FirestoreService và SyncService lưu dữ liệu
+
+    // cash_closings - ROOT collection
+    _closingSubscription = firestore
         .collection('cash_closings')
+        .where('shopId', isEqualTo: shopId)
         .snapshots()
         .listen((_) {
           _scheduleReload();
         });
 
-    // debt_payments và supplier_payments ở ROOT collection, filter theo shopId
+    // debt_payments - ROOT collection
     _debtPaymentsSubscription = firestore
         .collection('debt_payments')
         .where('shopId', isEqualTo: shopId)
@@ -111,6 +114,7 @@ class _CashClosingViewState extends State<CashClosingView>
           _scheduleReload();
         });
 
+    // supplier_payments - ROOT collection
     _supplierPaymentsSubscription = firestore
         .collection('supplier_payments')
         .where('shopId', isEqualTo: shopId)
@@ -119,7 +123,7 @@ class _CashClosingViewState extends State<CashClosingView>
           _scheduleReload();
         });
 
-    // FIX: Thêm listener cho supplier_import_history để đồng bộ giữa các thiết bị
+    // supplier_import_history - ROOT collection
     _supplierImportsSubscription = firestore
         .collection('supplier_import_history')
         .where('shopId', isEqualTo: shopId)
@@ -128,21 +132,32 @@ class _CashClosingViewState extends State<CashClosingView>
           _scheduleReload();
         });
 
-    _salesSubscription = shopRef.collection('sales').snapshots().listen((_) {
-      _scheduleReload();
-    });
+    // sales - ROOT collection (FIX: không phải subcollection)
+    _salesSubscription = firestore
+        .collection('sales')
+        .where('shopId', isEqualTo: shopId)
+        .snapshots()
+        .listen((_) {
+          _scheduleReload();
+        });
 
-    _repairsSubscription = shopRef.collection('repairs').snapshots().listen((
-      _,
-    ) {
-      _scheduleReload();
-    });
+    // repairs - ROOT collection (FIX: không phải subcollection)
+    _repairsSubscription = firestore
+        .collection('repairs')
+        .where('shopId', isEqualTo: shopId)
+        .snapshots()
+        .listen((_) {
+          _scheduleReload();
+        });
 
-    _expensesSubscription = shopRef.collection('expenses').snapshots().listen((
-      _,
-    ) {
-      _scheduleReload();
-    });
+    // expenses - ROOT collection (FIX: không phải subcollection)
+    _expensesSubscription = firestore
+        .collection('expenses')
+        .where('shopId', isEqualTo: shopId)
+        .snapshots()
+        .listen((_) {
+          _scheduleReload();
+        });
   }
 
   /// Load dữ liệu trực tiếp từ Firestore để đảm bảo đồng bộ giữa các thiết bị
@@ -160,20 +175,28 @@ class _CashClosingViewState extends State<CashClosingView>
       }
 
       final firestore = FirebaseFirestore.instance;
-      final shopRef = firestore.collection('shops').doc(shopId);
 
-      // Load từ Firestore song song
-      // Lưu ý: sales, repairs, expenses nằm trong shops/{shopId}/...
-      // Còn debt_payments, supplier_payments nằm ở ROOT collection với filter shopId
+      // FIX BUG-CC-001: Tất cả collections đều là ROOT collections với shopId filter
+      // Đồng nhất với cách FirestoreService và SyncService lưu dữ liệu
       final results = await Future.wait([
-        shopRef.collection('sales').get(),
-        shopRef.collection('repairs').get(),
-        shopRef.collection('expenses').get(),
-        // debt_payments và supplier_payments ở ROOT collection, filter theo shopId
+        // sales - ROOT collection
+        firestore.collection('sales').where('shopId', isEqualTo: shopId).get(),
+        // repairs - ROOT collection
+        firestore
+            .collection('repairs')
+            .where('shopId', isEqualTo: shopId)
+            .get(),
+        // expenses - ROOT collection
+        firestore
+            .collection('expenses')
+            .where('shopId', isEqualTo: shopId)
+            .get(),
+        // debt_payments - ROOT collection
         firestore
             .collection('debt_payments')
             .where('shopId', isEqualTo: shopId)
             .get(),
+        // supplier_payments - ROOT collection
         firestore
             .collection('supplier_payments')
             .where('shopId', isEqualTo: shopId)
@@ -249,14 +272,20 @@ class _CashClosingViewState extends State<CashClosingView>
         return data;
       }).toList();
 
-      // Load closings
+      // Load closings - FIX BUG-CC-001: cash_closings cũng là ROOT collection
       final yesterday = _selectedDate.subtract(const Duration(days: 1));
       final yesterdayKey = DateFormat('yyyy-MM-dd').format(yesterday);
       final todayKey = DateFormat('yyyy-MM-dd').format(_selectedDate);
 
       final closingResults = await Future.wait([
-        shopRef.collection('cash_closings').doc(yesterdayKey).get(),
-        shopRef.collection('cash_closings').doc(todayKey).get(),
+        firestore
+            .collection('cash_closings')
+            .doc('closing_${shopId}_$yesterdayKey')
+            .get(),
+        firestore
+            .collection('cash_closings')
+            .doc('closing_${shopId}_$todayKey')
+            .get(),
       ]);
 
       final previousClosing = closingResults[0].exists
@@ -1257,6 +1286,12 @@ class _CashClosingViewState extends State<CashClosingView>
                       analysis.saleIncome,
                       Colors.green,
                     ),
+                    // FIX BUG-CC-005: Hiển thị tiền tất toán ngân hàng (trả góp)
+                    _breakdownItem(
+                      "Tất toán NH",
+                      analysis.settlementIncome,
+                      Colors.green,
+                    ),
                     _breakdownItem(
                       "Sửa chữa",
                       analysis.repairIncome,
@@ -2196,8 +2231,11 @@ class _CashClosingViewState extends State<CashClosingView>
       final category = (e['category'] as String? ?? 'Chi phí').toUpperCase();
       final amount = e['amount'] as int? ?? 0;
 
-      // Nếu là expense NHẬP HÀNG/LINH KIỆN, lưu lại amount để bỏ qua supplier_import tương ứng
-      if (category.contains('NHẬP') || category.contains('LINH KIỆN')) {
+      // FIX BUG-CC-003: Thêm 'PURCHASE' vào danh sách category nhập hàng
+      // vì fast_stock_in_view.dart tạo expense với category='PURCHASE'
+      if (category.contains('NHẬP') ||
+          category.contains('LINH KIỆN') ||
+          category.contains('PURCHASE')) {
         importExpenseAmounts.add(amount);
       }
 
@@ -2262,16 +2300,18 @@ class _CashClosingViewState extends State<CashClosingView>
         'amount': (pay['amount'] ?? 0) as int,
       });
     }
+    // FIX BUG-CC-004: debt_payments với debtType='SHOP_OWES' là trả nợ NCC
+    // (thanh toán NCC từ trang Công nợ NCC lưu vào debt_payments, không phải supplier_payments)
     for (var p in _debtPayments.where((p) {
       final paidAt = p['paidAt'];
       if (paidAt == null) return false;
       return _isSameDay(paidAt as int, date) && p['debtType'] == 'SHOP_OWES';
     })) {
       list.add({
-        'icon': '💳',
-        'title': 'Trả nợ khách',
+        'icon': '🏭',
+        'title': 'Trả nợ NCC',
         'subtitle':
-            '${p['customerName'] ?? 'KH'} • ${(p['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
+            '${p['personName'] ?? p['customerName'] ?? 'NCC'} • ${(p['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
         'time': DateFormat(
           'HH:mm',
         ).format(DateTime.fromMillisecondsSinceEpoch(p['paidAt'] as int)),
@@ -2355,8 +2395,12 @@ class _CashClosingViewState extends State<CashClosingView>
       final method = e['paymentMethod'] as String? ?? 'TIỀN MẶT';
       final category = (e['category'] ?? '').toString().toUpperCase();
 
+      // FIX BUG-CC-003: Thêm 'PURCHASE' vào danh sách category nhập hàng
+      // vì fast_stock_in_view.dart tạo expense với category='PURCHASE'
       final isImport =
-          category.contains('NHẬP') || category.contains('LINH KIỆN');
+          category.contains('NHẬP') ||
+          category.contains('LINH KIỆN') ||
+          category.contains('PURCHASE');
 
       if (method == 'TIỀN MẶT') {
         cashOut += amount;
@@ -2384,11 +2428,15 @@ class _CashClosingViewState extends State<CashClosingView>
 
       // Kiểm tra xem đã có expense NHẬP HÀNG cùng ngày với cùng amount chưa
       // Nếu có thì KHÔNG tính cash/bank (đã tính trong expenses loop)
+      // FIX BUG-CC-003: Thêm 'PURCHASE' vào check vì fast_stock_in dùng category này
       final hasMatchingExpense = _expenses.any((e) {
         if (e['date'] == null) return false;
         if (!_isSameDay(e['date'] as int, now)) return false;
         final cat = (e['category'] ?? '').toString().toUpperCase();
-        if (!cat.contains('NHẬP') && !cat.contains('LINH KIỆN')) return false;
+        if (!cat.contains('NHẬP') &&
+            !cat.contains('LINH KIỆN') &&
+            !cat.contains('PURCHASE'))
+          return false;
         final expAmount = e['amount'] as int? ?? 0;
         // Match nếu amount gần bằng (có thể có sai số nhỏ)
         return (expAmount - amount).abs() < 1000;
@@ -2428,6 +2476,9 @@ class _CashClosingViewState extends State<CashClosingView>
       final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
 
       if (p['debtType'] == 'SHOP_OWES') {
+        // FIX BUG-CC-004: Thanh toán NCC từ trang Công nợ NCC lưu vào debt_payments
+        // với debtType='SHOP_OWES', cần tính vào supplierPaid
+        supplierPaid += amount;
         if (method == 'TIỀN MẶT') {
           cashOut += amount;
         } else {

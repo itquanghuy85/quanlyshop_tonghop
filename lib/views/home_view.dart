@@ -1129,6 +1129,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     await Future.delayed(Duration.zero); // Yield
 
     final expenses = await db.getAllExpenses();
+    
+    // FIX BUG-CC-006: Thêm debt_payments để tính thu nợ khách hàng (đồng nhất với cash_closing_view)
+    final debtPayments = await db.getAllDebtPaymentsWithDetails();
+    await Future.delayed(Duration.zero); // Yield
 
     int pendingR = repairs.where((r) => r.status == 1 || r.status == 2).length;
     int doneT = 0, soldT = 0, newRT = 0, debtR = 0, expW = 0;
@@ -1198,6 +1202,20 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
     int totalIn = salesIncome + repairsIncome;
 
+    // FIX BUG-CC-006: Tính thu nợ khách hàng (debtType != 'SHOP_OWES')
+    // Để đồng nhất với cash_closing_view.dart
+    int debtCollected = 0;
+    for (var p in debtPayments) {
+      final paidAt = p['paidAt'] as int?;
+      if (paidAt == null) continue;
+      if (!_isSameDay(paidAt)) continue;
+      if (p['debtType'] == 'SHOP_OWES') continue; // SHOP_OWES là trả nợ NCC, không phải thu nợ KH
+      debtCollected += (p['amount'] as int? ?? 0);
+    }
+    
+    // Cộng thu nợ khách vào tổng thu
+    totalIn += debtCollected;
+
     // CHI HÔM NAY = tổng expenses (LOẠI TRỪ nhập hàng/linh kiện/purchase vì đã tính trong giá vốn)
     int totalOut = 0;
     for (var e in fExpenses) {
@@ -1231,13 +1249,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     }
 
     // Debug log
-    debugPrint('=== TÍNH LỢI NHUẬN ===');
+    debugPrint('=== TÍNH LỢI NHUẬN (HOME) ===');
     debugPrint('salesIncome=$salesIncome, salesCost=$salesCost');
     debugPrint('repairsIncome=$repairsIncome, repairsCost=$repairsCost');
-    debugPrint('totalIn=$totalIn, totalOut=$totalOut');
+    debugPrint('debtCollected=$debtCollected'); // FIX BUG-CC-006
+    debugPrint('totalIn=$totalIn (includes debtCollected), totalOut=$totalOut');
     debugPrint('profit = $totalIn - $totalOut - $salesCost - $repairsCost');
 
     // LỢI NHUẬN RÒNG = THU - CHI - GIÁ VỐN (chỉ tính đơn đã thu tiền)
+    // FIX BUG-CC-006: totalIn đã bao gồm debtCollected, đồng nhất với cash_closing_view
     int profit = totalIn - totalOut - salesCost - repairsCost;
     debugPrint('profit = $profit');
 

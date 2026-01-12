@@ -16,10 +16,7 @@ class WorkScheduleSettingsView extends StatefulWidget {
       _WorkScheduleSettingsViewState();
 }
 
-class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
-    with TickerProviderStateMixin {
-  late TabController _tabController;
-
+class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
   String _getShortRoleName(String role) {
     switch (role) {
       case 'owner':
@@ -68,6 +65,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
   String? selectedStaff;
   List<Map<String, dynamic>> staffList = [];
   Map<String, double> staffSalaries = {};
+  
+  // Staff Work Schedules (loaded into state to avoid FutureBuilder issues)
+  Map<String, Map<String, dynamic>> _staffWorkSchedules = {};
 
   // Attendance Settings
   List<Attendance> attendanceRecords = [];
@@ -81,13 +81,11 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadSettings();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     startTimeCtrl.dispose();
     endTimeCtrl.dispose();
     breakTimeCtrl.dispose();
@@ -156,6 +154,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
 
       // Load staff list from shop
       await _loadStaffList();
+      
+      // Load work schedules for all staff
+      await _loadStaffWorkSchedules();
 
       // Load attendance records for selected date
       await _loadAttendanceRecords();
@@ -263,12 +264,12 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
         }
       }
       
-      // Query 3: Nếu chưa có staff nào, thêm chính owner/current user vào danh sách
-      // Điều kiện: allStaff rỗng VÀ có currentUser VÀ (shopId == uid HOẶC không có ai khác)
-      if (allStaff.isEmpty && currentUser != null) {
+      // Query 3: LUÔN thêm current user vào danh sách nếu chưa có
+      // (Đảm bảo owner/chủ shop luôn xuất hiện trong danh sách)
+      if (currentUser != null && !addedIds.contains(currentUser.uid)) {
         try {
           final ownerDoc = await db.collection('users').doc(currentUser.uid).get();
-          if (ownerDoc.exists && !addedIds.contains(currentUser.uid)) {
+          if (ownerDoc.exists) {
             final data = ownerDoc.data()!;
             allStaff.add({
               'id': currentUser.uid,
@@ -278,9 +279,27 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
             });
             addedIds.add(currentUser.uid);
             debugPrint('📋 Added owner/current user to staff list: ${currentUser.uid}');
+          } else {
+            // User doc không tồn tại, tạo entry từ auth info
+            allStaff.add({
+              'id': currentUser.uid,
+              'name': currentUser.displayName ?? currentUser.email?.split('@').first ?? 'Owner',
+              'email': currentUser.email ?? '',
+              'role': 'owner',
+            });
+            addedIds.add(currentUser.uid);
+            debugPrint('📋 Added current user from auth info: ${currentUser.uid}');
           }
         } catch (e) {
           debugPrint('❌ Query owner doc failed: $e');
+          // Fallback: thêm từ auth info
+          allStaff.add({
+            'id': currentUser.uid,
+            'name': currentUser.displayName ?? currentUser.email?.split('@').first ?? 'Owner',
+            'email': currentUser.email ?? '',
+            'role': 'owner',
+          });
+          addedIds.add(currentUser.uid);
         }
       }
       
@@ -297,6 +316,29 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
       // Fallback to empty list instead of sample data
       staffList = [];
     }
+  }
+
+  /// Load work schedules cho tất cả nhân viên vào state
+  Future<void> _loadStaffWorkSchedules() async {
+    final db = DBHelper();
+    final Map<String, Map<String, dynamic>> schedules = {};
+    
+    for (final staff in staffList) {
+      final userId = staff['id'] as String;
+      try {
+        final schedule = await db.getWorkSchedule(userId);
+        if (schedule != null) {
+          schedules[userId] = schedule;
+        }
+      } catch (e) {
+        debugPrint('❌ Error loading schedule for $userId: $e');
+      }
+    }
+    
+    setState(() {
+      _staffWorkSchedules = schedules;
+    });
+    debugPrint('📋 Loaded ${schedules.length} work schedules for ${staffList.length} staff');
   }
 
   Future<void> _loadAttendanceRecords() async {
@@ -430,21 +472,142 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cài đặt lịch làm việc'),
-        automaticallyImplyLeading: true,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Cài đặt chung'),
-            Tab(text: 'Nhân viên'),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Cài đặt lịch làm việc'),
+          automaticallyImplyLeading: true,
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Cài đặt chung'),
+              Tab(text: 'Nhân viên'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildGeneralSettingsTab(), 
+            _buildStaffManagementTabSimple(),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_buildGeneralSettingsTab(), _buildStaffManagementTab()],
+    );
+  }
+  
+  /// Simplified Staff Management Tab - không dùng Builder hay try-catch
+  Widget _buildStaffManagementTabSimple() {
+    debugPrint('🟢 _buildStaffManagementTabSimple called, staffList=${staffList.length}');
+    
+    if (staffList.isEmpty) {
+      return Container(
+        color: Colors.grey.shade100,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.people_outline, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text('Chưa có nhân viên', style: TextStyle(fontSize: 18)),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.refresh),
+                label: const Text('Tải lại'),
+                onPressed: () async {
+                  setState(() => _loading = true);
+                  await _loadStaffList();
+                  setState(() => _loading = false);
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return Container(
+      color: Colors.white,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: staffList.length + 2, // +2 for headers
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Card(
+              color: Colors.blue.shade50,
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.people, color: Colors.blue),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Số nhân viên: ${staffList.length}',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          
+          if (index == 1) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.schedule, size: 20, color: Colors.blue.shade700),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Lịch làm việc từng nhân viên',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          
+          final staffIndex = index - 2;
+          final staff = staffList[staffIndex];
+          final staffId = staff['id'] as String;
+          final schedule = _staffWorkSchedules[staffId];
+          final hasSchedule = schedule != null;
+          
+          return Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: hasSchedule ? Colors.green.shade100 : Colors.grey.shade200,
+                child: Icon(
+                  hasSchedule ? Icons.check : Icons.schedule,
+                  color: hasSchedule ? Colors.green : Colors.grey,
+                  size: 20,
+                ),
+              ),
+              title: Text(
+                '${staff['name']}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: hasSchedule
+                  ? Text(
+                      '${schedule['startTime'] ?? '08:00'} - ${schedule['endTime'] ?? '17:00'}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    )
+                  : Text(
+                      'Chưa cài đặt lịch',
+                      style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+                    ),
+              trailing: IconButton(
+                icon: Icon(Icons.edit, color: Colors.blue.shade600),
+                onPressed: () => _editStaffWorkSchedule(staff, schedule),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -571,54 +734,83 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
 
   // Tab 2: Gộp Lương NV + Chấm công
   Widget _buildStaffManagementTab() {
-    // Show message if no staff found
-    if (staffList.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              Text(
-                'Chưa có nhân viên nào',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[600],
+    return Builder(
+      builder: (context) {
+        debugPrint('📋 _buildStaffManagementTab START');
+        
+        try {
+          debugPrint('📋 staffList.length = ${staffList.length}');
+          
+          // Show message if no staff found
+          if (staffList.isEmpty) {
+            debugPrint('📋 staffList is EMPTY - showing empty message');
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Chưa có nhân viên nào',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Vui lòng thêm nhân viên trong phần\n"Quản lý nhân sự" trước',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[500]),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Tải lại'),
+                      onPressed: () async {
+                        setState(() => _loading = true);
+                        await _loadStaffList();
+                        await _loadStaffWorkSchedules();
+                        setState(() => _loading = false);
+                      },
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Vui lòng thêm nhân viên trong phần\n"Quản lý nhân sự" trước',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[500]),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.refresh),
-                label: const Text('Tải lại'),
-                onPressed: () async {
-                  setState(() => _loading = true);
-                  await _loadStaffList();
-                  setState(() => _loading = false);
-                },
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+            );
+          }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // === SECTION: Lương nhân viên ===
-          _buildSectionTitle('Cài đặt lương', Icons.attach_money),
-          const SizedBox(height: 12),
+          debugPrint('📋 Building full staff management content');
+          
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Debug info card
+                Card(
+                  color: Colors.blue.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text('Số nhân viên: ${staffList.length}', 
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // === SECTION: Lịch làm việc từng nhân viên ===
+                _buildSectionTitle('Lịch làm việc từng nhân viên', Icons.schedule),
+                const SizedBox(height: 12),
+                _buildStaffWorkScheduleList(),
+                
+                const SizedBox(height: 24),
+                
+                // === SECTION: Lương nhân viên ===
+                _buildSectionTitle('Cài đặt lương', Icons.attach_money),
+                const SizedBox(height: 12),
           Card(
             elevation: 1,
             child: Padding(
@@ -626,7 +818,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
               child: Column(
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: selectedStaff,
+                    value: selectedStaff,
                     decoration: const InputDecoration(
                       labelText: 'Chọn nhân viên',
                       border: OutlineInputBorder(),
@@ -756,7 +948,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            initialValue: selectedStaffForAttendance,
+            value: selectedStaffForAttendance,
             decoration: const InputDecoration(
               labelText: 'Nhân viên',
               border: OutlineInputBorder(),
@@ -868,6 +1060,49 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
         ],
       ),
     );
+        } catch (e, stackTrace) {
+          debugPrint('❌ Error in _buildStaffManagementTab: $e');
+          debugPrint('$stackTrace');
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Lỗi hiển thị',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Lỗi: $e',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[500]),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Thử lại'),
+                    onPressed: () async {
+                      setState(() => _loading = true);
+                      await _loadStaffList();
+                      await _loadStaffWorkSchedules();
+                      setState(() => _loading = false);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      },
+    );
   }
 
   Widget _buildSectionTitle(String title, IconData icon) {
@@ -884,6 +1119,279 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView>
           ),
         ),
       ],
+    );
+  }
+
+  /// Widget hiển thị danh sách nhân viên với lịch làm việc
+  Widget _buildStaffWorkScheduleList() {
+    if (staffList.isEmpty) {
+      return Card(
+        color: Colors.orange.shade50,
+        child: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.orange),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Chưa có nhân viên. Nhấn "Tải lại" phía dưới hoặc thêm nhân viên trong Quản lý nhân sự.',
+                  style: TextStyle(color: Colors.orange),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return Column(
+      children: staffList.map((staff) {
+        final staffId = staff['id'] as String;
+        final schedule = _staffWorkSchedules[staffId];
+        final hasSchedule = schedule != null;
+        
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: hasSchedule ? Colors.green.shade100 : Colors.grey.shade200,
+              child: Icon(
+                hasSchedule ? Icons.check : Icons.schedule,
+                color: hasSchedule ? Colors.green : Colors.grey,
+                size: 20,
+              ),
+            ),
+            title: Text(
+              '${staff['name']}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: hasSchedule
+                ? Text(
+                    '${schedule['startTime'] ?? '08:00'} - ${schedule['endTime'] ?? '17:00'} | Nghỉ: ${schedule['breakTime'] ?? 1}h | OT: ${schedule['maxOtHours'] ?? 4}h',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  )
+                : Text(
+                    'Chưa cài đặt lịch',
+                    style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+                  ),
+            trailing: IconButton(
+              icon: Icon(
+                Icons.edit,
+                color: Colors.blue.shade600,
+              ),
+              onPressed: () => _editStaffWorkSchedule(staff, schedule),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Dialog chỉnh sửa lịch làm việc cho 1 nhân viên
+  Future<void> _editStaffWorkSchedule(
+    Map<String, dynamic> staff,
+    Map<String, dynamic>? currentSchedule,
+  ) async {
+    final startCtrl = TextEditingController(
+      text: currentSchedule?['startTime'] ?? '08:00',
+    );
+    final endCtrl = TextEditingController(
+      text: currentSchedule?['endTime'] ?? '17:00',
+    );
+    final breakCtrl = TextEditingController(
+      text: (currentSchedule?['breakTime'] ?? 1).toString(),
+    );
+    final maxOtCtrl = TextEditingController(
+      text: (currentSchedule?['maxOtHours'] ?? 4).toString(),
+    );
+
+    // Work days (default Mon-Sat)
+    List<bool> workDays = List.generate(7, (i) {
+      final savedDays = currentSchedule?['workDays'];
+      if (savedDays is List) {
+        return savedDays.contains(i);
+      }
+      // Default: Mon(1) to Sat(6)
+      return i >= 1 && i <= 6;
+    });
+    final dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.schedule, color: Colors.blue),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Lịch làm việc: ${staff['name']}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Giờ làm việc
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: startCtrl,
+                        readOnly: true,
+                        onTap: () async {
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+                          if (time != null) {
+                            startCtrl.text = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                          }
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Bắt đầu',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          suffixIcon: Icon(Icons.access_time, size: 18),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: endCtrl,
+                        readOnly: true,
+                        onTap: () async {
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+                          if (time != null) {
+                            endCtrl.text = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                          }
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Kết thúc',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          suffixIcon: Icon(Icons.access_time, size: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Nghỉ trưa + OT
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: breakCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Nghỉ trưa',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          suffixText: 'giờ',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: maxOtCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'OT tối đa',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          suffixText: 'giờ',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Ngày làm việc
+                const Text(
+                  'Ngày làm việc:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: List.generate(7, (index) {
+                    return FilterChip(
+                      label: Text(dayNames[index], style: const TextStyle(fontSize: 12)),
+                      selected: workDays[index],
+                      onSelected: (selected) {
+                        setDialogState(() => workDays[index] = selected);
+                      },
+                      visualDensity: VisualDensity.compact,
+                    );
+                  }),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('HỦY'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save, size: 18),
+              label: const Text('LƯU'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                // Convert workDays bool list to int list (indices of true values)
+                final workDayIndices = <int>[];
+                for (int i = 0; i < workDays.length; i++) {
+                  if (workDays[i]) workDayIndices.add(i);
+                }
+                
+                final newSchedule = {
+                  'userId': staff['id'],
+                  'startTime': startCtrl.text,
+                  'endTime': endCtrl.text,
+                  'breakTime': int.tryParse(breakCtrl.text) ?? 1,
+                  'maxOtHours': int.tryParse(maxOtCtrl.text) ?? 4,
+                  'workDays': workDayIndices.join(','), // Store as "1,2,3,4,5,6"
+                  'updatedAt': DateTime.now().millisecondsSinceEpoch,
+                };
+                
+                await DBHelper().upsertWorkSchedule(staff['id'] as String, newSchedule);
+                
+                // Cập nhật state ngay lập tức
+                _staffWorkSchedules[staff['id'] as String] = newSchedule;
+                
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                setState(() {}); // Refresh UI
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Đã lưu lịch làm việc cho ${staff['name']}'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -178,11 +178,26 @@ class FirestoreService {
 
   static Future<String?> addSale(SaleOrder s) async {
     try {
-      final shopId = await UserService.getCurrentShopId();
+      var shopId = await UserService.getCurrentShopId();
+      debugPrint('📤 addSale: shopId=$shopId');
+      
+      // Nếu chưa có shopId, thử sync user info để tạo shop mới
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
-        throw Exception('Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.');
+        debugPrint('📤 addSale: shopId is null, attempting to sync user info...');
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await UserService.syncUserInfo(user.uid, user.email ?? '');
+          shopId = await UserService.getCurrentShopId();
+          debugPrint('📤 addSale: after sync, shopId=$shopId');
+        }
+      }
+      
+      if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
+        debugPrint('❌ addSale: shopId is still null after sync');
+        throw Exception('Không tìm thấy thông tin cửa hàng. Vui lòng đăng xuất và đăng nhập lại.');
       }
       if (s.totalPrice <= 0 || s.totalCost < 0) {
+        debugPrint('❌ addSale: invalid price - totalPrice=${s.totalPrice}, totalCost=${s.totalCost}');
         throw Exception('Số tiền bán hàng không hợp lệ');
       }
       final docId = s.firestoreId ?? "sale_${s.soldAt}";
@@ -190,12 +205,21 @@ class FirestoreService {
       Map<String, dynamic> data = s.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docRef.id;
+      
       // Mã hóa dữ liệu nhạy cảm trước khi upload
       final encryptedData = EncryptionService.encryptMap(data);
+      debugPrint('📤 addSale: writing to Firestore docId=$docId');
+      
       await docRef.set(encryptedData, SetOptions(merge: true));
+      debugPrint('✅ addSale: success docId=$docId');
+      
       _notifyAll("🎉 BÁN HÀNG THÀNH CÔNG", "${s.sellerName} vừa bán ${s.productNames} cho ${s.customerName}", type: 'sale', id: docRef.id, summary: "${s.customerName} - ${s.productNames}");
       return docRef.id;
-    } catch (e) { return null; }
+    } catch (e, stackTrace) {
+      debugPrint('❌ addSale ERROR: $e');
+      debugPrint('Stack: $stackTrace');
+      return null;
+    }
   }
 
   static Future<void> updateSaleCloud(SaleOrder s) async {
@@ -1043,11 +1067,19 @@ class FirestoreService {
     Map<String, dynamic>? debtData,
   }) async {
     try {
-      final shopId = await UserService.getCurrentShopId();
+      var shopId = await UserService.getCurrentShopId();
       final currentUser = FirebaseAuth.instance.currentUser;
       
+      // Auto-sync nếu chưa có shopId
+      if (shopId == null && currentUser != null) {
+        debugPrint('🔄 executeSaleTransaction: shopId is null, syncing user info...');
+        await UserService.syncUserInfo(currentUser.uid, currentUser.email ?? '');
+        shopId = await UserService.getCurrentShopId();
+        debugPrint('🔄 executeSaleTransaction: after sync, shopId=$shopId');
+      }
+      
       if (shopId == null) {
-        return {'success': false, 'error': 'Không tìm thấy thông tin shop'};
+        return {'success': false, 'error': 'Không tìm thấy thông tin shop. Vui lòng đăng xuất và đăng nhập lại.', 'needRelogin': true};
       }
       
       debugPrint('🛒 executeSaleTransaction: shopId=$shopId, userId=${currentUser?.uid}');

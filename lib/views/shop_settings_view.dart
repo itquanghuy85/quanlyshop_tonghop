@@ -60,80 +60,94 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   }
 
   Future<void> _loadShopData() async {
-    try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId == null || shopId.isEmpty) {
-        // Fallback: thử dùng uid của user làm shopId (owner case)
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) {
-          NotificationService.showSnackBar("Vui lòng đăng nhập", color: Colors.red);
-          setState(() => _loading = false);
-          return;
-        }
-        
-        // Thử load với uid làm shopId
-        final fallbackShopId = user.uid;
-        try {
-          final shopDoc = await FirebaseFirestore.instance.collection('shops').doc(fallbackShopId).get();
-          if (shopDoc.exists) {
-            final data = shopDoc.data()!;
-            setState(() {
-              _shopName = data['name'] ?? '';
-              _shopAddress = data['address'] ?? '';
-              _shopPhone = data['phone'] ?? '';
-              _shopEmail = data['email'] ?? '';
-              _shopDescription = data['description'] ?? '';
-              _shopLogoUrl = data['logoUrl'] ?? '';
-              _shopLatitude = data['latitude']?.toDouble();
-              _shopLongitude = data['longitude']?.toDouble();
-
-              _nameController.text = _shopName;
-              _addressController.text = _shopAddress;
-              _phoneController.text = _shopPhone;
-              _emailController.text = _shopEmail;
-              _descriptionController.text = _shopDescription;
-            });
-            await _syncToSharedPreferences(_shopName, _shopAddress, _shopPhone);
-            setState(() => _loading = false);
-            return;
-          }
-        } catch (e) {
-          debugPrint('Fallback shop load failed: $e');
-        }
-        
-        setState(() => _loading = false);
-        return;
-      }
-
-      // Load shop data from Firestore
-      final shopDoc = await FirebaseFirestore.instance.collection('shops').doc(shopId).get();
-      if (shopDoc.exists) {
-        final data = shopDoc.data()!;
-        setState(() {
-          _shopName = data['name'] ?? '';
-          _shopAddress = data['address'] ?? '';
-          _shopPhone = data['phone'] ?? '';
-          _shopEmail = data['email'] ?? '';
-          _shopDescription = data['description'] ?? '';
-          _shopLogoUrl = data['logoUrl'] ?? '';
-          _shopLatitude = data['latitude']?.toDouble();
-          _shopLongitude = data['longitude']?.toDouble();
-
-          _nameController.text = _shopName;
-          _addressController.text = _shopAddress;
-          _phoneController.text = _shopPhone;
-          _emailController.text = _shopEmail;
-          _descriptionController.text = _shopDescription;
-        });
-
-        // Đồng bộ thông tin shop vào SharedPreferences để các màn hình in hóa đơn đọc được
-        await _syncToSharedPreferences(_shopName, _shopAddress, _shopPhone);
-      }
-    } catch (e) {
-      NotificationService.showSnackBar("Lỗi tải thông tin shop: $e", color: Colors.red);
-    } finally {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      NotificationService.showSnackBar("Vui lòng đăng nhập", color: Colors.red);
       setState(() => _loading = false);
+      return;
     }
+
+    // Strategy: Try multiple sources to get shopId
+    // 1. UserService cache/claims
+    // 2. Firestore users doc
+    // 3. Fallback to uid (owner case)
+    String? shopId;
+    
+    try {
+      shopId = await UserService.getCurrentShopId();
+    } catch (e) {
+      debugPrint('UserService.getCurrentShopId failed: $e');
+    }
+    
+    // If no shopId from claims, try reading from users doc directly
+    if (shopId == null || shopId.isEmpty) {
+      try {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          shopId = userDoc.data()?['shopId'] as String?;
+          debugPrint('Got shopId from users doc: $shopId');
+        }
+      } catch (e) {
+        debugPrint('Failed to read users doc: $e');
+      }
+    }
+    
+    // Final fallback: use uid as shopId (owner case)
+    if (shopId == null || shopId.isEmpty) {
+      shopId = user.uid;
+      debugPrint('Using uid as shopId fallback: $shopId');
+    }
+
+    // Now try to load shop data with retry
+    for (int retry = 0; retry < 3; retry++) {
+      try {
+        final shopDoc = await FirebaseFirestore.instance.collection('shops').doc(shopId).get();
+        if (shopDoc.exists) {
+          final data = shopDoc.data()!;
+          setState(() {
+            _shopName = data['name'] ?? '';
+            _shopAddress = data['address'] ?? '';
+            _shopPhone = data['phone'] ?? '';
+            _shopEmail = data['email'] ?? '';
+            _shopDescription = data['description'] ?? '';
+            _shopLogoUrl = data['logoUrl'] ?? '';
+            _shopLatitude = data['latitude']?.toDouble();
+            _shopLongitude = data['longitude']?.toDouble();
+
+            _nameController.text = _shopName;
+            _addressController.text = _shopAddress;
+            _phoneController.text = _shopPhone;
+            _emailController.text = _shopEmail;
+            _descriptionController.text = _shopDescription;
+          });
+          await _syncToSharedPreferences(_shopName, _shopAddress, _shopPhone);
+          debugPrint('Shop data loaded successfully');
+          break;
+        } else {
+          // Shop doc doesn't exist yet - this is normal for new registration
+          debugPrint('Shop doc not found, may be new registration');
+          break;
+        }
+      } catch (e) {
+        debugPrint('Retry ${retry + 1}/3 - Load shop failed: $e');
+        if (retry < 2) {
+          // Wait a bit for claims to sync before retry
+          await Future.delayed(const Duration(seconds: 2));
+          // Try refreshing token
+          try {
+            await user.getIdToken(true);
+          } catch (_) {}
+        } else {
+          // Final retry failed - show user-friendly error
+          NotificationService.showSnackBar(
+            "Đang chờ quyền truy cập. Vui lòng thử lại sau vài giây.",
+            color: Colors.orange,
+          );
+        }
+      }
+    }
+
+    setState(() => _loading = false);
   }
 
   /// Đồng bộ thông tin shop vào SharedPreferences để các màn hình in hóa đơn đọc được

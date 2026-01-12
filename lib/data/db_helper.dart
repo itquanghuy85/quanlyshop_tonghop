@@ -2194,6 +2194,65 @@ class DBHelper {
     return db.query('cash_closings', orderBy: 'dateKey DESC');
   }
 
+  /// FIX BUG-CC-002: Xóa chốt quỹ theo firestoreId (dùng cho sync)
+  Future<int> deleteCashClosingByFirestoreId(String firestoreId) async {
+    final db = await database;
+    return db.delete(
+      'cash_closings',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
+
+  // --- ADJUSTMENT ENTRIES (Bút toán điều chỉnh) ---
+
+  /// Upsert bút toán điều chỉnh (for sync)
+  Future<void> upsertAdjustmentEntry(Map<String, dynamic> data) async {
+    final firestoreId = data['firestoreId'] as String?;
+    if (firestoreId == null) return;
+
+    final db = await database;
+
+    // Lấy danh sách các cột hợp lệ trong bảng
+    final cols = await db.rawQuery('PRAGMA table_info(adjustment_entries)');
+    final validColumns = cols.map((c) => c['name'] as String).toSet();
+
+    // Lọc chỉ giữ lại các trường có trong schema
+    final filteredData = <String, dynamic>{};
+    data.forEach((key, value) {
+      if (validColumns.contains(key)) {
+        filteredData[key] = value;
+      }
+    });
+
+    final existing = await db.query(
+      'adjustment_entries',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+
+    if (existing.isNotEmpty) {
+      await db.update(
+        'adjustment_entries',
+        filteredData,
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+    } else {
+      await db.insert('adjustment_entries', filteredData);
+    }
+  }
+
+  /// Xóa bút toán điều chỉnh theo firestoreId (for sync)
+  Future<int> deleteAdjustmentEntryByFirestoreId(String firestoreId) async {
+    final db = await database;
+    return db.delete(
+      'adjustment_entries',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
+
   /// Upsert chốt quỹ
   Future<void> upsertCashClosing(Map<String, dynamic> data) async {
     final dateKey = data['dateKey'] as String?;
@@ -2354,6 +2413,53 @@ class DBHelper {
         where: 'firestoreId = ?',
         whereArgs: [order.firestoreId],
       );
+
+  /// Upsert purchase order (for sync)
+  Future<void> upsertPurchaseOrder(Map<String, dynamic> data) async {
+    final firestoreId = data['firestoreId'] as String?;
+    if (firestoreId == null) return;
+
+    final db = await database;
+
+    // Lấy danh sách các cột hợp lệ trong bảng
+    final cols = await db.rawQuery('PRAGMA table_info(purchase_orders)');
+    final validColumns = cols.map((c) => c['name'] as String).toSet();
+
+    // Lọc chỉ giữ lại các trường có trong schema
+    final filteredData = <String, dynamic>{};
+    data.forEach((key, value) {
+      if (validColumns.contains(key)) {
+        filteredData[key] = value;
+      }
+    });
+
+    final existing = await db.query(
+      'purchase_orders',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+
+    if (existing.isNotEmpty) {
+      await db.update(
+        'purchase_orders',
+        filteredData,
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+    } else {
+      await db.insert('purchase_orders', filteredData);
+    }
+  }
+
+  /// Delete purchase order by firestoreId (for sync)
+  Future<int> deletePurchaseOrderByFirestoreId(String firestoreId) async {
+    final db = await database;
+    return db.delete(
+      'purchase_orders',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
 
   // --- INVENTORY CHECKS ---
   Future<List<Map<String, dynamic>>> getInventoryChecks({
