@@ -1837,13 +1837,24 @@ class _RevenueViewState extends State<RevenueView>
       }
     }
 
-    // Expenses
+    // Expenses - Lưu lại amount nhập hàng để tránh double-count
+    final importExpenseAmounts = <int>{};
     for (var e in _expenses.where(
       (e) => _isSameDay((e['date'] ?? e['createdAt']) as int, now),
     )) {
+      final category = (e['category'] ?? e['title'] ?? '')
+          .toString()
+          .toUpperCase();
+      final amount = e['amount'] as int? ?? 0;
+
+      // Lưu lại amount nếu là expense NHẬP HÀNG
+      if (category.contains('NHẬP') || category.contains('LINH KIỆN')) {
+        importExpenseAmounts.add(amount);
+      }
+
       final item = _TransactionItem(
         title: "Chi: ${e['title'] ?? e['description'] ?? 'Chi phí'}",
-        amount: e['amount'],
+        amount: amount,
         method: e['paymentMethod'] ?? 'TIỀN MẶT',
         time: (e['date'] ?? e['createdAt']) as int,
         type: "OUT",
@@ -1857,7 +1868,7 @@ class _RevenueViewState extends State<RevenueView>
       }
     }
 
-    // Supplier imports (Nhập hàng từ NCC) - CHỈ tính khi thanh toán ngay (không nợ)
+    // Supplier imports (Nhập hàng từ NCC) - CHỈ tính khi KHÔNG có expense tương ứng (tránh double-count)
     for (var imp in _supplierImports.where(
       (i) => _isSameDay((i['importDate'] ?? i['createdAt'] ?? 0) as int, now),
     )) {
@@ -1867,6 +1878,12 @@ class _RevenueViewState extends State<RevenueView>
 
       final amount = (imp['totalAmount'] ?? imp['costPrice'] ?? 0) as int;
       if (amount <= 0) continue;
+
+      // Kiểm tra đã có expense tương ứng chưa (tránh double-count)
+      final hasMatchingExpense = importExpenseAmounts.any(
+        (expAmount) => (expAmount - amount).abs() < 1000,
+      );
+      if (hasMatchingExpense) continue;
 
       final item = _TransactionItem(
         title:

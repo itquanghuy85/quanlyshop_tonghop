@@ -2173,8 +2173,10 @@ class _CashClosingViewState extends State<CashClosingView>
     debugPrint('Total supplierPayments: ${_supplierPayments.length}');
     debugPrint('Total debtPayments: ${_debtPayments.length}');
 
-    // Chi phí thường - HIỂN THỊ TẤT CẢ (bao gồm nhập hàng, trả nợ...)
-    // Lưu ý: Logic loại trừ chỉ áp dụng trong _analyzeTransactions để tránh double-counting cashFlow
+    // Lưu danh sách expense NHẬP HÀNG để tránh double-count với supplier_imports
+    final importExpenseAmounts = <int>{};
+
+    // Chi phí thường
     for (var e in _expenses) {
       final expenseDate = e['date'] as int?;
       if (expenseDate == null) {
@@ -2183,25 +2185,48 @@ class _CashClosingViewState extends State<CashClosingView>
       }
       if (!_isSameDay(expenseDate, date)) continue;
 
-      final category = e['category'] as String? ?? 'Chi phí';
-      debugPrint('Adding expense to list: $category, amount=${e['amount']}');
+      final category = (e['category'] as String? ?? 'Chi phí').toUpperCase();
+      final amount = e['amount'] as int? ?? 0;
+
+      // Nếu là expense NHẬP HÀNG/LINH KIỆN, lưu lại amount để bỏ qua supplier_import tương ứng
+      if (category.contains('NHẬP') || category.contains('LINH KIỆN')) {
+        importExpenseAmounts.add(amount);
+      }
+
+      debugPrint('Adding expense to list: $category, amount=$amount');
 
       list.add({
         'icon': '💸',
-        'title': category,
+        'title': e['category'] as String? ?? 'Chi phí',
         'subtitle':
             '${e['note'] ?? ''} • ${(e['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
         'time': DateFormat(
           'HH:mm',
         ).format(DateTime.fromMillisecondsSinceEpoch(expenseDate)),
-        'amount': e['amount'] as int? ?? 0,
+        'amount': amount,
       });
     }
+
+    // Supplier imports - CHỈ hiển thị nếu KHÔNG có expense tương ứng (tránh double-count)
     for (var imp in _supplierImports.where(
       (i) =>
           _isSameDay((i['importDate'] ?? i['createdAt'] ?? 0) as int, date) &&
           (i['paymentMethod'] ?? '') != 'CÔNG NỢ',
     )) {
+      final amount = (imp['totalAmount'] ?? imp['costPrice'] ?? 0) as int;
+
+      // Kiểm tra xem đã có expense với cùng amount chưa (có thể sai số 1000đ)
+      final hasMatchingExpense = importExpenseAmounts.any(
+        (expAmount) => (expAmount - amount).abs() < 1000,
+      );
+
+      if (hasMatchingExpense) {
+        debugPrint(
+          'Skipping supplier_import (already has matching expense): amount=$amount',
+        );
+        continue;
+      }
+
       list.add({
         'icon': '📦',
         'title': 'Nhập hàng',
@@ -2212,7 +2237,7 @@ class _CashClosingViewState extends State<CashClosingView>
             (imp['importDate'] ?? imp['createdAt'] ?? 0) as int,
           ),
         ),
-        'amount': (imp['totalAmount'] ?? imp['costPrice'] ?? 0) as int,
+        'amount': amount,
       });
     }
     for (var pay in _supplierPayments.where(
