@@ -43,6 +43,7 @@ class _CashClosingViewState extends State<CashClosingView>
   StreamSubscription? _closingSubscription;
   StreamSubscription? _debtPaymentsSubscription;
   StreamSubscription? _supplierPaymentsSubscription;
+  StreamSubscription? _supplierImportsSubscription;
   StreamSubscription? _salesSubscription;
   StreamSubscription? _repairsSubscription;
   StreamSubscription? _expensesSubscription;
@@ -65,6 +66,7 @@ class _CashClosingViewState extends State<CashClosingView>
     _closingSubscription?.cancel();
     _debtPaymentsSubscription?.cancel();
     _supplierPaymentsSubscription?.cancel();
+    _supplierImportsSubscription?.cancel();
     _salesSubscription?.cancel();
     _repairsSubscription?.cancel();
     _expensesSubscription?.cancel();
@@ -111,6 +113,15 @@ class _CashClosingViewState extends State<CashClosingView>
 
     _supplierPaymentsSubscription = firestore
         .collection('supplier_payments')
+        .where('shopId', isEqualTo: shopId)
+        .snapshots()
+        .listen((_) {
+          _scheduleReload();
+        });
+
+    // FIX: Thêm listener cho supplier_import_history để đồng bộ giữa các thiết bị
+    _supplierImportsSubscription = firestore
+        .collection('supplier_import_history')
         .where('shopId', isEqualTo: shopId)
         .snapshots()
         .listen((_) {
@@ -2103,11 +2114,8 @@ class _CashClosingViewState extends State<CashClosingView>
           _isSameDay(s.settlementReceivedAt!, date) &&
           s.settlementAmount > 0,
     )) {
-      // Tính số tiền thực nhận từ settlement (clamp để tránh đúp khi set sai)
-      final isSameDayAsSale = _isSameDay(s.soldAt, date);
-      final actualAmount = isSameDayAsSale
-          ? s.settlementAmount.clamp(0, s.loanAmount)
-          : s.settlementAmount;
+      // Tính số tiền thực nhận từ settlement - LUÔN clamp để khớp với _analyzeTransactions
+      final actualAmount = s.settlementAmount.clamp(0, s.loanAmount);
 
       if (actualAmount > 0) {
         list.add({
