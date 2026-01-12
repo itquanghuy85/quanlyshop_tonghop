@@ -2187,181 +2187,175 @@ class _CashClosingViewState extends State<CashClosingView>
   }
 
   _TransactionAnalysis _analyzeTransactions(DateTime now) {
-    int cashIn = 0, cashOut = 0, bankIn = 0, bankOut = 0;
-    int saleIncome = 0, repairIncome = 0, debtCollected = 0;
-    int expenseOut = 0, importOut = 0, supplierPaid = 0;
-    int saleCost = 0, repairCost = 0; // Giá vốn
-    int settlementIncome = 0; // Tiền tất toán từ ngân hàng
+  int cashIn = 0, cashOut = 0, bankIn = 0, bankOut = 0;
+  int saleIncome = 0, repairIncome = 0, debtCollected = 0;
+  int expenseOut = 0, importOut = 0, supplierPaid = 0;
+  int saleCost = 0, repairCost = 0;
+  int settlementIncome = 0;
 
-    for (var s in _sales.where((s) => _isSameDay(s.soldAt, now))) {
-      if (s.paymentMethod == 'CÔNG NỢ') continue;
-      final amount = s.isInstallment ? s.downPayment : s.totalPrice;
-      saleIncome += amount;
-      if (s.paymentMethod == 'TIỀN MẶT') {
+  // ===== SALES =====
+  for (var s in _sales.where((s) => _isSameDay(s.soldAt, now))) {
+    if (s.paymentMethod == 'CÔNG NỢ') continue;
+
+    final paidToday = s.isInstallment ? s.downPayment : s.totalPrice;
+    saleIncome += paidToday;
+
+    if (s.paymentMethod == 'TIỀN MẶT') {
+      cashIn += paidToday;
+    } else {
+      bankIn += paidToday;
+    }
+
+    // Giá vốn chỉ tính theo phần đã thu hôm nay
+    final ratio = s.totalPrice > 0 ? paidToday / s.totalPrice : 0;
+    saleCost += (s.totalCost * ratio).round();
+  }
+
+  // ===== BANK SETTLEMENT =====
+  for (var s in _sales.where((s) =>
+      s.isInstallment &&
+      s.settlementReceivedAt != null &&
+      _isSameDay(s.settlementReceivedAt!, now))) {
+    final amount = s.settlementAmount.clamp(0, s.loanAmount);
+
+    if (amount > 0) {
+      settlementIncome += amount;
+      bankIn += amount;
+
+      // Giá vốn phần còn lại
+      final downRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0;
+      final remainRatio = 1.0 - downRatio;
+      saleCost += (s.totalCost * remainRatio).round();
+    }
+  }
+
+  // ===== REPAIRS =====
+  for (var r in _repairs.where((r) =>
+      r.status == 4 &&
+      r.deliveredAt != null &&
+      _isSameDay(r.deliveredAt!, now))) {
+    if (r.paymentMethod == 'CÔNG NỢ') continue;
+
+    repairIncome += r.price;
+
+    if (r.paymentMethod == 'TIỀN MẶT') {
+      cashIn += r.price;
+    } else {
+      bankIn += r.price;
+    }
+
+    repairCost += r.totalCost;
+  }
+
+  // ===== EXPENSES =====
+  for (var e in _expenses.where((e) =>
+      e['date'] != null && _isSameDay(e['date'] as int, now))) {
+    final amount = e['amount'] as int? ?? 0;
+    final method = e['paymentMethod'] as String? ?? 'TIỀN MẶT';
+    final category = (e['category'] ?? '').toString().toUpperCase();
+
+    final isImport = category.contains('NHẬP') || category.contains('LINH KIỆN');
+
+    if (method == 'TIỀN MẶT') {
+      cashOut += amount;
+    } else {
+      bankOut += amount;
+    }
+
+    if (!isImport) {
+      expenseOut += amount;
+    }
+  }
+
+  // ===== SUPPLIER IMPORT =====
+  // Nhập hàng từ NCC - CHỈ tính nếu KHÔNG có expense tương ứng (tránh double-count)
+  // Vì stock_in_view tạo cả expense VÀ supplier_import_history
+  // Còn fast_stock_in chỉ tạo supplier_import_history
+  for (var imp in _supplierImports.where((i) =>
+      _isSameDay((i['importDate'] ?? i['createdAt'] ?? 0) as int, now))) {
+    final method = imp['paymentMethod'] as String? ?? 'TIỀN MẶT';
+    if (method == 'CÔNG NỢ') continue;
+    
+    final amount = (imp['totalAmount'] ?? imp['costPrice'] ?? 0) as int;
+    importOut += amount;
+    
+    // Kiểm tra xem đã có expense NHẬP HÀNG cùng ngày với cùng amount chưa
+    // Nếu có thì KHÔNG tính cash/bank (đã tính trong expenses loop)
+    final hasMatchingExpense = _expenses.any((e) {
+      if (e['date'] == null) return false;
+      if (!_isSameDay(e['date'] as int, now)) return false;
+      final cat = (e['category'] ?? '').toString().toUpperCase();
+      if (!cat.contains('NHẬP') && !cat.contains('LINH KIỆN')) return false;
+      final expAmount = e['amount'] as int? ?? 0;
+      // Match nếu amount gần bằng (có thể có sai số nhỏ)
+      return (expAmount - amount).abs() < 1000;
+    });
+    
+    if (!hasMatchingExpense) {
+      // Chỉ tính cash/bank nếu KHÔNG có expense tương ứng
+      if (method == 'TIỀN MẶT') {
+        cashOut += amount;
+      } else {
+        bankOut += amount;
+      }
+    }
+  }
+
+
+  // ===== SUPPLIER PAYMENTS =====
+  for (var p in _supplierPayments.where((p) =>
+      _isSameDay((p['paidAt'] ?? 0) as int, now))) {
+    final amount = p['amount'] as int? ?? 0;
+    final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
+
+    supplierPaid += amount;
+
+    if (method == 'TIỀN MẶT') {
+      cashOut += amount;
+    } else {
+      bankOut += amount;
+    }
+  }
+
+  // ===== DEBTS =====
+  for (var p in _debtPayments.where((p) =>
+      p['paidAt'] != null && _isSameDay(p['paidAt'] as int, now))) {
+    final amount = p['amount'] as int? ?? 0;
+    final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
+
+    if (p['debtType'] == 'SHOP_OWES') {
+      if (method == 'TIỀN MẶT') {
+        cashOut += amount;
+      } else {
+        bankOut += amount;
+      }
+    } else {
+      debtCollected += amount;
+      if (method == 'TIỀN MẶT') {
         cashIn += amount;
       } else {
         bankIn += amount;
       }
-
-      // Tính giá vốn (cho đơn đã thu tiền)
-      if (s.isInstallment) {
-        // Trả góp: tính giá vốn theo tỷ lệ đã thu
-        final ratio = s.totalPrice > 0 ? amount / s.totalPrice : 0.0;
-        saleCost += (s.totalCost * ratio).round();
-      } else {
-        saleCost += s.totalCost;
-      }
     }
-    
-    // Tính tiền tất toán từ ngân hàng nhận trong ngày
-    for (var s in _sales.where(
-      (s) => s.isInstallment && 
-             s.settlementReceivedAt != null && 
-             _isSameDay(s.settlementReceivedAt!, now) &&
-             s.settlementAmount > 0,
-    )) {
-      // Nếu cùng ngày bán, downPayment đã được tính vào saleIncome ở loop trên
-      // Chỉ cần cộng thêm phần settlement (loanAmount) - KHÔNG TÍNH LẠI GIÁ VỐN
-      final isSameDayAsSale = _isSameDay(s.soldAt, now);
-      if (isSameDayAsSale) {
-        // Cùng ngày bán: cộng thêm phần settlement vào thu nhập
-        // Giá vốn ĐÃ ĐƯỢC TÍNH ĐẦY ĐỦ ở loop sales (s.totalCost * ratio với ratio = downPayment/totalPrice)
-        // và chưa tính phần còn lại, nên cần tính giá vốn phần loan
-        final actualSettlement = s.settlementAmount.clamp(0, s.loanAmount);
-        if (actualSettlement > 0) {
-          settlementIncome += actualSettlement;
-          bankIn += actualSettlement;
-          // Tính giá vốn phần còn lại (từ loan)
-          final downPaymentRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0.0;
-          final remainingCostRatio = 1.0 - downPaymentRatio;
-          saleCost += (s.totalCost * remainingCostRatio).round();
-        }
-      } else {
-        // Khác ngày: tính toàn bộ settlementAmount và giá vốn còn lại
-        settlementIncome += s.settlementAmount;
-        bankIn += s.settlementAmount;
-        // Tính giá vốn còn lại (chưa tính ngày bán vì khác ngày)
-        final downPaymentRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0.0;
-        final remainingCostRatio = 1.0 - downPaymentRatio;
-        saleCost += (s.totalCost * remainingCostRatio).round();
-      }
-    }
-    
-    for (var r in _repairs.where(
-      (r) =>
-          r.status == 4 &&
-          r.deliveredAt != null &&
-          _isSameDay(r.deliveredAt!, now),
-    )) {
-      if (r.paymentMethod == 'CÔNG NỢ') continue;
-      repairIncome += r.price;
-      if (r.paymentMethod == 'TIỀN MẶT') {
-        cashIn += r.price;
-      } else {
-        bankIn += r.price;
-      }
-      repairCost += r.totalCost; // Giá vốn linh kiện sửa chữa
-    }
-    for (var e in _expenses.where((e) {
-      final dateVal = e['date'];
-      if (dateVal == null) return false;
-      return _isSameDay(dateVal as int, now);
-    })) {
-      final method = e['paymentMethod'] as String? ?? 'TIỀN MẶT';
-      final amount = e['amount'] as int? ?? 0;
-      final category = (e['category'] as String? ?? '').toUpperCase();
-      final description = (e['description'] as String? ?? '').toUpperCase();
-      final title = (e['title'] as String? ?? '').toUpperCase();
-      
-      // LUÔN tính vào dòng tiền (cashOut/bankOut) - đây là tiền thực chi ra
-      if (method == 'TIỀN MẶT') {
-        cashOut += amount;
-      } else {
-        bankOut += amount;
-      }
-      
-      // Chỉ loại trừ nhập hàng/purchase khỏi expenseOut (dùng cho tính profit)
-      // vì chi phí nhập hàng sẽ được tính qua giá vốn khi bán/sửa
-      final isImportExpense =
-          category.contains('NHẬP HÀNG') ||
-          category.contains('NHẬP LINH KIỆN') ||
-          category.contains('PURCHASE') ||
-          category.contains('STOCK') ||
-          category.contains('ĐƠN NHẬP') ||
-          category.contains('LINH KIỆN') ||
-          category.contains('REPAIR_PARTS') ||
-          description.contains('NHẬP LINH KIỆN') ||
-          description.contains('NHẬP HÀNG') ||
-          title.contains('NHẬP LINH KIỆN') ||
-          title.contains('NHẬP HÀNG');
-      if (!isImportExpense) {
-        expenseOut += amount;
-      }
-    }
-    for (var imp in _supplierImports.where(
-      (i) => _isSameDay((i['importDate'] ?? i['createdAt'] ?? 0) as int, now),
-    )) {
-      final method = imp['paymentMethod'] as String? ?? 'TIỀN MẶT';
-      if (method == 'CÔNG NỢ') continue;
-      final amount = (imp['totalAmount'] ?? imp['costPrice'] ?? 0) as int;
-      importOut += amount;
-      if (method == 'TIỀN MẶT') {
-        cashOut += amount;
-      } else {
-        bankOut += amount;
-      }
-    }
-    for (var pay in _supplierPayments.where(
-      (p) => _isSameDay((p['paidAt'] ?? 0) as int, now),
-    )) {
-      final method = pay['paymentMethod'] as String? ?? 'TIỀN MẶT';
-      final amount = (pay['amount'] ?? 0) as int;
-      supplierPaid += amount;
-      if (method == 'TIỀN MẶT') {
-        cashOut += amount;
-      } else {
-        bankOut += amount;
-      }
-    }
-    for (var p in _debtPayments.where((p) {
-      final paidAt = p['paidAt'];
-      if (paidAt == null) return false;
-      return _isSameDay(paidAt as int, now);
-    })) {
-      final isShopPay = p['debtType'] == 'SHOP_OWES';
-      final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
-      final amount = p['amount'] as int? ?? 0;
-      if (isShopPay) {
-        if (method == 'TIỀN MẶT') {
-          cashOut += amount;
-        } else {
-          bankOut += amount;
-        }
-      } else {
-        debtCollected += amount;
-        if (method == 'TIỀN MẶT') {
-          cashIn += amount;
-        } else {
-          bankIn += amount;
-        }
-      }
-    }
-    return _TransactionAnalysis(
-      cashIn: cashIn,
-      cashOut: cashOut,
-      bankIn: bankIn,
-      bankOut: bankOut,
-      saleIncome: saleIncome,
-      settlementIncome: settlementIncome,
-      repairIncome: repairIncome,
-      debtCollected: debtCollected,
-      expenseOut: expenseOut,
-      importOut: importOut,
-      supplierPaid: supplierPaid,
-      saleCost: saleCost,
-      repairCost: repairCost,
-    );
   }
+
+  return _TransactionAnalysis(
+    cashIn: cashIn,
+    cashOut: cashOut,
+    bankIn: bankIn,
+    bankOut: bankOut,
+    saleIncome: saleIncome,
+    settlementIncome: settlementIncome,
+    repairIncome: repairIncome,
+    debtCollected: debtCollected,
+    expenseOut: expenseOut,
+    importOut: importOut,
+    supplierPaid: supplierPaid,
+    saleCost: saleCost,
+    repairCost: repairCost,
+  );
+}
+
 }
 
 class _TransactionAnalysis {
