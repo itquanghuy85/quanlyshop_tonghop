@@ -30,7 +30,8 @@ class SupplierListView extends StatefulWidget {
   State<SupplierListView> createState() => _SupplierListViewState();
 }
 
-class _SupplierListViewState extends State<SupplierListView> with SingleTickerProviderStateMixin {
+class _SupplierListViewState extends State<SupplierListView>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _supplierService = SupplierService();
   final _partnerService = RepairPartnerService();
@@ -74,9 +75,11 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
     });
     _load();
     _loadPartners();
-    EventBus().stream.where((e) => e == 'suppliers_changed' || e == 'debts_changed').listen((_) {
-      if (mounted) _load();
-    });
+    EventBus().stream
+        .where((e) => e == 'suppliers_changed' || e == 'debts_changed')
+        .listen((_) {
+          if (mounted) _load();
+        });
     EventBus().stream.where((e) => e == 'repair_partners_changed').listen((_) {
       if (mounted) _loadPartners();
     });
@@ -97,7 +100,11 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       final debts = await _db.getAllDebts();
       final dbInstance = await _db.database;
       final supplierImport = await dbInstance.query('supplier_import_history');
-      final monthStart = DateTime(DateTime.now().year, DateTime.now().month, 1).millisecondsSinceEpoch;
+      final monthStart = DateTime(
+        DateTime.now().year,
+        DateTime.now().month,
+        1,
+      ).millisecondsSinceEpoch;
 
       final List<_SupplierCardData> data = [];
       int totalPayable = 0;
@@ -106,17 +113,28 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
 
       for (final s in suppliers) {
         // BUG-007: Filter out soft-deleted debts
-        final relatedDebts = debts.where((d) => d['type'] == 'SHOP_OWES' && (d['personName'] ?? '').toString().toUpperCase() == s.name.toUpperCase() && (d['deleted'] ?? 0) != 1).toList();
+        final relatedDebts = debts
+            .where(
+              (d) =>
+                  d['type'] == 'SHOP_OWES' &&
+                  (d['personName'] ?? '').toString().toUpperCase() ==
+                      s.name.toUpperCase() &&
+                  (d['deleted'] ?? 0) != 1,
+            )
+            .toList();
         int total = 0;
         int paid = 0;
         int lastTx = s.updatedAt;
         for (final d in relatedDebts) {
           total += (d['totalAmount'] as int? ?? 0);
           paid += (d['paidAmount'] as int? ?? 0);
-          lastTx = d['createdAt'] != null && d['createdAt'] > lastTx ? d['createdAt'] : lastTx;
+          lastTx = d['createdAt'] != null && d['createdAt'] > lastTx
+              ? d['createdAt']
+              : lastTx;
           final payments = await _db.getDebtPayments(d['id'] as int);
           for (final p in payments) {
-            if (p['paidAt'] != null && p['paidAt'] > lastTx) lastTx = p['paidAt'];
+            if (p['paidAt'] != null && p['paidAt'] > lastTx)
+              lastTx = p['paidAt'];
             if (p['paidAt'] != null && p['paidAt'] >= monthStart) {
               paidMonth += p['amount'] as int? ?? 0;
             }
@@ -124,7 +142,9 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         }
         // BUG-002: Clamp remain để không âm (tránh hiển thị số nợ sai)
         final remain = (total - paid).clamp(0, total);
-        final imports = supplierImport.where((h) => h['supplierId'] == s.id).toList();
+        final imports = supplierImport
+            .where((h) => h['supplierId'] == s.id)
+            .toList();
         int totalImportValue = 0;
         int lastImport = lastTx;
         for (final h in imports) {
@@ -136,15 +156,20 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         if (remain > 0) owingCount++;
         totalPayable += remain > 0 ? remain : 0;
 
-        data.add(_SupplierCardData(
-          supplier: s,
-          totalDebt: total,
-          paid: paid,
-          remain: remain,
-          totalImport: totalImportValue,
-          lastTransactionAt: lastImport,
-          isOverdue: remain > 0 && DateTime.now().millisecondsSinceEpoch - lastImport > const Duration(days: 30).inMilliseconds,
-        ));
+        data.add(
+          _SupplierCardData(
+            supplier: s,
+            totalDebt: total,
+            paid: paid,
+            remain: remain,
+            totalImport: totalImportValue,
+            lastTransactionAt: lastImport,
+            isOverdue:
+                remain > 0 &&
+                DateTime.now().millisecondsSinceEpoch - lastImport >
+                    const Duration(days: 30).inMilliseconds,
+          ),
+        );
       }
 
       setState(() {
@@ -156,7 +181,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         _loading = false;
       });
     } catch (e) {
-      NotificationService.showSnackBar('Lỗi tải danh sách NCC: $e', color: Colors.red);
+      NotificationService.showSnackBar(
+        'Lỗi tải danh sách NCC: $e',
+        color: Colors.red,
+      );
       setState(() => _loading = false);
     }
   }
@@ -181,13 +209,15 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         totalPaid += paid;
         if (remain > 0) owingCount++;
 
-        data.add(_PartnerCardData(
-          partner: p,
-          totalCost: cost,
-          totalPaid: paid,
-          remain: remain,
-          totalOrders: orders,
-        ));
+        data.add(
+          _PartnerCardData(
+            partner: p,
+            totalCost: cost,
+            totalPaid: paid,
+            remain: remain,
+            totalOrders: orders,
+          ),
+        );
       }
 
       setState(() {
@@ -199,7 +229,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         _partnerLoading = false;
       });
     } catch (e) {
-      NotificationService.showSnackBar('Lỗi tải danh sách đối tác: $e', color: Colors.red);
+      NotificationService.showSnackBar(
+        'Lỗi tải danh sách đối tác: $e',
+        color: Colors.red,
+      );
       setState(() => _partnerLoading = false);
     }
   }
@@ -207,7 +240,8 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
   List<_PartnerCardData> _applyPartnerFilters() {
     final query = _partnerSearchCtrl.text.trim().toUpperCase();
     List<_PartnerCardData> list = _partners.where((item) {
-      final matchesSearch = query.isEmpty ||
+      final matchesSearch =
+          query.isEmpty ||
           item.partner.name.toUpperCase().contains(query) ||
           (item.partner.phone ?? '').toUpperCase().contains(query) ||
           (item.partner.note ?? '').toUpperCase().contains(query);
@@ -230,7 +264,8 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
   List<_SupplierCardData> _applyFilters() {
     final query = _searchCtrl.text.trim().toUpperCase();
     List<_SupplierCardData> list = _items.where((item) {
-      final matchesSearch = query.isEmpty ||
+      final matchesSearch =
+          query.isEmpty ||
           item.supplier.name.toUpperCase().contains(query) ||
           (item.supplier.phone ?? '').toUpperCase().contains(query) ||
           (item.supplier.note ?? '').toUpperCase().contains(query);
@@ -238,13 +273,20 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       final matchesSettled = !_filterSettled || item.remain <= 0;
       final matchesOverdue = !_filterOverdue || item.isOverdue;
       final matchesFavorite = !_filterFavorite || item.supplier.favorite;
-      return matchesSearch && matchesDebt && matchesSettled && matchesOverdue && matchesFavorite;
+      return matchesSearch &&
+          matchesDebt &&
+          matchesSettled &&
+          matchesOverdue &&
+          matchesFavorite;
     }).toList();
 
     if (_sort == 'debt_desc') {
       list.sort((a, b) => b.remain.compareTo(a.remain));
     } else if (_sort == 'last_tx') {
-      list.sort((a, b) => (b.lastTransactionAt ?? 0).compareTo(a.lastTransactionAt ?? 0));
+      list.sort(
+        (a, b) =>
+            (b.lastTransactionAt ?? 0).compareTo(a.lastTransactionAt ?? 0),
+      );
     }
     return list;
   }
@@ -269,7 +311,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.orange.shade700, Colors.orange.shade700.withOpacity(0.7)],
+              colors: [
+                Colors.orange.shade700,
+                Colors.orange.shade700.withOpacity(0.7),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -280,8 +325,14 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('QUẢN LÝ ĐỐI TÁC', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            Text('${_items.length} NCC • ${_partners.length} đối tác', style: const TextStyle(fontSize: 11, color: Colors.white70)),
+            const Text(
+              'QUẢN LÝ ĐỐI TÁC',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            Text(
+              '${_items.length} NCC • ${_partners.length} đối tác',
+              style: const TextStyle(fontSize: 11, color: Colors.white70),
+            ),
           ],
         ),
         actions: [
@@ -321,23 +372,28 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           if (_tabController.index == 0) {
-            await Navigator.push(context, MaterialPageRoute(builder: (_) => const SupplierFormView()));
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SupplierFormView()),
+            );
             await _load();
           } else {
-            await Navigator.push(context, MaterialPageRoute(builder: (_) => const RepairPartnerFormView()));
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const RepairPartnerFormView()),
+            );
             await _loadPartners();
           }
         },
-        icon: Icon(_tabController.index == 0 ? Icons.add_business : Icons.handyman),
+        icon: Icon(
+          _tabController.index == 0 ? Icons.add_business : Icons.handyman,
+        ),
         label: Text(_tabController.index == 0 ? 'THÊM NCC' : 'THÊM ĐỐI TÁC'),
         backgroundColor: AppColors.primary,
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildSupplierTab(),
-          _buildPartnerTab(),
-        ],
+        children: [_buildSupplierTab(), _buildPartnerTab()],
       ),
     );
   }
@@ -360,9 +416,14 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
                   Padding(
                     padding: const EdgeInsets.all(32),
                     child: Center(
-                      child: Text('Không tìm thấy NCC phù hợp', style: AppTextStyles.body1.copyWith(color: AppColors.onSurface.withOpacity(0.6))),
+                      child: Text(
+                        'Không tìm thấy NCC phù hợp',
+                        style: AppTextStyles.body1.copyWith(
+                          color: AppColors.onSurface.withOpacity(0.6),
+                        ),
+                      ),
                     ),
-                  )
+                  ),
               ],
             ),
           );
@@ -386,9 +447,14 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
                   Padding(
                     padding: const EdgeInsets.all(32),
                     child: Center(
-                      child: Text('Không tìm thấy đối tác phù hợp', style: AppTextStyles.body1.copyWith(color: AppColors.onSurface.withOpacity(0.6))),
+                      child: Text(
+                        'Không tìm thấy đối tác phù hợp',
+                        style: AppTextStyles.body1.copyWith(
+                          color: AppColors.onSurface.withOpacity(0.6),
+                        ),
+                      ),
                     ),
-                  )
+                  ),
               ],
             ),
           );
@@ -399,17 +465,45 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       children: [
         Row(
           children: [
-            Expanded(child: _headerTile('Tổng NCC', _totalSuppliers.toString(), Icons.apartment, AppColors.primary)),
+            Expanded(
+              child: _headerTile(
+                'Tổng NCC',
+                _totalSuppliers.toString(),
+                Icons.apartment,
+                AppColors.primary,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _headerTile('Tổng công nợ', MoneyUtils.formatCurrency(_totalPayable), Icons.account_balance, AppColors.error)),
+            Expanded(
+              child: _headerTile(
+                'Tổng công nợ',
+                MoneyUtils.formatCurrency(_totalPayable),
+                Icons.account_balance,
+                AppColors.error,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _headerTile('NCC còn nợ', _supplierOwing.toString(), Icons.warning, AppColors.warning)),
+            Expanded(
+              child: _headerTile(
+                'NCC còn nợ',
+                _supplierOwing.toString(),
+                Icons.warning,
+                AppColors.warning,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _headerTile('Đã trả trong tháng', MoneyUtils.formatCurrency(_paidThisMonth), Icons.payments, AppColors.success)),
+            Expanded(
+              child: _headerTile(
+                'Đã trả trong tháng',
+                MoneyUtils.formatCurrency(_paidThisMonth),
+                Icons.payments,
+                AppColors.success,
+              ),
+            ),
           ],
         ),
       ],
@@ -429,9 +523,22 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         children: [
           Icon(icon, color: color, size: 18),
           const SizedBox(height: 6),
-          Text(value, style: AppTextStyles.headline6.copyWith(color: color, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+          Text(
+            value,
+            style: AppTextStyles.headline6.copyWith(
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
           const SizedBox(height: 4),
-          Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.onSurface.withOpacity(0.7)), overflow: TextOverflow.ellipsis),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.onSurface.withOpacity(0.7),
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
@@ -455,12 +562,36 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           spacing: 8,
           runSpacing: 8,
           children: [
-            FilterChip(label: const Text('Còn nợ'), selected: _filterDebt, onSelected: (v) => setState(() => _filterDebt = v)),
-            FilterChip(label: const Text('Đã tất toán'), selected: _filterSettled, onSelected: (v) => setState(() => _filterSettled = v)),
-            FilterChip(label: const Text('Quá hạn'), selected: _filterOverdue, onSelected: (v) => setState(() => _filterOverdue = v)),
-            FilterChip(label: const Text('Ưu tiên'), selected: _filterFavorite, onSelected: (v) => setState(() => _filterFavorite = v)),
-            ChoiceChip(label: const Text('Nợ cao → thấp'), selected: _sort == 'debt_desc', onSelected: (v) => setState(() => _sort = 'debt_desc')),
-            ChoiceChip(label: const Text('Giao dịch gần nhất'), selected: _sort == 'last_tx', onSelected: (v) => setState(() => _sort = 'last_tx')),
+            FilterChip(
+              label: const Text('Còn nợ'),
+              selected: _filterDebt,
+              onSelected: (v) => setState(() => _filterDebt = v),
+            ),
+            FilterChip(
+              label: const Text('Đã tất toán'),
+              selected: _filterSettled,
+              onSelected: (v) => setState(() => _filterSettled = v),
+            ),
+            FilterChip(
+              label: const Text('Quá hạn'),
+              selected: _filterOverdue,
+              onSelected: (v) => setState(() => _filterOverdue = v),
+            ),
+            FilterChip(
+              label: const Text('Ưu tiên'),
+              selected: _filterFavorite,
+              onSelected: (v) => setState(() => _filterFavorite = v),
+            ),
+            ChoiceChip(
+              label: const Text('Nợ cao → thấp'),
+              selected: _sort == 'debt_desc',
+              onSelected: (v) => setState(() => _sort = 'debt_desc'),
+            ),
+            ChoiceChip(
+              label: const Text('Giao dịch gần nhất'),
+              selected: _sort == 'last_tx',
+              onSelected: (v) => setState(() => _sort = 'last_tx'),
+            ),
           ],
         ),
       ],
@@ -470,92 +601,179 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
   Widget _buildCard(_SupplierCardData d) {
     final color = _statusColor(d);
     final status = _statusText(d);
-    final date = d.lastTransactionAt != null ? DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(d.lastTransactionAt!)) : 'Chưa có GD';
+    final date = d.lastTransactionAt != null
+        ? DateFormat(
+            'dd/MM/yyyy',
+          ).format(DateTime.fromMillisecondsSinceEpoch(d.lastTransactionAt!))
+        : 'Chưa có GD';
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 4))],
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(child: Text(d.supplier.name, style: AppTextStyles.headline6.copyWith(fontWeight: FontWeight.bold))),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.6))),
-                child: Text(status, style: AppTextStyles.caption.copyWith(color: color, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text('Công nợ: ', style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold)),
-              Text(MoneyUtils.formatCurrency(d.remain), style: AppTextStyles.body1.copyWith(color: color, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Icon(Icons.history, size: 16, color: AppColors.onSurface.withOpacity(0.6)),
-              const SizedBox(width: 6),
-              Text('GD gần nhất: $date', style: AppTextStyles.caption),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(Icons.inventory_2, size: 16, color: AppColors.onSurface.withOpacity(0.6)),
-              const SizedBox(width: 6),
-              Text('Tổng nhập: ${MoneyUtils.formatCurrency(d.totalImport)}', style: AppTextStyles.caption),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => SupplierDetailView(supplier: d.supplier)));
-                  await _load();
-                },
-                icon: const Icon(Icons.receipt_long, size: 16),
-                label: const Text('Lịch sử'),
-                style: AppButtonStyles.elevatedButtonStyle,
-              ),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  await _openPayDialog(d);
-                },
-                icon: const Icon(Icons.payments, size: 16),
-                label: const Text('Thanh toán'),
-                style: AppButtonStyles.successElevatedButtonStyle,
-              ),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => SupplierFormView(editing: d.supplier)));
-                  await _load();
-                },
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Sửa'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await _confirmDeleteSupplier(d);
-                },
-                icon: const Icon(Icons.delete, size: 16),
-                label: const Text('Xóa'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
+          // Thông tin NCC
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        d.supplier.name,
+                        style: AppTextStyles.body1.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        status,
+                        style: AppTextStyles.caption.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text('Nợ: ', style: AppTextStyles.caption),
+                    Text(
+                      MoneyUtils.formatCurrency(d.remain),
+                      style: AppTextStyles.caption.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'GD: $date',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.onSurface.withOpacity(0.6),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Buttons compact
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Nút thanh toán (chỉ hiện nếu còn nợ)
+              if (d.remain > 0)
+                IconButton(
+                  onPressed: () async => await _openPayDialog(d),
+                  icon: const Icon(Icons.payments, size: 20),
+                  color: AppColors.success,
+                  tooltip: 'Thanh toán',
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(),
+                ),
+              // Menu thêm
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20),
+                padding: const EdgeInsets.all(6),
+                onSelected: (value) async {
+                  switch (value) {
+                    case 'history':
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              SupplierDetailView(supplier: d.supplier),
+                        ),
+                      );
+                      await _load();
+                      break;
+                    case 'edit':
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SupplierFormView(editing: d.supplier),
+                        ),
+                      );
+                      await _load();
+                      break;
+                    case 'delete':
+                      await _confirmDeleteSupplier(d);
+                      break;
+                    case 'pay':
+                      await _openPayDialog(d);
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'history',
+                    child: Row(
+                      children: [
+                        Icon(Icons.receipt_long, size: 18),
+                        SizedBox(width: 8),
+                        Text('Lịch sử nhập'),
+                      ],
+                    ),
+                  ),
+                  if (d.remain > 0)
+                    const PopupMenuItem(
+                      value: 'pay',
+                      child: Row(
+                        children: [
+                          Icon(Icons.payments, size: 18, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text('Thanh toán'),
+                        ],
+                      ),
+                    ),
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 18),
+                        SizedBox(width: 8),
+                        Text('Sửa thông tin'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, size: 18, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Xóa', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -566,7 +784,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
 
   Future<void> _openPayDialog(_SupplierCardData d) async {
     if (d.remain <= 0) {
-      NotificationService.showSnackBar('NCC này đã tất toán.', color: Colors.green);
+      NotificationService.showSnackBar(
+        'NCC này đã tất toán.',
+        color: Colors.green,
+      );
       return;
     }
     final formKey = GlobalKey<FormState>();
@@ -577,14 +798,23 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text('Thanh toán công nợ cho ${d.supplier.name}', style: AppTextStyles.headline6),
+          title: Text(
+            'Thanh toán công nợ cho ${d.supplier.name}',
+            style: AppTextStyles.headline6,
+          ),
           content: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Còn nợ: ${MoneyUtils.formatCurrency(d.remain)}', style: AppTextStyles.body1.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)),
+                Text(
+                  'Còn nợ: ${MoneyUtils.formatCurrency(d.remain)}',
+                  style: AppTextStyles.body1.copyWith(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: payCtrl,
@@ -594,28 +824,48 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
                     labelText: 'Số tiền (VNĐ)',
                     hintText: 'VD: 500 = ${MoneyUtils.formatCurrency(500000)}',
                   ),
-                  validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, max: d.remain, fieldName: 'Số tiền'),
+                  validator: (v) => MoneyUtils.validateAmount(
+                    v ?? '',
+                    min: 1,
+                    max: d.remain,
+                    fieldName: 'Số tiền',
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
-                  children: ['TIỀN MẶT', 'CHUYỂN KHOẢN'].map((m) => ChoiceChip(label: Text(m), selected: method == m, onSelected: (v) => setDialogState(() => method = m))).toList(),
+                  children: ['TIỀN MẶT', 'CHUYỂN KHOẢN']
+                      .map(
+                        (m) => ChoiceChip(
+                          label: Text(m),
+                          selected: method == m,
+                          onSelected: (v) => setDialogState(() => method = m),
+                        ),
+                      )
+                      .toList(),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   onChanged: (v) => note = v,
-                  decoration: const InputDecoration(labelText: 'Ghi chú (tùy chọn)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Ghi chú (tùy chọn)',
+                  ),
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('HỦY')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('HỦY'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 if (!(formKey.currentState?.validate() ?? false)) return;
                 final parsed = MoneyUtils.parseCurrency(payCtrl.text);
-                final amount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
+                final amount = parsed >= 1000 && parsed < 100000
+                    ? parsed * 1000
+                    : parsed;
                 await _payDebt(d, amount, method, note);
                 if (mounted) Navigator.pop(ctx);
               },
@@ -628,16 +878,28 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
     );
   }
 
-  Future<void> _payDebt(_SupplierCardData d, int amount, String method, String note) async {
+  Future<void> _payDebt(
+    _SupplierCardData d,
+    int amount,
+    String method,
+    String note,
+  ) async {
     try {
       // Find the first active supplier debt
       final debts = await _db.getAllDebts();
       final target = debts.firstWhere(
-        (e) => e['type'] == 'SHOP_OWES' && (e['personName'] ?? '').toString().toUpperCase() == d.supplier.name.toUpperCase() && (e['totalAmount'] as int? ?? 0) > (e['paidAmount'] as int? ?? 0),
+        (e) =>
+            e['type'] == 'SHOP_OWES' &&
+            (e['personName'] ?? '').toString().toUpperCase() ==
+                d.supplier.name.toUpperCase() &&
+            (e['totalAmount'] as int? ?? 0) > (e['paidAmount'] as int? ?? 0),
         orElse: () => {},
       );
       if (target.isEmpty) {
-        NotificationService.showSnackBar('Không tìm thấy công nợ để thanh toán', color: Colors.red);
+        NotificationService.showSnackBar(
+          'Không tìm thấy công nợ để thanh toán',
+          color: Colors.red,
+        );
         return;
       }
 
@@ -651,7 +913,12 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         'paidAt': now,
         'paymentMethod': method,
         'note': note,
-        'createdBy': FirebaseAuth.instance.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV',
+        'createdBy':
+            FirebaseAuth.instance.currentUser?.email
+                ?.split('@')
+                .first
+                .toUpperCase() ??
+            'NV',
       };
 
       final paymentId = await _db.insertDebtPayment(paymentData);
@@ -681,7 +948,8 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         action: 'SUPPLIER_PAYMENT',
         entityType: 'supplier',
         entityId: d.supplier.id?.toString() ?? '',
-        summary: 'Thanh toán công nợ NCC ${d.supplier.name}: ${MoneyUtils.formatCurrency(amount)} ($method)',
+        summary:
+            'Thanh toán công nợ NCC ${d.supplier.name}: ${MoneyUtils.formatCurrency(amount)} ($method)',
         payload: {
           'supplierId': d.supplier.id,
           'supplierName': d.supplier.name,
@@ -694,7 +962,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       );
 
       EventBus().emit('debts_changed');
-      NotificationService.showSnackBar('Đã ghi nhận thanh toán', color: Colors.green);
+      NotificationService.showSnackBar(
+        'Đã ghi nhận thanh toán',
+        color: Colors.green,
+      );
       await _load();
     } catch (e) {
       NotificationService.showSnackBar('Lỗi thanh toán: $e', color: Colors.red);
@@ -709,17 +980,45 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       children: [
         Row(
           children: [
-            Expanded(child: _headerTile('Tổng đối tác', _totalPartners.toString(), Icons.handyman, AppColors.primary)),
+            Expanded(
+              child: _headerTile(
+                'Tổng đối tác',
+                _totalPartners.toString(),
+                Icons.handyman,
+                AppColors.primary,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _headerTile('Còn nợ đối tác', MoneyUtils.formatCurrency(remain), Icons.account_balance, remain > 0 ? AppColors.error : AppColors.success)),
+            Expanded(
+              child: _headerTile(
+                'Còn nợ đối tác',
+                MoneyUtils.formatCurrency(remain),
+                Icons.account_balance,
+                remain > 0 ? AppColors.error : AppColors.success,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _headerTile('ĐT còn nợ', _partnerOwingCount.toString(), Icons.warning, AppColors.warning)),
+            Expanded(
+              child: _headerTile(
+                'ĐT còn nợ',
+                _partnerOwingCount.toString(),
+                Icons.warning,
+                AppColors.warning,
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _headerTile('Đã thanh toán', MoneyUtils.formatCurrency(_totalPartnerPaid), Icons.payments, AppColors.success)),
+            Expanded(
+              child: _headerTile(
+                'Đã thanh toán',
+                MoneyUtils.formatCurrency(_totalPartnerPaid),
+                Icons.payments,
+                AppColors.success,
+              ),
+            ),
           ],
         ),
       ],
@@ -744,12 +1043,36 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           spacing: 8,
           runSpacing: 8,
           children: [
-            FilterChip(label: const Text('Hoạt động'), selected: _filterPartnerActive, onSelected: (v) => setState(() => _filterPartnerActive = v)),
-            FilterChip(label: const Text('Ngừng HĐ'), selected: _filterPartnerInactive, onSelected: (v) => setState(() => _filterPartnerInactive = v)),
-            FilterChip(label: const Text('Còn nợ'), selected: _filterPartnerOwing, onSelected: (v) => setState(() => _filterPartnerOwing = v)),
-            ChoiceChip(label: const Text('Theo tên'), selected: _partnerSort == 'name', onSelected: (v) => setState(() => _partnerSort = 'name')),
-            ChoiceChip(label: const Text('Nợ cao → thấp'), selected: _partnerSort == 'debt_desc', onSelected: (v) => setState(() => _partnerSort = 'debt_desc')),
-            ChoiceChip(label: const Text('Nhiều đơn nhất'), selected: _partnerSort == 'orders_desc', onSelected: (v) => setState(() => _partnerSort = 'orders_desc')),
+            FilterChip(
+              label: const Text('Hoạt động'),
+              selected: _filterPartnerActive,
+              onSelected: (v) => setState(() => _filterPartnerActive = v),
+            ),
+            FilterChip(
+              label: const Text('Ngừng HĐ'),
+              selected: _filterPartnerInactive,
+              onSelected: (v) => setState(() => _filterPartnerInactive = v),
+            ),
+            FilterChip(
+              label: const Text('Còn nợ'),
+              selected: _filterPartnerOwing,
+              onSelected: (v) => setState(() => _filterPartnerOwing = v),
+            ),
+            ChoiceChip(
+              label: const Text('Theo tên'),
+              selected: _partnerSort == 'name',
+              onSelected: (v) => setState(() => _partnerSort = 'name'),
+            ),
+            ChoiceChip(
+              label: const Text('Nợ cao → thấp'),
+              selected: _partnerSort == 'debt_desc',
+              onSelected: (v) => setState(() => _partnerSort = 'debt_desc'),
+            ),
+            ChoiceChip(
+              label: const Text('Nhiều đơn nhất'),
+              selected: _partnerSort == 'orders_desc',
+              onSelected: (v) => setState(() => _partnerSort = 'orders_desc'),
+            ),
           ],
         ),
       ],
@@ -758,104 +1081,174 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
 
   Widget _buildPartnerCard(_PartnerCardData d) {
     final color = d.remain > 0 ? AppColors.warning : AppColors.success;
-    final status = d.remain > 0 ? 'Còn nợ' : 'Đã tất toán';
-    final activeColor = d.partner.active ? AppColors.success : AppColors.onSurface.withOpacity(0.5);
+    final status = d.remain > 0 ? 'Còn nợ' : 'Tất toán';
+    final activeColor = d.partner.active
+        ? AppColors.success
+        : AppColors.onSurface.withOpacity(0.5);
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 10, offset: Offset(0, 4))],
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(
-                d.partner.active ? Icons.check_circle : Icons.cancel,
-                color: activeColor,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Expanded(child: Text(d.partner.name, style: AppTextStyles.headline6.copyWith(fontWeight: FontWeight.bold))),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: color.withOpacity(0.6))),
-                child: Text(status, style: AppTextStyles.caption.copyWith(color: color, fontWeight: FontWeight.bold)),
-              ),
-            ],
+          // Icon trạng thái hoạt động
+          Icon(
+            d.partner.active ? Icons.check_circle : Icons.cancel,
+            color: activeColor,
+            size: 16,
           ),
-          const SizedBox(height: 8),
-          if (d.partner.phone != null) ...[
-            Row(
+          const SizedBox(width: 8),
+
+          // Thông tin đối tác
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.phone, size: 16, color: AppColors.onSurface.withOpacity(0.6)),
-                const SizedBox(width: 6),
-                Text(d.partner.phone!, style: AppTextStyles.caption),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        d.partner.name,
+                        style: AppTextStyles.body1.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        status,
+                        style: AppTextStyles.caption.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text('Nợ: ', style: AppTextStyles.caption),
+                    Text(
+                      MoneyUtils.formatCurrency(d.remain),
+                      style: AppTextStyles.caption.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Đơn: ${d.totalOrders}',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.onSurface.withOpacity(0.6),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
-            const SizedBox(height: 4),
-          ],
-          Row(
-            children: [
-              Text('Công nợ: ', style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold)),
-              Text(MoneyUtils.formatCurrency(d.remain), style: AppTextStyles.body1.copyWith(color: color, fontWeight: FontWeight.bold)),
-            ],
           ),
-          const SizedBox(height: 6),
+
+          // Buttons compact
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.assignment, size: 16, color: AppColors.onSurface.withOpacity(0.6)),
-              const SizedBox(width: 6),
-              Text('Tổng đơn gửi: ${d.totalOrders}', style: AppTextStyles.caption),
-              const SizedBox(width: 16),
-              Icon(Icons.receipt_long, size: 16, color: AppColors.onSurface.withOpacity(0.6)),
-              const SizedBox(width: 6),
-              Text('Tổng chi: ${MoneyUtils.formatCurrency(d.totalCost)}', style: AppTextStyles.caption),
-            ],
-          ),
-          if (d.partner.note != null && d.partner.note!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.note, size: 16, color: AppColors.onSurface.withOpacity(0.6)),
-                const SizedBox(width: 6),
-                Expanded(child: Text(d.partner.note!, style: AppTextStyles.caption.copyWith(fontStyle: FontStyle.italic), overflow: TextOverflow.ellipsis)),
-              ],
-            ),
-          ],
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => RepairPartnerDetailView(partner: d.partner)));
-                  await _loadPartners();
+              // Nút thanh toán (chỉ hiện nếu còn nợ)
+              if (d.remain > 0)
+                IconButton(
+                  onPressed: () async => await _openPartnerPayDialog(d),
+                  icon: const Icon(Icons.payments, size: 20),
+                  color: AppColors.success,
+                  tooltip: 'Thanh toán',
+                  padding: const EdgeInsets.all(6),
+                  constraints: const BoxConstraints(),
+                ),
+              // Menu thêm
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20),
+                padding: const EdgeInsets.all(6),
+                onSelected: (value) async {
+                  switch (value) {
+                    case 'detail':
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              RepairPartnerDetailView(partner: d.partner),
+                        ),
+                      );
+                      await _loadPartners();
+                      break;
+                    case 'edit':
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              RepairPartnerFormView(editing: d.partner),
+                        ),
+                      );
+                      await _loadPartners();
+                      break;
+                    case 'pay':
+                      await _openPartnerPayDialog(d);
+                      break;
+                  }
                 },
-                icon: const Icon(Icons.history, size: 16),
-                label: const Text('Chi tiết'),
-                style: AppButtonStyles.elevatedButtonStyle,
-              ),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  await _openPartnerPayDialog(d);
-                },
-                icon: const Icon(Icons.payments, size: 16),
-                label: const Text('Thanh toán'),
-                style: AppButtonStyles.successElevatedButtonStyle,
-              ),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => RepairPartnerFormView(editing: d.partner)));
-                  await _loadPartners();
-                },
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text('Sửa'),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'detail',
+                    child: Row(
+                      children: [
+                        Icon(Icons.history, size: 18),
+                        SizedBox(width: 8),
+                        Text('Chi tiết / Lịch sử'),
+                      ],
+                    ),
+                  ),
+                  if (d.remain > 0)
+                    const PopupMenuItem(
+                      value: 'pay',
+                      child: Row(
+                        children: [
+                          Icon(Icons.payments, size: 18, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text('Thanh toán'),
+                        ],
+                      ),
+                    ),
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 18),
+                        SizedBox(width: 8),
+                        Text('Sửa thông tin'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -866,7 +1259,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
 
   Future<void> _openPartnerPayDialog(_PartnerCardData d) async {
     if (d.remain <= 0) {
-      NotificationService.showSnackBar('Đối tác này đã tất toán.', color: Colors.green);
+      NotificationService.showSnackBar(
+        'Đối tác này đã tất toán.',
+        color: Colors.green,
+      );
       return;
     }
     final formKey = GlobalKey<FormState>();
@@ -877,14 +1273,23 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: Text('Thanh toán cho ${d.partner.name}', style: AppTextStyles.headline6),
+          title: Text(
+            'Thanh toán cho ${d.partner.name}',
+            style: AppTextStyles.headline6,
+          ),
           content: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Còn nợ: ${MoneyUtils.formatCurrency(d.remain)}', style: AppTextStyles.body1.copyWith(color: AppColors.error, fontWeight: FontWeight.bold)),
+                Text(
+                  'Còn nợ: ${MoneyUtils.formatCurrency(d.remain)}',
+                  style: AppTextStyles.body1.copyWith(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: payCtrl,
@@ -894,28 +1299,48 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
                     labelText: 'Số tiền (VNĐ)',
                     hintText: 'VD: 500 = ${MoneyUtils.formatCurrency(500000)}',
                   ),
-                  validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, max: d.remain, fieldName: 'Số tiền'),
+                  validator: (v) => MoneyUtils.validateAmount(
+                    v ?? '',
+                    min: 1,
+                    max: d.remain,
+                    fieldName: 'Số tiền',
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
-                  children: ['TIỀN MẶT', 'CHUYỂN KHOẢN'].map((m) => ChoiceChip(label: Text(m), selected: method == m, onSelected: (v) => setDialogState(() => method = m))).toList(),
+                  children: ['TIỀN MẶT', 'CHUYỂN KHOẢN']
+                      .map(
+                        (m) => ChoiceChip(
+                          label: Text(m),
+                          selected: method == m,
+                          onSelected: (v) => setDialogState(() => method = m),
+                        ),
+                      )
+                      .toList(),
                 ),
                 const SizedBox(height: 8),
                 TextField(
                   onChanged: (v) => note = v,
-                  decoration: const InputDecoration(labelText: 'Ghi chú (tùy chọn)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Ghi chú (tùy chọn)',
+                  ),
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('HỦY')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('HỦY'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 if (!(formKey.currentState?.validate() ?? false)) return;
                 final parsed = MoneyUtils.parseCurrency(payCtrl.text);
-                final amount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
+                final amount = parsed >= 1000 && parsed < 100000
+                    ? parsed * 1000
+                    : parsed;
                 await _paymentService.addPayment(
                   partnerId: d.partner.id!,
                   amount: amount,
@@ -928,7 +1353,8 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
                   action: 'PARTNER_PAYMENT',
                   entityType: 'repair_partner',
                   entityId: d.partner.id!.toString(),
-                  summary: 'Thanh toán đối tác ${d.partner.name}: ${MoneyUtils.formatCurrency(amount)} ($method)',
+                  summary:
+                      'Thanh toán đối tác ${d.partner.name}: ${MoneyUtils.formatCurrency(amount)} ($method)',
                   payload: {
                     'partnerId': d.partner.id,
                     'partnerName': d.partner.name,
@@ -942,7 +1368,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
 
                 EventBus().emit('repair_partners_changed');
                 if (mounted) Navigator.pop(ctx);
-                NotificationService.showSnackBar('Đã ghi nhận thanh toán', color: Colors.green);
+                NotificationService.showSnackBar(
+                  'Đã ghi nhận thanh toán',
+                  color: Colors.green,
+                );
                 await _loadPartners();
               },
               style: AppButtonStyles.successElevatedButtonStyle,
@@ -964,7 +1393,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           children: [
             const Icon(Icons.lock, color: AppColors.primary, size: 24),
             const SizedBox(width: 12),
-            Text('XÁC NHẬN XÓA', style: AppTextStyles.headline6.copyWith(color: AppColors.primary)),
+            Text(
+              'XÁC NHẬN XÓA',
+              style: AppTextStyles.headline6.copyWith(color: AppColors.primary),
+            ),
           ],
         ),
         content: Column(
@@ -973,7 +1405,9 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
           children: [
             Text(
               'Chỉ chủ shop/quản lý được phép xóa nhà cung cấp.\nNhập mật khẩu tài khoản để xác nhận:',
-              style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.7)),
+              style: AppTextStyles.body2.copyWith(
+                color: AppColors.onSurface.withOpacity(0.7),
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -982,8 +1416,14 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
               style: AppTextStyles.body1,
               decoration: InputDecoration(
                 hintText: 'Mật khẩu',
-                hintStyle: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.5)),
-                prefixIcon: const Icon(Icons.password, color: AppColors.primary, size: 20),
+                hintStyle: AppTextStyles.body2.copyWith(
+                  color: AppColors.onSurface.withOpacity(0.5),
+                ),
+                prefixIcon: const Icon(
+                  Icons.password,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: AppColors.outline),
@@ -994,11 +1434,17 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 2,
+                  ),
                 ),
                 filled: true,
                 fillColor: AppColors.surface,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -1019,7 +1465,9 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
               foregroundColor: AppColors.onPrimary,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: Text('XÁC NHẬN', style: AppTextStyles.button),
           ),
@@ -1040,7 +1488,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
     if (currentUser == null) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Vui lòng đăng nhập lại', style: AppTextStyles.body2.copyWith(color: AppColors.onError)),
+          content: Text(
+            'Vui lòng đăng nhập lại',
+            style: AppTextStyles.body2.copyWith(color: AppColors.onError),
+          ),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1058,7 +1509,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Mật khẩu không đúng!', style: AppTextStyles.body2.copyWith(color: AppColors.onError)),
+          content: Text(
+            'Mật khẩu không đúng!',
+            style: AppTextStyles.body2.copyWith(color: AppColors.onError),
+          ),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -1073,9 +1527,16 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 28),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.warning,
+              size: 28,
+            ),
             const SizedBox(width: 12),
-            Text("XÓA NHÀ CUNG CẤP", style: AppTextStyles.headline6.copyWith(color: AppColors.error)),
+            Text(
+              "XÓA NHÀ CUNG CẤP",
+              style: AppTextStyles.headline6.copyWith(color: AppColors.error),
+            ),
           ],
         ),
         content: Text(
@@ -1098,7 +1559,9 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
               foregroundColor: AppColors.onError,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: Text("XÓA", style: AppTextStyles.button),
           ),
@@ -1108,21 +1571,35 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
 
     if (ok == true) {
       // Sử dụng SupplierService để xóa cả local và cloud (soft delete)
-      final success = await _supplierService.deleteSupplier(d.supplier.id!, firestoreId: d.supplier.firestoreId);
-      
+      final success = await _supplierService.deleteSupplier(
+        d.supplier.id!,
+        firestoreId: d.supplier.firestoreId,
+      );
+
       if (success) {
         messenger.showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle, color: AppColors.onSuccess, size: 20),
+                const Icon(
+                  Icons.check_circle,
+                  color: AppColors.onSuccess,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
-                Text('ĐÃ XÓA NHÀ CUNG CẤP', style: AppTextStyles.body2.copyWith(color: AppColors.onSuccess)),
+                Text(
+                  'ĐÃ XÓA NHÀ CUNG CẤP',
+                  style: AppTextStyles.body2.copyWith(
+                    color: AppColors.onSuccess,
+                  ),
+                ),
               ],
             ),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -1130,7 +1607,10 @@ class _SupplierListViewState extends State<SupplierListView> with SingleTickerPr
       } else {
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Lỗi: Không thể xóa nhà cung cấp', style: AppTextStyles.body2.copyWith(color: AppColors.onError)),
+            content: Text(
+              'Lỗi: Không thể xóa nhà cung cấp',
+              style: AppTextStyles.body2.copyWith(color: AppColors.onError),
+            ),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),

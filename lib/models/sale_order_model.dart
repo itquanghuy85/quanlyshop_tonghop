@@ -8,6 +8,7 @@ class SaleOrder {
   String productImeis;
   int totalPrice;
   int totalCost;
+  int discount; // Số tiền giảm trừ trực tiếp
   String paymentMethod;
   String sellerName;
   int soldAt;
@@ -17,15 +18,17 @@ class SaleOrder {
   bool isSynced;
 
   // --- TRƯỜNG TRẢ GÓP MỚI ---
-  bool isInstallment;    // Có phải trả góp không
-  int downPayment;       // Số tiền khách trả trước
-  int loanAmount;        // Số tiền vay ngân hàng
+  bool isInstallment; // Có phải trả góp không
+  int downPayment; // Số tiền khách trả trước
+  int loanAmount; // Số tiền vay ngân hàng
   String? installmentTerm; // Kỳ hạn vay (6, 12 tháng...)
-  String? bankName;      // Tên ngân hàng hỗ trợ
+  String? bankName; // Tên ngân hàng hỗ trợ
+  String? bankName2; // Ngân hàng thứ 2 (nếu có)
+  int loanAmount2; // Số tiền vay NH thứ 2
   int? settlementPlannedAt; // Ngày dự kiến ngân hàng tất toán
   int? settlementReceivedAt; // Ngày đã nhận tiền từ NH
-  int settlementAmount;   // Số tiền thực nhận từ NH
-  int settlementFee;      // Phí/hoa hồng NH giữ lại
+  int settlementAmount; // Số tiền thực nhận từ NH
+  int settlementFee; // Phí/hoa hồng NH giữ lại
   String? settlementNote; // Ghi chú tất toán
   String? settlementCode; // Mã hồ sơ/biên nhận từ NH
 
@@ -39,6 +42,7 @@ class SaleOrder {
     required this.productImeis,
     this.totalPrice = 0,
     this.totalCost = 0,
+    this.discount = 0,
     this.paymentMethod = "TIỀN MẶT",
     required this.sellerName,
     required this.soldAt,
@@ -50,6 +54,8 @@ class SaleOrder {
     this.loanAmount = 0,
     this.installmentTerm,
     this.bankName,
+    this.bankName2,
+    this.loanAmount2 = 0,
     this.settlementPlannedAt,
     this.settlementReceivedAt,
     this.settlementAmount = 0,
@@ -70,6 +76,7 @@ class SaleOrder {
       'productImeis': productImeis.toUpperCase(),
       'totalPrice': totalPrice,
       'totalCost': totalCost,
+      'discount': discount,
       'paymentMethod': paymentMethod.toUpperCase(),
       'sellerName': sellerName.toUpperCase(),
       'soldAt': soldAt,
@@ -81,6 +88,8 @@ class SaleOrder {
       'loanAmount': loanAmount,
       'installmentTerm': installmentTerm,
       'bankName': bankName?.toUpperCase(),
+      'bankName2': bankName2?.toUpperCase(),
+      'loanAmount2': loanAmount2,
       'settlementPlannedAt': settlementPlannedAt,
       'settlementReceivedAt': settlementReceivedAt,
       'settlementAmount': settlementAmount,
@@ -95,19 +104,27 @@ class SaleOrder {
     // Validate và sanitize các giá trị số
     final totalPriceRaw = map['totalPrice'] is int ? map['totalPrice'] : 0;
     final totalCostRaw = map['totalCost'] is int ? map['totalCost'] : 0;
+    final discountRaw = map['discount'] is int ? map['discount'] : 0;
     final downPaymentRaw = map['downPayment'] is int ? map['downPayment'] : 0;
     final loanAmountRaw = map['loanAmount'] is int ? map['loanAmount'] : 0;
-    final settlementAmountRaw = map['settlementAmount'] is int ? map['settlementAmount'] : 0;
-    final settlementFeeRaw = map['settlementFee'] is int ? map['settlementFee'] : 0;
-    
+    final loanAmount2Raw = map['loanAmount2'] is int ? map['loanAmount2'] : 0;
+    final settlementAmountRaw = map['settlementAmount'] is int
+        ? map['settlementAmount']
+        : 0;
+    final settlementFeeRaw = map['settlementFee'] is int
+        ? map['settlementFee']
+        : 0;
+
     // Đảm bảo các giá trị không âm
     final totalPrice = totalPriceRaw < 0 ? 0 : totalPriceRaw;
     final totalCost = totalCostRaw < 0 ? 0 : totalCostRaw;
+    final discount = discountRaw < 0 ? 0 : discountRaw;
     final downPayment = downPaymentRaw < 0 ? 0 : downPaymentRaw;
     final loanAmount = loanAmountRaw < 0 ? 0 : loanAmountRaw;
+    final loanAmount2 = loanAmount2Raw < 0 ? 0 : loanAmount2Raw;
     final settlementAmount = settlementAmountRaw < 0 ? 0 : settlementAmountRaw;
     final settlementFee = settlementFeeRaw < 0 ? 0 : settlementFeeRaw;
-    
+
     return SaleOrder(
       id: map['id'],
       firestoreId: map['firestoreId'],
@@ -118,6 +135,7 @@ class SaleOrder {
       productImeis: map['productImeis'] ?? "",
       totalPrice: totalPrice,
       totalCost: totalCost,
+      discount: discount,
       paymentMethod: map['paymentMethod'] ?? "TIỀN MẶT",
       sellerName: map['sellerName'] ?? "",
       soldAt: map['soldAt'] is int ? map['soldAt'] : 0,
@@ -129,6 +147,8 @@ class SaleOrder {
       loanAmount: loanAmount,
       installmentTerm: map['installmentTerm'],
       bankName: map['bankName'],
+      bankName2: map['bankName2'],
+      loanAmount2: loanAmount2,
       settlementPlannedAt: map['settlementPlannedAt'],
       settlementReceivedAt: map['settlementReceivedAt'],
       settlementAmount: settlementAmount,

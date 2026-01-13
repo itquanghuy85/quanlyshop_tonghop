@@ -463,6 +463,10 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
   String? _lastScannedData;
   DateTime? _lastScanTime;
 
+  // Delay trước khi bắt đầu scan (2-3 giây để user chuẩn bị)
+  bool _isScanReady = false;
+  int _countdownSeconds = 2;
+
   @override
   void initState() {
     super.initState();
@@ -470,6 +474,22 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
       detectionTimeoutMs: 500,
       returnImage: false,
     );
+    // Bắt đầu countdown trước khi scan
+    _startCountdown();
+  }
+
+  void _startCountdown() {
+    Future.delayed(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      setState(() => _countdownSeconds = 1);
+      Future.delayed(const Duration(seconds: 1), () {
+        if (!mounted) return;
+        setState(() {
+          _countdownSeconds = 0;
+          _isScanReady = true;
+        });
+      });
+    });
   }
 
   @override
@@ -479,6 +499,8 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
   }
 
   void _onDetect(BarcodeCapture capture) async {
+    // Chờ countdown xong mới cho scan
+    if (!_isScanReady) return;
     if (_isProcessing) return;
 
     final barcodes = capture.barcodes;
@@ -643,6 +665,41 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
                     onDetect: _onDetect,
                   ),
                 ),
+
+                // Countdown overlay khi chưa sẵn sàng
+                if (!_isScanReady)
+                  Container(
+                    color: Colors.black54,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.hourglass_top,
+                            size: 48,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _countdownSeconds > 0
+                                ? 'Chuẩn bị...\n$_countdownSeconds'
+                                : 'Sẵn sàng!',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Hướng camera vào mã QR',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
                 // Scan area overlay
                 Center(

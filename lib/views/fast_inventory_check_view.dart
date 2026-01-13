@@ -66,6 +66,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   bool _enableSoundFeedback = true;
   bool _enableHapticFeedback = true;
 
+  // Delay trước khi bắt đầu scan (2 giây để user chuẩn bị)
+  bool _isScanReady = false;
+  DateTime? _scanStartTime;
+
   @override
   void initState() {
     super.initState();
@@ -88,7 +92,8 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       final phones = await db.getInStockProducts();
       _expectedPhones = phones
           .where(
-            (p) => p.type == 'DIEN_THOAI' && p.imei != null && p.imei!.isNotEmpty,
+            (p) =>
+                p.type == 'DIEN_THOAI' && p.imei != null && p.imei!.isNotEmpty,
           )
           .toList();
 
@@ -154,6 +159,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   }
 
   void _onQRDetected(BarcodeCapture capture) {
+    // Chờ countdown 2 giây xong mới cho scan
+    if (!_isScanReady) return;
+
     // Cancel any existing debounce timer
     _scanDebounceTimer?.cancel();
 
@@ -521,12 +529,24 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   }
 
   void _toggleScanning() {
-    setState(() => _isScanning = !_isScanning);
-    if (_isScanning) {
-      _scannerController.start();
-    } else {
-      _scannerController.stop();
-    }
+    setState(() {
+      _isScanning = !_isScanning;
+      if (_isScanning) {
+        // Bắt đầu countdown 2 giây trước khi cho phép scan
+        _isScanReady = false;
+        _scanStartTime = DateTime.now();
+        _scannerController.start();
+        // Sau 2 giây mới cho phép xử lý scan
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted && _isScanning) {
+            setState(() => _isScanReady = true);
+          }
+        });
+      } else {
+        _isScanReady = false;
+        _scannerController.stop();
+      }
+    });
   }
 
   void _showScanSettings() {

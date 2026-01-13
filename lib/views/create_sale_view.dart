@@ -40,11 +40,16 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   final priceCtrl = TextEditingController(text: "0");
   final noteCtrl = TextEditingController();
   final searchProdCtrl = TextEditingController();
+  final discountCtrl = TextEditingController(text: "0"); // Giảm trừ trực tiếp
 
   bool _isInstallment = false;
   final downPaymentCtrl = TextEditingController(text: "0");
   final loanAmountCtrl = TextEditingController(text: "0");
   final bankCtrl = TextEditingController();
+  // Hỗ trợ 2 ngân hàng
+  final bankCtrl2 = TextEditingController();
+  final loanAmountCtrl2 = TextEditingController(text: "0");
+  bool _hasSecondBank = false;
 
   String _paymentMethod = "TIỀN MẶT";
   String _saleWarranty = "12 THÁNG";
@@ -68,7 +73,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     _checkPermission();
     _loadData();
     downPaymentCtrl.addListener(_calculateInstallment);
+    discountCtrl.addListener(_onDiscountChanged);
     priceCtrl.addListener(_formatPrice);
+    loanAmountCtrl.addListener(_onLoanAmount1Changed);
     // Refresh UI for add customer button when name/phone changes
     nameCtrl.addListener(() => setState(() {}));
     phoneCtrl.addListener(() => setState(() {}));
@@ -83,7 +90,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   @override
   void dispose() {
     downPaymentCtrl.removeListener(_calculateInstallment);
+    discountCtrl.removeListener(_onDiscountChanged);
     priceCtrl.removeListener(_formatPrice);
+    loanAmountCtrl.removeListener(_onLoanAmount1Changed);
     nameCtrl.dispose();
     phoneCtrl.dispose();
     addressCtrl.dispose();
@@ -93,6 +102,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     downPaymentCtrl.dispose();
     loanAmountCtrl.dispose();
     bankCtrl.dispose();
+    discountCtrl.dispose();
+    bankCtrl2.dispose();
+    loanAmountCtrl2.dispose();
 
     // Dispose IMEI controllers và focus nodes
     _imeiControllers.forEach((_, controller) => controller.dispose());
@@ -279,11 +291,45 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     }
   }
 
+  void _onDiscountChanged() {
+    // Khi thay đổi giảm giá, tính lại số tiền vay nếu là trả góp
+    if (_isInstallment) {
+      _calculateInstallment();
+    }
+  }
+
+  void _onLoanAmount1Changed() {
+    // Khi thay đổi khoản vay NH1, nếu có NH2 thì tự động tính lại NH2
+    if (_hasSecondBank) {
+      _calculateBank2Loan();
+    }
+  }
+
+  void _calculateBank2Loan() {
+    // Tổng cần vay = tổng tiền - giảm giá - trả trước
+    int total = _parseCurrency(priceCtrl.text);
+    int discount = _parseCurrency(discountCtrl.text);
+    int down = _parseCurrency(downPaymentCtrl.text);
+    int loan1 = _parseCurrency(loanAmountCtrl.text);
+    int remaining = total - discount - down - loan1;
+    loanAmountCtrl2.text = _formatCurrency(remaining > 0 ? remaining : 0);
+  }
+
   void _calculateInstallment() {
     int total = _parseCurrency(priceCtrl.text);
+    int discount = _parseCurrency(discountCtrl.text);
     int down = _parseCurrency(downPaymentCtrl.text);
-    int loan = total - down;
-    loanAmountCtrl.text = _formatCurrency(loan > 0 ? loan : 0);
+    int loanTotal = total - discount - down;
+
+    if (_hasSecondBank) {
+      // Nếu có 2 NH, tính số tiền còn lại cho NH2
+      int loan1 = _parseCurrency(loanAmountCtrl.text);
+      loanAmountCtrl2.text = _formatCurrency(
+        loanTotal - loan1 > 0 ? loanTotal - loan1 : 0,
+      );
+    } else {
+      loanAmountCtrl.text = _formatCurrency(loanTotal > 0 ? loanTotal : 0);
+    }
   }
 
   void _calculateTotal() {
@@ -298,6 +344,13 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     );
     priceCtrl.text = _formatCurrency(total);
     _calculateInstallment();
+  }
+
+  /// Tính số tiền khách thực trả (sau giảm giá)
+  int get _finalPrice {
+    int total = _parseCurrency(priceCtrl.text);
+    int discount = _parseCurrency(discountCtrl.text);
+    return total - discount > 0 ? total - discount : 0;
   }
 
   int _parseCurrency(String value) {
@@ -554,6 +607,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         return;
       }
 
+      // Parse discount
+      int discount = _parseCurrency(discountCtrl.text);
+
       final sale = SaleOrder(
         firestoreId: uniqueId,
         customerName: nameCtrl.text.trim().toUpperCase(),
@@ -585,6 +641,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               sum +
               ((item['product'] as Product).cost * (item['quantity'] as int)),
         ),
+        discount: discount,
         paymentMethod: _paymentMethod,
         sellerName: seller,
         soldAt: now,
@@ -592,6 +649,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         downPayment: paidAmount,
         loanAmount: _isInstallment ? _parseCurrency(loanAmountCtrl.text) : 0,
         bankName: bankCtrl.text.toUpperCase(),
+        bankName2: _hasSecondBank ? bankCtrl2.text.toUpperCase() : null,
+        loanAmount2: _hasSecondBank ? _parseCurrency(loanAmountCtrl2.text) : 0,
         notes: noteCtrl.text,
         warranty: _saleWarranty,
       );
@@ -620,7 +679,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         // Gọi Cloud Function để sync claims từ Firestore lên JWT
         final claimsResult = await ClaimsService().refreshMyClaims();
         debugPrint('✅ Claims refresh result: $claimsResult');
-        
+
         // Force refresh token để áp dụng claims mới
         await FirebaseAuth.instance.currentUser?.getIdToken(true);
         debugPrint('✅ Token refreshed before sale transaction');
@@ -674,7 +733,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         );
       } else {
         // Fallback: Bán local trước, sync sau
-        debugPrint('⚠️ Some products missing firestoreId, using local-first sale');
+        debugPrint(
+          '⚠️ Some products missing firestoreId, using local-first sale',
+        );
         transactionResult = {'success': true, 'localOnly': true};
       }
 
@@ -684,10 +745,12 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             transactionResult['outOfStockItems'] as List<dynamic>?;
         final needRelogin = transactionResult['needRelogin'] == true;
         final errorMsg = transactionResult['error']?.toString() ?? '';
-        
+
         // Nếu lỗi permission-denied, cho phép bán local và sync sau
         if (errorMsg.contains('permission-denied') || needRelogin) {
-          debugPrint('⚠️ Firestore permission denied, falling back to local-first sale');
+          debugPrint(
+            '⚠️ Firestore permission denied, falling back to local-first sale',
+          );
           // Hiển thị thông báo và cho phép bán local
           if (mounted) {
             final shouldContinue = await showDialog<bool>(
@@ -705,13 +768,15 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   ),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(ctx, true),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                    ),
                     child: const Text('Tiếp tục bán'),
                   ),
                 ],
               ),
             );
-            
+
             if (shouldContinue == true) {
               // Tiếp tục với local-first sale
               transactionResult = {'success': true, 'localOnly': true};
@@ -1053,6 +1118,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       ),
       child: Column(
         children: [
+          // TỔNG TIỀN
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1096,6 +1162,72 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               ),
             ],
           ),
+
+          // GIẢM GIÁ TRỰC TIẾP
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.discount, size: 18, color: Colors.orange),
+                  const SizedBox(width: 6),
+                  Text(
+                    "GIẢM GIÁ:",
+                    style: AppTextStyles.body2.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(
+                width: 150,
+                child: CurrencyTextField(
+                  controller: discountCtrl,
+                  label: "",
+                  autoMultiply1000: false,
+                  onChanged: (_) {
+                    _calculateInstallment();
+                    setState(() {});
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          // THÀNH TIỀN SAU GIẢM GIÁ
+          if (_parseCurrency(discountCtrl.text) > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "THÀNH TIỀN:",
+                    style: AppTextStyles.body1.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                  Text(
+                    "${_formatCurrency(_finalPrice)} Đ",
+                    style: AppTextStyles.headline6.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 15),
           Wrap(
             spacing: 8,
@@ -1107,6 +1239,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                     onSelected: (v) => setState(() {
                       _paymentMethod = e;
                       _isInstallment = (e == "TRẢ GÓP (NH)");
+                      if (!_isInstallment) {
+                        _hasSecondBank = false;
+                      }
                     }),
                   ),
                 )
@@ -1115,16 +1250,16 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           const Divider(height: 30),
           _moneyInput(
             downPaymentCtrl,
-            _isInstallment ? "KHÁCH TRẢ TRƯỚC (k)" : "SỐ TIỀN THU THỰC TẾ (k)",
+            _isInstallment ? "KHÁCH TRẢ TRƯỚC" : "SỐ TIỀN THU THỰC TẾ",
             AppColors.secondary,
           ),
           if (_isInstallment) ...[
             const SizedBox(height: 10),
             _moneyInput(
               loanAmountCtrl,
-              "NGÂN HÀNG CHO VAY",
+              _hasSecondBank ? "NGÂN HÀNG 1 CHO VAY" : "NGÂN HÀNG CHO VAY",
               AppColors.grey600,
-              enabled: false,
+              enabled: _hasSecondBank, // Cho phép sửa nếu có 2 NH
             ),
             const SizedBox(height: 10),
             ValidatedTextField(
@@ -1145,6 +1280,65 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   )
                   .toList(),
             ),
+
+            // THÊM NGÂN HÀNG THỨ 2
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Checkbox(
+                  value: _hasSecondBank,
+                  onChanged: (v) => setState(() {
+                    _hasSecondBank = v ?? false;
+                    if (_hasSecondBank) {
+                      _calculateBank2Loan();
+                    } else {
+                      bankCtrl2.clear();
+                      loanAmountCtrl2.text = "0";
+                      _calculateInstallment();
+                    }
+                  }),
+                ),
+                const Text("Trả góp 2 ngân hàng"),
+              ],
+            ),
+
+            if (_hasSecondBank) ...[
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                "NGÂN HÀNG THỨ 2",
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _moneyInput(
+                loanAmountCtrl2,
+                "NGÂN HÀNG 2 CHO VAY",
+                AppColors.grey600,
+                enabled: false,
+              ),
+              const SizedBox(height: 10),
+              ValidatedTextField(
+                controller: bankCtrl2,
+                label: "TÊN CÔNG TY TÀI CHÍNH 2",
+                icon: Icons.account_balance,
+                uppercase: true,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: ["FE", "HOME", "MIRAE", "HD", "F83", "T86"]
+                    .map(
+                      (b) => ActionChip(
+                        label: Text(b, style: AppTextStyles.caption),
+                        onPressed: () => setState(() => bankCtrl2.text = b),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
           ],
           const Divider(height: 30),
           // KHÔI PHỤC TAB BẢO HÀNH: Cho phép chọn bảo hành bất kể trạng thái nợ

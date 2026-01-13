@@ -1061,28 +1061,58 @@ class _InventoryViewState extends State<InventoryView>
     }
   }
 
-  void _onQRDetected(BarcodeCapture capture) {
-    final barcode = capture.barcodes.first;
-    if (barcode.rawValue != null) {
-      final imei = barcode.rawValue!;
-      final item = _checkItems.firstWhere(
-        (item) => item.imei == imei,
-        orElse: () => InventoryCheckItem(
-          itemId: imei,
-          itemName: 'Sản phẩm quét: $imei',
-          itemType: _selectedType,
-          quantity: 1,
-          isChecked: true,
-          checkedAt: DateTime.now().millisecondsSinceEpoch,
-        ),
-      );
+  // Debounce variables for QR scanning
+  DateTime? _lastQRScanTime;
+  String? _lastQRCode;
+  bool _isQRProcessing = false;
+  static const Duration _qrScanDelay = Duration(seconds: 2); // 2-3s delay
 
-      if (!item.isChecked) {
-        _updateItemQuantity(item.itemId, item.quantity + 1);
-        HapticFeedback.vibrate();
-        NotificationService.showSnackBar('Đã quét: ${item.itemName}');
+  void _onQRDetected(BarcodeCapture capture) {
+    // Prevent processing while already handling a scan
+    if (_isQRProcessing) return;
+
+    final barcode = capture.barcodes.first;
+    if (barcode.rawValue == null || barcode.rawValue!.isEmpty) return;
+
+    final imei = barcode.rawValue!.trim();
+    final now = DateTime.now();
+
+    // Check if this is a duplicate scan within the delay period
+    if (_lastQRScanTime != null && _lastQRCode == imei) {
+      final elapsed = now.difference(_lastQRScanTime!);
+      if (elapsed < _qrScanDelay) {
+        // Ignore duplicate scan within delay period
+        return;
       }
     }
+
+    // Set processing flag and update last scan time
+    _isQRProcessing = true;
+    _lastQRScanTime = now;
+    _lastQRCode = imei;
+
+    final item = _checkItems.firstWhere(
+      (item) => item.imei == imei,
+      orElse: () => InventoryCheckItem(
+        itemId: imei,
+        itemName: 'Sản phẩm quét: $imei',
+        itemType: _selectedType,
+        quantity: 1,
+        isChecked: true,
+        checkedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+
+    if (!item.isChecked) {
+      _updateItemQuantity(item.itemId, item.quantity + 1);
+      HapticFeedback.vibrate();
+      NotificationService.showSnackBar('Đã quét: ${item.itemName}');
+    }
+
+    // Reset processing flag after delay
+    Future.delayed(_qrScanDelay, () {
+      _isQRProcessing = false;
+    });
   }
 
   @override
