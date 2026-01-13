@@ -410,6 +410,17 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         // Don't fail the repair creation if notification fails
       }
 
+      // Update customer stats (tổng số lần sửa chữa)
+      try {
+        await customerService.updateCustomerStatsAfterRepair(
+          phoneCtrl.text.trim(),
+          r.price,
+        );
+      } catch (e) {
+        debugPrint('Failed to update customer stats: $e');
+        // Don't fail the repair creation if stats update fails
+      }
+
       return rWithCloudId;
     } catch (e) {
       NotificationService.showSnackBar("Lỗi: $e", color: Colors.red);
@@ -841,38 +852,20 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   const SizedBox(height: 10),
                   _imageRow(),
                   const SizedBox(height: 40),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _saving ? null : _onlySave,
-                          icon: const Icon(Icons.save_rounded),
-                          label: const Text("LƯU ĐƠN"),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _saving ? null : _onlySave,
+                      icon: const Icon(Icons.save_rounded),
+                      label: const Text("LƯU ĐƠN"),
+                      style: ElevatedButton.styleFrom(
+                        elevation: 4,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton.icon(
-                          onPressed: _saving ? null : _saveAndPrint,
-                          icon: const Icon(Icons.print_rounded),
-                          label: const Text("LƯU & IN"),
-                          style: ElevatedButton.styleFrom(
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),

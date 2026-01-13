@@ -77,14 +77,14 @@ class _StockInViewState extends State<StockInView> {
   bool _notesChanged = false;
 
   // Dropdown options
-  final List<String> types = ['DIEN_THOAI', 'PHỤ KIỆN', 'LINH KIỆN'];
+  final List<String> types = ['DIEN_THOAI', 'PHỤ KIỆN'];
   // Đồng bộ với fast_stock_in_view.dart
   final List<String> conditions = ['MỚI', '99', 'KHÁC'];
   List<Map<String, dynamic>> suppliers = [];
 
-  // Computed property to check if current type is accessory or linh kiện
+  // Computed property to check if current type is accessory
   bool get _isAccessoryOrLinhKien =>
-      typeCtrl.text == 'PHỤ KIỆN' || typeCtrl.text == 'LINH KIỆN';
+      typeCtrl.text == 'PHỤ KIỆN';
 
   @override
   void initState() {

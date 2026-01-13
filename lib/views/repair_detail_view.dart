@@ -879,8 +879,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             ),
           ],
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          Wrap(
+            alignment: WrapAlignment.spaceEvenly,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               TextButton.icon(
                 onPressed: _selectPartsFromInventory,
@@ -890,7 +892,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   color: Colors.purple,
                 ),
                 label: Text(
-                  "Chọn phụ tùng",
+                  "Phụ tùng",
                   style: AppTextStyles.caption.copyWith(color: Colors.purple),
                 ),
               ),
@@ -902,7 +904,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               TextButton.icon(
                 onPressed: _editTechnicianNotes,
                 icon: const Icon(Icons.note_add, size: 14, color: Colors.orange),
-                label: Text("Ghi chú KTV", style: AppTextStyles.caption.copyWith(color: Colors.orange)),
+                label: Text("KTV", style: AppTextStyles.caption.copyWith(color: Colors.orange)),
               ),
             ],
           ),

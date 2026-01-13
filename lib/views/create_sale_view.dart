@@ -789,8 +789,15 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           phone: phoneCtrl.text.trim(),
           address: addressCtrl.text.trim().toUpperCase(),
           createdAt: DateTime.now().millisecondsSinceEpoch,
+          totalSpent: totalPrice,
         );
         await customerService.addCustomer(newCustomer);
+      } else {
+        // Update customer stats (tổng chi tiêu)
+        await customerService.updateCustomerStatsAfterSale(
+          phoneCtrl.text.trim(),
+          totalPrice,
+        );
       }
 
       // Trigger payment notification if payment is completed

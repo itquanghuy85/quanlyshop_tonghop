@@ -1729,7 +1729,7 @@ class DBHelper {
     return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
   }
 
-  /// Lấy sản phẩm theo loại (DIEN_THOAI, PHỤ KIỆN, LINH KIỆN)
+  /// Lấy sản phẩm theo loại (ĐITHOAI, PHỤ KIỆN, LINH KIỆN)
   Future<List<Product>> getProductsByType(
     String type, {
     bool inStockOnly = true,

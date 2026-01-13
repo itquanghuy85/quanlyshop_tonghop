@@ -534,6 +534,12 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       final oldQty = part['quantity'] as int? ?? 0;
                       final oldPaymentMethod =
                           part['paymentMethod'] as String? ?? 'TIỀN MẶT';
+                      final partId = part['id'] as int;
+                      
+                      // Tính toán chênh lệch để cập nhật expense/debt
+                      final oldTotalCost = oldCost * oldQty;
+                      final newTotalCost = cost * qty;
+                      final costDifference = newTotalCost - oldTotalCost;
 
                       if (canEditDirectly) {
                         data['isSynced'] = 0;
@@ -541,7 +547,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           'repair_parts',
                           data,
                           where: 'id = ?',
-                          whereArgs: [part['id']],
+                          whereArgs: [partId],
                         );
 
                         // Queue sync update to cloud via SyncOrchestrator
@@ -550,27 +556,112 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             partFirestoreId.isNotEmpty) {
                           await SyncOrchestrator().enqueue(
                             entityType: SyncEntityType.repairPart,
-                            entityId: part['id'] as int,
+                            entityId: partId,
                             firestoreId: partFirestoreId,
                             operation: SyncOperation.update,
                             data: {
                               ...data,
-                              'id': part['id'],
+                              'id': partId,
                               'firestoreId': partFirestoreId,
                             },
                           );
                         }
 
+                        // *** FIX: Cập nhật expense/debt khi sửa số lượng ***
+                        if (costDifference != 0) {
+                          final database = await db.database;
+                          
+                          if (oldPaymentMethod == 'CÔNG NỢ') {
+                            // Tìm và cập nhật debt liên quan
+                            final debts = await database.query(
+                              'debts',
+                              where: 'relatedPartId = ?',
+                              whereArgs: [partId],
+                            );
+                            if (debts.isNotEmpty) {
+                              final debtId = debts.first['id'] as int;
+                              final debtFirestoreId = debts.first['firestoreId'] as String?;
+                              await database.update(
+                                'debts',
+                                {
+                                  'totalAmount': newTotalCost,
+                                  'note': 'Nhập linh kiện: $partName x$qty',
+                                  'updatedAt': now,
+                                  'isSynced': 0,
+                                },
+                                where: 'id = ?',
+                                whereArgs: [debtId],
+                              );
+                              // Enqueue debt sync
+                              if (debtFirestoreId != null && debtFirestoreId.isNotEmpty) {
+                                await SyncOrchestrator().enqueue(
+                                  entityType: SyncEntityType.debt,
+                                  entityId: debtId,
+                                  firestoreId: debtFirestoreId,
+                                  operation: SyncOperation.update,
+                                );
+                              }
+                              EventBus().emit('debts_changed');
+                            }
+                          } else {
+                            // Tìm và cập nhật expense liên quan
+                            final expenses = await database.query(
+                              'expenses',
+                              where: 'relatedPartId = ?',
+                              whereArgs: [partId],
+                            );
+                            if (expenses.isNotEmpty) {
+                              final expenseId = expenses.first['id'] as int;
+                              final expenseFirestoreId = expenses.first['firestoreId'] as String?;
+                              final supplierName = _getSupplierName(selectedSupplierId);
+                              await database.update(
+                                'expenses',
+                                {
+                                  'amount': newTotalCost,
+                                  'description': 'Nhập linh kiện: $partName x$qty${selectedSupplierId != null ? " từ $supplierName" : ""}',
+                                  'updatedAt': now,
+                                  'isSynced': 0,
+                                },
+                                where: 'id = ?',
+                                whereArgs: [expenseId],
+                              );
+                              // Enqueue expense sync
+                              if (expenseFirestoreId != null && expenseFirestoreId.isNotEmpty) {
+                                await SyncOrchestrator().enqueue(
+                                  entityType: SyncEntityType.expense,
+                                  entityId: expenseId,
+                                  firestoreId: expenseFirestoreId,
+                                  operation: SyncOperation.update,
+                                );
+                              }
+                              EventBus().emit('expenses_changed');
+                            }
+                          }
+                          
+                          // Cập nhật thống kê nhà cung cấp nếu có
+                          if (selectedSupplierId != null) {
+                            await db.updateSupplierStats(
+                              selectedSupplierId!,
+                              costDifference,
+                              qty - oldQty,
+                            );
+                            EventBus().emit('suppliers_changed');
+                          }
+                        }
+
                         await AuditService.logAction(
                           action: 'PART_UPDATE',
                           entityType: 'repair_part',
-                          entityId: part['id'].toString(),
+                          entityId: partId.toString(),
                           summary: 'Cập nhật linh kiện: $partName',
                           payload: {
                             'partName': partName,
                             'quantity': qty,
                             'cost': cost,
                             'price': price,
+                            'oldQuantity': oldQty,
+                            'oldCost': oldCost,
+                            'costDifference': costDifference,
                           },
                         );
                       } else {
@@ -581,7 +672,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
 
                         if (cost != oldCost) {
                           final result = await AdjustmentService.adjustPartCost(
-                            partId: part['id'] as int,
+                            partId: partId,
                             partName: partName,
                             oldCost: oldCost,
                             newCost: cost,
@@ -621,7 +712,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             'isSynced': 0,
                           },
                           where: 'id = ?',
-                          whereArgs: [part['id']],
+                          whereArgs: [partId],
                         );
 
                         // Queue sync update to cloud via SyncOrchestrator
@@ -630,11 +721,11 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             partFirestoreId.isNotEmpty) {
                           await SyncOrchestrator().enqueue(
                             entityType: SyncEntityType.repairPart,
-                            entityId: part['id'] as int,
+                            entityId: partId,
                             firestoreId: partFirestoreId,
                             operation: SyncOperation.update,
                             data: {
-                              'id': part['id'],
+                              'id': partId,
                               'firestoreId': partFirestoreId,
                               'partName': partName,
                               'compatibleModels': modelC.text.toUpperCase(),
@@ -646,6 +737,102 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                               'updatedAt': now,
                             },
                           );
+                        }
+
+                        // *** FIX (locked day): Cập nhật expense/debt khi sửa số lượng qua adjustment ***
+                        // Nếu số lượng thay đổi, tạo bút toán điều chỉnh
+                        if (qty != oldQty && costDifference != 0) {
+                          final database = await db.database;
+                          
+                          if (oldPaymentMethod == 'CÔNG NỢ') {
+                            // Tìm và cập nhật debt liên quan
+                            final debts = await database.query(
+                              'debts',
+                              where: 'relatedPartId = ?',
+                              whereArgs: [partId],
+                            );
+                            if (debts.isNotEmpty) {
+                              final debtId = debts.first['id'] as int;
+                              final debtFirestoreId = debts.first['firestoreId'] as String?;
+                              await database.update(
+                                'debts',
+                                {
+                                  'totalAmount': newTotalCost,
+                                  'note': 'Nhập linh kiện: $partName x$qty (điều chỉnh: $reason)',
+                                  'updatedAt': now,
+                                  'isSynced': 0,
+                                },
+                                where: 'id = ?',
+                                whereArgs: [debtId],
+                              );
+                              if (debtFirestoreId != null && debtFirestoreId.isNotEmpty) {
+                                await SyncOrchestrator().enqueue(
+                                  entityType: SyncEntityType.debt,
+                                  entityId: debtId,
+                                  firestoreId: debtFirestoreId,
+                                  operation: SyncOperation.update,
+                                );
+                              }
+                              EventBus().emit('debts_changed');
+                            }
+                          } else {
+                            // Tìm và cập nhật expense liên quan
+                            final expenses = await database.query(
+                              'expenses',
+                              where: 'relatedPartId = ?',
+                              whereArgs: [partId],
+                            );
+                            if (expenses.isNotEmpty) {
+                              final expenseId = expenses.first['id'] as int;
+                              final expenseFirestoreId = expenses.first['firestoreId'] as String?;
+                              final supplierName = _getSupplierName(selectedSupplierId);
+                              await database.update(
+                                'expenses',
+                                {
+                                  'amount': newTotalCost,
+                                  'description': 'Nhập linh kiện: $partName x$qty (điều chỉnh: $reason)${selectedSupplierId != null ? " từ $supplierName" : ""}',
+                                  'updatedAt': now,
+                                  'isSynced': 0,
+                                },
+                                where: 'id = ?',
+                                whereArgs: [expenseId],
+                              );
+                              if (expenseFirestoreId != null && expenseFirestoreId.isNotEmpty) {
+                                await SyncOrchestrator().enqueue(
+                                  entityType: SyncEntityType.expense,
+                                  entityId: expenseId,
+                                  firestoreId: expenseFirestoreId,
+                                  operation: SyncOperation.update,
+                                );
+                              }
+                              EventBus().emit('expenses_changed');
+                            }
+                          }
+                          
+                          // Log điều chỉnh số lượng
+                          await AuditService.logAction(
+                            action: 'PART_QTY_ADJUST',
+                            entityType: 'repair_part',
+                            entityId: partId.toString(),
+                            summary: 'Điều chỉnh số lượng linh kiện: $partName ($oldQty -> $qty)',
+                            payload: {
+                              'partName': partName,
+                              'oldQuantity': oldQty,
+                              'newQuantity': qty,
+                              'costDifference': costDifference,
+                              'reason': reason,
+                            },
+                          );
+                          
+                          // Cập nhật thống kê nhà cung cấp nếu có
+                          if (selectedSupplierId != null) {
+                            await db.updateSupplierStats(
+                              selectedSupplierId!,
+                              costDifference,
+                              qty - oldQty,
+                            );
+                            EventBus().emit('suppliers_changed');
+                          }
                         }
                       }
                     }

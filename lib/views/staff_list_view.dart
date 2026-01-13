@@ -940,49 +940,12 @@ class _StaffListViewState extends State<StaffListView> {
           ],
         ),
         automaticallyImplyLeading: true,
-        actions: [
-          if (_currentRole == 'owner')
-            IconButton(
-              icon: const Icon(Icons.qr_code_2_rounded, color: Colors.white),
-              tooltip: 'Tạo mã mời QR',
-              onPressed: _showInviteQRDialog,
-            ),
-        ],
       ),
       floatingActionButton: _canManageStaff
-          ? Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (_currentRole == 'owner')
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: FloatingActionButton(
-                      onPressed: _showInviteQRDialog,
-                      tooltip: 'Tạo mã mời QR',
-                      backgroundColor: AppColors.primary,
-                      child: const Icon(Icons.qr_code_2),
-                    ),
-                  ),
-                FloatingActionButton.extended(
-                  onPressed: _openCreateStaffDialog,
-                  icon: const Icon(Icons.person_add_alt_1),
-                  label: const Text("Thêm nhân viên"),
-                ),
-                const SizedBox(height: 16),
-                FloatingActionButton.extended(
-                  onPressed: _showBulkInviteDialog,
-                  icon: const Icon(Icons.group_add),
-                  label: const Text("Mời hàng loạt"),
-                  backgroundColor: AppColors.success,
-                ),
-                const SizedBox(height: 16),
-                FloatingActionButton.extended(
-                  onPressed: _showImportDialog,
-                  icon: const Icon(Icons.upload_file),
-                  label: const Text("Import CSV"),
-                  backgroundColor: AppColors.secondary,
-                ),
-              ],
+          ? FloatingActionButton.extended(
+              onPressed: _openCreateStaffDialog,
+              icon: const Icon(Icons.person_add_alt_1),
+              label: const Text("Thêm nhân viên"),
             )
           : null,
       body: _loadingRole
