@@ -42,6 +42,9 @@ class OrderListViewState extends State<OrderListView> {
   String _timeFilter = 'all'; // all, today, week, month, custom
   DateTime? _customStartDate;
   DateTime? _customEndDate;
+  
+  // Status filter - null means all, otherwise specific status
+  int? _statusFilter; // null=all, 1=tiếp nhận, 2=đang sửa, 3=xong, 4=đã giao
 
   bool get canDelete => widget.role == 'admin' || widget.role == 'owner';
 
@@ -100,8 +103,13 @@ class OrderListViewState extends State<OrderListView> {
 
   List<Repair> _applyFilters(List<Repair> list) {
     return list.where((r) {
+      // Widget-level status filter (from constructor)
       if (widget.statusFilter != null &&
           !widget.statusFilter!.contains(r.status)) {
+        return false;
+      }
+      // User-selected status filter
+      if (_statusFilter != null && r.status != _statusFilter) {
         return false;
       }
       if (widget.todayOnly) {
@@ -147,6 +155,7 @@ class OrderListViewState extends State<OrderListView> {
   int get _activeFilterCount {
     int count = 0;
     if (_timeFilter != 'all' && !widget.todayOnly) count++;
+    if (_statusFilter != null) count++;
     return count;
   }
 
@@ -185,7 +194,7 @@ class OrderListViewState extends State<OrderListView> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'BỘ LỌC THỜI GIAN',
+                    'BỘ LỌC',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   TextButton(
@@ -194,13 +203,40 @@ class OrderListViewState extends State<OrderListView> {
                         _timeFilter = 'all';
                         _customStartDate = null;
                         _customEndDate = null;
+                        _statusFilter = null;
                       });
                     },
-                    child: const Text('Đặt lại'),
+                    child: const Text('Đặt lại tất cả'),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
+              
+              // STATUS FILTER
+              const Text(
+                'TRẠNG THÁI',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _statusChip('Tất cả', null, setSheetState),
+                  _statusChip('Tiếp nhận', 1, setSheetState, Colors.blue),
+                  _statusChip('Đang sửa', 2, setSheetState, Colors.orange),
+                  _statusChip('Đã xong', 3, setSheetState, Colors.green),
+                  _statusChip('Đã giao', 4, setSheetState, Colors.purple),
+                ],
+              ),
+              const SizedBox(height: 20),
+              
+              // TIME FILTER
+              const Text(
+                'THỜI GIAN',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -313,6 +349,31 @@ class OrderListViewState extends State<OrderListView> {
               ),
               const SizedBox(height: 10),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statusChip(String label, int? value, StateSetter setSheetState, [Color? activeColor]) {
+    final isSelected = _statusFilter == value;
+    final color = activeColor ?? const Color(0xFF2962FF);
+    return GestureDetector(
+      onTap: () => setSheetState(() => _statusFilter = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey.shade300,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
       ),

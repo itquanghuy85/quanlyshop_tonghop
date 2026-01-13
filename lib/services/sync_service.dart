@@ -22,6 +22,18 @@ import 'claims_service.dart';
 class SyncService {
   static final _db = FirebaseFirestore.instance;
   static final List<StreamSubscription> _subscriptions = [];
+  
+  // Track active subscriptions and their status for debugging
+  static final Map<String, bool> _subscriptionStatus = {};
+  static VoidCallback? _onDataChangedCallback;
+  static String? _currentShopId;
+  static bool _isInitialized = false;
+  
+  /// Check if real-time sync is initialized and active
+  static bool get isRealTimeSyncActive => _isInitialized && _subscriptions.isNotEmpty;
+  
+  /// Get subscription status for debugging
+  static Map<String, bool> get subscriptionStatus => Map.unmodifiable(_subscriptionStatus);
 
   /// Helper: Lấy timestamp từ data (hỗ trợ cả Timestamp và int)
   static int _getTimestamp(dynamic value) {
@@ -238,6 +250,9 @@ class SyncService {
     debugPrint("Khởi tạo real-time sync...");
     // Hủy các subscription cũ nếu có để tránh rò rỉ bộ nhớ hoặc lặp sự kiện
     await cancelAllSubscriptions();
+    
+    // Store callback for potential reinitialization
+    _onDataChangedCallback = onDataChanged;
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -248,6 +263,9 @@ class SyncService {
     final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
     // Super admin cũng cần shopId nếu đã chọn shop
     final String? shopId = await UserService.getCurrentShopId();
+    
+    // Store shopId for later reference
+    _currentShopId = shopId;
 
     // LOG QUAN TRỌNG: Hiển thị shopId được sử dụng để filter
     debugPrint(
@@ -970,9 +988,13 @@ class SyncService {
       debugPrint("Lỗi khởi tạo purchase_orders sync: $e");
     }
 
+    // Mark as initialized
+    _isInitialized = true;
+    
     debugPrint(
-      "Đã khởi tạo real-time sync cho ${isSuperAdmin ? 'super admin' : 'shop: $shopId'}",
+      "✅ Đã khởi tạo real-time sync cho ${isSuperAdmin ? 'super admin' : 'shop: $shopId'} với ${_subscriptions.length} subscriptions",
     );
+    debugPrint("📊 Subscription status: $_subscriptionStatus");
   }
 
   /// Hàm helper để quản lý subscription an toàn
@@ -992,8 +1014,16 @@ class SyncService {
         "⚠️ Subscribing to $collection WITHOUT shopId filter (super admin mode)",
       );
     }
+    
+    // Track subscription status
+    _subscriptionStatus[collection] = true;
 
     final sub = query.snapshots().listen((snapshot) async {
+      // Log initial sync or updates
+      debugPrint(
+        "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
+      );
+      
       for (var change in snapshot.docChanges) {
         var data = change.doc.data();
         if (data == null) continue;
@@ -1007,7 +1037,20 @@ class SyncService {
         await onChanged(data, change.doc.id);
       }
       onBatchDone();
-    }, onError: (e) => debugPrint("Sync error in $collection: $e"));
+    }, onError: (e) {
+      final errorStr = e.toString();
+      debugPrint("❌ Sync error in $collection: $errorStr");
+      _subscriptionStatus[collection] = false;
+      
+      // Don't retry for permission-denied errors - this is a rules issue, not temporary
+      if (errorStr.contains('permission-denied')) {
+        debugPrint("⚠️ Permission denied for $collection - skipping re-subscribe (check Firestore rules)");
+        return;
+      }
+      
+      // Try to re-subscribe after error for other error types
+      _scheduleResubscribe(collection, shopId, onChanged, onBatchDone);
+    });
 
     _subscriptions.add(sub);
   }
@@ -1072,10 +1115,48 @@ class SyncService {
   }
 
   static Future<void> cancelAllSubscriptions() async {
+    debugPrint('🔴 Canceling all ${_subscriptions.length} subscriptions...');
     for (var sub in _subscriptions) {
       await sub.cancel();
     }
     _subscriptions.clear();
+    _subscriptionStatus.clear();
+    _isInitialized = false;
+    _currentShopId = null;
+    debugPrint('✅ All subscriptions cancelled');
+  }
+
+  /// Schedule re-subscribe after an error with exponential backoff
+  static void _scheduleResubscribe(
+    String collection,
+    String? shopId,
+    Future<void> Function(Map<String, dynamic> data, String docId) onChanged,
+    VoidCallback onBatchDone,
+  ) {
+    // Delay 5 seconds before resubscribing to avoid rapid reconnection loops
+    Future.delayed(const Duration(seconds: 5), () {
+      if (_subscriptionStatus[collection] == false) {
+        debugPrint('🔄 Attempting to re-subscribe to $collection after error...');
+        _subscribeToCollection(
+          collection: collection,
+          shopId: shopId,
+          onChanged: onChanged,
+          onBatchDone: onBatchDone,
+        );
+      }
+    });
+  }
+
+  /// Force reinitialize real-time sync (useful when sync appears broken)
+  static Future<void> forceReinitializeSync() async {
+    debugPrint('🔄 Force reinitializing real-time sync...');
+    await cancelAllSubscriptions();
+    
+    if (_onDataChangedCallback != null) {
+      await initRealTimeSync(_onDataChangedCallback!);
+    } else {
+      debugPrint('⚠️ No callback stored, cannot reinitialize');
+    }
   }
 
   /// Đẩy dữ liệu từ Local lên Cloud (Dùng khi có mạng trở lại)

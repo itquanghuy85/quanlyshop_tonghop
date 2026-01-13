@@ -618,6 +618,65 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     }
   }
 
+  /// Cho phép KTV ghi chú cho đơn sửa (vd: kt thay ic hay sàng main ...)
+  Future<void> _editTechnicianNotes() async {
+    final notesC = TextEditingController(text: r.notes ?? '');
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("GHI CHÚ KỸ THUẬT VIÊN"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Ghi chú quá trình sửa chữa:",
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: notesC,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText: "VD: KT thay IC nguồn, sàng main, thay cáp sạc...",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("HỦY"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text("LƯU"),
+          ),
+        ],
+      ),
+    );
+    if (result == true) {
+      setState(() {
+        r.notes = notesC.text.trim().isEmpty ? null : notesC.text.trim();
+      });
+      _saveData();
+      NotificationService.showSnackBar(
+        "Đã lưu ghi chú KTV",
+        color: Colors.green,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_hasPermission) {
@@ -839,6 +898,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 onPressed: _editFinancials,
                 icon: const Icon(Icons.edit, size: 14),
                 label: Text("Sửa giá", style: AppTextStyles.caption),
+              ),
+              TextButton.icon(
+                onPressed: _editTechnicianNotes,
+                icon: const Icon(Icons.note_add, size: 14, color: Colors.orange),
+                label: Text("Ghi chú KTV", style: AppTextStyles.caption.copyWith(color: Colors.orange)),
               ),
             ],
           ),

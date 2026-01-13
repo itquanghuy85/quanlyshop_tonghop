@@ -3277,6 +3277,8 @@ class DBHelper {
     // Loại bỏ id vì SQLite auto-generate
     final cleanData = Map<String, dynamic>.from(data);
     cleanData.remove('id');
+    // FIX: Remove updatedAt - table doesn't have this column
+    cleanData.remove('updatedAt');
 
     // Convert bool to int for SQLite
     if (cleanData['isSynced'] is bool) {

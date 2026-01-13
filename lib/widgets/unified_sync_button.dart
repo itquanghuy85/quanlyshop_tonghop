@@ -147,6 +147,8 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   String _loadingMessage = '';
   SyncHealthReport? _healthReport;
   Map<String, int>? _localStats;
+  Map<String, int>? _syncQueueStats;
+  bool _isRealtimeSyncActive = false;
 
   @override
   void initState() {
@@ -176,6 +178,12 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
         'expenses': expenses.length,
         'debts': debts.length,
       };
+      
+      // Load sync queue stats
+      _syncQueueStats = await _orchestrator.getSyncStats();
+      
+      // Check realtime sync status
+      _isRealtimeSyncActive = SyncService.isRealTimeSyncActive;
       
       // Load health check (quick)
       _healthReport = await SyncHealthCheck.runFullCheck();
@@ -311,6 +319,14 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                             onTap: _handleFullSync,
                           ),
                           
+                          _buildActionTile(
+                            icon: Icons.replay,
+                            iconColor: Colors.purple,
+                            title: 'Khởi động lại Realtime',
+                            subtitle: 'Kết nối lại listener khi không nhận data',
+                            onTap: _handleReinitializeSync,
+                          ),
+                          
                           // Auto fix button - shown when there are mismatches
                           if (_healthReport != null && !_healthReport!.isFullyHealthy)
                             _buildActionTile(
@@ -349,6 +365,24 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                             subtitle: 'Tìm dữ liệu bị "lạc" do đổi shop',
                             onTap: _handleDataRecovery,
                           ),
+                          
+                          // Show retry/clear failed when there are failed items
+                          if (_syncQueueStats != null && (_syncQueueStats!['failed'] ?? 0) > 0) ...[
+                            _buildActionTile(
+                              icon: Icons.refresh,
+                              iconColor: Colors.orange,
+                              title: 'Thử lại ${_syncQueueStats!['failed']} items lỗi',
+                              subtitle: 'Reset và sync lại các items bị failed',
+                              onTap: _handleRetryFailed,
+                            ),
+                            _buildActionTile(
+                              icon: Icons.delete_sweep,
+                              iconColor: Colors.red,
+                              title: 'Xóa items lỗi',
+                              subtitle: 'Xóa vĩnh viễn các items không thể sync',
+                              onTap: _handleClearFailed,
+                            ),
+                          ],
                           
                           const SizedBox(height: 32),
                         ],
@@ -412,6 +446,38 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                     ),
                 ] else
                   const Text('Đang kiểm tra...', style: TextStyle(fontSize: 12)),
+                // Show realtime sync status
+                Row(
+                  children: [
+                    Icon(
+                      _isRealtimeSyncActive ? Icons.wifi : Icons.wifi_off,
+                      size: 12,
+                      color: _isRealtimeSyncActive ? Colors.green : Colors.red,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _isRealtimeSyncActive ? 'Realtime: ON' : 'Realtime: OFF',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _isRealtimeSyncActive ? Colors.green : Colors.red,
+                      ),
+                    ),
+                    if (_syncQueueStats != null && (_syncQueueStats!['pending'] ?? 0) > 0) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '| Queue: ${_syncQueueStats!['pending']} pending',
+                        style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+                      ),
+                    ],
+                    if (_syncQueueStats != null && (_syncQueueStats!['failed'] ?? 0) > 0) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        ', ${_syncQueueStats!['failed']} failed',
+                        style: const TextStyle(fontSize: 11, color: Colors.red),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
@@ -618,6 +684,51 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
     }
   }
 
+  Future<void> _handleReinitializeSync() async {
+    final confirm = await _showConfirmDialog(
+      title: '🔄 KHỞI ĐỘNG LẠI REALTIME SYNC',
+      message: 'Kết nối lại tất cả listeners để nhận dữ liệu mới từ máy khác.\n\nDùng khi:\n• Không nhận được đơn mới từ máy khác\n• Biểu tượng sync vàng không chuyển xanh\n• Sau khi mất mạng',
+      confirmText: 'KHỞI ĐỘNG LẠI',
+      confirmColor: Colors.purple,
+    );
+    
+    if (confirm != true) return;
+    
+    setState(() {
+      _isLoading = true;
+      _loadingMessage = 'Đang khởi động lại listeners...';
+    });
+    
+    try {
+      // Check current sync status before reinit
+      final isActive = SyncService.isRealTimeSyncActive;
+      final status = SyncService.subscriptionStatus;
+      debugPrint('📊 Current sync status: isActive=$isActive, subscriptions=$status');
+      
+      // Force reinitialize
+      await SyncService.forceReinitializeSync();
+      
+      // Wait a moment for subscriptions to establish
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Download latest data after reinit
+      setState(() => _loadingMessage = 'Đang tải dữ liệu mới...');
+      await SyncService.downloadAllFromCloud();
+      
+      if (mounted) {
+        Navigator.pop(context);
+        final newStatus = SyncService.subscriptionStatus;
+        NotificationService.showSnackBar(
+          '✅ Đã khởi động lại ${newStatus.length} listeners!', 
+          color: Colors.green,
+        );
+      }
+    } catch (e) {
+      NotificationService.showSnackBar('❌ Lỗi: $e', color: Colors.red);
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _handleFullSync() async {
     final confirm = await _showConfirmDialog(
       title: '🔄 ĐỒNG BỘ 2 CHIỀU',
@@ -643,6 +754,78 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
       if (mounted) {
         Navigator.pop(context);
         NotificationService.showSnackBar('✅ Đồng bộ 2 chiều hoàn tất!', color: Colors.green);
+      }
+    } catch (e) {
+      NotificationService.showSnackBar('❌ Lỗi: $e', color: Colors.red);
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleRetryFailed() async {
+    final confirm = await _showConfirmDialog(
+      title: '🔄 THỬ LẠI ITEMS LỖI',
+      message: 'Reset và sync lại tất cả items đã bị đánh dấu failed.\n\nCác items này sẽ được đưa trở lại hàng đợi sync.',
+      confirmText: 'THỬ LẠI',
+      confirmColor: Colors.orange,
+    );
+    
+    if (confirm != true) return;
+    
+    setState(() {
+      _isLoading = true;
+      _loadingMessage = 'Đang reset...';
+    });
+    
+    try {
+      await _orchestrator.retryFailedItems();
+      
+      // Trigger sync after retry
+      setState(() => _loadingMessage = 'Đang sync...');
+      await _orchestrator.syncAll();
+      
+      // Reload stats
+      _syncQueueStats = await _orchestrator.getSyncStats();
+      
+      if (mounted) {
+        setState(() => _isLoading = false);
+        NotificationService.showSnackBar(
+          '✅ Đã reset và thử sync lại!', 
+          color: Colors.green,
+        );
+      }
+    } catch (e) {
+      NotificationService.showSnackBar('❌ Lỗi: $e', color: Colors.red);
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleClearFailed() async {
+    final confirm = await _showConfirmDialog(
+      title: '🗑️ XÓA ITEMS LỖI',
+      message: '⚠️ CẢNH BÁO: Xóa vĩnh viễn tất cả items bị failed.\n\nDữ liệu local KHÔNG bị xóa, chỉ xóa khỏi hàng đợi sync.\n\nDùng khi items không thể sync và bạn muốn làm sạch queue.',
+      confirmText: 'XÓA',
+      confirmColor: Colors.red,
+    );
+    
+    if (confirm != true) return;
+    
+    setState(() {
+      _isLoading = true;
+      _loadingMessage = 'Đang xóa...';
+    });
+    
+    try {
+      final count = await _orchestrator.clearFailedItems();
+      
+      // Reload stats
+      _syncQueueStats = await _orchestrator.getSyncStats();
+      
+      if (mounted) {
+        setState(() => _isLoading = false);
+        NotificationService.showSnackBar(
+          '✅ Đã xóa $count items lỗi!', 
+          color: Colors.green,
+        );
       }
     } catch (e) {
       NotificationService.showSnackBar('❌ Lỗi: $e', color: Colors.red);

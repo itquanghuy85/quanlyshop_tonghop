@@ -453,6 +453,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           cost * qty,
                           qty,
                         );
+                        // Emit event để cập nhật UI nhà cung cấp
+                        EventBus().emit('suppliers_changed');
                       }
 
                       if (paymentMethod == 'CÔNG NỢ') {
@@ -468,8 +470,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           );
                           return;
                         }
-                        await db.insertDebt({
-                          'firestoreId': 'debt_part_${now}_$insertedId',
+                        final debtFirestoreId = 'debt_part_${now}_$insertedId';
+                        final debtId = await db.insertDebt({
+                          'firestoreId': debtFirestoreId,
                           'type': 'SHOP_OWES',
                           'personName': supplierName,
                           'phone':
@@ -487,10 +490,20 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           'isSynced': 0,
                           'relatedPartId': insertedId,
                         });
+                        // Enqueue debt sync
+                        if (debtId > 0) {
+                          await SyncOrchestrator().enqueue(
+                            entityType: SyncEntityType.debt,
+                            entityId: debtId,
+                            firestoreId: debtFirestoreId,
+                            operation: SyncOperation.create,
+                          );
+                        }
                         EventBus().emit('debts_changed');
                       } else {
-                        await db.insertExpense({
-                          'firestoreId': 'exp_part_${now}_$insertedId',
+                        final expenseFirestoreId = 'exp_part_${now}_$insertedId';
+                        final expenseId = await db.insertExpense({
+                          'firestoreId': expenseFirestoreId,
                           'category': 'NHẬP LINH KIỆN',
                           'description':
                               'Nhập linh kiện: $partName x$qty${selectedSupplierId != null ? " từ $supplierName" : ""}',
@@ -502,6 +515,15 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           'isSynced': 0,
                           'relatedPartId': insertedId,
                         });
+                        // Enqueue expense sync
+                        if (expenseId > 0) {
+                          await SyncOrchestrator().enqueue(
+                            entityType: SyncEntityType.expense,
+                            entityId: expenseId,
+                            firestoreId: expenseFirestoreId,
+                            operation: SyncOperation.create,
+                          );
+                        }
                         EventBus().emit('expenses_changed');
                       }
                     } else {

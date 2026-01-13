@@ -16,7 +16,8 @@ service cloud.firestore {
     // ║  COLLECTIONS BY GROUP:                                           ║
     // ║  [AUTH]     users, shops, invites                                ║
     // ║  [BUSINESS] repairs, sales, products, customers                  ║
-    // ║  [FINANCE]  expenses, debts, debt_payments, cash_closings        ║
+    // ║  [FINANCE]  expenses, debts, debt_payments, cash_closings,       ║
+    // ║              adjustment_entries                                  ║
     // ║  [SUPPLIER] suppliers, supplier_payments, purchase_orders        ║
     // ║  [PARTNER]  repair_partners, repair_partner_payments             ║
     // ║  [HR]       attendance                                           ║
@@ -267,11 +268,12 @@ service cloud.firestore {
     // └──────────────────────────────────────────────────────────────────┘
 
     // ═══════════ 3.1 REPAIRS ═══════════
+    // Note: Allow all authenticated shop members to create repairs (basic function)
+    // Previously required isStaff() but this blocked users with 'user' role
     match /repairs/{repairId} {
       allow read: if isAuth() && docInMyShop();
       
       allow create: if isAuth() &&
-                       isStaff() &&
                        newDocInMyShop() &&
                        has(['customerName', 'phone', 'model', 'issue', 'createdAt', 'status', 'shopId']) &&
                        str('customerName', 1, 100) &&
@@ -377,13 +379,12 @@ service cloud.firestore {
     }
 
     // ═══════════ 4.2 DEBTS ═══════════
-    // Note: isEmployee() allows staff to create debts during sales (CÔNG NỢ payment)
-    // Update still requires isManager() to prevent unauthorized debt modifications
+    // Note: Allow all authenticated shop members to create debts (for CÔNG NỢ payment)
+    // This is needed when importing parts with payment method = CÔNG NỢ
     match /debts/{debtId} {
-      allow read: if isAuth() && docInMyShop() && isStaff();
+      allow read: if isAuth() && docInMyShop();
       
       allow create: if isAuth() && 
-                       isEmployee() &&
                        newDocInMyShop() &&
                        has(['personName', 'totalAmount', 'type', 'createdAt', 'shopId']) &&
                        numGte0('totalAmount') &&
@@ -391,7 +392,6 @@ service cloud.firestore {
       
       allow update: if isAuth() && 
                        docInMyShop() &&
-                       isStaff() &&
                        shopIdLocked() &&
                        numGte0('totalAmount') &&
                        optNumGte0('paidAmount');
@@ -427,6 +427,23 @@ service cloud.firestore {
                        isManager() &&
                        newDocInMyShop() &&
                        has(['shopId', 'date']);
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       isManager() &&
+                       shopIdLocked();
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 4.5 ADJUSTMENT_ENTRIES (điều chỉnh quỹ) ═══════════
+    match /adjustment_entries/{entryId} {
+      allow read: if isAuth() && docInMyShop() && isManager();
+      
+      allow create: if isAuth() && 
+                       isManager() &&
+                       newDocInMyShop() &&
+                       has(['shopId', 'amount', 'type']);
       
       allow update: if isAuth() && 
                        docInMyShop() &&

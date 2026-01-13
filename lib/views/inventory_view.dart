@@ -1761,8 +1761,6 @@ class _InventoryViewState extends State<InventoryView>
                   Icons.headset_mic,
                   Colors.green,
                 ),
-                const SizedBox(width: 8),
-                _buildTypeFilterChip('LINH KIỆN', Icons.build, Colors.orange),
               ],
             ),
           ),

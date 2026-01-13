@@ -9,6 +9,7 @@ import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
+import '../services/firestore_service.dart';
 import '../services/unified_printer_service.dart';
 import '../services/adjustment_service.dart';
 import '../utils/money_utils.dart';
@@ -339,7 +340,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         await customerService.addCustomer(newCustomer);
       }
 
-      // Enqueue sync lên cloud thay vì gọi trực tiếp
+      // Enqueue sync lên cloud
       await SyncOrchestrator().enqueue(
         entityType: SyncEntityType.repair,
         entityId: savedRepair.id!,
@@ -348,8 +349,24 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         data: r.toMap(),
       );
 
-      // Trigger sync ngay nếu có mạng
-      SyncOrchestrator().syncAll();
+      // Trigger sync ngay và chờ kết quả
+      debugPrint('🔧 Triggering immediate sync for new repair...');
+      final syncResult = await SyncOrchestrator().syncAll();
+      debugPrint('🔧 Sync result: success=${syncResult.success}, failed=${syncResult.failed}');
+      
+      // Nếu sync thất bại, thử upload trực tiếp lên Firestore
+      if (syncResult.failed > 0 || syncResult.noNetwork) {
+        debugPrint('🔧 Queue sync failed, trying direct Firestore upload...');
+        try {
+          final firestoreId = await FirestoreService.addRepair(savedRepair);
+          if (firestoreId != null) {
+            debugPrint('🔧 Direct upload successful: $firestoreId');
+          }
+        } catch (e) {
+          debugPrint('🔧 Direct upload also failed: $e (will retry later)');
+          // Don't throw - repair is saved locally and will sync later
+        }
+      }
 
       final rWithCloudId = savedRepair;
       await db.logAction(
