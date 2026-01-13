@@ -445,8 +445,8 @@ class _SaleListViewState extends State<SaleListView> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 6),
-                                Text(s.productNames, style: AppTextStyles.body2.copyWith(color: AppColors.primary, fontWeight: FontWeight.w900)),
-                                Text("IMEI: ${s.productImeis}", style: AppTextStyles.caption.copyWith(color: AppColors.onSurface)),
+                                Text(s.productNames, style: AppTextStyles.body2.copyWith(color: AppColors.primary, fontWeight: FontWeight.w900), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                Text("IMEI: ${s.productImeis}", style: AppTextStyles.caption.copyWith(color: AppColors.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
                                 const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1)),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

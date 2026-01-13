@@ -601,7 +601,15 @@ class _CustomerReceivablesViewState extends State<CustomerReceivablesView>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-          Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.w500, fontSize: 12)),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(color: valueColor, fontWeight: FontWeight.w500, fontSize: 12),
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
