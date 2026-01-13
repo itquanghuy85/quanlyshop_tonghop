@@ -1129,45 +1129,45 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         children: [
           // TỔNG TIỀN
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "TỔNG TIỀN:",
-                style: AppTextStyles.body1.copyWith(
-                  fontWeight: FontWeight.bold,
+              Flexible(
+                child: Text(
+                  "TỔNG TIỀN:",
+                  style: AppTextStyles.body1.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      _autoCalcTotal ? Icons.lock_outline : Icons.edit,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                    onPressed: () =>
-                        setState(() => _autoCalcTotal = !_autoCalcTotal),
-                  ),
-                  SizedBox(
-                    width: 150,
-                    child: CurrencyTextField(
-                      controller: priceCtrl,
-                      label: "",
-                      enabled: !_autoCalcTotal,
-                      autoMultiply1000: false,
-                      onChanged: (_) {
-                        _calculateInstallment();
-                      },
-                    ),
-                  ),
-                  Text(
-                    " Đ",
-                    style: AppTextStyles.body1.copyWith(
-                      color: AppColors.error,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              const Spacer(),
+              IconButton(
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                icon: Icon(
+                  _autoCalcTotal ? Icons.lock_outline : Icons.edit,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
+                onPressed: () =>
+                    setState(() => _autoCalcTotal = !_autoCalcTotal),
+              ),
+              SizedBox(
+                width: 130,
+                child: CurrencyTextField(
+                  controller: priceCtrl,
+                  label: "",
+                  enabled: !_autoCalcTotal,
+                  autoMultiply1000: false,
+                  onChanged: (_) {
+                    _calculateInstallment();
+                  },
+                ),
+              ),
+              Text(
+                " Đ",
+                style: AppTextStyles.body1.copyWith(
+                  color: AppColors.error,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -1265,23 +1265,29 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           // Phương thức thanh toán cho tiền trả trước
           if (_isInstallment) ...[
             const SizedBox(height: 8),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
-                  "HÌNH THỨC TRẢ TRƯỚC:",
+                  "TRẢ TRƯỚC:",
                   style: AppTextStyles.caption.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 12),
-                ...["TIỀN MẶT", "CHUYỂN KHOẢN"].map(
-                  (m) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(m, style: AppTextStyles.caption),
-                      selected: _downPaymentMethod == m,
-                      onSelected: (v) => setState(() => _downPaymentMethod = m),
+                ...["TIỀN MẶT", "C.KHOẢN"].map(
+                  (m) => ChoiceChip(
+                    label: Text(m, style: AppTextStyles.caption),
+                    selected:
+                        _downPaymentMethod ==
+                        (m == "C.KHOẢN" ? "CHUYỂN KHOẢN" : m),
+                    onSelected: (v) => setState(
+                      () => _downPaymentMethod = m == "C.KHOẢN"
+                          ? "CHUYỂN KHOẢN"
+                          : m,
                     ),
+                    visualDensity: VisualDensity.compact,
                   ),
                 ),
               ],

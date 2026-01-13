@@ -17,6 +17,32 @@ class DBHelper {
   DBHelper._internal();
   factory DBHelper() => _instance;
 
+  /// Helper để đảm bảo shopId hợp lệ trước khi ghi dữ liệu quan trọng
+  /// Trả về shopId hoặc throw Exception nếu không có
+  Future<String> _ensureValidShopId([String? existingShopId]) async {
+    if (existingShopId != null && existingShopId.isNotEmpty) {
+      return existingShopId;
+    }
+
+    // Thử lấy từ cache trước (nhanh)
+    final cachedShopId = UserService.getShopIdSync();
+    if (cachedShopId != null && cachedShopId.isNotEmpty) {
+      return cachedShopId;
+    }
+
+    // Nếu không có cache, thử lấy từ Firestore
+    final shopId = await UserService.getCurrentShopId();
+    if (shopId != null && shopId.isNotEmpty) {
+      return shopId;
+    }
+
+    // Log cảnh báo nếu không có shopId
+    debugPrint('⚠️ DBHelper: No valid shopId available for data write');
+    throw Exception(
+      'Không có shopId hợp lệ. Vui lòng đăng xuất và đăng nhập lại.',
+    );
+  }
+
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB();
@@ -2577,8 +2603,13 @@ class DBHelper {
         data['createdAt'] ?? DateTime.now().millisecondsSinceEpoch;
     data['updatedAt'] = data['updatedAt'] ?? data['createdAt'];
     data['isSynced'] = 0; // Mới tạo, cần sync
-    // Tự động lấy shopId nếu chưa có
-    data['shopId'] = data['shopId'] ?? await UserService.getCurrentShopId();
+    // CRITICAL: Đảm bảo có shopId hợp lệ trước khi ghi
+    try {
+      data['shopId'] = await _ensureValidShopId(data['shopId']);
+    } catch (e) {
+      debugPrint('❌ insertPart: $e');
+      rethrow;
+    }
     return await db.insert('repair_parts', data);
   }
 

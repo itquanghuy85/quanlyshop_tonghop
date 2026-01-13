@@ -56,6 +56,55 @@ class UserService {
     _cachedUid = FirebaseAuth.instance.currentUser?.uid;
   }
 
+  /// Check if shopId is currently valid and ready for data operations
+  static bool isShopIdReady() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return false;
+    if (_isSuperAdmin(currentUser)) {
+      return _adminSelectedShopId != null && _adminSelectedShopId!.isNotEmpty;
+    }
+    return _cachedShopId != null &&
+        _cachedShopId!.isNotEmpty &&
+        _cachedUid == currentUser.uid;
+  }
+
+  /// Get shopId synchronously (returns cached value or null)
+  /// Use this for quick checks, use getCurrentShopId() for guaranteed fetch
+  static String? getShopIdSync() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return null;
+    if (_isSuperAdmin(currentUser)) return _adminSelectedShopId;
+    if (_cachedUid == currentUser.uid) return _cachedShopId;
+    return null;
+  }
+
+  /// Ensure shopId is available, waiting if necessary
+  /// Use this before critical data operations to ensure shopId is valid
+  /// Returns the shopId or throws exception if cannot obtain after retries
+  static Future<String> ensureShopId({int maxRetries = 5}) async {
+    // First try cache
+    final cachedId = getShopIdSync();
+    if (cachedId != null && cachedId.isNotEmpty) return cachedId;
+
+    // Try to get from Firestore/Claims
+    for (int retry = 0; retry < maxRetries; retry++) {
+      final shopId = await getCurrentShopId();
+      if (shopId != null && shopId.isNotEmpty) {
+        debugPrint(
+          'ensureShopId: got shopId=$shopId after ${retry + 1} attempts',
+        );
+        return shopId;
+      }
+      debugPrint(
+        'ensureShopId: retry ${retry + 1}/$maxRetries - no shopId yet',
+      );
+      await Future.delayed(const Duration(seconds: 1));
+    }
+    throw Exception(
+      'Không thể lấy shopId sau $maxRetries lần thử. Vui lòng đăng xuất và đăng nhập lại.',
+    );
+  }
+
   /// Xóa cache khi logout để tránh lấy nhầm shopId của user khác
   static void clearCache() {
     debugPrint('UserService: Clearing cached shopId and uid');
@@ -402,6 +451,8 @@ class UserService {
     String email, {
     Map<String, dynamic>? extra,
   }) async {
+    debugPrint('🔄 syncUserInfo: START for uid=$uid, email=$email');
+
     // Lấy thông tin hiện tại để đồng bộ
     final userRef = _db.collection('users').doc(uid);
     final userDoc = await userRef.get();
@@ -409,22 +460,38 @@ class UserService {
 
     final bool isSuperAdmin = email == 'admin@huluca.com';
     String? shopId = data['shopId'];
+    bool isNewShop = false;
 
     // Nếu chưa có shopId và không phải super admin => tạo 1 shop trùng với uid
     if (!isSuperAdmin && (shopId == null || shopId.trim().isEmpty)) {
       shopId = uid;
-      await _db.collection('shops').doc(shopId).set({
-        'shopId': shopId, // Add shopId field for querying
-        'ownerUid': uid,
-        'ownerEmail': email,
-        'name': extra?['shopName'] ?? 'Cửa hàng mới',
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      isNewShop = true;
+      debugPrint(
+        '🆕 syncUserInfo: Creating new shop with id=$shopId for user $email',
+      );
+
+      // CRITICAL: Tạo shop document trước và đợi hoàn thành
+      try {
+        await _db.collection('shops').doc(shopId).set({
+          'shopId': shopId,
+          'ownerUid': uid,
+          'ownerEmail': email,
+          'name': extra?['shopName'] ?? 'Cửa hàng mới',
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        debugPrint('✅ syncUserInfo: Shop document created successfully');
+      } catch (e) {
+        debugPrint('❌ syncUserInfo: Failed to create shop: $e');
+        rethrow; // Không tiếp tục nếu không tạo được shop
+      }
     }
 
+    // CRITICAL: Set cache NGAY SAU khi có shopId, trước khi làm gì khác
     _cachedShopId = shopId is String ? shopId : null;
-    _cachedUid = uid; // Lưu uid để verify cache
-    debugPrint('syncUserInfo: cached shopId=$_cachedShopId for uid=$uid');
+    _cachedUid = uid;
+    debugPrint(
+      '✅ syncUserInfo: cached shopId=$_cachedShopId for uid=$uid (isNewShop=$isNewShop)',
+    );
 
     // Khởi tạo EncryptionService với shopId để mã hóa/giải mã dữ liệu
     if (_cachedShopId != null && _cachedShopId!.isNotEmpty) {
@@ -449,12 +516,29 @@ class UserService {
     await userRef.set(userData, SetOptions(merge: true));
 
     // Đợi Cloud Function syncUserClaims trigger và set claims
-    // Cần retry nhiều lần vì Cloud Function có thể chậm (cold start)
-    debugPrint('syncUserInfo: waiting for claims sync...');
+    // Cho shop mới, cần đợi lâu hơn vì Cloud Function trigger từ onCreate
+    debugPrint(
+      '🔄 syncUserInfo: waiting for claims sync (isNewShop=$isNewShop)...',
+    );
+
+    // QUAN TRỌNG: Gọi refreshMyClaims NGAY để trigger Cloud Function sync nhanh hơn
+    // Đặc biệt quan trọng cho shop mới vì trigger có thể bị delay
+    try {
+      debugPrint(
+        '📡 syncUserInfo: Calling refreshMyClaims to trigger claims sync...',
+      );
+      await ClaimsService().refreshMyClaims();
+    } catch (e) {
+      debugPrint('⚠️ syncUserInfo: refreshMyClaims failed: $e');
+    }
 
     bool claimsSynced = false;
-    for (int retry = 0; retry < 5; retry++) {
-      await Future.delayed(const Duration(seconds: 2));
+    final maxRetries = isNewShop ? 8 : 5; // Thử nhiều hơn cho shop mới
+
+    for (int retry = 0; retry < maxRetries; retry++) {
+      await Future.delayed(
+        Duration(seconds: isNewShop ? 3 : 2),
+      ); // Đợi lâu hơn cho shop mới
       try {
         // Force refresh token để lấy claims mới nhất
         await FirebaseAuth.instance.currentUser?.getIdToken(true);
@@ -468,29 +552,36 @@ class UserService {
 
         if (claimsShopId != null && claimsShopId == shopId) {
           debugPrint(
-            'syncUserInfo: claims synced successfully! shopId=$claimsShopId',
+            '✅ syncUserInfo: claims synced successfully! shopId=$claimsShopId',
           );
           claimsSynced = true;
           break;
         } else {
           debugPrint(
-            'syncUserInfo: retry ${retry + 1}/5 - claims shopId=$claimsShopId, expected=$shopId',
+            '🔄 syncUserInfo: retry ${retry + 1}/$maxRetries - claims shopId=$claimsShopId, expected=$shopId',
           );
-          // Gọi refreshMyClaims để trigger sync nhanh hơn
-          if (retry >= 2) {
+          // Gọi refreshMyClaims mỗi 2 lần retry để trigger sync nhanh hơn
+          if (retry % 2 == 1) {
             await ClaimsService().refreshMyClaims();
           }
         }
       } catch (e) {
-        debugPrint('syncUserInfo: retry ${retry + 1}/5 error: $e');
+        debugPrint('⚠️ syncUserInfo: retry ${retry + 1}/$maxRetries error: $e');
       }
     }
 
     if (!claimsSynced) {
       debugPrint(
-        '⚠️ syncUserInfo: claims not synced after 5 retries, continuing anyway...',
+        '⚠️ syncUserInfo: claims not synced after $maxRetries retries',
+      );
+      // QUAN TRỌNG: Không throw exception vì cache shopId đã được set
+      // App vẫn hoạt động được với cache, chỉ cần sync lại claims sau
+      debugPrint(
+        '📝 syncUserInfo: App sẽ sử dụng cached shopId=$_cachedShopId (claims sẽ sync sau)',
       );
     }
+
+    debugPrint('✅ syncUserInfo: COMPLETE for uid=$uid, shopId=$shopId');
   }
 
   /// GÁN một nhân viên vào cùng cửa hàng với user hiện tại

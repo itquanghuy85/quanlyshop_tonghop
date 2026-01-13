@@ -6,9 +6,13 @@ import '../theme/app_text_styles.dart';
 class PartsSelectionDialog extends StatefulWidget {
   final List<Product> products;
   final String currentParts;
-  
-  const PartsSelectionDialog({super.key, required this.products, required this.currentParts});
-  
+
+  const PartsSelectionDialog({
+    super.key,
+    required this.products,
+    required this.currentParts,
+  });
+
   @override
   State<PartsSelectionDialog> createState() => _PartsSelectionDialogState();
 }
@@ -16,15 +20,19 @@ class PartsSelectionDialog extends StatefulWidget {
 class _PartsSelectionDialogState extends State<PartsSelectionDialog> {
   final List<Map<String, dynamic>> _selectedParts = [];
   String _searchQuery = "";
-  
+
   List<Product> get _filteredProducts {
     if (_searchQuery.isEmpty) return widget.products;
-    return widget.products.where((p) => 
-      p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-      (p.description.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false)
-    ).toList();
+    final query = _searchQuery.toLowerCase();
+    return widget.products
+        .where(
+          (p) =>
+              p.name.toLowerCase().contains(query) ||
+              p.description.toLowerCase().contains(query),
+        )
+        .toList();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -36,7 +44,10 @@ class _PartsSelectionDialogState extends State<PartsSelectionDialog> {
           children: [
             Tooltip(
               message: "Chọn phụ tùng cần dùng cho đơn sửa.",
-              child: const Text("CHỌN LINH KIỆN", style: AppTextStyles.headline4),
+              child: const Text(
+                "CHỌN LINH KIỆN",
+                style: AppTextStyles.headline4,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -62,11 +73,15 @@ class _PartsSelectionDialogState extends State<PartsSelectionDialog> {
                 Expanded(
                   child: Text(
                     "Tổng chi phí: ${MoneyUtils.formatVND(_selectedParts.fold<int>(0, (sum, p) => sum + ((p['cost'] as int) * (p['quantity'] as int))))}đ",
-                    style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold),
+                    style: AppTextStyles.body1.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 TextButton(
-                  onPressed: _selectedParts.isNotEmpty ? () => Navigator.pop(context, _selectedParts) : null,
+                  onPressed: _selectedParts.isNotEmpty
+                      ? () => Navigator.pop(context, _selectedParts)
+                      : null,
                   child: const Text("XÁC NHẬN"),
                 ),
               ],
@@ -77,22 +92,31 @@ class _PartsSelectionDialogState extends State<PartsSelectionDialog> {
                 itemCount: _filteredProducts.length,
                 itemBuilder: (ctx, index) {
                   final product = _filteredProducts[index];
-                  final isSelected = _selectedParts.any((p) => p['product'] == product);
+                  final isSelected = _selectedParts.any(
+                    (p) => p['product'] == product,
+                  );
                   return ListTile(
                     title: Text(product.name),
                     subtitle: Text("${MoneyUtils.formatVND(product.price)}đ"),
                     trailing: isSelected
                         ? IconButton(
                             icon: const Icon(Icons.remove),
-                            onPressed: () => setState(() => _selectedParts.removeWhere((p) => p['product'] == product)),
+                            onPressed: () => setState(
+                              () => _selectedParts.removeWhere(
+                                (p) => p['product'] == product,
+                              ),
+                            ),
                           )
                         : IconButton(
                             icon: const Icon(Icons.add),
-                            onPressed: () => setState(() => _selectedParts.add({
-                              'product': product,
-                              'cost': product.price, // Assuming cost is price for simplicity
-                              'quantity': 1,
-                            })),
+                            onPressed: () => setState(
+                              () => _selectedParts.add({
+                                'product': product,
+                                'cost': product
+                                    .price, // Assuming cost is price for simplicity
+                                'quantity': 1,
+                              }),
+                            ),
                           ),
                   );
                 },

@@ -43,35 +43,35 @@ Future<void> main() async {
     () async {
       WidgetsFlutterBinding.ensureInitialized();
       await initializeDateFormatting('vi_VN');
-      
+
       // iOS-specific: Run app FIRST to show splash screen immediately
       // This prevents the "freeze" perception on iOS
       final bool isIOS = !kIsWeb && Platform.isIOS;
-      
+
       if (isIOS) {
         // On iOS, start app immediately to show UI, then init Firebase in background
         runApp(const MyApp());
-        
+
         // Initialize Firebase and services after first frame renders
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           try {
             await Firebase.initializeApp(
               options: DefaultFirebaseOptions.currentPlatform,
             );
-            
+
             // Set up Firebase Messaging background handler
             FirebaseMessaging.onBackgroundMessage(
               _firebaseMessagingBackgroundHandler,
             );
-            
+
             debugPrint('✅ Firebase initialized (iOS deferred)');
           } catch (e) {
             debugPrint('Firebase initialization failed: $e');
           }
-          
+
           // Delay notification init to avoid blocking UI
           await Future.delayed(const Duration(milliseconds: 300));
-          
+
           try {
             await NotificationService.init();
           } catch (e) {
@@ -98,7 +98,7 @@ Future<void> main() async {
           debugPrint('Firebase initialization failed: $e');
           rethrow;
         }
-        
+
         // Defer heavy initialization to next frame to allow splash screen to render
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           try {
@@ -112,7 +112,7 @@ Future<void> main() async {
             debugPrint('ConnectivityService initialization failed: $e');
           }
         });
-        
+
         runApp(const MyApp());
       }
     },
@@ -292,63 +292,75 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     String uid,
     String email,
   ) async {
+    debugPrint('🚀 _getRoleAfterSync: START for uid=$uid, email=$email');
+
     try {
       await UserService.syncUserInfo(uid, email);
+      debugPrint('✅ _getRoleAfterSync: syncUserInfo completed');
     } catch (e) {
-      debugPrint('⚠️ syncUserInfo error (continuing): $e');
+      debugPrint('❌ syncUserInfo error: $e');
+      // Nếu syncUserInfo thất bại hoàn toàn, vẫn thử tiếp để xem có cache không
     }
 
     // Kiểm tra super admin TRƯỚC - không cần sync data
     final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
     if (isSuperAdmin) {
       debugPrint('🔑 Super admin đăng nhập - chờ chọn shop');
-      // Super admin: Không download data, chờ chọn shop
       return {'role': 'admin', 'isSuperAdmin': true};
     }
 
-    // User thường: Kiểm tra và sync data
+    // User thường: Kiểm tra và đảm bảo có shopId
     String? currentShopId;
     try {
-      currentShopId = await UserService.getCurrentShopId();
-      // Nếu vẫn null, thử refresh claims
-      if (currentShopId == null) {
-        debugPrint('⚠️ shopId null, thử refresh claims lần cuối...');
+      // CRITICAL: Sử dụng ensureShopId thay vì getCurrentShopId để đảm bảo có shopId
+      currentShopId = await UserService.ensureShopId(maxRetries: 5);
+      debugPrint('✅ _getRoleAfterSync: Got shopId=$currentShopId');
+    } catch (e) {
+      debugPrint('❌ _getRoleAfterSync: Cannot get shopId: $e');
+      // Thử lần cuối với getCurrentShopId và refresh claims
+      try {
+        debugPrint('🔄 _getRoleAfterSync: Attempting final claims refresh...');
         await ClaimsService().refreshMyClaims();
-        await Future.delayed(const Duration(seconds: 2));
+        await Future.delayed(const Duration(seconds: 3));
         currentShopId = await UserService.getCurrentShopId();
-      }
-    } catch (e) {
-      debugPrint('⚠️ Error getting shopId: $e');
+      } catch (_) {}
     }
 
-    if (currentShopId != null) {
-      await _checkAndClearLocalDataIfShopChanged(currentShopId);
+    // Nếu VẪN không có shopId, đây là lỗi nghiêm trọng
+    if (currentShopId == null || currentShopId.isEmpty) {
+      debugPrint('⛔ _getRoleAfterSync: CRITICAL - No shopId available!');
+      debugPrint('📝 User cần logout và login lại để tạo shop mới');
+      // Không throw exception, để user vào HomeView nhưng với data rỗng
+      // HomeView sẽ hiển thị thông báo lỗi phù hợp
     } else {
-      debugPrint('⚠️ Vẫn không có shopId, tiếp tục với data rỗng...');
+      await _checkAndClearLocalDataIfShopChanged(currentShopId);
     }
 
-    // Download dữ liệu từ cloud về
-    try {
-      await SyncService.downloadAllFromCloud().timeout(
-        const Duration(seconds: 20),
-        onTimeout: () {
-          debugPrint('⚠️ Sync timeout sau 20s, tiếp tục với data local...');
-        },
-      );
-      debugPrint('✅ Sync hoàn thành');
+    // Download dữ liệu từ cloud về (chỉ khi có shopId)
+    if (currentShopId != null && currentShopId.isNotEmpty) {
+      try {
+        await SyncService.downloadAllFromCloud().timeout(
+          const Duration(seconds: 20),
+          onTimeout: () {
+            debugPrint('⚠️ Sync timeout sau 20s, tiếp tục với data local...');
+          },
+        );
+        debugPrint('✅ Sync hoàn thành');
 
-      // Initialize SyncOrchestrator AFTER successful login and data sync
-      // This prevents blocking startup
-      await _initSyncOrchestrator();
+        // Initialize SyncOrchestrator AFTER successful login and data sync
+        await _initSyncOrchestrator();
 
-      // Khởi tạo CashClosingNotifier để theo dõi trạng thái chốt quỹ realtime
-      await CashClosingNotifier.instance.init();
-      debugPrint('✅ CashClosingNotifier initialized');
-    } catch (e) {
-      debugPrint('❌ Lỗi đồng bộ: $e');
+        // Khởi tạo CashClosingNotifier
+        await CashClosingNotifier.instance.init();
+        debugPrint('✅ CashClosingNotifier initialized');
+      } catch (e) {
+        debugPrint('❌ Lỗi đồng bộ: $e');
+      }
+    } else {
+      debugPrint('⚠️ Skipping sync - no shopId available');
     }
 
-    // Chạy health check ngầm
+    // Chạy health check ngầm (không chặn)
     // ignore: unawaited_futures
     Future.microtask(() async {
       try {
