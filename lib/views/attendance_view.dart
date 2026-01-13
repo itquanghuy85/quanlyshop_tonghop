@@ -396,7 +396,7 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
     );
   }
 
-  Widget _rowInfo(String l, String v, Color c) => Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(l, style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.6))), Text(v, style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold, color: c))]));
+  Widget _rowInfo(String l, String v, Color c) => Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(l, style: AppTextStyles.body2.copyWith(color: AppColors.onSurface.withOpacity(0.6))), const SizedBox(width: 8), Flexible(child: Text(v, style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold, color: c), textAlign: TextAlign.end, overflow: TextOverflow.ellipsis))]));
 
   Widget _buildHistoryTab() {
     if (_history.isEmpty) return const Center(child: Text("Chưa có dữ liệu lịch sử"));
@@ -643,5 +643,5 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
     );
   }
 
-  Widget _statCard(String l, String v, Color c) => Container(width: double.infinity, padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(15)), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(l, style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface.withOpacity(0.7))), Text(v, style: AppTextStyles.headline3.copyWith(fontWeight: FontWeight.w900, color: c))]));
+  Widget _statCard(String l, String v, Color c) => Container(width: double.infinity, padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(15)), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Expanded(child: Text(l, style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface.withOpacity(0.7)))), const SizedBox(width: 8), Flexible(child: Text(v, style: AppTextStyles.headline3.copyWith(fontWeight: FontWeight.w900, color: c), textAlign: TextAlign.end, overflow: TextOverflow.ellipsis))]));
 }

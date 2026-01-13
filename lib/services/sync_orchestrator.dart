@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import '../data/db_helper.dart';
@@ -331,9 +332,25 @@ class SyncOrchestrator {
       whereArgs: [item.id],
     );
 
-    final shopId = await UserService.getCurrentShopId();
+    // Retry logic cho shopId - shop mới có thể chưa có claims
+    String? shopId = await UserService.getCurrentShopId();
     if (shopId == null) {
-      throw Exception('No shopId available');
+      debugPrint('🔄 SyncOrchestrator: shopId null, retrying with claims refresh...');
+      // Thử refresh claims cho shop mới
+      try {
+        await UserService.syncUserInfo(
+          FirebaseAuth.instance.currentUser?.uid ?? '',
+          FirebaseAuth.instance.currentUser?.email ?? '',
+        );
+        await Future.delayed(const Duration(milliseconds: 500));
+        shopId = await UserService.getCurrentShopId();
+      } catch (e) {
+        debugPrint('🔄 SyncOrchestrator: Claims refresh failed: $e');
+      }
+      
+      if (shopId == null) {
+        throw Exception('No shopId available after retry');
+      }
     }
 
     String? newFirestoreId;

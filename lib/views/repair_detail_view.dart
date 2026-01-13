@@ -983,6 +983,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     padding: const EdgeInsets.symmetric(vertical: 8),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           l,
@@ -990,9 +991,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             color: AppColors.onSurface.withOpacity(0.6),
           ),
         ),
-        Text(
-          v,
-          style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            v,
+            style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+          ),
         ),
       ],
     ),
