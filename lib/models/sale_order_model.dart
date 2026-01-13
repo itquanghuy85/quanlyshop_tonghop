@@ -20,6 +20,7 @@ class SaleOrder {
   // --- TRƯỜNG TRẢ GÓP MỚI ---
   bool isInstallment; // Có phải trả góp không
   int downPayment; // Số tiền khách trả trước
+  String? downPaymentMethod; // Phương thức trả trước: TIỀN MẶT / CHUYỂN KHOẢN
   int loanAmount; // Số tiền vay ngân hàng
   String? installmentTerm; // Kỳ hạn vay (6, 12 tháng...)
   String? bankName; // Tên ngân hàng hỗ trợ
@@ -51,6 +52,7 @@ class SaleOrder {
     this.warranty = "KO BH",
     this.isInstallment = false,
     this.downPayment = 0,
+    this.downPaymentMethod,
     this.loanAmount = 0,
     this.installmentTerm,
     this.bankName,
@@ -85,6 +87,7 @@ class SaleOrder {
       'warranty': warranty.toUpperCase(),
       'isInstallment': isInstallment ? 1 : 0,
       'downPayment': downPayment,
+      'downPaymentMethod': downPaymentMethod?.toUpperCase(),
       'loanAmount': loanAmount,
       'installmentTerm': installmentTerm,
       'bankName': bankName?.toUpperCase(),
@@ -144,6 +147,7 @@ class SaleOrder {
       warranty: map['warranty'] ?? "KO BH",
       isInstallment: map['isInstallment'] == 1 || map['isInstallment'] == true,
       downPayment: downPayment,
+      downPaymentMethod: map['downPaymentMethod'],
       loanAmount: loanAmount,
       installmentTerm: map['installmentTerm'],
       bankName: map['bankName'],

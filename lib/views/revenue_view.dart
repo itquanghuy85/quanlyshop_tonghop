@@ -1750,23 +1750,22 @@ class _RevenueViewState extends State<RevenueView>
     for (var s in _sales.where((s) => _isSameDay(s.soldAt, now))) {
       if (s.isInstallment) {
         if (s.downPayment > 0) {
+          // Dùng downPaymentMethod (TIỀN MẶT/CHUYỂN KHOẢN) thay vì paymentMethod (TRẢ GÓP NH)
+          final downMethod = s.downPaymentMethod ?? 'TIỀN MẶT';
           final item = _TransactionItem(
             title: "Bán TG cọc: ${s.productNames}",
             amount: s.downPayment,
-            method: s.paymentMethod,
+            method: downMethod,
             time: s.soldAt,
             type: "IN",
-            isDebt: s.paymentMethod == "CÔNG NỢ",
+            isDebt:
+                false, // Tiền trả trước luôn là tiền thật, không phải công nợ
           );
           todayTrans.add(item);
-          if (!item.isDebt) {
-            if (item.method == "TIỀN MẶT") {
-              cashIn += item.amount;
-            } else {
-              bankIn += item.amount;
-            }
+          if (downMethod == "TIỀN MẶT") {
+            cashIn += item.amount;
           } else {
-            debtAmount += item.amount;
+            bankIn += item.amount;
           }
         }
       } else {
@@ -3154,14 +3153,16 @@ class _RevenueViewState extends State<RevenueView>
       if (s.isInstallment) {
         // Bán trả góp: chỉ tính tiền trả trước (downPayment)
         if (s.downPayment > 0) {
+          // Dùng downPaymentMethod để phân biệt tiền mặt/chuyển khoản
+          final downMethod = s.downPaymentMethod ?? 'TIỀN MẶT';
           allTransactions.add(
             _TransactionItem(
               title: "Bán TG cọc: ${s.productNames}",
               amount: s.downPayment,
-              method: s.paymentMethod,
+              method: downMethod,
               time: s.soldAt,
               type: "IN",
-              isDebt: s.paymentMethod == "CÔNG NỢ",
+              isDebt: false, // Tiền trả trước không phải công nợ
             ),
           );
         }

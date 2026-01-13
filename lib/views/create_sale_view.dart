@@ -50,6 +50,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   final bankCtrl2 = TextEditingController();
   final loanAmountCtrl2 = TextEditingController(text: "0");
   bool _hasSecondBank = false;
+  String _downPaymentMethod = "TIỀN MẶT"; // Phương thức trả trước
 
   String _paymentMethod = "TIỀN MẶT";
   String _saleWarranty = "12 THÁNG";
@@ -264,6 +265,13 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       downPaymentCtrl.text = _formatCurrency(sale.downPayment);
       loanAmountCtrl.text = _formatCurrency(sale.loanAmount);
       bankCtrl.text = sale.bankName ?? '';
+      _downPaymentMethod = sale.downPaymentMethod ?? 'TIỀN MẶT';
+      // Load second bank if exists
+      if (sale.bankName2 != null && sale.bankName2!.isNotEmpty) {
+        _hasSecondBank = true;
+        bankCtrl2.text = sale.bankName2!;
+        loanAmountCtrl2.text = _formatCurrency(sale.loanAmount2);
+      }
     }
 
     // Load selected items từ sale
@@ -647,6 +655,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         soldAt: now,
         isInstallment: _isInstallment,
         downPayment: paidAmount,
+        downPaymentMethod: _isInstallment ? _downPaymentMethod : null,
         loanAmount: _isInstallment ? _parseCurrency(loanAmountCtrl.text) : 0,
         bankName: bankCtrl.text.toUpperCase(),
         bankName2: _hasSecondBank ? bankCtrl2.text.toUpperCase() : null,
@@ -1253,6 +1262,31 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             _isInstallment ? "KHÁCH TRẢ TRƯỚC" : "SỐ TIỀN THU THỰC TẾ",
             AppColors.secondary,
           ),
+          // Phương thức thanh toán cho tiền trả trước
+          if (_isInstallment) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  "HÌNH THỨC TRẢ TRƯỚC:",
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ...["TIỀN MẶT", "CHUYỂN KHOẢN"].map(
+                  (m) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(m, style: AppTextStyles.caption),
+                      selected: _downPaymentMethod == m,
+                      onSelected: (v) => setState(() => _downPaymentMethod = m),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (_isInstallment) ...[
             const SizedBox(height: 10),
             _moneyInput(
