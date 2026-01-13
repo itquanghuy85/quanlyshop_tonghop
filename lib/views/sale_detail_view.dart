@@ -38,8 +38,11 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   final db = DBHelper();
   late SaleOrder s;
   final ScreenshotController screenshotController = ScreenshotController();
-  
-  String _shopName = ""; String _shopAddr = ""; String _shopPhone = ""; String _logoPath = "";
+
+  String _shopName = "";
+  String _shopAddr = "";
+  String _shopPhone = "";
+  String _logoPath = "";
   bool get _hasLogo => _logoPath.isNotEmpty && File(_logoPath).existsSync();
   bool get _isInstallmentNH => s.paymentMethod.toUpperCase() == "TRẢ GÓP (NH)";
   bool _managerUnlocked = false;
@@ -67,20 +70,30 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     });
   }
 
-  String _fmtDate(int ms) => DateFormat('HH:mm dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(ms));
-  String _fmtShort(int? ms) => ms == null ? "---" : DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(ms));
+  String _fmtDate(int ms) => DateFormat(
+    'HH:mm dd/MM/yyyy',
+  ).format(DateTime.fromMillisecondsSinceEpoch(ms));
+  String _fmtShort(int? ms) => ms == null
+      ? "---"
+      : DateFormat(
+          'dd/MM/yyyy',
+        ).format(DateTime.fromMillisecondsSinceEpoch(ms));
 
   Future<void> _unlockManager() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("CẦN ĐĂNG NHẬP TÀI KHOẢN QUẢN LÝ")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("CẦN ĐĂNG NHẬP TÀI KHOẢN QUẢN LÝ")),
+      );
       return;
     }
     final perms = await UserService.getCurrentUserPermissions();
     final isSuper = UserService.isCurrentUserSuperAdmin();
     if (!(perms['allowViewSales'] ?? false) && !isSuper) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Chỉ tài khoản quản lý mới được sửa/xóa")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Chỉ tài khoản quản lý mới được sửa/xóa")),
+      );
       return;
     }
 
@@ -96,8 +109,14 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           decoration: const InputDecoration(labelText: "Mật khẩu quản lý"),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("HỦY")),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("XÁC NHẬN")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("HỦY"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("XÁC NHẬN"),
+          ),
         ],
       ),
     );
@@ -106,26 +125,35 @@ class _SaleDetailViewState extends State<SaleDetailView> {
 
     try {
       setState(() => _checkingManager = true);
-      final cred = EmailAuthProvider.credential(email: user.email ?? '', password: passCtrl.text);
+      final cred = EmailAuthProvider.credential(
+        email: user.email ?? '',
+        password: passCtrl.text,
+      );
       await user.reauthenticateWithCredential(cred);
       if (mounted) {
         setState(() {
           _managerUnlocked = true;
           _checkingManager = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ĐÃ MỞ KHÓA CHỈNH SỬA")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("ĐÃ MỞ KHÓA CHỈNH SỬA")));
       }
     } catch (_) {
       if (mounted) {
         setState(() => _checkingManager = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sai mật khẩu quản lý")));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Sai mật khẩu quản lý")));
       }
     }
   }
 
   String _toNoSign(String str) {
-    var withDia = 'àáâãèéêìíòóôõùúýỳỹỷỵửữừứựửữừứựàáâãèéêìíòóôõùúýỳỹỷỵửữừứựửữừứự';
-    var withoutDia = 'aaaaeeeeiioooouuyyyyyuuuuuuuuuuuaaaaeeeeiioooouuyyyyyuuuuuuuuuuu';
+    var withDia =
+        'àáâãèéêìíòóôõùúýỳỹỷỵửữừứựửữừứựàáâãèéêìíòóôõùúýỳỹỷỵửữừứựửữừứự';
+    var withoutDia =
+        'aaaaeeeeiioooouuyyyyyuuuuuuuuuuuaaaaeeeeiioooouuyyyyyuuuuuuuuuuu';
     for (int i = 0; i < withDia.length; i++) {
       str = str.replaceAll(withDia[i], withoutDia[i]);
     }
@@ -140,7 +168,8 @@ class _SaleDetailViewState extends State<SaleDetailView> {
 
     // Extract printer configuration
     final printerType = printerConfig['type'] as PrinterType?;
-    final bluetoothPrinter = printerConfig['bluetoothPrinter'] as BluetoothPrinterConfig?;
+    final bluetoothPrinter =
+        printerConfig['bluetoothPrinter'] as BluetoothPrinterConfig?;
     final wifiIp = printerConfig['wifiIp'] as String?;
 
     try {
@@ -174,20 +203,26 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         );
       } else {
         messenger.showSnackBar(
-          const SnackBar(content: Text('In thất bại! Vui lòng kiểm tra cài đặt máy in.')),
+          const SnackBar(
+            content: Text('In thất bại! Vui lòng kiểm tra cài đặt máy in.'),
+          ),
         );
       }
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Lỗi khi in: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Lỗi khi in: $e')));
     }
   }
 
   Future<void> _openSettlementDialog() async {
     final formKey = GlobalKey<FormState>();
-    final amountCtrl = TextEditingController(text: MoneyUtils.formatCurrency(s.settlementAmount > 0 ? s.settlementAmount : s.loanAmount));
-    final feeCtrl = TextEditingController(text: MoneyUtils.formatCurrency(s.settlementFee));
+    final amountCtrl = TextEditingController(
+      text: MoneyUtils.formatCurrency(
+        s.settlementAmount > 0 ? s.settlementAmount : s.loanAmount,
+      ),
+    );
+    final feeCtrl = TextEditingController(
+      text: MoneyUtils.formatCurrency(s.settlementFee),
+    );
     final noteCtrl = TextEditingController(text: s.settlementNote ?? "");
 
     final ok = await showDialog<bool>(
@@ -203,24 +238,42 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 controller: amountCtrl,
                 keyboardType: TextInputType.number,
                 inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                decoration: const InputDecoration(labelText: "Số tiền nhận (VNĐ)"),
-                validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền nhận'),
+                decoration: const InputDecoration(
+                  labelText: "Số tiền nhận (VNĐ)",
+                ),
+                validator: (v) => MoneyUtils.validateAmount(
+                  v ?? '',
+                  min: 1,
+                  fieldName: 'Số tiền nhận',
+                ),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: feeCtrl,
                 keyboardType: TextInputType.number,
                 inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                decoration: const InputDecoration(labelText: "Phí NH giữ lại (VNĐ)"),
-                validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 0, fieldName: 'Phí NH'),
+                decoration: const InputDecoration(
+                  labelText: "Phí NH giữ lại (VNĐ)",
+                ),
+                validator: (v) => MoneyUtils.validateAmount(
+                  v ?? '',
+                  min: 0,
+                  fieldName: 'Phí NH',
+                ),
               ),
               const SizedBox(height: 8),
-              TextField(controller: noteCtrl, decoration: const InputDecoration(labelText: "Ghi chú")),
+              TextField(
+                controller: noteCtrl,
+                decoration: const InputDecoration(labelText: "Ghi chú"),
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("HỦY")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("HỦY"),
+          ),
           ElevatedButton(
             onPressed: () {
               if (!(formKey.currentState?.validate() ?? false)) return;
@@ -236,8 +289,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
 
     final parsedReceived = MoneyUtils.parseCurrency(amountCtrl.text);
     final parsedFee = MoneyUtils.parseCurrency(feeCtrl.text);
-    final received = parsedReceived > 0 && parsedReceived < 100000 ? parsedReceived * 1000 : parsedReceived;
-    final fee = parsedFee > 0 && parsedFee < 100000 ? parsedFee * 1000 : parsedFee;
+    final received = parsedReceived > 0 && parsedReceived < 100000
+        ? parsedReceived * 1000
+        : parsedReceived;
+    final fee = parsedFee > 0 && parsedFee < 100000
+        ? parsedFee * 1000
+        : parsedFee;
     final nowMs = DateTime.now().millisecondsSinceEpoch;
 
     setState(() {
@@ -249,7 +306,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     });
 
     await db.updateSale(s);
-    
+
     // Sync settlement to Firestore
     if (s.firestoreId != null) {
       await SyncOrchestrator().enqueue(
@@ -260,7 +317,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         data: s.toMap(),
       );
     }
-    
+
     EventBus().emit('sales_changed');
 
     if (fee > 0) {
@@ -275,7 +332,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         'paymentMethod': 'CHUYỂN KHOẢN',
       };
       final expenseId = await db.insertExpense(expData);
-      
+
       // Queue sync expense to cloud via SyncOrchestrator
       await SyncOrchestrator().enqueue(
         entityType: SyncEntityType.expense,
@@ -295,7 +352,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       summary: "Nhận ${MoneyUtils.formatCurrency(received)} đ từ NH",
       payload: {'fee': fee, 'bank': s.bankName},
     );
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("ĐÃ GHI NHẬN TIỀN NGÂN HÀNG CHUYỂN")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("ĐÃ GHI NHẬN TIỀN NGÂN HÀNG CHUYỂN")),
+    );
     setState(() {});
   }
 
@@ -306,8 +365,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     final address = TextEditingController(text: s.address);
     final products = TextEditingController(text: s.productNames);
     final imeis = TextEditingController(text: s.productImeis);
-    final totalPrice = TextEditingController(text: MoneyUtils.formatCurrency(s.totalPrice));
-    final totalCost = TextEditingController(text: MoneyUtils.formatCurrency(s.totalCost));
+    final totalPrice = TextEditingController(
+      text: MoneyUtils.formatCurrency(s.totalPrice),
+    );
+    final totalCost = TextEditingController(
+      text: MoneyUtils.formatCurrency(s.totalCost),
+    );
     final notes = TextEditingController(text: s.notes ?? "");
     final warranties = ["KO BH", "1 THÁNG", "3 THÁNG", "6 THÁNG", "12 THÁNG"];
     String warranty = s.warranty ?? "KO BH";
@@ -326,42 +389,86 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 TextFormField(
                   controller: name,
                   decoration: const InputDecoration(labelText: "Tên khách"),
-                  validator: (v) => (v ?? '').trim().isEmpty ? 'Nhập tên khách' : null,
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'Nhập tên khách' : null,
                 ),
-                TextFormField(controller: phone, decoration: const InputDecoration(labelText: "SĐT")),
-                TextFormField(controller: address, decoration: const InputDecoration(labelText: "Địa chỉ")),
-                TextFormField(controller: products, decoration: const InputDecoration(labelText: "Sản phẩm")),
-                TextFormField(controller: imeis, decoration: const InputDecoration(labelText: "IMEI/Serial")),
+                TextFormField(
+                  controller: phone,
+                  decoration: const InputDecoration(labelText: "SĐT"),
+                ),
+                TextFormField(
+                  controller: address,
+                  decoration: const InputDecoration(labelText: "Địa chỉ"),
+                ),
+                TextFormField(
+                  controller: products,
+                  decoration: const InputDecoration(labelText: "Sản phẩm"),
+                ),
+                TextFormField(
+                  controller: imeis,
+                  decoration: const InputDecoration(labelText: "IMEI/Serial"),
+                ),
                 TextFormField(
                   controller: totalPrice,
                   keyboardType: TextInputType.number,
                   inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(labelText: "Tổng tiền (VNĐ)"),
-                  validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Tổng tiền'),
+                  decoration: const InputDecoration(
+                    labelText: "Tổng tiền (VNĐ)",
+                  ),
+                  validator: (v) => MoneyUtils.validateAmount(
+                    v ?? '',
+                    min: 1,
+                    fieldName: 'Tổng tiền',
+                  ),
                 ),
                 TextFormField(
                   controller: totalCost,
                   keyboardType: TextInputType.number,
                   inputFormatters: [MoneyUtils.currencyInputFormatter()],
                   decoration: const InputDecoration(labelText: "Giá vốn (VNĐ)"),
-                  validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 0, fieldName: 'Giá vốn'),
+                  validator: (v) => MoneyUtils.validateAmount(
+                    v ?? '',
+                    min: 0,
+                    fieldName: 'Giá vốn',
+                  ),
                 ),
-                DropdownButtonFormField<String>(initialValue: warranty, decoration: const InputDecoration(labelText: "Bảo hành"), items: warranties.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v) => warranty = v ?? warranty),
+                DropdownButtonFormField<String>(
+                  initialValue: warranty,
+                  decoration: const InputDecoration(labelText: "Bảo hành"),
+                  items: warranties
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (v) => warranty = v ?? warranty,
+                ),
                 DropdownButtonFormField<String>(
                   initialValue: payment,
                   decoration: const InputDecoration(labelText: "Hình thức"),
-                  items: const ["TIỀN MẶT", "CHUYỂN KHOẢN", "CÔNG NỢ", "TRẢ GÓP (NH)"]
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
+                  items:
+                      const [
+                            "TIỀN MẶT",
+                            "CHUYỂN KHOẢN",
+                            "CÔNG NỢ",
+                            "TRẢ GÓP (NH)",
+                          ]
+                          .map(
+                            (e) => DropdownMenuItem(value: e, child: Text(e)),
+                          )
+                          .toList(),
                   onChanged: (v) => payment = v ?? payment,
                 ),
-                TextField(controller: notes, decoration: const InputDecoration(labelText: "Ghi chú")),
+                TextField(
+                  controller: notes,
+                  decoration: const InputDecoration(labelText: "Ghi chú"),
+                ),
               ],
             ),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("HỦY")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("HỦY"),
+          ),
           ElevatedButton(
             onPressed: () {
               if (!(formKey.currentState?.validate() ?? false)) return;
@@ -383,8 +490,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       s.productImeis = imeis.text.trim().toUpperCase();
       final parsedTotal = MoneyUtils.parseCurrency(totalPrice.text);
       final parsedCost = MoneyUtils.parseCurrency(totalCost.text);
-      s.totalPrice = parsedTotal > 0 && parsedTotal < 100000 ? parsedTotal * 1000 : parsedTotal;
-      s.totalCost = parsedCost > 0 && parsedCost < 100000 ? parsedCost * 1000 : parsedCost;
+      s.totalPrice = parsedTotal > 0 && parsedTotal < 100000
+          ? parsedTotal * 1000
+          : parsedTotal;
+      s.totalCost = parsedCost > 0 && parsedCost < 100000
+          ? parsedCost * 1000
+          : parsedCost;
       s.warranty = warranty;
       s.paymentMethod = payment;
       if (payment != 'TRẢ GÓP (NH)') {
@@ -405,14 +516,20 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     // Update debt if payment method is debt
     if (s.paymentMethod == 'CÔNG NỢ') {
       final existingDebts = await db.getAllDebts();
-      final linkedDebt = existingDebts.where((d) => d['linkedId'] == s.firestoreId).firstOrNull;
-      final debtAmount = s.totalPrice; // Debt is the full sale price owed by customer
+      final linkedDebt = existingDebts
+          .where((d) => d['linkedId'] == s.firestoreId)
+          .firstOrNull;
+      final debtAmount =
+          s.totalPrice; // Debt is the full sale price owed by customer
       if (linkedDebt != null) {
         // Update existing debt
         linkedDebt['totalAmount'] = debtAmount;
-        linkedDebt['status'] = (debtAmount - (linkedDebt['paidAmount'] ?? 0)) > 0 ? 'UNPAID' : 'PAID';
+        linkedDebt['status'] =
+            (debtAmount - (linkedDebt['paidAmount'] ?? 0)) > 0
+            ? 'UNPAID'
+            : 'PAID';
         await db.updateDebt(linkedDebt);
-        
+
         // Queue sync debt to cloud via SyncOrchestrator
         final debtId = linkedDebt['id'] as int?;
         if (debtId != null) {
@@ -441,7 +558,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           'type': 'CUSTOMER_OWES', // Customer owes shop
         };
         final debtId = await db.insertDebt(newDebt);
-        
+
         // Queue sync debt to cloud via SyncOrchestrator
         await SyncOrchestrator().enqueue(
           entityType: SyncEntityType.debt,
@@ -455,12 +572,14 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     } else {
       // If payment method changed from debt to something else, mark debt as paid
       final existingDebts = await db.getAllDebts();
-      final linkedDebt = existingDebts.where((d) => d['linkedId'] == s.firestoreId).firstOrNull;
+      final linkedDebt = existingDebts
+          .where((d) => d['linkedId'] == s.firestoreId)
+          .firstOrNull;
       if (linkedDebt != null) {
         linkedDebt['status'] = 'PAID';
         linkedDebt['paidAmount'] = linkedDebt['totalAmount'];
         await db.updateDebt(linkedDebt);
-        
+
         // Queue sync debt to cloud via SyncOrchestrator
         final debtId = linkedDebt['id'] as int?;
         if (debtId != null) {
@@ -480,9 +599,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   Future<void> _editSale() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => CreateSaleView(editSale: s),
-      ),
+      MaterialPageRoute(builder: (context) => CreateSaleView(editSale: s)),
     );
     if (result == true && mounted) {
       // Reload the sale data from database after successful edit
@@ -513,7 +630,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
             await db.addProductQuantity(product.id!, 1);
             // Sync lên cloud
             product.quantity += 1;
-            if (product.type == 'DIEN_THOAI' && product.status == 0 && product.quantity > 0) {
+            if (product.type == 'DIEN_THOAI' &&
+                product.status == 0 &&
+                product.quantity > 0) {
               product.status = 1; // Đánh dấu là available
             }
             // Queue sync via SyncOrchestrator
@@ -544,26 +663,38 @@ class _SaleDetailViewState extends State<SaleDetailView> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: inventoryRestored ? AppColors.success.withOpacity(0.1) : AppColors.warning.withOpacity(0.1),
+                color: inventoryRestored
+                    ? AppColors.success.withOpacity(0.1)
+                    : AppColors.warning.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: inventoryRestored ? AppColors.success.withOpacity(0.3) : AppColors.warning.withOpacity(0.3)),
+                border: Border.all(
+                  color: inventoryRestored
+                      ? AppColors.success.withOpacity(0.3)
+                      : AppColors.warning.withOpacity(0.3),
+                ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    inventoryRestored ? Icons.check_circle : Icons.warning_amber_rounded,
-                    color: inventoryRestored ? AppColors.success : AppColors.warning,
-                    size: 20
+                    inventoryRestored
+                        ? Icons.check_circle
+                        : Icons.warning_amber_rounded,
+                    color: inventoryRestored
+                        ? AppColors.success
+                        : AppColors.warning,
+                    size: 20,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       inventoryRestored
-                        ? "Số lượng sản phẩm đã được khôi phục tự động trong kho."
-                        : "Không thể khôi phục tự động số lượng trong kho. Bạn cần cập nhật inventory thủ công.",
+                          ? "Số lượng sản phẩm đã được khôi phục tự động trong kho."
+                          : "Không thể khôi phục tự động số lượng trong kho. Bạn cần cập nhật inventory thủ công.",
                       style: AppTextStyles.caption.copyWith(
-                        color: inventoryRestored ? AppColors.success : AppColors.warning,
-                        fontWeight: FontWeight.w500
+                        color: inventoryRestored
+                            ? AppColors.success
+                            : AppColors.warning,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -573,7 +704,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("HỦY")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("HỦY"),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
@@ -600,7 +734,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         entityType: 'sale',
         entityId: s.firestoreId ?? "sale_${s.soldAt}",
         summary: s.customerName,
-        payload: {'totalPrice': s.totalPrice, 'inventoryRestored': inventoryRestored},
+        payload: {
+          'totalPrice': s.totalPrice,
+          'inventoryRestored': inventoryRestored,
+        },
       );
       if (mounted) {
         Navigator.pop(context, true);
@@ -611,9 +748,11 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   Future<void> _shareInvoice() async {
     final directory = (await getApplicationDocumentsDirectory()).path;
     String fileName = 'HOA_DON_${s.customerName.replaceAll(' ', '_')}.png';
-    
+
     final invoiceWidget = Container(
-      width: 480, padding: const EdgeInsets.all(22), color: Colors.white,
+      width: 480,
+      padding: const EdgeInsets.all(22),
+      color: Colors.white,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -621,19 +760,45 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           Row(
             children: [
               if (_hasLogo) ...[
-                ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(File(_logoPath), width: 60, height: 60, fit: BoxFit.cover)),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    File(_logoPath),
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                  ),
+                ),
                 const SizedBox(width: 12),
               ],
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(_shopName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.pink)),
-                Text("ĐC: $_shopAddr", style: const TextStyle(fontSize: 12)),
-                Text("SĐT: $_shopPhone", style: const TextStyle(fontSize: 12)),
-              ])
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _shopName,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.pink,
+                    ),
+                  ),
+                  Text("ĐC: $_shopAddr", style: const TextStyle(fontSize: 12)),
+                  Text(
+                    "SĐT: $_shopPhone",
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 12),
           const Divider(thickness: 2),
-          const Center(child: Text("HÓA ĐƠN BÁN LẺ", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900))),
+          const Center(
+            child: Text(
+              "HÓA ĐƠN BÁN LẺ",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            ),
+          ),
           const SizedBox(height: 14),
           _row("KHÁCH HÀNG", s.customerName),
           _row("SĐT", s.phone),
@@ -643,23 +808,55 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           _row("BẢO HÀNH", s.warranty ?? "KO BH"),
           _row("NHÂN VIÊN", s.sellerName),
           _row("THỜI GIAN", _fmtDate(s.soldAt)),
+          if (s.discount > 0)
+            _row("GIẢM GIÁ", "-${MoneyUtils.formatCurrency(s.discount)} Đ"),
           const Divider(),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text("TỔNG THANH TOÁN:", style: TextStyle(fontWeight: FontWeight.bold)),
-            Text("${MoneyUtils.formatCurrency(s.totalPrice)} Đ", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.red)),
-          ]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "TỔNG THANH TOÁN:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                "${MoneyUtils.formatCurrency(s.finalPrice)} Đ",
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
-          Center(child: QrImageView(data: s.firestoreId ?? s.id.toString(), size: 110)),
+          Center(
+            child: QrImageView(
+              data: s.firestoreId ?? s.id.toString(),
+              size: 110,
+            ),
+          ),
           const SizedBox(height: 10),
-          const Center(child: Text("CẢM ƠN QUÝ KHÁCH!", style: TextStyle(fontWeight: FontWeight.bold, fontStyle: FontStyle.italic))),
+          const Center(
+            child: Text(
+              "CẢM ƠN QUÝ KHÁCH!",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
         ],
       ),
     );
 
-    await screenshotController.captureFromWidget(invoiceWidget).then((image) async {
+    await screenshotController.captureFromWidget(invoiceWidget).then((
+      image,
+    ) async {
       final imagePath = '$directory/$fileName';
       await File(imagePath).writeAsBytes(image);
-      await Share.shareXFiles([XFile(imagePath)], text: 'HÓA ĐƠN SHOP $_shopName');
+      await Share.shareXFiles([
+        XFile(imagePath),
+      ], text: 'HÓA ĐƠN SHOP $_shopName');
     });
   }
 
@@ -684,25 +881,65 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("CHI TIẾT ĐƠN BÁN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            Text(s.customerName, style: const TextStyle(fontSize: 11, color: Colors.white70)),
+            const Text(
+              "CHI TIẾT ĐƠN BÁN",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            Text(
+              s.customerName,
+              style: const TextStyle(fontSize: 11, color: Colors.white70),
+            ),
           ],
         ),
         actions: [
           if (_checkingManager)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
             ),
           if (!_managerUnlocked)
-            IconButton(onPressed: _unlockManager, icon: const Icon(Icons.edit_rounded, color: Colors.white)),
-          IconButton(onPressed: _sendSmsToCustomer, icon: const Icon(Icons.sms_rounded, color: Colors.white)),
-          IconButton(onPressed: _sendToChat, icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white)),
-          IconButton(onPressed: _printWifi, icon: const Icon(Icons.print_rounded, color: Colors.white)),
-          IconButton(onPressed: _shareInvoice, icon: const Icon(Icons.share_rounded, color: Colors.white)),
-          IconButton(onPressed: _editSale, icon: const Icon(Icons.edit_note_rounded, color: Colors.white)),
+            IconButton(
+              onPressed: _unlockManager,
+              icon: const Icon(Icons.edit_rounded, color: Colors.white),
+            ),
+          IconButton(
+            onPressed: _sendSmsToCustomer,
+            icon: const Icon(Icons.sms_rounded, color: Colors.white),
+          ),
+          IconButton(
+            onPressed: _sendToChat,
+            icon: const Icon(
+              Icons.chat_bubble_outline_rounded,
+              color: Colors.white,
+            ),
+          ),
+          IconButton(
+            onPressed: _printWifi,
+            icon: const Icon(Icons.print_rounded, color: Colors.white),
+          ),
+          IconButton(
+            onPressed: _shareInvoice,
+            icon: const Icon(Icons.share_rounded, color: Colors.white),
+          ),
+          IconButton(
+            onPressed: _editSale,
+            icon: const Icon(Icons.edit_note_rounded, color: Colors.white),
+          ),
           if (_managerUnlocked)
-            IconButton(onPressed: _deleteSale, icon: const Icon(Icons.delete_forever_rounded, color: Colors.white)),
+            IconButton(
+              onPressed: _deleteSale,
+              icon: const Icon(
+                Icons.delete_forever_rounded,
+                color: Colors.white,
+              ),
+            ),
         ],
       ),
       body: SingleChildScrollView(
@@ -714,7 +951,13 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _openSettlementDialog,
-                  style: ElevatedButton.styleFrom(backgroundColor: _accentColor, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _accentColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                   icon: const Icon(Icons.account_balance_wallet_outlined),
                   label: const Text("NHẬN TIỀN TỪ NGÂN HÀNG"),
                 ),
@@ -725,7 +968,13 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _openEditSaleDialog,
-                  style: ElevatedButton.styleFrom(backgroundColor: _accentColor, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _accentColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                   icon: const Icon(Icons.edit_note_outlined),
                   label: const Text("SỬA THÔNG TIN ĐƠN"),
                 ),
@@ -741,19 +990,46 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               _item("Nhân viên", s.sellerName),
               _item("Thời gian", _fmtDate(s.soldAt)),
               _item("Hình thức", s.paymentMethod),
-              if (s.notes != null && s.notes!.isNotEmpty) _item("Ghi chú", s.notes!),
-              _item("Tổng tiền", "${MoneyUtils.formatCurrency(s.totalPrice)} Đ", color: Colors.red),
+              if (s.notes != null && s.notes!.isNotEmpty)
+                _item("Ghi chú", s.notes!),
+              if (s.discount > 0)
+                _item(
+                  "Giảm giá",
+                  "-${MoneyUtils.formatCurrency(s.discount)} Đ",
+                  color: Colors.orange,
+                ),
+              _item(
+                "Tổng tiền",
+                "${MoneyUtils.formatCurrency(s.finalPrice)} Đ",
+                color: Colors.red,
+              ),
             ]),
             if (_isInstallmentNH)
               _card("TRẢ GÓP - NGÂN HÀNG", [
-                _item("Down payment", "${MoneyUtils.formatCurrency(s.downPayment)} đ"),
+                _item(
+                  "Down payment",
+                  "${MoneyUtils.formatCurrency(s.downPayment)} đ",
+                ),
                 _item("Ngân hàng giải ngân", s.bankName ?? "---"),
-                _item("Số tiền NH sẽ chuyển", "${MoneyUtils.formatCurrency(s.settlementAmount > 0 ? s.settlementAmount : s.loanAmount)} đ"),
+                _item(
+                  "Số tiền NH sẽ chuyển",
+                  "${MoneyUtils.formatCurrency(s.settlementAmount > 0 ? s.settlementAmount : s.loanAmount)} đ",
+                ),
                 _item("Ngày dự kiến", _fmtShort(s.settlementPlannedAt)),
                 _item("Mã hồ sơ", s.settlementCode ?? "---"),
                 _item("Ghi chú", s.settlementNote ?? "---"),
-                _item("Tất toán", s.settlementReceivedAt == null ? "Chưa nhận" : "Đã nhận ${_fmtShort(s.settlementReceivedAt)}"),
-                if (s.settlementFee > 0) _item("Phí NH", "${MoneyUtils.formatCurrency(s.settlementFee)} đ", color: Colors.orange),
+                _item(
+                  "Tất toán",
+                  s.settlementReceivedAt == null
+                      ? "Chưa nhận"
+                      : "Đã nhận ${_fmtShort(s.settlementReceivedAt)}",
+                ),
+                if (s.settlementFee > 0)
+                  _item(
+                    "Phí NH",
+                    "${MoneyUtils.formatCurrency(s.settlementFee)} đ",
+                    color: Colors.orange,
+                  ),
               ]),
           ],
         ),
@@ -761,16 +1037,62 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     );
   }
 
-  Widget _card(String t, List<Widget> c) => Container(width: double.infinity, padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(t, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.pink)), const Divider(), ...c]));
-  Widget _item(String l, String v, {Color? color}) => Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(l, style: const TextStyle(color: Colors.grey)), Text(v, style: TextStyle(fontWeight: FontWeight.bold, color: color))]));
-  Widget _row(String l, String v) => Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(l, style: const TextStyle(fontSize: 12)), Text(v, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))]));
+  Widget _card(String t, List<Widget> c) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(15),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          t,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.pink,
+          ),
+        ),
+        const Divider(),
+        ...c,
+      ],
+    ),
+  );
+  Widget _item(String l, String v, {Color? color}) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(l, style: const TextStyle(color: Colors.grey)),
+        Text(
+          v,
+          style: TextStyle(fontWeight: FontWeight.bold, color: color),
+        ),
+      ],
+    ),
+  );
+  Widget _row(String l, String v) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(l, style: const TextStyle(fontSize: 12)),
+        Text(
+          v,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+      ],
+    ),
+  );
 
   Future<void> _sendToChat() async {
     final user = FirebaseAuth.instance.currentUser;
     final senderId = user?.uid ?? 'guest';
     final senderName = user?.email?.split('@').first.toUpperCase() ?? 'KHACH';
     final key = s.firestoreId ?? "sale_${s.soldAt}";
-    final summary = "ĐƠN BÁN - ${s.customerName} - ${s.phone} - ${MoneyUtils.formatCurrency(s.totalPrice)} đ";
+    final summary =
+        "ĐƠN BÁN - ${s.customerName} - ${s.phone} - ${MoneyUtils.formatCurrency(s.finalPrice)} đ";
     final msg = "Trao đổi về $summary";
 
     final messenger = ScaffoldMessenger.of(context);
@@ -799,7 +1121,8 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     }
 
     final customer = s.customerName.isNotEmpty ? s.customerName : phone;
-    final body = "SHOP $_shopName xin chào $customer, cảm ơn anh/chị đã mua ${s.productNames}. Tổng thanh toán ${MoneyUtils.formatCurrency(s.totalPrice)}đ. Khi cần bảo hành vui lòng liên hệ $_shopPhone.";
+    final body =
+        "SHOP $_shopName xin chào $customer, cảm ơn anh/chị đã mua ${s.productNames}. Tổng thanh toán ${MoneyUtils.formatCurrency(s.finalPrice)}đ. Khi cần bảo hành vui lòng liên hệ $_shopPhone.";
 
     await Clipboard.setData(ClipboardData(text: body));
 
@@ -813,16 +1136,26 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
         messenger.showSnackBar(
-          const SnackBar(content: Text("ĐÃ MỞ ỨNG DỤNG NHẮN TIN (nội dung đã copy sẵn).")),
+          const SnackBar(
+            content: Text("ĐÃ MỞ ỨNG DỤNG NHẮN TIN (nội dung đã copy sẵn)."),
+          ),
         );
       } else {
         messenger.showSnackBar(
-          const SnackBar(content: Text("KHÔNG MỞ ĐƯỢC ỨNG DỤNG NHẮN TIN, anh/chị dán nội dung vào Zalo/SMS giúp em.")),
+          const SnackBar(
+            content: Text(
+              "KHÔNG MỞ ĐƯỢC ỨNG DỤNG NHẮN TIN, anh/chị dán nội dung vào Zalo/SMS giúp em.",
+            ),
+          ),
         );
       }
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text("LỖI KHI GỬI TIN NHẮN, nhưng nội dung đã được copy sẵn.")),
+        const SnackBar(
+          content: Text(
+            "LỖI KHI GỬI TIN NHẮN, nhưng nội dung đã được copy sẵn.",
+          ),
+        ),
       );
     }
   }

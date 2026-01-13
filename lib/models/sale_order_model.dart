@@ -67,6 +67,9 @@ class SaleOrder {
     this.isSynced = false,
   });
 
+  /// Giá cuối sau giảm giá
+  int get finalPrice => totalPrice - discount > 0 ? totalPrice - discount : 0;
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

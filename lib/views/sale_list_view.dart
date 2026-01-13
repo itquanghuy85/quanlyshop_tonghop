@@ -52,7 +52,10 @@ class _SaleListViewState extends State<SaleListView> {
     setState(() => _loading = true);
     final data = await db.getAllSales();
     if (!mounted) return;
-    setState(() { _sales = data; _loading = false; });
+    setState(() {
+      _sales = data;
+      _loading = false;
+    });
   }
 
   List<SaleOrder> _applyFilters() {
@@ -60,8 +63,8 @@ class _SaleListViewState extends State<SaleListView> {
       // Search filter
       if (_search.isNotEmpty) {
         final searchLower = _search.toUpperCase();
-        if (!s.customerName.toUpperCase().contains(searchLower) && 
-            !s.productNames.toUpperCase().contains(searchLower) && 
+        if (!s.customerName.toUpperCase().contains(searchLower) &&
+            !s.productNames.toUpperCase().contains(searchLower) &&
             !s.productImeis.toUpperCase().contains(searchLower)) {
           return false;
         }
@@ -71,7 +74,7 @@ class _SaleListViewState extends State<SaleListView> {
       final saleDate = DateTime.fromMillisecondsSinceEpoch(s.soldAt);
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      
+
       switch (_timeFilter) {
         case 'today':
           final saleDay = DateTime(saleDate.year, saleDate.month, saleDate.day);
@@ -86,8 +89,11 @@ class _SaleListViewState extends State<SaleListView> {
           if (saleDate.isBefore(monthStart)) return false;
           break;
         case 'custom':
-          if (_customStartDate != null && saleDate.isBefore(_customStartDate!)) return false;
-          if (_customEndDate != null && saleDate.isAfter(_customEndDate!.add(const Duration(days: 1)))) return false;
+          if (_customStartDate != null && saleDate.isBefore(_customStartDate!))
+            return false;
+          if (_customEndDate != null &&
+              saleDate.isAfter(_customEndDate!.add(const Duration(days: 1))))
+            return false;
           break;
       }
 
@@ -136,7 +142,12 @@ class _SaleListViewState extends State<SaleListView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('BỘ LỌC', style: AppTextStyles.headline6.copyWith(fontWeight: FontWeight.bold)),
+                  Text(
+                    'BỘ LỌC',
+                    style: AppTextStyles.headline6.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   TextButton(
                     onPressed: () {
                       setSheetState(() {
@@ -154,24 +165,54 @@ class _SaleListViewState extends State<SaleListView> {
 
               // Time filter
               if (!widget.todayOnly) ...[
-                Text('THỜI GIAN', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface.withOpacity(0.6))),
+                Text(
+                  'THỜI GIAN',
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.onSurface.withOpacity(0.6),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _filterChip('Tất cả', 'all', _timeFilter, (v) => setSheetState(() => _timeFilter = v)),
-                    _filterChip('Hôm nay', 'today', _timeFilter, (v) => setSheetState(() => _timeFilter = v)),
-                    _filterChip('7 ngày', 'week', _timeFilter, (v) => setSheetState(() => _timeFilter = v)),
-                    _filterChip('Tháng này', 'month', _timeFilter, (v) => setSheetState(() => _timeFilter = v)),
+                    _filterChip(
+                      'Tất cả',
+                      'all',
+                      _timeFilter,
+                      (v) => setSheetState(() => _timeFilter = v),
+                    ),
+                    _filterChip(
+                      'Hôm nay',
+                      'today',
+                      _timeFilter,
+                      (v) => setSheetState(() => _timeFilter = v),
+                    ),
+                    _filterChip(
+                      '7 ngày',
+                      'week',
+                      _timeFilter,
+                      (v) => setSheetState(() => _timeFilter = v),
+                    ),
+                    _filterChip(
+                      'Tháng này',
+                      'month',
+                      _timeFilter,
+                      (v) => setSheetState(() => _timeFilter = v),
+                    ),
                     _filterChip('Tùy chọn', 'custom', _timeFilter, (v) async {
                       final range = await showDateRangePicker(
                         context: context,
                         firstDate: DateTime(2020),
                         lastDate: DateTime.now(),
-                        initialDateRange: _customStartDate != null && _customEndDate != null
-                          ? DateTimeRange(start: _customStartDate!, end: _customEndDate!)
-                          : null,
+                        initialDateRange:
+                            _customStartDate != null && _customEndDate != null
+                            ? DateTimeRange(
+                                start: _customStartDate!,
+                                end: _customEndDate!,
+                              )
+                            : null,
                         locale: const Locale('vi', 'VN'),
                       );
                       if (range != null) {
@@ -184,27 +225,53 @@ class _SaleListViewState extends State<SaleListView> {
                     }),
                   ],
                 ),
-                if (_timeFilter == 'custom' && _customStartDate != null && _customEndDate != null)
+                if (_timeFilter == 'custom' &&
+                    _customStartDate != null &&
+                    _customEndDate != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       '${DateFormat('dd/MM/yyyy').format(_customStartDate!)} - ${DateFormat('dd/MM/yyyy').format(_customEndDate!)}',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 const SizedBox(height: 16),
               ],
 
               // Payment status filter
-              Text('TRẠNG THÁI THANH TOÁN', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface.withOpacity(0.6))),
+              Text(
+                'TRẠNG THÁI THANH TOÁN',
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurface.withOpacity(0.6),
+                ),
+              ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _filterChip('Tất cả', 'all', _paymentStatusFilter, (v) => setSheetState(() => _paymentStatusFilter = v)),
-                  _filterChip('Đã thanh toán', 'paid', _paymentStatusFilter, (v) => setSheetState(() => _paymentStatusFilter = v)),
-                  _filterChip('Còn nợ', 'debt', _paymentStatusFilter, (v) => setSheetState(() => _paymentStatusFilter = v)),
+                  _filterChip(
+                    'Tất cả',
+                    'all',
+                    _paymentStatusFilter,
+                    (v) => setSheetState(() => _paymentStatusFilter = v),
+                  ),
+                  _filterChip(
+                    'Đã thanh toán',
+                    'paid',
+                    _paymentStatusFilter,
+                    (v) => setSheetState(() => _paymentStatusFilter = v),
+                  ),
+                  _filterChip(
+                    'Còn nợ',
+                    'debt',
+                    _paymentStatusFilter,
+                    (v) => setSheetState(() => _paymentStatusFilter = v),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -221,9 +288,14 @@ class _SaleListViewState extends State<SaleListView> {
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: const Text('ÁP DỤNG', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'ÁP DỤNG',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -234,7 +306,12 @@ class _SaleListViewState extends State<SaleListView> {
     );
   }
 
-  Widget _filterChip(String label, String value, String currentValue, Function(String) onSelect) {
+  Widget _filterChip(
+    String label,
+    String value,
+    String currentValue,
+    Function(String) onSelect,
+  ) {
     final isSelected = currentValue == value;
     return GestureDetector(
       onTap: () => onSelect(value),
@@ -243,7 +320,11 @@ class _SaleListViewState extends State<SaleListView> {
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? AppColors.primary : AppColors.onSurface.withOpacity(0.2)),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primary
+                : AppColors.onSurface.withOpacity(0.2),
+          ),
         ),
         child: Text(
           label,
@@ -264,7 +345,12 @@ class _SaleListViewState extends State<SaleListView> {
     // Calculate summary stats
     int totalSales = list.length;
     int totalRevenue = list.fold(0, (sum, s) => sum + s.totalPrice);
-    int totalDebt = list.fold(0, (sum, s) => sum + (s.totalPrice - s.downPayment > 0 ? s.totalPrice - s.downPayment : 0));
+    int totalDebt = list.fold(
+      0,
+      (sum, s) =>
+          sum +
+          (s.totalPrice - s.downPayment > 0 ? s.totalPrice - s.downPayment : 0),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -286,23 +372,44 @@ class _SaleListViewState extends State<SaleListView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(widget.todayOnly ? "DOANH SỐ HÔM NAY" : "QUẢN LÝ ĐƠN BÁN", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              Text('$totalSales đơn • ${fmt.format(totalRevenue)}đ', style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8))),
+              Text(
+                widget.todayOnly ? "DOANH SỐ HÔM NAY" : "QUẢN LÝ ĐƠN BÁN",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              Text(
+                '$totalSales đơn • ${fmt.format(totalRevenue)}đ',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withOpacity(0.8),
+                ),
+              ),
             ],
           ),
         ),
         automaticallyImplyLeading: true,
         actions: [
           IconButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView())).then((_) => _refresh()),
-            icon: const Icon(Icons.add_shopping_cart_rounded, color: Colors.white),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreateSaleView()),
+            ).then((_) => _refresh()),
+            icon: const Icon(
+              Icons.add_shopping_cart_rounded,
+              color: Colors.white,
+            ),
             tooltip: "Tạo đơn bán hàng mới",
           ),
           Stack(
             children: [
               IconButton(
                 onPressed: _showFilterSheet,
-                icon: const Icon(Icons.filter_list_rounded, color: Colors.white),
+                icon: const Icon(
+                  Icons.filter_list_rounded,
+                  color: Colors.white,
+                ),
                 tooltip: 'Bộ lọc',
               ),
               if (_activeFilterCount > 0)
@@ -317,13 +424,20 @@ class _SaleListViewState extends State<SaleListView> {
                     ),
                     child: Text(
                       '$_activeFilterCount',
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
             ],
           ),
-          IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh_rounded, color: Colors.white)),
+          IconButton(
+            onPressed: _refresh,
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+          ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
@@ -332,160 +446,314 @@ class _SaleListViewState extends State<SaleListView> {
             child: TextField(
               onChanged: (v) => setState(() => _search = v),
               decoration: InputDecoration(
-                hintText: "Tìm theo tên khách, máy hoặc IMEI...", 
-                prefixIcon: const Icon(Icons.search_rounded), 
-                filled: true, fillColor: Colors.white.withOpacity(0.9), 
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none)
+                hintText: "Tìm theo tên khách, máy hoặc IMEI...",
+                prefixIcon: const Icon(Icons.search_rounded),
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.9),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
         ),
       ),
-      body: _loading 
-        ? const Center(child: CircularProgressIndicator()) 
-        : Column(
-            children: [
-              // Summary stats bar
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 4)],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _summaryItem('Đơn hàng', '$totalSales', AppColors.primary),
-                    _summaryItem('Doanh thu', '${fmt.format(totalRevenue)}đ', AppColors.success),
-                    _summaryItem('Còn nợ', '${fmt.format(totalDebt)}đ', totalDebt > 0 ? AppColors.error : AppColors.success),
-                  ],
-                ),
-              ),
-              
-              // Active filters chips
-              if (_activeFilterCount > 0)
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                // Summary stats bar
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        if (_timeFilter != 'all' && !widget.todayOnly)
-                          _activeFilterChip(_getTimeFilterLabel(), () => setState(() => _timeFilter = 'all')),
-                        if (_paymentStatusFilter != 'all')
-                          _activeFilterChip(_getPaymentStatusLabel(), () => setState(() => _paymentStatusFilter = 'all')),
-                      ],
-                    ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    boxShadow: [
+                      BoxShadow(color: AppColors.shadow, blurRadius: 4),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _summaryItem(
+                        'Đơn hàng',
+                        '$totalSales',
+                        AppColors.primary,
+                      ),
+                      _summaryItem(
+                        'Doanh thu',
+                        '${fmt.format(totalRevenue)}đ',
+                        AppColors.success,
+                      ),
+                      _summaryItem(
+                        'Còn nợ',
+                        '${fmt.format(totalDebt)}đ',
+                        totalDebt > 0 ? AppColors.error : AppColors.success,
+                      ),
+                    ],
                   ),
                 ),
 
-              // List
-              Expanded(
-                child: list.isEmpty 
-                  ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.shopping_bag_outlined, size: 80, color: AppColors.onSurface.withOpacity(0.3)), 
-                      const SizedBox(height: 10),
-                      Text("Không có đơn hàng nào", style: AppTextStyles.body1.copyWith(color: AppColors.onSurface.withOpacity(0.6))),
-                      if (_activeFilterCount > 0)
-                        TextButton(
-                          onPressed: () => setState(() {
-                            _timeFilter = widget.todayOnly ? 'today' : 'all';
-                            _paymentStatusFilter = 'all';
-                          }),
-                          child: const Text('Xóa bộ lọc'),
-                        ),
-                    ]))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(15),
-                      itemCount: list.length,
-                      itemBuilder: (ctx, i) {
-                        final s = list[i];
-                        final date = DateFormat('HH:mm - dd/MM/yy').format(DateTime.fromMillisecondsSinceEpoch(s.soldAt));
-                        final remain = s.totalPrice - s.downPayment;
-                        final index = i + 1;
+                // Active filters chips
+                if (_activeFilterCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          if (_timeFilter != 'all' && !widget.todayOnly)
+                            _activeFilterChip(
+                              _getTimeFilterLabel(),
+                              () => setState(() => _timeFilter = 'all'),
+                            ),
+                          if (_paymentStatusFilter != 'all')
+                            _activeFilterChip(
+                              _getPaymentStatusLabel(),
+                              () =>
+                                  setState(() => _paymentStatusFilter = 'all'),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface, 
-                            borderRadius: BorderRadius.circular(20), 
-                            boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 10)]
-                          ),
-                          child: ListTile(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              Navigator.push(context, MaterialPageRoute(builder: (_) => SaleDetailView(sale: s))).then((_) => _refresh());
-                            },
-                            contentPadding: const EdgeInsets.all(15),
-                            leading: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: AppColors.success.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
+                // List
+                Expanded(
+                  child: list.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.shopping_bag_outlined,
+                                size: 80,
+                                color: AppColors.onSurface.withOpacity(0.3),
                               ),
-                              child: Center(
-                                child: Text(
-                                  '$index',
-                                  style: AppTextStyles.body2.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.success,
+                              const SizedBox(height: 10),
+                              Text(
+                                "Không có đơn hàng nào",
+                                style: AppTextStyles.body1.copyWith(
+                                  color: AppColors.onSurface.withOpacity(0.6),
+                                ),
+                              ),
+                              if (_activeFilterCount > 0)
+                                TextButton(
+                                  onPressed: () => setState(() {
+                                    _timeFilter = widget.todayOnly
+                                        ? 'today'
+                                        : 'all';
+                                    _paymentStatusFilter = 'all';
+                                  }),
+                                  child: const Text('Xóa bộ lọc'),
+                                ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(15),
+                          itemCount: list.length,
+                          itemBuilder: (ctx, i) {
+                            final s = list[i];
+                            final date = DateFormat('HH:mm - dd/MM/yy').format(
+                              DateTime.fromMillisecondsSinceEpoch(s.soldAt),
+                            );
+                            final remain = s.finalPrice - s.downPayment;
+                            final index = i + 1;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: AppColors.shadow,
+                                    blurRadius: 10,
+                                  ),
+                                ],
+                              ),
+                              child: ListTile(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => SaleDetailView(sale: s),
+                                    ),
+                                  ).then((_) => _refresh());
+                                },
+                                contentPadding: const EdgeInsets.all(15),
+                                leading: Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.success.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '$index',
+                                      style: AppTextStyles.body2.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.success,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            title: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(child: Text(s.customerName.toUpperCase(), style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-                                Text(date, style: AppTextStyles.overline.copyWith(color: AppColors.onSurface.withOpacity(0.6), fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 6),
-                                Text(s.productNames, style: AppTextStyles.body2.copyWith(color: AppColors.primary, fontWeight: FontWeight.w900), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                Text("IMEI: ${s.productImeis}", style: AppTextStyles.caption.copyWith(color: AppColors.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1)),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                title: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _statItem("TỔNG TIỀN", fmt.format(s.totalPrice), AppColors.onSurface),
-                                    _statItem("ĐÃ THU", fmt.format(s.downPayment), AppColors.success),
-                                    if (remain > 0) _statItem("CÒN NỢ", fmt.format(remain), AppColors.error),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(color: _getPayColor(s.paymentMethod).withAlpha(25), borderRadius: BorderRadius.circular(8)),
-                                      child: Text(s.paymentMethod, style: AppTextStyles.overline.copyWith(color: _getPayColor(s.paymentMethod), fontWeight: FontWeight.bold)),
+                                    Expanded(
+                                      child: Text(
+                                        s.customerName.toUpperCase(),
+                                        style: AppTextStyles.body2.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                    Text("NV: ${s.sellerName}", style: AppTextStyles.caption.copyWith(fontStyle: FontStyle.italic, color: AppColors.onSurface.withOpacity(0.6))),
+                                    Text(
+                                      date,
+                                      style: AppTextStyles.overline.copyWith(
+                                        color: AppColors.onSurface.withOpacity(
+                                          0.6,
+                                        ),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-              ),
-            ],
-          ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      s.productNames,
+                                      style: AppTextStyles.body2.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      "IMEI: ${s.productImeis}",
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: AppColors.onSurface,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      child: Divider(height: 1),
+                                    ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Flexible(
+                                          child: _statItem(
+                                            "TỔNG TIỀN",
+                                            fmt.format(s.finalPrice),
+                                            AppColors.onSurface,
+                                          ),
+                                        ),
+                                        Flexible(
+                                          child: _statItem(
+                                            "ĐÃ THU",
+                                            fmt.format(s.downPayment),
+                                            AppColors.success,
+                                          ),
+                                        ),
+                                        if (remain > 0)
+                                          Flexible(
+                                            child: _statItem(
+                                              "CÒN NỢ",
+                                              fmt.format(remain),
+                                              AppColors.error,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _getPayColor(
+                                              s.paymentMethod,
+                                            ).withAlpha(25),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            s.paymentMethod,
+                                            style: AppTextStyles.overline
+                                                .copyWith(
+                                                  color: _getPayColor(
+                                                    s.paymentMethod,
+                                                  ),
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                          ),
+                                        ),
+                                        Text(
+                                          "NV: ${s.sellerName}",
+                                          style: AppTextStyles.caption.copyWith(
+                                            fontStyle: FontStyle.italic,
+                                            color: AppColors.onSurface
+                                                .withOpacity(0.6),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
     );
   }
 
   Widget _summaryItem(String label, String value, Color color) {
     return Column(
       children: [
-        Text(label, style: AppTextStyles.overline.copyWith(color: AppColors.onSurface.withOpacity(0.6))),
+        Text(
+          label,
+          style: AppTextStyles.overline.copyWith(
+            color: AppColors.onSurface.withOpacity(0.6),
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(value, style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold, color: color)),
+        Text(
+          value,
+          style: AppTextStyles.body2.copyWith(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
       ],
     );
   }
@@ -502,7 +770,13 @@ class _SaleListViewState extends State<SaleListView> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(width: 4),
           GestureDetector(
             onTap: onRemove,
@@ -515,19 +789,27 @@ class _SaleListViewState extends State<SaleListView> {
 
   String _getTimeFilterLabel() {
     switch (_timeFilter) {
-      case 'today': return 'Hôm nay';
-      case 'week': return '7 ngày';
-      case 'month': return 'Tháng này';
-      case 'custom': return 'Tùy chọn';
-      default: return '';
+      case 'today':
+        return 'Hôm nay';
+      case 'week':
+        return '7 ngày';
+      case 'month':
+        return 'Tháng này';
+      case 'custom':
+        return 'Tùy chọn';
+      default:
+        return '';
     }
   }
 
   String _getPaymentStatusLabel() {
     switch (_paymentStatusFilter) {
-      case 'paid': return 'Đã thanh toán';
-      case 'debt': return 'Còn nợ';
-      default: return '';
+      case 'paid':
+        return 'Đã thanh toán';
+      case 'debt':
+        return 'Còn nợ';
+      default:
+        return '';
     }
   }
 
@@ -535,8 +817,20 @@ class _SaleListViewState extends State<SaleListView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.overline.copyWith(color: AppColors.onSurface.withOpacity(0.6), fontWeight: FontWeight.bold)),
-        Text("$value đ", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w900, color: color)),
+        Text(
+          label,
+          style: AppTextStyles.overline.copyWith(
+            color: AppColors.onSurface.withOpacity(0.6),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          "$value đ",
+          style: AppTextStyles.caption.copyWith(
+            fontWeight: FontWeight.w900,
+            color: color,
+          ),
+        ),
       ],
     );
   }

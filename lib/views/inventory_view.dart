@@ -2067,11 +2067,15 @@ class _InventoryViewState extends State<InventoryView>
                           color: Colors.grey,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          "Nhập: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(p.createdAt))}",
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
+                        Flexible(
+                          child: Text(
+                            "Nhập: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(p.createdAt))}",
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
