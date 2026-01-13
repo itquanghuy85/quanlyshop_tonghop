@@ -1397,23 +1397,33 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       final allR = await db.getAllRepairs();
       final allS = await db.getAllSales();
       if (!mounted) return;
+
+      // Staff identifier có thể là email prefix (HUY từ huy@gmail.com)
+      // hoặc displayName đầy đủ - cần so sánh cả hai
+      final emailPrefix = widget.email
+          .split('@')
+          .first
+          .toUpperCase(); // VD: "HUY"
+      final displayName = widget.name.toUpperCase(); // VD: "NGUYEN VAN HUY"
+
+      bool matchesStaff(String? value) {
+        if (value == null || value.isEmpty) return false;
+        final v = value.toUpperCase();
+        return v == emailPrefix || v == displayName || v.contains(emailPrefix);
+      }
+
       setState(() {
         _repairsReceived = allR
-            .where(
-              (r) => r.createdBy?.toUpperCase() == widget.name.toUpperCase(),
-            )
+            .where((r) => matchesStaff(r.createdBy))
             .toList();
         _repairsDelivered = allR
-            .where(
-              (r) => r.deliveredBy?.toUpperCase() == widget.name.toUpperCase(),
-            )
+            .where((r) => matchesStaff(r.deliveredBy))
             .toList();
-        _sales = allS
-            .where(
-              (s) => s.sellerName.toUpperCase() == widget.name.toUpperCase(),
-            )
-            .toList();
+        _sales = allS.where((s) => matchesStaff(s.sellerName)).toList();
       });
+      debugPrint(
+        'Staff data loaded: received=${_repairsReceived.length}, delivered=${_repairsDelivered.length}, sales=${_sales.length} for $emailPrefix / $displayName',
+      );
     } catch (e) {
       debugPrint('Error loading staff data: $e');
       if (!mounted) return;
