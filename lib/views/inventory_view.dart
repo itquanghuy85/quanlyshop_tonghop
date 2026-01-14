@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../models/inventory_check_model.dart';
+import '../models/debt_model.dart';
 import 'create_sale_view.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/unified_printer_service.dart';
@@ -15,6 +16,7 @@ import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
+import '../services/firestore_service.dart';
 import 'supplier_list_view.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/printer_selection_dialog.dart';
@@ -49,6 +51,7 @@ class _InventoryViewState extends State<InventoryView>
   bool _showOutOfStock = false; // Hiển thị cả hàng hết
   String _filterType =
       'TẤT CẢ'; // Filter theo loại: TẤT CẢ, DIEN_THOAI, PHỤ KIỆN, LINH KIỆN
+  bool _showOnlyPending = false; // Filter chỉ hiện kho tạm
 
   final Set<int> _selectedIds = {};
   bool _isSelectionMode = false;
@@ -165,25 +168,89 @@ class _InventoryViewState extends State<InventoryView>
               ),
             ),
             const SizedBox(height: 20),
+            // Banner KHO TẠM nếu sản phẩm pending
+            if (p.isPending) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.hourglass_empty,
+                      color: Colors.orange.shade700,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'KHO TẠM - Chờ xác nhận giá',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade800,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (p.pendingSupplier != null)
+                            Text(
+                              'NCC dự kiến: ${p.pendingSupplier}',
+                              style: TextStyle(
+                                color: Colors.orange.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             Text(
               p.name,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2962FF),
+                color: p.isPending
+                    ? Colors.orange.shade800
+                    : const Color(0xFF2962FF),
               ),
             ),
             const SizedBox(height: 15),
             _detailItem("Chi tiết máy", p.capacity ?? ""),
             _detailItem("IMEI/Serial", p.imei ?? "N/A"),
-            _detailItem("Nhà cung cấp", p.supplier ?? "N/A"),
-            _detailItem("Giá nhập", "${MoneyUtils.formatCurrency(p.cost)} đ"),
+            _detailItem(
+              "Nhà cung cấp",
+              p.isPending
+                  ? (p.pendingSupplier ?? "Chưa xác nhận")
+                  : (p.supplier ?? "N/A"),
+            ),
+            _detailItem(
+              "Giá nhập",
+              p.isPending
+                  ? "Chờ xác nhận"
+                  : "${MoneyUtils.formatCurrency(p.cost)} đ",
+              color: p.isPending ? Colors.orange : null,
+            ),
             _detailItem(
               "Giá bán",
-              "${MoneyUtils.formatCurrency(p.price)} đ",
-              color: Colors.red,
+              p.isPending
+                  ? "Chờ xác nhận"
+                  : "${MoneyUtils.formatCurrency(p.price)} đ",
+              color: p.isPending ? Colors.orange : Colors.red,
             ),
-            _detailItem("Thanh toán", p.paymentMethod ?? "N/A"),
+            _detailItem(
+              "Thanh toán",
+              p.isPending ? "Chờ xác nhận" : (p.paymentMethod ?? "N/A"),
+            ),
             _detailItem(
               "Cập nhật cuối",
               p.updatedAt != null
@@ -238,6 +305,32 @@ class _InventoryViewState extends State<InventoryView>
               ),
             ],
             const Divider(height: 30),
+            // Nút XÁC NHẬN GIÁ cho kho tạm
+            if (p.isPending) ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showConfirmCostDialog(p);
+                  },
+                  icon: const Icon(Icons.check_circle, color: Colors.white),
+                  label: const Text(
+                    "XÁC NHẬN GIÁ - CHUYỂN KHO CHÍNH",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Row(
               children: [
                 Expanded(
@@ -1301,6 +1394,11 @@ class _InventoryViewState extends State<InventoryView>
       filteredList = filteredList.where((p) => p.type == _filterType).toList();
     }
 
+    // Lọc theo trạng thái Kho Tạm
+    if (_showOnlyPending) {
+      filteredList = filteredList.where((p) => p.isPending).toList();
+    }
+
     // Nếu không bật showOutOfStock, chỉ hiện còn hàng (quantity > 0)
     if (!_showOutOfStock) {
       filteredList = filteredList.where((p) => p.quantity > 0).toList();
@@ -1791,6 +1889,9 @@ class _InventoryViewState extends State<InventoryView>
                   Icons.headset_mic,
                   Colors.green,
                 ),
+                const SizedBox(width: 8),
+                // Filter Kho Tạm
+                _buildPendingFilterChip(),
               ],
             ),
           ),
@@ -1943,18 +2044,86 @@ class _InventoryViewState extends State<InventoryView>
     );
   }
 
+  Widget _buildPendingFilterChip() {
+    final pendingCount = _products.where((p) => p.isPending).length;
+    final isSelected = _showOnlyPending;
+
+    return InkWell(
+      onTap: () => setState(() => _showOnlyPending = !_showOnlyPending),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Colors.orange.withOpacity(0.15)
+              : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.orange : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.hourglass_empty,
+              size: 16,
+              color: isSelected ? Colors.orange : Colors.grey,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Kho tạm',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected
+                    ? Colors.orange.shade700
+                    : Colors.grey.shade700,
+              ),
+            ),
+            if (pendingCount > 0) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$pendingCount',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfessionalCard(Product p, [int? index]) {
     final bool isSelected = _selectedIds.contains(p.id);
+    final bool isPending = p.isPending; // Kho tạm
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isSelected ? Colors.red : Colors.transparent,
-          width: 2,
+          color: isSelected
+              ? Colors.red
+              : (isPending ? Colors.orange : Colors.transparent),
+          width: isPending ? 2 : (isSelected ? 2 : 0),
         ),
       ),
       elevation: 2,
+      color: isPending
+          ? Colors.orange.shade50
+          : null, // Nền cam nhạt cho kho tạm
       child: InkWell(
         onLongPress: () {
           HapticFeedback.heavyImpact();
@@ -1980,35 +2149,62 @@ class _InventoryViewState extends State<InventoryView>
                   height: 28,
                   margin: const EdgeInsets.only(right: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
+                    color: isPending
+                        ? Colors.orange.withOpacity(0.2)
+                        : AppColors.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
                     child: Text(
                       '$index',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
-                        color: AppColors.primary,
+                        color: isPending
+                            ? Colors.orange.shade700
+                            : AppColors.primary,
                       ),
                     ),
                   ),
                 ),
               ],
-              // Brand Icon
-              Container(
-                padding: EdgeInsets.all(_cardPadding - 2),
-                decoration: BoxDecoration(
-                  color: _getBrandColor(p.name).withAlpha(25),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  p.type == 'DIEN_THOAI'
-                      ? Icons.phone_iphone
-                      : Icons.headset_mic,
-                  color: _getBrandColor(p.name),
-                  size: _iconSize,
-                ),
+              // Brand Icon with Pending badge
+              Stack(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(_cardPadding - 2),
+                    decoration: BoxDecoration(
+                      color: isPending
+                          ? Colors.orange.withAlpha(40)
+                          : _getBrandColor(p.name).withAlpha(25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      p.type == 'DIEN_THOAI'
+                          ? Icons.phone_iphone
+                          : Icons.headset_mic,
+                      color: isPending ? Colors.orange : _getBrandColor(p.name),
+                      size: _iconSize,
+                    ),
+                  ),
+                  if (isPending)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.orange,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.hourglass_empty,
+                          size: 10,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
               ),
 
               SizedBox(width: _pad),
@@ -2018,15 +2214,43 @@ class _InventoryViewState extends State<InventoryView>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      p.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: _titleFontSize - 2,
-                        color: const Color(0xFF1A237E),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        if (isPending)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'KHO TẠM',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        Expanded(
+                          child: Text(
+                            p.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: _titleFontSize - 2,
+                              color: isPending
+                                  ? Colors.orange.shade800
+                                  : const Color(0xFF1A237E),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -2088,14 +2312,37 @@ class _InventoryViewState extends State<InventoryView>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    "${MoneyUtils.formatCurrency(p.price)} đ",
-                    style: TextStyle(
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: _smallFontSize + 2,
+                  if (isPending) ...[
+                    // Hiển thị trạng thái chờ xác nhận giá cho kho tạm
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.orange.shade300),
+                      ),
+                      child: const Text(
+                        'Chờ giá',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    Text(
+                      "${MoneyUtils.formatCurrency(p.price)} đ",
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: _smallFontSize + 2,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -2654,6 +2901,366 @@ class _InventoryViewState extends State<InventoryView>
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Dialog xác nhận giá vốn và chuyển từ Kho Tạm sang Kho Chính
+  void _showConfirmCostDialog(Product p) {
+    final costC = TextEditingController();
+    final priceC = TextEditingController();
+    String? selectedSupplier = p.pendingSupplier;
+    String selectedPaymentMethod = 'TIỀN MẶT';
+    bool isSaving = false;
+
+    final paymentMethods = ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'];
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          Future<void> confirmCost() async {
+            CurrencyTextField.finalizeAll();
+
+            final cost = CurrencyTextField.parseValue(costC.text);
+            if (cost <= 0) {
+              NotificationService.showSnackBar(
+                "Vui lòng nhập giá vốn hợp lệ!",
+                color: Colors.red,
+              );
+              return;
+            }
+
+            if (selectedSupplier == null || selectedSupplier!.isEmpty) {
+              NotificationService.showSnackBar(
+                "Vui lòng chọn nhà cung cấp!",
+                color: Colors.red,
+              );
+              return;
+            }
+
+            if (isSaving) return;
+            setS(() => isSaving = true);
+
+            try {
+              final ts = DateTime.now().millisecondsSinceEpoch;
+              final price = CurrencyTextField.parseValue(priceC.text);
+
+              // 1. Cập nhật sản phẩm - chuyển từ kho tạm sang kho chính
+              final updatedP = p.copyWith(
+                cost: cost,
+                price: price > 0 ? price : null,
+                isPending: false,
+                pendingSupplier: null,
+                supplier: selectedSupplier,
+                paymentMethod: selectedPaymentMethod,
+                updatedAt: ts,
+              );
+
+              await db.upsertProduct(updatedP);
+
+              // Queue sync
+              if (p.id != null) {
+                await SyncOrchestrator().enqueue(
+                  entityType: SyncEntityType.product,
+                  entityId: p.id!,
+                  firestoreId: p.firestoreId,
+                  operation: SyncOperation.update,
+                  data: updatedP.toMap(),
+                );
+              }
+
+              // 2. Lưu lịch sử nhập hàng từ nhà cung cấp
+              final supplierData = _suppliers.firstWhere(
+                (s) => s['name'] == selectedSupplier,
+                orElse: () => {},
+              );
+              final supplierId = supplierData['id'];
+              final shopId = await UserService.getCurrentShopId();
+              final user = FirebaseAuth.instance.currentUser;
+              final userName =
+                  user?.email?.split('@').first.toUpperCase() ?? "NV";
+
+              if (supplierId != null) {
+                final importHistory = {
+                  'supplierId': supplierId,
+                  'supplierName': selectedSupplier,
+                  'productName': p.name,
+                  'productBrand': p.brand,
+                  'productModel': p.model,
+                  'imei': p.imei,
+                  'quantity': p.quantity,
+                  'costPrice': cost,
+                  'totalAmount': cost * p.quantity,
+                  'paymentMethod': selectedPaymentMethod,
+                  'importDate': ts,
+                  'importedBy': userName,
+                  'notes': 'Xác nhận giá từ Kho Tạm',
+                  'shopId': shopId,
+                  'isSynced': 0,
+                };
+                final importHistoryId = await db.insertSupplierImportHistory(
+                  importHistory,
+                );
+                if (importHistoryId > 0) {
+                  await SyncOrchestrator().enqueueSupplierImportHistory(
+                    importHistoryId,
+                    firestoreId: importHistory['firestoreId'] as String?,
+                    operation: SyncOperation.create,
+                  );
+                }
+
+                // Cập nhật giá nhà cung cấp
+                await db.deactivateSupplierProductPrice(
+                  supplierId,
+                  p.name,
+                  p.brand,
+                  p.model,
+                );
+                final supplierPrice = {
+                  'supplierId': supplierId,
+                  'productName': p.name,
+                  'productBrand': p.brand,
+                  'productModel': p.model,
+                  'costPrice': cost,
+                  'lastUpdated': ts,
+                  'createdAt': ts,
+                  'isActive': 1,
+                  'shopId': shopId,
+                };
+                await db.insertSupplierProductPrice(supplierPrice);
+
+                // Cập nhật thống kê nhà cung cấp
+                await db.updateSupplierStats(
+                  supplierId,
+                  cost * p.quantity,
+                  p.quantity,
+                );
+              }
+
+              // 3. Xử lý thanh toán
+              if (selectedPaymentMethod == 'CÔNG NỢ') {
+                // Tạo công nợ nhà cung cấp
+                final supplierPhone = supplierData['phone']?.toString() ?? '';
+                final debt = Debt(
+                  personName: selectedSupplier!,
+                  phone: supplierPhone,
+                  totalAmount: cost * p.quantity,
+                  paidAmount: 0,
+                  type: 'SHOP_OWES',
+                  status: 'ACTIVE',
+                  createdAt: ts,
+                  note: 'Công nợ xác nhận giá từ Kho Tạm - ${p.name}',
+                  linkedId: p.firestoreId,
+                );
+                debt.firestoreId = "debt_confirm_${ts}_${p.imei}";
+                await db.upsertDebt(debt);
+
+                final debtId = await db.getDebtIdByFirestoreId(
+                  debt.firestoreId!,
+                );
+                if (debtId != null) {
+                  await SyncOrchestrator().enqueue(
+                    entityType: SyncEntityType.debt,
+                    entityId: debtId,
+                    firestoreId: debt.firestoreId,
+                    operation: SyncOperation.create,
+                    data: debt.toMap(),
+                  );
+                }
+                EventBus().emit('debts_changed');
+              } else {
+                // Tạo expense cho tiền mặt/chuyển khoản
+                final expFId = "exp_confirm_${ts}_${p.imei}";
+                final exp = {
+                  'firestoreId': expFId,
+                  'title': 'Xác nhận giá Kho Tạm - $selectedSupplier',
+                  'amount': cost * p.quantity,
+                  'category': 'NHẬP HÀNG',
+                  'date': ts,
+                  'note': 'Xác nhận giá ${p.name} từ Kho Tạm',
+                  'paymentMethod': selectedPaymentMethod,
+                  'createdAt': ts,
+                };
+                final expenseId = await db.insertExpense(exp);
+                await SyncOrchestrator().enqueue(
+                  entityType: SyncEntityType.expense,
+                  entityId: expenseId,
+                  firestoreId: expFId,
+                  operation: SyncOperation.create,
+                  data: exp,
+                );
+                EventBus().emit('expenses_changed');
+              }
+
+              // 4. Log action
+              await db.logAction(
+                userId: user?.uid ?? "0",
+                userName: userName,
+                action: "XÁC NHẬN GIÁ KHO TẠM",
+                type: "PRODUCT",
+                targetId: p.imei,
+                desc:
+                    "Xác nhận giá ${p.name} - Giá: ${MoneyUtils.formatCurrency(cost)}đ - NCC: $selectedSupplier",
+              );
+
+              // 5. Chat notification
+              await FirestoreService.sendChat(
+                message:
+                    "✅ Đã xác nhận giá từ Kho Tạm: ${p.name} (${p.imei}) - Giá: ${MoneyUtils.formatCurrency(cost)}đ - NCC: $selectedSupplier",
+                senderId: user?.uid ?? "system",
+                senderName: userName,
+                linkedType: "PRODUCT",
+                linkedKey: p.imei ?? '',
+                linkedSummary: p.name,
+              );
+
+              EventBus().emit('suppliers_changed');
+
+              if (mounted) {
+                Navigator.pop(ctx);
+                _refresh();
+                NotificationService.showSnackBar(
+                  "Đã xác nhận giá và chuyển sang Kho Chính!",
+                  color: Colors.green,
+                );
+              }
+            } catch (e) {
+              setS(() => isSaving = false);
+              NotificationService.showSnackBar("Lỗi: $e", color: Colors.red);
+            }
+          }
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.orange.shade700),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Xác nhận giá - Chuyển Kho Chính',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Thông tin sản phẩm
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'IMEI: ${p.imei ?? "N/A"}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        Text(
+                          'SL: ${p.quantity}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Giá vốn
+                  CurrencyTextField(
+                    controller: costC,
+                    label: 'GIÁ VỐN (*)',
+                    icon: Icons.monetization_on,
+                    autoMultiply1000: true,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Giá bán (optional)
+                  CurrencyTextField(
+                    controller: priceC,
+                    label: 'GIÁ BÁN (tùy chọn)',
+                    icon: Icons.sell,
+                    autoMultiply1000: true,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Nhà cung cấp dropdown
+                  DropdownButtonFormField<String>(
+                    value: _suppliers.any((s) => s['name'] == selectedSupplier)
+                        ? selectedSupplier
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: 'NHÀ CUNG CẤP (*)',
+                      prefixIcon: Icon(Icons.business),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _suppliers.map((s) {
+                      return DropdownMenuItem<String>(
+                        value: s['name'] as String,
+                        child: Text(s['name'] as String),
+                      );
+                    }).toList(),
+                    onChanged: (v) => setS(() => selectedSupplier = v),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Phương thức thanh toán
+                  DropdownButtonFormField<String>(
+                    value: selectedPaymentMethod,
+                    decoration: const InputDecoration(
+                      labelText: 'THANH TOÁN',
+                      prefixIcon: Icon(Icons.payment),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: paymentMethods.map((m) {
+                      return DropdownMenuItem<String>(value: m, child: Text(m));
+                    }).toList(),
+                    onChanged: (v) =>
+                        setS(() => selectedPaymentMethod = v ?? 'TIỀN MẶT'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                child: const Text('HỦY'),
+              ),
+              ElevatedButton(
+                onPressed: isSaving ? null : confirmCost,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                child: isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'XÁC NHẬN',
+                        style: TextStyle(color: Colors.white),
+                      ),
               ),
             ],
           );

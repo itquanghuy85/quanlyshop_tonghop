@@ -21,6 +21,8 @@ class Product {
   String? capacity; // Dung lượng (ví dụ: 64GB, 128GB, etc.)
   String? paymentMethod; // Phương thức thanh toán
   bool isSynced;
+  bool isPending; // Kho tạm - chưa có giá vốn
+  String? pendingSupplier; // NCC tạm khi chưa xác nhận giá
 
   Product({
     this.id,
@@ -45,6 +47,8 @@ class Product {
     this.capacity,
     this.paymentMethod,
     this.isSynced = false,
+    this.isPending = false,
+    this.pendingSupplier,
   });
 
   Map<String, dynamic> toMap() {
@@ -71,6 +75,8 @@ class Product {
       'capacity': capacity,
       'paymentMethod': paymentMethod,
       'isSynced': isSynced ? 1 : 0,
+      'isPending': isPending ? 1 : 0,
+      'pendingSupplier': pendingSupplier,
     };
   }
 
@@ -82,8 +88,12 @@ class Product {
       brand: map['brand'] ?? "KHÁC",
       model: map['model'],
       imei: map['imei'],
-      cost: (map['cost'] is int ? map['cost'] : 0) < 0 ? 0 : (map['cost'] is int ? map['cost'] : 0),
-      price: (map['price'] is int ? map['price'] : 0) < 0 ? 0 : (map['price'] is int ? map['price'] : 0),
+      cost: (map['cost'] is int ? map['cost'] : 0) < 0
+          ? 0
+          : (map['cost'] is int ? map['cost'] : 0),
+      price: (map['price'] is int ? map['price'] : 0) < 0
+          ? 0
+          : (map['price'] is int ? map['price'] : 0),
       condition: map['condition'] ?? "Mới",
       status: map['status'] is int ? map['status'] : 1,
       description: map['description'] ?? "",
@@ -93,11 +103,15 @@ class Product {
       updatedAt: map['updatedAt'] is int ? map['updatedAt'] : null,
       supplier: map['supplier'],
       type: map['type'] ?? 'DIEN_THOAI',
-      quantity: (map['quantity'] is int ? map['quantity'] : 1) < 0 ? 0 : (map['quantity'] is int ? map['quantity'] : 1),
+      quantity: (map['quantity'] is int ? map['quantity'] : 1) < 0
+          ? 0
+          : (map['quantity'] is int ? map['quantity'] : 1),
       color: map['color'],
       capacity: map['capacity'],
       paymentMethod: map['paymentMethod'],
       isSynced: map['isSynced'] == 1,
+      isPending: map['isPending'] == 1,
+      pendingSupplier: map['pendingSupplier'],
     );
   }
 
@@ -124,6 +138,8 @@ class Product {
     String? paymentMethod,
     bool? isSynced,
     int? updatedAt,
+    bool? isPending,
+    String? pendingSupplier,
   }) {
     return Product(
       id: id ?? this.id,
@@ -148,6 +164,8 @@ class Product {
       capacity: capacity ?? this.capacity,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       isSynced: isSynced ?? this.isSynced,
+      isPending: isPending ?? this.isPending,
+      pendingSupplier: pendingSupplier ?? this.pendingSupplier,
     );
   }
 }

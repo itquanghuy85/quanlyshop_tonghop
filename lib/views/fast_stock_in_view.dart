@@ -639,12 +639,56 @@ class _FastStockInViewState extends State<FastStockInView> {
     // IMEI không cần unique - cho phép nhập trùng
 
     final cost = _parseMoneyWithK(costCtrl.text);
-    if (cost <= 0) {
+    final isPending = cost <= 0; // Kho tạm nếu chưa có giá vốn
+
+    if (cost < 0) {
       NotificationService.showSnackBar(
-        "Vui lòng nhập giá nhập hợp lệ!",
+        "Giá nhập không thể âm!",
         color: Colors.red,
       );
       return;
+    }
+
+    // Nếu nhập kho tạm (cost = 0), yêu cầu xác nhận
+    if (isPending) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Xác nhận nhập Kho Tạm'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Sản phẩm sẽ được nhập vào KHO TẠM vì chưa có giá vốn.'),
+              SizedBox(height: 8),
+              Text(
+                '• Sẽ KHÔNG tạo công nợ NCC',
+                style: TextStyle(color: Colors.orange),
+              ),
+              Text(
+                '• Sẽ KHÔNG tính vào chốt quỹ',
+                style: TextStyle(color: Colors.orange),
+              ),
+              SizedBox(height: 8),
+              Text('Khi xác nhận giá vốn sau, hệ thống sẽ:'),
+              Text('• Chuyển sang kho chính'),
+              Text('• Tạo công nợ/chi phí tương ứng'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text('Nhập Kho Tạm'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
     }
 
     final price = _parseMoneyWithK(priceCtrl.text);
@@ -693,15 +737,21 @@ class _FastStockInViewState extends State<FastStockInView> {
         price: price,
         condition: selectedCondition!,
         status: 1,
-        description: 'Nhập nhanh',
+        description: isPending ? 'Kho tạm - Chờ xác nhận giá' : 'Nhập nhanh',
         createdAt: ts,
         updatedAt: ts, // Thêm updatedAt để sort đúng
-        supplier: selectedSupplier,
+        supplier: isPending
+            ? null
+            : selectedSupplier, // Chỉ gán supplier chính khi không pending
         type: 'DIEN_THOAI',
         quantity: quantity,
         color: selectedColor!,
         capacity: selectedCapacity!,
-        paymentMethod: selectedPaymentMethod,
+        paymentMethod: isPending
+            ? null
+            : selectedPaymentMethod, // Chỉ gán khi không pending
+        isPending: isPending,
+        pendingSupplier: isPending ? selectedSupplier : null, // Lưu NCC tạm
         // Không còn đồng bộ giá KPK và CPK nữa
       );
 
@@ -722,77 +772,79 @@ class _FastStockInViewState extends State<FastStockInView> {
         );
       }
 
-      // Lưu lịch sử nhập hàng từ nhà cung cấp
-      final supplierData = suppliers.firstWhere(
-        (s) => s['name'] == selectedSupplier,
-        orElse: () => {},
-      );
-      final supplierId = supplierData['id'];
-      final shopId = await UserService.getCurrentShopId();
-      if (supplierId != null) {
-        final importHistory = {
-          'supplierId': supplierId,
-          'supplierName': selectedSupplier,
-          'productName': product.name,
-          'productBrand': selectedBrand,
-          'productModel': modelCtrl.text.trim(),
-          'imei': imei,
-          'quantity': quantity,
-          'costPrice': cost,
-          'totalAmount': cost * quantity,
-          'paymentMethod': selectedPaymentMethod,
-          'importDate': ts,
-          'importedBy':
-              FirebaseAuth.instance.currentUser?.email
-                  ?.split('@')
-                  .first
-                  .toUpperCase() ??
-              "NV",
-          'notes': 'Nhập nhanh từ Fast Stock In',
-          'shopId': shopId,
-          'isSynced': 0,
-        };
-        final importHistoryId = await db.insertSupplierImportHistory(
-          importHistory,
+      // Lưu lịch sử nhập hàng từ nhà cung cấp - CHỈ KHI KHÔNG PENDING
+      if (!isPending) {
+        final supplierData = suppliers.firstWhere(
+          (s) => s['name'] == selectedSupplier,
+          orElse: () => {},
         );
-
-        // FIX BUG-001: Enqueue để sync lên Firestore
-        if (importHistoryId > 0) {
-          await SyncOrchestrator().enqueueSupplierImportHistory(
-            importHistoryId,
-            firestoreId: importHistory['firestoreId'] as String?,
-            operation: SyncOperation.create,
+        final supplierId = supplierData['id'];
+        final shopId = await UserService.getCurrentShopId();
+        if (supplierId != null) {
+          final importHistory = {
+            'supplierId': supplierId,
+            'supplierName': selectedSupplier,
+            'productName': product.name,
+            'productBrand': selectedBrand,
+            'productModel': modelCtrl.text.trim(),
+            'imei': imei,
+            'quantity': quantity,
+            'costPrice': cost,
+            'totalAmount': cost * quantity,
+            'paymentMethod': selectedPaymentMethod,
+            'importDate': ts,
+            'importedBy':
+                FirebaseAuth.instance.currentUser?.email
+                    ?.split('@')
+                    .first
+                    .toUpperCase() ??
+                "NV",
+            'notes': 'Nhập nhanh từ Fast Stock In',
+            'shopId': shopId,
+            'isSynced': 0,
+          };
+          final importHistoryId = await db.insertSupplierImportHistory(
+            importHistory,
           );
+
+          // FIX BUG-001: Enqueue để sync lên Firestore
+          if (importHistoryId > 0) {
+            await SyncOrchestrator().enqueueSupplierImportHistory(
+              importHistoryId,
+              firestoreId: importHistory['firestoreId'] as String?,
+              operation: SyncOperation.create,
+            );
+          }
+
+          // Cập nhật giá nhà cung cấp
+          await db.deactivateSupplierProductPrice(
+            supplierId,
+            product.name,
+            selectedBrand!,
+            modelCtrl.text.trim().isNotEmpty ? modelCtrl.text.trim() : null,
+          );
+          final supplierPrice = {
+            'supplierId': supplierId,
+            'productName': product.name,
+            'productBrand': selectedBrand,
+            'productModel': modelCtrl.text.trim().isNotEmpty
+                ? modelCtrl.text.trim()
+                : null,
+            'costPrice': cost,
+            'lastUpdated': ts,
+            'createdAt': ts,
+            'isActive': 1,
+            'shopId': shopId,
+          };
+          await db.insertSupplierProductPrice(supplierPrice);
+
+          // Cập nhật thống kê nhà cung cấp
+          await db.updateSupplierStats(supplierId, cost * quantity, quantity);
         }
-
-        // Cập nhật giá nhà cung cấp
-        await db.deactivateSupplierProductPrice(
-          supplierId,
-          product.name,
-          selectedBrand!,
-          modelCtrl.text.trim().isNotEmpty ? modelCtrl.text.trim() : null,
-        );
-        final supplierPrice = {
-          'supplierId': supplierId,
-          'productName': product.name,
-          'productBrand': selectedBrand,
-          'productModel': modelCtrl.text.trim().isNotEmpty
-              ? modelCtrl.text.trim()
-              : null,
-          'costPrice': cost,
-          'lastUpdated': ts,
-          'createdAt': ts,
-          'isActive': 1,
-          'shopId': shopId,
-        };
-        await db.insertSupplierProductPrice(supplierPrice);
-
-        // Cập nhật thống kê nhà cung cấp
-        await db.updateSupplierStats(supplierId, cost * quantity, quantity);
       }
 
-      // Xử lý công nợ nhà cung cấp - ĐƠN GIẢN VÀ TRỰC TIẾP
-      if (selectedPaymentMethod == 'CÔNG NỢ') {
+      // Xử lý công nợ nhà cung cấp - ĐƠN GIẢN VÀ TRỰC TIẾP - CHỈ KHI KHÔNG PENDING
+      if (!isPending && selectedPaymentMethod == 'CÔNG NỢ') {
         final supplierData = suppliers.firstWhere(
           (s) => s['name'] == selectedSupplier,
           orElse: () => {},
@@ -851,8 +903,8 @@ class _FastStockInViewState extends State<FastStockInView> {
           );
           return; // Don't continue if debt creation fails
         }
-      } else {
-        // Xử lý thanh toán tiền mặt/chuyển khoản - tạo expense record
+      } else if (!isPending) {
+        // Xử lý thanh toán tiền mặt/chuyển khoản - tạo expense record - CHỈ KHI KHÔNG PENDING
         final expFId = "exp_stock_$ts";
         final exp = {
           'firestoreId': expFId,
@@ -892,21 +944,26 @@ class _FastStockInViewState extends State<FastStockInView> {
       await db.logAction(
         userId: user?.uid ?? "0",
         userName: userName,
-        action: "NHẬP KHO NHANH",
+        action: isPending ? "NHẬP KHO TẠM" : "NHẬP KHO NHANH",
         type: "PRODUCT",
         targetId: product.imei,
-        desc: "Nhập nhanh ${product.name}",
+        desc: isPending
+            ? "Nhập kho tạm ${product.name} (chờ xác nhận giá)"
+            : "Nhập nhanh ${product.name}",
       );
 
       NotificationService.showSnackBar(
-        "Nhập kho nhanh thành công!",
-        color: Colors.green,
+        isPending
+            ? "Đã nhập vào KHO TẠM! Vui lòng xác nhận giá sau."
+            : "Nhập kho nhanh thành công!",
+        color: isPending ? Colors.orange : Colors.green,
       );
 
       // Send chat notification
       await FirestoreService.sendChat(
-        message:
-            "📦 Đã nhập kho: ${product.name} (${product.imei}) - SL: $quantity - NCC: $selectedSupplier",
+        message: isPending
+            ? "📦⏳ Đã nhập KHO TẠM: ${product.name} (${product.imei}) - SL: $quantity - NCC dự kiến: $selectedSupplier"
+            : "📦 Đã nhập kho: ${product.name} (${product.imei}) - SL: $quantity - NCC: $selectedSupplier",
         senderId: user?.uid ?? "system",
         senderName: userName,
         linkedType: "PRODUCT",
