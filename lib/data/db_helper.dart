@@ -1843,16 +1843,54 @@ class DBHelper {
     );
   }
 
-  /// Soft delete lịch sử nhập hàng theo product
-  Future<int> softDeleteImportHistoryByProduct(String productId) async {
+  /// Xóa lịch sử nhập hàng theo product
+  /// Lưu ý: Bảng supplier_import_history không có cột deleted, nên phải xóa thật
+  Future<int> deleteImportHistoryByProduct(String productId) async {
     if (productId.isEmpty) return 0;
-    final ts = DateTime.now().millisecondsSinceEpoch;
-    // Tìm theo IMEI hoặc productName
-    return (await database).update(
+    // Xóa thật vì bảng không có cột deleted
+    return (await database).delete(
       'supplier_import_history',
-      {'deleted': 1, 'deletedAt': ts, 'isSynced': 0},
       where: "imei LIKE ? OR productName LIKE ?",
       whereArgs: ['%$productId%', '%$productId%'],
+    );
+  }
+
+  /// Lấy chi phí liên quan đến sản phẩm (theo relatedPartId hoặc title/note chứa productId/imei)
+  Future<List<Map<String, dynamic>>> getExpensesByProductId(
+    String productId, {
+    String? imei,
+  }) async {
+    if (productId.isEmpty && (imei == null || imei.isEmpty)) return [];
+    final db = await database;
+
+    String where = "relatedPartId = ?";
+    List<dynamic> args = [productId];
+
+    if (imei != null && imei.isNotEmpty) {
+      where += " OR title LIKE ? OR note LIKE ?";
+      args.addAll(['%$imei%', '%$imei%']);
+    }
+
+    return db.query('expenses', where: where, whereArgs: args);
+  }
+
+  /// Xóa chi phí theo ID
+  Future<int> deleteExpense(int expenseId) async {
+    return (await database).delete(
+      'expenses',
+      where: 'id = ?',
+      whereArgs: [expenseId],
+    );
+  }
+
+  /// Lấy đơn bán có chứa sản phẩm (theo productImeis)
+  Future<List<Map<String, dynamic>>> getSalesByProductImei(String imei) async {
+    if (imei.isEmpty) return [];
+    final db = await database;
+    return db.query(
+      'sales',
+      where: "productImeis LIKE ?",
+      whereArgs: ['%$imei%'],
     );
   }
 

@@ -25,3 +25,7 @@ xin giải pháp thiết kế trang thống kê tài chính bao gồm các thôn
 trang đơn sửa trạng thái hiển thị chưa đúng.hãy cập nhật lại 4 trạng thái trong chi tiết đơn sửa và ngoài list đơn sửa cho đúng với thực tế.
 trang chi tiết đơn sửa: thêm mục " + THÊM DỊCH VỤ " Vào trong chi tiết đơn sửa (hiện tại chỉ có thêm dịch vụ khi tạo đơn sửa mới).
 nhập kho tạm khi sửa đơ thì tự nhập vào kho chính dù chưa có giá nhập.
+trong kho khi chỉnh sửa sản phẩm 1 cái giữ lâu 1(popup "Chỉnh sửa sản phẩm") cái bấm vào sản phẩm - bấm tiếp nút chỉnh sủa( popup "CHỈNH SỬA SẢN PHẨM"): 1 cái . cái nào ổn hơn đúng hơn  thì giữ lại cái đó.
+nếu nhân viên tạo sản phẩm bị lỗi hay sai trong lúc nhập thì xóa hay sửa sản phẩm đó như thế nào?những giá trị nào phải cập nhật khi bấm nứt xóa hay sửa sản phẩm?
+khi tôi giữ lâu để xóa sản phẩm trong lít kho thì ko xóa được nhưng reload lại trang thì sản phẩm đã bị xóa lại hiện lại
+trong chi chi tiết đơn sửa thiếu 1 trạng thái đang sửa.

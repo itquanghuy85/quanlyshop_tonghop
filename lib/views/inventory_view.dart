@@ -747,11 +747,8 @@ class _InventoryViewState extends State<InventoryView>
     final reasonCtrl = TextEditingController();
     bool deleteRelatedDebt = false;
     bool deleteImportHistory = false;
-
-    // Kiểm tra xem sản phẩm có liên quan đến công nợ/lịch sử nhập không
-    db.getDebtsByProductId(p.firestoreId ?? '').then((debts) {
-      // Nếu có công nợ liên quan, hiển thị option
-    });
+    bool deleteRelatedExpense = false;
+    bool deleteRelatedSale = false;
 
     showDialog(
       context: context,
@@ -822,9 +819,9 @@ class _InventoryViewState extends State<InventoryView>
                       ),
                       SizedBox(height: 4),
                       Text(
-                        '• Số liệu TÀI CHÍNH đã chốt sẽ KHÔNG thay đổi\n'
-                        '• Lịch sử nhập hàng sẽ được GIỮ LẠI\n'
-                        '• Sản phẩm sẽ được đánh dấu XÓA (có thể khôi phục)',
+                        '• Số liệu TÀI CHÍNH ĐÃ CHỐT sẽ KHÔNG thay đổi\n'
+                        '• Chọn các mục bên dưới để xóa dữ liệu liên quan\n'
+                        '• Dữ liệu CHƯA CHỐT sẽ bị ảnh hưởng',
                         style: TextStyle(fontSize: 11),
                       ),
                     ],
@@ -834,7 +831,7 @@ class _InventoryViewState extends State<InventoryView>
 
                 // Options xóa liên quan
                 const Text(
-                  'Tùy chọn xóa:',
+                  'Tùy chọn xóa dữ liệu liên quan:',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(height: 8),
@@ -846,7 +843,7 @@ class _InventoryViewState extends State<InventoryView>
                     style: TextStyle(fontSize: 13),
                   ),
                   subtitle: const Text(
-                    'Nếu nhập hàng công nợ',
+                    'Công nợ nhập hàng với NCC',
                     style: TextStyle(fontSize: 11),
                   ),
                   dense: true,
@@ -862,8 +859,39 @@ class _InventoryViewState extends State<InventoryView>
                     style: TextStyle(fontSize: 13),
                   ),
                   subtitle: const Text(
-                    'Ẩn khỏi báo cáo NCC',
+                    'Xóa khỏi báo cáo NCC',
                     style: TextStyle(fontSize: 11),
+                  ),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                CheckboxListTile(
+                  value: deleteRelatedExpense,
+                  onChanged: (v) =>
+                      setS(() => deleteRelatedExpense = v ?? false),
+                  title: const Text(
+                    'Xóa chi phí liên quan',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  subtitle: const Text(
+                    'Chi phí nhập hàng, vận chuyển...',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                CheckboxListTile(
+                  value: deleteRelatedSale,
+                  onChanged: (v) => setS(() => deleteRelatedSale = v ?? false),
+                  title: const Text(
+                    'Xóa đơn bán chứa SP này',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  subtitle: Text(
+                    'CẢNH BÁO: Xóa đơn bán sẽ ảnh hưởng doanh thu',
+                    style: TextStyle(fontSize: 11, color: Colors.red.shade700),
                   ),
                   dense: true,
                   contentPadding: EdgeInsets.zero,
@@ -932,6 +960,8 @@ class _InventoryViewState extends State<InventoryView>
                       p,
                       deleteRelatedDebt: deleteRelatedDebt,
                       deleteImportHistory: deleteImportHistory,
+                      deleteRelatedExpense: deleteRelatedExpense,
+                      deleteRelatedSale: deleteRelatedSale,
                       reason: reasonCtrl.text.trim(),
                     );
                   }
@@ -959,12 +989,15 @@ class _InventoryViewState extends State<InventoryView>
     Product p, {
     bool deleteRelatedDebt = false,
     bool deleteImportHistory = false,
+    bool deleteRelatedExpense = false,
+    bool deleteRelatedSale = false,
     String? reason,
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
-      final ts = DateTime.now().millisecondsSinceEpoch;
+      final productId = p.firestoreId ?? '';
+      final imei = p.imei ?? '';
 
       // 1. GHI AUDIT LOG trước khi xóa
       await db.logAction(
@@ -972,14 +1005,14 @@ class _InventoryViewState extends State<InventoryView>
         userName: userName,
         action: 'XÓA SẢN PHẨM',
         type: 'PRODUCT',
-        targetId: p.firestoreId,
+        targetId: productId,
         desc:
-            'Xóa SP: ${p.name} | IMEI: ${p.imei ?? "N/A"} | Giá vốn: ${p.cost} | Lý do: ${reason ?? "Không ghi"}',
+            'Xóa SP: ${p.name} | IMEI: $imei | Giá vốn: ${p.cost} | Lý do: ${reason ?? "Không ghi"}',
       );
 
       // 2. Xóa công nợ NCC liên quan (nếu chọn)
-      if (deleteRelatedDebt && p.firestoreId != null) {
-        final debts = await db.getDebtsByProductId(p.firestoreId!);
+      if (deleteRelatedDebt && productId.isNotEmpty) {
+        final debts = await db.getDebtsByProductId(productId);
         for (var debt in debts) {
           final debtId = debt['id'] as int?;
           if (debtId != null) {
@@ -1001,34 +1034,65 @@ class _InventoryViewState extends State<InventoryView>
         }
       }
 
-      // 3. Đánh dấu xóa lịch sử nhập hàng (nếu chọn)
-      if (deleteImportHistory && p.firestoreId != null) {
-        await db.softDeleteImportHistoryByProduct(p.firestoreId!);
+      // 3. Xóa lịch sử nhập hàng (nếu chọn) - xóa thật vì bảng không có cột deleted
+      if (deleteImportHistory && productId.isNotEmpty) {
+        await db.deleteImportHistoryByProduct(productId);
 
         await db.logAction(
           userId: user?.uid ?? '0',
           userName: userName,
           action: 'XÓA LỊCH SỬ NHẬP (THEO SP)',
           type: 'IMPORT_HISTORY',
-          targetId: p.firestoreId,
+          targetId: productId,
           desc: 'Xóa lịch sử nhập theo SP: ${p.name}',
         );
       }
 
-      // 4. SOFT DELETE sản phẩm (đánh dấu deleted = true thay vì xóa thật)
+      // 4. Xóa chi phí liên quan (nếu chọn)
+      if (deleteRelatedExpense && productId.isNotEmpty) {
+        final expenses = await db.getExpensesByProductId(productId, imei: imei);
+        for (var expense in expenses) {
+          final expenseId = expense['id'] as int?;
+          if (expenseId != null) {
+            await db.deleteExpense(expenseId);
+
+            await db.logAction(
+              userId: user?.uid ?? '0',
+              userName: userName,
+              action: 'XÓA CHI PHÍ (THEO SP)',
+              type: 'EXPENSE',
+              targetId: expense['firestoreId']?.toString(),
+              desc:
+                  'Xóa chi phí: ${expense['title']} | ${expense['amount']}đ | theo SP: ${p.name}',
+            );
+          }
+        }
+      }
+
+      // 5. Xóa đơn bán chứa sản phẩm này (nếu chọn) - CẢNH BÁO: ảnh hưởng doanh thu
+      if (deleteRelatedSale && imei.isNotEmpty) {
+        final sales = await db.getSalesByProductImei(imei);
+        for (var sale in sales) {
+          final saleId = sale['id'] as int?;
+          if (saleId != null) {
+            await db.deleteSale(saleId);
+
+            await db.logAction(
+              userId: user?.uid ?? '0',
+              userName: userName,
+              action: 'XÓA ĐƠN BÁN (THEO SP)',
+              type: 'SALE',
+              targetId: sale['firestoreId']?.toString(),
+              desc:
+                  'Xóa đơn bán: ${sale['customerName']} | ${sale['totalPrice']}đ | theo SP: ${p.name}',
+            );
+          }
+        }
+      }
+
+      // 6. XÓA sản phẩm (xóa thật vì bảng không có cột deleted)
       if (p.id != null) {
-        // Cập nhật trạng thái deleted
-        final deletedProduct = p.copyWith(updatedAt: ts, isSynced: false);
-        // Dùng map để set deleted = true
-        final productMap = deletedProduct.toMap();
-        productMap['deleted'] = 1;
-        productMap['deletedAt'] = ts;
-        productMap['deletedBy'] = userName;
-        productMap['deleteReason'] = reason;
-
-        await db.updateProductMap(p.id!, productMap);
-
-        // Queue delete sync via SyncOrchestrator
+        // Queue delete sync via SyncOrchestrator trước khi xóa local
         await SyncOrchestrator().enqueue(
           entityType: SyncEntityType.product,
           entityId: p.id!,
@@ -1036,6 +1100,9 @@ class _InventoryViewState extends State<InventoryView>
           operation: SyncOperation.delete,
           data: null,
         );
+
+        // Xóa sản phẩm khỏi local DB
+        await db.deleteProduct(p.id!);
 
         // SYNC NGAY LẬP TỨC
         await SyncOrchestrator().syncAll();
