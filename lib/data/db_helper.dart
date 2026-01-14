@@ -1824,21 +1824,20 @@ class DBHelper {
     if (productId.isEmpty) return [];
     final db = await database;
     // Tìm công nợ có linkedId = productId hoặc note chứa productId
+    // Lưu ý: Bảng debts không có cột deleted
     final debts = await db.query(
       'debts',
-      where:
-          "(linkedId = ? OR note LIKE ?) AND (deleted IS NULL OR deleted != 1)",
+      where: "linkedId = ? OR note LIKE ?",
       whereArgs: [productId, '%$productId%'],
     );
     return debts;
   }
 
-  /// Soft delete công nợ
+  /// Soft delete công nợ - thực tế là xóa hẳn vì bảng debts không có cột deleted
   Future<int> softDeleteDebt(int debtId, {String? reason}) async {
-    final ts = DateTime.now().millisecondsSinceEpoch;
-    return (await database).update(
+    // Bảng debts không có cột deleted, nên phải xóa thật
+    return (await database).delete(
       'debts',
-      {'deleted': 1, 'deletedAt': ts, 'deleteReason': reason, 'isSynced': 0},
       where: 'id = ?',
       whereArgs: [debtId],
     );
