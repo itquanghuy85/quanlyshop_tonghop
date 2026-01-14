@@ -548,16 +548,32 @@ class _InventoryViewState extends State<InventoryView>
               try {
                 final oldCost = p.cost;
                 final oldPrice = p.price;
+                final newCost = CurrencyTextField.getValueWithMultiply(
+                  costCtrl,
+                );
+
+                // Nếu sản phẩm đang ở kho tạm và giờ có giá vốn > 0
+                // → Chuyển sang kho chính (isPending = false)
+                final shouldTransferToMainInventory =
+                    p.isPending && newCost > 0;
+
                 final updatedProduct = p.copyWith(
                   name: nameCtrl.text.trim().toUpperCase(),
                   capacity: capacityCtrl.text.trim(),
                   imei: imeiCtrl.text.trim(),
                   supplier: supplierCtrl.text.trim(),
-                  cost: CurrencyTextField.getValueWithMultiply(costCtrl),
+                  cost: newCost,
                   price: CurrencyTextField.getValueWithMultiply(priceCtrl),
                   quantity: qty,
                   updatedAt: DateTime.now().millisecondsSinceEpoch,
                   isSynced: false,
+                  // Tự động chuyển kho tạm → kho chính nếu có giá vốn
+                  isPending: shouldTransferToMainInventory
+                      ? false
+                      : p.isPending,
+                  pendingSupplier: shouldTransferToMainInventory
+                      ? null
+                      : p.pendingSupplier,
                 );
 
                 // Kiểm tra nếu giá thay đổi
@@ -709,7 +725,7 @@ class _InventoryViewState extends State<InventoryView>
               title: const Text('Chỉnh sửa'),
               onTap: () {
                 Navigator.pop(ctx);
-                _showEditProductDialog(p);
+                _editProduct(p); // Dùng dialog chỉnh sửa đầy đủ
               },
             ),
             ListTile(
@@ -807,6 +823,10 @@ class _InventoryViewState extends State<InventoryView>
           operation: SyncOperation.delete,
           data: null,
         );
+
+        // SYNC NGAY LẬP TỨC để Firestore cập nhật deleted=true
+        // Tránh realtime sync khôi phục lại sản phẩm
+        await SyncOrchestrator().syncAll();
       }
       await _refresh();
       NotificationService.showSnackBar(
@@ -3308,22 +3328,31 @@ class _InventoryViewState extends State<InventoryView>
             setS(() => isSaving = true);
             try {
               final int ts = DateTime.now().millisecondsSinceEpoch;
-              final updatedP = Product(
-                firestoreId: p.firestoreId,
+              final newCost = CurrencyTextField.parseValue(costC.text);
+
+              // Nếu sản phẩm đang ở kho tạm và giờ có giá vốn > 0
+              // → Chuyển sang kho chính (isPending = false)
+              final shouldTransferToMainInventory = p.isPending && newCost > 0;
+
+              final updatedP = p.copyWith(
                 name: nameC.text.trim().toUpperCase(),
                 model: modelC.text.trim().isNotEmpty
                     ? modelC.text.trim()
                     : null,
                 imei: imeiC.text.trim(),
-                cost: CurrencyTextField.parseValue(costC.text),
+                cost: newCost,
                 price: CurrencyTextField.parseValue(priceC.text),
                 capacity: detailC.text.trim().toUpperCase(),
                 quantity: int.tryParse(qtyC.text) ?? 1,
                 type: type,
-                createdAt: p.createdAt,
                 supplier: supplier,
-                status: p.status,
                 updatedAt: ts,
+                isSynced: false,
+                // Tự động chuyển kho tạm → kho chính nếu có giá vốn
+                isPending: shouldTransferToMainInventory ? false : p.isPending,
+                pendingSupplier: shouldTransferToMainInventory
+                    ? null
+                    : p.pendingSupplier,
               );
               final user = FirebaseAuth.instance.currentUser;
               final userName =

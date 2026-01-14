@@ -801,9 +801,31 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Widget _buildStatusCard() {
-    Color color = r.status == 4
-        ? AppColors.primary
-        : (r.status == 3 ? AppColors.success : AppColors.warning);
+    Color color;
+    IconData icon;
+
+    switch (r.status) {
+      case 1:
+        color = Colors.blue;
+        icon = Icons.assignment_turned_in;
+        break;
+      case 2:
+        color = Colors.orange;
+        icon = Icons.build;
+        break;
+      case 3:
+        color = AppColors.success;
+        icon = Icons.check_circle;
+        break;
+      case 4:
+        color = AppColors.primary;
+        icon = Icons.verified;
+        break;
+      default:
+        color = Colors.grey;
+        icon = Icons.help_outline;
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -813,13 +835,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       ),
       child: Row(
         children: [
-          Icon(
-            r.status == 4
-                ? Icons.verified
-                : (r.status == 3 ? Icons.check_circle : Icons.pending_actions),
-            color: color,
-            size: 40,
-          ),
+          Icon(icon, color: color, size: 40),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
@@ -844,25 +860,49 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Widget _buildActionButtons() {
     if (r.status == 4) return const SizedBox();
-    return Row(
+    return Column(
       children: [
+        // Row 1: Đang sửa + Đã xong
         if (r.status < 3)
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => _updateStatus(3),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: AppColors.onSuccess,
+          Row(
+            children: [
+              // Nút ĐANG SỬA - chỉ hiện khi status = 1 (Tiếp nhận)
+              if (r.status == 1)
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _updateStatus(2),
+                    icon: const Icon(Icons.build, size: 18),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                    label: Text("ĐANG SỬA", style: AppTextStyles.button),
+                  ),
+                ),
+              if (r.status == 1) const SizedBox(width: 10),
+              // Nút ĐÃ XONG
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _updateStatus(3),
+                  icon: const Icon(Icons.check_circle, size: 18),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: AppColors.onSuccess,
+                  ),
+                  label: Text("ĐÃ XONG", style: AppTextStyles.button),
+                ),
               ),
-              child: Text("ĐÃ XONG", style: AppTextStyles.button),
-            ),
+            ],
           ),
-        if (r.status < 3) const SizedBox(width: 10),
-        Expanded(
-          child: ElevatedButton(
+        if (r.status < 3) const SizedBox(height: 10),
+        // Row 2: Giao máy
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
             onPressed: () => _updateStatus(4),
+            icon: const Icon(Icons.handshake, size: 18),
             style: AppButtonStyles.elevatedButtonStyle,
-            child: Text("GIAO MÁY", style: AppTextStyles.button),
+            label: Text("GIAO MÁY", style: AppTextStyles.button),
           ),
         ),
       ],
