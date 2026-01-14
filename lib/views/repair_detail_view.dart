@@ -11,7 +11,10 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/repair_model.dart';
+import '../models/repair_service_model.dart';
+import '../models/repair_partner_model.dart';
 import '../services/unified_printer_service.dart';
+import '../services/repair_partner_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../models/printer_types.dart';
 import '../widgets/printer_selection_dialog.dart';
@@ -42,6 +45,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   String _shopAddr = "";
   String _shopPhone = "";
   bool _hasPermission = false;
+  List<RepairPartner> _partners = [];
 
   @override
   void initState() {
@@ -49,6 +53,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     r = widget.repair;
     _checkPermission();
     _loadShopInfo();
+    _loadPartners();
+  }
+
+  Future<void> _loadPartners() async {
+    final partnerService = RepairPartnerService();
+    final partners = await partnerService.getPartners();
+    if (!mounted) return;
+    setState(() => _partners = partners);
   }
 
   Future<void> _checkPermission() async {
@@ -323,11 +335,33 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   String _getStatusText(int s) {
-    if (s == 1) return "MÁY CHỜ";
-    if (s == 2) return "ĐANG SỬA";
-    if (s == 3) return "ĐÃ XONG";
-    if (s == 4) return "ĐÃ GIAO";
-    return "KHÁC";
+    switch (s) {
+      case 1:
+        return "TIẾP NHẬN";
+      case 2:
+        return "ĐANG SỬA";
+      case 3:
+        return "SỬA XONG";
+      case 4:
+        return "ĐÃ GIAO";
+      default:
+        return "KHÁC";
+    }
+  }
+
+  Color _getStatusColor(int s) {
+    switch (s) {
+      case 1:
+        return Colors.blue;
+      case 2:
+        return Colors.orange;
+      case 3:
+        return AppColors.success;
+      case 4:
+        return AppColors.primary;
+      default:
+        return Colors.grey;
+    }
   }
 
   Future<void> _saveData() async {
@@ -337,7 +371,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       // Update lastCaredAt for conflict resolution during sync
       r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
       r.isSynced = false; // Mark as needing sync
-      
+
       await db.upsertRepair(r);
 
       // Ghi nhật ký sửa đơn
@@ -465,19 +499,24 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     if (parts.isEmpty) {
       // Thử load products để xem có nhưng chưa đánh đúng loại
       final allProducts = await db.getAllProducts();
-      final linhKienProducts = allProducts.where((p) => p.type == 'LINH KIỆN').toList();
-      final phuKienProducts = allProducts.where((p) => p.type == 'PHỤ KIỆN').toList();
-      
+      final linhKienProducts = allProducts
+          .where((p) => p.type == 'LINH KIỆN')
+          .toList();
+      final phuKienProducts = allProducts
+          .where((p) => p.type == 'PHỤ KIỆN')
+          .toList();
+
       String msg = "Kho Linh Kiện trống. ";
       if (allProducts.isEmpty) {
         msg += "Chưa có sản phẩm nào trong kho.";
       } else {
-        msg += "Tổng: ${allProducts.length}, LINH KIỆN: ${linhKienProducts.length}. ";
+        msg +=
+            "Tổng: ${allProducts.length}, LINH KIỆN: ${linhKienProducts.length}. ";
         if (linhKienProducts.isEmpty) {
           msg += "Vào Kho → Nhập SP → Chọn loại 'LINH KIỆN'";
         }
       }
-      
+
       NotificationService.showSnackBar(msg, color: Colors.orange);
       return;
     }
@@ -748,6 +787,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             const SizedBox(height: 20),
             _buildFinancialSummary(),
             const SizedBox(height: 20),
+            _buildServicesSection(),
+            const SizedBox(height: 20),
             _buildImageGallery(),
             const SizedBox(height: 20),
             _buildCustomerCard(),
@@ -903,8 +944,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               ),
               TextButton.icon(
                 onPressed: _editTechnicianNotes,
-                icon: const Icon(Icons.note_add, size: 14, color: Colors.orange),
-                label: Text("KTV", style: AppTextStyles.caption.copyWith(color: Colors.orange)),
+                icon: const Icon(
+                  Icons.note_add,
+                  size: 14,
+                  color: Colors.orange,
+                ),
+                label: Text(
+                  "KTV",
+                  style: AppTextStyles.caption.copyWith(color: Colors.orange),
+                ),
               ),
             ],
           ),
@@ -934,6 +982,313 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       ],
     ),
   );
+
+  Widget _buildServicesSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "DỊCH VỤ SỬA CHỮA",
+                style: AppTextStyles.body1.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (r.status != 4)
+                TextButton.icon(
+                  onPressed: _showAddServiceDialog,
+                  icon: const Icon(Icons.add, size: 18, color: Colors.blue),
+                  label: Text(
+                    "THÊM DỊCH VỤ",
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const Divider(height: 16),
+          if (r.services.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                "Chưa có dịch vụ nào",
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.onSurface.withOpacity(0.5),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            )
+          else
+            ...r.services.asMap().entries.map((entry) {
+              final i = entry.key;
+              final s = entry.value;
+              return Container(
+                margin: EdgeInsets.only(
+                  bottom: i < r.services.length - 1 ? 10 : 0,
+                ),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.build_circle,
+                      size: 20,
+                      color: Colors.blue,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s.serviceName,
+                            style: AppTextStyles.body2.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (s.partnerName != null)
+                            Text(
+                              "Đối tác: ${s.partnerName}",
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.purple,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      "${MoneyUtils.formatCurrency(s.cost)} đ",
+                      style: AppTextStyles.body2.copyWith(
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (r.status != 4)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.edit,
+                          size: 18,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () => _showAddServiceDialog(s, i),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          if (r.services.isNotEmpty) ...[
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Tổng chi phí dịch vụ",
+                  style: AppTextStyles.body2.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  "${MoneyUtils.formatCurrency(r.services.fold(0, (sum, s) => sum + s.cost))} đ",
+                  style: AppTextStyles.body1.copyWith(
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showAddServiceDialog([RepairService? editService, int? editIndex]) {
+    final formKey = GlobalKey<FormState>();
+    final serviceCtrl = TextEditingController(
+      text: editService?.serviceName ?? '',
+    );
+    final costCtrl = TextEditingController(
+      text: editService != null
+          ? MoneyUtils.formatCurrency(editService.cost)
+          : '',
+    );
+    RepairPartner? selectedPartner =
+        editService != null && editService.partnerId != null
+        ? _partners.firstWhere(
+            (p) => p.id == editService.partnerId,
+            orElse: () => _partners.first,
+          )
+        : null;
+    if (editService != null &&
+        selectedPartner == _partners.firstOrNull &&
+        editService.partnerId == null) {
+      selectedPartner = null;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: Text(editService != null ? "Sửa dịch vụ" : "Thêm dịch vụ"),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: serviceCtrl,
+                  decoration: const InputDecoration(labelText: "Tên dịch vụ *"),
+                  textCapitalization: TextCapitalization.characters,
+                  validator: (v) => (v ?? '').trim().isEmpty
+                      ? 'Vui lòng nhập tên dịch vụ'
+                      : null,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: costCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                  decoration: const InputDecoration(labelText: "Chi phí (VNĐ)"),
+                  validator: (v) => MoneyUtils.validateAmount(
+                    v ?? '',
+                    min: 1,
+                    fieldName: 'Chi phí',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (_partners.isNotEmpty)
+                  DropdownButtonFormField<RepairPartner?>(
+                    decoration: const InputDecoration(
+                      labelText: "Đối tác (tùy chọn)",
+                    ),
+                    value: selectedPartner,
+                    items: [
+                      const DropdownMenuItem(
+                        value: null,
+                        child: Text("Không có đối tác"),
+                      ),
+                      ..._partners.map(
+                        (p) => DropdownMenuItem(value: p, child: Text(p.name)),
+                      ),
+                    ],
+                    onChanged: (p) => setS(() => selectedPartner = p),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            if (editService != null)
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _deleteService(editIndex!);
+                },
+                child: const Text("Xóa", style: TextStyle(color: Colors.red)),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Hủy"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (!(formKey.currentState?.validate() ?? false)) return;
+                final parsed = MoneyUtils.parseCurrency(costCtrl.text);
+                final cost = parsed >= 1000 && parsed < 100000
+                    ? parsed * 1000
+                    : parsed;
+                final service = RepairService(
+                  serviceName: serviceCtrl.text.trim().toUpperCase(),
+                  cost: cost,
+                  partnerId: selectedPartner?.id,
+                  partnerName: selectedPartner?.name,
+                );
+                Navigator.pop(ctx);
+                await _saveService(service, editIndex);
+              },
+              child: Text(editService != null ? "Cập nhật" : "Thêm"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveService(RepairService service, int? editIndex) async {
+    setState(() => _isUpdating = true);
+    try {
+      final newServices = List<RepairService>.from(r.services);
+      if (editIndex != null) {
+        newServices[editIndex] = service;
+      } else {
+        newServices.add(service);
+      }
+      r.services = newServices;
+      r.cost = newServices.fold(0, (sum, s) => sum + s.cost);
+      r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
+      r.isSynced = false;
+      await db.upsertRepair(r);
+
+      // Handle partner history if service has partner
+      if (service.partnerId != null && r.firestoreId != null) {
+        final partnerService = RepairPartnerService();
+        await partnerService.createPartnerHistoryForRepair(
+          repairOrderId: r.firestoreId!,
+          partnerId: service.partnerId!,
+          partnerCost: service.cost,
+          customerName: r.customerName,
+          deviceModel: r.model,
+          issue: service.serviceName,
+          repairContent: service.serviceName,
+        );
+      }
+
+      NotificationService.showSnackBar(
+        editIndex != null ? "ĐÃ CẬP NHẬT DỊCH VỤ" : "ĐÃ THÊM DỊCH VỤ",
+        color: AppColors.success,
+      );
+      EventBus().emit('repair_services_changed');
+    } catch (e) {
+      NotificationService.showSnackBar("Lỗi: $e", color: AppColors.error);
+    }
+    setState(() => _isUpdating = false);
+  }
+
+  Future<void> _deleteService(int index) async {
+    setState(() => _isUpdating = true);
+    try {
+      final newServices = List<RepairService>.from(r.services);
+      newServices.removeAt(index);
+      r.services = newServices;
+      r.cost = newServices.fold(0, (sum, s) => sum + s.cost);
+      r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
+      r.isSynced = false;
+      await db.upsertRepair(r);
+      NotificationService.showSnackBar(
+        "ĐÃ XÓA DỊCH VỤ",
+        color: AppColors.warning,
+      );
+      EventBus().emit('repair_services_changed');
+    } catch (e) {
+      NotificationService.showSnackBar("Lỗi: $e", color: AppColors.error);
+    }
+    setState(() => _isUpdating = false);
+  }
 
   Widget _buildImageGallery() {
     final images = r.receiveImages;
@@ -1263,18 +1618,18 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 /// Dialog widget riêng biệt để chọn linh kiện - tách ra để quản lý state đúng cách
 class _PartsSelectionDialog extends StatefulWidget {
   final List<Map<String, dynamic>> parts;
-  
+
   const _PartsSelectionDialog({required this.parts});
-  
+
   @override
   State<_PartsSelectionDialog> createState() => _PartsSelectionDialogState();
 }
 
 class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
   final Map<String, int> selectedQuantities = {};
-  
+
   int get totalSelected => selectedQuantities.values.fold(0, (a, b) => a + b);
-  
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -1308,8 +1663,8 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
             final currentQty = selectedQuantities[uniqueKey] ?? 0;
 
             return Card(
-              color: currentQty > 0 
-                  ? Colors.green.shade50 
+              color: currentQty > 0
+                  ? Colors.green.shade50
                   : (isFromProducts ? Colors.blue.shade50 : null),
               child: Padding(
                 padding: const EdgeInsets.all(8),
@@ -1335,7 +1690,10 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: isFromProducts
                                 ? Colors.blue.withOpacity(0.2)
@@ -1346,7 +1704,9 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                             isFromProducts ? "Kho tổng" : "Kho cũ",
                             style: TextStyle(
                               fontSize: 10,
-                              color: isFromProducts ? Colors.blue : Colors.purple,
+                              color: isFromProducts
+                                  ? Colors.blue
+                                  : Colors.purple,
                             ),
                           ),
                         ),
@@ -1356,34 +1716,46 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                     // Dòng 2: Tồn + Giá
                     Text(
                       "Tồn: $partQty | Vốn: ${MoneyUtils.formatCurrency(partCost)} | Bán: ${MoneyUtils.formatCurrency(partPrice)}",
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                     const SizedBox(height: 8),
-                    // Dòng 3: Nút +/- 
+                    // Dòng 3: Nút +/-
                     if (partQty > 0)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           // Nút trừ
                           Material(
-                            color: currentQty > 0 ? Colors.red : Colors.grey.shade300,
+                            color: currentQty > 0
+                                ? Colors.red
+                                : Colors.grey.shade300,
                             borderRadius: BorderRadius.circular(8),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(8),
-                              onTap: currentQty > 0 ? () {
-                                setState(() {
-                                  if (currentQty <= 1) {
-                                    selectedQuantities.remove(uniqueKey);
-                                  } else {
-                                    selectedQuantities[uniqueKey] = currentQty - 1;
-                                  }
-                                });
-                              } : null,
+                              onTap: currentQty > 0
+                                  ? () {
+                                      setState(() {
+                                        if (currentQty <= 1) {
+                                          selectedQuantities.remove(uniqueKey);
+                                        } else {
+                                          selectedQuantities[uniqueKey] =
+                                              currentQty - 1;
+                                        }
+                                      });
+                                    }
+                                  : null,
                               child: Container(
                                 width: 48,
                                 height: 40,
                                 alignment: Alignment.center,
-                                child: const Icon(Icons.remove, color: Colors.white, size: 24),
+                                child: const Icon(
+                                  Icons.remove,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
                               ),
                             ),
                           ),
@@ -1396,26 +1768,37 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: currentQty > 0 ? Colors.green.shade700 : Colors.grey,
+                                color: currentQty > 0
+                                    ? Colors.green.shade700
+                                    : Colors.grey,
                               ),
                             ),
                           ),
                           // Nút cộng
                           Material(
-                            color: currentQty < partQty ? Colors.green : Colors.grey.shade300,
+                            color: currentQty < partQty
+                                ? Colors.green
+                                : Colors.grey.shade300,
                             borderRadius: BorderRadius.circular(8),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(8),
-                              onTap: currentQty < partQty ? () {
-                                setState(() {
-                                  selectedQuantities[uniqueKey] = currentQty + 1;
-                                });
-                              } : null,
+                              onTap: currentQty < partQty
+                                  ? () {
+                                      setState(() {
+                                        selectedQuantities[uniqueKey] =
+                                            currentQty + 1;
+                                      });
+                                    }
+                                  : null,
                               child: Container(
                                 width: 48,
                                 height: 40,
                                 alignment: Alignment.center,
-                                child: const Icon(Icons.add, color: Colors.white, size: 24),
+                                child: const Icon(
+                                  Icons.add,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
                               ),
                             ),
                           ),
@@ -1428,7 +1811,10 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                         alignment: Alignment.center,
                         child: const Text(
                           "HẾT HÀNG",
-                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                   ],
@@ -1444,8 +1830,11 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
           child: const Text("HỦY"),
         ),
         ElevatedButton(
-          onPressed: totalSelected > 0 
-              ? () => Navigator.pop(context, Map<String, int>.from(selectedQuantities))
+          onPressed: totalSelected > 0
+              ? () => Navigator.pop(
+                  context,
+                  Map<String, int>.from(selectedQuantities),
+                )
               : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.purple,

@@ -42,7 +42,7 @@ class OrderListViewState extends State<OrderListView> {
   String _timeFilter = 'all'; // all, today, week, month, custom
   DateTime? _customStartDate;
   DateTime? _customEndDate;
-  
+
   // Status filter - null means all, otherwise specific status
   int? _statusFilter; // null=all, 1=tiếp nhận, 2=đang sửa, 3=xong, 4=đã giao
 
@@ -211,11 +211,15 @@ class OrderListViewState extends State<OrderListView> {
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // STATUS FILTER
               const Text(
                 'TRẠNG THÁI',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: Colors.grey,
+                ),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -230,11 +234,15 @@ class OrderListViewState extends State<OrderListView> {
                 ],
               ),
               const SizedBox(height: 20),
-              
+
               // TIME FILTER
               const Text(
                 'THỜI GIAN',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: Colors.grey,
+                ),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -355,7 +363,12 @@ class OrderListViewState extends State<OrderListView> {
     );
   }
 
-  Widget _statusChip(String label, int? value, StateSetter setSheetState, [Color? activeColor]) {
+  Widget _statusChip(
+    String label,
+    int? value,
+    StateSetter setSheetState, [
+    Color? activeColor,
+  ]) {
     final isSelected = _statusFilter == value;
     final color = activeColor ?? const Color(0xFF2962FF);
     return GestureDetector(
@@ -365,9 +378,7 @@ class OrderListViewState extends State<OrderListView> {
         decoration: BoxDecoration(
           color: isSelected ? color : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? color : Colors.grey.shade300,
-          ),
+          border: Border.all(color: isSelected ? color : Colors.grey.shade300),
         ),
         child: Text(
           label,
@@ -434,11 +445,11 @@ class OrderListViewState extends State<OrderListView> {
                   password: passCtrl.text,
                 );
                 await user.reauthenticateWithCredential(cred);
-                
+
                 // Lưu id trước khi xóa để dùng cho sync
                 final repairId = r.id;
                 final repairFirestoreId = r.firestoreId;
-                
+
                 // Nếu có firestoreId, xóa trực tiếp trên Firestore trước
                 if (repairFirestoreId != null && repairFirestoreId.isNotEmpty) {
                   try {
@@ -446,15 +457,15 @@ class OrderListViewState extends State<OrderListView> {
                         .collection('repairs')
                         .doc(repairFirestoreId)
                         .update({
-                      'deleted': true,
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    });
+                          'deleted': true,
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        });
                   } catch (e) {
                     debugPrint('❌ Failed to soft delete on Firestore: $e');
                     // Tiếp tục xóa local dù Firestore fail
                   }
                 }
-                
+
                 // Xóa local bằng firestoreId nếu có, nếu không thì xóa bằng id
                 if (repairFirestoreId != null && repairFirestoreId.isNotEmpty) {
                   await db.deleteRepairByFirestoreId(repairFirestoreId);
@@ -469,7 +480,8 @@ class OrderListViewState extends State<OrderListView> {
                   action: 'XÓA ĐƠN SỬA',
                   type: 'REPAIR',
                   targetId: repairFirestoreId,
-                  desc: 'Đã xóa đơn sửa ${r.model} - ${r.customerName} - ${r.phone}',
+                  desc:
+                      'Đã xóa đơn sửa ${r.model} - ${r.customerName} - ${r.phone}',
                 );
 
                 // Queue delete sync via SyncOrchestrator (backup nếu Firestore direct fail)
@@ -862,17 +874,13 @@ class OrderListViewState extends State<OrderListView> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: isDone
-                            ? Colors.green.shade100
-                            : Colors.orange.shade100,
+                        color: _getStatusColor(r.status).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        isDone ? "XONG" : "ĐANG SỬA",
+                        _getStatusLabel(r.status),
                         style: TextStyle(
-                          color: isDone
-                              ? Colors.green.shade700
-                              : Colors.orange.shade700,
+                          color: _getStatusColor(r.status),
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -886,5 +894,35 @@ class OrderListViewState extends State<OrderListView> {
         ),
       ),
     );
+  }
+
+  String _getStatusLabel(int status) {
+    switch (status) {
+      case 1:
+        return "TIẾP NHẬN";
+      case 2:
+        return "ĐANG SỬA";
+      case 3:
+        return "SỬA XONG";
+      case 4:
+        return "ĐÃ GIAO";
+      default:
+        return "KHÁC";
+    }
+  }
+
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 1:
+        return Colors.blue;
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.green;
+      case 4:
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
   }
 }

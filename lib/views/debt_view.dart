@@ -218,7 +218,7 @@ class _DebtViewState extends State<DebtView>
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2962FF),
               ),
-              child: Text("THU TIỀN TRẢ NỢ", style: AppTextStyles.button),
+              child: Text("TRẢ NỢ", style: AppTextStyles.button),
             ),
           ],
         ),
@@ -245,7 +245,7 @@ class _DebtViewState extends State<DebtView>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          title: const Text("THU TIỀN TRẢ NỢ"),
+          title: const Text("TRẢ NỢ"),
           content: Form(
             key: formKey,
             child: Column(
