@@ -2964,7 +2964,7 @@ class _InventoryViewState extends State<InventoryView>
 
               await db.upsertProduct(updatedP);
 
-              // Queue sync
+              // Queue sync VÀ sync ngay lập tức lên Firestore
               if (p.id != null) {
                 await SyncOrchestrator().enqueue(
                   entityType: SyncEntityType.product,
@@ -2973,6 +2973,8 @@ class _InventoryViewState extends State<InventoryView>
                   operation: SyncOperation.update,
                   data: updatedP.toMap(),
                 );
+                // Sync ngay lập tức để tránh race condition với realtime sync
+                await SyncOrchestrator().syncAll();
               }
 
               // 2. Lưu lịch sử nhập hàng từ nhà cung cấp

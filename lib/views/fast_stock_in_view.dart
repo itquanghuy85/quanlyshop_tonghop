@@ -770,6 +770,10 @@ class _FastStockInViewState extends State<FastStockInView> {
           operation: SyncOperation.create,
           data: product.toMap(),
         );
+        // Sync ngay lập tức nếu là kho tạm (để isPending được sync lên Firestore)
+        if (isPending) {
+          await SyncOrchestrator().syncAll();
+        }
       }
 
       // Lưu lịch sử nhập hàng từ nhà cung cấp - CHỈ KHI KHÔNG PENDING

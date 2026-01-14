@@ -56,14 +56,19 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
       // Sort by date descending
       _allInstallmentSales.sort((a, b) => b.soldAt.compareTo(a.soldAt));
       
-      // Extract unique bank names
+      // Extract unique bank names - loại bỏ duplicate và giá trị 'all'
       final banks = <String>{};
       for (var s in _allInstallmentSales) {
-        if (s.bankName != null && s.bankName!.isNotEmpty) {
+        if (s.bankName != null && s.bankName!.isNotEmpty && s.bankName != 'all') {
           banks.add(s.bankName!);
         }
       }
       _bankNames = banks.toList()..sort();
+      
+      // Reset selected bank nếu không còn trong danh sách
+      if (_selectedBank != 'all' && !_bankNames.contains(_selectedBank)) {
+        _selectedBank = 'all';
+      }
       
     } catch (e) {
       debugPrint('BankInstallmentReportView _loadData error: $e');
@@ -153,7 +158,10 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
     final result = <String, Map<String, int>>{};
     
     for (var s in sales) {
-      final bank = s.bankName ?? 'Không xác định';
+      // Xử lý cả trường hợp null và empty string
+      final bank = (s.bankName == null || s.bankName!.isEmpty) 
+          ? 'Không xác định' 
+          : s.bankName!;
       
       if (!result.containsKey(bank)) {
         result[bank] = {
@@ -307,25 +315,31 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
                     border: Border.all(color: Colors.grey.shade300),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: DropdownButton<String>(
-                    value: _selectedBank,
-                    isExpanded: true,
-                    underline: const SizedBox(),
-                    items: [
-                      const DropdownMenuItem(
-                        value: 'all',
-                        child: Text('Tất cả ngân hàng'),
-                      ),
-                      ..._bankNames.map((bank) => DropdownMenuItem(
-                        value: bank,
-                        child: Text(bank),
-                      )),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => _selectedBank = value);
-                      }
-                    },
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedBank,
+                      isExpanded: true,
+                      hint: const Text('Chọn ngân hàng'),
+                      items: [
+                        const DropdownMenuItem(
+                          value: 'all',
+                          child: Text('Tất cả ngân hàng'),
+                        ),
+                        // Lọc bỏ các bank name trùng với 'all' và loại bỏ duplicate
+                        ..._bankNames
+                            .where((bank) => bank.isNotEmpty && bank != 'all')
+                            .toSet() // Loại bỏ duplicate
+                            .map((bank) => DropdownMenuItem(
+                              value: bank,
+                              child: Text(bank),
+                            )),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _selectedBank = value);
+                        }
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -517,7 +531,10 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: () {
-              setState(() => _selectedBank = bank);
+              // Chỉ cho tap nếu bank tồn tại trong danh sách dropdown
+              if (_bankNames.contains(bank)) {
+                setState(() => _selectedBank = bank);
+              }
             },
             child: Padding(
               padding: const EdgeInsets.all(16),

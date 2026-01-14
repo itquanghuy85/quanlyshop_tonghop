@@ -58,7 +58,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Future<void> _loadPartners() async {
     final partnerService = RepairPartnerService();
-    final partners = await partnerService.getPartners();
+    final partners = await partnerService.getRepairPartners();
     if (!mounted) return;
     setState(() => _partners = partners);
   }

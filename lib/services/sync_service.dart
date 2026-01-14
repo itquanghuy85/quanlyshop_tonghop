@@ -22,18 +22,20 @@ import 'claims_service.dart';
 class SyncService {
   static final _db = FirebaseFirestore.instance;
   static final List<StreamSubscription> _subscriptions = [];
-  
+
   // Track active subscriptions and their status for debugging
   static final Map<String, bool> _subscriptionStatus = {};
   static VoidCallback? _onDataChangedCallback;
   static String? _currentShopId;
   static bool _isInitialized = false;
-  
+
   /// Check if real-time sync is initialized and active
-  static bool get isRealTimeSyncActive => _isInitialized && _subscriptions.isNotEmpty;
-  
+  static bool get isRealTimeSyncActive =>
+      _isInitialized && _subscriptions.isNotEmpty;
+
   /// Get subscription status for debugging
-  static Map<String, bool> get subscriptionStatus => Map.unmodifiable(_subscriptionStatus);
+  static Map<String, bool> get subscriptionStatus =>
+      Map.unmodifiable(_subscriptionStatus);
 
   /// Helper: Lấy timestamp từ data (hỗ trợ cả Timestamp và int)
   static int _getTimestamp(dynamic value) {
@@ -250,7 +252,7 @@ class SyncService {
     debugPrint("Khởi tạo real-time sync...");
     // Hủy các subscription cũ nếu có để tránh rò rỉ bộ nhớ hoặc lặp sự kiện
     await cancelAllSubscriptions();
-    
+
     // Store callback for potential reinitialization
     _onDataChangedCallback = onDataChanged;
 
@@ -263,7 +265,7 @@ class SyncService {
     final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
     // Super admin cũng cần shopId nếu đã chọn shop
     final String? shopId = await UserService.getCurrentShopId();
-    
+
     // Store shopId for later reference
     _currentShopId = shopId;
 
@@ -427,6 +429,19 @@ class SyncService {
             if (shouldAccept) {
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+
+              // BẢO TOÀN isPending và pendingSupplier từ local nếu cloud không có
+              // (để tránh mất trạng thái Kho Tạm khi sync)
+              final existingProduct = await db.getProductByFirestoreId(docId);
+              if (existingProduct != null) {
+                // Nếu local có isPending = true và cloud không có trường này
+                // thì giữ nguyên giá trị local
+                if (existingProduct.isPending && data['isPending'] == null) {
+                  data['isPending'] = 1;
+                  data['pendingSupplier'] = existingProduct.pendingSupplier;
+                }
+              }
+
               await db.upsertProduct(Product.fromMap(data));
             }
           }
@@ -990,7 +1005,7 @@ class SyncService {
 
     // Mark as initialized
     _isInitialized = true;
-    
+
     debugPrint(
       "✅ Đã khởi tạo real-time sync cho ${isSuperAdmin ? 'super admin' : 'shop: $shopId'} với ${_subscriptions.length} subscriptions",
     );
@@ -1014,43 +1029,48 @@ class SyncService {
         "⚠️ Subscribing to $collection WITHOUT shopId filter (super admin mode)",
       );
     }
-    
+
     // Track subscription status
     _subscriptionStatus[collection] = true;
 
-    final sub = query.snapshots().listen((snapshot) async {
-      // Log initial sync or updates
-      debugPrint(
-        "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
-      );
-      
-      for (var change in snapshot.docChanges) {
-        var data = change.doc.data();
-        if (data == null) continue;
-
-        // Giải mã dữ liệu nếu được mã hóa
-        data = EncryptionService.decryptMap(data);
-
+    final sub = query.snapshots().listen(
+      (snapshot) async {
+        // Log initial sync or updates
         debugPrint(
-          "Real-time change in $collection: ${change.doc.id}, type: ${change.type}",
+          "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
         );
-        await onChanged(data, change.doc.id);
-      }
-      onBatchDone();
-    }, onError: (e) {
-      final errorStr = e.toString();
-      debugPrint("❌ Sync error in $collection: $errorStr");
-      _subscriptionStatus[collection] = false;
-      
-      // Don't retry for permission-denied errors - this is a rules issue, not temporary
-      if (errorStr.contains('permission-denied')) {
-        debugPrint("⚠️ Permission denied for $collection - skipping re-subscribe (check Firestore rules)");
-        return;
-      }
-      
-      // Try to re-subscribe after error for other error types
-      _scheduleResubscribe(collection, shopId, onChanged, onBatchDone);
-    });
+
+        for (var change in snapshot.docChanges) {
+          var data = change.doc.data();
+          if (data == null) continue;
+
+          // Giải mã dữ liệu nếu được mã hóa
+          data = EncryptionService.decryptMap(data);
+
+          debugPrint(
+            "Real-time change in $collection: ${change.doc.id}, type: ${change.type}",
+          );
+          await onChanged(data, change.doc.id);
+        }
+        onBatchDone();
+      },
+      onError: (e) {
+        final errorStr = e.toString();
+        debugPrint("❌ Sync error in $collection: $errorStr");
+        _subscriptionStatus[collection] = false;
+
+        // Don't retry for permission-denied errors - this is a rules issue, not temporary
+        if (errorStr.contains('permission-denied')) {
+          debugPrint(
+            "⚠️ Permission denied for $collection - skipping re-subscribe (check Firestore rules)",
+          );
+          return;
+        }
+
+        // Try to re-subscribe after error for other error types
+        _scheduleResubscribe(collection, shopId, onChanged, onBatchDone);
+      },
+    );
 
     _subscriptions.add(sub);
   }
@@ -1136,7 +1156,9 @@ class SyncService {
     // Delay 5 seconds before resubscribing to avoid rapid reconnection loops
     Future.delayed(const Duration(seconds: 5), () {
       if (_subscriptionStatus[collection] == false) {
-        debugPrint('🔄 Attempting to re-subscribe to $collection after error...');
+        debugPrint(
+          '🔄 Attempting to re-subscribe to $collection after error...',
+        );
         _subscribeToCollection(
           collection: collection,
           shopId: shopId,
@@ -1151,7 +1173,7 @@ class SyncService {
   static Future<void> forceReinitializeSync() async {
     debugPrint('🔄 Force reinitializing real-time sync...');
     await cancelAllSubscriptions();
-    
+
     if (_onDataChangedCallback != null) {
       await initRealTimeSync(_onDataChangedCallback!);
     } else {
@@ -1884,6 +1906,16 @@ class SyncService {
               if (col == 'repairs') {
                 await db.upsertRepair(Repair.fromMap(data));
               } else if (col == 'products') {
+                // BẢO TOÀN isPending và pendingSupplier từ local nếu cloud không có
+                final existingProduct = await db.getProductByFirestoreId(
+                  doc.id,
+                );
+                if (existingProduct != null) {
+                  if (existingProduct.isPending && data['isPending'] == null) {
+                    data['isPending'] = 1;
+                    data['pendingSupplier'] = existingProduct.pendingSupplier;
+                  }
+                }
                 await db.upsertProduct(Product.fromMap(data));
               } else if (col == 'sales') {
                 await db.upsertSale(SaleOrder.fromMap(data));
