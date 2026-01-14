@@ -744,76 +744,289 @@ class _InventoryViewState extends State<InventoryView>
 
   void _showDeleteConfirmation(Product p) {
     final passwordCtrl = TextEditingController();
+    final reasonCtrl = TextEditingController();
+    bool deleteRelatedDebt = false;
+    bool deleteImportHistory = false;
+
+    // Kiểm tra xem sản phẩm có liên quan đến công nợ/lịch sử nhập không
+    db.getDebtsByProductId(p.firestoreId ?? '').then((debts) {
+      // Nếu có công nợ liên quan, hiển thị option
+    });
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Xác nhận xóa'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Nhập mật khẩu tài khoản để xóa sản phẩm này:'),
-            const SizedBox(height: 10),
-            TextField(
-              controller: passwordCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Mật khẩu tài khoản',
-                border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text('XÓA SẢN PHẨM', style: TextStyle(fontSize: 16)),
               ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Thông tin sản phẩm
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        p.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      if (p.imei != null && p.imei!.isNotEmpty)
+                        Text(
+                          'IMEI: ${p.imei}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      Text(
+                        'Giá vốn: ${MoneyUtils.formatCurrency(p.cost)}đ',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Cảnh báo
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '⚠️ LƯU Ý QUAN TRỌNG:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        '• Số liệu TÀI CHÍNH đã chốt sẽ KHÔNG thay đổi\n'
+                        '• Lịch sử nhập hàng sẽ được GIỮ LẠI\n'
+                        '• Sản phẩm sẽ được đánh dấu XÓA (có thể khôi phục)',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Options xóa liên quan
+                const Text(
+                  'Tùy chọn xóa:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  value: deleteRelatedDebt,
+                  onChanged: (v) => setS(() => deleteRelatedDebt = v ?? false),
+                  title: const Text(
+                    'Xóa công nợ NCC liên quan',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  subtitle: const Text(
+                    'Nếu nhập hàng công nợ',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                CheckboxListTile(
+                  value: deleteImportHistory,
+                  onChanged: (v) =>
+                      setS(() => deleteImportHistory = v ?? false),
+                  title: const Text(
+                    'Xóa lịch sử nhập hàng',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  subtitle: const Text(
+                    'Ẩn khỏi báo cáo NCC',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                const SizedBox(height: 16),
+
+                // Lý do xóa
+                TextField(
+                  controller: reasonCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Lý do xóa (tùy chọn)',
+                    hintText: 'VD: Nhập sai, trả hàng NCC...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    isDense: true,
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 16),
+
+                // Mật khẩu xác nhận
+                TextField(
+                  controller: passwordCtrl,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Mật khẩu tài khoản *',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    isDense: true,
+                    prefixIcon: const Icon(Icons.lock, size: 20),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (passwordCtrl.text.isEmpty) {
+                  NotificationService.showSnackBar(
+                    'Vui lòng nhập mật khẩu',
+                    color: AppColors.error,
+                  );
+                  return;
+                }
+
+                try {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user?.email != null) {
+                    // Re-authenticate với mật khẩu tài khoản
+                    AuthCredential credential = EmailAuthProvider.credential(
+                      email: user!.email!,
+                      password: passwordCtrl.text,
+                    );
+                    await user.reauthenticateWithCredential(credential);
+
+                    Navigator.pop(ctx);
+                    await _deleteProductWithOptions(
+                      p,
+                      deleteRelatedDebt: deleteRelatedDebt,
+                      deleteImportHistory: deleteImportHistory,
+                      reason: reasonCtrl.text.trim(),
+                    );
+                  }
+                } catch (e) {
+                  NotificationService.showSnackBar(
+                    'Mật khẩu không đúng',
+                    color: AppColors.error,
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('XÓA SẢN PHẨM'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (passwordCtrl.text.isEmpty) {
-                NotificationService.showSnackBar(
-                  'Vui lòng nhập mật khẩu',
-                  color: AppColors.error,
-                );
-                return;
-              }
-
-              try {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user?.email != null) {
-                  // Re-authenticate với mật khẩu tài khoản
-                  AuthCredential credential = EmailAuthProvider.credential(
-                    email: user!.email!,
-                    password: passwordCtrl.text,
-                  );
-                  await user.reauthenticateWithCredential(credential);
-
-                  Navigator.pop(ctx);
-                  await _deleteProduct(p);
-                }
-              } catch (e) {
-                NotificationService.showSnackBar(
-                  'Mật khẩu không đúng',
-                  color: AppColors.error,
-                );
-              }
-            },
-            style: AppButtonStyles.errorElevatedButtonStyle,
-            child: Text(
-              'Xóa',
-              style: AppTextStyles.button.copyWith(color: AppColors.onError),
-            ),
-          ),
-        ],
       ),
     );
   }
 
-  Future<void> _deleteProduct(Product p) async {
+  /// Xóa sản phẩm với các options liên quan
+  Future<void> _deleteProductWithOptions(
+    Product p, {
+    bool deleteRelatedDebt = false,
+    bool deleteImportHistory = false,
+    String? reason,
+  }) async {
     try {
-      // Xóa thực sự khỏi database
+      final user = FirebaseAuth.instance.currentUser;
+      final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
+      final ts = DateTime.now().millisecondsSinceEpoch;
+
+      // 1. GHI AUDIT LOG trước khi xóa
+      await db.logAction(
+        userId: user?.uid ?? '0',
+        userName: userName,
+        action: 'XÓA SẢN PHẨM',
+        type: 'PRODUCT',
+        targetId: p.firestoreId,
+        desc:
+            'Xóa SP: ${p.name} | IMEI: ${p.imei ?? "N/A"} | Giá vốn: ${p.cost} | Lý do: ${reason ?? "Không ghi"}',
+      );
+
+      // 2. Xóa công nợ NCC liên quan (nếu chọn)
+      if (deleteRelatedDebt && p.firestoreId != null) {
+        final debts = await db.getDebtsByProductId(p.firestoreId!);
+        for (var debt in debts) {
+          final debtId = debt['id'] as int?;
+          if (debtId != null) {
+            await db.softDeleteDebt(
+              debtId,
+              reason: 'Xóa theo sản phẩm ${p.name}',
+            );
+
+            // Log xóa công nợ
+            await db.logAction(
+              userId: user?.uid ?? '0',
+              userName: userName,
+              action: 'XÓA CÔNG NỢ (THEO SP)',
+              type: 'DEBT',
+              targetId: debt['firestoreId']?.toString(),
+              desc: 'Xóa công nợ NCC theo SP: ${p.name}',
+            );
+          }
+        }
+      }
+
+      // 3. Đánh dấu xóa lịch sử nhập hàng (nếu chọn)
+      if (deleteImportHistory && p.firestoreId != null) {
+        await db.softDeleteImportHistoryByProduct(p.firestoreId!);
+
+        await db.logAction(
+          userId: user?.uid ?? '0',
+          userName: userName,
+          action: 'XÓA LỊCH SỬ NHẬP (THEO SP)',
+          type: 'IMPORT_HISTORY',
+          targetId: p.firestoreId,
+          desc: 'Xóa lịch sử nhập theo SP: ${p.name}',
+        );
+      }
+
+      // 4. SOFT DELETE sản phẩm (đánh dấu deleted = true thay vì xóa thật)
       if (p.id != null) {
-        await db.deleteProduct(p.id!);
+        // Cập nhật trạng thái deleted
+        final deletedProduct = p.copyWith(updatedAt: ts, isSynced: false);
+        // Dùng map để set deleted = true
+        final productMap = deletedProduct.toMap();
+        productMap['deleted'] = 1;
+        productMap['deletedAt'] = ts;
+        productMap['deletedBy'] = userName;
+        productMap['deleteReason'] = reason;
+
+        await db.updateProductMap(p.id!, productMap);
 
         // Queue delete sync via SyncOrchestrator
         await SyncOrchestrator().enqueue(
@@ -824,13 +1037,13 @@ class _InventoryViewState extends State<InventoryView>
           data: null,
         );
 
-        // SYNC NGAY LẬP TỨC để Firestore cập nhật deleted=true
-        // Tránh realtime sync khôi phục lại sản phẩm
+        // SYNC NGAY LẬP TỨC
         await SyncOrchestrator().syncAll();
       }
+
       await _refresh();
       NotificationService.showSnackBar(
-        'Đã xóa sản phẩm khỏi kho',
+        'Đã xóa sản phẩm: ${p.name}',
         color: Colors.green,
       );
     } catch (e) {

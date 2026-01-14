@@ -1806,6 +1806,57 @@ class DBHelper {
       (await database).delete('products', where: 'id = ?', whereArgs: [id]);
   Future<int> deleteProductByFirestoreId(String fId) async => (await database)
       .delete('products', where: 'firestoreId = ?', whereArgs: [fId]);
+
+  /// Cập nhật sản phẩm bằng map (dùng cho soft delete với các trường tùy chỉnh)
+  Future<int> updateProductMap(int id, Map<String, dynamic> data) async {
+    return (await database).update(
+      'products',
+      data,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Lấy công nợ liên quan đến sản phẩm (theo linkedId hoặc note chứa productId)
+  Future<List<Map<String, dynamic>>> getDebtsByProductId(
+    String productId,
+  ) async {
+    if (productId.isEmpty) return [];
+    final db = await database;
+    // Tìm công nợ có linkedId = productId hoặc note chứa productId
+    final debts = await db.query(
+      'debts',
+      where:
+          "(linkedId = ? OR note LIKE ?) AND (deleted IS NULL OR deleted != 1)",
+      whereArgs: [productId, '%$productId%'],
+    );
+    return debts;
+  }
+
+  /// Soft delete công nợ
+  Future<int> softDeleteDebt(int debtId, {String? reason}) async {
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    return (await database).update(
+      'debts',
+      {'deleted': 1, 'deletedAt': ts, 'deleteReason': reason, 'isSynced': 0},
+      where: 'id = ?',
+      whereArgs: [debtId],
+    );
+  }
+
+  /// Soft delete lịch sử nhập hàng theo product
+  Future<int> softDeleteImportHistoryByProduct(String productId) async {
+    if (productId.isEmpty) return 0;
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    // Tìm theo IMEI hoặc productName
+    return (await database).update(
+      'supplier_import_history',
+      {'deleted': 1, 'deletedAt': ts, 'isSynced': 0},
+      where: "imei LIKE ? OR productName LIKE ?",
+      whereArgs: ['%$productId%', '%$productId%'],
+    );
+  }
+
   Future<List<Product>> getInStockProducts() async {
     final maps = await (await database).query(
       'products',
