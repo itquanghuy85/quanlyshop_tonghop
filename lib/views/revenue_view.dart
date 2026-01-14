@@ -43,7 +43,7 @@ class _RevenueViewState extends State<RevenueView>
   StreamSubscription<DocumentSnapshot>? _closingSubscription;
 
   // Filter states
-  String _timeFilter = 'today'; // today, week, month, custom
+  String _timeFilter = 'today'; // today, week, month, quarter, year, custom
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
@@ -262,6 +262,14 @@ class _RevenueViewState extends State<RevenueView>
       case 'month':
         final monthStart = DateTime(now.year, now.month, 1);
         return !dt.isBefore(monthStart);
+      case 'quarter':
+        final currentQuarter = ((now.month - 1) ~/ 3) + 1;
+        final quarterStartMonth = (currentQuarter - 1) * 3 + 1;
+        final quarterStart = DateTime(now.year, quarterStartMonth, 1);
+        return !dt.isBefore(quarterStart);
+      case 'year':
+        final yearStart = DateTime(now.year, 1, 1);
+        return !dt.isBefore(yearStart);
       case 'custom':
         if (_customStartDate != null && dt.isBefore(_customStartDate!)) {
           return false;
@@ -277,13 +285,19 @@ class _RevenueViewState extends State<RevenueView>
   }
 
   String _getFilterLabel() {
+    final now = DateTime.now();
     switch (_timeFilter) {
       case 'today':
         return 'HÔM NAY';
       case 'week':
         return '7 NGÀY QUA';
       case 'month':
-        return 'THÁNG NÀY';
+        return 'THÁNG ${now.month}';
+      case 'quarter':
+        final q = ((now.month - 1) ~/ 3) + 1;
+        return 'QUÝ $q/${now.year}';
+      case 'year':
+        return 'NĂM ${now.year}';
       case 'custom':
         if (_customStartDate != null && _customEndDate != null) {
           return '${DateFormat('dd/MM').format(_customStartDate!)} - ${DateFormat('dd/MM').format(_customEndDate!)}';
@@ -333,6 +347,8 @@ class _RevenueViewState extends State<RevenueView>
                   _filterChip('Hôm nay', 'today', setSheetState),
                   _filterChip('7 ngày', 'week', setSheetState),
                   _filterChip('Tháng này', 'month', setSheetState),
+                  _filterChip('Quý này', 'quarter', setSheetState),
+                  _filterChip('Năm nay', 'year', setSheetState),
                   _customDateChip(ctx, setSheetState),
                 ],
               ),
@@ -2467,6 +2483,168 @@ class _RevenueViewState extends State<RevenueView>
                   fRepairs.length,
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Receivables Section - Công nợ phải thu
+          _buildReceivablesSection(),
+        ],
+      ),
+    );
+  }
+
+  /// Widget hiển thị công nợ phải thu
+  Widget _buildReceivablesSection() {
+    // Tính công nợ từ bán hàng (CÔNG NỢ payment method)
+    final debtSales = _sales
+        .where((s) => s.paymentMethod == 'CÔNG NỢ')
+        .toList();
+    int saleDebt = debtSales.fold(0, (sum, s) => sum + s.finalPrice);
+
+    // Tính công nợ từ sửa chữa (status == 4 + paymentMethod CÔNG NỢ)
+    final debtRepairs = _repairs
+        .where((r) => r.status == 4 && r.paymentMethod == 'CÔNG NỢ')
+        .toList();
+    int repairDebt = debtRepairs.fold(0, (sum, r) => sum + r.price);
+
+    // Tính tiền trả góp chưa nhận từ NH
+    final pendingInstallments = _sales
+        .where(
+          (s) =>
+              s.isInstallment &&
+              s.settlementReceivedAt == null &&
+              s.loanAmount > 0,
+        )
+        .toList();
+    int pendingFromBank = pendingInstallments.fold(
+      0,
+      (sum, s) => sum + s.loanAmount,
+    );
+
+    // Tổng phải thu
+    int totalReceivables = saleDebt + repairDebt + pendingFromBank;
+
+    if (totalReceivables == 0) return const SizedBox();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet,
+                  color: Colors.purple,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  "CÔNG NỢ PHẢI THU",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  "${NumberFormat('#,###').format(totalReceivables)} đ",
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (saleDebt > 0 || repairDebt > 0 || pendingFromBank > 0) ...[
+            const Divider(height: 20),
+            if (saleDebt > 0)
+              _receivableItem(
+                "Công nợ bán hàng",
+                saleDebt,
+                debtSales.length,
+                Icons.shopping_bag,
+                Colors.blue,
+              ),
+            if (repairDebt > 0)
+              _receivableItem(
+                "Công nợ sửa chữa",
+                repairDebt,
+                debtRepairs.length,
+                Icons.build,
+                Colors.orange,
+              ),
+            if (pendingFromBank > 0)
+              _receivableItem(
+                "Chờ NH tất toán",
+                pendingFromBank,
+                pendingInstallments.length,
+                Icons.account_balance,
+                Colors.teal,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _receivableItem(
+    String label,
+    int amount,
+    int count,
+    IconData icon,
+    Color color,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              "$label ($count đơn)",
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+            ),
+          ),
+          Text(
+            "${NumberFormat('#,###').format(amount)} đ",
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: color,
             ),
           ),
         ],
