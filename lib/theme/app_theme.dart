@@ -40,29 +40,42 @@ class AppTheme {
 
       // ========== APP BAR ==========
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 4,
-        shadowColor: AppColors.shadow,
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
         centerTitle: true,
-        titleTextStyle: AppTextStyles.headline6.copyWith(
-          color: AppColors.onPrimary,
+        titleTextStyle: TextStyle(
+          color: AppColors.onSurface,
           fontWeight: FontWeight.w600,
+          fontSize: 17,
+          letterSpacing: -0.3,
         ),
-        iconTheme: const IconThemeData(
-          color: AppColors.onPrimary,
+        iconTheme: IconThemeData(
+          color: AppColors.primary,
+          size: 22,
         ),
+        actionsIconTheme: IconThemeData(
+          color: AppColors.primary,
+          size: 22,
+        ),
+        toolbarHeight: 56,
       ),
 
       // ========== BOTTOM NAVIGATION BAR ==========
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: const Color.fromARGB(255, 137, 247, 162),
-        selectedItemColor: const Color.fromARGB(255, 167, 243, 14),
-        unselectedItemColor: AppColors.onSurface.withOpacity(0.6),
-        selectedLabelStyle: AppTextStyles.caption.copyWith(
+        backgroundColor: Colors.white,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.onSurface.withAlpha(130),
+        selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.w600,
+          fontSize: 11,
         ),
-        unselectedLabelStyle: AppTextStyles.caption,
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w400,
+          fontSize: 11,
+        ),
         elevation: 8,
         type: BottomNavigationBarType.fixed,
         showSelectedLabels: true,
@@ -70,16 +83,21 @@ class AppTheme {
       ),
 
       // ========== TAB BAR ==========
-      tabBarTheme: const TabBarThemeData(
-        labelColor: Colors.white,
-        unselectedLabelColor: AppColors.grey300,
-        labelStyle: TextStyle(fontWeight: FontWeight.w600),
-        unselectedLabelStyle: TextStyle(),
-        indicator: UnderlineTabIndicator(
-          borderSide: BorderSide(color: AppColors.secondary, width: 3),
-          insets: EdgeInsets.symmetric(horizontal: 16),
+      tabBarTheme: TabBarThemeData(
+        labelColor: AppColors.primary,
+        unselectedLabelColor: AppColors.onSurface.withAlpha(150),
+        labelStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
         ),
-        indicatorSize: TabBarIndicatorSize.tab,
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w400,
+          fontSize: 13,
+        ),
+        indicatorSize: TabBarIndicatorSize.label,
+        indicatorColor: AppColors.primary,
+        dividerColor: Colors.transparent,
+        overlayColor: WidgetStateProperty.all(AppColors.primary.withAlpha(30)),
       ),
 
       // ========== CARD ==========

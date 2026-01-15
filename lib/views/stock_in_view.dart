@@ -4,12 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
+import '../models/supplier_model.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/supplier_service.dart';
 import '../services/event_bus.dart';
 import '../services/sync_orchestrator.dart';
+import '../services/financial_activity_service.dart';
 import '../utils/imei_extractor.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/imei_scan_result_dialog.dart';
@@ -83,8 +85,7 @@ class _StockInViewState extends State<StockInView> {
   List<Map<String, dynamic>> suppliers = [];
 
   // Computed property to check if current type is accessory
-  bool get _isAccessoryOrLinhKien =>
-      typeCtrl.text == 'PHỤ KIỆN';
+  bool get _isAccessoryOrLinhKien => typeCtrl.text == 'PHỤ KIỆN';
 
   @override
   void initState() {
@@ -319,6 +320,150 @@ class _StockInViewState extends State<StockInView> {
     });
   }
 
+  Future<void> _addNewSupplier() async {
+    final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final addressCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+
+    await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Thêm nhà cung cấp mới',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  labelText: 'Tên nhà cung cấp *',
+                  hintText: 'VD: KHO HÀ NỘI',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Số điện thoại',
+                  hintText: 'Số điện thoại liên hệ',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: addressCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  labelText: 'Địa chỉ',
+                  hintText: 'Địa chỉ kho hàng',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: noteCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Ghi chú',
+                  hintText: 'Thông tin bổ sung (tùy chọn)',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameCtrl.text.trim().isEmpty) {
+                NotificationService.showSnackBar(
+                  "Vui lòng nhập tên nhà cung cấp",
+                  color: Colors.red,
+                );
+                return;
+              }
+              try {
+                final shopId = await UserService.getCurrentShopId();
+                final supplierService = SupplierService();
+                final supplier = Supplier(
+                  name: nameCtrl.text.trim().toUpperCase(),
+                  phone: phoneCtrl.text.trim().isNotEmpty
+                      ? phoneCtrl.text.trim()
+                      : null,
+                  address: addressCtrl.text.trim().isNotEmpty
+                      ? addressCtrl.text.trim().toUpperCase()
+                      : null,
+                  note: noteCtrl.text.trim().isNotEmpty
+                      ? noteCtrl.text.trim()
+                      : null,
+                  shopId: shopId ?? '',
+                );
+                final savedSupplier = await supplierService.addSupplier(
+                  supplier,
+                );
+                if (savedSupplier != null) {
+                  await _loadSuppliers();
+                  setState(
+                    () =>
+                        supplierCtrl.text = nameCtrl.text.trim().toUpperCase(),
+                  );
+                  EventBus().emit('suppliers_changed');
+                  Navigator.pop(ctx, true);
+                  NotificationService.showSnackBar(
+                    "Đã thêm nhà cung cấp thành công",
+                    color: Colors.green,
+                  );
+                } else {
+                  NotificationService.showSnackBar(
+                    "Lỗi thêm nhà cung cấp",
+                    color: Colors.red,
+                  );
+                }
+              } catch (e) {
+                NotificationService.showSnackBar(
+                  "Lỗi thêm nhà cung cấp: $e",
+                  color: Colors.red,
+                );
+              }
+            },
+            child: const Text('Thêm'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -534,6 +679,24 @@ class _StockInViewState extends State<StockInView> {
               firestoreId: importHistory['firestoreId'] as String?,
               operation: SyncOperation.create,
             );
+
+            // Ghi nhật ký hoạt động tài chính - nhập hàng
+            try {
+              await FinancialActivityService.logPurchase(
+                firestoreId:
+                    importHistory['firestoreId'] as String? ??
+                    'purchase_${DateTime.now().millisecondsSinceEpoch}',
+                amount: product.cost * quantity,
+                paymentMethod: selectedPaymentMethod,
+                productName: product.name,
+                supplierName: supplierCtrl.text,
+                quantity: quantity,
+                createdAt: ts,
+                createdBy: userName,
+              );
+            } catch (e) {
+              debugPrint('Failed to log financial activity: $e');
+            }
           }
 
           // Cập nhật giá nhà cung cấp
@@ -1045,94 +1208,123 @@ class _StockInViewState extends State<StockInView> {
             ],
 
             // Nhà cung cấp
-            Builder(
-              builder: (context) {
-                // Fix: đảm bảo value nằm trong danh sách suppliers
-                final supplierNames = suppliers
-                    .map((s) => s['name'] as String)
-                    .toList();
-                final validValue =
-                    (supplierCtrl.text.isNotEmpty &&
-                        supplierNames.contains(supplierCtrl.text))
-                    ? supplierCtrl.text
-                    : null;
-                return DropdownButtonFormField<String>(
-                  initialValue: validValue,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _supplierChanged
-                        ? const Color(0xFF1976D2)
-                        : Colors.black87,
-                    fontWeight: _supplierChanged
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                  ),
-                  dropdownColor: Colors.white,
-                  decoration: InputDecoration(
-                    labelText: 'Nhà cung cấp *',
-                    labelStyle: TextStyle(
-                      fontSize: 12,
-                      color: _supplierChanged
-                          ? const Color(0xFF1976D2)
-                          : Colors.black87,
-                      fontWeight: _supplierChanged
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.business_center,
-                      size: 16,
-                      color: _supplierChanged
-                          ? const Color(0xFF1976D2)
-                          : Colors.black54,
-                    ),
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 6,
-                    ),
-                    filled: false,
-                    fillColor: _supplierChanged
-                        ? const Color(0xFFE3F2FD).withAlpha(50)
-                        : null,
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: _supplierChanged
-                            ? const Color(0xFF1976D2)
-                            : Colors.grey.shade400,
-                        width: _supplierChanged ? 1.5 : 1.0,
-                      ),
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.blue, width: 1.0),
-                    ),
-                  ),
-                  items: suppliers
-                      .map(
-                        (supplier) => DropdownMenuItem<String>(
-                          value: supplier['name'] as String,
-                          child: Text(
-                            supplier['name'] as String,
-                            style: TextStyle(
-                              fontSize: 12,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Builder(
+                    builder: (context) {
+                      // Fix: đảm bảo value nằm trong danh sách suppliers
+                      final supplierNames = suppliers
+                          .map((s) => s['name'] as String)
+                          .toList();
+                      final validValue =
+                          (supplierCtrl.text.isNotEmpty &&
+                              supplierNames.contains(supplierCtrl.text))
+                          ? supplierCtrl.text
+                          : null;
+                      return DropdownButtonFormField<String>(
+                        value: validValue,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _supplierChanged
+                              ? const Color(0xFF1976D2)
+                              : Colors.black87,
+                          fontWeight: _supplierChanged
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                        dropdownColor: Colors.white,
+                        decoration: InputDecoration(
+                          labelText: 'Nhà cung cấp *',
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            color: _supplierChanged
+                                ? const Color(0xFF1976D2)
+                                : Colors.black87,
+                            fontWeight: _supplierChanged
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                          prefixIcon: Icon(
+                            Icons.business_center,
+                            size: 16,
+                            color: _supplierChanged
+                                ? const Color(0xFF1976D2)
+                                : Colors.black54,
+                          ),
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 6,
+                          ),
+                          filled: false,
+                          fillColor: _supplierChanged
+                              ? const Color(0xFFE3F2FD).withAlpha(50)
+                              : null,
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
                               color: _supplierChanged
                                   ? const Color(0xFF1976D2)
-                                  : Colors.black87,
-                              fontWeight: _supplierChanged
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
+                                  : Colors.grey.shade400,
+                              width: _supplierChanged ? 1.5 : 1.0,
+                            ),
+                          ),
+                          focusedBorder: const OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Colors.blue,
+                              width: 1.0,
                             ),
                           ),
                         ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      supplierCtrl.text = value!;
-                    });
-                  },
-                );
-              },
+                        items: suppliers
+                            .map(
+                              (supplier) => DropdownMenuItem<String>(
+                                value: supplier['name'] as String,
+                                child: Text(
+                                  supplier['name'] as String,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _supplierChanged
+                                        ? const Color(0xFF1976D2)
+                                        : Colors.black87,
+                                    fontWeight: _supplierChanged
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            supplierCtrl.text = value!;
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Nút thêm nhà cung cấp mới
+                Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  child: IconButton(
+                    onPressed: _addNewSupplier,
+                    icon: const Icon(
+                      Icons.add_circle,
+                      color: Colors.green,
+                      size: 32,
+                    ),
+                    tooltip: 'Thêm nhà cung cấp mới',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 36,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
 

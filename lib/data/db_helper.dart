@@ -53,7 +53,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 59,
+      version: 61,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT)',
@@ -147,6 +147,90 @@ class DBHelper {
         );
         await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_sync_queue_entity ON sync_queue(entityType, entityId)',
+        );
+        // === SALES RETURNS TABLES (v60) - CHỈ THÊM MỚI, KHÔNG SỬA LOGIC CŨ ===
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS sales_returns(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firestoreId TEXT UNIQUE,
+            salesOrderId INTEGER,
+            salesOrderFirestoreId TEXT,
+            customerName TEXT,
+            customerPhone TEXT,
+            returnDate INTEGER,
+            totalReturnAmount INTEGER DEFAULT 0,
+            totalReturnCost INTEGER DEFAULT 0,
+            refundMethod TEXT DEFAULT 'TIỀN MẶT',
+            note TEXT,
+            createdAt INTEGER,
+            createdBy TEXT,
+            approvedBy TEXT,
+            approvedAt INTEGER,
+            status TEXT DEFAULT 'APPROVED',
+            shopId TEXT,
+            isSynced INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS sales_return_items(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firestoreId TEXT UNIQUE,
+            salesReturnId INTEGER,
+            salesReturnFirestoreId TEXT,
+            productId INTEGER,
+            productFirestoreId TEXT,
+            productName TEXT,
+            productImei TEXT,
+            quantity INTEGER DEFAULT 1,
+            price INTEGER DEFAULT 0,
+            cost INTEGER DEFAULT 0,
+            amount INTEGER DEFAULT 0,
+            shopId TEXT,
+            isSynced INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_sales_returns_shopId ON sales_returns(shopId)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_sales_returns_salesOrderId ON sales_returns(salesOrderId)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_sales_return_items_salesReturnId ON sales_return_items(salesReturnId)',
+        );
+        // === FINANCIAL ACTIVITY LOG TABLE (v61) ===
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS financial_activity_log(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firestoreId TEXT UNIQUE,
+            activityType TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            direction TEXT NOT NULL,
+            paymentMethod TEXT,
+            referenceType TEXT,
+            referenceId TEXT,
+            title TEXT NOT NULL,
+            description TEXT,
+            customerName TEXT,
+            phone TEXT,
+            productInfo TEXT,
+            balanceAfterCash INTEGER,
+            balanceAfterBank INTEGER,
+            createdAt INTEGER NOT NULL,
+            createdBy TEXT,
+            shopId TEXT,
+            isSynced INTEGER DEFAULT 0,
+            extraData TEXT
+          )
+        ''');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_financial_activity_shopId ON financial_activity_log(shopId)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_financial_activity_createdAt ON financial_activity_log(createdAt)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_financial_activity_type ON financial_activity_log(activityType)',
         );
       },
       onUpgrade: (db, oldV, newV) async {
@@ -1163,6 +1247,124 @@ class DBHelper {
             debugPrint('v59 error (products pendingSupplier): $e');
           }
           debugPrint('DB upgrade v59: completed');
+        }
+        if (oldV < 60) {
+          // v60: Thêm bảng sales_returns và sales_return_items cho tính năng Trả hàng
+          // CHỈ THÊM MỚI - KHÔNG SỬA LOGIC CŨ
+          debugPrint('DB upgrade v60: Adding sales_returns tables...');
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS sales_returns(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firestoreId TEXT UNIQUE,
+                salesOrderId INTEGER,
+                salesOrderFirestoreId TEXT,
+                customerName TEXT,
+                customerPhone TEXT,
+                returnDate INTEGER,
+                totalReturnAmount INTEGER DEFAULT 0,
+                totalReturnCost INTEGER DEFAULT 0,
+                refundMethod TEXT DEFAULT 'TIỀN MẶT',
+                note TEXT,
+                createdAt INTEGER,
+                createdBy TEXT,
+                approvedBy TEXT,
+                approvedAt INTEGER,
+                status TEXT DEFAULT 'APPROVED',
+                shopId TEXT,
+                isSynced INTEGER DEFAULT 0
+              )
+            ''');
+            debugPrint('v60: created sales_returns table');
+          } catch (e) {
+            debugPrint('v60 error (sales_returns): $e');
+          }
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS sales_return_items(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firestoreId TEXT UNIQUE,
+                salesReturnId INTEGER,
+                salesReturnFirestoreId TEXT,
+                productId INTEGER,
+                productFirestoreId TEXT,
+                productName TEXT,
+                productImei TEXT,
+                quantity INTEGER DEFAULT 1,
+                price INTEGER DEFAULT 0,
+                cost INTEGER DEFAULT 0,
+                amount INTEGER DEFAULT 0,
+                shopId TEXT,
+                isSynced INTEGER DEFAULT 0
+              )
+            ''');
+            debugPrint('v60: created sales_return_items table');
+          } catch (e) {
+            debugPrint('v60 error (sales_return_items): $e');
+          }
+          try {
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_sales_returns_shopId ON sales_returns(shopId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_sales_returns_salesOrderId ON sales_returns(salesOrderId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_sales_return_items_salesReturnId ON sales_return_items(salesReturnId)',
+            );
+            debugPrint('v60: created indexes for sales_returns');
+          } catch (e) {
+            debugPrint('v60 error (indexes): $e');
+          }
+          debugPrint('DB upgrade v60: completed');
+        }
+        if (oldV < 61) {
+          // v61: Thêm bảng financial_activity_log để theo dõi mọi hoạt động tài chính
+          debugPrint('DB upgrade v61: Adding financial_activity_log table...');
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS financial_activity_log(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firestoreId TEXT UNIQUE,
+                activityType TEXT NOT NULL,
+                amount INTEGER NOT NULL,
+                direction TEXT NOT NULL,
+                paymentMethod TEXT,
+                referenceType TEXT,
+                referenceId TEXT,
+                title TEXT NOT NULL,
+                description TEXT,
+                customerName TEXT,
+                phone TEXT,
+                productInfo TEXT,
+                balanceAfterCash INTEGER,
+                balanceAfterBank INTEGER,
+                createdAt INTEGER NOT NULL,
+                createdBy TEXT,
+                shopId TEXT,
+                isSynced INTEGER DEFAULT 0,
+                extraData TEXT
+              )
+            ''');
+            debugPrint('v61: created financial_activity_log table');
+          } catch (e) {
+            debugPrint('v61 error (financial_activity_log): $e');
+          }
+          try {
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_financial_activity_shopId ON financial_activity_log(shopId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_financial_activity_createdAt ON financial_activity_log(createdAt)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_financial_activity_type ON financial_activity_log(activityType)',
+            );
+            debugPrint('v61: created indexes for financial_activity_log');
+          } catch (e) {
+            debugPrint('v61 error (indexes): $e');
+          }
+          debugPrint('DB upgrade v61: completed');
         }
         debugPrint('DB upgrade completed');
       },
@@ -4023,5 +4225,459 @@ class DBHelper {
       where: 'firestoreId = ?',
       whereArgs: [firestoreId],
     );
+  }
+
+  // =====================================================
+  // === SALES RETURNS METHODS (CHỈ THÊM MỚI - v60) ===
+  // =====================================================
+
+  /// Thêm phiếu trả hàng mới
+  Future<int> insertSalesReturn(Map<String, dynamic> data) async {
+    final db = await database;
+    final shopId = await _ensureValidShopId(data['shopId'] as String?);
+    final insertData = Map<String, dynamic>.from(data);
+    insertData['shopId'] = shopId;
+    return await db.insert('sales_returns', insertData);
+  }
+
+  /// Cập nhật phiếu trả hàng
+  Future<int> updateSalesReturn(int id, Map<String, dynamic> data) async {
+    final db = await database;
+    return await db.update(
+      'sales_returns',
+      data,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Lấy phiếu trả hàng theo ID
+  Future<Map<String, dynamic>?> getSalesReturnById(int id) async {
+    final db = await database;
+    final result = await db.query(
+      'sales_returns',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return result.isNotEmpty ? result.first : null;
+  }
+
+  /// Lấy danh sách phiếu trả hàng theo shop
+  Future<List<Map<String, dynamic>>> getSalesReturns({
+    String? shopId,
+    int? limit,
+    int? offset,
+  }) async {
+    final db = await database;
+    final effectiveShopId = shopId ?? UserService.getShopIdSync();
+
+    String? where;
+    List<dynamic>? whereArgs;
+    if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
+      where = 'shopId = ?';
+      whereArgs = [effectiveShopId];
+    }
+
+    return await db.query(
+      'sales_returns',
+      where: where,
+      whereArgs: whereArgs,
+      orderBy: 'returnDate DESC',
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  /// Lấy phiếu trả hàng theo đơn bán gốc
+  Future<List<Map<String, dynamic>>> getSalesReturnsBySalesOrderId(
+    int salesOrderId,
+  ) async {
+    final db = await database;
+    return await db.query(
+      'sales_returns',
+      where: 'salesOrderId = ?',
+      whereArgs: [salesOrderId],
+      orderBy: 'returnDate DESC',
+    );
+  }
+
+  /// Thêm chi tiết sản phẩm trả hàng
+  Future<int> insertSalesReturnItem(Map<String, dynamic> data) async {
+    final db = await database;
+    final shopId = await _ensureValidShopId(data['shopId'] as String?);
+    final insertData = Map<String, dynamic>.from(data);
+    insertData['shopId'] = shopId;
+    return await db.insert('sales_return_items', insertData);
+  }
+
+  /// Lấy chi tiết sản phẩm trả hàng theo phiếu trả
+  Future<List<Map<String, dynamic>>> getSalesReturnItems(
+    int salesReturnId,
+  ) async {
+    final db = await database;
+    return await db.query(
+      'sales_return_items',
+      where: 'salesReturnId = ?',
+      whereArgs: [salesReturnId],
+    );
+  }
+
+  /// Tính tổng số lượng đã trả của một sản phẩm từ một đơn bán
+  Future<int> getTotalReturnedQuantity(
+    int salesOrderId,
+    String productImei,
+  ) async {
+    final db = await database;
+    // Lấy tất cả phiếu trả của đơn bán này
+    final returns = await db.query(
+      'sales_returns',
+      columns: ['id'],
+      where: 'salesOrderId = ? AND status != ?',
+      whereArgs: [salesOrderId, 'CANCELLED'],
+    );
+    if (returns.isEmpty) return 0;
+
+    final returnIds = returns.map((r) => r['id'] as int).toList();
+    
+    // Tính tổng quantity từ các item có productImei tương ứng (case-insensitive)
+    int total = 0;
+    for (final returnId in returnIds) {
+      final items = await db.query(
+        'sales_return_items',
+        columns: ['quantity'],
+        where: 'salesReturnId = ? AND UPPER(productImei) = ?',
+        whereArgs: [returnId, productImei.toUpperCase()],
+      );
+      for (final item in items) {
+        total += (item['quantity'] as int? ?? 0);
+      }
+    }
+    return total;
+  }
+
+  /// Tính tổng số lượng đã trả của một sản phẩm theo productId (cho phụ kiện không có IMEI)
+  Future<int> getTotalReturnedQuantityByProductId(
+    int salesOrderId,
+    int productId,
+  ) async {
+    final db = await database;
+    // Lấy tất cả phiếu trả của đơn bán này
+    final returns = await db.query(
+      'sales_returns',
+      columns: ['id'],
+      where: 'salesOrderId = ? AND status != ?',
+      whereArgs: [salesOrderId, 'CANCELLED'],
+    );
+    if (returns.isEmpty) return 0;
+
+    final returnIds = returns.map((r) => r['id'] as int).toList();
+    
+    // Tính tổng quantity từ các item có productId tương ứng
+    int total = 0;
+    for (final returnId in returnIds) {
+      final items = await db.query(
+        'sales_return_items',
+        columns: ['quantity'],
+        where: 'salesReturnId = ? AND productId = ?',
+        whereArgs: [returnId, productId],
+      );
+      for (final item in items) {
+        total += (item['quantity'] as int? ?? 0);
+      }
+    }
+    return total;
+  }
+
+  /// Xóa phiếu trả hàng và các item của nó
+  Future<void> deleteSalesReturn(int id) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete(
+        'sales_return_items',
+        where: 'salesReturnId = ?',
+        whereArgs: [id],
+      );
+      await txn.delete(
+        'sales_returns',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
+  }
+
+  /// Upsert phiếu trả hàng (dùng cho sync từ Firestore)
+  Future<void> upsertSalesReturn(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'] as String?;
+    if (firestoreId == null || firestoreId.isEmpty) {
+      await insertSalesReturn(data);
+      return;
+    }
+
+    final existing = await db.query(
+      'sales_returns',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+
+    final cleanData = Map<String, dynamic>.from(data);
+    cleanData.remove('id');
+
+    if (existing.isNotEmpty) {
+      await db.update(
+        'sales_returns',
+        cleanData,
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+    } else {
+      await db.insert('sales_returns', cleanData);
+    }
+  }
+
+  /// Upsert chi tiết sản phẩm trả hàng (dùng cho sync từ Firestore)
+  Future<void> upsertSalesReturnItem(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'] as String?;
+    if (firestoreId == null || firestoreId.isEmpty) {
+      await insertSalesReturnItem(data);
+      return;
+    }
+
+    final existing = await db.query(
+      'sales_return_items',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+
+    final cleanData = Map<String, dynamic>.from(data);
+    cleanData.remove('id');
+
+    if (existing.isNotEmpty) {
+      await db.update(
+        'sales_return_items',
+        cleanData,
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+    } else {
+      await db.insert('sales_return_items', cleanData);
+    }
+  }
+
+  /// Lấy thống kê tổng trả hàng theo khoảng thời gian
+  Future<Map<String, dynamic>> getSalesReturnStats({
+    required int startDate,
+    required int endDate,
+    String? shopId,
+  }) async {
+    final db = await database;
+    final effectiveShopId = shopId ?? UserService.getShopIdSync();
+
+    String whereClause = 'returnDate >= ? AND returnDate <= ? AND status = ?';
+    List<dynamic> whereArgs = [startDate, endDate, 'APPROVED'];
+    
+    if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
+      whereClause += ' AND shopId = ?';
+      whereArgs.add(effectiveShopId);
+    }
+
+    final result = await db.rawQuery('''
+      SELECT 
+        COUNT(*) as totalReturns,
+        COALESCE(SUM(totalReturnAmount), 0) as totalReturnAmount,
+        COALESCE(SUM(totalReturnCost), 0) as totalReturnCost
+      FROM sales_returns
+      WHERE $whereClause
+    ''', whereArgs);
+
+    if (result.isNotEmpty) {
+      return {
+        'totalReturns': result.first['totalReturns'] ?? 0,
+        'totalReturnAmount': result.first['totalReturnAmount'] ?? 0,
+        'totalReturnCost': result.first['totalReturnCost'] ?? 0,
+      };
+    }
+    return {'totalReturns': 0, 'totalReturnAmount': 0, 'totalReturnCost': 0};
+  }
+
+  // ========== FINANCIAL ACTIVITY LOG METHODS ==========
+  
+  /// Insert một activity mới vào log
+  Future<int> insertFinancialActivity(Map<String, dynamic> data) async {
+    final db = await database;
+    final cleanData = Map<String, dynamic>.from(data);
+    cleanData.remove('id');
+    
+    // Đảm bảo có shopId
+    if (cleanData['shopId'] == null || (cleanData['shopId'] as String).isEmpty) {
+      cleanData['shopId'] = UserService.getShopIdSync();
+    }
+    
+    return await db.insert('financial_activity_log', cleanData);
+  }
+
+  /// Lấy danh sách activity với bộ lọc
+  Future<List<Map<String, dynamic>>> getFinancialActivities({
+    int? startDate,
+    int? endDate,
+    String? activityType,
+    String? direction,
+    String? searchQuery,
+    int limit = 100,
+    int offset = 0,
+    String? shopId,
+  }) async {
+    final db = await database;
+    final effectiveShopId = shopId ?? UserService.getShopIdSync();
+    
+    List<String> conditions = [];
+    List<dynamic> args = [];
+    
+    if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
+      conditions.add('shopId = ?');
+      args.add(effectiveShopId);
+    }
+    
+    if (startDate != null) {
+      conditions.add('createdAt >= ?');
+      args.add(startDate);
+    }
+    
+    if (endDate != null) {
+      conditions.add('createdAt <= ?');
+      args.add(endDate);
+    }
+    
+    if (activityType != null && activityType.isNotEmpty) {
+      conditions.add('activityType = ?');
+      args.add(activityType);
+    }
+    
+    if (direction != null && direction.isNotEmpty) {
+      conditions.add('direction = ?');
+      args.add(direction);
+    }
+    
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      conditions.add('(title LIKE ? OR customerName LIKE ? OR phone LIKE ? OR description LIKE ?)');
+      final q = '%$searchQuery%';
+      args.addAll([q, q, q, q]);
+    }
+    
+    final whereClause = conditions.isNotEmpty ? conditions.join(' AND ') : '1=1';
+    
+    return await db.rawQuery('''
+      SELECT * FROM financial_activity_log
+      WHERE $whereClause
+      ORDER BY createdAt DESC
+      LIMIT ? OFFSET ?
+    ''', [...args, limit, offset]);
+  }
+
+  /// Lấy tổng hợp activity theo khoảng thời gian
+  Future<Map<String, dynamic>> getFinancialActivitySummary({
+    required int startDate,
+    required int endDate,
+    String? shopId,
+  }) async {
+    final db = await database;
+    final effectiveShopId = shopId ?? UserService.getShopIdSync();
+    
+    String whereClause = 'createdAt >= ? AND createdAt <= ?';
+    List<dynamic> args = [startDate, endDate];
+    
+    if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
+      whereClause += ' AND shopId = ?';
+      args.add(effectiveShopId);
+    }
+    
+    final result = await db.rawQuery('''
+      SELECT 
+        COUNT(*) as totalCount,
+        SUM(CASE WHEN direction = 'IN' THEN amount ELSE 0 END) as totalIn,
+        SUM(CASE WHEN direction = 'OUT' THEN amount ELSE 0 END) as totalOut,
+        SUM(CASE WHEN activityType = 'SALE' THEN 1 ELSE 0 END) as saleCount,
+        SUM(CASE WHEN activityType = 'EXPENSE' THEN 1 ELSE 0 END) as expenseCount,
+        SUM(CASE WHEN activityType = 'PURCHASE' THEN 1 ELSE 0 END) as purchaseCount,
+        SUM(CASE WHEN activityType = 'DEBT_COLLECT' THEN 1 ELSE 0 END) as debtCollectCount,
+        SUM(CASE WHEN activityType = 'DEBT_PAY' THEN 1 ELSE 0 END) as debtPayCount,
+        SUM(CASE WHEN activityType = 'SETTLEMENT' THEN 1 ELSE 0 END) as settlementCount
+      FROM financial_activity_log
+      WHERE $whereClause
+    ''', args);
+    
+    if (result.isNotEmpty) {
+      return {
+        'totalCount': result.first['totalCount'] ?? 0,
+        'totalIn': result.first['totalIn'] ?? 0,
+        'totalOut': result.first['totalOut'] ?? 0,
+        'saleCount': result.first['saleCount'] ?? 0,
+        'expenseCount': result.first['expenseCount'] ?? 0,
+        'purchaseCount': result.first['purchaseCount'] ?? 0,
+        'debtCollectCount': result.first['debtCollectCount'] ?? 0,
+        'debtPayCount': result.first['debtPayCount'] ?? 0,
+        'settlementCount': result.first['settlementCount'] ?? 0,
+      };
+    }
+    return {
+      'totalCount': 0, 'totalIn': 0, 'totalOut': 0,
+      'saleCount': 0, 'expenseCount': 0, 'purchaseCount': 0,
+      'debtCollectCount': 0, 'debtPayCount': 0, 'settlementCount': 0,
+    };
+  }
+
+  /// Xóa activity cũ hơn N ngày (để tối ưu DB)
+  Future<int> deleteOldFinancialActivities(int daysOld) async {
+    final db = await database;
+    final cutoff = DateTime.now().subtract(Duration(days: daysOld)).millisecondsSinceEpoch;
+    return await db.delete(
+      'financial_activity_log',
+      where: 'createdAt < ?',
+      whereArgs: [cutoff],
+    );
+  }
+
+  /// Kiểm tra activity đã tồn tại chưa (theo referenceType + referenceId)
+  Future<bool> financialActivityExists(String referenceType, String referenceId) async {
+    final db = await database;
+    final result = await db.query(
+      'financial_activity_log',
+      where: 'referenceType = ? AND referenceId = ?',
+      whereArgs: [referenceType, referenceId],
+      limit: 1,
+    );
+    return result.isNotEmpty;
+  }
+
+  /// Upsert activity (dùng cho sync)
+  Future<void> upsertFinancialActivity(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'] as String?;
+    if (firestoreId == null || firestoreId.isEmpty) {
+      await insertFinancialActivity(data);
+      return;
+    }
+
+    final existing = await db.query(
+      'financial_activity_log',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+
+    final cleanData = Map<String, dynamic>.from(data);
+    cleanData.remove('id');
+
+    if (existing.isNotEmpty) {
+      await db.update(
+        'financial_activity_log',
+        cleanData,
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+    } else {
+      await db.insert('financial_activity_log', cleanData);
+    }
   }
 }

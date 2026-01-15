@@ -29,3 +29,24 @@ trong kho khi chỉnh sửa sản phẩm 1 cái giữ lâu 1(popup "Chỉnh sử
 nếu nhân viên tạo sản phẩm bị lỗi hay sai trong lúc nhập thì xóa hay sửa sản phẩm đó như thế nào?những giá trị nào phải cập nhật khi bấm nứt xóa hay sửa sản phẩm?
 khi tôi giữ lâu để xóa sản phẩm trong lít kho thì ko xóa được nhưng reload lại trang thì sản phẩm đã bị xóa lại hiện lại
 trong chi chi tiết đơn sửa thiếu 1 trạng thái đang sửa.
+tôi bán hàng công nợ nhưng doanh thu không tính lợi nhuận. khi thu công nợ thì mới + lợi nhuận. hãy sửa lại cho đúng.
+khi nhập hàng bị nhầm thông tin ( giá , nhà cc, phương thức thanh toán) vào sửa thì các thông tin gốc và cá thông tin liên quan có được cập nhật theo ko?
+khi tôi trả hàng thì cập nhật lại danh sách sản phẩm đã có lưu lại hàng đã trả hay không nếu có thì có dấu hiệu ginh nhận biết hay không? tôi thấy chưa có lại hàng trả về trong kho.
+bút toán (lịch sử điều chỉnh) chỉ xoay và ko có giữ liệu
+khi tôi bán đơn hàng trị giá vốn 10tr bán khách 20tr tiền mặt doanh thu , lợi nhuận cập nhật đúng. nhưng khi tôi trả hàng thì doanh thu và lợi nhuận không bị trừ lại,trong chốt quỹ không thu vẫn 20tr, chi 0d,chi tiết thu 20tr chi tiết chi 0d, tab thu chi không bị trừ lại. hãy sửa lại cho đúng.
+tab home: thu hôm nay 5tr, chi hoomnay 0d, 1 khoản chi .lợi nhuận ròng hôm nay 150, công nợ hôm nay 0d
+tab tài chính: - tổng quan doanh thu: lợi nhuận ròng ( hôm nay) : doanh thu: 20,250tr,chi phí 0d, giá vốn 10,100tr, lợi nhuận 10,150tr, bán hàng ( 2 đơn)  +20,250tr, sửa chữa ( 0 đơn) +0d, 
+chốt quỹ hôm nay :tab tổng quan : tổng quỹ hiện tại :15250tr, tiền mặt 15tr, ngân hàng 0,25tr,số dư đầu ngày tiền mặt 0d, ngân hàng 0d, biến động trong ngafythu 20,250tr, chi -5tr. chi tiết thu: bán hàng 250000, tất toansnh 0, sửa chữa 0d, thu nợ kh 0,chi phí 0d, nhập hàng 0d, thanh toán ncc 0d, 
+lợi nhuận ròng 150000, 
+số dư dự kiến cuối ngày: tiền mặt 15tr, ngân hàng 0,25tr tổng 12,250tr
+tab thu bán hàng sale tiền mặt +20tr,tab chi 0d, lịch sử điều chỉnh: ko có giữ liệu.
+số liệu thêm tm: 
+số liệu thêm ck:
+số liệu thêm nợ khách:
+số liệu thêm nợ nhà cc:
+số liệu thêm trả nợ khách:
+số liệu thêm trả nợ nhà cc:
+số liệu thêm hoàn trả khách tiền mặt:
+số liệu thêm hoàn trả khách chuyển khoản:
+số liệu thêm vay góp khách tiền mặt:
+số liệu thêm vay góp khách chuyển khoản:

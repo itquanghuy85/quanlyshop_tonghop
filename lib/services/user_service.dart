@@ -128,6 +128,36 @@ class UserService {
     return _isSuperAdmin(FirebaseAuth.instance.currentUser);
   }
 
+  /// Kiểm tra user hiện tại có phải admin (owner/manager/super admin)
+  static Future<bool> isCurrentUserAdmin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    if (_isSuperAdmin(user)) return true;
+    
+    final role = await getUserRole(user.uid);
+    return role == 'admin' || role == 'owner' || role == 'manager';
+  }
+
+  /// Lấy tên hiển thị của user hiện tại
+  static Future<String> getCurrentUserName() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return 'Unknown';
+    
+    // Thử lấy từ Firebase Auth displayName
+    if (user.displayName != null && user.displayName!.isNotEmpty) {
+      return user.displayName!;
+    }
+    
+    // Lấy từ Firestore
+    try {
+      final info = await getUserInfo(user.uid);
+      final name = info['displayName'] ?? info['name'] ?? info['email'] ?? 'Unknown';
+      return name.toString();
+    } catch (e) {
+      return user.email ?? 'Unknown';
+    }
+  }
+
   /// Lấy danh sách tất cả shops (chỉ dùng cho super admin)
   static Future<List<Map<String, dynamic>>> getAllShops() async {
     if (!isCurrentUserSuperAdmin()) return [];

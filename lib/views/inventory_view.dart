@@ -29,6 +29,7 @@ import '../widgets/validated_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
+import '../widgets/custom_app_bar.dart';
 
 class InventoryView extends StatefulWidget {
   final String role;
@@ -1539,40 +1540,11 @@ class _InventoryViewState extends State<InventoryView>
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.orange, Colors.orange.withOpacity(0.7)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "QUẢN LÝ KHO",
-              style: AppTextStyles.headline6.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-            Text(
-              '${_products.length} sản phẩm${_unsyncedCount > 0 ? ' • $_unsyncedCount chưa đồng bộ' : ''}',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.white.withOpacity(0.8),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: true,
+      appBar: CustomAppBar.build(
+        title: 'QUẢN LÝ KHO',
+        subtitle:
+            '${_products.length} sản phẩm${_unsyncedCount > 0 ? ' • $_unsyncedCount chưa đồng bộ' : ''}',
+        accentColor: AppBarAccents.inventory,
         actions: [
           IconButton(
             onPressed: () {
@@ -1582,11 +1554,13 @@ class _InventoryViewState extends State<InventoryView>
                 MaterialPageRoute(builder: (_) => const CreateSaleView()),
               ).then((_) => _refresh());
             },
-            icon: const Icon(
+            icon: Icon(
               Icons.shopping_cart_checkout_rounded,
-              color: Colors.white,
+              color: AppBarAccents.inventory,
+              size: 22,
             ),
             tooltip: 'Bán hàng nhanh',
+            splashRadius: 20,
           ),
           IconButton(
             onPressed: () => Navigator.push(
@@ -1595,39 +1569,44 @@ class _InventoryViewState extends State<InventoryView>
                 builder: (_) => GlobalSearchView(role: widget.role),
               ),
             ),
-            icon: const Icon(Icons.search_rounded, color: Colors.white),
+            icon: Icon(
+              Icons.search_rounded,
+              color: AppBarAccents.inventory,
+              size: 22,
+            ),
             tooltip: 'Tìm kiếm toàn app',
+            splashRadius: 20,
           ),
           IconButton(
             onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            icon: Icon(
+              Icons.refresh_rounded,
+              color: AppBarAccents.inventory,
+              size: 22,
+            ),
             tooltip: 'Làm mới',
+            splashRadius: 20,
           ),
           TextButton.icon(
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SupplierListView()),
             ),
-            icon: const Icon(
+            icon: Icon(
               Icons.business_center,
               size: 18,
-              color: Colors.white70,
+              color: AppBarAccents.inventory.withOpacity(0.7),
             ),
             label: Text(
               'NCC',
-              style: AppTextStyles.caption.copyWith(color: Colors.white70),
+              style: AppTextStyles.caption.copyWith(
+                color: AppBarAccents.inventory.withOpacity(0.7),
+              ),
             ),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
           ),
-          // Nút thư viện đã ẩn theo yêu cầu
-          // IconButton(
-          //   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputLibraryView())),
-          //   icon: Icon(Icons.library_books, color: AppColors.info),
-          //   tooltip: 'Thư viện mã nhập nhanh',
-          // ),
-          const SizedBox(width: 8),
         ],
       ),
       body: Column(
@@ -3688,21 +3667,25 @@ class _InventoryViewState extends State<InventoryView>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Loại hàng
-                  DropdownButtonFormField<String>(
-                    initialValue: type,
-                    items: const [
-                      DropdownMenuItem(
-                        value: "DIEN_THOAI",
-                        child: Text("DIEN_THOAI"),
+                  // Loại hàng (KHÓA - không cho thay đổi)
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: "Loại hàng (không đổi)",
+                      prefixIcon: Icon(
+                        Icons.lock,
+                        size: 18,
+                        color: Colors.grey,
                       ),
-                      DropdownMenuItem(
-                        value: "PHỤ KIỆN",
-                        child: Text("PHỤ KIỆN"),
+                      filled: true,
+                      fillColor: Color(0xFFF5F5F5),
+                    ),
+                    child: Text(
+                      type,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
                       ),
-                    ],
-                    onChanged: (v) => setS(() => type = v!),
-                    decoration: const InputDecoration(labelText: "Loại hàng"),
+                    ),
                   ),
 
                   // Tên máy
@@ -3758,23 +3741,27 @@ class _InventoryViewState extends State<InventoryView>
                         ),
                       ),
                       const SizedBox(width: 8),
+                      // Nhà cung cấp (KHÓA - không cho thay đổi)
                       Expanded(
                         flex: 2,
-                        child: DropdownButtonFormField<String>(
-                          initialValue: supplier,
-                          isExpanded: true,
+                        child: InputDecorator(
                           decoration: const InputDecoration(
-                            labelText: "Nhà cung cấp *",
+                            labelText: "Nhà cung cấp (không đổi)",
+                            prefixIcon: Icon(
+                              Icons.lock,
+                              size: 18,
+                              color: Colors.grey,
+                            ),
+                            filled: true,
+                            fillColor: Color(0xFFF5F5F5),
                           ),
-                          items: _suppliers
-                              .map(
-                                (s) => DropdownMenuItem(
-                                  value: s['name'] as String,
-                                  child: Text(s['name']),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) => setS(() => supplier = v),
+                          child: Text(
+                            supplier ?? 'Không có',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black54,
+                            ),
+                          ),
                         ),
                       ),
                     ],

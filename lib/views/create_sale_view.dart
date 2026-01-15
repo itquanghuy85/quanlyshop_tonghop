@@ -5,6 +5,7 @@ import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../models/customer_model.dart';
 import '../models/sale_order_model.dart';
+import '../models/debt_model.dart';
 import '../services/notification_service.dart';
 import '../services/firestore_service.dart';
 import '../services/customer_service.dart';
@@ -14,6 +15,7 @@ import '../services/user_service.dart';
 import '../services/event_bus.dart';
 import '../services/adjustment_service.dart';
 import '../services/claims_service.dart';
+import '../services/financial_activity_service.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -257,6 +259,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     phoneCtrl.text = sale.phone;
     addressCtrl.text = sale.address;
     priceCtrl.text = _formatCurrency(sale.totalPrice);
+    discountCtrl.text = _formatCurrency(sale.discount); // FIX: Load discount
     noteCtrl.text = sale.notes ?? '';
     _paymentMethod = sale.paymentMethod;
     _saleWarranty = sale.warranty;
@@ -652,7 +655,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         discount: discount,
         paymentMethod: _paymentMethod,
         sellerName: seller,
-        soldAt: now,
+        // FIX: Giữ nguyên soldAt gốc khi edit, không thay đổi ngày bán
+        soldAt: widget.editSale?.soldAt ?? now,
         isInstallment: _isInstallment,
         downPayment: paidAmount,
         downPaymentMethod: _isInstallment ? _downPaymentMethod : null,
@@ -813,18 +817,32 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         }
       }
 
-      // Transaction thành công → Cập nhật local DB để đồng bộ
+      // Transaction thành công → Cập nhật local DB
+      // CHỈ trừ kho LOCAL khi là bán offline (localOnly = true)
+      // Nếu Firestore transaction thành công, real-time sync sẽ tự động cập nhật local qua upsertProduct
+      final isLocalOnly = transactionResult['localOnly'] == true;
+
       for (var item in _selectedItems) {
         final p = item['product'] as Product;
         final quantity = item['quantity'] as int;
 
-        // Cập nhật local database
-        if (p.type == 'DIEN_THOAI') {
-          await db.updateProductStatus(p.id!, 0);
+        if (isLocalOnly) {
+          // Chỉ cập nhật local database khi bán offline
+          if (p.type == 'DIEN_THOAI') {
+            await db.updateProductStatus(p.id!, 0);
+          }
+          await db.deductProductQuantity(p.id!, quantity);
+          debugPrint(
+            '📦 Local-only sale: Deducted ${p.name} quantity by $quantity',
+          );
+        } else {
+          // Firestore transaction đã cập nhật cloud, sync sẽ tự động cập nhật local
+          debugPrint(
+            '☁️ Cloud sale: ${p.name} quantity will be synced from Firestore',
+          );
         }
-        await db.deductProductQuantity(p.id!, quantity);
 
-        // Cập nhật local object
+        // Cập nhật local object cho UI
         p.quantity -= quantity;
         if (p.type == 'DIEN_THOAI') {
           p.status = 0;
@@ -846,9 +864,48 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       // Lưu sale vào local DB (cloud đã có từ transaction)
       await db.upsertSale(sale);
 
-      // Lưu debt vào local DB nếu có (cloud đã có từ transaction)
+      // Ghi nhật ký hoạt động tài chính
+      try {
+        await FinancialActivityService.logSale(
+          firestoreId: sale.firestoreId ?? 'SALE_${sale.soldAt}',
+          totalPrice: totalPrice,
+          paymentMethod: _paymentMethod,
+          customerName: sale.customerName ?? '',
+          phone: sale.phone ?? '',
+          productNames: sale.productNames ?? '',
+          sellerName: sale.sellerName ?? '',
+          soldAt: sale.soldAt,
+          isInstallment: _isInstallment,
+          downPayment: _isInstallment ? (sale.downPayment ?? 0) : 0,
+          downPaymentMethod: _isInstallment ? _downPaymentMethod : null,
+          bankName: _isInstallment ? (sale.bankName ?? '') : null,
+        );
+      } catch (e) {
+        debugPrint('Failed to log financial activity: $e');
+      }
+
+      // Lưu debt vào local DB nếu có (dùng upsert để tránh duplicate khi sync)
       if (debtDataForTransaction != null) {
-        await db.insertDebt(debtDataForTransaction);
+        final firestoreId = debtDataForTransaction['firestoreId'] as String?;
+        if (firestoreId != null && firestoreId.isNotEmpty) {
+          // Sử dụng upsertDebt thay vì insertDebt để tránh duplicate
+          final debt = Debt(
+            firestoreId: firestoreId,
+            personName: debtDataForTransaction['personName'] as String,
+            phone: debtDataForTransaction['phone'] as String,
+            totalAmount: debtDataForTransaction['totalAmount'] as int,
+            paidAmount: debtDataForTransaction['paidAmount'] as int? ?? 0,
+            type: debtDataForTransaction['type'] as String,
+            status: debtDataForTransaction['status'] as String? ?? 'ACTIVE',
+            createdAt: debtDataForTransaction['createdAt'] as int,
+            note: debtDataForTransaction['note'] as String?,
+            linkedId: debtDataForTransaction['linkedId'] as String?,
+            isSynced: true, // Đánh dấu đã sync vì đã lưu trên cloud
+          );
+          await db.upsertDebt(debt);
+        } else {
+          await db.insertDebt(debtDataForTransaction);
+        }
       }
 
       // Create customer if not exists

@@ -13,10 +13,12 @@ import '../services/sync_orchestrator.dart';
 import '../services/user_service.dart';
 import '../services/adjustment_service.dart';
 import '../services/event_bus.dart';
+import '../services/financial_activity_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import 'fast_stock_in_view.dart';
+import '../widgets/custom_app_bar.dart';
 
 class ExpenseView extends StatefulWidget {
   const ExpenseView({super.key});
@@ -498,6 +500,20 @@ class _ExpenseViewState extends State<ExpenseView> {
                         final navigator = Navigator.of(ctx);
                         final expenseId = await db.insertExpense(expData);
                         
+                        // Ghi nhật ký hoạt động tài chính
+                        try {
+                          await FinancialActivityService.logExpense(
+                            firestoreId: fId,
+                            amount: amount,
+                            paymentMethod: payMethod,
+                            title: titleC.text.toUpperCase(),
+                            category: category,
+                            note: noteC.text,
+                          );
+                        } catch (e) {
+                          debugPrint('Failed to log financial activity: $e');
+                        }
+                        
                         // Queue sync to cloud via SyncOrchestrator
                         await SyncOrchestrator().enqueue(
                           entityType: SyncEntityType.expense,
@@ -572,47 +588,17 @@ class _ExpenseViewState extends State<ExpenseView> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.red.shade700,
-                Colors.red.shade700.withOpacity(0.7),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "QUẢN LÝ CHI PHÍ",
-              style: AppTextStyles.headline6.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontSize: 18,
-              ),
-            ),
-            Text(
-              '${_filteredExpenses.length} khoản chi',
-              style: const TextStyle(fontSize: 11, color: Colors.white70),
-            ),
-          ],
-        ),
-        elevation: 0,
-        automaticallyImplyLeading: true,
+      appBar: CustomAppBar.build(
+        title: 'QUẢN LÝ CHI PHÍ',
+        subtitle: '${_filteredExpenses.length} khoản chi',
+        accentColor: AppBarAccents.staff, // Red accent for expenses
         actions: [
           IconButton(
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FastStockInView()),
             ),
-            icon: const Icon(Icons.inventory_2_outlined, color: Colors.white),
+            icon: Icon(Icons.inventory_2_outlined, color: AppBarAccents.staff),
             tooltip: 'Nhập kho',
           ),
           Row(
@@ -622,8 +608,8 @@ class _ExpenseViewState extends State<ExpenseView> {
                 _syncStatus,
                 style: AppTextStyles.caption.copyWith(
                   color: _syncStatus == 'Lỗi đồng bộ'
-                      ? Colors.yellow
-                      : Colors.white70,
+                      ? Colors.orange
+                      : AppBarAccents.staff.withOpacity(0.7),
                   fontWeight: _isSyncing ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -632,7 +618,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                 onPressed: _isSyncing ? null : _syncWithFirebase,
                 icon: Icon(
                   _isSyncing ? Icons.sync : Icons.sync_outlined,
-                  color: _isSyncing ? Colors.orange : Colors.white,
+                  color: _isSyncing ? Colors.orange : AppBarAccents.staff,
                 ),
                 tooltip: 'Đồng bộ với Firebase',
               ),

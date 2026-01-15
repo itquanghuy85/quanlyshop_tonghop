@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../data/db_helper.dart';
 import '../models/supplier_payment_model.dart';
 import '../services/user_service.dart';
+import '../services/financial_activity_service.dart';
 
 class SupplierPaymentService {
   final DBHelper _db = DBHelper();
@@ -22,6 +24,32 @@ class SupplierPaymentService {
     final id = await _db.database.then((db) => db.insert('supplier_payments', payment.toMap()));
     payment.id = id;
     await _syncToCloud(payment);
+    
+    // Ghi nhật ký hoạt động tài chính
+    try {
+      // Lấy tên NCC từ payment.supplierId (nếu cần)
+      final suppliers = await _db.database.then((db) => db.query(
+        'suppliers',
+        where: 'id = ?',
+        whereArgs: [payment.supplierId],
+        limit: 1,
+      ));
+      final supplierName = suppliers.isNotEmpty 
+          ? (suppliers.first['name'] as String? ?? 'NCC') 
+          : 'NCC #${payment.supplierId}';
+      
+      await FinancialActivityService.logSupplierPayment(
+        firestoreId: payment.firestoreId ?? 'sup_pay_${payment.id}',
+        amount: payment.amount,
+        paymentMethod: payment.paymentMethod,
+        supplierName: supplierName,
+        createdAt: payment.paidAt,
+        note: payment.note,
+      );
+    } catch (e) {
+      debugPrint('Failed to log financial activity: $e');
+    }
+    
     return id;
   }
 

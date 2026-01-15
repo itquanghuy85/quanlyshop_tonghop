@@ -213,6 +213,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
 
       if (payMethod == "CÔNG NỢ") {
+        // FIX: Tạo firestoreId TRƯỚC khi insert để tránh duplicate khi sync
+        final debtFId = "debt_${DateTime.now().millisecondsSinceEpoch}_${r.phone.hashCode}";
         final debtData = {
           'personName': r.customerName,
           'phone': r.phone,
@@ -223,12 +225,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           'createdAt': DateTime.now().millisecondsSinceEpoch,
           'note': "Nợ tiền sửa máy: ${r.model}",
           'linkedId': r.firestoreId,
+          'firestoreId': debtFId, // Set firestoreId ngay từ đầu
         };
         final debtId = await db.insertDebt(debtData);
 
         // Queue sync debt to cloud via SyncOrchestrator
-        final debtFId = "debt_repair_${DateTime.now().millisecondsSinceEpoch}";
-        debtData['firestoreId'] = debtFId;
         await SyncOrchestrator().enqueue(
           entityType: SyncEntityType.debt,
           entityId: debtId,

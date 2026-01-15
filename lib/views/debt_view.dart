@@ -5,11 +5,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../services/notification_service.dart';
+import '../widgets/custom_app_bar.dart';
 import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import '../services/adjustment_service.dart';
 import '../services/firestore_service.dart';
+import '../services/financial_activity_service.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
 
@@ -288,8 +290,8 @@ class _DebtViewState extends State<DebtView>
               onPressed: () async {
                 if (!(formKey.currentState?.validate() ?? false)) return;
                 final parsed = MoneyUtils.parseCurrency(payC.text);
-                // Min 1000 để tránh nhập 999 → 999000
-                final payAmount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
+                // Không tự động nhân 1000 - người dùng nhập bao nhiêu dùng bấy nhiêu
+                final payAmount = parsed;
                 if (payAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
@@ -344,6 +346,21 @@ class _DebtViewState extends State<DebtView>
                     'isSynced': 1, // Đã sync qua transaction
                   };
                   await db.insertDebtPayment(paymentData);
+                  
+                  // Ghi nhật ký hoạt động tài chính
+                  try {
+                    await FinancialActivityService.logDebtCollection(
+                      firestoreId: paymentData['firestoreId'] as String,
+                      amount: payAmount,
+                      paymentMethod: method,
+                      customerName: debt['personName'] ?? '',
+                      phone: debt['phone'] ?? '',
+                      createdAt: now,
+                      createdBy: userName,
+                    );
+                  } catch (e) {
+                    debugPrint('Failed to log financial activity: $e');
+                  }
                 } else {
                   // Chưa có firestoreId → xử lý offline-first như cũ
                   final paymentData = {
@@ -357,6 +374,22 @@ class _DebtViewState extends State<DebtView>
                     'createdBy': userName,
                   };
                   final paymentId = await db.insertDebtPayment(paymentData);
+                  
+                  // Ghi nhật ký hoạt động tài chính (offline)
+                  try {
+                    await FinancialActivityService.logDebtCollection(
+                      firestoreId: paymentData['firestoreId'] as String,
+                      amount: payAmount,
+                      paymentMethod: method,
+                      customerName: debt['personName'] ?? '',
+                      phone: debt['phone'] ?? '',
+                      createdAt: now,
+                      createdBy: userName,
+                    );
+                  } catch (e) {
+                    debugPrint('Failed to log financial activity: $e');
+                  }
+                  
                   // Queue sync debt payment to cloud via SyncOrchestrator
                   await SyncOrchestrator().enqueue(
                     entityType: SyncEntityType.debtPayment,
@@ -463,10 +496,11 @@ class _DebtViewState extends State<DebtView>
                 );
 
                 EventBus().emit('debts_changed');
+                // Đóng dialog TRƯỚC rồi mới show snackbar và refresh
+                Navigator.of(ctx).pop();
                 if (!mounted) return;
-                Navigator.pop(context);
                 NotificationService.showSnackBar(
-                  "Đã thu nợ và đồng bộ hệ thống!",
+                  "Đã thu nợ ${MoneyUtils.formatCurrency(payAmount)}đ!",
                   color: Colors.green,
                 );
                 await _refresh();
@@ -491,32 +525,16 @@ class _DebtViewState extends State<DebtView>
     
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.deepPurple, Colors.deepPurple.withOpacity(0.7)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "QUẢN LÝ CÔNG NỢ",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            Text(
-              '$activeDebtsCount khoản nợ còn',
-              style: const TextStyle(fontSize: 11, color: Colors.white70),
-            ),
-          ],
-        ),
-        automaticallyImplyLeading: true,
+      appBar: CustomAppBar.buildWithTabs(
+        title: 'QUẢN LÝ CÔNG NỢ',
+        subtitle: '$activeDebtsCount khoản nợ còn',
+        tabController: _tabController,
+        tabs: const [
+          Tab(text: "KHÁCH NỢ"),
+          Tab(text: "SHOP NỢ NCC"),
+          Tab(text: "CÔNG NỢ KHÁC"),
+        ],
+        accentColor: AppBarAccents.customer,
         actions: [
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -525,8 +543,8 @@ class _DebtViewState extends State<DebtView>
                 _syncStatus,
                 style: AppTextStyles.caption.copyWith(
                   color: _syncStatus == 'Lỗi đồng bộ'
-                      ? Colors.yellow
-                      : Colors.white70,
+                      ? Colors.orange
+                      : AppBarAccents.customer.withOpacity(0.7),
                   fontWeight: _isSyncing ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -535,24 +553,13 @@ class _DebtViewState extends State<DebtView>
                 onPressed: _isSyncing ? null : _syncWithFirebase,
                 icon: Icon(
                   _isSyncing ? Icons.sync : Icons.sync_outlined,
-                  color: _isSyncing ? Colors.orange : Colors.white,
+                  color: _isSyncing ? Colors.orange : AppBarAccents.customer,
                 ),
                 tooltip: 'Đồng bộ với Firebase',
               ),
             ],
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: const [
-            Tab(text: "KHÁCH NỢ"),
-            Tab(text: "SHOP NỢ NCC"),
-            Tab(text: "CÔNG NỢ KHÁC"),
-          ],
-        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

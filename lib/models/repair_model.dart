@@ -80,7 +80,9 @@ class Repair {
     this.notes,
   });
 
-  int get totalCost => services.isNotEmpty ? services.fold(0, (sum, s) => sum + s.cost) : cost;
+  /// Tổng chi phí = cost (linh kiện + dịch vụ đã lưu) 
+  /// Luôn dùng trường cost vì nó đã được cập nhật khi thêm linh kiện/dịch vụ
+  int get totalCost => cost;
 
   Map<String, dynamic> toMap() {
     return {

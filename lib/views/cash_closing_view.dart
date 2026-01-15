@@ -295,6 +295,16 @@ class _CashClosingViewState extends State<CashClosingView>
           ? closingResults[1].data()
           : null;
 
+      // FIX K1: Merge expenses chưa sync từ Local DB vào danh sách Firestore
+      // Để không bỏ sót các expense vừa tạo offline
+      final localExpenses = await db.getAllExpenses();
+      final firestoreIds = expenses.map((e) => e['firestoreId']).toSet();
+      final unsyncedExpenses = localExpenses.where((e) {
+        final fid = e['firestoreId'] as String?;
+        return fid != null && fid.isNotEmpty && !firestoreIds.contains(fid);
+      }).toList();
+      expenses.addAll(unsyncedExpenses);
+
       if (mounted) {
         setState(() {
           _sales = sales;
@@ -2241,8 +2251,14 @@ class _CashClosingViewState extends State<CashClosingView>
 
       debugPrint('Adding expense to list: $category, amount=$amount');
 
+      // Xác định icon dựa trên category
+      String icon = '💸';
+      if (category.contains('HOÀN TIỀN') || category.contains('TRẢ HÀNG')) {
+        icon = '↩️'; // Icon đặc biệt cho hoàn tiền trả hàng
+      }
+
       list.add({
-        'icon': '💸',
+        'icon': icon,
         'title': e['category'] as String? ?? 'Chi phí',
         'subtitle':
             '${e['note'] ?? ''} • ${(e['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
@@ -2328,23 +2344,45 @@ class _CashClosingViewState extends State<CashClosingView>
     int expenseOut = 0, importOut = 0, supplierPaid = 0;
     int saleCost = 0, repairCost = 0;
     int settlementIncome = 0;
+    int saleDebt = 0, repairDebt = 0; // Track công nợ riêng
 
-    // ===== SALES =====
+    // ===== SALES (ACCRUAL BASIS) =====
+    // K3: Bán nợ VẪN TÍNH vào doanh thu và giá vốn, chỉ KHÔNG tăng quỹ
     for (var s in _sales.where((s) => _isSameDay(s.soldAt, now))) {
-      if (s.paymentMethod == 'CÔNG NỢ') continue;
-
-      final paidToday = s.isInstallment ? s.downPayment : s.totalPrice;
-      saleIncome += paidToday;
-
-      if (s.paymentMethod == 'TIỀN MẶT') {
-        cashIn += paidToday;
-      } else {
-        bankIn += paidToday;
+      if (s.paymentMethod == 'CÔNG NỢ') {
+        // K3: Công nợ - tính vào doanh thu và giá vốn (accrual basis)
+        // Nhưng KHÔNG tăng quỹ tiền mặt/ngân hàng
+        saleIncome += s.totalPrice;
+        saleCost += s.totalCost;
+        saleDebt += s.totalPrice;
+        continue;
       }
 
-      // Giá vốn chỉ tính theo phần đã thu hôm nay
-      final ratio = s.totalPrice > 0 ? paidToday / s.totalPrice : 0;
-      saleCost += (s.totalCost * ratio).round();
+      if (s.isInstallment) {
+        // Trả góp: chỉ tính phần down vào cashIn/bankIn hôm nay
+        final paidToday = s.downPayment;
+        saleIncome += paidToday;
+        
+        // Giá vốn theo tỷ lệ đã thu
+        final ratio = s.totalPrice > 0 ? paidToday / s.totalPrice : 0;
+        saleCost += (s.totalCost * ratio).round();
+
+        if (s.paymentMethod == 'TIỀN MẶT' || s.downPaymentMethod == 'TIỀN MẶT') {
+          cashIn += paidToday;
+        } else {
+          bankIn += paidToday;
+        }
+      } else {
+        // Bán thường - tính đầy đủ
+        saleIncome += s.totalPrice;
+        saleCost += s.totalCost;
+
+        if (s.paymentMethod == 'TIỀN MẶT') {
+          cashIn += s.totalPrice;
+        } else {
+          bankIn += s.totalPrice;
+        }
+      }
     }
 
     // ===== BANK SETTLEMENT =====
@@ -2367,24 +2405,28 @@ class _CashClosingViewState extends State<CashClosingView>
       }
     }
 
-    // ===== REPAIRS =====
+    // ===== REPAIRS (ACCRUAL BASIS) =====
+    // Tương tự sales, repair công nợ vẫn tính doanh thu và giá vốn
     for (var r in _repairs.where(
       (r) =>
           r.status == 4 &&
           r.deliveredAt != null &&
           _isSameDay(r.deliveredAt!, now),
     )) {
-      if (r.paymentMethod == 'CÔNG NỢ') continue;
-
+      // Accrual basis: tính cả công nợ vào doanh thu và giá vốn
       repairIncome += r.price;
+      repairCost += r.totalCost;
+
+      if (r.paymentMethod == 'CÔNG NỢ') {
+        repairDebt += r.price;
+        continue; // Không tăng quỹ tiền mặt/NH
+      }
 
       if (r.paymentMethod == 'TIỀN MẶT') {
         cashIn += r.price;
       } else {
         bankIn += r.price;
       }
-
-      repairCost += r.totalCost;
     }
 
     // ===== EXPENSES =====
@@ -2476,8 +2518,7 @@ class _CashClosingViewState extends State<CashClosingView>
       final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
 
       if (p['debtType'] == 'SHOP_OWES') {
-        // FIX BUG-CC-004: Thanh toán NCC từ trang Công nợ NCC lưu vào debt_payments
-        // với debtType='SHOP_OWES', cần tính vào supplierPaid
+        // K6: Thanh toán NCC - tính vào chi tiền
         supplierPaid += amount;
         if (method == 'TIỀN MẶT') {
           cashOut += amount;
@@ -2485,14 +2526,32 @@ class _CashClosingViewState extends State<CashClosingView>
           bankOut += amount;
         }
       } else {
+        // K5: Thu nợ khách hàng - CHỈ tăng quỹ tiền, KHÔNG tăng doanh thu/giá vốn
+        // Vì với accrual basis, doanh thu và giá vốn đã được tính ở K3 (lúc bán)
         debtCollected += amount;
         if (method == 'TIỀN MẶT') {
           cashIn += amount;
         } else {
           bankIn += amount;
         }
+        // BỎ phần tính giá vốn vì đã tính ở K3 (accrual basis)
       }
     }
+
+    // DEBUG: In chi tiết kết quả phân tích (ACCRUAL BASIS)
+    debugPrint('=== CASH CLOSING ANALYSIS (ACCRUAL BASIS) ===');
+    debugPrint('💵 cashIn=$cashIn, cashOut=$cashOut → net=${cashIn - cashOut}');
+    debugPrint('🏦 bankIn=$bankIn, bankOut=$bankOut → net=${bankIn - bankOut}');
+    debugPrint('📊 saleIncome=$saleIncome (bao gồm công nợ: $saleDebt)');
+    debugPrint('📊 saleCost=$saleCost');
+    debugPrint('📊 settlementIncome=$settlementIncome');
+    debugPrint('🔧 repairIncome=$repairIncome (bao gồm công nợ: $repairDebt)');
+    debugPrint('💳 debtCollected=$debtCollected (chỉ ảnh hưởng quỹ, không ảnh hưởng lợi nhuận)');
+    debugPrint(
+      '📤 expenseOut=$expenseOut, importOut=$importOut, supplierPaid=$supplierPaid',
+    );
+    debugPrint('💰 repairCost=$repairCost');
+    debugPrint('=============================');
 
     return _TransactionAnalysis(
       cashIn: cashIn,
@@ -2533,13 +2592,14 @@ class _TransactionAnalysis {
     required this.repairCost,
   });
 
-  /// Lợi nhuận ròng = (Doanh thu bán + tất toán + sửa chữa + thu nợ) - (Chi phí + giá vốn)
-  /// Không tính nhập hàng vào vì đó là dòng tiền, không phải chi phí
+  /// ACCRUAL BASIS: Lợi nhuận ròng = Doanh thu - Chi phí - Giá vốn
+  /// - saleIncome đã bao gồm cả bán công nợ (K3)
+  /// - KHÔNG cộng debtCollected vì doanh thu đã tính ở K3
+  /// - debtCollected chỉ ảnh hưởng quỹ tiền mặt/NH
   int get netProfit =>
       saleIncome +
       settlementIncome +
-      repairIncome +
-      debtCollected -
+      repairIncome -
       expenseOut -
       saleCost -
       repairCost;

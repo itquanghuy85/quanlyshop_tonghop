@@ -11,11 +11,7 @@ class AdjustmentHistoryView extends StatefulWidget {
   final String? entityType;
   final String? entityId;
 
-  const AdjustmentHistoryView({
-    super.key,
-    this.entityType,
-    this.entityId,
-  });
+  const AdjustmentHistoryView({super.key, this.entityType, this.entityId});
 
   @override
   State<AdjustmentHistoryView> createState() => _AdjustmentHistoryViewState();
@@ -34,18 +30,29 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
 
   Future<void> _loadAdjustments() async {
     setState(() => _isLoading = true);
-    
-    final adjustments = await AdjustmentService.getAdjustmentHistory(
-      entityType: widget.entityType,
-      entityId: widget.entityId,
-      limit: 100,
-    );
-    
-    if (!mounted) return;
-    setState(() {
-      _adjustments = adjustments;
-      _isLoading = false;
-    });
+
+    try {
+      final adjustments = await AdjustmentService.getAdjustmentHistory(
+        entityType: widget.entityType,
+        entityId: widget.entityId,
+        limit: 100,
+      );
+
+      debugPrint('📋 Loaded ${adjustments.length} adjustment entries');
+
+      if (!mounted) return;
+      setState(() {
+        _adjustments = adjustments;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('❌ Error loading adjustments: $e');
+      if (!mounted) return;
+      setState(() {
+        _adjustments = [];
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -70,8 +77,8 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _adjustments.isEmpty
-              ? _buildEmpty()
-              : _buildList(),
+          ? _buildEmpty()
+          : _buildList(),
     );
   }
 
@@ -80,7 +87,11 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.history_toggle_off_rounded, size: 80, color: Colors.grey[300]),
+          Icon(
+            Icons.history_toggle_off_rounded,
+            size: 80,
+            color: Colors.grey[300],
+          ),
           const SizedBox(height: 10),
           const Text(
             "Chưa có bút toán điều chỉnh nào",
@@ -112,7 +123,7 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
     final createdBy = adj['createdBy'] as String? ?? 'N/A';
     final costDelta = adj['costDelta'] as int? ?? 0;
     final debtDelta = adj['debtDelta'] as int? ?? 0;
-    
+
     // Parse old/new values
     Map<String, dynamic> oldValues = {};
     Map<String, dynamic> newValues = {};
@@ -124,7 +135,7 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
         newValues = jsonDecode(adj['newValues'] as String);
       }
     } catch (_) {}
-    
+
     final typeColor = _getTypeColor(adjustmentType);
     final typeIcon = _getTypeIcon(adjustmentType);
     final typeLabel = _getTypeLabel(adjustmentType);
@@ -146,7 +157,9 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: typeColor.withOpacity(0.1),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(15),
+              ),
             ),
             child: Row(
               children: [
@@ -199,7 +212,11 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
                       style: AppTextStyles.caption,
                     ),
                     const SizedBox(width: 16),
-                    const Icon(Icons.edit_calendar, size: 14, color: Colors.grey),
+                    const Icon(
+                      Icons.edit_calendar,
+                      size: 14,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       "Điều chỉnh: ${DateFormat('dd/MM/yyyy HH:mm').format(adjustmentDate)}",
@@ -218,12 +235,18 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.notes, size: 14, color: AppColors.warning),
+                        const Icon(
+                          Icons.notes,
+                          size: 14,
+                          color: AppColors.warning,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             "Lý do: $reason",
-                            style: AppTextStyles.caption.copyWith(color: AppColors.warning),
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.warning,
+                            ),
                           ),
                         ),
                       ],
@@ -261,10 +284,15 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
                   children: [
                     Text(
                       "Người thực hiện: $createdBy",
-                      style: AppTextStyles.overline.copyWith(color: Colors.grey),
+                      style: AppTextStyles.overline.copyWith(
+                        color: Colors.grey,
+                      ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -308,9 +336,12 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
     );
   }
 
-  Widget _buildValueComparison(Map<String, dynamic> oldVals, Map<String, dynamic> newVals) {
+  Widget _buildValueComparison(
+    Map<String, dynamic> oldVals,
+    Map<String, dynamic> newVals,
+  ) {
     final allKeys = {...oldVals.keys, ...newVals.keys};
-    
+
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -330,9 +361,9 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
             final newVal = newVals[key];
             final oldStr = _formatValue(oldVal);
             final newStr = _formatValue(newVal);
-            
+
             if (oldStr == newStr) return const SizedBox.shrink();
-            
+
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Row(
@@ -377,39 +408,69 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
 
   String _translateKey(String key) {
     switch (key) {
-      case 'cost': return 'Giá vốn';
-      case 'totalCost': return 'Tổng giá vốn';
-      case 'totalAmount': return 'Tổng tiền';
-      case 'paidAmount': return 'Đã thanh toán';
-      case 'paymentMethod': return 'Hình thức TT';
-      default: return key;
+      case 'cost':
+        return 'Giá vốn';
+      case 'totalCost':
+        return 'Tổng giá vốn';
+      case 'totalAmount':
+        return 'Tổng tiền';
+      case 'paidAmount':
+        return 'Đã thanh toán';
+      case 'paymentMethod':
+        return 'Hình thức TT';
+      default:
+        return key;
     }
   }
 
   Color _getTypeColor(String type) {
     switch (type) {
-      case 'COST_ADJUSTMENT': return Colors.orange;
-      case 'PAYMENT_ADJUSTMENT': return Colors.blue;
-      case 'DEBT_ADJUSTMENT': return Colors.purple;
-      default: return Colors.grey;
+      case 'COST_ADJUSTMENT':
+        return Colors.orange;
+      case 'PAYMENT_ADJUSTMENT':
+        return Colors.blue;
+      case 'DEBT_ADJUSTMENT':
+        return Colors.purple;
+      case 'SALES_RETURN_INVENTORY':
+        return Colors.teal;
+      case 'SALES_RETURN_REFUND':
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 
   IconData _getTypeIcon(String type) {
     switch (type) {
-      case 'COST_ADJUSTMENT': return Icons.price_change;
-      case 'PAYMENT_ADJUSTMENT': return Icons.payment;
-      case 'DEBT_ADJUSTMENT': return Icons.account_balance_wallet;
-      default: return Icons.edit_document;
+      case 'COST_ADJUSTMENT':
+        return Icons.price_change;
+      case 'PAYMENT_ADJUSTMENT':
+        return Icons.payment;
+      case 'DEBT_ADJUSTMENT':
+        return Icons.account_balance_wallet;
+      case 'SALES_RETURN_INVENTORY':
+        return Icons.inventory_2;
+      case 'SALES_RETURN_REFUND':
+        return Icons.currency_exchange;
+      default:
+        return Icons.edit_document;
     }
   }
 
   String _getTypeLabel(String type) {
     switch (type) {
-      case 'COST_ADJUSTMENT': return 'ĐIỀU CHỈNH GIÁ NHẬP';
-      case 'PAYMENT_ADJUSTMENT': return 'ĐIỀU CHỈNH THANH TOÁN';
-      case 'DEBT_ADJUSTMENT': return 'ĐIỀU CHỈNH CÔNG NỢ';
-      default: return 'BÚT TOÁN ĐIỀU CHỈNH';
+      case 'COST_ADJUSTMENT':
+        return 'ĐIỀU CHỈNH GIÁ NHẬP';
+      case 'PAYMENT_ADJUSTMENT':
+        return 'ĐIỀU CHỈNH THANH TOÁN';
+      case 'DEBT_ADJUSTMENT':
+        return 'ĐIỀU CHỈNH CÔNG NỢ';
+      case 'SALES_RETURN_INVENTORY':
+        return 'TRẢ HÀNG - HOÀN KHO';
+      case 'SALES_RETURN_REFUND':
+        return 'TRẢ HÀNG - HOÀN TIỀN';
+      default:
+        return 'BÚT TOÁN ĐIỀU CHỈNH';
     }
   }
 }

@@ -24,6 +24,7 @@ import '../services/customer_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/event_bus.dart';
+import '../widgets/custom_app_bar.dart';
 
 class CreateRepairOrderView extends StatefulWidget {
   final String role;
@@ -633,40 +634,17 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                const Color(0xFF2962FF),
-                const Color(0xFF2962FF).withOpacity(0.7),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "NHẬP ĐƠN SỬA CHỮA",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            Text(
-              "Điền thông tin khách và máy",
-              style: TextStyle(fontSize: 11, color: Colors.white70),
-            ),
-          ],
-        ),
-        automaticallyImplyLeading: true,
+      appBar: CustomAppBar.build(
+        title: 'NHẬP ĐƠN SỬA CHỮA',
+        subtitle: 'Điền thông tin khách và máy',
+        accentColor: AppBarAccents.repairs,
         actions: [
           IconButton(
             onPressed: _saveAndPrint,
-            icon: const Icon(Icons.print_rounded, color: Colors.white),
+            icon: Icon(Icons.print_rounded, color: AppBarAccents.repairs, size: 22),
+            splashRadius: 20,
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: _saving

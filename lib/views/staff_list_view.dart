@@ -18,6 +18,7 @@ import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/custom_app_bar.dart';
 
 ImageProvider? _safeImageProvider(String? path) {
   if (path == null || path.isEmpty) return null;
@@ -910,36 +911,10 @@ class _StaffListViewState extends State<StaffListView> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.teal, Colors.teal.withOpacity(0.7)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "QUẢN LÝ NHÂN VIÊN",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            if (_currentRole != null)
-              Text(
-                "Vai trò: ${_currentRole!.toUpperCase()}",
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withOpacity(0.8),
-                ),
-              ),
-          ],
-        ),
-        automaticallyImplyLeading: true,
+      appBar: CustomAppBar.build(
+        title: 'QUẢN LÝ NHÂN VIÊN',
+        subtitle: _currentRole != null ? 'Vai trò: ${_currentRole!.toUpperCase()}' : null,
+        accentColor: AppBarAccents.staff,
       ),
       floatingActionButton: _canManageStaff
           ? FloatingActionButton.extended(

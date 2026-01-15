@@ -20,6 +20,7 @@ import '../services/user_service.dart';
 import '../services/audit_service.dart';
 import '../services/unified_printer_service.dart';
 import '../services/bluetooth_printer_service.dart';
+import '../services/financial_activity_service.dart';
 import '../models/printer_types.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../theme/app_colors.dart';
@@ -320,6 +321,21 @@ class _SaleDetailViewState extends State<SaleDetailView> {
 
     EventBus().emit('sales_changed');
 
+    // Ghi nhật ký hoạt động tài chính - tất toán
+    try {
+      await FinancialActivityService.logSettlement(
+        saleFirestoreId: s.firestoreId ?? 'sale_${s.soldAt}',
+        amount: received,
+        bankName: s.bankName ?? 'NH',
+        customerName: s.customerName ?? '',
+        productNames: s.productNames ?? '',
+        settlementFee: fee,
+        createdAt: nowMs,
+      );
+    } catch (e) {
+      debugPrint('Failed to log financial activity: $e');
+    }
+
     if (fee > 0) {
       final expFId = 'exp_${nowMs}_${s.firestoreId.hashCode}';
       final expData = {
@@ -371,10 +387,14 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     final totalCost = TextEditingController(
       text: MoneyUtils.formatCurrency(s.totalCost),
     );
+    final discount = TextEditingController(
+      text: MoneyUtils.formatCurrency(s.discount),
+    );
     final notes = TextEditingController(text: s.notes ?? "");
     final warranties = ["KO BH", "1 THÁNG", "3 THÁNG", "6 THÁNG", "12 THÁNG"];
     String warranty = s.warranty ?? "KO BH";
     String payment = s.paymentMethod;
+    final oldPaymentMethod = s.paymentMethod; // Lưu lại để so sánh
 
     final ok = await showDialog<bool>(
       context: context,
@@ -431,6 +451,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                     min: 0,
                     fieldName: 'Giá vốn',
                   ),
+                ),
+                TextFormField(
+                  controller: discount,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                  decoration: const InputDecoration(labelText: "Giảm giá (VNĐ)"),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: warranty,
@@ -490,12 +516,16 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       s.productImeis = imeis.text.trim().toUpperCase();
       final parsedTotal = MoneyUtils.parseCurrency(totalPrice.text);
       final parsedCost = MoneyUtils.parseCurrency(totalCost.text);
+      final parsedDiscount = MoneyUtils.parseCurrency(discount.text);
       s.totalPrice = parsedTotal > 0 && parsedTotal < 100000
           ? parsedTotal * 1000
           : parsedTotal;
       s.totalCost = parsedCost > 0 && parsedCost < 100000
           ? parsedCost * 1000
           : parsedCost;
+      s.discount = parsedDiscount > 0 && parsedDiscount < 100000
+          ? parsedDiscount * 1000
+          : parsedDiscount;
       s.warranty = warranty;
       s.paymentMethod = payment;
       if (payment != 'TRẢ GÓP (NH)') {
@@ -513,21 +543,36 @@ class _SaleDetailViewState extends State<SaleDetailView> {
 
     await db.updateSale(s);
 
+    // FIX: Sync sale lên Firestore sau khi update
+    if (s.firestoreId != null && s.id != null) {
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.sale,
+        entityId: s.id!,
+        firestoreId: s.firestoreId,
+        operation: SyncOperation.update,
+        data: s.toMap(),
+      );
+    }
+
     // Update debt if payment method is debt
+    // FIX: Sử dụng finalPrice (đã trừ discount) thay vì totalPrice
+    final debtAmount = s.finalPrice;
+    
     if (s.paymentMethod == 'CÔNG NỢ') {
       final existingDebts = await db.getAllDebts();
       final linkedDebt = existingDebts
           .where((d) => d['linkedId'] == s.firestoreId)
           .firstOrNull;
-      final debtAmount =
-          s.totalPrice; // Debt is the full sale price owed by customer
       if (linkedDebt != null) {
         // Update existing debt
         linkedDebt['totalAmount'] = debtAmount;
+        linkedDebt['personName'] = s.customerName; // Cập nhật tên khách
+        linkedDebt['phone'] = s.phone; // Cập nhật SĐT
         linkedDebt['status'] =
             (debtAmount - (linkedDebt['paidAmount'] ?? 0)) > 0
             ? 'UNPAID'
             : 'PAID';
+        linkedDebt['isSynced'] = 0;
         await db.updateDebt(linkedDebt);
 
         // Queue sync debt to cloud via SyncOrchestrator
@@ -543,7 +588,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         }
         EventBus().emit('debts_changed');
       } else {
-        // Create new debt
+        // Create new debt (khi đổi từ hình thức khác sang CÔNG NỢ)
         final debtFId = "debt_${s.soldAt}_${s.phone}";
         final newDebt = {
           'firestoreId': debtFId,
@@ -556,6 +601,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           'note': 'Đơn bán ${s.firestoreId}',
           'linkedId': s.firestoreId,
           'type': 'CUSTOMER_OWES', // Customer owes shop
+          'isSynced': 0,
         };
         final debtId = await db.insertDebt(newDebt);
 
@@ -569,8 +615,8 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         );
         EventBus().emit('debts_changed');
       }
-    } else {
-      // If payment method changed from debt to something else, mark debt as paid
+    } else if (oldPaymentMethod == 'CÔNG NỢ' && payment != 'CÔNG NỢ') {
+      // FIX: Chỉ đánh dấu PAID khi đổi TỪ CÔNG NỢ sang hình thức khác
       final existingDebts = await db.getAllDebts();
       final linkedDebt = existingDebts
           .where((d) => d['linkedId'] == s.firestoreId)
@@ -578,6 +624,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       if (linkedDebt != null) {
         linkedDebt['status'] = 'PAID';
         linkedDebt['paidAmount'] = linkedDebt['totalAmount'];
+        linkedDebt['isSynced'] = 0;
         await db.updateDebt(linkedDebt);
 
         // Queue sync debt to cloud via SyncOrchestrator
@@ -593,6 +640,17 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         }
         EventBus().emit('debts_changed');
       }
+    }
+
+    // Emit event và thông báo
+    EventBus().emit('sales_changed');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã cập nhật thông tin đơn hàng'),
+          backgroundColor: Colors.green,
+        ),
+      );
     }
   }
 

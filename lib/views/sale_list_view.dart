@@ -8,6 +8,7 @@ import 'sale_detail_view.dart';
 import 'create_sale_view.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/custom_app_bar.dart';
 
 class SaleListView extends StatefulWidget {
   final bool todayOnly;
@@ -51,6 +52,7 @@ class _SaleListViewState extends State<SaleListView> {
   Future<void> _refresh() async {
     setState(() => _loading = true);
     final data = await db.getAllSales();
+    
     if (!mounted) return;
     setState(() {
       _sales = data;
@@ -354,51 +356,19 @@ class _SaleListViewState extends State<SaleListView> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.success, AppColors.success.withOpacity(0.7)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Tooltip(
-          message: "Xem, tìm kiếm và theo dõi tất cả đơn bán hàng.",
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.todayOnly ? "DOANH SỐ HÔM NAY" : "QUẢN LÝ ĐƠN BÁN",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              Text(
-                '$totalSales đơn • ${fmt.format(totalRevenue)}đ',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withOpacity(0.8),
-                ),
-              ),
-            ],
-          ),
-        ),
-        automaticallyImplyLeading: true,
+      appBar: CustomAppBar.build(
+        title: widget.todayOnly ? 'DOANH SỐ HÔM NAY' : 'QUẢN LÝ ĐƠN BÁN',
+        subtitle: '$totalSales đơn • ${fmt.format(totalRevenue)}đ',
+        accentColor: AppBarAccents.sales,
         actions: [
           IconButton(
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const CreateSaleView()),
             ).then((_) => _refresh()),
-            icon: const Icon(
+            icon: Icon(
               Icons.add_shopping_cart_rounded,
-              color: Colors.white,
+              color: AppBarAccents.sales,
             ),
             tooltip: "Tạo đơn bán hàng mới",
           ),
@@ -406,9 +376,9 @@ class _SaleListViewState extends State<SaleListView> {
             children: [
               IconButton(
                 onPressed: _showFilterSheet,
-                icon: const Icon(
+                icon: Icon(
                   Icons.filter_list_rounded,
-                  color: Colors.white,
+                  color: AppBarAccents.sales,
                 ),
                 tooltip: 'Bộ lọc',
               ),
@@ -436,22 +406,27 @@ class _SaleListViewState extends State<SaleListView> {
           ),
           IconButton(
             onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            icon: Icon(Icons.refresh_rounded, color: AppBarAccents.sales),
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            color: Colors.white,
             child: TextField(
               onChanged: (v) => setState(() => _search = v),
+              style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
                 hintText: "Tìm theo tên khách, máy hoặc IMEI...",
-                prefixIcon: const Icon(Icons.search_rounded),
+                hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                prefixIcon: Icon(Icons.search_rounded, color: AppBarAccents.sales, size: 20),
+                prefixIconConstraints: const BoxConstraints(minWidth: 40),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.9),
+                fillColor: Colors.grey.shade100,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none,
                 ),
               ),
@@ -612,12 +587,18 @@ class _SaleListViewState extends State<SaleListView> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
-                                      child: Text(
-                                        s.customerName.toUpperCase(),
-                                        style: AppTextStyles.body2.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
+                                      child: Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              s.customerName.toUpperCase(),
+                                              style: AppTextStyles.body2.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     Text(

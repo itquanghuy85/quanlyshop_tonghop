@@ -2233,30 +2233,29 @@ class _RevenueViewState extends State<RevenueView>
         .where((e) => _isInFilterPeriod((e['date'] ?? e['createdAt']) as int))
         .toList();
 
-    // Tính tổng thu từ sales (xử lý trả góp đúng cách)
+    // ACCRUAL BASIS: Tính tổng doanh thu và giá vốn từ sales (bao gồm cả công nợ)
     int salesIncome = 0;
-    int salesCost = 0; // Chỉ tính giá vốn cho đơn đã thu tiền
+    int salesCost = 0;
+    int salesDebt = 0; // Track công nợ riêng
     for (var s in fSales) {
       if (s.paymentMethod == 'CÔNG NỢ') {
-        // Công nợ: không tính vào dòng tiền và lợi nhuận
+        // K3: Công nợ - VẪN TÍNH vào doanh thu và giá vốn (accrual basis)
+        salesIncome += s.totalPrice;
+        salesCost += s.totalCost;
+        salesDebt += s.totalPrice;
         continue;
       }
       if (s.isInstallment) {
-        // Trả góp: tính downPayment + settlementAmount (clamp để tránh đúp)
-        salesIncome += s.downPayment;
-        if (s.settlementReceivedAt != null &&
-            _isInFilterPeriod(s.settlementReceivedAt!)) {
-          // Clamp settlementAmount để không vượt quá loanAmount (tránh đúp khi nhập sai)
-          final actualSettlement = s.settlementAmount.clamp(0, s.loanAmount);
-          salesIncome += actualSettlement;
-        }
-        // Giá vốn tính theo tỷ lệ đã thu
-        final actualSettlementForCost =
+        // Trả góp: tính theo số tiền đã thu
+        final downPaid = s.downPayment;
+        final settlementPaid =
             (s.settlementReceivedAt != null &&
                 _isInFilterPeriod(s.settlementReceivedAt!))
             ? s.settlementAmount.clamp(0, s.loanAmount)
             : 0;
-        final totalPaid = s.downPayment + actualSettlementForCost;
+        final totalPaid = downPaid + settlementPaid;
+        
+        salesIncome += totalPaid;
         final ratio = s.totalPrice > 0 ? totalPaid / s.totalPrice : 0.0;
         salesCost += (s.totalCost * ratio).round();
       } else {
@@ -2266,14 +2265,13 @@ class _RevenueViewState extends State<RevenueView>
       }
     }
 
-    // Tính tổng thu từ repairs (loại trừ công nợ)
+    // ACCRUAL BASIS: Tính tổng doanh thu và giá vốn từ repairs (bao gồm cả công nợ)
     int repairsIncome = 0;
-    int repairsCost = 0; // Chỉ tính giá vốn cho đơn đã thu tiền
+    int repairsCost = 0;
     for (var r in fRepairs) {
-      if (r.paymentMethod != 'CÔNG NỢ') {
-        repairsIncome += r.price;
-        repairsCost += r.totalCost;
-      }
+      // Tính cả công nợ vào doanh thu và giá vốn
+      repairsIncome += r.price;
+      repairsCost += r.totalCost;
     }
 
     int totalIn = salesIncome + repairsIncome;
@@ -2289,7 +2287,7 @@ class _RevenueViewState extends State<RevenueView>
               !category.contains('ĐƠN NHẬP');
         })
         .fold<int>(0, (sum, e) => sum + (e['amount'] as int));
-    // LỢI NHUẬN RÒNG = THU - CHI - GIÁ VỐN (chỉ tính đơn đã thu tiền)
+    // ACCRUAL BASIS: LỢI NHUẬN RÒNG = DOANH THU - CHI PHÍ - GIÁ VỐN
     int profit = totalIn - totalOut - salesCost - repairsCost;
 
     return SingleChildScrollView(
