@@ -593,7 +593,7 @@ class AboutDeveloperView extends StatelessWidget {
             const SizedBox(height: 8),
 
             Text(
-              'Phiên bản 3.1.0',
+              'Phiên bản 3.2.0',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],

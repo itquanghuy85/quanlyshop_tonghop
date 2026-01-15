@@ -7,6 +7,7 @@ import '../services/supplier_service.dart';
 import '../services/repair_partner_service.dart';
 import '../services/repair_partner_payment_service.dart';
 import '../services/user_service.dart';
+import '../services/first_time_guide_service.dart';
 import '../data/db_helper.dart';
 import '../utils/money_utils.dart';
 import '../services/notification_service.dart';
@@ -78,11 +79,50 @@ class _SupplierListViewState extends State<SupplierListView>
     EventBus().stream
         .where((e) => e == 'suppliers_changed' || e == 'debts_changed')
         .listen((_) {
-          if (mounted) _load();
-        });
-    EventBus().stream.where((e) => e == 'repair_partners_changed').listen((_) {
-      if (mounted) _loadPartners();
+      _load();
+      _loadPartners();
     });
+    // Hiển thị hướng dẫn cho người dùng mới
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showFirstTimeGuide();
+    });
+  }
+
+  /// Hiển thị hướng dẫn lần đầu
+  Future<void> _showFirstTimeGuide() async {
+    await FirstTimeGuideService.showGuideIfNeeded(
+      context: context,
+      screenKey: FirstTimeGuideService.keySupplierList,
+      title: 'Quản Lý Đối Tác',
+      icon: Icons.store,
+      color: Colors.teal,
+      steps: const [
+        GuideStep(
+          title: '🏢 Nhà cung cấp (NCC)',
+          description: 'Quản lý NCC hàng hóa. PHẢI tạo NCC trước khi nhập kho để theo dõi công nợ chính xác.',
+          icon: Icons.local_shipping,
+          iconColor: Colors.blue,
+        ),
+        GuideStep(
+          title: '🔧 Đối tác sửa chữa',
+          description: 'Quản lý thợ/tiệm ngoài gửi sửa. Theo dõi đơn gửi đi và công nợ phải trả.',
+          icon: Icons.build,
+          iconColor: Colors.orange,
+        ),
+        GuideStep(
+          title: '💰 Công nợ NCC',
+          description: 'Khi nhập kho chọn "CÔNG NỢ", hệ thống tự tạo nợ. Thanh toán dần trong chi tiết NCC.',
+          icon: Icons.account_balance_wallet,
+          iconColor: Colors.red,
+        ),
+        GuideStep(
+          title: '➕ Thêm mới',
+          description: 'Nhấn nút + góc phải để thêm NCC hoặc Đối tác mới. Điền đầy đủ thông tin liên hệ.',
+          icon: Icons.add_circle,
+          iconColor: Colors.green,
+        ),
+      ],
+    );
   }
 
   @override

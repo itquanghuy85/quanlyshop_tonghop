@@ -16,6 +16,7 @@ import '../services/event_bus.dart';
 import '../services/adjustment_service.dart';
 import '../services/claims_service.dart';
 import '../services/financial_activity_service.dart';
+import '../services/first_time_guide_service.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -82,6 +83,52 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     // Refresh UI for add customer button when name/phone changes
     nameCtrl.addListener(() => setState(() {}));
     phoneCtrl.addListener(() => setState(() {}));
+    // Hiển thị hướng dẫn cho người dùng mới
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showFirstTimeGuide();
+    });
+  }
+
+  /// Hiển thị hướng dẫn lần đầu
+  Future<void> _showFirstTimeGuide() async {
+    await FirstTimeGuideService.showCarouselGuide(
+      context: context,
+      screenKey: FirstTimeGuideService.keySalesView,
+      title: 'Tạo Đơn Bán Hàng',
+      color: Colors.green,
+      steps: const [
+        GuideStep(
+          title: '👤 Thông tin khách hàng',
+          description: 'Nhập SĐT để tự động điền tên khách cũ. Hoặc chọn từ danh bạ khách hàng.',
+          icon: Icons.person,
+          iconColor: Colors.blue,
+        ),
+        GuideStep(
+          title: '📦 Chọn sản phẩm',
+          description: 'Tìm kiếm và chọn sản phẩm trong kho. Có thể bán nhiều sản phẩm trong 1 đơn.',
+          icon: Icons.inventory_2,
+          iconColor: Colors.orange,
+        ),
+        GuideStep(
+          title: '💰 Giá bán & Giảm giá',
+          description: 'Hệ thống tự tính tổng. Có thể nhập giảm giá trực tiếp hoặc điều chỉnh giá.',
+          icon: Icons.attach_money,
+          iconColor: Colors.green,
+        ),
+        GuideStep(
+          title: '🏦 Thanh toán trả góp',
+          description: 'Bật trả góp để nhập tiền đặt cọc, số tiền vay và ngân hàng hỗ trợ.',
+          icon: Icons.credit_card,
+          iconColor: Colors.purple,
+        ),
+        GuideStep(
+          title: '📝 Công nợ khách hàng',
+          description: 'Chọn "CÔNG NỢ" nếu khách chưa thanh toán đủ. Theo dõi trong mục Tài chính.',
+          icon: Icons.account_balance_wallet,
+          iconColor: Colors.red,
+        ),
+      ],
+    );
   }
 
   Future<void> _checkPermission() async {

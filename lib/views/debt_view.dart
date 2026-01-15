@@ -12,6 +12,7 @@ import '../services/event_bus.dart';
 import '../services/adjustment_service.dart';
 import '../services/firestore_service.dart';
 import '../services/financial_activity_service.dart';
+import '../services/first_time_guide_service.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
 
@@ -44,6 +45,48 @@ class _DebtViewState extends State<DebtView>
     ) {
       if (mounted) _refresh();
     });
+
+    // Hiển thị hướng dẫn cho người dùng mới
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showFirstTimeGuide();
+    });
+  }
+
+  /// Hiển thị hướng dẫn lần đầu
+  Future<void> _showFirstTimeGuide() async {
+    await FirstTimeGuideService.showGuideIfNeeded(
+      context: context,
+      screenKey: FirstTimeGuideService.keyDebtManagement,
+      title: 'Quản Lý Công Nợ',
+      icon: Icons.account_balance_wallet,
+      color: Colors.red,
+      steps: const [
+        GuideStep(
+          title: '📊 3 loại công nợ',
+          description: 'KHÁCH NỢ (khách chưa TT), NỢ NCC (nợ nhà cung cấp), NỢ ĐỐI TÁC (nợ thợ sửa ngoài).',
+          icon: Icons.category,
+          iconColor: Colors.blue,
+        ),
+        GuideStep(
+          title: '💰 Ghi nhận thanh toán',
+          description: 'Nhấn vào khoản nợ để xem chi tiết và ghi nhận thanh toán từng phần hoặc toàn bộ.',
+          icon: Icons.payment,
+          iconColor: Colors.green,
+        ),
+        GuideStep(
+          title: '📅 Theo dõi hạn nợ',
+          description: 'Nợ quá hạn sẽ được highlight đỏ. Báo cáo tổng hợp giúp theo dõi dòng tiền.',
+          icon: Icons.event,
+          iconColor: Colors.orange,
+        ),
+        GuideStep(
+          title: '🔄 Tự động tạo nợ',
+          description: 'Khi bán hàng/nhập kho chọn "CÔNG NỢ", hệ thống tự tạo khoản nợ tương ứng.',
+          icon: Icons.auto_mode,
+          iconColor: Colors.purple,
+        ),
+      ],
+    );
   }
 
   @override

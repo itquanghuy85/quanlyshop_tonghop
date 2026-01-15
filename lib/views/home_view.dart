@@ -44,7 +44,10 @@ import 'transaction_detail_view.dart';
 import 'customer_receivables_view.dart';
 import 'bank_installment_report_view.dart';
 import 'financial_activity_log_view.dart';
+import 'smart_stock_in_view.dart';
+import 'pending_stock_list_view.dart';
 import '../data/db_helper.dart';
+import '../widgets/pending_stock_widget.dart';
 import '../models/sale_order_model.dart';
 import '../widgets/unified_sync_button.dart';
 import '../widgets/notification_badge.dart';
@@ -1676,21 +1679,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
           const SizedBox(height: 20),
 
-          // LỊCH & NHẮC NHỞ
-          _buildSectionHeader("LỊCH & NHẮC NHỞ"),
-          Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            elevation: 2,
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: PerpetualCalendar(),
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
           // CẢNH BÁO
           _buildAlerts(),
 
@@ -2215,6 +2203,43 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
+  /// Hiển thị dialog hướng dẫn tính năng
+  void _showFeatureGuide(String title, String description, IconData icon, Color color) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              title,
+              style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Text(
+          description,
+          style: const TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('ĐÃ HIỂU', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Quick Actions mới theo style Settings
   Widget _buildQuickActionsNew() {
     return Column(
@@ -2552,28 +2577,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                                 size: 28,
                               ),
                             ),
-                            if (unreadChatCount > 0)
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    unreadChatCount > 9
-                                        ? '9+'
-                                        : unreadChatCount.toString(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            // Badge số tin nhắn chưa đọc - đã ẩn theo yêu cầu
                           ],
                         ),
                         const SizedBox(height: 10),
@@ -2756,7 +2760,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   context,
                   MaterialPageRoute(builder: (_) => const AdvancedChatView()),
                 ),
-                badgeCount: unreadChatCount,
+                // Badge đã ẩn theo yêu cầu
               ),
             ),
             const SizedBox(width: 8),
@@ -3023,12 +3027,93 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         children: [
           // Header Section
           _buildTabHeader("QUẢN LÝ KHO", Icons.inventory_2, Colors.orange),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+
+          // Pending Stock Widget (Hàng chờ xác nhận)
+          const PendingStockWidget(),
+          const SizedBox(height: 12),
 
           // Quick Actions
           _buildSectionHeader("THAO TÁC NHANH"),
+          // Dòng hướng dẫn cho người mới
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8, left: 4),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
+                Text(
+                  'Nhấn giữ để xem hướng dẫn chi tiết',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
           Row(
             children: [
+              // Nhập kho thông minh (MỚI)
+              Expanded(
+                child: Card(
+                  color: Colors.green.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    side: BorderSide(color: Colors.green.shade300, width: 2),
+                  ),
+                  child: InkWell(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SmartStockInView(),
+                      ),
+                    ),
+                    onLongPress: () => _showFeatureGuide(
+                      'NHẬP MỚI',
+                      'Nhập hàng vào kho với đầy đủ thông tin:\n\n'
+                      '✅ Hỗ trợ: Điện thoại, Phụ kiện, Linh kiện\n'
+                      '✅ Lưu tạm: Nhập khi chưa có đầy đủ thông tin\n'
+                      '✅ Xác nhận: Hàng chính thức vào kho\n\n'
+                      '📌 Dùng khi: Nhập hàng mới từ NCC, cần ghi đầy đủ IMEI/SKU, giá vốn, NCC...',
+                      Icons.add_box,
+                      Colors.green,
+                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.add_box,
+                              color: Colors.green,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            "NHẬP MỚI",
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            "Đầy đủ thông tin",
+                            style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Nhập cũ (siêu tốc)
               Expanded(
                 child: Card(
                   color: Colors.orange.shade50,
@@ -3042,6 +3127,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       MaterialPageRoute(
                         builder: (_) => const FastInventoryInputView(),
                       ),
+                    ),
+                    onLongPress: () => _showFeatureGuide(
+                      'NHẬP NHANH',
+                      'Nhập hàng siêu tốc - chỉ cần quét mã:\n\n'
+                      '⚡ Quét barcode/QR liên tục\n'
+                      '⚡ Tự động điền thông tin từ thư viện\n'
+                      '⚡ Phù hợp nhập số lượng lớn\n\n'
+                      '📌 Dùng khi: Nhập nhanh phụ kiện, linh kiện đã có sẵn mã trong hệ thống.',
+                      Icons.flash_on,
+                      Colors.orange,
                     ),
                     borderRadius: BorderRadius.circular(15),
                     child: Padding(
@@ -3062,16 +3157,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                           const SizedBox(height: 10),
                           const Text(
-                            "NHẬP KHO",
+                            "NHẬP NHANH",
                             style: TextStyle(
                               color: Colors.orange,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
                           ),
-                          const Text(
-                            "Siêu tốc",
-                            style: TextStyle(fontSize: 10, color: Colors.grey),
+                          Text(
+                            "Quét mã liên tục",
+                            style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
                           ),
                         ],
                       ),
@@ -3079,7 +3174,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Card(
                   color: Colors.purple.shade50,
@@ -3093,6 +3188,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       MaterialPageRoute(
                         builder: (_) => const FastInventoryCheckView(),
                       ),
+                    ),
+                    onLongPress: () => _showFeatureGuide(
+                      'KIỂM KHO',
+                      'Kiểm tra tồn kho bằng quét mã:\n\n'
+                      '🔍 Quét QR/Barcode để kiểm hàng\n'
+                      '🔍 So sánh số lượng thực tế vs hệ thống\n'
+                      '🔍 Ghi nhận chênh lệch\n\n'
+                      '📌 Dùng khi: Kiểm kê định kỳ, đối chiếu hàng tồn.',
+                      Icons.qr_code_scanner,
+                      Colors.purple,
                     ),
                     borderRadius: BorderRadius.circular(15),
                     child: Padding(
@@ -3120,9 +3225,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                               fontSize: 12,
                             ),
                           ),
-                          const Text(
-                            "Quét QR",
-                            style: TextStyle(fontSize: 10, color: Colors.grey),
+                          Text(
+                            "Đối chiếu tồn kho",
+                            style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
                           ),
                         ],
                       ),
@@ -3135,6 +3240,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
           const SizedBox(height: 20),
           _buildSectionHeader("QUẢN LÝ"),
+          _tabMenuItem(
+            "Hàng chờ xác nhận",
+            Icons.pending_actions,
+            Colors.orange,
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PendingStockListView()),
+            ),
+            subtitle: "Xem danh sách hàng nhập tạm chưa xác nhận.",
+          ),
           _tabMenuItem(
             "Danh sách sản phẩm",
             Icons.inventory,

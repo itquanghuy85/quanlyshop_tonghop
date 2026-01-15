@@ -17,6 +17,7 @@ import '../services/user_service.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
 import '../services/firestore_service.dart';
+import '../services/first_time_guide_service.dart';
 import 'supplier_list_view.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/printer_selection_dialog.dart';
@@ -88,6 +89,47 @@ class _InventoryViewState extends State<InventoryView>
     _init();
     // Re-enable inventory check initialization for QR check
     _initCheckData();
+    // Hiển thị hướng dẫn cho người dùng mới
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showFirstTimeGuide();
+    });
+  }
+
+  /// Hiển thị hướng dẫn lần đầu
+  Future<void> _showFirstTimeGuide() async {
+    await FirstTimeGuideService.showGuideIfNeeded(
+      context: context,
+      screenKey: FirstTimeGuideService.keyProductList,
+      title: 'Danh Sách Sản Phẩm',
+      icon: Icons.inventory_2,
+      color: Colors.blue,
+      steps: const [
+        GuideStep(
+          title: '📦 Tồn kho hiện tại',
+          description: 'Danh sách tất cả sản phẩm trong kho. Lọc theo loại hoặc tìm kiếm nhanh.',
+          icon: Icons.list,
+          iconColor: Colors.blue,
+        ),
+        GuideStep(
+          title: '🔍 Tìm kiếm',
+          description: 'Nhấn icon kính lúp để tìm theo tên, IMEI, SKU. Hỗ trợ tìm kiếm toàn cục.',
+          icon: Icons.search,
+          iconColor: Colors.purple,
+        ),
+        GuideStep(
+          title: '🛒 Bán hàng nhanh',
+          description: 'Nhấn vào sản phẩm để xem chi tiết, hoặc vuốt để bán nhanh/in tem.',
+          icon: Icons.shopping_cart,
+          iconColor: Colors.green,
+        ),
+        GuideStep(
+          title: '✏️ Chỉnh sửa giá',
+          description: 'Admin có thể chỉnh sửa giá bán, giá nhập trực tiếp từ chi tiết sản phẩm.',
+          icon: Icons.edit,
+          iconColor: Colors.orange,
+        ),
+      ],
+    );
   }
 
   @override

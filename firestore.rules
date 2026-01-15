@@ -336,6 +336,29 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ═══════════ 3.3.1 STOCK ENTRIES (Phiếu nhập kho tạm) ═══════════
+    match /stock_entries/{entryId} {
+      // Cho phép đọc entries của shop mình
+      allow read: if isAuth() && docInMyShop();
+      
+      // Tạo mới entry - cho phép employee trở lên
+      // status phải là lowercase: draft, confirmed, cancelled
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['status', 'shopId', 'items']) &&
+                       request.resource.data.status in ['draft', 'confirmed', 'cancelled', 'DRAFT', 'CONFIRMED', 'CANCELLED'];
+      
+      // Cập nhật - chỉ draft có thể sửa
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked() &&
+                       (resource.data.status in ['draft', 'DRAFT'] || isSuperAdmin());
+      
+      // Xóa - không cho xóa (soft delete via status = cancelled)
+      allow delete: if false;
+    }
+
     // ═══════════ 3.4 CUSTOMERS ═══════════
     match /customers/{customerId} {
       allow read: if isAuth() && docInMyShop();

@@ -6,6 +6,7 @@ import '../controllers/fast_inventory_input_controller.dart';
 import '../models/product_model.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
+import '../services/first_time_guide_service.dart';
 import '../utils/imei_extractor.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/imei_scan_result_dialog.dart';
@@ -72,6 +73,48 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
         _loadSuppliers();
       }
     });
+
+    // Hiển thị hướng dẫn cho người dùng mới
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showFirstTimeGuide();
+    });
+  }
+
+  /// Hiển thị hướng dẫn lần đầu
+  Future<void> _showFirstTimeGuide() async {
+    await FirstTimeGuideService.showGuideIfNeeded(
+      context: context,
+      screenKey: FirstTimeGuideService.keyFastInventoryInput,
+      title: 'Nhập Nhanh (Siêu Tốc)',
+      icon: Icons.flash_on,
+      color: Colors.orange,
+      steps: const [
+        GuideStep(
+          title: '📷 Quét mã liên tục',
+          description: 'Quét barcode/QR nhiều sản phẩm liên tục. Hệ thống tự động điền thông tin từ thư viện.',
+          icon: Icons.qr_code_scanner,
+          iconColor: Colors.purple,
+        ),
+        GuideStep(
+          title: '📝 Nhập theo lô',
+          description: 'Chế độ batch cho phép quét nhiều mã rồi xác nhận 1 lần. Tiết kiệm thời gian.',
+          icon: Icons.layers,
+          iconColor: Colors.blue,
+        ),
+        GuideStep(
+          title: '🏢 Chọn NCC trước',
+          description: 'Nhớ tạo và chọn NCC trước khi nhập. Tất cả sản phẩm sẽ được gắn với NCC đã chọn.',
+          icon: Icons.store,
+          iconColor: Colors.teal,
+        ),
+        GuideStep(
+          title: '⚡ Xác nhận ngay',
+          description: 'Khác với "Nhập Mới", ở đây hàng vào kho ngay sau khi nhập. Phù hợp nhập số lượng lớn.',
+          icon: Icons.check_circle,
+          iconColor: Colors.green,
+        ),
+      ],
+    );
   }
 
   Future<void> _loadInitialData() async {

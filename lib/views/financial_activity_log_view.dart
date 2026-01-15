@@ -174,11 +174,16 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
   }
 
   void _showFilterSheet() {
+    // Lưu giá trị tạm để có thể cancel
+    String? tempType = _selectedType;
+    String? tempDirection = _selectedDirection;
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -197,6 +202,10 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
                 ),
                 TextButton(
                   onPressed: () {
+                    setSheetState(() {
+                      tempType = null;
+                      tempDirection = null;
+                    });
                     setState(() {
                       _startDate = DateTime.now().subtract(
                         const Duration(days: 30),
@@ -256,11 +265,11 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
               spacing: 8,
               runSpacing: 8,
               children: _activityTypes.map((t) {
-                final isSelected = (_selectedType ?? '') == t['value'];
+                final isSelected = (tempType ?? '') == t['value'];
                 return ChoiceChip(
-                  label: Text(t['label']!, style: TextStyle(fontSize: 12)),
+                  label: Text(t['label']!, style: const TextStyle(fontSize: 12)),
                   selected: isSelected,
-                  onSelected: (_) => setState(() => _selectedType = t['value']),
+                  onSelected: (_) => setSheetState(() => tempType = t['value']),
                   selectedColor: Colors.blue.shade100,
                 );
               }).toList(),
@@ -277,12 +286,12 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
               spacing: 8,
               runSpacing: 8,
               children: _directions.map((d) {
-                final isSelected = (_selectedDirection ?? '') == d['value'];
+                final isSelected = (tempDirection ?? '') == d['value'];
                 return ChoiceChip(
-                  label: Text(d['label']!, style: TextStyle(fontSize: 12)),
+                  label: Text(d['label']!, style: const TextStyle(fontSize: 12)),
                   selected: isSelected,
                   onSelected: (_) =>
-                      setState(() => _selectedDirection = d['value']),
+                      setSheetState(() => tempDirection = d['value']),
                   selectedColor: Colors.green.shade100,
                 );
               }).toList(),
@@ -294,6 +303,11 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
+                  // Áp dụng filter
+                  setState(() {
+                    _selectedType = tempType;
+                    _selectedDirection = tempDirection;
+                  });
                   Navigator.pop(ctx);
                   _loadData();
                 },
@@ -316,6 +330,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
             SizedBox(height: MediaQuery.of(ctx).padding.bottom + 10),
           ],
         ),
+      ),
       ),
     );
   }

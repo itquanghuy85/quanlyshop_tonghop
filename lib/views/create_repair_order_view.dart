@@ -12,6 +12,7 @@ import '../services/sync_orchestrator.dart';
 import '../services/firestore_service.dart';
 import '../services/unified_printer_service.dart';
 import '../services/adjustment_service.dart';
+import '../services/first_time_guide_service.dart';
 import '../utils/money_utils.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -91,6 +92,58 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       () => setState(() {}),
     ); // Refresh UI for add customer button
     _loadPartners();
+    // Hiển thị hướng dẫn cho người dùng mới
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showFirstTimeGuide();
+    });
+  }
+
+  /// Hiển thị hướng dẫn lần đầu
+  Future<void> _showFirstTimeGuide() async {
+    await FirstTimeGuideService.showCarouselGuide(
+      context: context,
+      screenKey: FirstTimeGuideService.keyCreateRepair,
+      title: 'Tạo Đơn Sửa Chữa',
+      color: Colors.blue,
+      steps: const [
+        GuideStep(
+          title: '📞 Nhập SĐT khách hàng',
+          description: 'Nhập 10 số điện thoại, hệ thống tự động điền tên nếu khách cũ. Hoặc chọn từ danh bạ.',
+          icon: Icons.phone,
+          iconColor: Colors.green,
+        ),
+        GuideStep(
+          title: '📱 Thông tin máy',
+          description: 'Chọn hãng nhanh hoặc nhập model. Mô tả lỗi chi tiết để thợ hiểu rõ vấn đề.',
+          icon: Icons.smartphone,
+          iconColor: Colors.blue,
+        ),
+        GuideStep(
+          title: '📝 Tình trạng máy',
+          description: 'Ghi nhận ngoại quan (xước, móp) và phụ kiện đi kèm (SIM, ốp) để tránh tranh cãi sau này.',
+          icon: Icons.checklist,
+          iconColor: Colors.orange,
+        ),
+        GuideStep(
+          title: '🔧 Dịch vụ & Đối tác',
+          description: 'Thêm dịch vụ sửa chữa, chọn đối tác ngoài nếu cần gửi ra. Hệ thống tự tính công nợ.',
+          icon: Icons.build,
+          iconColor: Colors.purple,
+        ),
+        GuideStep(
+          title: '💰 Giá dự kiến',
+          description: 'Nhập giá báo khách. Có thể điều chỉnh sau khi sửa xong nếu phát sinh thêm.',
+          icon: Icons.attach_money,
+          iconColor: Colors.amber,
+        ),
+        GuideStep(
+          title: '📸 Chụp ảnh máy',
+          description: 'Chụp ảnh trước khi sửa để làm bằng chứng. Tối đa 5 ảnh, lưu trên cloud.',
+          icon: Icons.camera_alt,
+          iconColor: Colors.teal,
+        ),
+      ],
+    );
   }
 
   void _loadPartners() async {

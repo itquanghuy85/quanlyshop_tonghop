@@ -6,6 +6,7 @@ import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../models/inventory_zone_model.dart';
 import '../services/notification_service.dart';
+import '../services/first_time_guide_service.dart';
 import '../utils/qr_parser.dart';
 import '../utils/imei_extractor.dart';
 
@@ -74,6 +75,46 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   void initState() {
     super.initState();
     _loadInventoryData();
+    // Hiển thị hướng dẫn cho người dùng mới
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showFirstTimeGuide();
+    });
+  }
+
+  /// Hiển thị hướng dẫn lần đầu
+  Future<void> _showFirstTimeGuide() async {
+    await FirstTimeGuideService.showCarouselGuide(
+      context: context,
+      screenKey: FirstTimeGuideService.keyFastInventoryCheck,
+      title: 'Kiểm Kho Nhanh',
+      color: Colors.purple,
+      steps: const [
+        GuideStep(
+          title: '📋 Danh sách cần kiểm',
+          description: 'Hệ thống hiển thị tất cả sản phẩm trong kho. Quét để đánh dấu đã kiểm.',
+          icon: Icons.checklist,
+          iconColor: Colors.blue,
+        ),
+        GuideStep(
+          title: '📷 Quét IMEI/Barcode',
+          description: 'Nhấn "Bắt đầu quét" và đưa camera vào mã. Hệ thống tự nhận diện và check.',
+          icon: Icons.qr_code_scanner,
+          iconColor: Colors.purple,
+        ),
+        GuideStep(
+          title: '✅ Đã kiểm vs ❌ Thiếu',
+          description: 'Màu xanh = đã quét thấy. Màu đỏ = chưa quét hoặc thiếu. Dễ dàng phát hiện hàng mất.',
+          icon: Icons.compare_arrows,
+          iconColor: Colors.orange,
+        ),
+        GuideStep(
+          title: '📊 Báo cáo kiểm kê',
+          description: 'Sau khi quét xong, xem báo cáo tổng hợp: Đã kiểm, Thiếu, Thừa (không có trong hệ thống).',
+          icon: Icons.assessment,
+          iconColor: Colors.teal,
+        ),
+      ],
+    );
   }
 
   @override
