@@ -191,7 +191,21 @@ class StockEntry {
     this.updatedAt,
   });
   
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toMap({bool forUpdate = false}) {
+    // Khi update: chỉ gửi những field được phép thay đổi
+    if (forUpdate) {
+      return {
+        'items': items.map((e) => e.toMap()).toList(),
+        if (supplierId != null) 'supplierId': supplierId,
+        if (supplierName != null) 'supplierName': supplierName,
+        if (totalCost != null) 'totalCost': totalCost,
+        if (paymentMethod != null) 'paymentMethod': paymentMethod,
+        'notes': notes ?? '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+    }
+    
+    // Khi create mới: gửi đầy đủ
     final map = <String, dynamic>{
       if (id != null) 'id': id,
       'shopId': shopId,

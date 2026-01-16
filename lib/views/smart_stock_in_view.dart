@@ -52,7 +52,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   String? _selectedCondition;
   String? _selectedUnit;
   String? _selectedSupplier;
-  String? _selectedSupplierId;
+  String? _selectedSupplierId; // Firestore ID
+  int? _selectedSupplierLocalId; // SQLite local ID
   String? _selectedPaymentMethod;
 
   // Data
@@ -141,8 +142,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       _productType = item.productType;
       _nameCtrl.text = item.name;
       _quantityCtrl.text = item.quantity.toString();
-      if (item.cost != null) _costCtrl.text = (item.cost! / 1000).toString();
-      if (item.price != null) _priceCtrl.text = (item.price! / 1000).toString();
+      // Hiển thị giá trị VNĐ đã lưu (không chia 1000)
+      if (item.cost != null) _costCtrl.text = CurrencyTextField.formatDisplay(item.cost!.toInt());
+      if (item.price != null) _priceCtrl.text = CurrencyTextField.formatDisplay(item.price!.toInt());
 
       if (_productType == 'DIEN_THOAI') {
         _imeiCtrl.text = item.imei ?? '';
@@ -194,7 +196,31 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     if (_selectedSupplier == null) return false;
     if (_selectedPaymentMethod == null) return false;
     if (_hasIMEIConflict) return false; // Có IMEI nhưng SL != 1
+    
+    // Điện thoại phải có đầy đủ: IMEI (hoặc nhập lô), Hãng, Dung lượng, Màu, Tình trạng
+    if (_isPhone) {
+      if (_selectedBrand == null) return false;
+      if (_selectedCapacity == null) return false;
+      if (_selectedColor == null) return false;
+      if (_selectedCondition == null) return false;
+    }
     return true;
+  }
+  
+  /// Lấy danh sách thông tin còn thiếu để xác nhận
+  List<String> get _missingConfirmInfo {
+    final missing = <String>[];
+    if (_nameCtrl.text.trim().isEmpty) missing.add('Tên sản phẩm');
+    if (CurrencyTextField.getValue(_costCtrl) <= 0) missing.add('Giá vốn');
+    if (_selectedSupplier == null) missing.add('Nhà cung cấp');
+    if (_selectedPaymentMethod == null) missing.add('Phương thức TT');
+    if (_isPhone) {
+      if (_selectedBrand == null) missing.add('Hãng');
+      if (_selectedCapacity == null) missing.add('Dung lượng');
+      if (_selectedColor == null) missing.add('Màu sắc');
+      if (_selectedCondition == null) missing.add('Tình trạng');
+    }
+    return missing;
   }
 
   /// Kiểm tra có thể lưu tạm
@@ -209,15 +235,15 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     final costValue = CurrencyTextField.getValue(_costCtrl);
     final priceValue = CurrencyTextField.getValue(_priceCtrl);
     
-    // Label là "Giá vốn (k)" nên người dùng nhập đơn vị nghìn → nhân 1000
+    // Nhập trực tiếp VNĐ - KHÔNG nhân 1000 nữa
     double? cost;
     if (costValue > 0) {
-      cost = costValue.toDouble() * 1000;
+      cost = costValue.toDouble();
     }
     
     double? price;
     if (priceValue > 0) {
-      price = priceValue.toDouble() * 1000;
+      price = priceValue.toDouble();
     }
 
     // Nếu điện thoại có IMEI thì số lượng phải = 1
@@ -248,15 +274,25 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   Future<StockEntry> _buildEntry() async {
     final shopId = await UserService.getCurrentShopId() ?? '';
     final item = _buildItem();
+    final edit = widget.editEntry;
 
     return StockEntry(
-      firestoreId: widget.editEntry?.firestoreId,
-      shopId: shopId,
+      firestoreId: edit?.firestoreId,
+      shopId: edit?.shopId ?? shopId,
+      // Giữ nguyên status và entryType từ edit entry (không thay đổi khi update)
+      status: edit?.status ?? StockEntryStatus.draft,
+      entryType: edit?.entryType ?? StockEntryType.staging,
+      locked: edit?.locked ?? false,
       items: [item],
       supplierId: _selectedSupplierId,
       supplierName: _selectedSupplier,
       paymentMethod: _selectedPaymentMethod,
       notes: _notesCtrl.text.trim(),
+      // Giữ nguyên các trường timestamp và audit từ edit entry
+      createdAt: edit?.createdAt,
+      createdBy: edit?.createdBy,
+      confirmedAt: edit?.confirmedAt,
+      confirmedBy: edit?.confirmedBy,
     );
   }
 
@@ -313,16 +349,23 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     setState(() => _isSaving = true);
     try {
       final entry = await _buildEntry();
+      debugPrint('📋 _saveAndConfirm: Built entry - firestoreId=${entry.firestoreId}, supplierId=${entry.supplierId}, paymentMethod=${entry.paymentMethod}');
+      debugPrint('📋 _saveAndConfirm: entry items=${entry.items.length}, canConfirm=${entry.canConfirm}');
 
       bool success;
       if (widget.editEntry != null) {
         // Cập nhật rồi xác nhận
+        debugPrint('📋 _saveAndConfirm: Updating existing entry...');
         success = await _service.updateEntry(entry);
+        debugPrint('📋 _saveAndConfirm: updateEntry result=$success');
         if (success && entry.firestoreId != null) {
+          debugPrint('📋 _saveAndConfirm: Confirming entry...');
           success = await _service.confirmEntry(entry.firestoreId!);
+          debugPrint('📋 _saveAndConfirm: confirmEntry result=$success');
         }
       } else {
         // Nhập nhanh
+        debugPrint('📋 _saveAndConfirm: Quick stock in...');
         success = await _service.quickStockIn(entry);
       }
 
@@ -492,6 +535,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               style: const TextStyle(fontSize: 13),
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
 
@@ -664,11 +708,48 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             style: TextStyle(fontSize: 9, color: Colors.grey),
                           ),
                         ),
+                      // Hiển thị ghi chú nhập lô
+                      if (_imeiCtrl.text.trim().isEmpty && (int.tryParse(_quantityCtrl.text) ?? 1) > 1)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            '📦 Nhập lô',
+                            style: TextStyle(fontSize: 9, color: Colors.blue),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ],
             ),
+            // Ghi chú nhập lô điện thoại
+            if (_imeiCtrl.text.trim().isEmpty && (int.tryParse(_quantityCtrl.text) ?? 1) > 1)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Nhập ${_quantityCtrl.text} máy → Khi xác nhận sẽ tạo ${_quantityCtrl.text} sản phẩm riêng biệt, mỗi máy có IMEI tạm (cần cập nhật sau)',
+                        style: TextStyle(fontSize: 11, color: Colors.blue.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -699,6 +780,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               style: const TextStyle(fontSize: 13),
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
 
@@ -793,15 +875,16 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 Expanded(
                   child: CurrencyTextField(
                     controller: _costCtrl,
-                    label: 'Giá vốn (k)',
+                    label: 'Giá vốn (VNĐ)',
                     icon: Icons.attach_money,
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: CurrencyTextField(
                     controller: _priceCtrl,
-                    label: 'Giá bán (k)',
+                    label: 'Giá bán (VNĐ)',
                     icon: Icons.sell,
                   ),
                 ),
@@ -836,6 +919,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                       setState(() {
                         _selectedSupplier = v;
                         _selectedSupplierId = supplier['firestoreId'];
+                        _selectedSupplierLocalId = supplier['id'] as int?;
                       });
                     },
                     style: const TextStyle(fontSize: 12, color: Colors.black87),
@@ -878,6 +962,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   }
 
   Widget _buildActionButtons() {
+    final missingInfo = _missingConfirmInfo;
+    final hasMissing = missingInfo.isNotEmpty;
+    
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -891,40 +978,73 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         ],
       ),
       child: SafeArea(
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Nút Lưu tạm
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _isSaving || !_canSaveDraft ? null : _saveDraft,
-                icon: const Icon(Icons.save_outlined, size: 18),
-                label: const Text('LƯU TẠM'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  side: BorderSide(color: Colors.grey.shade400),
+            // Hiển thị thông tin còn thiếu
+            if (hasMissing && !_isSaving)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Thiếu: ${missingInfo.join(", ")}',
+                        style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            // Nút Lưu & Xác nhận
-            Expanded(
-              flex: 2,
-              child: ElevatedButton.icon(
-                onPressed: _isSaving || !_canConfirmNow ? null : _saveAndConfirm,
-                icon: _isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.check_circle, size: 18),
-                label: Text(_isSaving ? 'Đang lưu...' : 'LƯU & XÁC NHẬN'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _canConfirmNow ? Colors.green : Colors.grey,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+            Row(
+              children: [
+                // Nút Lưu tạm - luôn hiện nếu có thể
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isSaving || !_canSaveDraft ? null : _saveDraft,
+                    icon: const Icon(Icons.save_outlined, size: 18),
+                    label: const Text('LƯU TẠM'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(
+                        color: _canSaveDraft ? Colors.amber.shade700 : Colors.grey.shade400,
+                      ),
+                      foregroundColor: _canSaveDraft ? Colors.amber.shade700 : null,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                // Nút Lưu & Xác nhận - chỉ bật khi đủ thông tin
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    onPressed: _isSaving || !_canConfirmNow ? null : _saveAndConfirm,
+                    icon: _isSaving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.check_circle, size: 18),
+                    label: Text(_isSaving ? 'Đang lưu...' : 'LƯU & XÁC NHẬN'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _canConfirmNow ? Colors.green : Colors.grey.shade400,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

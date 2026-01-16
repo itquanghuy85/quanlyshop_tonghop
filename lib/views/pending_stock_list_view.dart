@@ -3,6 +3,7 @@ import '../models/stock_entry_model.dart';
 import '../services/stock_entry_service.dart';
 import '../services/notification_service.dart';
 import '../services/first_time_guide_service.dart';
+import '../widgets/gradient_fab.dart';
 import 'smart_stock_in_view.dart';
 import 'package:intl/intl.dart';
 
@@ -72,13 +73,19 @@ class _PendingStockListViewState extends State<PendingStockListView> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      debugPrint('📋 PendingStockListView._loadData: START');
       final entries = await _service.getPendingEntries();
+      debugPrint('📋 PendingStockListView._loadData: got ${entries.length} entries');
+      for (final e in entries) {
+        debugPrint('   - entry ${e.firestoreId}: items=${e.items.length}, itemName=${e.items.isNotEmpty ? e.items.first.name : "N/A"}');
+      }
       setState(() {
         _entries = entries;
         _isLoading = false;
       });
+      debugPrint('📋 PendingStockListView._loadData: DONE, _entries.length=${_entries.length}');
     } catch (e) {
-      debugPrint('Error loading pending entries: $e');
+      debugPrint('❌ Error loading pending entries: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -220,7 +227,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: GradientFab.info(
         onPressed: () async {
           final result = await Navigator.push<bool>(
             context,
@@ -230,9 +237,8 @@ class _PendingStockListViewState extends State<PendingStockListView> {
             await _loadData();
           }
         },
-        icon: const Icon(Icons.add),
-        label: const Text('NHẬP MỚI'),
-        backgroundColor: Colors.blue,
+        icon: Icons.add_circle_outline,
+        label: 'Nhập mới',
       ),
     );
   }
@@ -369,13 +375,24 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (item.productType == 'DIEN_THOAI' && item.imei != null)
-                          Text(
-                            'IMEI: ${item.imei}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade600,
+                        // Product details line
+                        if (item.productType == 'DIEN_THOAI') ...[
+                          if (item.brand != null || item.model != null || item.capacity != null)
+                            Text(
+                              [item.brand, item.model, item.capacity].where((e) => e != null && e.isNotEmpty).join(' • '),
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                          if (item.imei != null && item.imei!.isNotEmpty)
+                            Text(
+                              'IMEI: ${item.imei}',
+                              style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontFamily: 'monospace'),
+                            ),
+                        ] else if (item.sku != null && item.sku!.isNotEmpty)
+                          Text(
+                            'SKU: ${item.sku}',
+                            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                           ),
                       ],
                     ),
@@ -383,13 +400,22 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        'x${item.quantity}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'x${item.quantity}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: Colors.blue.shade700,
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         dateStr,
                         style: TextStyle(
@@ -402,17 +428,32 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                 ],
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
 
-              // Info row
+              // Info chips row
               Wrap(
-                spacing: 8,
+                spacing: 6,
                 runSpacing: 4,
                 children: [
                   if (item.cost != null)
                     _infoChip(
-                      '💰 ${NumberFormat.compact(locale: 'vi').format(item.cost)}',
-                      Colors.blue.shade100,
+                      'Vốn: ${NumberFormat.compact(locale: 'vi').format(item.cost)}đ',
+                      Colors.orange.shade100,
+                    ),
+                  if (item.price != null)
+                    _infoChip(
+                      'Bán: ${NumberFormat.compact(locale: 'vi').format(item.price)}đ',
+                      Colors.green.shade100,
+                    ),
+                  if (item.color != null && item.color!.isNotEmpty)
+                    _infoChip(
+                      '🎨 ${item.color}',
+                      Colors.pink.shade50,
+                    ),
+                  if (item.condition != null && item.condition!.isNotEmpty)
+                    _infoChip(
+                      '📦 ${item.condition}',
+                      Colors.cyan.shade50,
                     ),
                   if (entry.supplierName != null)
                     _infoChip(
@@ -453,42 +494,76 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                 ),
               ],
 
-              const Divider(height: 16),
+              const Divider(height: 8),
 
-              // Action buttons
+              // Action buttons - compact icons
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // Cancel button
-                  TextButton.icon(
-                    onPressed: () => _cancelEntry(entry),
-                    icon: const Icon(Icons.delete_outline, size: 16),
-                    label: const Text('Hủy', style: TextStyle(fontSize: 12)),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                  SizedBox(
+                    height: 32,
+                    child: TextButton(
+                      onPressed: () => _cancelEntry(entry),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.close, size: 14),
+                          SizedBox(width: 4),
+                          Text('Hủy', style: TextStyle(fontSize: 11)),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                   // Edit button
-                  OutlinedButton.icon(
-                    onPressed: () => _editEntry(entry),
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('Sửa', style: TextStyle(fontSize: 12)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                  SizedBox(
+                    height: 32,
+                    child: OutlinedButton(
+                      onPressed: () => _editEntry(entry),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit, size: 14),
+                          SizedBox(width: 4),
+                          Text('Sửa', style: TextStyle(fontSize: 11)),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                   // Confirm button
-                  ElevatedButton.icon(
-                    onPressed: entry.canConfirm ? () => _confirmEntry(entry) : null,
-                    icon: const Icon(Icons.check_circle, size: 16),
-                    label: const Text('Xác nhận', style: TextStyle(fontSize: 12)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: entry.canConfirm ? Colors.green : Colors.grey,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                  SizedBox(
+                    height: 32,
+                    child: ElevatedButton(
+                      onPressed: entry.canConfirm ? () => _confirmEntry(entry) : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: entry.canConfirm ? Colors.green : Colors.grey,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check, size: 14),
+                          SizedBox(width: 4),
+                          Text('OK', style: TextStyle(fontSize: 11)),
+                        ],
+                      ),
                     ),
                   ),
                 ],

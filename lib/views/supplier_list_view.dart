@@ -17,6 +17,7 @@ import '../services/sync_orchestrator.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
+import '../widgets/gradient_fab.dart';
 import 'supplier_form_view.dart';
 import 'supplier_detail_view.dart';
 import 'repair_partner_form_view.dart';
@@ -409,7 +410,7 @@ class _SupplierListViewState extends State<SupplierListView>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: GradientFab(
         onPressed: () async {
           if (_tabController.index == 0) {
             await Navigator.push(
@@ -425,11 +426,11 @@ class _SupplierListViewState extends State<SupplierListView>
             await _loadPartners();
           }
         },
-        icon: Icon(
-          _tabController.index == 0 ? Icons.add_business : Icons.handyman,
-        ),
-        label: Text(_tabController.index == 0 ? 'THÊM NCC' : 'THÊM ĐỐI TÁC'),
-        backgroundColor: AppColors.primary,
+        icon: _tabController.index == 0 ? Icons.add_business : Icons.handyman,
+        label: _tabController.index == 0 ? 'Thêm NCC' : 'Thêm đối tác',
+        gradientColors: _tabController.index == 0 
+            ? const [Color(0xFF667eea), Color(0xFF764ba2)]
+            : const [Color(0xFF11998e), Color(0xFF38ef7d)],
       ),
       body: TabBarView(
         controller: _tabController,

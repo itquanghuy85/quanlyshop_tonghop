@@ -14,6 +14,7 @@ import '../data/db_helper.dart';
 import '../services/storage_service.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
+import '../widgets/gradient_fab.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
 import '../theme/app_colors.dart';
@@ -917,10 +918,10 @@ class _StaffListViewState extends State<StaffListView> {
         accentColor: AppBarAccents.staff,
       ),
       floatingActionButton: _canManageStaff
-          ? FloatingActionButton.extended(
+          ? GradientFab.primary(
               onPressed: _openCreateStaffDialog,
-              icon: const Icon(Icons.person_add_alt_1),
-              label: const Text("Thêm nhân viên"),
+              icon: Icons.person_add_alt_1,
+              label: 'Thêm NV',
             )
           : null,
       body: _loadingRole

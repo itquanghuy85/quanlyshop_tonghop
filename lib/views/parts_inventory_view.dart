@@ -10,6 +10,7 @@ import '../services/adjustment_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
+import '../widgets/gradient_fab.dart';
 
 class PartsInventoryView extends StatefulWidget {
   const PartsInventoryView({super.key});
@@ -1144,11 +1145,10 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
       floatingActionButton: _isSelectionMode
           ? null
           : (_isAdmin
-                ? FloatingActionButton.extended(
+                ? GradientFab.orange(
                     onPressed: () => _showAddPartDialog(),
-                    label: const Text("NHẬP LINH KIỆN"),
-                    icon: const Icon(Icons.add),
-                    backgroundColor: _primaryColor,
+                    icon: Icons.add,
+                    label: 'Nhập LK',
                   )
                 : null),
     );

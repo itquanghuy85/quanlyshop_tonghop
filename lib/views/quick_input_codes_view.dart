@@ -9,6 +9,7 @@ import '../services/sync_orchestrator.dart';
 import '../data/db_helper.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
+import '../widgets/gradient_fab.dart';
 import 'stock_in_view.dart';
 import 'fast_stock_in_view.dart';
 
@@ -443,11 +444,10 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: GradientFab.teal(
         onPressed: () => _showAddEditDialog(),
-        backgroundColor: Colors.blue.shade700,
-        icon: const Icon(Icons.add),
-        label: const Text('THÊM MÃ MỚI', style: TextStyle(fontWeight: FontWeight.bold)),
+        icon: Icons.add,
+        label: 'Thêm mã',
       ),
     );
   }

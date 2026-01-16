@@ -50,3 +50,7 @@ số liệu thêm hoàn trả khách tiền mặt:
 số liệu thêm hoàn trả khách chuyển khoản:
 số liệu thêm vay góp khách tiền mặt:
 số liệu thêm vay góp khách chuyển khoản:
+với trình độ và hiểu biết tận gốc từng con só từng hàm , logic của bạn hãy sửa triệt để tất cả các lỗi trên trong thời gian sớm nhất có thể: 
+1:"CHỈNH SỬA SẢN PHẨM" trong kho tránh rắc rối hãy khóa chỉnh sửa thông tin :giá nhập, nhà cc, phương thức thanh toán khi đã nhập kho.chỉ cho sửa nếu sản phẩm chưa được bán( sửa lại)
+2: tôi nhập từ trang : "HÀNG CHỜ XÁC NHẬN" 2 sản phẩm vào kho chính thì cả 2 sản phẩm với giá nhập(giá vốn,giá bán) 9.000.000 nhưng lại ghi nợ 9 tỷ (có lẽ do x1000) và trong thông tin nhà cung cấp: ghi nợ 1 sản phẩm nhưng 18 tỷ(sai), và ko hiện lịch sử nhập.trang "NHẬT KÝ TÀI CHÍNH" -"nhập hàng":-Mô tả: Nhập 1 sản phẩm ( 2 sản phẩm mới đúng),"Người thực hiện": là id không hiện tên( sai). nhập kho nhưng chưa có lưu giao dịch vào chốt quỹ hay chi phí.....
+3: các list : hãy chỉnh sửa tiêu đề sản phẩm thu nhỏ cỡ chữ giảm xuống cho gọn.

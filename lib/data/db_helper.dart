@@ -116,7 +116,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS supplier_product_prices(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, supplierId INTEGER, productName TEXT, productBrand TEXT, productModel TEXT, costPrice INTEGER, lastUpdated INTEGER, createdAt INTEGER, isActive INTEGER DEFAULT 1, shopId TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS supplier_import_history(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, supplierId INTEGER, supplierName TEXT, productName TEXT, productBrand TEXT, productModel TEXT, imei TEXT, quantity INTEGER, costPrice INTEGER, totalAmount INTEGER, paymentMethod TEXT, importDate INTEGER, importedBy TEXT, notes TEXT, isSynced INTEGER DEFAULT 0, shopId TEXT)',
+          'CREATE TABLE IF NOT EXISTS supplier_import_history(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, supplierId INTEGER, supplierName TEXT, productName TEXT, productBrand TEXT, productModel TEXT, imei TEXT, quantity INTEGER, costPrice INTEGER, totalAmount INTEGER, paymentMethod TEXT, importDate INTEGER, importedBy TEXT, importedByUid TEXT, referenceId TEXT, createdAt INTEGER, notes TEXT, isSynced INTEGER DEFAULT 0, shopId TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repair_partners(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, note TEXT, active INTEGER DEFAULT 1, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
@@ -1585,6 +1585,37 @@ class DBHelper {
         } catch (e) {
           debugPrint(
             'DB: shopId column already exists in supplier_import_history or error: $e',
+          );
+        }
+        // Add new columns for importedByUid, referenceId, createdAt
+        try {
+          await db.execute(
+            'ALTER TABLE supplier_import_history ADD COLUMN importedByUid TEXT',
+          );
+          debugPrint('DB: added importedByUid column to supplier_import_history');
+        } catch (e) {
+          debugPrint(
+            'DB: importedByUid column already exists in supplier_import_history or error: $e',
+          );
+        }
+        try {
+          await db.execute(
+            'ALTER TABLE supplier_import_history ADD COLUMN referenceId TEXT',
+          );
+          debugPrint('DB: added referenceId column to supplier_import_history');
+        } catch (e) {
+          debugPrint(
+            'DB: referenceId column already exists in supplier_import_history or error: $e',
+          );
+        }
+        try {
+          await db.execute(
+            'ALTER TABLE supplier_import_history ADD COLUMN createdAt INTEGER',
+          );
+          debugPrint('DB: added createdAt column to supplier_import_history');
+        } catch (e) {
+          debugPrint(
+            'DB: createdAt column already exists in supplier_import_history or error: $e',
           );
         }
 

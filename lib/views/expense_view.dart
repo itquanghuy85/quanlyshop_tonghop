@@ -17,6 +17,7 @@ import '../services/financial_activity_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
+import '../widgets/gradient_fab.dart';
 import 'fast_stock_in_view.dart';
 import '../widgets/custom_app_bar.dart';
 
@@ -646,14 +647,10 @@ class _ExpenseViewState extends State<ExpenseView> {
       ),
       floatingActionButton: kIsWeb
           ? null
-          : FloatingActionButton.extended(
+          : GradientFab.danger(
               onPressed: _showAddExpenseDialog,
-              label: const Text(
-                "CHI PHÍ MỚI",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              icon: const Icon(Icons.add_circle_outline),
-              backgroundColor: const Color(0xFFD32F2F),
+              icon: Icons.add_circle_outline,
+              label: 'Chi phí mới',
             ),
     );
   }

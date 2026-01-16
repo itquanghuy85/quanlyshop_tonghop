@@ -6,6 +6,7 @@ import '../data/db_helper.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
+import '../widgets/gradient_fab.dart';
 import 'fast_stock_in_view.dart';
 import 'supplier_details_dialog.dart';
 import '../theme/app_colors.dart';
@@ -446,14 +447,10 @@ class _SupplierViewState extends State<SupplierView> {
                 itemBuilder: (ctx, i) => _buildSupplierCard(_filteredSuppliers[i]),
               ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: GradientFab.primary(
         onPressed: _showAddSupplier,
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 6,
-        icon: const Icon(Icons.add_business, size: 24),
-        label: Text("THÊM NHÀ CUNG CẤP", style: AppTextStyles.button.copyWith(fontWeight: FontWeight.w600)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: Icons.add_business,
+        label: 'Thêm NCC',
       ),
     );
   }

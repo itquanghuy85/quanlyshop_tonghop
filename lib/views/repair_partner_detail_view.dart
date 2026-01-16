@@ -11,6 +11,7 @@ import '../core/utils/money_utils.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
+import '../widgets/gradient_fab.dart';
 import 'repair_partner_form_view.dart';
 
 class RepairPartnerDetailView extends StatefulWidget {
@@ -122,11 +123,10 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
                 _buildStatsTab(),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: GradientFab.success(
         onPressed: _showPaymentDialog,
-        icon: const Icon(Icons.payments),
-        label: const Text('THANH TOÁN'),
-        backgroundColor: AppColors.success,
+        icon: Icons.payments,
+        label: 'Thanh toán',
       ),
     );
   }

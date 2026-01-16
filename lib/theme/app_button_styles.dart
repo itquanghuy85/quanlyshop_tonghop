@@ -306,6 +306,65 @@ class AppButtonStyles {
     );
   }
 
+  /// Compact FAB decoration - for use with FloatingActionButton.extended
+  /// Returns a map containing recommended properties
+  static Map<String, dynamic> compactFabProps({
+    required Color backgroundColor,
+    Color? foregroundColor,
+    IconData? icon,
+    String? label,
+  }) {
+    return {
+      'backgroundColor': backgroundColor,
+      'foregroundColor': foregroundColor ?? Colors.white,
+      'elevation': 4.0,
+      'highlightElevation': 8.0,
+      'shape': RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+      ),
+      'extendedPadding': const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      'extendedIconLabelSpacing': 6.0,
+      'extendedTextStyle': const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.5,
+      ),
+    };
+  }
+
+  /// Compact action button style for list items
+  static ButtonStyle get compactActionButtonStyle {
+    return ElevatedButton.styleFrom(
+      elevation: 0,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      minimumSize: const Size(0, 32),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      textStyle: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  /// Mini FAB style for compact spaces
+  static ButtonStyle get miniFabStyle {
+    return ElevatedButton.styleFrom(
+      elevation: 2,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      minimumSize: const Size(0, 36),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      textStyle: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
   // ========== CHIP BUTTON ==========
   /// Style cho ActionChip
   static ButtonStyle get chipButtonStyle {

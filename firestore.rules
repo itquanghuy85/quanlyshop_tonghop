@@ -154,30 +154,30 @@ service cloud.firestore {
     }
     
     function num(f) {
-      return f in request.resource.data && request.resource.data[f] is int;
+      return f in request.resource.data && request.resource.data[f] is number;
     }
     
     function numGte0(f) {
       return f in request.resource.data &&
-             request.resource.data[f] is int &&
+             request.resource.data[f] is number &&
              request.resource.data[f] >= 0;
     }
     
     function optNum(f) {
       return !(f in request.resource.data) ||
              request.resource.data[f] == null ||
-             request.resource.data[f] is int;
+             request.resource.data[f] is number;
     }
     
     function optNumGte0(f) {
       return !(f in request.resource.data) ||
              request.resource.data[f] == null ||
-             (request.resource.data[f] is int && request.resource.data[f] >= 0);
+             (request.resource.data[f] is number && request.resource.data[f] >= 0);
     }
     
     function status(f, min, max) {
       return f in request.resource.data &&
-             request.resource.data[f] is int &&
+             request.resource.data[f] is number &&
              request.resource.data[f] >= min &&
              request.resource.data[f] <= max;
     }
@@ -778,6 +778,41 @@ service cloud.firestore {
                        newDocInMyShop() &&
                        has(['partName', 'shopId']) &&
                        str('partName', 1, 200);
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked();
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 10.4 FINANCIAL_ACTIVITIES (Stock entry confirm) ═══════════
+    // Used by confirmEntry() when confirming stock entries
+    match /financial_activities/{activityId} {
+      allow read: if isAuth() && docInMyShop() && isManager();
+      
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['type', 'amount', 'shopId']);
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       isManager() &&
+                       shopIdLocked();
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 10.5 SUPPLIER_DEBTS (Stock entry confirm with CÔNG NỢ) ═══════════
+    // Used by confirmEntry() when payment method is CÔNG NỢ
+    match /supplier_debts/{debtId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['supplierId', 'amount', 'shopId']);
       
       allow update: if isAuth() && 
                        docInMyShop() &&

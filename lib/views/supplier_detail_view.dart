@@ -10,6 +10,7 @@ import '../services/event_bus.dart';
 import '../services/sync_orchestrator.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/gradient_fab.dart';
 
 class SupplierDetailView extends StatefulWidget {
   final Supplier supplier;
@@ -98,11 +99,10 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
               ],
             ),
       floatingActionButton: _tab.index == 1
-          ? FloatingActionButton.extended(
+          ? GradientFab.success(
               onPressed: _remainDebt <= 0 ? null : _payDialog,
-              backgroundColor: AppColors.success,
-              icon: const Icon(Icons.payments),
-              label: const Text('THANH TOÁN'),
+              icon: Icons.payments,
+              label: 'Thanh toán',
             )
           : null,
     );

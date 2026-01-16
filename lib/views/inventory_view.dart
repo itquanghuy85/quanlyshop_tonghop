@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/money_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -74,7 +75,7 @@ class _InventoryViewState extends State<InventoryView>
   final double _pad = 12.0;
   final double _cardPadding = 12.0;
   final double _iconSize = 20.0;
-  final double _titleFontSize = 18.0;
+  final double _titleFontSize = 15.0;
   final double _smallFontSize = 11.0;
   final double _btnMinHeight = 44.0;
 
@@ -185,9 +186,100 @@ class _InventoryViewState extends State<InventoryView>
     }
   }
 
+  /// Auto-fix paymentMethod cho sản phẩm cũ thiếu thông tin
+  Future<void> _autoFixProductPaymentMethod(Product p) async {
+    try {
+      String paymentMethod = 'TIỀN MẶT'; // Default
+      
+      // Lấy từ Firestore để kiểm tra stockEntryId
+      final doc = await FirebaseFirestore.instance
+          .collection('products')
+          .doc(p.firestoreId)
+          .get();
+      
+      if (doc.exists) {
+        final data = doc.data()!;
+        final stockEntryId = data['stockEntryId'] as String?;
+        
+        if (stockEntryId != null) {
+          // Lấy paymentMethod từ stock_entries
+          final entryDoc = await FirebaseFirestore.instance
+              .collection('stock_entries')
+              .doc(stockEntryId)
+              .get();
+          if (entryDoc.exists) {
+            paymentMethod = entryDoc.data()?['paymentMethod'] ?? 'TIỀN MẶT';
+          }
+        } else if (data['supplierId'] != null) {
+          // Nếu có supplierId, kiểm tra có debt không
+          final debtSnap = await FirebaseFirestore.instance
+              .collection('supplier_debts')
+              .where('supplierId', isEqualTo: data['supplierId'])
+              .limit(1)
+              .get();
+          if (debtSnap.docs.isNotEmpty) {
+            paymentMethod = 'CÔNG NỢ';
+          }
+        }
+        
+        // Cập nhật Firestore
+        await FirebaseFirestore.instance
+            .collection('products')
+            .doc(p.firestoreId)
+            .update({
+          'paymentMethod': paymentMethod,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        // Cập nhật local
+        p.paymentMethod = paymentMethod;
+        await db.upsertProduct(p);
+        
+        debugPrint('✅ Auto-fixed paymentMethod for ${p.name}: $paymentMethod');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error auto-fixing paymentMethod: $e');
+    }
+  }
+
   void _showProductDetail(Product p) async {
     HapticFeedback.lightImpact();
-    final repairs = await db.getRepairsByImei(p.imei ?? '');
+    
+    // Auto-fix paymentMethod cho sản phẩm cũ nếu thiếu
+    if (p.paymentMethod == null && !p.isPending && p.firestoreId != null) {
+      await _autoFixProductPaymentMethod(p);
+    }
+    
+    // Reload product từ Firestore để đảm bảo có data mới nhất
+    Product displayProduct = p;
+    if (p.firestoreId != null && !p.isPending) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('products')
+            .doc(p.firestoreId)
+            .get();
+        if (doc.exists) {
+          final data = doc.data()!;
+          // Cập nhật cost, price, paymentMethod từ Firestore
+          displayProduct = p.copyWith(
+            cost: data['cost'] is int ? data['cost'] : (data['cost'] is double ? (data['cost'] as double).toInt() : p.cost),
+            price: data['price'] is int ? data['price'] : (data['price'] is double ? (data['price'] as double).toInt() : p.price),
+            paymentMethod: data['paymentMethod'] as String? ?? p.paymentMethod,
+            supplier: data['supplier'] as String? ?? p.supplier,
+          );
+          
+          // Sync lại vào local DB nếu khác
+          if (displayProduct.cost != p.cost || displayProduct.price != p.price) {
+            await db.upsertProduct(displayProduct);
+            debugPrint('✅ Synced product ${p.name}: cost=${displayProduct.cost}, price=${displayProduct.price}');
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error loading product from Firestore: $e');
+      }
+    }
+    
+    final repairs = await db.getRepairsByImei(displayProduct.imei ?? '');
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -212,7 +304,7 @@ class _InventoryViewState extends State<InventoryView>
             ),
             const SizedBox(height: 20),
             // Banner KHO TẠM nếu sản phẩm pending
-            if (p.isPending) ...[
+            if (displayProduct.isPending) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
@@ -242,9 +334,9 @@ class _InventoryViewState extends State<InventoryView>
                               fontSize: 14,
                             ),
                           ),
-                          if (p.pendingSupplier != null)
+                          if (displayProduct.pendingSupplier != null)
                             Text(
-                              'NCC dự kiến: ${p.pendingSupplier}',
+                              'NCC dự kiến: ${displayProduct.pendingSupplier}',
                               style: TextStyle(
                                 color: Colors.orange.shade600,
                                 fontSize: 12,
@@ -258,48 +350,48 @@ class _InventoryViewState extends State<InventoryView>
               ),
             ],
             Text(
-              p.name,
+              displayProduct.name,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: p.isPending
+                color: displayProduct.isPending
                     ? Colors.orange.shade800
                     : const Color(0xFF2962FF),
               ),
             ),
             const SizedBox(height: 15),
-            _detailItem("Chi tiết máy", p.capacity ?? ""),
-            _detailItem("IMEI/Serial", p.imei ?? "N/A"),
+            _detailItem("Chi tiết máy", displayProduct.capacity ?? ""),
+            _detailItem("IMEI/Serial", displayProduct.imei ?? "N/A"),
             _detailItem(
               "Nhà cung cấp",
-              p.isPending
-                  ? (p.pendingSupplier ?? "Chưa xác nhận")
-                  : (p.supplier ?? "N/A"),
+              displayProduct.isPending
+                  ? (displayProduct.pendingSupplier ?? "Chưa xác nhận")
+                  : (displayProduct.supplier ?? "N/A"),
             ),
             _detailItem(
               "Giá nhập",
-              p.isPending
+              displayProduct.isPending
                   ? "Chờ xác nhận"
-                  : "${MoneyUtils.formatCurrency(p.cost)} đ",
-              color: p.isPending ? Colors.orange : null,
+                  : "${MoneyUtils.formatCurrency(displayProduct.cost)} đ",
+              color: displayProduct.isPending ? Colors.orange : null,
             ),
             _detailItem(
               "Giá bán",
-              p.isPending
+              displayProduct.isPending
                   ? "Chờ xác nhận"
-                  : "${MoneyUtils.formatCurrency(p.price)} đ",
-              color: p.isPending ? Colors.orange : Colors.red,
+                  : "${MoneyUtils.formatCurrency(displayProduct.price)} đ",
+              color: displayProduct.isPending ? Colors.orange : Colors.red,
             ),
             _detailItem(
               "Thanh toán",
-              p.isPending ? "Chờ xác nhận" : (p.paymentMethod ?? "N/A"),
+              displayProduct.isPending ? "Chờ xác nhận" : (displayProduct.paymentMethod ?? "N/A"),
             ),
             _detailItem(
               "Cập nhật cuối",
-              p.updatedAt != null
+              displayProduct.updatedAt != null
                   ? DateFormat(
                       'dd/MM/yyyy HH:mm',
-                    ).format(DateTime.fromMillisecondsSinceEpoch(p.updatedAt!))
+                    ).format(DateTime.fromMillisecondsSinceEpoch(displayProduct.updatedAt!))
                   : "N/A",
               color: Colors.grey,
             ),
@@ -524,6 +616,10 @@ class _InventoryViewState extends State<InventoryView>
     );
     final quantityCtrl = TextEditingController(text: p.quantity.toString());
 
+    // Kiểm tra xem có được sửa giá vốn/NCC không
+    // Chỉ được sửa nếu: còn trong kho tạm (isPending) VÀ chưa bán (status == 1)
+    final canEditFinancialInfo = p.isPending && p.status == 1;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -547,12 +643,36 @@ class _InventoryViewState extends State<InventoryView>
               const SizedBox(height: 12),
               ValidatedTextField(controller: imeiCtrl, label: 'IMEI/Serial'),
               const SizedBox(height: 12),
-              ValidatedTextField(
-                controller: supplierCtrl,
-                label: 'Nhà cung cấp',
-              ),
+              // Nhà cung cấp - KHÓA nếu đã nhập kho chính
+              if (canEditFinancialInfo)
+                ValidatedTextField(
+                  controller: supplierCtrl,
+                  label: 'Nhà cung cấp',
+                )
+              else
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Nhà cung cấp (không đổi)',
+                    prefixIcon: Icon(Icons.lock, size: 16, color: Colors.grey),
+                    filled: true,
+                    fillColor: Color(0xFFF5F5F5),
+                  ),
+                  child: Text(p.supplier ?? 'N/A', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                ),
               const SizedBox(height: 12),
-              CurrencyTextField(controller: costCtrl, label: 'Giá nhập (VNĐ)'),
+              // Giá nhập - KHÓA nếu đã nhập kho chính
+              if (canEditFinancialInfo)
+                CurrencyTextField(controller: costCtrl, label: 'Giá nhập (VNĐ)')
+              else
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Giá nhập (không đổi)',
+                    prefixIcon: Icon(Icons.lock, size: 16, color: Colors.grey),
+                    filled: true,
+                    fillColor: Color(0xFFF5F5F5),
+                  ),
+                  child: Text(MoneyUtils.formatCurrency(p.cost), style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                ),
               const SizedBox(height: 12),
               CurrencyTextField(controller: priceCtrl, label: 'Giá bán (VNĐ)'),
               const SizedBox(height: 12),
@@ -591,9 +711,10 @@ class _InventoryViewState extends State<InventoryView>
               try {
                 final oldCost = p.cost;
                 final oldPrice = p.price;
-                final newCost = CurrencyTextField.getValueWithMultiply(
-                  costCtrl,
-                );
+                // Chỉ lấy giá mới nếu được phép sửa
+                final newCost = canEditFinancialInfo 
+                    ? CurrencyTextField.getValueWithMultiply(costCtrl)
+                    : p.cost;
 
                 // Nếu sản phẩm đang ở kho tạm và giờ có giá vốn > 0
                 // → Chuyển sang kho chính (isPending = false)
@@ -604,7 +725,7 @@ class _InventoryViewState extends State<InventoryView>
                   name: nameCtrl.text.trim().toUpperCase(),
                   capacity: capacityCtrl.text.trim(),
                   imei: imeiCtrl.text.trim(),
-                  supplier: supplierCtrl.text.trim(),
+                  supplier: canEditFinancialInfo ? supplierCtrl.text.trim() : p.supplier,
                   cost: newCost,
                   price: CurrencyTextField.getValueWithMultiply(priceCtrl),
                   quantity: qty,
@@ -3752,14 +3873,35 @@ class _InventoryViewState extends State<InventoryView>
                   // Model
                   _input(modelC, "Model", Icons.smartphone, caps: true),
 
-                  // Giá vốn
-                  _input(
-                    costC,
-                    "Giá vốn (k)",
-                    Icons.money,
-                    type: TextInputType.number,
-                    suffix: "k",
-                  ),
+                  // Giá vốn - KHÓA nếu đã nhập kho chính hoặc đã bán
+                  if (!p.isPending || p.status == 0)
+                    InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: "Giá vốn (đã nhập kho - không đổi)",
+                        prefixIcon: Icon(
+                          Icons.lock,
+                          size: 18,
+                          color: Colors.grey,
+                        ),
+                        filled: true,
+                        fillColor: Color(0xFFF5F5F5),
+                      ),
+                      child: Text(
+                        CurrencyTextField.formatDisplay(p.cost),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    )
+                  else
+                    _input(
+                      costC,
+                      "Giá vốn (k)",
+                      Icons.money,
+                      type: TextInputType.number,
+                      suffix: "k",
+                    ),
 
                   // Giá bán
                   _input(

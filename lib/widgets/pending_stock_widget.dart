@@ -43,6 +43,7 @@ class _PendingStockWidgetState extends State<PendingStockWidget> {
   }
 
   void _openPendingList() {
+    debugPrint('🚀 PendingStockWidget._openPendingList: navigating to PendingStockListView');
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const PendingStockListView()),

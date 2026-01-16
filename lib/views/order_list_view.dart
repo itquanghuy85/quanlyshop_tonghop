@@ -8,6 +8,7 @@ import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
+import '../widgets/gradient_fab.dart';
 import 'repair_detail_view.dart';
 import 'create_repair_order_view.dart';
 import 'global_search_view.dart';
@@ -677,7 +678,7 @@ class OrderListViewState extends State<OrderListView> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: GradientFab.purple(
         onPressed: () async {
           final res = await Navigator.push(
             context,
@@ -687,9 +688,8 @@ class OrderListViewState extends State<OrderListView> {
           );
           if (res == true) _loadInitialData();
         },
-        label: const Text("NHẬN MÁY MỚI"),
-        icon: const Icon(Icons.add_a_photo_rounded),
-        backgroundColor: const Color(0xFF2962FF),
+        icon: Icons.phone_android,
+        label: 'Nhận máy',
       ),
     );
   }

@@ -6,6 +6,7 @@ import '../services/notification_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
+import '../widgets/gradient_fab.dart';
 import 'quick_input_sync_check_view.dart';
 import 'stock_in_view.dart';
 
@@ -274,14 +275,10 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
                     ),
                   ],
                 ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: GradientFab.info(
         onPressed: () => _showAddEditDialog(),
-        label: const Text(
-          "THÊM MÃ MỚI",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        icon: const Icon(Icons.add),
-        backgroundColor: const Color(0xFF2962FF),
+        icon: Icons.add,
+        label: 'Thêm mã',
       ),
     );
   }
