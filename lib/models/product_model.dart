@@ -80,20 +80,29 @@ class Product {
     };
   }
 
+  /// Helper: parse int từ dynamic (hỗ trợ int, double, num, String)
+  static int _parseInt(dynamic value, [int defaultValue = 0]) {
+    if (value == null) return defaultValue;
+    if (value is int) return value < 0 ? 0 : value;
+    if (value is double) return value < 0 ? 0 : value.toInt();
+    if (value is num) return value < 0 ? 0 : value.toInt();
+    if (value is String) {
+      final parsed = int.tryParse(value);
+      return (parsed != null && parsed >= 0) ? parsed : defaultValue;
+    }
+    return defaultValue;
+  }
+
   factory Product.fromMap(Map<String, dynamic> map) {
     return Product(
-      id: map['id'],
+      id: map['id'] is int ? map['id'] : null,
       firestoreId: map['firestoreId'],
       name: map['name'] ?? "",
       brand: map['brand'] ?? "KHÁC",
       model: map['model'],
       imei: map['imei'],
-      cost: (map['cost'] is int ? map['cost'] : 0) < 0
-          ? 0
-          : (map['cost'] is int ? map['cost'] : 0),
-      price: (map['price'] is int ? map['price'] : 0) < 0
-          ? 0
-          : (map['price'] is int ? map['price'] : 0),
+      cost: _parseInt(map['cost']),
+      price: _parseInt(map['price']),
       condition: map['condition'] ?? "Mới",
       status: map['status'] is int ? map['status'] : 1,
       description: map['description'] ?? "",
@@ -103,9 +112,7 @@ class Product {
       updatedAt: map['updatedAt'] is int ? map['updatedAt'] : null,
       supplier: map['supplier'],
       type: map['type'] ?? 'DIEN_THOAI',
-      quantity: (map['quantity'] is int ? map['quantity'] : 1) < 0
-          ? 0
-          : (map['quantity'] is int ? map['quantity'] : 1),
+      quantity: _parseInt(map['quantity'], 1),
       color: map['color'],
       capacity: map['capacity'],
       paymentMethod: map['paymentMethod'],

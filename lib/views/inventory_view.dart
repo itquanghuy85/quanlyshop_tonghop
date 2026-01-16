@@ -1358,12 +1358,47 @@ class _InventoryViewState extends State<InventoryView>
     await _loadCheckItems();
   }
 
+  /// Sync tất cả products từ Firestore vào local DB để đảm bảo dữ liệu mới nhất
+  Future<void> _forceSyncProductsFromFirestore() async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return;
+
+      debugPrint('🔄 Force syncing products from Firestore...');
+      
+      final snapshot = await FirebaseFirestore.instance
+          .collection('products')
+          .where('shopId', isEqualTo: shopId)
+          .where('deleted', isEqualTo: false)
+          .get();
+
+      int updated = 0;
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        data['firestoreId'] = doc.id;
+        data['isSynced'] = 1;
+        
+        final product = Product.fromMap(data);
+        await db.upsertProduct(product);
+        updated++;
+      }
+      
+      debugPrint('✅ Force synced $updated products from Firestore');
+    } catch (e) {
+      debugPrint('⚠️ Error force syncing products: $e');
+    }
+  }
+
   Future<void> _refresh() async {
     setState(() {
       _isLoading = true;
       _selectedIds.clear();
       _isSelectionMode = false;
     });
+    
+    // Force sync products từ Firestore để đảm bảo local DB có dữ liệu mới nhất
+    await _forceSyncProductsFromFirestore();
+    
     // Lấy TẤT CẢ sản phẩm thay vì chỉ còn hàng
     final data = await db.getAllProducts();
     // Sắp xếp theo thời gian cập nhật mới nhất lên đầu
