@@ -11,6 +11,791 @@ import '../services/sync_orchestrator.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/gradient_fab.dart';
+import '../theme/app_colors.dart';
+import '../core/utils/money_utils.dart';
+
+/// Widget content để embed vào InventoryView tab - Phiên bản chuyên nghiệp
+class PartsInventoryViewContent extends StatefulWidget {
+  const PartsInventoryViewContent({super.key});
+  @override
+  State<PartsInventoryViewContent> createState() => _PartsInventoryViewContentState();
+}
+
+class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
+  final db = DBHelper();
+  final _supplierService = SupplierService();
+  List<Map<String, dynamic>> _parts = [];
+  List<Map<String, dynamic>> _filteredParts = [];
+  List<Map<String, dynamic>> _suppliers = [];
+  bool _isLoading = true;
+  final searchCtrl = TextEditingController();
+  String _searchQuery = '';
+  bool _isAdmin = false;
+  bool _isSelectionMode = false;
+  final Set<int> _selectedIds = {};
+  bool _showOutOfStock = false;
+  String _sortBy = 'name'; // name, quantity, cost
+  
+  // Theme colors - đồng bộ với InventoryView
+  static const Color _primaryColor = Color(0xFF7B1FA2); // Purple 700
+  static const Color _gradientStart = Color(0xFF6A1B9A);
+  static const Color _gradientEnd = Color(0xFF9C27B0);
+  final Color _backgroundColor = const Color(0xFFF5F5F5);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPermissions();
+    _refreshParts();
+    _loadSuppliers();
+    // Listen for changes
+    EventBus().stream.listen((event) {
+      if (event == 'parts_changed' && mounted) _refreshParts();
+    });
+  }
+
+  Future<void> _loadPermissions() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    if (!mounted) return;
+    setState(() => _isAdmin = perms['allowViewParts'] ?? false);
+  }
+
+  Future<void> _refreshParts() async {
+    setState(() => _isLoading = true);
+    final data = await db.getAllParts();
+    setState(() {
+      _parts = data;
+      _applyFilter();
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _loadSuppliers() async {
+    final s = await db.getSuppliers();
+    if (!mounted) return;
+    setState(() => _suppliers = s);
+  }
+
+  void _applyFilter() {
+    var filtered = _parts.where((p) {
+      // Lọc theo search
+      final matchSearch = _searchQuery.isEmpty ||
+          (p['partName']?.toString().toUpperCase().contains(_searchQuery.toUpperCase()) ?? false) ||
+          (p['compatibleModels']?.toString().toUpperCase().contains(_searchQuery.toUpperCase()) ?? false);
+      
+      // Lọc hết hàng
+      final qty = p['quantity'] as int? ?? 0;
+      final matchStock = _showOutOfStock || qty > 0;
+      
+      return matchSearch && matchStock;
+    }).toList();
+    
+    // Sort
+    filtered.sort((a, b) {
+      switch (_sortBy) {
+        case 'quantity':
+          return (b['quantity'] as int? ?? 0).compareTo(a['quantity'] as int? ?? 0);
+        case 'cost':
+          final costA = (a['cost'] as int? ?? 0) * (a['quantity'] as int? ?? 0);
+          final costB = (b['cost'] as int? ?? 0) * (b['quantity'] as int? ?? 0);
+          return costB.compareTo(costA);
+        default:
+          return (a['partName'] ?? '').toString().compareTo((b['partName'] ?? '').toString());
+      }
+    });
+    
+    _filteredParts = filtered;
+  }
+
+  String _getSupplierName(int? id) {
+    if (id == null) return 'Không xác định';
+    final s = _suppliers.firstWhere((e) => e['id'] == id, orElse: () => {});
+    return s['name']?.toString() ?? 'Không xác định';
+  }
+
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+        if (_selectedIds.isEmpty) _isSelectionMode = false;
+      } else {
+        _selectedIds.add(id);
+        _isSelectionMode = true;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Tính tổng
+    final partsWithStock = _showOutOfStock ? _parts : _parts.where((p) => (p['quantity'] as int? ?? 0) > 0).toList();
+    final totalTypes = partsWithStock.length;
+    final totalQty = partsWithStock.fold<int>(0, (s, p) => s + (p['quantity'] as int? ?? 0));
+    final totalCost = partsWithStock.fold<int>(0, (s, p) => s + (p['cost'] as int? ?? 0) * (p['quantity'] as int? ?? 0));
+    final lowStockCount = _parts.where((p) => (p['quantity'] as int? ?? 0) > 0 && (p['quantity'] as int? ?? 0) <= 2).length;
+
+    return Container(
+      color: _backgroundColor,
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: _primaryColor))
+          : Column(
+              children: [
+                // Summary Card - đồng bộ style với Kho chính
+                _buildSummaryCard(totalTypes, totalQty, totalCost, lowStockCount),
+                
+                // Search & Filter Bar
+                _buildSearchFilterBar(),
+                
+                // Selection mode header
+                if (_isSelectionMode) _buildSelectionHeader(),
+                
+                // List
+                Expanded(
+                  child: _filteredParts.isEmpty
+                      ? _buildEmptyState()
+                      : RefreshIndicator(
+                          onRefresh: _refreshParts,
+                          color: _primaryColor,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
+                            itemCount: _filteredParts.length,
+                            itemBuilder: (ctx, i) => _buildPartCard(_filteredParts[i], i + 1),
+                          ),
+                        ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSummaryCard(int types, int qty, int cost, int lowStock) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_gradientStart, _gradientEnd],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryColor.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _summaryItem(Icons.category, '$types', 'Loại LK'),
+          _verticalDivider(),
+          _summaryItem(Icons.inventory_2, '$qty', 'Tổng SL'),
+          _verticalDivider(),
+          _summaryItem(Icons.account_balance_wallet, MoneyUtils.formatCompact(cost), 'Giá vốn'),
+          if (lowStock > 0) ...[
+            _verticalDivider(),
+            _summaryItem(Icons.warning_amber, '$lowStock', 'Sắp hết', Colors.amber),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryItem(IconData icon, String value, String label, [Color? iconColor]) {
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: iconColor ?? Colors.white70, size: 14),
+              const SizedBox(width: 4),
+              Text(value, style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              )),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        ],
+      ),
+    );
+  }
+
+  Widget _verticalDivider() {
+    return Container(width: 1, height: 32, color: Colors.white24);
+  }
+
+  Widget _buildSearchFilterBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          // Search field
+          Expanded(
+            child: Container(
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4),
+                ],
+              ),
+              child: TextField(
+                controller: searchCtrl,
+                onChanged: (v) {
+                  _searchQuery = v;
+                  _applyFilter();
+                  setState(() {});
+                },
+                style: const TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Tìm linh kiện, model...',
+                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                  prefixIcon: const Icon(Icons.search, color: _primaryColor, size: 20),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            searchCtrl.clear();
+                            _searchQuery = '';
+                            _applyFilter();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Filter buttons
+          _filterChip(
+            icon: _showOutOfStock ? Icons.visibility : Icons.visibility_off,
+            label: 'Hết',
+            selected: _showOutOfStock,
+            onTap: () {
+              setState(() {
+                _showOutOfStock = !_showOutOfStock;
+                _applyFilter();
+              });
+            },
+          ),
+          const SizedBox(width: 4),
+          // Sort popup
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.sort, color: _primaryColor, size: 22),
+            tooltip: 'Sắp xếp',
+            onSelected: (v) {
+              setState(() {
+                _sortBy = v;
+                _applyFilter();
+              });
+            },
+            itemBuilder: (_) => [
+              _sortMenuItem('name', 'Tên A-Z', Icons.sort_by_alpha),
+              _sortMenuItem('quantity', 'Số lượng', Icons.format_list_numbered),
+              _sortMenuItem('cost', 'Giá vốn', Icons.attach_money),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _sortMenuItem(String value, String label, IconData icon) {
+    final isSelected = _sortBy == value;
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: isSelected ? _primaryColor : Colors.grey),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(
+            color: isSelected ? _primaryColor : Colors.black87,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          )),
+          if (isSelected) ...[
+            const Spacer(),
+            const Icon(Icons.check, size: 16, color: _primaryColor),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip({
+    required IconData icon,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? _primaryColor.withOpacity(0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? _primaryColor : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: selected ? _primaryColor : Colors.grey),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(
+              fontSize: 11,
+              color: selected ? _primaryColor : Colors.grey,
+              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectionHeader() {
+    return Container(
+      color: _primaryColor.withOpacity(0.1),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.red),
+            onPressed: () => setState(() {
+              _isSelectionMode = false;
+              _selectedIds.clear();
+            }),
+          ),
+          Text(
+            'Đã chọn ${_selectedIds.length}',
+            style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryColor),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: _deleteSelectedParts,
+            icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+            label: const Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPartCard(Map<String, dynamic> p, int index) {
+    final id = p['id'] as int;
+    final isSelected = _selectedIds.contains(id);
+    final qty = p['quantity'] as int? ?? 0;
+    final cost = p['cost'] as int? ?? 0;
+    final price = p['price'] as int? ?? 0;
+    final isLow = qty > 0 && qty <= 2;
+    final isOut = qty == 0;
+    final supplierName = _getSupplierName(p['supplierId'] as int?);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: isSelected ? 4 : 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isSelected 
+            ? const BorderSide(color: _primaryColor, width: 2)
+            : BorderSide.none,
+      ),
+      child: InkWell(
+        onTap: () {
+          if (_isSelectionMode) {
+            _toggleSelection(id);
+          } else {
+            _showPartDetailSheet(p);
+          }
+        },
+        onLongPress: () => _toggleSelection(id),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Leading icon/checkbox
+              if (_isSelectionMode)
+                Checkbox(
+                  value: isSelected,
+                  onChanged: (_) => _toggleSelection(id),
+                  activeColor: _primaryColor,
+                )
+              else
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: isOut 
+                        ? Colors.grey.shade200 
+                        : isLow 
+                            ? Colors.orange.withOpacity(0.15)
+                            : _primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    isOut ? Icons.block : Icons.build_circle,
+                    color: isOut ? Colors.grey : isLow ? Colors.orange : _primaryColor,
+                    size: 24,
+                  ),
+                ),
+              const SizedBox(width: 12),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            p['partName'] ?? 'N/A',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isOut ? Colors.grey : Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isLow && !isOut)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('SẮP HẾT', style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                            )),
+                          ),
+                        if (isOut)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text('HẾT HÀNG', style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.bold,
+                            )),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      p['compatibleModels'] ?? 'Tương thích: N/A',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        _infoChip(Icons.inventory_2, 'SL: $qty', isLow ? Colors.orange : Colors.blue),
+                        const SizedBox(width: 8),
+                        _infoChip(Icons.attach_money, '${NumberFormat.compact().format(cost)}', Colors.green),
+                        const SizedBox(width: 8),
+                        _infoChip(Icons.sell, '${NumberFormat.compact().format(price)}', Colors.red),
+                      ],
+                    ),
+                    if (supplierName != 'Không xác định') ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.store, size: 12, color: Colors.grey.shade500),
+                          const SizedBox(width: 4),
+                          Text(supplierName, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              // Trailing - Giá bán
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${NumberFormat('#,###').format(price)}đ',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isOut ? Colors.grey : Colors.red.shade700,
+                    ),
+                  ),
+                  Text(
+                    'Giá bán',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 3),
+          Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.build_circle_outlined, size: 80, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text(
+            _searchQuery.isNotEmpty ? 'Không tìm thấy linh kiện' : 'Chưa có linh kiện trong kho',
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _searchQuery.isNotEmpty 
+                ? 'Thử từ khóa khác' 
+                : 'Nhấn "THÊM LINH KIỆN" để bắt đầu',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPartDetailSheet(Map<String, dynamic> p) {
+    final qty = p['quantity'] as int? ?? 0;
+    final cost = p['cost'] as int? ?? 0;
+    final price = p['price'] as int? ?? 0;
+    final totalCost = cost * qty;
+    final supplierName = _getSupplierName(p['supplierId'] as int?);
+    final createdAt = p['createdAt'] as int?;
+    final updatedAt = p['updatedAt'] as int?;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (_, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.build_circle, color: _primaryColor, size: 32),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p['partName'] ?? 'N/A',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          p['compatibleModels'] ?? 'N/A',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              // Stats
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    _detailRow('Số lượng tồn', '$qty', Icons.inventory_2),
+                    const Divider(height: 20),
+                    _detailRow('Giá vốn/sp', '${NumberFormat('#,###').format(cost)}đ', Icons.attach_money),
+                    const Divider(height: 20),
+                    _detailRow('Giá bán/sp', '${NumberFormat('#,###').format(price)}đ', Icons.sell),
+                    const Divider(height: 20),
+                    _detailRow('Tổng vốn tồn', '${NumberFormat('#,###').format(totalCost)}đ', Icons.account_balance_wallet, Colors.green),
+                    const Divider(height: 20),
+                    _detailRow('Nhà cung cấp', supplierName, Icons.store),
+                    if (createdAt != null) ...[
+                      const Divider(height: 20),
+                      _detailRow('Ngày nhập', DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(createdAt)), Icons.calendar_today),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Actions
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PartsInventoryView()),
+                        ).then((_) => _refreshParts());
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Sửa'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _primaryColor,
+                        side: const BorderSide(color: _primaryColor),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PartsInventoryView()),
+                        ).then((_) => _refreshParts());
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Nhập thêm'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value, IconData icon, [Color? valueColor]) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Colors.grey),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label, style: TextStyle(color: Colors.grey.shade600))),
+        Text(value, style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: valueColor ?? Colors.black87,
+        )),
+      ],
+    );
+  }
+
+  Future<void> _deleteSelectedParts() async {
+    if (_selectedIds.isEmpty) return;
+    
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: Text('Bạn có chắc muốn xóa ${_selectedIds.length} linh kiện đã chọn?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('HỦY'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('XÓA', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm != true) return;
+    
+    final database = await db.database;
+    for (final id in _selectedIds) {
+      await database.delete('repair_parts', where: 'id = ?', whereArgs: [id]);
+    }
+    
+    setState(() {
+      _selectedIds.clear();
+      _isSelectionMode = false;
+    });
+    
+    _refreshParts();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã xóa linh kiện'), backgroundColor: Colors.green),
+      );
+    }
+  }
+}
 
 class PartsInventoryView extends StatefulWidget {
   const PartsInventoryView({super.key});

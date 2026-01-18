@@ -1216,4 +1216,207 @@ class FirestoreService {
       return {'success': false, 'error': errorMsg};
     }
   }
+
+  // ========================
+  // EMPLOYEE SALARY SETTINGS
+  // ========================
+
+  /// Lấy tất cả cài đặt lương nhân viên của shop
+  static Future<List<Map<String, dynamic>>> getEmployeeSalarySettings() async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return [];
+
+      final snapshot = await _db
+          .collection('employee_salary_settings')
+          .where('shopId', isEqualTo: shopId)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+    } catch (e) {
+      debugPrint('❌ Error getting employee salary settings: $e');
+      return [];
+    }
+  }
+
+  /// Lấy cài đặt lương của một nhân viên
+  static Future<Map<String, dynamic>?> getEmployeeSalarySettingByStaffId(String staffId) async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return null;
+
+      final snapshot = await _db
+          .collection('employee_salary_settings')
+          .where('shopId', isEqualTo: shopId)
+          .where('staffId', isEqualTo: staffId)
+          .where('isActive', isEqualTo: true)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) return null;
+      
+      final doc = snapshot.docs.first;
+      final data = doc.data();
+      data['id'] = doc.id;
+      return data;
+    } catch (e) {
+      debugPrint('❌ Error getting employee salary setting: $e');
+      return null;
+    }
+  }
+
+  /// Lưu hoặc cập nhật cài đặt lương nhân viên
+  static Future<String?> saveEmployeeSalarySettings(Map<String, dynamic> settings) async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return null;
+
+      final staffId = settings['staffId'] as String?;
+      if (staffId == null || staffId.isEmpty) {
+        debugPrint('❌ staffId is required');
+        return null;
+      }
+
+      // Tìm document hiện có
+      final existing = await _db
+          .collection('employee_salary_settings')
+          .where('shopId', isEqualTo: shopId)
+          .where('staffId', isEqualTo: staffId)
+          .limit(1)
+          .get();
+
+      String docId;
+      if (existing.docs.isNotEmpty) {
+        // Update existing
+        docId = existing.docs.first.id;
+      } else {
+        // Create new
+        docId = 'salary_${staffId}_${DateTime.now().millisecondsSinceEpoch}';
+      }
+
+      settings['shopId'] = shopId;
+      settings['updatedAt'] = FieldValue.serverTimestamp();
+      settings['updatedBy'] = FirebaseAuth.instance.currentUser?.email ?? 'unknown';
+      
+      if (existing.docs.isEmpty) {
+        settings['createdAt'] = FieldValue.serverTimestamp();
+        settings['isActive'] = true;
+      }
+
+      await _db.collection('employee_salary_settings').doc(docId).set(
+        settings,
+        SetOptions(merge: true),
+      );
+
+      debugPrint('✅ Saved employee salary settings for $staffId');
+      return docId;
+    } catch (e) {
+      debugPrint('❌ Error saving employee salary settings: $e');
+      return null;
+    }
+  }
+
+  /// Xóa cài đặt lương (soft delete)
+  static Future<bool> deleteEmployeeSalarySettings(String staffId) async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return false;
+
+      final snapshot = await _db
+          .collection('employee_salary_settings')
+          .where('shopId', isEqualTo: shopId)
+          .where('staffId', isEqualTo: staffId)
+          .get();
+
+      for (final doc in snapshot.docs) {
+        await doc.reference.update({
+          'isActive': false,
+          'deletedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      debugPrint('✅ Deleted employee salary settings for $staffId');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error deleting employee salary settings: $e');
+      return false;
+    }
+  }
+
+  /// Lấy cài đặt mặc định của shop (cho nhân viên mới)
+  static Future<Map<String, dynamic>?> getShopDefaultSalarySettings() async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return null;
+
+      final snapshot = await _db
+          .collection('shop_salary_defaults')
+          .doc(shopId)
+          .get();
+
+      if (!snapshot.exists) return null;
+      return snapshot.data();
+    } catch (e) {
+      debugPrint('❌ Error getting shop default salary settings: $e');
+      return null;
+    }
+  }
+
+  /// Lưu cài đặt mặc định của shop
+  static Future<bool> saveShopDefaultSalarySettings(Map<String, dynamic> settings) async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return false;
+
+      settings['updatedAt'] = FieldValue.serverTimestamp();
+      settings['updatedBy'] = FirebaseAuth.instance.currentUser?.email ?? 'unknown';
+
+      await _db.collection('shop_salary_defaults').doc(shopId).set(
+        settings,
+        SetOptions(merge: true),
+      );
+
+      debugPrint('✅ Saved shop default salary settings');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error saving shop default salary settings: $e');
+      return false;
+    }
+  }
+
+  /// Lấy danh sách nhân viên theo shopId
+  static Future<List<Map<String, dynamic>>?> getStaffByShopId(String shopId) async {
+    try {
+      // Lấy từ collection users với shopId
+      final snapshot = await _db
+          .collection('users')
+          .where('shopId', isEqualTo: shopId)
+          .get();
+
+      final staffList = <Map<String, dynamic>>[];
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        data['uid'] = doc.id;
+        staffList.add(data);
+      }
+
+      // Sort by name
+      staffList.sort((a, b) {
+        final nameA = (a['name'] ?? a['displayName'] ?? '').toString().toLowerCase();
+        final nameB = (b['name'] ?? b['displayName'] ?? '').toString().toLowerCase();
+        return nameA.compareTo(nameB);
+      });
+
+      debugPrint('✅ Found ${staffList.length} staff for shop $shopId');
+      return staffList;
+    } catch (e) {
+      debugPrint('❌ Error getting staff by shopId: $e');
+      return null;
+    }
+  }
 }

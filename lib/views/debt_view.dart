@@ -390,17 +390,33 @@ class _DebtViewState extends State<DebtView>
                   };
                   await db.insertDebtPayment(paymentData);
                   
-                  // Ghi nhật ký hoạt động tài chính
+                  // Ghi nhật ký hoạt động tài chính - phân biệt loại nợ
                   try {
-                    await FinancialActivityService.logDebtCollection(
-                      firestoreId: paymentData['firestoreId'] as String,
-                      amount: payAmount,
-                      paymentMethod: method,
-                      customerName: debt['personName'] ?? '',
-                      phone: debt['phone'] ?? '',
-                      createdAt: now,
-                      createdBy: userName,
-                    );
+                    final debtType = debt['type'] ?? 'CUSTOMER_OWES';
+                    // FIX: Bao gồm OTHER_SHOP_OWES cho công nợ khác (shop nợ)
+                    if (debtType == 'SHOP_OWES' || debtType == 'OWED' || debtType == 'OTHER_SHOP_OWES') {
+                      // Trả nợ NCC/Khác → logSupplierPayment (direction = OUT)
+                      await FinancialActivityService.logSupplierPayment(
+                        firestoreId: paymentData['firestoreId'] as String,
+                        amount: payAmount,
+                        paymentMethod: method,
+                        supplierName: debt['personName'] ?? '',
+                        createdAt: now,
+                        createdBy: userName,
+                        note: debtType == 'OTHER_SHOP_OWES' ? 'Trả nợ đối tác' : 'Trả nợ NCC',
+                      );
+                    } else {
+                      // Thu nợ khách (CUSTOMER_OWES, OTHER_CUSTOMER_OWES) → logDebtCollection (direction = IN)
+                      await FinancialActivityService.logDebtCollection(
+                        firestoreId: paymentData['firestoreId'] as String,
+                        amount: payAmount,
+                        paymentMethod: method,
+                        customerName: debt['personName'] ?? '',
+                        phone: debt['phone'] ?? '',
+                        createdAt: now,
+                        createdBy: userName,
+                      );
+                    }
                   } catch (e) {
                     debugPrint('Failed to log financial activity: $e');
                   }
@@ -418,17 +434,33 @@ class _DebtViewState extends State<DebtView>
                   };
                   final paymentId = await db.insertDebtPayment(paymentData);
                   
-                  // Ghi nhật ký hoạt động tài chính (offline)
+                  // Ghi nhật ký hoạt động tài chính (offline) - phân biệt loại nợ
                   try {
-                    await FinancialActivityService.logDebtCollection(
-                      firestoreId: paymentData['firestoreId'] as String,
-                      amount: payAmount,
-                      paymentMethod: method,
-                      customerName: debt['personName'] ?? '',
-                      phone: debt['phone'] ?? '',
-                      createdAt: now,
-                      createdBy: userName,
-                    );
+                    final debtType = debt['type'] ?? 'CUSTOMER_OWES';
+                    // FIX: Bao gồm OTHER_SHOP_OWES cho công nợ khác (shop nợ)
+                    if (debtType == 'SHOP_OWES' || debtType == 'OWED' || debtType == 'OTHER_SHOP_OWES') {
+                      // Trả nợ NCC/Khác → logSupplierPayment (direction = OUT)
+                      await FinancialActivityService.logSupplierPayment(
+                        firestoreId: paymentData['firestoreId'] as String,
+                        amount: payAmount,
+                        paymentMethod: method,
+                        supplierName: debt['personName'] ?? '',
+                        createdAt: now,
+                        createdBy: userName,
+                        note: debtType == 'OTHER_SHOP_OWES' ? 'Trả nợ đối tác' : 'Trả nợ NCC',
+                      );
+                    } else {
+                      // Thu nợ khách (CUSTOMER_OWES, OTHER_CUSTOMER_OWES) → logDebtCollection (direction = IN)
+                      await FinancialActivityService.logDebtCollection(
+                        firestoreId: paymentData['firestoreId'] as String,
+                        amount: payAmount,
+                        paymentMethod: method,
+                        customerName: debt['personName'] ?? '',
+                        phone: debt['phone'] ?? '',
+                        createdAt: now,
+                        createdBy: userName,
+                      );
+                    }
                   } catch (e) {
                     debugPrint('Failed to log financial activity: $e');
                   }

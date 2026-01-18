@@ -12,6 +12,7 @@ import '../services/data_migration_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/validated_text_field.dart';
 import 'adjustment_history_view.dart';
+import 'hr_salary_settings_view.dart';
 
 class ShopSettingsView extends StatefulWidget {
   const ShopSettingsView({super.key});
@@ -367,6 +368,13 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
 
                     const SizedBox(height: 32),
 
+                    // Salary Settings Section
+                    _buildSection("CÀI ĐẶT LƯƠNG & HOA HỒNG"),
+                    const SizedBox(height: 16),
+                    _buildSalarySettingsSection(),
+
+                    const SizedBox(height: 32),
+
                     // Financial Management Section
                     _buildSection("QUẢN LÝ TÀI CHÍNH"),
                     const SizedBox(height: 16),
@@ -409,6 +417,67 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         fontWeight: FontWeight.bold,
         color: Color(0xFF2962FF),
       ),
+    );
+  }
+
+  Widget _buildSalarySettingsSection() {
+    return Column(
+      children: [
+        Card(
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.account_balance_wallet, color: Colors.green.shade700),
+            ),
+            title: const Text(
+              'Cài đặt lương & hoa hồng',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text(
+              'Lương cơ bản, phụ cấp, % hoa hồng bán/sửa',
+              style: TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const HRSalarySettingsView(),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.green.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.green.shade700, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Cấu hình lương cơ bản, các loại phụ cấp và công thức tính hoa hồng cho nhân viên. Có thể chọn % doanh số hoặc tiền cố định/đơn.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

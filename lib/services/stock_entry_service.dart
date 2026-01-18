@@ -269,6 +269,31 @@ class StockEntryService {
         final userId = _auth.currentUser?.uid;
         
         for (final item in entry.items) {
+          // === XỬ LÝ LINH KIỆN: Lưu vào repair_parts thay vì products ===
+          if (item.productType == 'LINH_KIEN') {
+            final partRef = _firestore.collection('repair_parts').doc();
+            final now = DateTime.now().millisecondsSinceEpoch;
+            final userName = _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
+            
+            transaction.set(partRef, {
+              'partName': item.name,
+              'compatibleModels': item.model ?? '',
+              'cost': (item.cost ?? 0).toInt(),
+              'price': (item.price ?? 0).toInt(),
+              'quantity': item.quantity,
+              'supplierId': entry.supplierId != null ? int.tryParse(entry.supplierId!) : null,
+              'paymentMethod': entry.paymentMethod,
+              'createdBy': userName,
+              'createdAt': now,
+              'updatedAt': now,
+              'shopId': entry.shopId,
+              'deleted': false,
+              'stockEntryId': entryId,
+            });
+            continue; // Skip the products creation for LINH_KIEN
+          }
+          
+          // === XỬ LÝ ĐIỆN THOẠI & PHỤ KIỆN: Lưu vào products ===
           // Xử lý đặc biệt cho điện thoại: nếu quantity > 1 và không có IMEI
           // → tách thành nhiều products riêng biệt
           final bool isPhoneWithBatch = item.productType == 'DIEN_THOAI' 
@@ -544,6 +569,27 @@ class StockEntryService {
               'shopId': entry.shopId,
               'isSynced': 1,
             });
+            
+            // === NẾU LÀ LINH KIỆN, GHI VÀO LOCAL repair_parts ===
+            if (item.productType == 'LINH_KIEN') {
+              await db.upsertRepairPart({
+                'firestoreId': 'part_${now}_${item.name.hashCode}',
+                'partName': item.name,
+                'compatibleModels': item.model ?? '',
+                'cost': (item.cost ?? 0).toInt(),
+                'price': (item.price ?? 0).toInt(),
+                'quantity': item.quantity,
+                'supplierId': supplierLocalId,
+                'paymentMethod': entry.paymentMethod,
+                'createdBy': userName,
+                'createdAt': now,
+                'updatedAt': now,
+                'shopId': entry.shopId,
+                'isSynced': 1,
+                'deleted': 0,
+              });
+              debugPrint('✅ confirmEntry: Local repair_part saved for ${item.name}');
+            }
           }
           debugPrint('✅ confirmEntry: Local supplier_import_history saved');
         } catch (e) {

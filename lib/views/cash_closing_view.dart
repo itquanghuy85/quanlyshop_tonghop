@@ -12,6 +12,18 @@ import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../utils/money_utils.dart';
 
+/// Helper: Check if debtType is "Shop owes" (NCC) - includes SHOP_OWES and OTHER_SHOP_OWES
+bool _isShopOwesDebt(String? debtType) {
+  if (debtType == null) return false;
+  return debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES' || debtType == 'OWED';
+}
+
+/// Helper: Check if debtType is "Customer owes" - includes CUSTOMER_OWES and OTHER_CUSTOMER_OWES
+bool _isCustomerOwesDebt(String? debtType) {
+  if (debtType == null) return true; // default
+  return debtType == 'CUSTOMER_OWES' || debtType == 'OTHER_CUSTOMER_OWES';
+}
+
 /// Trang chốt quỹ chuyên nghiệp - Thiết kế lại hoàn toàn
 class CashClosingView extends StatefulWidget {
   const CashClosingView({super.key});
@@ -2196,7 +2208,7 @@ class _CashClosingViewState extends State<CashClosingView>
     }
     for (var p in _debtPayments.where(
       (p) =>
-          _isSameDay(p['paidAt'] as int, date) && p['debtType'] != 'SHOP_OWES',
+          _isSameDay(p['paidAt'] as int, date) && _isCustomerOwesDebt(p['debtType'] as String?),
     )) {
       list.add({
         'icon': '💳',
@@ -2316,12 +2328,12 @@ class _CashClosingViewState extends State<CashClosingView>
         'amount': (pay['amount'] ?? 0) as int,
       });
     }
-    // FIX BUG-CC-004: debt_payments với debtType='SHOP_OWES' là trả nợ NCC
+    // FIX BUG-CC-004: debt_payments với debtType='SHOP_OWES' hoặc 'OTHER_SHOP_OWES' là trả nợ NCC
     // (thanh toán NCC từ trang Công nợ NCC lưu vào debt_payments, không phải supplier_payments)
     for (var p in _debtPayments.where((p) {
       final paidAt = p['paidAt'];
       if (paidAt == null) return false;
-      return _isSameDay(paidAt as int, date) && p['debtType'] == 'SHOP_OWES';
+      return _isSameDay(paidAt as int, date) && _isShopOwesDebt(p['debtType'] as String?);
     })) {
       list.add({
         'icon': '🏭',
@@ -2517,8 +2529,8 @@ class _CashClosingViewState extends State<CashClosingView>
       final amount = p['amount'] as int? ?? 0;
       final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
 
-      if (p['debtType'] == 'SHOP_OWES') {
-        // K6: Thanh toán NCC - tính vào chi tiền
+      if (_isShopOwesDebt(p['debtType'] as String?)) {
+        // K6: Thanh toán NCC (SHOP_OWES, OTHER_SHOP_OWES) - tính vào chi tiền
         supplierPaid += amount;
         if (method == 'TIỀN MẶT') {
           cashOut += amount;
@@ -2526,7 +2538,7 @@ class _CashClosingViewState extends State<CashClosingView>
           bankOut += amount;
         }
       } else {
-        // K5: Thu nợ khách hàng - CHỈ tăng quỹ tiền, KHÔNG tăng doanh thu/giá vốn
+        // K5: Thu nợ khách hàng (CUSTOMER_OWES, OTHER_CUSTOMER_OWES) - CHỈ tăng quỹ tiền, KHÔNG tăng doanh thu/giá vốn
         // Vì với accrual basis, doanh thu và giá vốn đã được tính ở K3 (lúc bán)
         debtCollected += amount;
         if (method == 'TIỀN MẶT') {

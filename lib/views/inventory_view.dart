@@ -26,6 +26,7 @@ import '../models/printer_types.dart';
 import 'stock_in_view.dart';
 import 'global_search_view.dart';
 import 'fast_stock_in_view.dart';
+import 'parts_inventory_view.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/validated_text_field.dart';
 import '../theme/app_colors.dart';
@@ -82,11 +83,7 @@ class _InventoryViewState extends State<InventoryView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 1, vsync: this);
-    // ensure UI updates when user switches tabs
-    _tabController.addListener(() {
-      if (mounted) setState(() {});
-    });
+    _tabController = TabController(length: 1, vsync: this); // 1 tab: Kho chính
     _init();
     // Re-enable inventory check initialization for QR check
     _initCheckData();
@@ -1810,30 +1807,27 @@ class _InventoryViewState extends State<InventoryView>
       body: Column(
         children: [
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [_buildInventoryTab()],
-            ),
+            child: _buildInventoryTab(),
           ),
-          // Bottom navigation row (THƯ VIỆN đã ẩn theo yêu cầu)
+          // Bottom navigation row - 3 nút: NHẬP KHO, NHẬP NHANH, LINH KIỆN
           Container(
             color: AppColors.surface,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
-                // Nhập kho nhanh button (mở rộng)
+                // Nhập kho button
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const StockInView()),
                     ).then((_) => _refresh()),
-                    icon: Icon(Icons.add_box_rounded, size: _iconSize),
-                    label: Text("NHẬP KHO", style: AppTextStyles.caption),
+                    icon: Icon(Icons.add_box_rounded, size: _iconSize - 2),
+                    label: Text("NHẬP KHO", style: AppTextStyles.caption.copyWith(fontSize: 11)),
                     style: AppButtonStyles.elevatedButtonStyle,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 // Nhập nhanh button
                 Expanded(
                   child: ElevatedButton.icon(
@@ -1843,9 +1837,29 @@ class _InventoryViewState extends State<InventoryView>
                         builder: (_) => const FastStockInView(),
                       ),
                     ).then((_) => _refresh()),
-                    icon: Icon(Icons.flash_on, size: _iconSize),
-                    label: Text("NHẬP NHANH", style: AppTextStyles.caption),
+                    icon: Icon(Icons.flash_on, size: _iconSize - 2),
+                    label: Text("NHANH", style: AppTextStyles.caption.copyWith(fontSize: 11)),
                     style: AppButtonStyles.elevatedButtonStyle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Linh kiện button - mở trang riêng
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PartsInventoryView()),
+                    ).then((_) => _refresh()),
+                    icon: Icon(Icons.build_circle, size: _iconSize - 2),
+                    label: Text("LINH KIỆN", style: AppTextStyles.caption.copyWith(fontSize: 11)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7B1FA2),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
               ],

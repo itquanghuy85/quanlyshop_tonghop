@@ -27,6 +27,7 @@ import 'super_admin_view.dart' as admin_view;
 import 'staff_list_view.dart';
 import 'qr_scan_view.dart';
 import 'attendance_view.dart';
+import 'attendance_management_view.dart';
 import 'staff_performance_view.dart';
 import 'audit_log_view.dart';
 import 'notifications_view.dart';
@@ -36,14 +37,13 @@ import 'work_schedule_settings_view.dart';
 import 'debt_analysis_view.dart';
 import 'create_sale_view.dart';
 import 'customer_management_view.dart';
-import 'parts_inventory_view.dart';
 import 'create_repair_order_view.dart';
 import 'about_developer_view.dart';
 import 'cash_closing_view.dart';
 import 'transaction_detail_view.dart';
-import 'customer_receivables_view.dart';
 import 'bank_installment_report_view.dart';
 import 'financial_activity_log_view.dart';
+import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
 import '../data/db_helper.dart';
@@ -3004,16 +3004,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
             subtitle: "Xem, tìm kiếm và theo dõi tất cả đơn sửa chữa.",
           ),
-          _tabMenuItem(
-            "Kho Phụ Tùng",
-            Icons.build,
-            Colors.orange,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PartsInventoryView()),
-            ),
-            subtitle: "Quản lý tồn Kho Phụ Tùng cho sửa chữa.",
-          ),
+          // Kho Phụ Tùng đã được chuyển vào tab Linh kiện trong QUẢN LÝ KHO
         ],
       ),
     );
@@ -3408,12 +3399,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
               _staffQuickCard(
-                "Phân quyền\nNhân viên",
-                Icons.admin_panel_settings,
-                Colors.red,
+                "Cài đặt\nLương & Hoa hồng",
+                Icons.account_balance_wallet,
+                Colors.green,
                 () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const StaffListView()),
+                  MaterialPageRoute(builder: (_) => const HRSalarySettingsView()),
                 ),
               ),
             ],
@@ -3422,14 +3413,24 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           const SizedBox(height: 20),
           _buildSectionHeader("BÁO CÁO"),
           _tabMenuItem(
-            "Lịch sử chấm công",
+            "Theo dõi chấm công",
+            Icons.people_outline,
+            Colors.teal,
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AttendanceManagementView()),
+            ),
+            subtitle: "Xem chấm công tất cả nhân viên theo ngày/tháng.",
+          ),
+          _tabMenuItem(
+            "Chấm công cá nhân",
             Icons.history,
             Colors.indigo,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AttendanceView()),
             ),
-            subtitle: "Xem lịch sử chấm công của tất cả nhân viên.",
+            subtitle: "Check-in/out và xem lịch sử chấm công cá nhân.",
           ),
         ],
       ),
@@ -3590,13 +3591,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 _financeQuickCard(
-                  "Công nợ\nKhách hàng",
+                  "Quản lý\nCông nợ",
                   Icons.account_balance,
                   Colors.orange,
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const CustomerReceivablesView(),
+                      builder: (_) => const DebtView(),
                     ),
                   ),
                 ),
@@ -4105,17 +4106,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
               subtitle: "Quản lý toàn bộ hệ thống cho admin cấp cao.",
             ),
-          if (hasFullAccess)
-            _tabMenuItem(
-              "Nhật ký hệ thống",
-              Icons.history,
-              AppColors.info,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AuditLogView()),
-              ),
-              subtitle: "Xem lịch sử hoạt động và thay đổi trong hệ thống.",
-            ),
+          // Nhật ký hệ thống đã chuyển vào tab "Hệ thống" trong Nhật ký tài chính
           _tabMenuItem(
             "Về nhà phát triển",
             Icons.info,

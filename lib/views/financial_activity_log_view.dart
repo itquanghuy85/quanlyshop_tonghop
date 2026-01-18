@@ -4,24 +4,33 @@ import '../data/db_helper.dart';
 import '../models/financial_activity_model.dart';
 import '../widgets/custom_app_bar.dart';
 
-/// Trang theo dõi nhật ký hoạt động tài chính
+/// Trang theo dõi nhật ký hoạt động tài chính + hệ thống
 /// Chỉ xem, không sửa - có bộ lọc
 class FinancialActivityLogView extends StatefulWidget {
-  const FinancialActivityLogView({super.key});
+  final int initialTab; // 0 = tài chính, 1 = hệ thống
+  const FinancialActivityLogView({super.key, this.initialTab = 0});
 
   @override
   State<FinancialActivityLogView> createState() =>
       _FinancialActivityLogViewState();
 }
 
-class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
+class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
+    with SingleTickerProviderStateMixin {
   final db = DBHelper();
+  late TabController _tabController;
+  
+  // Tab Tài chính
   List<FinancialActivity> _activities = [];
   Map<String, dynamic> _summary = {};
   bool _loading = true;
   bool _hasMore = true;
   int _offset = 0;
   final int _limit = 50;
+  
+  // Tab Hệ thống
+  List<Map<String, dynamic>> _auditLogs = [];
+  bool _auditLoading = true;
 
   // Bộ lọc
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
@@ -55,15 +64,35 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTab);
+    _tabController.addListener(() {
+      if (_tabController.index == 1 && _auditLogs.isEmpty) {
+        _loadAuditLogs();
+      }
+    });
     _scrollController.addListener(_onScroll);
     _loadData();
+    if (widget.initialTab == 1) {
+      _loadAuditLogs();
+    }
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+  
+  Future<void> _loadAuditLogs() async {
+    setState(() => _auditLoading = true);
+    final data = await db.getAuditLogs();
+    if (!mounted) return;
+    setState(() {
+      _auditLogs = data;
+      _auditLoading = false;
+    });
   }
 
   void _onScroll() {
@@ -360,126 +389,248 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: CustomAppBar.build(
-        title: 'NHẬT KÝ TÀI CHÍNH',
-        subtitle: '${_activities.length} hoạt động',
+        title: 'NHẬT KÝ',
+        subtitle: _tabController.index == 0 
+            ? '${_activities.length} hoạt động tài chính' 
+            : '${_auditLogs.length} log hệ thống',
         accentColor: AppBarAccents.finance,
         actions: [
-          IconButton(
-            onPressed: _showFilterSheet,
-            icon: Badge(
-              isLabelVisible:
-                  _selectedType != null ||
-                  _selectedDirection != null ||
-                  _searchQuery.isNotEmpty,
-              child: Icon(Icons.filter_list_rounded, size: 22, color: AppBarAccents.finance),
+          if (_tabController.index == 0) ...[
+            IconButton(
+              onPressed: _showFilterSheet,
+              icon: Badge(
+                isLabelVisible:
+                    _selectedType != null ||
+                    _selectedDirection != null ||
+                    _searchQuery.isNotEmpty,
+                child: Icon(Icons.filter_list_rounded, size: 22, color: AppBarAccents.finance),
+              ),
+              tooltip: 'Bộ lọc',
+              splashRadius: 20,
             ),
-            tooltip: 'Bộ lọc',
-            splashRadius: 20,
-          ),
+          ],
           IconButton(
-            onPressed: _loadData,
+            onPressed: () {
+              if (_tabController.index == 0) {
+                _loadData();
+              } else {
+                _loadAuditLogs();
+              }
+            },
             icon: Icon(Icons.refresh_rounded, size: 22, color: AppBarAccents.finance),
             tooltip: 'Làm mới',
             splashRadius: 20,
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            color: Colors.white,
-            child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: TextField(
-                controller: _searchController,
-                onSubmitted: (v) {
-                  _searchQuery = v.trim();
-                  _loadData();
-                },
-                style: const TextStyle(color: CustomAppBar.kTextPrimary, fontSize: 15),
-                cursorColor: AppBarAccents.finance,
-                decoration: InputDecoration(
-                  hintText: 'Tìm theo tên, SĐT, mô tả...',
-                  hintStyle: TextStyle(color: Colors.grey.shade500),
-                  prefixIcon: Icon(
-                    Icons.search_rounded,
-                    color: AppBarAccents.finance,
-                    size: 20,
-                  ),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(Icons.close_rounded, color: Colors.grey.shade500, size: 20),
-                          onPressed: () {
-                            _searchController.clear();
-                            _searchQuery = '';
-                            _loadData();
-                          },
-                          splashRadius: 18,
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          preferredSize: const Size.fromHeight(100),
+          child: Column(
+            children: [
+              // TabBar
+              Container(
+                color: Colors.white,
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: AppBarAccents.finance,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: AppBarAccents.finance,
+                  indicatorWeight: 3,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
+                  tabs: const [
+                    Tab(icon: Icon(Icons.account_balance_wallet, size: 18), text: 'Tài chính'),
+                    Tab(icon: Icon(Icons.history, size: 18), text: 'Hệ thống'),
+                  ],
+                  onTap: (_) => setState(() {}),
                 ),
               ),
-            ),
+              // Search bar only for tab 0
+              if (_tabController.index == 0)
+                Container(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  color: Colors.white,
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onSubmitted: (v) {
+                        _searchQuery = v.trim();
+                        _loadData();
+                      },
+                      style: const TextStyle(color: CustomAppBar.kTextPrimary, fontSize: 14),
+                      cursorColor: AppBarAccents.finance,
+                      decoration: InputDecoration(
+                        hintText: 'Tìm theo tên, SĐT, mô tả...',
+                        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                        prefixIcon: Icon(Icons.search_rounded, color: AppBarAccents.finance, size: 18),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.close_rounded, color: Colors.grey.shade500, size: 18),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _searchQuery = '';
+                                  _loadData();
+                                },
+                                splashRadius: 16,
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          // Summary cards
-          _buildSummarySection(),
-
-          // Date range indicator
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Icon(Icons.date_range, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 6),
-                Text(
-                  '${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-                const Spacer(),
-                Text(
-                  '${_activities.length} hoạt động',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-
-          // Activity list
-          Expanded(
-            child: _loading && _activities.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _activities.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: _activities.length + (_hasMore ? 1 : 0),
-                    itemBuilder: (ctx, i) {
-                      if (i >= _activities.length) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16),
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        );
-                      }
-                      return _buildActivityCard(_activities[i]);
-                    },
-                  ),
-          ),
+          _buildFinancialTab(),
+          _buildAuditLogTab(),
         ],
       ),
     );
+  }
+  
+  /// Tab Tài chính
+  Widget _buildFinancialTab() {
+    return Column(
+      children: [
+        // Summary cards
+        _buildSummarySection(),
+
+        // Date range indicator
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Icon(Icons.date_range, size: 16, color: Colors.grey[600]),
+              const SizedBox(width: 6),
+              Text(
+                '${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+              const Spacer(),
+              Text(
+                '${_activities.length} hoạt động',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+
+        // Activity list
+        Expanded(
+          child: _loading && _activities.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : _activities.isEmpty
+              ? _buildEmptyState()
+              : ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: _activities.length + (_hasMore ? 1 : 0),
+                  itemBuilder: (ctx, i) {
+                    if (i >= _activities.length) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    }
+                    return _buildActivityCard(_activities[i]);
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+  
+  /// Tab Nhật ký hệ thống
+  Widget _buildAuditLogTab() {
+    if (_auditLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_auditLogs.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history_toggle_off_rounded, size: 80, color: Colors.grey[300]),
+            const SizedBox(height: 10),
+            const Text("Chưa có ghi chép hoạt động nào", style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _auditLogs.length,
+      itemBuilder: (ctx, i) => _buildAuditLogCard(_auditLogs[i]),
+    );
+  }
+  
+  Widget _buildAuditLogCard(Map<String, dynamic> log) {
+    final DateTime date = DateTime.fromMillisecondsSinceEpoch(log['createdAt']);
+    final Color actionColor = _getAuditActionColor(log['action']);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white, borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 5)],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: actionColor.withAlpha(25), shape: BoxShape.circle),
+          child: Icon(_getAuditActionIcon(log['action']), color: actionColor, size: 20),
+        ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(log['userName'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+            Text(DateFormat('HH:mm - dd/MM').format(date), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(log['action'] ?? '', style: TextStyle(color: actionColor, fontWeight: FontWeight.bold, fontSize: 11)),
+              const SizedBox(height: 2),
+              Text(log['description'] ?? "", style: const TextStyle(fontSize: 12, color: Colors.black87)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getAuditActionColor(String? action) {
+    if (action == null) return Colors.blue;
+    if (action.contains("XÓA")) return Colors.red;
+    if (action.contains("NHẬP") || action.contains("THÊM")) return Colors.green;
+    if (action.contains("SỬA") || action.contains("CẬP NHẬT")) return Colors.orange;
+    if (action.contains("BÁN")) return Colors.pink;
+    return Colors.blue;
+  }
+
+  IconData _getAuditActionIcon(String? action) {
+    if (action == null) return Icons.info_outline;
+    if (action.contains("XÓA")) return Icons.delete_forever;
+    if (action.contains("NHẬP")) return Icons.add_business;
+    if (action.contains("BÁN")) return Icons.shopping_cart;
+    if (action.contains("SỬA")) return Icons.edit_note;
+    return Icons.info_outline;
   }
 
   Widget _buildSummarySection() {
@@ -724,7 +875,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
                               ),
                               const SizedBox(width: 2),
                               Text(
-                                _formatMoney(activity.amount),
+                                '${activity.direction == 'OUT' ? '-' : activity.direction == 'IN' ? '+' : ''}${_formatMoney(activity.amount)}',
                                 style: TextStyle(
                                   color: directionColor,
                                   fontWeight: FontWeight.bold,

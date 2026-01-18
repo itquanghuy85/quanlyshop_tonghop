@@ -77,6 +77,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
   String? _currentShopId;
 
   bool _loading = true;
+  bool _refreshingStaff = false; // For refreshing staff list without resetting tabs
 
   @override
   void initState() {
@@ -109,34 +110,83 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       _isSuperAdmin = UserService.isCurrentUserSuperAdmin();
       _currentShopId = await UserService.getCurrentShopId();
 
-      // Load work schedule
-      startTimeCtrl.text = prefs.getString('work_start_time') ?? '08:00';
-      endTimeCtrl.text = prefs.getString('work_end_time') ?? '17:00';
-      breakTimeCtrl.text = (prefs.getInt('work_break_time') ?? 1).toString();
-      maxOtHoursCtrl.text = (prefs.getInt('work_max_ot_hours') ?? 4).toString();
-
-      // Load work days
-      final workDaysStr = prefs.getString('work_days');
-      if (workDaysStr != null) {
-        final days = workDaysStr.split(',');
-        for (int i = 0; i < workDays.length && i < days.length; i++) {
-          workDays[i] = days[i] == '1';
+      // Load work schedule from Firestore first (sync source), fallback to local
+      Map<String, dynamic>? firestoreSchedule;
+      if (_currentShopId != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('work_schedules')
+            .doc('shop_general_$_currentShopId')
+            .get();
+        if (doc.exists) {
+          firestoreSchedule = doc.data();
+          debugPrint('📋 Loaded work schedule from Firestore: $firestoreSchedule');
         }
       }
 
-      // Load holidays
-      final holidaysStr = prefs.getString('work_holidays');
-      if (holidaysStr != null) {
-        holidays = holidaysStr.split(',');
-      }
+      // Use Firestore data if available, otherwise use SharedPreferences
+      if (firestoreSchedule != null) {
+        startTimeCtrl.text = firestoreSchedule['startTime'] ?? '08:00';
+        endTimeCtrl.text = firestoreSchedule['endTime'] ?? '17:00';
+        breakTimeCtrl.text = (firestoreSchedule['breakTime'] ?? 1).toString();
+        maxOtHoursCtrl.text = (firestoreSchedule['maxOtHours'] ?? 4).toString();
+        
+        // Load work days from Firestore
+        final workDaysStr = firestoreSchedule['workDays'] as String?;
+        if (workDaysStr != null) {
+          final days = workDaysStr.split(',');
+          for (int i = 0; i < workDays.length && i < days.length; i++) {
+            workDays[i] = days[i] == '1';
+          }
+        }
+        
+        // Load holidays from Firestore
+        final holidaysStr = firestoreSchedule['holidays'] as String?;
+        if (holidaysStr != null && holidaysStr.isNotEmpty) {
+          holidays = holidaysStr.split(',').where((h) => h.isNotEmpty).toList();
+        }
+        
+        // Load OT rates from Firestore
+        weekdayOtRateCtrl.text = (firestoreSchedule['weekdayOtRate'] ?? 150).toString();
+        weekendOtRateCtrl.text = (firestoreSchedule['weekendOtRate'] ?? 200).toString();
+        holidayOtRateCtrl.text = (firestoreSchedule['holidayOtRate'] ?? 300).toString();
+        
+        // Also update SharedPreferences for local cache
+        await prefs.setString('work_start_time', startTimeCtrl.text);
+        await prefs.setString('work_end_time', endTimeCtrl.text);
+        await prefs.setInt('work_break_time', int.tryParse(breakTimeCtrl.text) ?? 1);
+        await prefs.setInt('work_max_ot_hours', int.tryParse(maxOtHoursCtrl.text) ?? 4);
+        await prefs.setString('work_days', workDaysStr ?? '0,1,1,1,1,1,0');
+        await prefs.setString('work_holidays', holidaysStr ?? '');
+        await prefs.setInt('weekday_ot_rate', int.tryParse(weekdayOtRateCtrl.text) ?? 150);
+        await prefs.setInt('weekend_ot_rate', int.tryParse(weekendOtRateCtrl.text) ?? 200);
+        await prefs.setInt('holiday_ot_rate', int.tryParse(holidayOtRateCtrl.text) ?? 300);
+      } else {
+        // Fallback to SharedPreferences
+        startTimeCtrl.text = prefs.getString('work_start_time') ?? '08:00';
+        endTimeCtrl.text = prefs.getString('work_end_time') ?? '17:00';
+        breakTimeCtrl.text = (prefs.getInt('work_break_time') ?? 1).toString();
+        maxOtHoursCtrl.text = (prefs.getInt('work_max_ot_hours') ?? 4).toString();
 
-      // Load OT rates
-      weekdayOtRateCtrl.text = (prefs.getInt('weekday_ot_rate') ?? 150)
-          .toString();
-      weekendOtRateCtrl.text = (prefs.getInt('weekend_ot_rate') ?? 200)
-          .toString();
-      holidayOtRateCtrl.text = (prefs.getInt('holiday_ot_rate') ?? 300)
-          .toString();
+        // Load work days from SharedPreferences
+        final workDaysStr = prefs.getString('work_days');
+        if (workDaysStr != null) {
+          final days = workDaysStr.split(',');
+          for (int i = 0; i < workDays.length && i < days.length; i++) {
+            workDays[i] = days[i] == '1';
+          }
+        }
+
+        // Load holidays from SharedPreferences
+        final holidaysStr = prefs.getString('work_holidays');
+        if (holidaysStr != null && holidaysStr.isNotEmpty) {
+          holidays = holidaysStr.split(',').where((h) => h.isNotEmpty).toList();
+        }
+
+        // Load OT rates from SharedPreferences
+        weekdayOtRateCtrl.text = (prefs.getInt('weekday_ot_rate') ?? 150).toString();
+        weekendOtRateCtrl.text = (prefs.getInt('weekend_ot_rate') ?? 200).toString();
+        holidayOtRateCtrl.text = (prefs.getInt('holiday_ot_rate') ?? 300).toString();
+      }
 
       // Load staff salaries
       final salariesStr = prefs.getString('staff_salaries');
@@ -161,7 +211,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       // Load attendance records for selected date
       await _loadAttendanceRecords();
     } catch (e) {
-      // Handle error silently
+      debugPrint('Error loading settings: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -318,7 +368,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
     }
   }
 
-  /// Load work schedules cho tất cả nhân viên vào state
+  /// Load work schedules cho tất cả nhân viên vào state (từ Firestore hoặc local DB)
   Future<void> _loadStaffWorkSchedules() async {
     final db = DBHelper();
     final Map<String, Map<String, dynamic>> schedules = {};
@@ -326,12 +376,34 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
     for (final staff in staffList) {
       final userId = staff['id'] as String;
       try {
-        final schedule = await db.getWorkSchedule(userId);
+        // Thử load từ Firestore trước (để sync giữa các thiết bị)
+        Map<String, dynamic>? schedule;
+        if (_currentShopId != null) {
+          final doc = await FirebaseFirestore.instance
+              .collection('work_schedules')
+              .doc('staff_${userId}_$_currentShopId')
+              .get();
+          if (doc.exists) {
+            schedule = doc.data();
+            debugPrint('📋 Loaded schedule from Firestore for $userId');
+            // Cập nhật local DB
+            await db.upsertWorkSchedule(userId, schedule!);
+          }
+        }
+        
+        // Nếu không có trên Firestore, dùng local DB
+        schedule ??= await db.getWorkSchedule(userId);
+        
         if (schedule != null) {
           schedules[userId] = schedule;
         }
       } catch (e) {
         debugPrint('❌ Error loading schedule for $userId: $e');
+        // Fallback to local DB
+        final localSchedule = await db.getWorkSchedule(userId);
+        if (localSchedule != null) {
+          schedules[userId] = localSchedule;
+        }
       }
     }
     
@@ -366,39 +438,46 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final prefs = await SharedPreferences.getInstance();
+      final shopId = _currentShopId;
+      
+      // Prepare data for sync
+      final workDaysStr = workDays.map((d) => d ? '1' : '0').join(',');
+      final holidaysStr = holidays.join(',');
+      final scheduleData = {
+        'startTime': startTimeCtrl.text,
+        'endTime': endTimeCtrl.text,
+        'breakTime': int.tryParse(breakTimeCtrl.text) ?? 1,
+        'maxOtHours': int.tryParse(maxOtHoursCtrl.text) ?? 4,
+        'workDays': workDaysStr,
+        'holidays': holidaysStr,
+        'weekdayOtRate': int.tryParse(weekdayOtRateCtrl.text) ?? 150,
+        'weekendOtRate': int.tryParse(weekendOtRateCtrl.text) ?? 200,
+        'holidayOtRate': int.tryParse(holidayOtRateCtrl.text) ?? 300,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        'shopId': shopId,
+      };
 
+      // Save to SharedPreferences (for local cache)
       await prefs.setString('work_start_time', startTimeCtrl.text);
       await prefs.setString('work_end_time', endTimeCtrl.text);
-      await prefs.setInt(
-        'work_break_time',
-        int.tryParse(breakTimeCtrl.text) ?? 1,
-      );
-      await prefs.setInt(
-        'work_max_ot_hours',
-        int.tryParse(maxOtHoursCtrl.text) ?? 4,
-      );
-
-      // Save work days
-      final workDaysStr = workDays.map((d) => d ? '1' : '0').join(',');
+      await prefs.setInt('work_break_time', int.tryParse(breakTimeCtrl.text) ?? 1);
+      await prefs.setInt('work_max_ot_hours', int.tryParse(maxOtHoursCtrl.text) ?? 4);
       await prefs.setString('work_days', workDaysStr);
-
-      // Save holidays
-      final holidaysStr = holidays.join(',');
       await prefs.setString('work_holidays', holidaysStr);
+      await prefs.setInt('weekday_ot_rate', int.tryParse(weekdayOtRateCtrl.text) ?? 150);
+      await prefs.setInt('weekend_ot_rate', int.tryParse(weekendOtRateCtrl.text) ?? 200);
+      await prefs.setInt('holiday_ot_rate', int.tryParse(holidayOtRateCtrl.text) ?? 300);
 
-      // Save OT rates
-      await prefs.setInt(
-        'weekday_ot_rate',
-        int.tryParse(weekdayOtRateCtrl.text) ?? 150,
-      );
-      await prefs.setInt(
-        'weekend_ot_rate',
-        int.tryParse(weekendOtRateCtrl.text) ?? 200,
-      );
-      await prefs.setInt(
-        'holiday_ot_rate',
-        int.tryParse(holidayOtRateCtrl.text) ?? 300,
-      );
+      // Save to local DB
+      await DBHelper().upsertWorkSchedule('shop_general', scheduleData);
+
+      // Sync to Firestore (với shopId)
+      if (shopId != null) {
+        await FirebaseFirestore.instance
+            .collection('work_schedules')
+            .doc('shop_general_$shopId')
+            .set(scheduleData, SetOptions(merge: true));
+      }
 
       messenger.showSnackBar(
         const SnackBar(content: Text('Đã lưu cài đặt lịch làm việc')),
@@ -510,15 +589,19 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               const SizedBox(height: 16),
               const Text('Chưa có nhân viên', style: TextStyle(fontSize: 18)),
               const SizedBox(height: 16),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.refresh),
-                label: const Text('Tải lại'),
-                onPressed: () async {
-                  setState(() => _loading = true);
-                  await _loadStaffList();
-                  setState(() => _loading = false);
-                },
-              ),
+              if (_refreshingStaff)
+                const CircularProgressIndicator()
+              else
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Tải lại'),
+                  onPressed: () async {
+                    setState(() => _refreshingStaff = true);
+                    await _loadStaffList();
+                    await _loadStaffWorkSchedules();
+                    setState(() => _refreshingStaff = false);
+                  },
+                ),
             ],
           ),
         ),
@@ -767,16 +850,19 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                       style: TextStyle(color: Colors.grey[500]),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Tải lại'),
-                      onPressed: () async {
-                        setState(() => _loading = true);
-                        await _loadStaffList();
-                        await _loadStaffWorkSchedules();
-                        setState(() => _loading = false);
-                      },
-                    ),
+                    if (_refreshingStaff)
+                      const CircularProgressIndicator()
+                    else
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Tải lại'),
+                        onPressed: () async {
+                          setState(() => _refreshingStaff = true);
+                          await _loadStaffList();
+                          await _loadStaffWorkSchedules();
+                          setState(() => _refreshingStaff = false);
+                        },
+                      ),
                   ],
                 ),
               ),
@@ -1086,16 +1172,19 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                     style: TextStyle(color: Colors.grey[500]),
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Thử lại'),
-                    onPressed: () async {
-                      setState(() => _loading = true);
-                      await _loadStaffList();
-                      await _loadStaffWorkSchedules();
-                      setState(() => _loading = false);
-                    },
-                  ),
+                  if (_refreshingStaff)
+                    const CircularProgressIndicator()
+                  else
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Thử lại'),
+                      onPressed: () async {
+                        setState(() => _refreshingStaff = true);
+                        await _loadStaffList();
+                        await _loadStaffWorkSchedules();
+                        setState(() => _refreshingStaff = false);
+                      },
+                    ),
                 ],
               ),
             ),
@@ -1370,9 +1459,18 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                   'maxOtHours': int.tryParse(maxOtCtrl.text) ?? 4,
                   'workDays': workDayIndices.join(','), // Store as "1,2,3,4,5,6"
                   'updatedAt': DateTime.now().millisecondsSinceEpoch,
+                  'shopId': _currentShopId,
                 };
                 
                 await DBHelper().upsertWorkSchedule(staff['id'] as String, newSchedule);
+                
+                // Sync to Firestore
+                if (_currentShopId != null) {
+                  await FirebaseFirestore.instance
+                      .collection('work_schedules')
+                      .doc('staff_${staff['id']}_$_currentShopId')
+                      .set(newSchedule, SetOptions(merge: true));
+                }
                 
                 // Cập nhật state ngay lập tức
                 _staffWorkSchedules[staff['id'] as String] = newSchedule;

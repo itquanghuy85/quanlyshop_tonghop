@@ -8,6 +8,7 @@ import '../services/repair_partner_service.dart';
 import '../services/repair_partner_payment_service.dart';
 import '../services/user_service.dart';
 import '../services/first_time_guide_service.dart';
+import '../services/financial_activity_service.dart';
 import '../data/db_helper.dart';
 import '../utils/money_utils.dart';
 import '../services/notification_service.dart';
@@ -1001,6 +1002,22 @@ class _SupplierListViewState extends State<SupplierListView>
           'remainAfter': d.remain - amount,
         },
       );
+
+      // Ghi nhật ký hoạt động tài chính (direction = OUT)
+      try {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        await FinancialActivityService.logSupplierPayment(
+          firestoreId: paymentData['firestoreId'] as String,
+          amount: amount,
+          paymentMethod: method,
+          supplierName: d.supplier.name,
+          createdAt: now,
+          createdBy: paymentData['createdBy'] as String? ?? 'NV',
+          note: note.isNotEmpty ? note : 'Thanh toán công nợ NCC',
+        );
+      } catch (e) {
+        debugPrint('Failed to log financial activity: $e');
+      }
 
       EventBus().emit('debts_changed');
       NotificationService.showSnackBar(

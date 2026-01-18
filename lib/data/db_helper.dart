@@ -1,6 +1,7 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import '../models/repair_model.dart';
 import '../models/product_model.dart';
 import '../models/sale_order_model.dart';
@@ -53,7 +54,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 61,
+      version: 64,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT)',
@@ -101,10 +102,40 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS payroll_locks(id INTEGER PRIMARY KEY AUTOINCREMENT, monthKey TEXT UNIQUE, locked INTEGER DEFAULT 0, lockedBy TEXT, lockedAt INTEGER, note TEXT)',
         );
         await db.execute(
+          '''CREATE TABLE IF NOT EXISTS employee_salary_settings(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firestoreId TEXT UNIQUE,
+            staffId TEXT NOT NULL,
+            staffName TEXT,
+            shopId TEXT,
+            baseSalary REAL DEFAULT 0,
+            dailyRate REAL DEFAULT 0,
+            salaryType TEXT DEFAULT "monthly",
+            saleCommType TEXT DEFAULT "percent",
+            saleCommValue REAL DEFAULT 1.0,
+            repairCommType TEXT DEFAULT "percent",
+            repairCommValue REAL DEFAULT 10.0,
+            transportAllowance REAL DEFAULT 0,
+            mealAllowance REAL DEFAULT 0,
+            phoneAllowance REAL DEFAULT 0,
+            otherAllowance REAL DEFAULT 0,
+            otherAllowanceNote TEXT,
+            monthlyTarget REAL DEFAULT 0,
+            targetBonusPercent REAL DEFAULT 0,
+            standardHoursPerDay REAL DEFAULT 8.0,
+            overtimeRate REAL DEFAULT 150,
+            createdAt INTEGER,
+            updatedAt INTEGER,
+            updatedBy TEXT,
+            isActive INTEGER DEFAULT 1,
+            isSynced INTEGER DEFAULT 0
+          )'''
+        );
+        await db.execute(
           'CREATE TABLE IF NOT EXISTS purchase_orders(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, orderCode TEXT UNIQUE, supplierName TEXT, supplierPhone TEXT, supplierAddress TEXT, itemsJson TEXT, totalAmount INTEGER, totalCost INTEGER, createdAt INTEGER, createdBy TEXT, status TEXT DEFAULT "PENDING", paymentMethod TEXT, notes TEXT, isSynced INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS work_schedules(id INTEGER PRIMARY KEY AUTOINCREMENT, userId TEXT UNIQUE, startTime TEXT DEFAULT "08:00", endTime TEXT DEFAULT "17:00", breakTime INTEGER DEFAULT 1, maxOtHours INTEGER DEFAULT 4, workDays TEXT DEFAULT "[1,2,3,4,5,6]", updatedAt INTEGER)',
+          'CREATE TABLE IF NOT EXISTS work_schedules(id INTEGER PRIMARY KEY AUTOINCREMENT, userId TEXT UNIQUE, startTime TEXT DEFAULT "08:00", endTime TEXT DEFAULT "17:00", breakTime INTEGER DEFAULT 1, maxOtHours INTEGER DEFAULT 4, workDays TEXT DEFAULT "[1,2,3,4,5,6]", holidays TEXT, weekdayOtRate INTEGER DEFAULT 150, weekendOtRate INTEGER DEFAULT 200, holidayOtRate INTEGER DEFAULT 300, shopId TEXT, updatedAt INTEGER)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS debt_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, debtId INTEGER, debtFirestoreId TEXT, debtType TEXT, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, createdBy TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT)',
@@ -1365,6 +1396,131 @@ class DBHelper {
             debugPrint('v61 error (indexes): $e');
           }
           debugPrint('DB upgrade v61: completed');
+        }
+        if (oldV < 62) {
+          // v62: Thêm các cột còn thiếu vào bảng work_schedules
+          debugPrint('DB upgrade v62: Adding missing columns to work_schedules...');
+          try {
+            await db.execute('ALTER TABLE work_schedules ADD COLUMN holidays TEXT');
+            debugPrint('v62: added holidays column');
+          } catch (e) {
+            debugPrint('v62 error (holidays): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE work_schedules ADD COLUMN weekdayOtRate INTEGER DEFAULT 150');
+            debugPrint('v62: added weekdayOtRate column');
+          } catch (e) {
+            debugPrint('v62 error (weekdayOtRate): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE work_schedules ADD COLUMN weekendOtRate INTEGER DEFAULT 200');
+            debugPrint('v62: added weekendOtRate column');
+          } catch (e) {
+            debugPrint('v62 error (weekendOtRate): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE work_schedules ADD COLUMN holidayOtRate INTEGER DEFAULT 300');
+            debugPrint('v62: added holidayOtRate column');
+          } catch (e) {
+            debugPrint('v62 error (holidayOtRate): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE work_schedules ADD COLUMN shopId TEXT');
+            debugPrint('v62: added shopId column');
+          } catch (e) {
+            debugPrint('v62 error (shopId): $e');
+          }
+          debugPrint('DB upgrade v62: completed');
+        }
+        if (oldV < 63) {
+          // v63: Mở rộng payroll_settings để hỗ trợ nhiều loại hoa hồng và phụ cấp
+          debugPrint('DB upgrade v63: Extending payroll_settings...');
+          try {
+            await db.execute('ALTER TABLE payroll_settings ADD COLUMN saleCommType TEXT DEFAULT "percent"');
+            debugPrint('v63: added saleCommType column');
+          } catch (e) {
+            debugPrint('v63 error (saleCommType): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE payroll_settings ADD COLUMN repairCommType TEXT DEFAULT "percent"');
+            debugPrint('v63: added repairCommType column');
+          } catch (e) {
+            debugPrint('v63 error (repairCommType): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE payroll_settings ADD COLUMN transportAllowance INTEGER DEFAULT 0');
+            debugPrint('v63: added transportAllowance column');
+          } catch (e) {
+            debugPrint('v63 error (transportAllowance): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE payroll_settings ADD COLUMN mealAllowance INTEGER DEFAULT 0');
+            debugPrint('v63: added mealAllowance column');
+          } catch (e) {
+            debugPrint('v63 error (mealAllowance): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE payroll_settings ADD COLUMN phoneAllowance INTEGER DEFAULT 0');
+            debugPrint('v63: added phoneAllowance column');
+          } catch (e) {
+            debugPrint('v63 error (phoneAllowance): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE payroll_settings ADD COLUMN targetBonus INTEGER DEFAULT 0');
+            debugPrint('v63: added targetBonus column');
+          } catch (e) {
+            debugPrint('v63 error (targetBonus): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE payroll_settings ADD COLUMN monthlyTarget INTEGER DEFAULT 0');
+            debugPrint('v63: added monthlyTarget column');
+          } catch (e) {
+            debugPrint('v63 error (monthlyTarget): $e');
+          }
+          debugPrint('DB upgrade v63: completed');
+        }
+        if (oldV < 64) {
+          // v64: Thêm bảng employee_salary_settings để lưu cài đặt lương cho từng nhân viên
+          debugPrint('DB upgrade v64: Adding employee_salary_settings table...');
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS employee_salary_settings(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firestoreId TEXT UNIQUE,
+                staffId TEXT NOT NULL,
+                staffName TEXT,
+                shopId TEXT,
+                baseSalary REAL DEFAULT 0,
+                dailyRate REAL DEFAULT 0,
+                salaryType TEXT DEFAULT "monthly",
+                saleCommType TEXT DEFAULT "percent",
+                saleCommValue REAL DEFAULT 1.0,
+                repairCommType TEXT DEFAULT "percent",
+                repairCommValue REAL DEFAULT 10.0,
+                transportAllowance REAL DEFAULT 0,
+                mealAllowance REAL DEFAULT 0,
+                phoneAllowance REAL DEFAULT 0,
+                otherAllowance REAL DEFAULT 0,
+                otherAllowanceNote TEXT,
+                monthlyTarget REAL DEFAULT 0,
+                targetBonusPercent REAL DEFAULT 0,
+                standardHoursPerDay REAL DEFAULT 8.0,
+                overtimeRate REAL DEFAULT 150,
+                createdAt INTEGER,
+                updatedAt INTEGER,
+                updatedBy TEXT,
+                isActive INTEGER DEFAULT 1,
+                isSynced INTEGER DEFAULT 0
+              )
+            ''');
+            // Index để query nhanh theo staffId và shopId
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_employee_salary_staff ON employee_salary_settings(staffId)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_employee_salary_shop ON employee_salary_settings(shopId)');
+            debugPrint('v64: created employee_salary_settings table');
+          } catch (e) {
+            debugPrint('v64 error (employee_salary_settings): $e');
+          }
+          debugPrint('DB upgrade v64: completed');
         }
         debugPrint('DB upgrade completed');
       },
@@ -3192,7 +3348,14 @@ class DBHelper {
       return {
         'baseSalary': 0,
         'saleCommPercent': 1.0,
+        'saleCommType': 'percent',
         'repairProfitPercent': 10.0,
+        'repairCommType': 'percent',
+        'transportAllowance': 0,
+        'mealAllowance': 0,
+        'phoneAllowance': 0,
+        'targetBonus': 0,
+        'monthlyTarget': 0,
       };
     }
     return res.first;
@@ -3245,6 +3408,175 @@ class DBHelper {
       'payroll_locks',
       orderBy: 'lockedAt DESC',
       limit: limit,
+    );
+  }
+
+  // --- EMPLOYEE SALARY SETTINGS ---
+  /// Lấy tất cả cài đặt lương nhân viên (cho shop hiện tại)
+  Future<List<Map<String, dynamic>>> getEmployeeSalarySettings() async {
+    final db = await database;
+    final shopId = await UserService.getCurrentShopId();
+    if (shopId == null) return [];
+    
+    return await db.query(
+      'employee_salary_settings',
+      where: 'shopId = ? AND isActive = 1',
+      whereArgs: [shopId],
+      orderBy: 'staffName ASC',
+    );
+  }
+
+  /// Lấy cài đặt lương của một nhân viên theo staffId
+  Future<Map<String, dynamic>?> getEmployeeSalarySettingByStaffId(String staffId) async {
+    final db = await database;
+    final shopId = await UserService.getCurrentShopId();
+    if (shopId == null) return null;
+    
+    final results = await db.query(
+      'employee_salary_settings',
+      where: 'shopId = ? AND staffId = ? AND isActive = 1',
+      whereArgs: [shopId, staffId],
+      limit: 1,
+    );
+    
+    if (results.isEmpty) return null;
+    return results.first;
+  }
+
+  /// Lưu hoặc cập nhật cài đặt lương nhân viên
+  Future<int> saveEmployeeSalarySettings(Map<String, dynamic> data) async {
+    final db = await database;
+    final staffId = data['staffId'] as String?;
+    if (staffId == null || staffId.isEmpty) {
+      debugPrint('❌ staffId is required for employee salary settings');
+      return -1;
+    }
+
+    // Đảm bảo có shopId
+    final shopId = data['shopId'] ?? await UserService.getCurrentShopId();
+    data['shopId'] = shopId;
+    data['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
+    data['isSynced'] = 0;
+
+    // Check existing
+    final existing = await db.query(
+      'employee_salary_settings',
+      where: 'shopId = ? AND staffId = ?',
+      whereArgs: [shopId, staffId],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      // Update
+      await db.update(
+        'employee_salary_settings',
+        data,
+        where: 'shopId = ? AND staffId = ?',
+        whereArgs: [shopId, staffId],
+      );
+      return existing.first['id'] as int;
+    } else {
+      // Insert
+      data['createdAt'] = DateTime.now().millisecondsSinceEpoch;
+      data['isActive'] = 1;
+      return await db.insert('employee_salary_settings', data);
+    }
+  }
+
+  /// Upsert từ Firestore
+  Future<void> upsertEmployeeSalarySettings(Map<String, dynamic> data) async {
+    final firestoreId = data['firestoreId'] as String?;
+    final staffId = data['staffId'] as String?;
+    if (firestoreId == null && staffId == null) return;
+
+    final db = await database;
+    
+    // Chuyển đổi các giá trị về đúng kiểu
+    final cleanData = <String, dynamic>{};
+    data.forEach((key, value) {
+      if (value is Timestamp) {
+        cleanData[key] = value.millisecondsSinceEpoch;
+      } else if (value is DateTime) {
+        cleanData[key] = value.millisecondsSinceEpoch;
+      } else if (key == 'isActive' && value is bool) {
+        cleanData[key] = value ? 1 : 0;
+      } else {
+        cleanData[key] = value;
+      }
+    });
+    cleanData['isSynced'] = 1;
+
+    // Try update by firestoreId first
+    if (firestoreId != null) {
+      final existing = await db.query(
+        'employee_salary_settings',
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) {
+        await db.update(
+          'employee_salary_settings',
+          cleanData,
+          where: 'firestoreId = ?',
+          whereArgs: [firestoreId],
+        );
+        return;
+      }
+    }
+
+    // Try update by staffId + shopId
+    if (staffId != null && cleanData['shopId'] != null) {
+      final existing = await db.query(
+        'employee_salary_settings',
+        where: 'staffId = ? AND shopId = ?',
+        whereArgs: [staffId, cleanData['shopId']],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) {
+        await db.update(
+          'employee_salary_settings',
+          cleanData,
+          where: 'staffId = ? AND shopId = ?',
+          whereArgs: [staffId, cleanData['shopId']],
+        );
+        return;
+      }
+    }
+
+    // Insert new
+    await db.insert('employee_salary_settings', cleanData, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  /// Lấy các cài đặt chưa sync để đẩy lên cloud
+  Future<List<Map<String, dynamic>>> getUnsyncedEmployeeSalarySettings() async {
+    final db = await database;
+    return await db.query(
+      'employee_salary_settings',
+      where: 'isSynced = 0',
+    );
+  }
+
+  /// Đánh dấu đã sync
+  Future<void> markEmployeeSalarySettingsSynced(String firestoreId) async {
+    final db = await database;
+    await db.update(
+      'employee_salary_settings',
+      {'isSynced': 1, 'firestoreId': firestoreId},
+      where: 'firestoreId = ? OR (firestoreId IS NULL AND staffId = ?)',
+      whereArgs: [firestoreId, firestoreId.split('_').skip(1).take(1).join()],
+    );
+  }
+
+  /// Xóa cài đặt lương (soft delete)
+  Future<void> deleteEmployeeSalarySettings(String staffId) async {
+    final db = await database;
+    final shopId = await UserService.getCurrentShopId();
+    await db.update(
+      'employee_salary_settings',
+      {'isActive': 0, 'isSynced': 0, 'updatedAt': DateTime.now().millisecondsSinceEpoch},
+      where: 'staffId = ? AND shopId = ?',
+      whereArgs: [staffId, shopId],
     );
   }
 

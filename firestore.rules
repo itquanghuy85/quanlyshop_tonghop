@@ -20,7 +20,7 @@ service cloud.firestore {
     // ║              adjustment_entries                                  ║
     // ║  [SUPPLIER] suppliers, supplier_payments, purchase_orders        ║
     // ║  [PARTNER]  repair_partners, repair_partner_payments             ║
-    // ║  [HR]       attendance                                           ║
+    // ║  [HR]       attendance, work_schedules                            ║
     // ║  [CHAT]     chats, chat_messages                                 ║
     // ║  [NOTIFY]   notifications, shop_notifications                    ║
     // ║  [SYSTEM]   audit_logs, quick_input_codes, repair_parts          ║
@@ -629,7 +629,7 @@ service cloud.firestore {
 
     // ┌──────────────────────────────────────────────────────────────────┐
     // │                   SECTION 7: HR & ATTENDANCE                     │
-    // │                   Collection: attendance                         │
+    // │                   Collection: attendance, work_schedules         │
     // └──────────────────────────────────────────────────────────────────┘
 
     // ═══════════ 7.1 ATTENDANCE ═══════════
@@ -656,6 +656,29 @@ service cloud.firestore {
                          !changed('approvedBy')));
       
       allow delete: if false;
+    }
+
+    // ═══════════ 7.2 WORK_SCHEDULES ═══════════
+    // Stores work schedule settings (general shop settings and per-staff schedules)
+    // Document IDs: "shop_general_{shopId}" for general, "staff_{userId}_{shopId}" for staff
+    match /work_schedules/{scheduleId} {
+      // READ: Any authenticated user in the shop
+      allow read: if isAuth() && 
+                     (isSuperAdmin() || 
+                      resource.data.shopId == myShopId());
+      
+      // CREATE: Owner/Manager can create schedules for their shop
+      allow create: if isAuth() && 
+                       newDocInMyShop() &&
+                       isManager();
+      
+      // UPDATE: Owner/Manager can update schedules
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked() &&
+                       isManager();
+      
+      allow delete: if isOwner();
     }
 
     // ┌──────────────────────────────────────────────────────────────────┐

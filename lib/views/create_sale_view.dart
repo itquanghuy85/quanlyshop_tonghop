@@ -628,11 +628,18 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               .toUpperCase() ??
           "NV";
       int totalPrice = _parseCurrency(priceCtrl.text);
+      
+      // Parse discount và tính finalPrice (thành tiền sau giảm giá)
+      int discount = _parseCurrency(discountCtrl.text);
+      int finalPrice = totalPrice - discount;
+      if (finalPrice < 0) finalPrice = 0;
+      
+      // FIX: paidAmount phải dựa trên finalPrice (sau giảm giá), không phải totalPrice
       int paidAmount = _parseCurrency(downPaymentCtrl.text);
       if (_paymentMethod != "CÔNG NỢ" &&
           _paymentMethod != "TRẢ GÓP (NH)" &&
           paidAmount == 0) {
-        paidAmount = totalPrice;
+        paidAmount = finalPrice; // FIX: Dùng finalPrice thay vì totalPrice
       }
 
       int totalCost = _selectedItems.fold(
@@ -664,9 +671,6 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         setState(() => _isSaving = false);
         return;
       }
-
-      // Parse discount
-      int discount = _parseCurrency(discountCtrl.text);
 
       final sale = SaleOrder(
         firestoreId: uniqueId,
@@ -765,15 +769,15 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         };
       }).toList();
 
-      // Chuẩn bị debt data nếu cần
+      // Chuẩn bị debt data nếu cần - sử dụng finalPrice (đã trừ giảm giá)
       Map<String, dynamic>? debtDataForTransaction;
       if (_paymentMethod == "CÔNG NỢ" ||
-          (_paymentMethod != "TRẢ GÓP (NH)" && paidAmount < totalPrice)) {
+          (_paymentMethod != "TRẢ GÓP (NH)" && paidAmount < finalPrice)) {
         debtDataForTransaction = {
           'firestoreId': 'debt_${now}_${phoneCtrl.text.trim()}',
           'personName': nameCtrl.text.trim().toUpperCase(),
           'phone': phoneCtrl.text.trim(),
-          'totalAmount': totalPrice,
+          'totalAmount': finalPrice, // FIX: Dùng finalPrice thay vì totalPrice
           'paidAmount': paidAmount,
           'type': "CUSTOMER_OWES",
           'status': "ACTIVE",
@@ -911,11 +915,11 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       // Lưu sale vào local DB (cloud đã có từ transaction)
       await db.upsertSale(sale);
 
-      // Ghi nhật ký hoạt động tài chính
+      // Ghi nhật ký hoạt động tài chính - FIX: Dùng finalPrice (đã trừ giảm giá)
       try {
         await FinancialActivityService.logSale(
           firestoreId: sale.firestoreId ?? 'SALE_${sale.soldAt}',
-          totalPrice: totalPrice,
+          totalPrice: finalPrice, // FIX: Dùng finalPrice thay vì totalPrice
           paymentMethod: _paymentMethod,
           customerName: sale.customerName ?? '',
           phone: sale.phone ?? '',
@@ -955,7 +959,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         }
       }
 
-      // Create customer if not exists
+      // Create customer if not exists - FIX: Dùng finalPrice
       final customerService = CustomerService();
       final existingCustomers = await customerService.getCustomers();
       final existing = existingCustomers
@@ -967,23 +971,23 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           phone: phoneCtrl.text.trim(),
           address: addressCtrl.text.trim().toUpperCase(),
           createdAt: DateTime.now().millisecondsSinceEpoch,
-          totalSpent: totalPrice,
+          totalSpent: finalPrice, // FIX: Dùng finalPrice
         );
         await customerService.addCustomer(newCustomer);
       } else {
-        // Update customer stats (tổng chi tiêu)
+        // Update customer stats (tổng chi tiêu) - FIX: Dùng finalPrice
         await customerService.updateCustomerStatsAfterSale(
           phoneCtrl.text.trim(),
-          totalPrice,
+          finalPrice, // FIX: Dùng finalPrice
         );
       }
 
-      // Trigger payment notification if payment is completed
+      // Trigger payment notification if payment is completed - FIX: Dùng finalPrice
       if (_paymentMethod != "CÔNG NỢ" && !_isInstallment) {
         try {
           await NotificationService.notifyPaymentCompleted(
             sale.firestoreId ?? 'SALE_${sale.soldAt}_${sale.sellerName}',
-            totalPrice.toDouble(),
+            finalPrice.toDouble(), // FIX: Dùng finalPrice
             _paymentMethod,
           );
         } catch (e) {
@@ -1309,37 +1313,35 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             ],
           ),
 
-          // THÀNH TIỀN SAU GIẢM GIÁ
-          if (_parseCurrency(discountCtrl.text) > 0) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green.shade200),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "THÀNH TIỀN:",
-                    style: AppTextStyles.body1.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green.shade700,
-                    ),
-                  ),
-                  Text(
-                    "${_formatCurrency(_finalPrice)} Đ",
-                    style: AppTextStyles.headline6.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green.shade700,
-                    ),
-                  ),
-                ],
-              ),
+          // THÀNH TIỀN SAU GIẢM GIÁ - FIX: Luôn hiển thị để user thấy số tiền thực thu
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.shade200),
             ),
-          ],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "THÀNH TIỀN:",
+                  style: AppTextStyles.body1.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+                Text(
+                  "${_formatCurrency(_finalPrice)} Đ",
+                  style: AppTextStyles.headline6.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
 
           const SizedBox(height: 15),
           Wrap(

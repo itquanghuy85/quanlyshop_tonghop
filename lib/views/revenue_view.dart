@@ -11,6 +11,7 @@ import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
+import '../services/event_bus.dart';
 import '../widgets/currency_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -41,6 +42,13 @@ class _RevenueViewState extends State<RevenueView>
 
   // Real-time listener cho cash_closings
   StreamSubscription<DocumentSnapshot>? _closingSubscription;
+  
+  // EventBus subscription để nghe thay đổi data
+  StreamSubscription? _eventBusSubscription;
+  
+  // Debounce timer để tránh reload quá nhiều
+  Timer? _reloadDebounceTimer;
+  bool _dataLoaded = false; // Flag để tránh reload khi mới vào trang
 
   // Filter states
   String _timeFilter = 'today'; // today, week, month, quarter, year, custom
@@ -60,15 +68,36 @@ class _RevenueViewState extends State<RevenueView>
     _loadPermissions();
     _loadAllData();
     _initClosingRealTimeSync();
-    // Lắng nghe real-time sync từ cloud
-    SyncService.initRealTimeSync(() {
-      if (mounted) _loadAllData();
+    // Lắng nghe event bus thay vì gọi initRealTimeSync trực tiếp
+    // Sử dụng debounce để tránh reload quá nhiều
+    _eventBusSubscription = EventBus().stream.listen((event) {
+      if (!mounted || !_dataLoaded) return;
+      // Chỉ reload khi có events liên quan đến finance
+      if (event == 'sales_changed' || 
+          event == 'repairs_changed' || 
+          event == 'expenses_changed' ||
+          event == 'debts_changed' ||
+          event == 'cash_closings_changed') {
+        _debouncedReload();
+      }
+    });
+  }
+  
+  /// Reload data với debounce để tránh gọi quá nhiều lần
+  void _debouncedReload() {
+    _reloadDebounceTimer?.cancel();
+    _reloadDebounceTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted && _dataLoaded) {
+        _loadAllData();
+      }
     });
   }
 
   @override
   void dispose() {
     _closingSubscription?.cancel();
+    _eventBusSubscription?.cancel();
+    _reloadDebounceTimer?.cancel();
     _tabController.dispose();
     cashEndCtrl.dispose();
     bankEndCtrl.dispose();
@@ -206,6 +235,7 @@ class _RevenueViewState extends State<RevenueView>
       _previousDayClosing = prevClosing;
       _loadingPreviousClosing = false;
       _isLoading = false;
+      _dataLoaded = true; // Đánh dấu đã load xong lần đầu
     });
   }
 
