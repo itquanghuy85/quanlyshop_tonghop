@@ -3452,11 +3452,23 @@ class DBHelper {
       return -1;
     }
 
+    // Tạo bản copy và loại bỏ 'id' vì là AUTO INCREMENT
+    final cleanData = Map<String, dynamic>.from(data);
+    cleanData.remove('id');
+
     // Đảm bảo có shopId
-    final shopId = data['shopId'] ?? await UserService.getCurrentShopId();
-    data['shopId'] = shopId;
-    data['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
-    data['isSynced'] = 0;
+    final shopId = cleanData['shopId'] ?? await UserService.getCurrentShopId();
+    cleanData['shopId'] = shopId;
+    cleanData['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
+    cleanData['isSynced'] = 0;
+    
+    // Đảm bảo createdAt là INTEGER
+    if (cleanData['createdAt'] is DateTime) {
+      cleanData['createdAt'] = (cleanData['createdAt'] as DateTime).millisecondsSinceEpoch;
+    } else if (cleanData['createdAt'] is String) {
+      final parsed = DateTime.tryParse(cleanData['createdAt'] as String);
+      cleanData['createdAt'] = parsed?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch;
+    }
 
     // Check existing
     final existing = await db.query(
@@ -3467,19 +3479,20 @@ class DBHelper {
     );
 
     if (existing.isNotEmpty) {
-      // Update
+      // Update - loại bỏ createdAt để giữ nguyên giá trị cũ
+      cleanData.remove('createdAt');
       await db.update(
         'employee_salary_settings',
-        data,
+        cleanData,
         where: 'shopId = ? AND staffId = ?',
         whereArgs: [shopId, staffId],
       );
       return existing.first['id'] as int;
     } else {
       // Insert
-      data['createdAt'] = DateTime.now().millisecondsSinceEpoch;
-      data['isActive'] = 1;
-      return await db.insert('employee_salary_settings', data);
+      cleanData['createdAt'] = cleanData['createdAt'] ?? DateTime.now().millisecondsSinceEpoch;
+      cleanData['isActive'] = 1;
+      return await db.insert('employee_salary_settings', cleanData);
     }
   }
 

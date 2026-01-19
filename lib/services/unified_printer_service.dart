@@ -1,4 +1,4 @@
-import 'package:esc_pos_utils/esc_pos_utils.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/utils/money_utils.dart';
@@ -182,7 +182,7 @@ class UnifiedPrinterService {
         bytes.addAll(generator.feed(1));
         // Dùng ID số đơn giản để QR code dễ scan hơn
         final simpleId = product['id']?.toString() ?? product['firestoreId']?.split('_').last ?? 'unknown';
-        bytes.addAll(generator.qrcode("check_inv:$simpleId", size: QRSize.Size4));
+        bytes.addAll(generator.qrcode("check_inv:$simpleId", size: QRSize.size4));
       }
 
       // 7. CHỮ TÙY BIẾN

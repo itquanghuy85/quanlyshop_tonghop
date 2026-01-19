@@ -319,7 +319,98 @@ Nhấn vào đơn bất kỳ để xem:
 2. Xem lịch sử chấm công theo ngày/tháng
 3. Tổng hợp giờ làm từng nhân viên
 
-### 📊 Hiệu suất nhân viên
+### � TÍNH LƯƠNG NHÂN VIÊN
+
+Tính năng **BẢNG LƯƠNG NHÂN VIÊN** tự động tính lương dựa trên:
+- Cài đặt lương (cơ bản, hoa hồng, phụ cấp)
+- Dữ liệu chấm công
+- Doanh số bán hàng/sửa chữa
+- Thuế TNCN, bảo hiểm
+
+#### 📋 Truy cập bảng lương
+1. Vào tab **Nhân sự** 
+2. Nhấn **"LƯƠNG Tính lương"** hoặc **"BẢNG LƯƠNG"**
+3. Xem danh sách nhân viên với lương chi tiết
+
+#### ⚙️ Cài đặt lương (Cho Chủ shop/Quản lý)
+
+**Cài đặt mặc định của Shop:**
+1. Tại màn **BẢNG LƯƠNG** → Nhấn icon ⚙️ **"Cài đặt lương"**
+2. Chọn tab **"MẶC ĐỊNH"**
+3. Cài đặt các mục:
+   | Mục | Mô tả |
+   |-----|-------|
+   | **Loại lương** | Tháng / Ngày / Giờ |
+   | **Lương cơ bản** | Mức lương cố định |
+   | **Hoa hồng bán hàng** | % doanh số hoặc cố định/đơn |
+   | **Hoa hồng sửa chữa** | % lợi nhuận hoặc cố định/đơn |
+   | **Phụ cấp** | Đi lại, ăn trưa, điện thoại... |
+   | **Giờ chuẩn/ngày** | Số giờ làm tiêu chuẩn |
+   | **Hệ số OT** | Hệ số tăng ca (150%, 200%...) |
+4. Nhấn **"LƯU CÀI ĐẶT"**
+
+**Cài đặt riêng cho từng nhân viên:**
+1. Tại màn **CÀI ĐẶT LƯƠNG** → Tab **"NHÂN VIÊN"**
+2. Chọn nhân viên muốn cài đặt
+3. Nhấn **"Cài đặt riêng"** 
+4. Điền thông tin lương riêng
+5. Nhấn **"LƯU"**
+
+#### 📊 Xem chi tiết lương
+
+1. Tại **BẢNG LƯƠNG** → Nhấn vào **tên nhân viên**
+2. Xem chi tiết:
+   - **THU NHẬP**: Lương cơ bản + Hoa hồng + Phụ cấp + Thưởng + OT
+   - **KHẤU TRỪ**: Thuế TNCN + BHXH + BHYT + BHTN + Các khoản trừ khác
+   - **THỰC LĨNH**: Tổng thu nhập - Tổng khấu trừ
+3. Xem ghi chú chi tiết cách tính
+
+#### 🖨️ In phiếu lương
+
+**In bảng lương tổng hợp:**
+1. Tại **BẢNG LƯƠNG** → Nhấn icon 🖨️ **Print**
+2. Chọn **"In bảng lương tổng hợp"** hoặc **"Chia sẻ PDF tổng hợp"**
+
+**In phiếu lương cá nhân:**
+1. Mở chi tiết lương của nhân viên
+2. Nhấn **"In phiếu lương"** hoặc **"Chia sẻ PDF"**
+
+#### 💵 Cài đặt thuế & bảo hiểm (Cho Chủ shop)
+
+1. Tại **BẢNG LƯƠNG** → Nhấn icon 💳 **"Cài đặt Khấu trừ/Thuế"**
+2. Cài đặt:
+   | Mục | Mô tả | Mặc định |
+   |-----|-------|----------|
+   | **Thuế TNCN** | Bật/Tắt tính thuế | Bật |
+   | **Giảm trừ cá nhân** | Mức giảm trừ | 11.000.000đ |
+   | **Giảm trừ người phụ thuộc** | /người | 4.400.000đ |
+   | **BHXH** | Tỷ lệ % lương | 8% |
+   | **BHYT** | Tỷ lệ % lương | 1.5% |
+   | **BHTN** | Tỷ lệ % lương | 1% |
+   | **Mức đóng BH tối đa** | Giới hạn trần | 36.000.000đ |
+3. Nhấn **"LƯU"**
+
+#### ➕ Thêm thưởng/phạt thủ công
+
+1. Tại **BẢNG LƯƠNG** → Mở chi tiết nhân viên
+2. Nhấn **"+Thưởng"** hoặc **"+Phạt"**
+3. Nhập:
+   - Số tiền
+   - Lý do
+4. Nhấn **"THÊM"**
+
+#### 📅 Chọn tháng tính lương
+
+1. Tại **BẢNG LƯƠNG** → Nhấn icon 📅 **Calendar**
+2. Chọn tháng/năm muốn xem
+3. Dữ liệu sẽ tự động tính lại
+
+#### 🔄 Làm mới dữ liệu
+
+- Nhấn icon 🔄 **Refresh** để cập nhật số liệu mới nhất
+- Dữ liệu được lấy từ Firestore để đảm bảo đồng nhất giữa các thiết bị
+
+### �📊 Hiệu suất nhân viên
 
 - Số đơn bán/sửa của mỗi nhân viên
 - Doanh thu tạo ra

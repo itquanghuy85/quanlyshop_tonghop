@@ -214,7 +214,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       if (payMethod == "CÔNG NỢ") {
         // FIX: Tạo firestoreId TRƯỚC khi insert để tránh duplicate khi sync
-        final debtFId = "debt_${DateTime.now().millisecondsSinceEpoch}_${r.phone.hashCode}";
+        final debtFId =
+            "debt_${DateTime.now().millisecondsSinceEpoch}_${r.phone.hashCode}";
         final debtData = {
           'personName': r.customerName,
           'phone': r.phone,
@@ -290,7 +291,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
       EventBus().emit('repairs_changed');
 
-      // GHIM TRẠNG THÁI MỚI VÀO CHAT NỘI BỘ (trừ status 4 đã ghim ở trên)
+      // GỬI PUSH NOTIFICATION khi thay đổi trạng thái (trừ status 4 đã xử lý riêng)
       if (newStatus != 4) {
         try {
           final user = FirebaseAuth.instance.currentUser;
@@ -317,6 +318,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           }
 
           final msg = "$emoji $statusMsg: $summary";
+
+          // Gửi push notification cho mọi người
+          await NotificationService.sendCloudNotification(
+            title: '$emoji $statusMsg',
+            body: '${r.customerName} - ${r.model}',
+            type: 'new_order',
+          );
+
+          // Ghim vào chat nội bộ
           await FirestoreService.sendChat(
             message: msg,
             senderId: user?.uid ?? 'guest',
@@ -326,7 +336,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             linkedSummary: summary,
           );
         } catch (e) {
-          debugPrint('Failed to send status chat: $e');
+          debugPrint('Failed to send status notification/chat: $e');
         }
       }
     } catch (e) {

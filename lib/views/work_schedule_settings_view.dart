@@ -557,11 +557,17 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
         appBar: AppBar(
           title: const Text('Cài đặt lịch làm việc'),
           automaticallyImplyLeading: true,
+          backgroundColor: const Color(0xFF1976D2),
+          foregroundColor: Colors.white,
+          iconTheme: const IconThemeData(color: Colors.white),
           bottom: const TabBar(
             tabs: [
               Tab(text: 'Cài đặt chung'),
               Tab(text: 'Nhân viên'),
             ],
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
           ),
         ),
         body: TabBarView(
@@ -747,8 +753,11 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               return FilterChip(
                 label: Text(dayNames[index]),
                 selected: workDays[index],
-                onSelected: (selected) =>
-                    setState(() => workDays[index] = selected ?? false),
+                onSelected: (selected) {
+                  setState(() => workDays[index] = selected ?? false);
+                  // Auto-save when work day changes
+                  _saveWorkSchedule();
+                },
               );
             }),
           ),
@@ -1298,7 +1307,11 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
     // Work days (default Mon-Sat)
     List<bool> workDays = List.generate(7, (i) {
       final savedDays = currentSchedule?['workDays'];
-      if (savedDays is List) {
+      if (savedDays is String && savedDays.isNotEmpty) {
+        // Parse "1,2,3,4,5,6" format
+        final dayIndices = savedDays.split(',').map((s) => int.tryParse(s.trim()) ?? -1).toList();
+        return dayIndices.contains(i);
+      } else if (savedDays is List) {
         return savedDays.contains(i);
       }
       // Default: Mon(1) to Sat(6)

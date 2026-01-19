@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:esc_pos_utils/esc_pos_utils.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -196,7 +196,7 @@ class BluetoothPrinterService {
         bytes.addAll(generator.feed(1));
         // Generate QR in unified format: type=DIEN_THOAI&imei=...&code=...
         final qrData = 'type=DIEN_THOAI&imei=${labelData['imei'] ?? 'N/A'}&code=${labelData['code'] ?? labelData['name'] ?? 'N/A'}';
-        bytes.addAll(generator.qrcode(qrData, size: QRSize.Size4));
+        bytes.addAll(generator.qrcode(qrData, size: QRSize.size4));
       }
 
       // 7. CHỮ TÙY BIẾN

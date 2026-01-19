@@ -15,9 +15,19 @@ class FirestoreService {
   static final _db = FirebaseFirestore.instance;
 
   // --- THÔNG BÁO HỆ THỐNG ---
-  static Future<void> _notifyAll(String title, String body, {String? type, String? id, String? summary}) async {
+  static Future<void> _notifyAll(
+    String title,
+    String body, {
+    String? type,
+    String? id,
+    String? summary,
+  }) async {
     try {
-      await NotificationService.sendCloudNotification(title: title, body: body, type: 'system');
+      await NotificationService.sendCloudNotification(
+        title: title,
+        body: body,
+        type: 'system',
+      );
       final shopId = await UserService.getCurrentShopId();
       await _db.collection('chats').add({
         'shopId': shopId,
@@ -37,7 +47,8 @@ class FirestoreService {
   static Future<String?> addPurchaseOrder(PurchaseOrder order) async {
     try {
       final shopId = await UserService.getCurrentShopId();
-      final docId = order.firestoreId ?? "po_${order.createdAt}_${order.orderCode}";
+      final docId =
+          order.firestoreId ?? "po_${order.createdAt}_${order.orderCode}";
       final docRef = _db.collection('purchase_orders').doc(docId);
 
       Map<String, dynamic> data = order.toMap();
@@ -54,7 +65,7 @@ class FirestoreService {
         "Vừa nhập hàng từ NCC: ${order.supplierName} - Mã: ${order.orderCode}",
         type: 'purchase_order',
         id: docId,
-        summary: "${order.supplierName} - ${order.orderCode}"
+        summary: "${order.supplierName} - ${order.orderCode}",
       );
 
       return docId;
@@ -64,7 +75,10 @@ class FirestoreService {
   }
 
   // CẬP NHẬT INVENTORY KHI NHẬP HÀNG
-  static Future<void> _updateInventoryFromPurchaseOrder(PurchaseOrder order, String shopId) async {
+  static Future<void> _updateInventoryFromPurchaseOrder(
+    PurchaseOrder order,
+    String shopId,
+  ) async {
     try {
       for (final item in order.items) {
         // Tìm sản phẩm trong inventory dựa trên tên, màu, dung lượng
@@ -78,8 +92,8 @@ class FirestoreService {
         final matchingProducts = productQuery.docs.where((doc) {
           final data = doc.data();
           return data['color'] == item.color &&
-                 data['capacity'] == item.capacity &&
-                 data['condition'] == item.condition;
+              data['capacity'] == item.capacity &&
+              data['condition'] == item.condition;
         }).toList();
 
         if (matchingProducts.isNotEmpty) {
@@ -94,7 +108,8 @@ class FirestoreService {
           // Tính chi phí trung bình
           final totalCurrentValue = currentQuantity * currentCost;
           final totalNewValue = item.quantity * item.unitCost;
-          final averageCost = ((totalCurrentValue + totalNewValue) / newQuantity).round();
+          final averageCost =
+              ((totalCurrentValue + totalNewValue) / newQuantity).round();
 
           await existingProduct.reference.update({
             'quantity': newQuantity,
@@ -103,7 +118,9 @@ class FirestoreService {
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
-          debugPrint('Cập nhật sản phẩm: ${item.productName}, SL: $currentQuantity -> $newQuantity, Chi phí TB: $averageCost');
+          debugPrint(
+            'Cập nhật sản phẩm: ${item.productName}, SL: $currentQuantity -> $newQuantity, Chi phí TB: $averageCost',
+          );
         } else {
           // Sản phẩm chưa tồn tại - tạo mới
           final newProduct = {
@@ -126,7 +143,9 @@ class FirestoreService {
           };
 
           await _db.collection('products').add(newProduct);
-          debugPrint('Tạo sản phẩm mới: ${item.productName}, SL: ${item.quantity}, Chi phí: ${item.unitCost}');
+          debugPrint(
+            'Tạo sản phẩm mới: ${item.productName}, SL: ${item.quantity}, Chi phí: ${item.unitCost}',
+          );
         }
       }
     } catch (e) {
@@ -140,7 +159,9 @@ class FirestoreService {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
-        throw Exception('Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.');
+        throw Exception(
+          'Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.',
+        );
       }
       final docId = r.firestoreId ?? "rep_${r.createdAt}_${r.phone}";
       final docRef = _db.collection('repairs').doc(docId);
@@ -150,11 +171,17 @@ class FirestoreService {
       // Mã hóa dữ liệu nhạy cảm trước khi upload
       final encryptedData = EncryptionService.encryptMap(data);
       await docRef.set(encryptedData, SetOptions(merge: true));
-      _notifyAll("🔧 MÁY NHẬN MỚI", "${r.createdBy} nhận ${r.model} của khách ${r.customerName}", type: 'repair', id: docRef.id, summary: "${r.customerName} - ${r.model}");
+      _notifyAll(
+        "🔧 MÁY NHẬN MỚI",
+        "${r.createdBy} nhận ${r.model} của khách ${r.customerName}",
+        type: 'repair',
+        id: docRef.id,
+        summary: "${r.customerName} - ${r.model}",
+      );
       return docRef.id;
-    } catch (e) { 
+    } catch (e) {
       debugPrint('Firestore addRepair error: $e');
-      return null; 
+      return null;
     }
   }
 
@@ -162,7 +189,10 @@ class FirestoreService {
     if (r.firestoreId == null) return;
     try {
       final data = EncryptionService.encryptMap(r.toMap());
-      await _db.collection('repairs').doc(r.firestoreId).set(data, SetOptions(merge: true));
+      await _db
+          .collection('repairs')
+          .doc(r.firestoreId)
+          .set(data, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsertRepair error: $e');
     }
@@ -170,7 +200,9 @@ class FirestoreService {
 
   static Future<void> deleteRepair(String firestoreId) async {
     try {
-      await _db.collection('repairs').doc(firestoreId).update({'deleted': true});
+      await _db.collection('repairs').doc(firestoreId).update({
+        'deleted': true,
+      });
     } catch (e) {
       debugPrint('Firestore deleteRepair error: $e');
     }
@@ -180,10 +212,12 @@ class FirestoreService {
     try {
       var shopId = await UserService.getCurrentShopId();
       debugPrint('📤 addSale: shopId=$shopId');
-      
+
       // Nếu chưa có shopId, thử sync user info để tạo shop mới
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
-        debugPrint('📤 addSale: shopId is null, attempting to sync user info...');
+        debugPrint(
+          '📤 addSale: shopId is null, attempting to sync user info...',
+        );
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
           await UserService.syncUserInfo(user.uid, user.email ?? '');
@@ -191,13 +225,17 @@ class FirestoreService {
           debugPrint('📤 addSale: after sync, shopId=$shopId');
         }
       }
-      
+
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
         debugPrint('❌ addSale: shopId is still null after sync');
-        throw Exception('Không tìm thấy thông tin cửa hàng. Vui lòng đăng xuất và đăng nhập lại.');
+        throw Exception(
+          'Không tìm thấy thông tin cửa hàng. Vui lòng đăng xuất và đăng nhập lại.',
+        );
       }
       if (s.totalPrice <= 0 || s.totalCost < 0) {
-        debugPrint('❌ addSale: invalid price - totalPrice=${s.totalPrice}, totalCost=${s.totalCost}');
+        debugPrint(
+          '❌ addSale: invalid price - totalPrice=${s.totalPrice}, totalCost=${s.totalCost}',
+        );
         throw Exception('Số tiền bán hàng không hợp lệ');
       }
       final docId = s.firestoreId ?? "sale_${s.soldAt}";
@@ -205,15 +243,21 @@ class FirestoreService {
       Map<String, dynamic> data = s.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docRef.id;
-      
+
       // Mã hóa dữ liệu nhạy cảm trước khi upload
       final encryptedData = EncryptionService.encryptMap(data);
       debugPrint('📤 addSale: writing to Firestore docId=$docId');
-      
+
       await docRef.set(encryptedData, SetOptions(merge: true));
       debugPrint('✅ addSale: success docId=$docId');
-      
-      _notifyAll("🎉 BÁN HÀNG THÀNH CÔNG", "${s.sellerName} vừa bán ${s.productNames} cho ${s.customerName}", type: 'sale', id: docRef.id, summary: "${s.customerName} - ${s.productNames}");
+
+      _notifyAll(
+        "🎉 BÁN HÀNG THÀNH CÔNG",
+        "${s.sellerName} vừa bán ${s.productNames} cho ${s.customerName}",
+        type: 'sale',
+        id: docRef.id,
+        summary: "${s.customerName} - ${s.productNames}",
+      );
       return docRef.id;
     } catch (e, stackTrace) {
       debugPrint('❌ addSale ERROR: $e');
@@ -229,7 +273,10 @@ class FirestoreService {
       Map<String, dynamic> data = s.toMap();
       data['shopId'] = shopId;
       final encryptedData = EncryptionService.encryptMap(data);
-      await _db.collection('sales').doc(s.firestoreId).set(encryptedData, SetOptions(merge: true));
+      await _db
+          .collection('sales')
+          .doc(s.firestoreId)
+          .set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore updateSaleCloud error: $e');
     }
@@ -255,14 +302,19 @@ class FirestoreService {
       final encryptedData = EncryptionService.encryptMap(data);
       await docRef.set(encryptedData, SetOptions(merge: true));
       return docRef.id;
-    } catch (e) { return null; }
+    } catch (e) {
+      return null;
+    }
   }
 
   static Future<void> updateProductCloud(Product p) async {
     if (p.firestoreId == null) return;
     try {
       final encryptedData = EncryptionService.encryptMap(p.toMap());
-      await _db.collection('products').doc(p.firestoreId).set(encryptedData, SetOptions(merge: true));
+      await _db
+          .collection('products')
+          .doc(p.firestoreId)
+          .set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore updateProductCloud error: $e');
     }
@@ -276,7 +328,14 @@ class FirestoreService {
     }
   }
 
-  static Future<void> sendChat({required String message, required String senderId, required String senderName, String? linkedType, String? linkedKey, String? linkedSummary}) async {
+  static Future<void> sendChat({
+    required String message,
+    required String senderId,
+    required String senderName,
+    String? linkedType,
+    String? linkedKey,
+    String? linkedSummary,
+  }) async {
     try {
       final shopId = await UserService.getCurrentShopId();
       await _db.collection('chats').add({
@@ -293,7 +352,10 @@ class FirestoreService {
     } catch (_) {}
   }
 
-  static Stream<QuerySnapshot<Map<String, dynamic>>> chatStream({String? shopId, int limit = 100}) {
+  static Stream<QuerySnapshot<Map<String, dynamic>>> chatStream({
+    String? shopId,
+    int limit = 100,
+  }) {
     Query<Map<String, dynamic>> q = _db.collection('chats');
     if (shopId != null) q = q.where('shopId', isEqualTo: shopId);
     return q.orderBy('createdAt', descending: true).limit(limit).snapshots();
@@ -305,32 +367,47 @@ class FirestoreService {
       final String docId = "log_${logData['createdAt']}_${logData['userId']}";
       logData['shopId'] = shopId;
       logData['firestoreId'] = docId;
-      await _db.collection('audit_logs').doc(docId).set(logData, SetOptions(merge: true));
+      await _db
+          .collection('audit_logs')
+          .doc(docId)
+          .set(logData, SetOptions(merge: true));
     } catch (_) {}
   }
 
   static Future<void> addDebtCloud(Map<String, dynamic> debtData) async {
     try {
       final shopId = await UserService.getCurrentShopId();
-      final String docId = debtData['firestoreId'] ?? "debt_${debtData['createdAt']}_${debtData['phone'] ?? 'ncc'}";
+      final String docId =
+          debtData['firestoreId'] ??
+          "debt_${debtData['createdAt']}_${debtData['phone'] ?? 'ncc'}";
       debtData['shopId'] = shopId;
       debtData['firestoreId'] = docId;
       final encryptedData = EncryptionService.encryptMap(debtData);
-      await _db.collection('debts').doc(docId).set(encryptedData, SetOptions(merge: true));
+      await _db
+          .collection('debts')
+          .doc(docId)
+          .set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Error adding debt to cloud: $e');
       rethrow; // Re-throw để caller biết có lỗi
     }
   }
 
-  static Future<void> addDebtPaymentCloud(Map<String, dynamic> paymentData) async {
+  static Future<void> addDebtPaymentCloud(
+    Map<String, dynamic> paymentData,
+  ) async {
     try {
       final shopId = await UserService.getCurrentShopId();
-      final String docId = paymentData['firestoreId'] ?? "pay_${paymentData['paidAt']}_${paymentData['debtId'] ?? 'debt'}";
+      final String docId =
+          paymentData['firestoreId'] ??
+          "pay_${paymentData['paidAt']}_${paymentData['debtId'] ?? 'debt'}";
       paymentData['shopId'] = shopId;
       paymentData['firestoreId'] = docId;
       final encryptedData = EncryptionService.encryptMap(paymentData);
-      await _db.collection('debt_payments').doc(docId).set(encryptedData, SetOptions(merge: true));
+      await _db
+          .collection('debt_payments')
+          .doc(docId)
+          .set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Error adding debt payment to cloud: $e');
     }
@@ -341,11 +418,16 @@ class FirestoreService {
       if (((expData['amount'] as int?) ?? 0) <= 0) return;
       final shopId = await UserService.getCurrentShopId();
       // Sử dụng firestoreId đã có trong expData nếu có, không tạo lại
-      final String docId = expData['firestoreId'] ?? "exp_${expData['date']}_${expData['title'].hashCode}";
+      final String docId =
+          expData['firestoreId'] ??
+          "exp_${expData['date']}_${expData['title'].hashCode}";
       expData['shopId'] = shopId;
       expData['firestoreId'] = docId;
       final encryptedData = EncryptionService.encryptMap(expData);
-      await _db.collection('expenses').doc(docId).set(encryptedData, SetOptions(merge: true));
+      await _db
+          .collection('expenses')
+          .doc(docId)
+          .set(encryptedData, SetOptions(merge: true));
     } catch (_) {}
   }
 
@@ -355,7 +437,10 @@ class FirestoreService {
       final shopId = await UserService.getCurrentShopId();
       expData['shopId'] = shopId;
       final encryptedData = EncryptionService.encryptMap(expData);
-      await _db.collection('expenses').doc(expData['firestoreId']).set(encryptedData, SetOptions(merge: true));
+      await _db
+          .collection('expenses')
+          .doc(expData['firestoreId'])
+          .set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore updateExpenseCloud error: $e');
     }
@@ -363,7 +448,9 @@ class FirestoreService {
 
   static Future<void> deleteExpenseCloud(String firestoreId) async {
     try {
-      await _db.collection('expenses').doc(firestoreId).update({'deleted': true});
+      await _db.collection('expenses').doc(firestoreId).update({
+        'deleted': true,
+      });
     } catch (e) {
       debugPrint('Firestore deleteExpenseCloud error: $e');
     }
@@ -390,9 +477,13 @@ class FirestoreService {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
-        throw Exception('Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.');
+        throw Exception(
+          'Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.',
+        );
       }
-      final docId = attendance.firestoreId ?? "att_${attendance.dateKey}_${attendance.userId}";
+      final docId =
+          attendance.firestoreId ??
+          "att_${attendance.dateKey}_${attendance.userId}";
       final docRef = _db.collection('attendance').doc(docId);
       Map<String, dynamic> data = attendance.toMap();
       data['shopId'] = shopId;
@@ -413,7 +504,10 @@ class FirestoreService {
       Map<String, dynamic> data = attendance.toMap();
       data['shopId'] = shopId;
       final encryptedData = EncryptionService.encryptMap(data);
-      await _db.collection('attendance').doc(attendance.firestoreId).set(encryptedData, SetOptions(merge: true));
+      await _db
+          .collection('attendance')
+          .doc(attendance.firestoreId)
+          .set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore updateAttendanceCloud error: $e');
     }
@@ -421,31 +515,40 @@ class FirestoreService {
 
   static Future<void> deleteAttendance(String firestoreId) async {
     try {
-      await _db.collection('attendance').doc(firestoreId).update({'deleted': true});
+      await _db.collection('attendance').doc(firestoreId).update({
+        'deleted': true,
+      });
     } catch (e) {
       debugPrint('Firestore deleteAttendance error: $e');
     }
   }
 
   // --- CASH CLOSINGS CRUD METHODS ---
-  static Future<void> upsertCashClosingCloud(Map<String, dynamic> closingData) async {
+  static Future<void> upsertCashClosingCloud(
+    Map<String, dynamic> closingData,
+  ) async {
     try {
       final shopId = await UserService.getCurrentShopId();
       final dateKey = closingData['dateKey'] as String;
       final docId = closingData['firestoreId'] ?? "closing_${shopId}_$dateKey";
-      
+
       closingData['shopId'] = shopId;
       closingData['firestoreId'] = docId;
       closingData['updatedAt'] = FieldValue.serverTimestamp();
-      
-      await _db.collection('cash_closings').doc(docId).set(closingData, SetOptions(merge: true));
+
+      await _db
+          .collection('cash_closings')
+          .doc(docId)
+          .set(closingData, SetOptions(merge: true));
       debugPrint('Cash closing synced to cloud: $docId');
     } catch (e) {
       debugPrint('Error syncing cash closing to cloud: $e');
     }
   }
 
-  static Future<Map<String, dynamic>?> getCashClosingFromCloud(String dateKey) async {
+  static Future<Map<String, dynamic>?> getCashClosingFromCloud(
+    String dateKey,
+  ) async {
     try {
       final shopId = await UserService.getCurrentShopId();
       final docId = "closing_${shopId}_$dateKey";
@@ -470,7 +573,10 @@ class FirestoreService {
     }
   }
 
-  static Stream<QuerySnapshot> getAttendanceStream({String? userId, String? dateKey}) async* {
+  static Stream<QuerySnapshot> getAttendanceStream({
+    String? userId,
+    String? dateKey,
+  }) async* {
     try {
       final shopId = await UserService.getCurrentShopId();
       Query query = _db.collection('attendance');
@@ -500,20 +606,48 @@ class FirestoreService {
       if (shopId == null) {
         return 'Không tìm thấy shopId. Vui lòng đăng xuất và đăng nhập lại để đồng bộ dữ liệu shop.';
       }
-      final collections = ['repairs', 'sales', 'products', 'debts', 'expenses', 'audit_logs', 'attendance', 'chats', 'inventory_checks', 'cash_closings', 'purchase_orders', 'quick_input_codes', 'debt_payments', 'payroll_settings', 'work_schedules', 'suppliers', 'customers'];
-      
+      final collections = [
+        'repairs',
+        'sales',
+        'products',
+        'debts',
+        'expenses',
+        'audit_logs',
+        'attendance',
+        'chats',
+        'inventory_checks',
+        'cash_closings',
+        'purchase_orders',
+        'quick_input_codes',
+        'debt_payments',
+        'payroll_settings',
+        'work_schedules',
+        'suppliers',
+        'customers',
+      ];
+
       for (var colName in collections) {
         try {
           List<Query<Map<String, dynamic>>> queries = [];
           if (colName == 'debts') {
-            queries.add(_db.collection(colName).where('shopId', isEqualTo: shopId));
+            queries.add(
+              _db.collection(colName).where('shopId', isEqualTo: shopId),
+            );
             if (UserService.isCurrentUserSuperAdmin()) {
-              queries.add(_db.collection(colName).where('shopId', isNull: true));
-              queries.add(_db.collection(colName).where('type', isEqualTo: 'OWE'));
-              queries.add(_db.collection(colName).where('type', isEqualTo: 'SHOP_OWES'));
+              queries.add(
+                _db.collection(colName).where('shopId', isNull: true),
+              );
+              queries.add(
+                _db.collection(colName).where('type', isEqualTo: 'OWE'),
+              );
+              queries.add(
+                _db.collection(colName).where('type', isEqualTo: 'SHOP_OWES'),
+              );
             }
           } else {
-            queries.add(_db.collection(colName).where('shopId', isEqualTo: shopId));
+            queries.add(
+              _db.collection(colName).where('shopId', isEqualTo: shopId),
+            );
           }
 
           for (var query in queries) {
@@ -523,7 +657,9 @@ class FirestoreService {
               const batchSize = 400;
               for (int i = 0; i < snapshots.docs.length; i += batchSize) {
                 final batch = _db.batch();
-                final end = (i + batchSize < snapshots.docs.length) ? i + batchSize : snapshots.docs.length;
+                final end = (i + batchSize < snapshots.docs.length)
+                    ? i + batchSize
+                    : snapshots.docs.length;
                 for (int j = i; j < end; j++) {
                   batch.delete(snapshots.docs[j].reference);
                 }
@@ -547,7 +683,9 @@ class FirestoreService {
   }
 
   static Future<void> deleteCustomer(String firestoreId) async {
-    try { await _db.collection('customers').doc(firestoreId).delete(); } catch (_) {}
+    try {
+      await _db.collection('customers').doc(firestoreId).delete();
+    } catch (_) {}
   }
 
   /// Xóa supplier theo firestoreId - soft delete với deleted: true để tránh sync lại
@@ -573,7 +711,9 @@ class FirestoreService {
   static Future<String?> addQuickInputCode(QuickInputCode code) async {
     try {
       final shopId = await UserService.getCurrentShopId();
-      final docId = code.firestoreId ?? "qic_${code.createdAt}_${code.name.replaceAll(' ', '_')}";
+      final docId =
+          code.firestoreId ??
+          "qic_${code.createdAt}_${code.name.replaceAll(' ', '_')}";
       final docRef = _db.collection('quick_input_codes').doc(docId);
 
       Map<String, dynamic> data = code.toMap();
@@ -659,10 +799,13 @@ class FirestoreService {
         'priority': priority,
         'isRead': false,
         'senderId': currentUser?.uid ?? 'system',
-        'senderName': currentUser?.email?.split('@').first.toUpperCase() ?? 'SYSTEM',
+        'senderName':
+            currentUser?.email?.split('@').first.toUpperCase() ?? 'SYSTEM',
         'data': data ?? {},
         'createdAt': FieldValue.serverTimestamp(),
-        'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(days: 30))),
+        'expiresAt': Timestamp.fromDate(
+          DateTime.now().add(const Duration(days: 30)),
+        ),
       };
 
       await _db.collection('notifications').add(notificationData);
@@ -674,7 +817,6 @@ class FirestoreService {
         type: type,
         targetUserId: userId,
       );
-
     } catch (e) {
       debugPrint('Error creating notification: $e');
     }
@@ -688,23 +830,26 @@ class FirestoreService {
       if (shopId == null) return Stream.value([]);
 
       return _db
-        .collection('notifications')
-        .where('shopId', isEqualTo: shopId)
-        .where(Filter.or(
-          Filter('userId', isEqualTo: user.uid),
-          Filter('userId', isNull: true)
-        ))
-        .orderBy('createdAt', descending: true)
-        .limit(50)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => {
-          ...doc.data(),
-          'id': doc.id,
-        }).toList())
-        .handleError((error) {
-          debugPrint('Error in notifications stream: $error');
-          return [];
-        });
+          .collection('notifications')
+          .where('shopId', isEqualTo: shopId)
+          .where(
+            Filter.or(
+              Filter('userId', isEqualTo: user.uid),
+              Filter('userId', isNull: true),
+            ),
+          )
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .snapshots()
+          .map(
+            (snapshot) => snapshot.docs
+                .map((doc) => {...doc.data(), 'id': doc.id})
+                .toList(),
+          )
+          .handleError((error) {
+            debugPrint('Error in notifications stream: $error');
+            return [];
+          });
     });
   }
 
@@ -727,36 +872,43 @@ class FirestoreService {
       if (shopId == null) return Stream.value(0);
 
       return _db
-        .collection('notifications')
-        .where('shopId', isEqualTo: shopId)
-        .where('isRead', isEqualTo: false)
-        .where(Filter.or(
-          Filter('userId', isEqualTo: user.uid),
-          Filter('userId', isNull: true)
-        ))
-        .snapshots()
-        .map((snapshot) => snapshot.docs.length)
-        .handleError((error) {
-          debugPrint('Error in unread count stream: $error');
-          return 0;
-        });
+          .collection('notifications')
+          .where('shopId', isEqualTo: shopId)
+          .where('isRead', isEqualTo: false)
+          .where(
+            Filter.or(
+              Filter('userId', isEqualTo: user.uid),
+              Filter('userId', isNull: true),
+            ),
+          )
+          .snapshots()
+          .map((snapshot) => snapshot.docs.length)
+          .handleError((error) {
+            debugPrint('Error in unread count stream: $error');
+            return 0;
+          });
     });
   }
 
   // --- REPAIR PARTNERS ---
-  static Future<String?> addRepairPartner(Map<String, dynamic> partnerData) async {
+  static Future<String?> addRepairPartner(
+    Map<String, dynamic> partnerData,
+  ) async {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
-        throw Exception('Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.');
+        throw Exception(
+          'Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.',
+        );
       }
-      
+
       // Sử dụng firestoreId đã có sẵn từ local (tránh duplicate từ realtime sync)
       final existingFirestoreId = partnerData['firestoreId'];
-      if (existingFirestoreId == null || existingFirestoreId.toString().isEmpty) {
+      if (existingFirestoreId == null ||
+          existingFirestoreId.toString().isEmpty) {
         throw Exception('firestoreId is required for addRepairPartner');
       }
-      
+
       final docRef = _db.collection('repair_partners').doc(existingFirestoreId);
       partnerData['shopId'] = shopId;
       partnerData['firestoreId'] = existingFirestoreId;
@@ -769,12 +921,17 @@ class FirestoreService {
     }
   }
 
-  static Future<void> updateRepairPartner(Map<String, dynamic> partnerData) async {
+  static Future<void> updateRepairPartner(
+    Map<String, dynamic> partnerData,
+  ) async {
     try {
       final firestoreId = partnerData['firestoreId'];
       if (firestoreId == null) return;
       final encryptedData = EncryptionService.encryptMap(partnerData);
-      await _db.collection('repair_partners').doc(firestoreId).update(encryptedData);
+      await _db
+          .collection('repair_partners')
+          .doc(firestoreId)
+          .update(encryptedData);
     } catch (e) {
       debugPrint('Firestore updateRepairPartner error: $e');
     }
@@ -785,14 +942,18 @@ class FirestoreService {
       // Note: We need to get the firestoreId from the local DB first
       // This method assumes the caller has the firestoreId
       // In practice, this would be called from the service layer
-      debugPrint('Firestore deleteRepairPartner not implemented - needs firestoreId');
+      debugPrint(
+        'Firestore deleteRepairPartner not implemented - needs firestoreId',
+      );
     } catch (e) {
       debugPrint('Firestore deleteRepairPartner error: $e');
     }
   }
 
   /// Xóa repair partner theo firestoreId - soft delete với deleted: true
-  static Future<void> deleteRepairPartnerByFirestoreId(String firestoreId) async {
+  static Future<void> deleteRepairPartnerByFirestoreId(
+    String firestoreId,
+  ) async {
     try {
       // Soft delete: đánh dấu deleted = true thay vì xóa hẳn để tránh sync lại
       await _db.collection('repair_partners').doc(firestoreId).update({
@@ -800,7 +961,9 @@ class FirestoreService {
         'active': 0,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      debugPrint('Firestore deleteRepairPartnerByFirestoreId: $firestoreId deleted');
+      debugPrint(
+        'Firestore deleteRepairPartnerByFirestoreId: $firestoreId deleted',
+      );
     } catch (e) {
       // Nếu doc không tồn tại, thử xóa hẳn
       try {
@@ -811,13 +974,19 @@ class FirestoreService {
   }
 
   // --- PARTNER REPAIR HISTORY ---
-  static Future<String?> addPartnerRepairHistory(Map<String, dynamic> historyData) async {
+  static Future<String?> addPartnerRepairHistory(
+    Map<String, dynamic> historyData,
+  ) async {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
-        throw Exception('Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.');
+        throw Exception(
+          'Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.',
+        );
       }
-      final docId = historyData['firestoreId'] ?? "partner_history_${DateTime.now().millisecondsSinceEpoch}";
+      final docId =
+          historyData['firestoreId'] ??
+          "partner_history_${DateTime.now().millisecondsSinceEpoch}";
       final docRef = _db.collection('partner_repair_history').doc(docId);
       historyData['shopId'] = shopId;
       historyData['firestoreId'] = docRef.id;
@@ -835,9 +1004,13 @@ class FirestoreService {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
-        throw Exception('Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.');
+        throw Exception(
+          'Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.',
+        );
       }
-      final docId = supplierData['firestoreId'] ?? "supplier_${DateTime.now().millisecondsSinceEpoch}";
+      final docId =
+          supplierData['firestoreId'] ??
+          "supplier_${DateTime.now().millisecondsSinceEpoch}";
       final docRef = _db.collection('suppliers').doc(docId);
       supplierData['shopId'] = shopId;
       supplierData['firestoreId'] = docRef.id;
@@ -862,13 +1035,19 @@ class FirestoreService {
   }
 
   // --- SUPPLIER IMPORT HISTORY ---
-  static Future<String?> addSupplierImportHistory(Map<String, dynamic> historyData) async {
+  static Future<String?> addSupplierImportHistory(
+    Map<String, dynamic> historyData,
+  ) async {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
-        throw Exception('Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.');
+        throw Exception(
+          'Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.',
+        );
       }
-      final docId = historyData['firestoreId'] ?? "supplier_import_${DateTime.now().millisecondsSinceEpoch}";
+      final docId =
+          historyData['firestoreId'] ??
+          "supplier_import_${DateTime.now().millisecondsSinceEpoch}";
       final docRef = _db.collection('supplier_import_history').doc(docId);
       historyData['shopId'] = shopId;
       historyData['firestoreId'] = docRef.id;
@@ -881,13 +1060,19 @@ class FirestoreService {
   }
 
   // --- SUPPLIER PRODUCT PRICES ---
-  static Future<String?> addSupplierProductPrices(Map<String, dynamic> pricesData) async {
+  static Future<String?> addSupplierProductPrices(
+    Map<String, dynamic> pricesData,
+  ) async {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
-        throw Exception('Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.');
+        throw Exception(
+          'Không tìm thấy thông tin cửa hàng. Vui lòng liên hệ quản trị viên.',
+        );
       }
-      final docId = pricesData['firestoreId'] ?? "supplier_prices_${DateTime.now().millisecondsSinceEpoch}";
+      final docId =
+          pricesData['firestoreId'] ??
+          "supplier_prices_${DateTime.now().millisecondsSinceEpoch}";
       final docRef = _db.collection('supplier_product_prices').doc(docId);
       pricesData['shopId'] = shopId;
       pricesData['firestoreId'] = docRef.id;
@@ -903,7 +1088,9 @@ class FirestoreService {
   static Future<String?> addCustomer(Map<String, dynamic> customerData) async {
     try {
       final shopId = await UserService.getCurrentShopId();
-      final docId = customerData['firestoreId'] ?? "customer_${DateTime.now().millisecondsSinceEpoch}";
+      final docId =
+          customerData['firestoreId'] ??
+          "customer_${DateTime.now().millisecondsSinceEpoch}";
       final docRef = _db.collection('customers').doc(docId);
       customerData['shopId'] = shopId;
       customerData['firestoreId'] = docRef.id;
@@ -933,13 +1120,17 @@ class FirestoreService {
   static Future<bool> deleteCustomerById(int customerId) async {
     try {
       final shopId = await UserService.getCurrentShopId();
-      await _db.collection('customers')
+      await _db
+          .collection('customers')
           .where('shopId', isEqualTo: shopId)
           .where('id', isEqualTo: customerId)
           .get()
           .then((snapshot) {
             for (var doc in snapshot.docs) {
-              doc.reference.update({'deleted': true, 'updatedAt': FieldValue.serverTimestamp()});
+              doc.reference.update({
+                'deleted': true,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
             }
           });
       return true;
@@ -950,10 +1141,10 @@ class FirestoreService {
   }
 
   /// TRANSACTION THANH TOÁN CÔNG NỢ - Fix BUG-001 race condition
-  /// 
+  ///
   /// Thực hiện atomic: đọc debt + validate + update paidAmount + tạo payment record
   /// Nếu 2 user thanh toán cùng lúc, chỉ 1 user thành công (transaction retry)
-  /// 
+  ///
   /// Returns: {success: bool, newPaidAmount: int?, error: String?}
   static Future<Map<String, dynamic>> executeDebtPaymentTransaction({
     required String debtFirestoreId,
@@ -975,43 +1166,45 @@ class FirestoreService {
         // PHASE 1: Đọc debt document
         final debtRef = _db.collection('debts').doc(debtFirestoreId);
         final debtSnapshot = await transaction.get(debtRef);
-        
+
         if (!debtSnapshot.exists) {
           throw Exception('DEBT_NOT_FOUND:Công nợ không tồn tại');
         }
-        
+
         final debtData = EncryptionService.decryptMap(debtSnapshot.data()!);
         final totalAmount = (debtData['totalAmount'] ?? 0) as int;
         final currentPaid = (debtData['paidAmount'] ?? 0) as int;
         final remain = totalAmount - currentPaid;
-        
+
         // PHASE 2: Validate payment amount
         if (payAmount <= 0) {
           throw Exception('INVALID_AMOUNT:Số tiền phải lớn hơn 0');
         }
-        
+
         if (payAmount > remain) {
-          throw Exception('OVER_PAYMENT:Số tiền ($payAmount) vượt quá số nợ còn lại ($remain)');
+          throw Exception(
+            'OVER_PAYMENT:Số tiền ($payAmount) vượt quá số nợ còn lại ($remain)',
+          );
         }
-        
+
         // PHASE 3: Update debt
         newPaidAmount = currentPaid + payAmount;
         final newStatus = newPaidAmount >= totalAmount ? 'paid' : 'unpaid';
-        
+
         transaction.update(debtRef, {
           'paidAmount': newPaidAmount,
           'status': newStatus,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-        
+
         // PHASE 4: Create payment record
         final now = DateTime.now().millisecondsSinceEpoch;
         paymentDocId = 'pay_${now}_$createdBy';
         final paymentRef = _db.collection('debt_payments').doc(paymentDocId);
-        
+
         // Lấy debtType từ debt để cash_closing có thể phân biệt thu nợ KH vs trả nợ shop
         final debtType = debtData['type'] as String? ?? 'CUSTOMER_OWES';
-        
+
         final paymentData = {
           'firestoreId': paymentDocId,
           'debtFirestoreId': debtFirestoreId,
@@ -1024,21 +1217,22 @@ class FirestoreService {
           'shopId': shopId,
           'createdAt': FieldValue.serverTimestamp(),
         };
-        
+
         transaction.set(paymentRef, EncryptionService.encryptMap(paymentData));
       });
 
-      debugPrint('✅ Debt payment transaction completed: $debtFirestoreId, paid: $payAmount, total paid: $newPaidAmount');
+      debugPrint(
+        '✅ Debt payment transaction completed: $debtFirestoreId, paid: $payAmount, total paid: $newPaidAmount',
+      );
       return {
         'success': true,
         'newPaidAmount': newPaidAmount,
         'paymentDocId': paymentDocId,
       };
-      
     } catch (e) {
       final errorMsg = e.toString();
       debugPrint('❌ Debt payment transaction failed: $errorMsg');
-      
+
       // Parse custom errors
       if (errorMsg.contains('DEBT_NOT_FOUND:')) {
         return {'success': false, 'error': 'Công nợ không tồn tại trên cloud'};
@@ -1048,41 +1242,59 @@ class FirestoreService {
       }
       if (errorMsg.contains('OVER_PAYMENT:')) {
         final parts = errorMsg.split('OVER_PAYMENT:');
-        return {'success': false, 'error': parts.length > 1 ? parts[1].trim() : 'Số tiền vượt quá nợ còn lại'};
+        return {
+          'success': false,
+          'error': parts.length > 1
+              ? parts[1].trim()
+              : 'Số tiền vượt quá nợ còn lại',
+        };
       }
-      
+
       return {'success': false, 'error': errorMsg};
     }
   }
 
   /// TRANSACTION BÁN HÀNG - Fix race condition
-  /// 
+  ///
   /// Thực hiện atomic: kiểm tra stock + trừ stock + tạo sale trong 1 Firestore transaction
   /// Nếu 2 user bán cùng lúc, chỉ 1 user thành công (người còn lại bị abort)
-  /// 
+  ///
   /// Returns: {success: bool, saleDocId: String?, error: String?, outOfStockItems: List<String>?}
   static Future<Map<String, dynamic>> executeSaleTransaction({
-    required List<Map<String, dynamic>> items, // [{firestoreId, quantity, productName}]
+    required List<Map<String, dynamic>>
+    items, // [{firestoreId, quantity, productName}]
     required Map<String, dynamic> saleData,
     Map<String, dynamic>? debtData,
   }) async {
     try {
       var shopId = await UserService.getCurrentShopId();
       final currentUser = FirebaseAuth.instance.currentUser;
-      
+
       // Auto-sync nếu chưa có shopId
       if (shopId == null && currentUser != null) {
-        debugPrint('🔄 executeSaleTransaction: shopId is null, syncing user info...');
-        await UserService.syncUserInfo(currentUser.uid, currentUser.email ?? '');
+        debugPrint(
+          '🔄 executeSaleTransaction: shopId is null, syncing user info...',
+        );
+        await UserService.syncUserInfo(
+          currentUser.uid,
+          currentUser.email ?? '',
+        );
         shopId = await UserService.getCurrentShopId();
         debugPrint('🔄 executeSaleTransaction: after sync, shopId=$shopId');
       }
-      
+
       if (shopId == null) {
-        return {'success': false, 'error': 'Không tìm thấy thông tin shop. Vui lòng đăng xuất và đăng nhập lại.', 'needRelogin': true};
+        return {
+          'success': false,
+          'error':
+              'Không tìm thấy thông tin shop. Vui lòng đăng xuất và đăng nhập lại.',
+          'needRelogin': true,
+        };
       }
-      
-      debugPrint('🛒 executeSaleTransaction: shopId=$shopId, userId=${currentUser?.uid}');
+
+      debugPrint(
+        '🛒 executeSaleTransaction: shopId=$shopId, userId=${currentUser?.uid}',
+      );
 
       String? saleDocId;
       List<String> outOfStockItems = [];
@@ -1090,68 +1302,76 @@ class FirestoreService {
       await _db.runTransaction((transaction) async {
         // PHASE 1: Đọc tất cả products và kiểm tra stock
         Map<String, DocumentSnapshot> productDocs = {};
-        
+
         for (var item in items) {
           final firestoreId = item['firestoreId'] as String?;
           if (firestoreId == null || firestoreId.isEmpty) {
-            throw Exception('Product ${item['productName']} chưa được đồng bộ lên cloud');
+            throw Exception(
+              'Product ${item['productName']} chưa được đồng bộ lên cloud',
+            );
           }
-          
+
           final docRef = _db.collection('products').doc(firestoreId);
           final docSnapshot = await transaction.get(docRef);
-          
+
           if (!docSnapshot.exists) {
-            throw Exception('Product ${item['productName']} không tồn tại trên cloud');
+            throw Exception(
+              'Product ${item['productName']} không tồn tại trên cloud',
+            );
           }
-          
+
           productDocs[firestoreId] = docSnapshot;
-          
+
           // Kiểm tra stock và shopId
           final data = docSnapshot.data() as Map<String, dynamic>;
           final productShopId = data['shopId'] as String?;
           final cloudStock = (data['quantity'] ?? 0) as int;
           final requestedQty = item['quantity'] as int;
-          
+
           // Debug log để kiểm tra shopId mismatch
           debugPrint('📦 Product: ${item['productName']}');
           debugPrint('   - Product shopId: $productShopId');
           debugPrint('   - User shopId: $shopId');
           debugPrint('   - Match: ${productShopId == shopId}');
-          
+
           // Kiểm tra sản phẩm có thuộc shop của user không
           if (productShopId != null && productShopId != shopId) {
-            throw Exception('SHOP_MISMATCH:Sản phẩm "${item['productName']}" thuộc shop khác');
+            throw Exception(
+              'SHOP_MISMATCH:Sản phẩm "${item['productName']}" thuộc shop khác',
+            );
           }
-          
+
           if (cloudStock < requestedQty) {
-            outOfStockItems.add('${item['productName']} (còn: $cloudStock, cần: $requestedQty)');
+            outOfStockItems.add(
+              '${item['productName']} (còn: $cloudStock, cần: $requestedQty)',
+            );
           }
         }
-        
+
         // Nếu có item hết hàng → abort transaction
         if (outOfStockItems.isNotEmpty) {
           throw Exception('OUT_OF_STOCK:${outOfStockItems.join('|')}');
         }
-        
+
         // PHASE 2: Trừ stock cho tất cả products
         for (var item in items) {
           final firestoreId = item['firestoreId'] as String;
           final docRef = _db.collection('products').doc(firestoreId);
           final docSnapshot = productDocs[firestoreId]!;
           final data = docSnapshot.data() as Map<String, dynamic>;
-          
+
           final currentQty = (data['quantity'] ?? 0) as int;
           final requestedQty = item['quantity'] as int;
           final newQty = currentQty - requestedQty;
           final isPhone = (data['type'] ?? 'DIEN_THOAI') == 'DIEN_THOAI';
-          
+
           transaction.update(docRef, {
             'quantity': newQty,
             'status': (isPhone || newQty <= 0) ? 0 : data['status'],
             'updatedAt': FieldValue.serverTimestamp(),
           });
         }
-        
+
         // PHASE 3: Tạo sale document
         final saleDocRef = _db.collection('sales').doc(saleData['firestoreId']);
         saleData['shopId'] = shopId;
@@ -1159,10 +1379,12 @@ class FirestoreService {
         final encryptedSaleData = EncryptionService.encryptMap(saleData);
         transaction.set(saleDocRef, encryptedSaleData);
         saleDocId = saleDocRef.id;
-        
+
         // PHASE 4: Tạo debt nếu có
         if (debtData != null) {
-          final debtDocId = debtData['firestoreId'] ?? 'debt_${DateTime.now().millisecondsSinceEpoch}';
+          final debtDocId =
+              debtData['firestoreId'] ??
+              'debt_${DateTime.now().millisecondsSinceEpoch}';
           final debtDocRef = _db.collection('debts').doc(debtDocId);
           debtData['shopId'] = shopId;
           debtData['firestoreId'] = debtDocId;
@@ -1173,11 +1395,10 @@ class FirestoreService {
 
       debugPrint('✅ Sale transaction completed successfully: $saleDocId');
       return {'success': true, 'saleDocId': saleDocId};
-      
     } catch (e) {
       final errorMsg = e.toString();
       debugPrint('❌ Sale transaction failed: $errorMsg');
-      
+
       // Parse lỗi hết hàng
       if (errorMsg.contains('OUT_OF_STOCK:')) {
         final parts = errorMsg.split('OUT_OF_STOCK:');
@@ -1190,29 +1411,26 @@ class FirestoreService {
           };
         }
       }
-      
+
       // Parse lỗi shop mismatch
       if (errorMsg.contains('SHOP_MISMATCH:')) {
         final parts = errorMsg.split('SHOP_MISMATCH:');
         if (parts.length > 1) {
           final msg = parts[1].replaceAll('Exception: ', '').trim();
-          return {
-            'success': false,
-            'error': msg,
-            'shopMismatch': true,
-          };
+          return {'success': false, 'error': msg, 'shopMismatch': true};
         }
       }
-      
+
       // Lỗi permission-denied thường do shopId trong claims không khớp
       if (errorMsg.contains('permission-denied')) {
         return {
           'success': false,
-          'error': 'Không có quyền truy cập. Vui lòng đăng xuất và đăng nhập lại.',
+          'error':
+              'Không có quyền truy cập. Vui lòng đăng xuất và đăng nhập lại.',
           'needRelogin': true,
         };
       }
-      
+
       return {'success': false, 'error': errorMsg};
     }
   }
@@ -1245,7 +1463,9 @@ class FirestoreService {
   }
 
   /// Lấy cài đặt lương của một nhân viên
-  static Future<Map<String, dynamic>?> getEmployeeSalarySettingByStaffId(String staffId) async {
+  static Future<Map<String, dynamic>?> getEmployeeSalarySettingByStaffId(
+    String staffId,
+  ) async {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return null;
@@ -1259,7 +1479,7 @@ class FirestoreService {
           .get();
 
       if (snapshot.docs.isEmpty) return null;
-      
+
       final doc = snapshot.docs.first;
       final data = doc.data();
       data['id'] = doc.id;
@@ -1271,7 +1491,9 @@ class FirestoreService {
   }
 
   /// Lưu hoặc cập nhật cài đặt lương nhân viên
-  static Future<String?> saveEmployeeSalarySettings(Map<String, dynamic> settings) async {
+  static Future<String?> saveEmployeeSalarySettings(
+    Map<String, dynamic> settings,
+  ) async {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return null;
@@ -1301,17 +1523,18 @@ class FirestoreService {
 
       settings['shopId'] = shopId;
       settings['updatedAt'] = FieldValue.serverTimestamp();
-      settings['updatedBy'] = FirebaseAuth.instance.currentUser?.email ?? 'unknown';
-      
+      settings['updatedBy'] =
+          FirebaseAuth.instance.currentUser?.email ?? 'unknown';
+
       if (existing.docs.isEmpty) {
         settings['createdAt'] = FieldValue.serverTimestamp();
         settings['isActive'] = true;
       }
 
-      await _db.collection('employee_salary_settings').doc(docId).set(
-        settings,
-        SetOptions(merge: true),
-      );
+      await _db
+          .collection('employee_salary_settings')
+          .doc(docId)
+          .set(settings, SetOptions(merge: true));
 
       debugPrint('✅ Saved employee salary settings for $staffId');
       return docId;
@@ -1368,18 +1591,21 @@ class FirestoreService {
   }
 
   /// Lưu cài đặt mặc định của shop
-  static Future<bool> saveShopDefaultSalarySettings(Map<String, dynamic> settings) async {
+  static Future<bool> saveShopDefaultSalarySettings(
+    Map<String, dynamic> settings,
+  ) async {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return false;
 
       settings['updatedAt'] = FieldValue.serverTimestamp();
-      settings['updatedBy'] = FirebaseAuth.instance.currentUser?.email ?? 'unknown';
+      settings['updatedBy'] =
+          FirebaseAuth.instance.currentUser?.email ?? 'unknown';
 
-      await _db.collection('shop_salary_defaults').doc(shopId).set(
-        settings,
-        SetOptions(merge: true),
-      );
+      await _db
+          .collection('shop_salary_defaults')
+          .doc(shopId)
+          .set(settings, SetOptions(merge: true));
 
       debugPrint('✅ Saved shop default salary settings');
       return true;
@@ -1390,7 +1616,9 @@ class FirestoreService {
   }
 
   /// Lấy danh sách nhân viên theo shopId
-  static Future<List<Map<String, dynamic>>?> getStaffByShopId(String shopId) async {
+  static Future<List<Map<String, dynamic>>?> getStaffByShopId(
+    String shopId,
+  ) async {
     try {
       // Lấy từ collection users với shopId
       final snapshot = await _db
@@ -1407,8 +1635,12 @@ class FirestoreService {
 
       // Sort by name
       staffList.sort((a, b) {
-        final nameA = (a['name'] ?? a['displayName'] ?? '').toString().toLowerCase();
-        final nameB = (b['name'] ?? b['displayName'] ?? '').toString().toLowerCase();
+        final nameA = (a['name'] ?? a['displayName'] ?? '')
+            .toString()
+            .toLowerCase();
+        final nameB = (b['name'] ?? b['displayName'] ?? '')
+            .toString()
+            .toLowerCase();
         return nameA.compareTo(nameB);
       });
 
@@ -1417,6 +1649,193 @@ class FirestoreService {
     } catch (e) {
       debugPrint('❌ Error getting staff by shopId: $e');
       return null;
+    }
+  }
+
+  /// Alias cho getStaffByShopId - dùng trong SalaryCalculationService
+  static Future<List<Map<String, dynamic>>> getShopStaffList(
+    String shopId,
+  ) async {
+    return await getStaffByShopId(shopId) ?? [];
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CÀI ĐẶT KHẤU TRỪ/THUẾ CỦA SHOP
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Lấy cài đặt khấu trừ/thuế của shop
+  static Future<Map<String, dynamic>?> getShopDeductionSettings(
+    String shopId,
+  ) async {
+    try {
+      final snapshot = await _db
+          .collection('shop_deduction_settings')
+          .doc(shopId)
+          .get();
+
+      if (!snapshot.exists) return null;
+      return snapshot.data();
+    } catch (e) {
+      debugPrint('❌ Error getting shop deduction settings: $e');
+      return null;
+    }
+  }
+
+  /// Lưu cài đặt khấu trừ/thuế của shop
+  static Future<bool> saveShopDeductionSettings(
+    String shopId,
+    Map<String, dynamic> settings,
+  ) async {
+    try {
+      settings['updatedAt'] = FieldValue.serverTimestamp();
+      settings['updatedBy'] =
+          FirebaseAuth.instance.currentUser?.email ?? 'unknown';
+
+      await _db
+          .collection('shop_deduction_settings')
+          .doc(shopId)
+          .set(settings, SetOptions(merge: true));
+
+      debugPrint('✅ Saved shop deduction settings');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error saving shop deduction settings: $e');
+      return false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // KHOẢN THƯỞNG/TRỪ TÙY CHỈNH
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Lấy danh sách khoản thưởng/trừ tùy chỉnh của một nhân viên trong tháng
+  static Future<List<Map<String, dynamic>>> getCustomSalaryAdjustments({
+    required String shopId,
+    required String staffId,
+    required int month,
+    required int year,
+  }) async {
+    try {
+      final snapshot = await _db
+          .collection('shops')
+          .doc(shopId)
+          .collection('custom_salary_adjustments')
+          .where('staffId', isEqualTo: staffId)
+          .where('month', isEqualTo: month)
+          .where('year', isEqualTo: year)
+          .get();
+
+      final results = <Map<String, dynamic>>[];
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        data['firestoreId'] = doc.id;
+        results.add(data);
+      }
+      return results;
+    } catch (e) {
+      debugPrint('❌ Error getting custom salary adjustments: $e');
+      return [];
+    }
+  }
+
+  /// Lấy tất cả khoản thưởng/trừ tùy chỉnh của shop trong tháng
+  static Future<List<Map<String, dynamic>>> getAllCustomSalaryAdjustments({
+    required String shopId,
+    required int month,
+    required int year,
+  }) async {
+    try {
+      final snapshot = await _db
+          .collection('shops')
+          .doc(shopId)
+          .collection('custom_salary_adjustments')
+          .where('month', isEqualTo: month)
+          .where('year', isEqualTo: year)
+          .get();
+
+      final results = <Map<String, dynamic>>[];
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        data['firestoreId'] = doc.id;
+        results.add(data);
+      }
+      return results;
+    } catch (e) {
+      debugPrint('❌ Error getting all custom salary adjustments: $e');
+      return [];
+    }
+  }
+
+  /// Thêm khoản thưởng/trừ tùy chỉnh
+  static Future<bool> addCustomSalaryAdjustment(
+    String shopId,
+    Map<String, dynamic> adjustment,
+  ) async {
+    try {
+      adjustment['createdAt'] = FieldValue.serverTimestamp();
+      adjustment['createdBy'] =
+          FirebaseAuth.instance.currentUser?.email ?? 'unknown';
+
+      await _db
+          .collection('shops')
+          .doc(shopId)
+          .collection('custom_salary_adjustments')
+          .add(adjustment);
+
+      debugPrint('✅ Added custom salary adjustment');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error adding custom salary adjustment: $e');
+      return false;
+    }
+  }
+
+  /// Cập nhật khoản thưởng/trừ tùy chỉnh
+  static Future<bool> updateCustomSalaryAdjustment(
+    String shopId,
+    String adjustmentId,
+    Map<String, dynamic> adjustment,
+  ) async {
+    try {
+      adjustment['updatedAt'] = FieldValue.serverTimestamp();
+      adjustment['updatedBy'] =
+          FirebaseAuth.instance.currentUser?.email ?? 'unknown';
+
+      await _db
+          .collection('shops')
+          .doc(shopId)
+          .collection('custom_salary_adjustments')
+          .doc(adjustmentId)
+          .update(adjustment);
+
+      debugPrint('✅ Updated custom salary adjustment');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error updating custom salary adjustment: $e');
+      return false;
+    }
+  }
+
+  /// Xóa khoản thưởng/trừ tùy chỉnh
+  static Future<bool> deleteCustomSalaryAdjustment(
+    String shopId,
+    String adjustmentId,
+  ) async {
+    try {
+      await _db
+          .collection('shops')
+          .doc(shopId)
+          .collection('custom_salary_adjustments')
+          .doc(adjustmentId)
+          .delete();
+
+      debugPrint('✅ Deleted custom salary adjustment');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error deleting custom salary adjustment: $e');
+      return false;
     }
   }
 }

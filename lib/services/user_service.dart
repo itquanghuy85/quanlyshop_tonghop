@@ -133,7 +133,7 @@ class UserService {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
     if (_isSuperAdmin(user)) return true;
-    
+
     final role = await getUserRole(user.uid);
     return role == 'admin' || role == 'owner' || role == 'manager';
   }
@@ -142,16 +142,17 @@ class UserService {
   static Future<String> getCurrentUserName() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return 'Unknown';
-    
+
     // Thử lấy từ Firebase Auth displayName
     if (user.displayName != null && user.displayName!.isNotEmpty) {
       return user.displayName!;
     }
-    
+
     // Lấy từ Firestore
     try {
       final info = await getUserInfo(user.uid);
-      final name = info['displayName'] ?? info['name'] ?? info['email'] ?? 'Unknown';
+      final name =
+          info['displayName'] ?? info['name'] ?? info['email'] ?? 'Unknown';
       return name.toString();
     } catch (e) {
       return user.email ?? 'Unknown';
@@ -1005,26 +1006,80 @@ class UserService {
       if (shopId == null) return 0;
 
       final userDoc = await _db.collection('users').doc(uid).get();
-      final lastRead = userDoc.data()?['lastReadChat'] ?? 0;
+      final lastReadRaw = userDoc.data()?['lastReadChat'];
 
-      // Query đơn giản hơn - chỉ lọc theo shopId để tránh lỗi index
+      // Chuyển đổi lastReadChat thành DateTime để so sánh
+      DateTime? lastReadTime;
+      if (lastReadRaw is Timestamp) {
+        lastReadTime = lastReadRaw.toDate();
+      } else if (lastReadRaw is int) {
+        lastReadTime = DateTime.fromMillisecondsSinceEpoch(lastReadRaw);
+      }
+
+      // Query collection 'chats' - đúng collection name của ChatService
       final query = await _db
-          .collection('chat_messages')
+          .collection('chats')
           .where('shopId', isEqualTo: shopId)
           .get();
 
-      // Đếm số tin nhắn có createdAt > lastRead
+      // Đếm số tin nhắn có createdAt > lastRead (không tính tin của chính mình)
       int count = 0;
       for (var doc in query.docs) {
-        final createdAt = doc.data()['createdAt'];
-        if (createdAt != null && createdAt is int && createdAt > lastRead) {
-          count++;
+        final data = doc.data();
+        final createdAtRaw = data['createdAt'];
+        final senderId = data['senderId'];
+
+        // Bỏ qua tin nhắn của chính mình
+        if (senderId == uid) continue;
+
+        // Chuyển đổi createdAt thành DateTime
+        DateTime? createdAt;
+        if (createdAtRaw is Timestamp) {
+          createdAt = createdAtRaw.toDate();
+        } else if (createdAtRaw is int) {
+          createdAt = DateTime.fromMillisecondsSinceEpoch(createdAtRaw);
+        }
+
+        // So sánh thời gian
+        if (createdAt != null) {
+          if (lastReadTime == null || createdAt.isAfter(lastReadTime)) {
+            count++;
+          }
         }
       }
       return count;
     } catch (e) {
       debugPrint('Error getting unread chat count: $e');
       return 0; // Trả về 0 nếu có lỗi (bao gồm lỗi index)
+    }
+  }
+
+  /// Lấy tin nhắn mới nhất trong shop (để hiển thị preview)
+  static Future<Map<String, dynamic>?> getLatestChatMessage() async {
+    try {
+      final shopId = await getCurrentShopId();
+      if (shopId == null) return null;
+
+      // Query collection 'chats' - đúng collection name của ChatService
+      final query = await _db
+          .collection('chats')
+          .where('shopId', isEqualTo: shopId)
+          .orderBy('createdAt', descending: true)
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) return null;
+
+      final doc = query.docs.first;
+      final data = doc.data();
+      return {
+        'message': data['message'] ?? '',
+        'senderName': data['senderName'] ?? '',
+        'createdAt': data['createdAt'],
+      };
+    } catch (e) {
+      debugPrint('Error getting latest chat message: $e');
+      return null;
     }
   }
 

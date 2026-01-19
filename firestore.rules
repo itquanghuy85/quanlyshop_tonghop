@@ -241,6 +241,27 @@ service cloud.firestore {
       
       // DELETE: Never
       allow delete: if false;
+
+      // ─────────── SUBCOLLECTION: custom_salary_adjustments ───────────
+      // Stores custom bonuses/deductions per employee per month
+      match /custom_salary_adjustments/{adjustmentId} {
+        // READ: Owner+ in same shop
+        allow read: if isAuth() && belongsTo(shopId) && isOwner();
+        
+        // CREATE: Owner only (adding custom adjustments)
+        allow create: if isAuth() && 
+                         belongsTo(shopId) && 
+                         isOwner() &&
+                         has(['staffId', 'amount', 'name']);
+        
+        // UPDATE: Owner only
+        allow update: if isAuth() && 
+                         belongsTo(shopId) && 
+                         isOwner();
+        
+        // DELETE: Owner only (remove adjustments)
+        allow delete: if isAuth() && belongsTo(shopId) && isOwner();
+      }
     }
 
     // ═══════════ 2.3 INVITES ═══════════
@@ -845,7 +866,58 @@ service cloud.firestore {
     }
 
     // ┌──────────────────────────────────────────────────────────────────┐
-    // │                   SECTION 11: CATCH-ALL DENY                     │
+    // │                   SECTION 11: HR & SALARY SETTINGS               │
+    // │     Collections: shop_deduction_settings, employee_salary_settings│
+    // │                  shop_salary_defaults                            │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 11.1 SHOP_DEDUCTION_SETTINGS ═══════════
+    // Stores shop-level salary deduction, insurance, and tax settings
+    // Document ID is shopId for easy lookup
+    match /shop_deduction_settings/{shopId} {
+      // READ: Owner+ in same shop
+      allow read: if isAuth() && belongsTo(shopId) && isOwner();
+      
+      // CREATE/UPDATE: Owner only (sensitive HR settings)
+      allow create, update: if isAuth() && belongsTo(shopId) && isOwner();
+      
+      // DELETE: Not allowed - settings should persist
+      allow delete: if false;
+    }
+
+    // ═══════════ 11.2 EMPLOYEE_SALARY_SETTINGS ═══════════
+    // Stores per-employee salary settings (base salary, allowances, etc.)
+    // Requires shopId field for multi-tenant isolation
+    match /employee_salary_settings/{settingId} {
+      // READ: Manager+ in same shop (managers need to view salary info)
+      allow read: if isAuth() && docInMyShop() && isManager();
+      
+      // CREATE: Manager+ can add salary settings for employees in their shop
+      allow create: if isAuth() && newDocInMyShop() && isManager();
+      
+      // UPDATE: Manager+ can update salary settings
+      allow update: if isAuth() && docInMyShop() && isManager() && shopIdLocked();
+      
+      // DELETE: Owner only (sensitive data)
+      allow delete: if isAuth() && docInMyShop() && isOwner();
+    }
+
+    // ═══════════ 11.3 SHOP_SALARY_DEFAULTS ═══════════
+    // Stores shop-level default salary settings (working hours, overtime rate, etc.)
+    // Document ID is shopId for easy lookup
+    match /shop_salary_defaults/{shopId} {
+      // READ: Manager+ in same shop (managers need to view salary defaults)
+      allow read: if isAuth() && belongsTo(shopId) && isManager();
+      
+      // CREATE/UPDATE: Owner only (shop-wide settings)
+      allow create, update: if isAuth() && belongsTo(shopId) && isOwner();
+      
+      // DELETE: Not allowed - settings should persist
+      allow delete: if false;
+    }
+
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                   SECTION 12: CATCH-ALL DENY                     │
     // │         CRITICAL: Any undefined collection is DENIED             │
     // └──────────────────────────────────────────────────────────────────┘
     

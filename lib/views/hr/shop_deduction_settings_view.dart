@@ -1,0 +1,875 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../../models/shop_deduction_settings.dart';
+import '../../services/salary_calculation_service.dart';
+
+/// Màn hình cài đặt Khấu trừ, Thuế, Bảo hiểm của shop
+class ShopDeductionSettingsView extends StatefulWidget {
+  const ShopDeductionSettingsView({super.key});
+
+  @override
+  State<ShopDeductionSettingsView> createState() =>
+      _ShopDeductionSettingsViewState();
+}
+
+class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  ShopDeductionSettings _settings = ShopDeductionSettings();
+  bool _isLoading = true;
+  bool _isSaving = false;
+
+  final _currencyFormat = NumberFormat('#,###', 'vi_VN');
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSettings() async {
+    setState(() => _isLoading = true);
+    try {
+      final settings =
+          await SalaryCalculationService.getShopDeductionSettings();
+      setState(() {
+        _settings = settings;
+      });
+    } catch (e) {
+      debugPrint('Error loading deduction settings: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    setState(() => _isSaving = true);
+    try {
+      final success = await SalaryCalculationService.saveShopDeductionSettings(
+        _settings,
+      );
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Đã lưu cài đặt'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Lỗi khi lưu cài đặt'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  String _formatCurrency(double value) {
+    return '${_currencyFormat.format(value)}đ';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Cài đặt Khấu trừ & Thuế'),
+        backgroundColor: colorScheme.primaryContainer,
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: colorScheme.primary,
+          unselectedLabelColor: colorScheme.onSurfaceVariant,
+          indicatorColor: colorScheme.primary,
+          tabs: const [
+            Tab(icon: Icon(Icons.warning_amber), text: 'Khấu trừ'),
+            Tab(icon: Icon(Icons.health_and_safety), text: 'Bảo hiểm'),
+            Tab(icon: Icon(Icons.receipt_long), text: 'Thuế TNCN'),
+          ],
+        ),
+        actions: [
+          if (_isSaving)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            IconButton(
+              onPressed: _saveSettings,
+              icon: const Icon(Icons.save),
+              tooltip: 'Lưu cài đặt',
+            ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildDeductionTab(),
+                _buildInsuranceTab(),
+                _buildTaxTab(),
+              ],
+            ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TAB 1: KHẤU TRỪ (Đi muộn, Về sớm, Nghỉ quá phép)
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildDeductionTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // === ĐI MUỘN ===
+        _buildSectionCard(
+          title: 'Trừ đi muộn',
+          icon: Icons.schedule,
+          iconColor: Colors.orange,
+          enabled: _settings.enableLateDeduction,
+          onEnabledChanged: (v) {
+            setState(() {
+              _settings = _settings.copyWith(enableLateDeduction: v);
+            });
+          },
+          children: [
+            _CurrencyField(
+              label: 'Số tiền trừ mỗi lần đi muộn',
+              value: _settings.lateDeductionPerTime,
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(lateDeductionPerTime: v);
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            _NumberField(
+              label: 'Số lần được miễn (không trừ)',
+              value: _settings.lateGraceTimes,
+              suffix: 'lần/tháng',
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(lateGraceTimes: v);
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ví dụ: Miễn 2 lần → Đi muộn 5 lần → Trừ 3 lần',
+              style: TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // === VỀ SỚM ===
+        _buildSectionCard(
+          title: 'Trừ về sớm',
+          icon: Icons.exit_to_app,
+          iconColor: Colors.purple,
+          enabled: _settings.enableEarlyLeaveDeduction,
+          onEnabledChanged: (v) {
+            setState(() {
+              _settings = _settings.copyWith(enableEarlyLeaveDeduction: v);
+            });
+          },
+          children: [
+            _CurrencyField(
+              label: 'Số tiền trừ mỗi lần về sớm',
+              value: _settings.earlyLeaveDeductionPerTime,
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(earlyLeaveDeductionPerTime: v);
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            _NumberField(
+              label: 'Số lần được miễn (không trừ)',
+              value: _settings.earlyLeaveGraceTimes,
+              suffix: 'lần/tháng',
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(earlyLeaveGraceTimes: v);
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // === NGHỈ QUÁ PHÉP ===
+        _buildSectionCard(
+          title: 'Trừ nghỉ quá phép',
+          icon: Icons.event_busy,
+          iconColor: Colors.red,
+          enabled: _settings.enableAbsenceDeduction,
+          onEnabledChanged: (v) {
+            setState(() {
+              _settings = _settings.copyWith(enableAbsenceDeduction: v);
+            });
+          },
+          children: [
+            _NumberField(
+              label: 'Số ngày nghỉ phép cho phép',
+              value: _settings.allowedAbsenceDays,
+              suffix: 'ngày/tháng',
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(allowedAbsenceDays: v);
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            _CurrencyField(
+              label: 'Số tiền trừ mỗi ngày nghỉ quá phép',
+              value: _settings.absenceDeductionPerDay,
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(absenceDeductionPerDay: v);
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ví dụ: Phép 2 ngày → Nghỉ 5 ngày → Trừ 3 ngày',
+              style: TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TAB 2: BẢO HIỂM (BHXH, BHYT, BHTN)
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildInsuranceTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Info card
+        Card(
+          color: Colors.blue.shade50,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.blue.shade700),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Tỷ lệ đóng BH người lao động theo luật:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '• BHXH: 8% lương đóng BH\n'
+                  '• BHYT: 1.5% lương đóng BH\n'
+                  '• BHTN: 1% lương đóng BH\n'
+                  '• Tổng: 10.5% lương đóng BH',
+                  style: TextStyle(color: Colors.blue.shade800),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Mức lương đóng BH
+        _buildSectionCard(
+          title: 'Mức lương đóng BH',
+          icon: Icons.account_balance_wallet,
+          iconColor: Colors.teal,
+          enabled: true,
+          showSwitch: false,
+          children: [
+            _CurrencyField(
+              label: 'Mức lương đóng BH (để 0 = dùng lương cơ bản)',
+              value: _settings.insuranceBaseSalary,
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(insuranceBaseSalary: v);
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Nếu để 0, hệ thống sẽ dùng lương cơ bản làm mức đóng BH',
+              style: TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // === BHXH ===
+        _buildSectionCard(
+          title: 'BHXH (Bảo hiểm xã hội)',
+          icon: Icons.security,
+          iconColor: Colors.green,
+          enabled: _settings.enableSocialInsurance,
+          onEnabledChanged: (v) {
+            setState(() {
+              _settings = _settings.copyWith(enableSocialInsurance: v);
+            });
+          },
+          children: [
+            _PercentField(
+              label: 'Tỷ lệ BHXH',
+              value: _settings.socialInsuranceRate,
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(socialInsuranceRate: v);
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // === BHYT ===
+        _buildSectionCard(
+          title: 'BHYT (Bảo hiểm y tế)',
+          icon: Icons.local_hospital,
+          iconColor: Colors.red,
+          enabled: _settings.enableHealthInsurance,
+          onEnabledChanged: (v) {
+            setState(() {
+              _settings = _settings.copyWith(enableHealthInsurance: v);
+            });
+          },
+          children: [
+            _PercentField(
+              label: 'Tỷ lệ BHYT',
+              value: _settings.healthInsuranceRate,
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(healthInsuranceRate: v);
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // === BHTN ===
+        _buildSectionCard(
+          title: 'BHTN (Bảo hiểm thất nghiệp)',
+          icon: Icons.work_off,
+          iconColor: Colors.orange,
+          enabled: _settings.enableUnemploymentInsurance,
+          onEnabledChanged: (v) {
+            setState(() {
+              _settings = _settings.copyWith(enableUnemploymentInsurance: v);
+            });
+          },
+          children: [
+            _PercentField(
+              label: 'Tỷ lệ BHTN',
+              value: _settings.unemploymentInsuranceRate,
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(unemploymentInsuranceRate: v);
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Summary
+        Card(
+          color: Colors.green.shade50,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Tổng % BH người lao động đóng:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade900,
+                  ),
+                ),
+                Text(
+                  '${_settings.totalInsuranceRate.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TAB 3: THUẾ TNCN
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildTaxTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Info card
+        Card(
+          color: Colors.amber.shade50,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.amber.shade700),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Biểu thuế TNCN lũy tiến:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber.shade900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '• Đến 5 triệu: 5%\n'
+                  '• 5-10 triệu: 10%\n'
+                  '• 10-18 triệu: 15%\n'
+                  '• 18-32 triệu: 20%\n'
+                  '• 32-52 triệu: 25%\n'
+                  '• 52-80 triệu: 30%\n'
+                  '• Trên 80 triệu: 35%',
+                  style: TextStyle(color: Colors.amber.shade800, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // === THUẾ TNCN ===
+        _buildSectionCard(
+          title: 'Tính thuế TNCN',
+          icon: Icons.receipt_long,
+          iconColor: Colors.indigo,
+          enabled: _settings.enablePIT,
+          onEnabledChanged: (v) {
+            setState(() {
+              _settings = _settings.copyWith(enablePIT: v);
+            });
+          },
+          children: [
+            _CurrencyField(
+              label: 'Giảm trừ bản thân (11 triệu theo luật)',
+              value: _settings.pitDeductionSelf,
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(pitDeductionSelf: v);
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            _CurrencyField(
+              label: 'Giảm trừ người phụ thuộc (4.4 triệu/người)',
+              value: _settings.pitDeductionDependent,
+              onChanged: (v) {
+                setState(() {
+                  _settings = _settings.copyWith(pitDeductionDependent: v);
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Công thức tính:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Thu nhập chịu thuế = GROSS - BH - Giảm trừ bản thân - Giảm trừ người phụ thuộc',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Thuế TNCN = Áp dụng biểu thuế lũy tiến',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Demo calculator
+        if (_settings.enablePIT) ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '📊 Ví dụ tính thuế:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const Divider(),
+                  _buildDemoRow('Thu nhập GROSS', 20000000),
+                  _buildDemoRow('- BHXH, BHYT, BHTN (10.5%)', -2100000),
+                  _buildDemoRow(
+                    '- Giảm trừ bản thân',
+                    -_settings.pitDeductionSelf,
+                  ),
+                  _buildDemoRow(
+                    '- Giảm trừ 1 người phụ thuộc',
+                    -_settings.pitDeductionDependent,
+                  ),
+                  const Divider(),
+                  _buildDemoRow(
+                    '= Thu nhập chịu thuế',
+                    20000000 -
+                        2100000 -
+                        _settings.pitDeductionSelf -
+                        _settings.pitDeductionDependent,
+                    isBold: true,
+                  ),
+                  const SizedBox(height: 8),
+                  Builder(
+                    builder: (context) {
+                      final taxable =
+                          20000000 -
+                          2100000 -
+                          _settings.pitDeductionSelf -
+                          _settings.pitDeductionDependent;
+                      final tax = PITCalculator.calculatePIT(taxable);
+                      return _buildDemoRow(
+                        'Thuế TNCN phải đóng',
+                        tax,
+                        isBold: true,
+                        isRed: true,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDemoRow(
+    String label,
+    double value, {
+    bool isBold = false,
+    bool isRed = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            _formatCurrency(value),
+            style: TextStyle(
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: isRed ? Colors.red : (value < 0 ? Colors.grey[600] : null),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    required bool enabled,
+    bool showSwitch = true,
+    ValueChanged<bool>? onEnabledChanged,
+    required List<Widget> children,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: iconColor.withAlpha(30),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (showSwitch)
+                  Switch(value: enabled, onChanged: onEnabledChanged),
+              ],
+            ),
+            if (enabled && children.isNotEmpty) ...[
+              const Divider(height: 24),
+              ...children,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CUSTOM TEXT FIELDS (tách riêng để giữ focus)
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _CurrencyField extends StatefulWidget {
+  final String label;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  const _CurrencyField({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  State<_CurrencyField> createState() => _CurrencyFieldState();
+}
+
+class _CurrencyFieldState extends State<_CurrencyField> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+  final _format = NumberFormat('#,###', 'vi_VN');
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _format.format(widget.value));
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(_CurrencyField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_focusNode.hasFocus && widget.value != oldWidget.value) {
+      _controller.text = _format.format(widget.value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      focusNode: _focusNode,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        suffixText: 'đ',
+        border: const OutlineInputBorder(),
+      ),
+      onChanged: (value) {
+        final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
+        final parsed = double.tryParse(cleaned) ?? 0;
+        widget.onChanged(parsed);
+      },
+    );
+  }
+}
+
+class _PercentField extends StatefulWidget {
+  final String label;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  const _PercentField({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  State<_PercentField> createState() => _PercentFieldState();
+}
+
+class _PercentFieldState extends State<_PercentField> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value.toString());
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(_PercentField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_focusNode.hasFocus && widget.value != oldWidget.value) {
+      _controller.text = widget.value.toString();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      focusNode: _focusNode,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: widget.label,
+        suffixText: '%',
+        border: const OutlineInputBorder(),
+      ),
+      onChanged: (value) {
+        final parsed = double.tryParse(value.replaceAll(',', '.')) ?? 0;
+        widget.onChanged(parsed);
+      },
+    );
+  }
+}
+
+class _NumberField extends StatefulWidget {
+  final String label;
+  final int value;
+  final String? suffix;
+  final ValueChanged<int> onChanged;
+
+  const _NumberField({
+    required this.label,
+    required this.value,
+    this.suffix,
+    required this.onChanged,
+  });
+
+  @override
+  State<_NumberField> createState() => _NumberFieldState();
+}
+
+class _NumberFieldState extends State<_NumberField> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value.toString());
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(_NumberField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_focusNode.hasFocus && widget.value != oldWidget.value) {
+      _controller.text = widget.value.toString();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      focusNode: _focusNode,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        suffixText: widget.suffix,
+        border: const OutlineInputBorder(),
+      ),
+      onChanged: (value) {
+        final parsed = int.tryParse(value) ?? 0;
+        widget.onChanged(parsed);
+      },
+    );
+  }
+}

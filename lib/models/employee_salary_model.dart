@@ -70,8 +70,23 @@ class EmployeeSalarySettings {
 
   /// Tạo từ Map (Firestore hoặc SQLite)
   factory EmployeeSalarySettings.fromMap(Map<String, dynamic> map) {
+    // Parse dates - có thể là int (milliseconds), String (ISO), hoặc DateTime
+    DateTime parseDate(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is DateTime) return value;
+      if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+      if (value is String) {
+        // Try parse as int first (milliseconds as string)
+        final asInt = int.tryParse(value);
+        if (asInt != null) return DateTime.fromMillisecondsSinceEpoch(asInt);
+        // Try parse as ISO string
+        return DateTime.tryParse(value) ?? DateTime.now();
+      }
+      return DateTime.now();
+    }
+
     return EmployeeSalarySettings(
-      id: map['id'] ?? '',
+      id: (map['id'] ?? map['firestoreId'] ?? '').toString(),
       staffId: map['staffId'] ?? '',
       staffName: map['staffName'] ?? '',
       shopId: map['shopId'] ?? '',
@@ -91,16 +106,10 @@ class EmployeeSalarySettings {
       targetBonusPercent: (map['targetBonusPercent'] ?? 0).toDouble(),
       standardHoursPerDay: (map['standardHoursPerDay'] ?? 8.0).toDouble(),
       overtimeRate: (map['overtimeRate'] ?? 150).toDouble(),
-      createdAt: map['createdAt'] is DateTime
-          ? map['createdAt']
-          : DateTime.tryParse(map['createdAt']?.toString() ?? '') ??
-                DateTime.now(),
-      updatedAt: map['updatedAt'] is DateTime
-          ? map['updatedAt']
-          : DateTime.tryParse(map['updatedAt']?.toString() ?? '') ??
-                DateTime.now(),
+      createdAt: parseDate(map['createdAt']),
+      updatedAt: parseDate(map['updatedAt']),
       updatedBy: map['updatedBy'],
-      isActive: map['isActive'] ?? true,
+      isActive: map['isActive'] == 1 || map['isActive'] == true,
     );
   }
 
@@ -136,7 +145,7 @@ class EmployeeSalarySettings {
   /// Chuyển sang Map cho SQLite
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      // 'id' không bao gồm vì là AUTO INCREMENT trong SQLite
       'staffId': staffId,
       'staffName': staffName,
       'shopId': shopId,
@@ -156,10 +165,11 @@ class EmployeeSalarySettings {
       'targetBonusPercent': targetBonusPercent,
       'standardHoursPerDay': standardHoursPerDay,
       'overtimeRate': overtimeRate,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': createdAt.millisecondsSinceEpoch,
+      'updatedAt': updatedAt.millisecondsSinceEpoch,
       'updatedBy': updatedBy,
       'isActive': isActive ? 1 : 0,
+      'isSynced': 0,
     };
   }
 

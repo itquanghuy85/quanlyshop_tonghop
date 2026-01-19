@@ -1064,18 +1064,8 @@ class NotificationService {
     const title = 'ĐƠN SỬA MỚI';
     final body = 'Khách $customerName - ${MoneyUtils.formatVND(price)}đ';
 
-    // Check role-based permission
-    if (!await _hasRolePermission('repair', [
-      'admin',
-      'owner',
-      'manager',
-      'technician',
-    ])) {
-      debugPrint('Repair notification blocked by role permissions');
-      return;
-    }
-
-    await sendCloudNotification(title: title, body: body, type: 'repair');
+    // Cloud Function sẽ lọc người nhận theo role, không cần check ở đây
+    await sendCloudNotification(title: title, body: body, type: 'new_order');
   }
 
   // System maintenance notifications
@@ -1099,17 +1089,7 @@ class NotificationService {
     const title = 'THANH TOÁN THÀNH CÔNG';
     final body = '${amount.toStringAsFixed(0)}đ qua $paymentMethod';
 
-    // Check role-based permission
-    if (!await _hasRolePermission('payment', [
-      'admin',
-      'owner',
-      'manager',
-      'employee',
-    ])) {
-      debugPrint('Payment notification blocked by role permissions');
-      return;
-    }
-
+    // Cloud Function sẽ lọc người nhận theo role, không cần check ở đây
     await sendCloudNotification(title: title, body: body, type: 'payment');
   }
 
@@ -1123,17 +1103,7 @@ class NotificationService {
     final body =
         '$productName chỉ còn $currentStock sản phẩm (tối thiểu: $minStock)';
 
-    // Check role-based permission
-    if (!await _hasRolePermission('inventory', [
-      'admin',
-      'owner',
-      'manager',
-      'technician',
-    ])) {
-      debugPrint('Inventory notification blocked by role permissions');
-      return;
-    }
-
+    // Cloud Function sẽ lọc người nhận theo role, không cần check ở đây
     await sendCloudNotification(title: title, body: body, type: 'inventory');
   }
 
@@ -1146,12 +1116,7 @@ class NotificationService {
     const title = 'ĐIỂM DANH NHÂN VIÊN';
     final body = '$staffName đã $status lúc $time';
 
-    // Check role-based permission
-    if (!await _hasRolePermission('staff', ['admin', 'owner', 'manager'])) {
-      debugPrint('Attendance notification blocked by role permissions');
-      return;
-    }
-
+    // Cloud Function sẽ lọc người nhận theo role, không cần check ở đây
     await sendCloudNotification(title: title, body: body, type: 'staff');
   }
 
@@ -1169,27 +1134,6 @@ class NotificationService {
       type: 'system',
       targetUserId: targetUserId,
     );
-  }
-
-  // Role-based permission checker
-  static Future<bool> _hasRolePermission(
-    String notificationType,
-    List<String> allowedRoles,
-  ) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return false;
-
-      final userRole = await UserService.getUserRole(user.uid);
-
-      // Super admin always has permission
-      if (UserService.isCurrentUserSuperAdmin()) return true;
-
-      return allowedRoles.contains(userRole);
-    } catch (e) {
-      debugPrint('Error checking role permission: $e');
-      return false;
-    }
   }
 
   static Future<void> sendStaffNotification(

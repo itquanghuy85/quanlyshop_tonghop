@@ -41,6 +41,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.13.0"
+  barcode:
+    dependency: transitive
+    description:
+      name: barcode
+      sha256: "7b6729c37e3b7f34233e2318d866e8c48ddb46c1f7ad01ff7bb2a8de1da2b9f4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.9"
+  bidi:
+    dependency: transitive
+    description:
+      name: bidi
+      sha256: "77f475165e94b261745cf1032c751e2032b8ed92ccb2bf5716036db79320637d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.13"
   bluez:
     dependency: transitive
     description:
@@ -65,14 +81,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
-  charset_converter:
-    dependency: transitive
-    description:
-      name: charset_converter
-      sha256: a601f27b78ca86c3d88899d53059786d9c3f3c485b64974e9105c06c2569aef5
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.3.0"
   checked_yaml:
     dependency: transitive
     description:
@@ -257,22 +265,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.7"
-  esc_pos_printer:
-    dependency: "direct main"
-    description:
-      name: esc_pos_printer
-      sha256: "312b05f909f3f7dd1e6a3332cf384dcee2c3a635138823654cd9c0133d8b5c45"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.1.0"
-  esc_pos_utils:
-    dependency: "direct main"
-    description:
-      name: esc_pos_utils
-      sha256: "8ec0013d7a7f1e790ced6b09b95ce3bf2c6f9468a3e2bc49ece000761d86c6f8"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.0"
   excel:
     dependency: "direct main"
     description:
@@ -510,6 +502,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.2"
+  flutter_esc_pos_utils:
+    dependency: "direct main"
+    description:
+      name: flutter_esc_pos_utils
+      sha256: "2186973896d2dac3d5ebb2e09dac963001d29cd9e683f23afe8dbd5fb4013356"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   flutter_image_compress:
     dependency: "direct main"
     description:
@@ -769,10 +769,10 @@ packages:
     dependency: transitive
     description:
       name: http
-      sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
+      sha256: "5895291c13fa8a3bd82e76d5627f69e0d85ca6a30dcac95c4ea19a5d555879c2"
       url: "https://pub.dev"
     source: hosted
-    version: "1.6.0"
+    version: "0.13.6"
   http_parser:
     dependency: transitive
     description:
@@ -782,13 +782,13 @@ packages:
     source: hosted
     version: "4.1.2"
   image:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: image
-      sha256: "8e9d133755c3e84c73288363e6343157c383a0c6c56fc51afcc5d4d7180306d6"
+      sha256: f31d52537dc417fdcde36088fdf11d191026fd5e4fae742491ebd40e5a8bea7d
       url: "https://pub.dev"
     source: hosted
-    version: "3.3.0"
+    version: "4.3.0"
   image_picker:
     dependency: "direct main"
     description:
@@ -873,10 +873,10 @@ packages:
     dependency: transitive
     description:
       name: js
-      sha256: "53385261521cc4a0c4658fd0ad07a7d14591cf8fc33abbceae306ddb974888dc"
+      sha256: f2c445dce49627136094980615a031419f7f3eb393237e4ecd97ac15dea343f3
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.2"
+    version: "0.6.7"
   json_annotation:
     dependency: transitive
     description:
@@ -989,6 +989,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.1"
+  path_parsing:
+    dependency: transitive
+    description:
+      name: path_parsing
+      sha256: "883402936929eac138ee0a45da5b0f2c80f89913e6dc3bf77eb65b84b409c6ca"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.0"
   path_provider:
     dependency: "direct main"
     description:
@@ -1037,6 +1045,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  pdf:
+    dependency: "direct main"
+    description:
+      name: pdf
+      sha256: "28eacad99bffcce2e05bba24e50153890ad0255294f4dd78a17075a2ba5c8416"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.11.3"
+  pdf_widget_wrapper:
+    dependency: transitive
+    description:
+      name: pdf_widget_wrapper
+      sha256: c930860d987213a3d58c7ec3b7ecf8085c3897f773e8dc23da9cae60a5d6d0f5
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.4"
   permission_handler:
     dependency: "direct main"
     description:
@@ -1133,6 +1157,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.7"
+  printing:
+    dependency: "direct main"
+    description:
+      name: printing
+      sha256: "482cd5a5196008f984bb43ed0e47cbfdca7373490b62f3b27b3299275bf22a93"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.14.2"
   pub_semver:
     dependency: transitive
     description:

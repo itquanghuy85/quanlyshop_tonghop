@@ -109,6 +109,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   int totalDebtRemain = 0;
   int expiringWarranties = 0;
   int unreadChatCount = 0;
+  String _latestChatMessage = ''; // Tin nhắn mới nhất
+  String _latestChatSender = ''; // Người gửi tin mới nhất
   bool _notificationWorking = false; // Trạng thái thông báo
   String _userName = ''; // Tên hiển thị của người dùng
   String _shopName = ''; // Tên cửa hàng
@@ -1132,7 +1134,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       return;
     }
     _isLoadingStats = true;
-    
+
     try {
       // Yield để UI không bị treo
       await Future.delayed(Duration.zero);
@@ -1149,228 +1151,243 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
       final expenses = await db.getAllExpenses();
 
-    // FIX BUG-CC-006: Thêm debt_payments để tính thu nợ khách hàng (đồng nhất với cash_closing_view)
-    final debtPayments = await db.getAllDebtPaymentsWithDetails();
-    await Future.delayed(Duration.zero); // Yield
+      // FIX BUG-CC-006: Thêm debt_payments để tính thu nợ khách hàng (đồng nhất với cash_closing_view)
+      final debtPayments = await db.getAllDebtPaymentsWithDetails();
+      await Future.delayed(Duration.zero); // Yield
 
-    int pendingR = repairs.where((r) => r.status == 1 || r.status == 2).length;
-    int doneT = 0, soldT = 0, newRT = 0, debtR = 0, expW = 0;
-    final now = DateTime.now();
+      int pendingR = repairs
+          .where((r) => r.status == 1 || r.status == 2)
+          .length;
+      int doneT = 0, soldT = 0, newRT = 0, debtR = 0, expW = 0;
+      final now = DateTime.now();
 
-    // === TÍNH TOÁN CHÍNH XÁC NHƯ REVENUE_VIEW.DART ===
-    // Lọc sales hôm nay
-    final fSales = sales.where((s) => _isSameDay(s.soldAt)).toList();
+      // === TÍNH TOÁN CHÍNH XÁC NHƯ REVENUE_VIEW.DART ===
+      // Lọc sales hôm nay
+      final fSales = sales.where((s) => _isSameDay(s.soldAt)).toList();
 
-    // Lọc repairs đã giao (status == 4) và deliveredAt hôm nay
-    final fRepairs = repairs
-        .where(
-          (r) =>
-              r.status == 4 &&
-              r.deliveredAt != null &&
-              _isSameDay(r.deliveredAt!),
-        )
-        .toList();
+      // Lọc repairs đã giao (status == 4) và deliveredAt hôm nay
+      final fRepairs = repairs
+          .where(
+            (r) =>
+                r.status == 4 &&
+                r.deliveredAt != null &&
+                _isSameDay(r.deliveredAt!),
+          )
+          .toList();
 
-    // Lọc expenses hôm nay
-    final fExpenses = expenses
-        .where((e) => _isSameDay(e['date'] as int))
-        .toList();
+      // Lọc expenses hôm nay
+      final fExpenses = expenses
+          .where((e) => _isSameDay(e['date'] as int))
+          .toList();
 
-    // THU HÔM NAY - Tính theo ACCRUAL BASIS (cơ sở dồn tích)
-    // K3: Bán nợ VẪN PHẢI tính vào doanh thu và giá vốn, chỉ KHÔNG tăng quỹ tiền mặt/NH
-    // Tính tổng DOANH THU và GIÁ VỐN từ sales (bao gồm cả công nợ)
-    int salesIncome = 0; // Doanh thu = tổng giá bán (cả công nợ)
-    int salesCost = 0; // Giá vốn = tổng giá vốn (cả công nợ)
-    int salesDebt = 0; // Công nợ = số tiền chưa thu (để hiển thị riêng)
-    for (var s in fSales) {
-      if (s.paymentMethod == 'CÔNG NỢ') {
-        // K3: Công nợ - VẪN TÍNH doanh thu và giá vốn (accrual basis)
-        // Nhưng KHÔNG tăng quỹ tiền mặt/ngân hàng
-        salesIncome += s.totalPrice;
-        salesCost += s.totalCost;
-        salesDebt += s.totalPrice; // Track công nợ riêng
-        continue;
+      // THU HÔM NAY - Tính theo ACCRUAL BASIS (cơ sở dồn tích)
+      // K3: Bán nợ VẪN PHẢI tính vào doanh thu và giá vốn, chỉ KHÔNG tăng quỹ tiền mặt/NH
+      // Tính tổng DOANH THU và GIÁ VỐN từ sales (bao gồm cả công nợ)
+      int salesIncome = 0; // Doanh thu = tổng giá bán (cả công nợ)
+      int salesCost = 0; // Giá vốn = tổng giá vốn (cả công nợ)
+      int salesDebt = 0; // Công nợ = số tiền chưa thu (để hiển thị riêng)
+      for (var s in fSales) {
+        if (s.paymentMethod == 'CÔNG NỢ') {
+          // K3: Công nợ - VẪN TÍNH doanh thu và giá vốn (accrual basis)
+          // Nhưng KHÔNG tăng quỹ tiền mặt/ngân hàng
+          salesIncome += s.totalPrice;
+          salesCost += s.totalCost;
+          salesDebt += s.totalPrice; // Track công nợ riêng
+          continue;
+        }
+        if (s.isInstallment) {
+          // Trả góp: tính theo số tiền ĐÃ THU ĐƯỢC (down + settlement)
+          // Vì ngân hàng giải ngân phần còn lại, phải track riêng
+          final downPaid = s.downPayment;
+          final settlementPaid =
+              (s.settlementReceivedAt != null &&
+                  _isSameDay(s.settlementReceivedAt!))
+              ? s.settlementAmount.clamp(0, s.loanAmount)
+              : 0;
+          final totalPaid = downPaid + settlementPaid;
+
+          // Doanh thu = số tiền đã nhận được (down + settlement)
+          salesIncome += totalPaid;
+
+          // Giá vốn tính theo tỷ lệ đã thu
+          final ratio = s.totalPrice > 0 ? totalPaid / s.totalPrice : 0.0;
+          salesCost += (s.totalCost * ratio).round();
+        } else {
+          // Bán thường (tiền mặt/chuyển khoản)
+          salesIncome += s.totalPrice;
+          salesCost += s.totalCost;
+        }
       }
-      if (s.isInstallment) {
-        // Trả góp: tính theo số tiền ĐÃ THU ĐƯỢC (down + settlement)
-        // Vì ngân hàng giải ngân phần còn lại, phải track riêng
-        final downPaid = s.downPayment;
-        final settlementPaid =
-            (s.settlementReceivedAt != null && _isSameDay(s.settlementReceivedAt!))
-                ? s.settlementAmount.clamp(0, s.loanAmount)
-                : 0;
-        final totalPaid = downPaid + settlementPaid;
-        
-        // Doanh thu = số tiền đã nhận được (down + settlement)
-        salesIncome += totalPaid;
-        
-        // Giá vốn tính theo tỷ lệ đã thu
-        final ratio = s.totalPrice > 0 ? totalPaid / s.totalPrice : 0.0;
-        salesCost += (s.totalCost * ratio).round();
-      } else {
-        // Bán thường (tiền mặt/chuyển khoản)
-        salesIncome += s.totalPrice;
-        salesCost += s.totalCost;
+
+      // Tính tổng DOANH THU và GIÁ VỐN từ repairs (bao gồm cả công nợ - accrual basis)
+      int repairsIncome = 0;
+      int repairsCost = 0;
+      int repairsDebt = 0; // Track công nợ sửa chữa riêng
+      for (var r in fRepairs) {
+        // Accrual basis: tính cả công nợ vào doanh thu và giá vốn
+        repairsIncome += r.price;
+        repairsCost += r.totalCost;
+        if (r.paymentMethod == 'CÔNG NỢ') {
+          repairsDebt += r.price;
+        }
       }
-    }
 
-    // Tính tổng DOANH THU và GIÁ VỐN từ repairs (bao gồm cả công nợ - accrual basis)
-    int repairsIncome = 0;
-    int repairsCost = 0;
-    int repairsDebt = 0; // Track công nợ sửa chữa riêng
-    for (var r in fRepairs) {
-      // Accrual basis: tính cả công nợ vào doanh thu và giá vốn
-      repairsIncome += r.price;
-      repairsCost += r.totalCost;
-      if (r.paymentMethod == 'CÔNG NỢ') {
-        repairsDebt += r.price;
+      int totalIn = salesIncome + repairsIncome;
+
+      // K5: Tính thu nợ khách hàng - CHỈ DÙNG CHO HIỂN THỊ (KHÔNG cộng vào doanh thu)
+      // Vì với accrual basis, doanh thu đã được tính ở K3 (lúc bán nợ)
+      // Thu nợ chỉ ảnh hưởng quỹ tiền mặt/NH, không ảnh hưởng lợi nhuận
+      int debtCollected = 0;
+      for (var p in debtPayments) {
+        final paidAt = p['paidAt'] as int?;
+        if (paidAt == null) continue;
+        if (!_isSameDay(paidAt)) continue;
+        if (p['debtType'] == 'SHOP_OWES')
+          continue; // SHOP_OWES là trả nợ NCC, không phải thu nợ KH
+        final amount = p['amount'] as int? ?? 0;
+        debtCollected += amount;
       }
-    }
 
-    int totalIn = salesIncome + repairsIncome;
+      // KHÔNG cộng debtCollected vào totalIn vì doanh thu đã tính ở K3 (accrual basis)
+      // totalIn += debtCollected; // BỎ DÒNG NÀY
 
-    // K5: Tính thu nợ khách hàng - CHỈ DÙNG CHO HIỂN THỊ (KHÔNG cộng vào doanh thu)
-    // Vì với accrual basis, doanh thu đã được tính ở K3 (lúc bán nợ)
-    // Thu nợ chỉ ảnh hưởng quỹ tiền mặt/NH, không ảnh hưởng lợi nhuận
-    int debtCollected = 0;
-    for (var p in debtPayments) {
-      final paidAt = p['paidAt'] as int?;
-      if (paidAt == null) continue;
-      if (!_isSameDay(paidAt)) continue;
-      if (p['debtType'] == 'SHOP_OWES')
-        continue; // SHOP_OWES là trả nợ NCC, không phải thu nợ KH
-      final amount = p['amount'] as int? ?? 0;
-      debtCollected += amount;
-    }
+      // CHI HÔM NAY = tổng expenses (LOẠI TRỪ nhập hàng/linh kiện/purchase vì đã tính trong giá vốn)
+      int totalOut = 0;
+      for (var e in fExpenses) {
+        final category = (e['category'] as String? ?? '').toUpperCase();
+        final description = (e['description'] as String? ?? '').toUpperCase();
+        final title = (e['title'] as String? ?? '').toUpperCase();
+        final amount = e['amount'] as int;
 
-    // KHÔNG cộng debtCollected vào totalIn vì doanh thu đã tính ở K3 (accrual basis)
-    // totalIn += debtCollected; // BỎ DÒNG NÀY
+        // Loại trừ các chi phí nhập hàng/linh kiện/purchase vì sẽ được tính qua giá vốn khi bán/sửa
+        // Kiểm tra cả category, description và title để đảm bảo không bỏ sót
+        final isImportExpense =
+            category.contains('NHẬP HÀNG') ||
+            category.contains('NHẬP LINH KIỆN') ||
+            category.contains('PURCHASE') ||
+            category.contains('STOCK') ||
+            category.contains('LINH KIỆN') ||
+            category.contains('ĐƠN NHẬP') ||
+            category.contains('REPAIR_PARTS') ||
+            description.contains('NHẬP LINH KIỆN') ||
+            description.contains('NHẬP HÀNG') ||
+            description.contains('Nhập linh kiện') ||
+            title.contains('NHẬP LINH KIỆN') ||
+            title.contains('NHẬP HÀNG');
 
-    // CHI HÔM NAY = tổng expenses (LOẠI TRỪ nhập hàng/linh kiện/purchase vì đã tính trong giá vốn)
-    int totalOut = 0;
-    for (var e in fExpenses) {
-      final category = (e['category'] as String? ?? '').toUpperCase();
-      final description = (e['description'] as String? ?? '').toUpperCase();
-      final title = (e['title'] as String? ?? '').toUpperCase();
-      final amount = e['amount'] as int;
-
-      // Loại trừ các chi phí nhập hàng/linh kiện/purchase vì sẽ được tính qua giá vốn khi bán/sửa
-      // Kiểm tra cả category, description và title để đảm bảo không bỏ sót
-      final isImportExpense =
-          category.contains('NHẬP HÀNG') ||
-          category.contains('NHẬP LINH KIỆN') ||
-          category.contains('PURCHASE') ||
-          category.contains('STOCK') ||
-          category.contains('LINH KIỆN') ||
-          category.contains('ĐƠN NHẬP') ||
-          category.contains('REPAIR_PARTS') ||
-          description.contains('NHẬP LINH KIỆN') ||
-          description.contains('NHẬP HÀNG') ||
-          description.contains('Nhập linh kiện') ||
-          title.contains('NHẬP LINH KIỆN') ||
-          title.contains('NHẬP HÀNG');
-
-      if (isImportExpense) {
-        debugPrint(
-          'LOẠI TRỪ expense nhập hàng/linh kiện: category=$category, amount=$amount',
-        );
-      } else {
-        totalOut += amount;
-        debugPrint('TÍNH expense: category=$category, amount=$amount');
+        if (isImportExpense) {
+          debugPrint(
+            'LOẠI TRỪ expense nhập hàng/linh kiện: category=$category, amount=$amount',
+          );
+        } else {
+          totalOut += amount;
+          debugPrint('TÍNH expense: category=$category, amount=$amount');
+        }
       }
-    }
 
-    // Debug log
-    debugPrint('=== TÍNH LỢI NHUẬN (HOME) - ACCRUAL BASIS ===');
-    debugPrint('salesIncome=$salesIncome (bao gồm công nợ: $salesDebt)');
-    debugPrint('salesCost=$salesCost');
-    debugPrint('repairsIncome=$repairsIncome (bao gồm công nợ: $repairsDebt), repairsCost=$repairsCost');
-    debugPrint('debtCollected=$debtCollected (chỉ ảnh hưởng quỹ, không ảnh hưởng lợi nhuận)');
-    debugPrint('totalIn=$totalIn (doanh thu đã bao gồm công nợ), totalOut=$totalOut');
-    debugPrint('profit = $totalIn - $totalOut - $salesCost - $repairsCost');
+      // Debug log
+      debugPrint('=== TÍNH LỢI NHUẬN (HOME) - ACCRUAL BASIS ===');
+      debugPrint('salesIncome=$salesIncome (bao gồm công nợ: $salesDebt)');
+      debugPrint('salesCost=$salesCost');
+      debugPrint(
+        'repairsIncome=$repairsIncome (bao gồm công nợ: $repairsDebt), repairsCost=$repairsCost',
+      );
+      debugPrint(
+        'debtCollected=$debtCollected (chỉ ảnh hưởng quỹ, không ảnh hưởng lợi nhuận)',
+      );
+      debugPrint(
+        'totalIn=$totalIn (doanh thu đã bao gồm công nợ), totalOut=$totalOut',
+      );
+      debugPrint('profit = $totalIn - $totalOut - $salesCost - $repairsCost');
 
-    // LỢI NHUẬN RÒNG = DOANH THU - CHI PHÍ - GIÁ VỐN (ACCRUAL BASIS)
-    // Với accrual basis, lợi nhuận được tính ngay khi giao dịch xảy ra
-    // Không phụ thuộc vào việc thu tiền hay chưa
-    int profit = totalIn - totalOut - salesCost - repairsCost;
-    debugPrint('profit = $profit');
+      // LỢI NHUẬN RÒNG = DOANH THU - CHI PHÍ - GIÁ VỐN (ACCRUAL BASIS)
+      // Với accrual basis, lợi nhuận được tính ngay khi giao dịch xảy ra
+      // Không phụ thuộc vào việc thu tiền hay chưa
+      int profit = totalIn - totalOut - salesCost - repairsCost;
+      debugPrint('profit = $profit');
 
-    // Thống kê số lượng
-    doneT = fRepairs.length;
-    soldT = fSales.length;
+      // Thống kê số lượng
+      doneT = fRepairs.length;
+      soldT = fSales.length;
 
-    // Tính toán các số liệu khác
-    for (var r in repairs) {
-      if (_isSameDay(r.createdAt)) newRT++;
-      // Kiểm tra bảo hành sắp hết
-      if (r.deliveredAt != null &&
-          r.warranty.isNotEmpty &&
-          r.warranty != "KO BH") {
-        int m = int.tryParse(r.warranty.split(' ').first) ?? 0;
-        if (m > 0) {
-          DateTime d = DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!);
+      // Tính toán các số liệu khác
+      for (var r in repairs) {
+        if (_isSameDay(r.createdAt)) newRT++;
+        // Kiểm tra bảo hành sắp hết
+        if (r.deliveredAt != null &&
+            r.warranty.isNotEmpty &&
+            r.warranty != "KO BH") {
+          int m = int.tryParse(r.warranty.split(' ').first) ?? 0;
+          if (m > 0) {
+            DateTime d = DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!);
+            DateTime e = DateTime(d.year, d.month + m, d.day);
+            if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
+          }
+        }
+      }
+
+      // Kiểm tra bảo hành sắp hết cho sales
+      for (var s in sales) {
+        if (s.warranty.isNotEmpty && s.warranty != "KO BH") {
+          int m = int.tryParse(s.warranty.split(' ').first) ?? 12;
+          DateTime d = DateTime.fromMillisecondsSinceEpoch(s.soldAt);
           DateTime e = DateTime(d.year, d.month + m, d.day);
           if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
         }
       }
-    }
 
-    // Kiểm tra bảo hành sắp hết cho sales
-    for (var s in sales) {
-      if (s.warranty.isNotEmpty && s.warranty != "KO BH") {
-        int m = int.tryParse(s.warranty.split(' ').first) ?? 12;
-        DateTime d = DateTime.fromMillisecondsSinceEpoch(s.soldAt);
-        DateTime e = DateTime(d.year, d.month + m, d.day);
-        if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
+      // Tính tổng nợ còn lại (chỉ tính nợ chưa thanh toán hết và chưa hủy)
+      for (var d in debts) {
+        final status = d['status']?.toString().toUpperCase() ?? '';
+        // Bỏ qua nếu đã thanh toán hoặc đã hủy
+        if (status == 'PAID' || status == 'CANCELLED') continue;
+
+        final int totalAmount = (d['totalAmount'] ?? 0) as int;
+        final int paidAmount = (d['paidAmount'] ?? 0) as int;
+        final int remain = totalAmount - paidAmount;
+        if (remain > 0 && totalAmount > 0) debtR += remain;
       }
-    }
 
-    // Tính tổng nợ còn lại (chỉ tính nợ chưa thanh toán hết và chưa hủy)
-    for (var d in debts) {
-      final status = d['status']?.toString().toUpperCase() ?? '';
-      // Bỏ qua nếu đã thanh toán hoặc đã hủy
-      if (status == 'PAID' || status == 'CANCELLED') continue;
+      // Tính tổng số dữ liệu local (để biết máy mới hay không)
+      final products = await db.getAllProducts();
+      final totalRecords = repairs.length + sales.length + products.length;
 
-      final int totalAmount = (d['totalAmount'] ?? 0) as int;
-      final int paidAmount = (d['paidAmount'] ?? 0) as int;
-      final int remain = totalAmount - paidAmount;
-      if (remain > 0 && totalAmount > 0) debtR += remain;
-    }
+      // Load unread chat count và tin nhắn mới nhất TRƯỚC khi setState
+      final unread = await UserService.getUnreadChatCount(
+        FirebaseAuth.instance.currentUser!.uid,
+      );
+      final latestChat = await UserService.getLatestChatMessage();
 
-    // Tính tổng số dữ liệu local (để biết máy mới hay không)
-    final products = await db.getAllProducts();
-    final totalRecords = repairs.length + sales.length + products.length;
-
-    // Load unread chat count TRƯỚC khi setState để gộp 1 lần
-    final unread = await UserService.getUnreadChatCount(
-      FirebaseAuth.instance.currentUser!.uid,
-    );
-
-    if (mounted) {
-      setState(() {
-        totalPendingRepair = pendingR;
-        todayRepairDone = doneT;
-        todaySaleCount = soldT;
-        revenueToday = profit; // Keep for backward compatibility
-        todayNewRepairs = newRT;
-        todayExpense = totalOut;
-        totalDebtRemain = debtR;
-        expiringWarranties = expW;
-        // New accurate financial variables
-        _todayTotalIn = totalIn;
-        _todayTotalOut = totalOut;
-        _todayNetProfit = profit;
-        _todayRepairCount = fRepairs.length;
-        _todaySaleOrderCount = fSales.length;
-        _todayExpenseCount = fExpenses.length;
-        _totalLocalRecords = totalRecords; // Cập nhật tổng records
-        unreadChatCount = unread; // Gộp vào 1 setState
-        _rebuildCounter++;
-        // QUAN TRỌNG: Rebuild _tabWidgets để cập nhật các giá trị mới
-        // Các widget trong IndexedStack được cache nên cần tạo lại
-        _rebuildTabWidgets();
-      });
-    }
+      if (mounted) {
+        setState(() {
+          totalPendingRepair = pendingR;
+          todayRepairDone = doneT;
+          todaySaleCount = soldT;
+          revenueToday = profit; // Keep for backward compatibility
+          todayNewRepairs = newRT;
+          todayExpense = totalOut;
+          totalDebtRemain = debtR;
+          expiringWarranties = expW;
+          // New accurate financial variables
+          _todayTotalIn = totalIn;
+          _todayTotalOut = totalOut;
+          _todayNetProfit = profit;
+          _todayRepairCount = fRepairs.length;
+          _todaySaleOrderCount = fSales.length;
+          _todayExpenseCount = fExpenses.length;
+          _totalLocalRecords = totalRecords; // Cập nhật tổng records
+          unreadChatCount = unread; // Gộp vào 1 setState
+          // Cập nhật tin nhắn mới nhất
+          if (latestChat != null) {
+            _latestChatMessage = latestChat['message'] ?? '';
+            _latestChatSender = latestChat['senderName'] ?? '';
+          }
+          _rebuildCounter++;
+          // QUAN TRỌNG: Rebuild _tabWidgets để cập nhật các giá trị mới
+          // Các widget trong IndexedStack được cache nên cần tạo lại
+          _rebuildTabWidgets();
+        });
+      }
     } finally {
       _isLoadingStats = false;
     }
@@ -1665,6 +1682,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
           // LỜI CHÀO NGƯỜI DÙNG
           _buildGreetingCard(),
+
+          // CHAT NHÓM - ngay dưới lời chào, nổi bật với badge
+          _buildChatCard(),
 
           // TỔNG QUAN TÀI CHÍNH - Chỉ hiện cho owner/superadmin
           if (widget.role == 'owner' || _isSuperAdmin) ...[
@@ -2187,6 +2207,156 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
+  /// Chat card - hiển thị ngay dưới lời chào với badge tin nhắn chưa đọc
+  Widget _buildChatCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        elevation: 3,
+        color: Colors.cyan.shade50,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+          side: BorderSide(color: Colors.cyan.shade300, width: 1.5),
+        ),
+        child: InkWell(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AdvancedChatView()),
+          ),
+          borderRadius: BorderRadius.circular(15),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Icon với badge
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.cyan.shade400, Colors.cyan.shade600],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.chat_bubble_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    // Badge đỏ số tin nhắn chưa đọc
+                    if (unreadChatCount > 0)
+                      Positioned(
+                        right: -8,
+                        top: -8,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.red.withOpacity(0.4),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 24,
+                          ),
+                          child: Text(
+                            unreadChatCount > 99 ? '99+' : '$unreadChatCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                // Text content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            "CHAT NHÓM",
+                            style: TextStyle(
+                              color: Colors.cyan,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (unreadChatCount > 0) ...[
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '$unreadChatCount tin mới',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _latestChatMessage.isNotEmpty
+                            ? "${_latestChatSender.isNotEmpty ? '$_latestChatSender: ' : ''}${_latestChatMessage.length > 35 ? '${_latestChatMessage.substring(0, 35)}...' : _latestChatMessage}"
+                            : "Chưa có tin nhắn nào",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: unreadChatCount > 0
+                              ? Colors.cyan.shade700
+                              : Colors.grey.shade600,
+                          fontWeight: unreadChatCount > 0
+                              ? FontWeight.w500
+                              : FontWeight.normal,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                // Arrow
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 18,
+                  color: Colors.cyan.shade600,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Section header giống Settings View
   Widget _buildSectionHeader(String title) {
     return Padding(
@@ -2204,7 +2374,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   /// Hiển thị dialog hướng dẫn tính năng
-  void _showFeatureGuide(String title, String description, IconData icon, Color color) {
+  void _showFeatureGuide(
+    String title,
+    String description,
+    IconData icon,
+    Color color,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -2222,7 +2397,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             const SizedBox(width: 12),
             Text(
               title,
-              style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
             ),
           ],
         ),
@@ -2233,7 +2412,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('ĐÃ HIỂU', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+            child: Text(
+              'ĐÃ HIỂU',
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -2543,112 +2725,43 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         ),
         const SizedBox(height: 10),
 
-        // Row: Chat & Bảo hành
-        Row(
-          children: [
-            Expanded(
-              child: Card(
-                color: Colors.cyan.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  side: BorderSide(color: Colors.cyan.shade200),
-                ),
-                child: InkWell(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AdvancedChatView()),
-                  ),
-                  borderRadius: BorderRadius.circular(15),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Stack(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.cyan.shade100,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.chat,
-                                color: Colors.cyan,
-                                size: 28,
-                              ),
-                            ),
-                            // Badge số tin nhắn chưa đọc - đã ẩn theo yêu cầu
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          "CHAT",
-                          style: TextStyle(
-                            color: Colors.cyan,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const Text(
-                          "Nhóm shop",
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+        // BẢO HÀNH
+        Card(
+          color: Colors.amber.shade50,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+            side: BorderSide(color: Colors.amber.shade200),
+          ),
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.shield, color: Colors.amber.shade800, size: 24),
+            ),
+            title: Text(
+              "BẢO HÀNH",
+              style: TextStyle(
+                color: Colors.amber.shade800,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Card(
-                color: Colors.amber.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  side: BorderSide(color: Colors.amber.shade200),
-                ),
-                child: InkWell(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const WarrantyView()),
-                  ),
-                  borderRadius: BorderRadius.circular(15),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.shield,
-                            color: Colors.amber,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          "BẢO HÀNH",
-                          style: TextStyle(
-                            color: Colors.amber.shade800,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const Text(
-                          "Tra cứu nhanh",
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+            subtitle: const Text(
+              "Tra cứu bảo hành nhanh",
+              style: TextStyle(fontSize: 11),
             ),
-          ],
+            trailing: const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Colors.amber,
+            ),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WarrantyView()),
+            ),
+          ),
         ),
       ],
     );
@@ -3035,7 +3148,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 const SizedBox(width: 4),
                 Text(
                   'Nhấn giữ để xem hướng dẫn chi tiết',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ],
             ),
@@ -3060,10 +3177,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     onLongPress: () => _showFeatureGuide(
                       'NHẬP MỚI',
                       'Nhập hàng vào kho với đầy đủ thông tin:\n\n'
-                      '✅ Hỗ trợ: Điện thoại, Phụ kiện, Linh kiện\n'
-                      '✅ Lưu tạm: Nhập khi chưa có đầy đủ thông tin\n'
-                      '✅ Xác nhận: Hàng chính thức vào kho\n\n'
-                      '📌 Dùng khi: Nhập hàng mới từ NCC, cần ghi đầy đủ IMEI/SKU, giá vốn, NCC...',
+                          '✅ Hỗ trợ: Điện thoại, Phụ kiện, Linh kiện\n'
+                          '✅ Lưu tạm: Nhập khi chưa có đầy đủ thông tin\n'
+                          '✅ Xác nhận: Hàng chính thức vào kho\n\n'
+                          '📌 Dùng khi: Nhập hàng mới từ NCC, cần ghi đầy đủ IMEI/SKU, giá vốn, NCC...',
                       Icons.add_box,
                       Colors.green,
                     ),
@@ -3095,7 +3212,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                           Text(
                             "Đầy đủ thông tin",
-                            style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
                         ],
                       ),
@@ -3122,10 +3242,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     onLongPress: () => _showFeatureGuide(
                       'NHẬP NHANH',
                       'Nhập hàng siêu tốc - chỉ cần quét mã:\n\n'
-                      '⚡ Quét barcode/QR liên tục\n'
-                      '⚡ Tự động điền thông tin từ thư viện\n'
-                      '⚡ Phù hợp nhập số lượng lớn\n\n'
-                      '📌 Dùng khi: Nhập nhanh phụ kiện, linh kiện đã có sẵn mã trong hệ thống.',
+                          '⚡ Quét barcode/QR liên tục\n'
+                          '⚡ Tự động điền thông tin từ thư viện\n'
+                          '⚡ Phù hợp nhập số lượng lớn\n\n'
+                          '📌 Dùng khi: Nhập nhanh phụ kiện, linh kiện đã có sẵn mã trong hệ thống.',
                       Icons.flash_on,
                       Colors.orange,
                     ),
@@ -3157,7 +3277,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                           Text(
                             "Quét mã liên tục",
-                            style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
                         ],
                       ),
@@ -3183,10 +3306,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     onLongPress: () => _showFeatureGuide(
                       'KIỂM KHO',
                       'Kiểm tra tồn kho bằng quét mã:\n\n'
-                      '🔍 Quét QR/Barcode để kiểm hàng\n'
-                      '🔍 So sánh số lượng thực tế vs hệ thống\n'
-                      '🔍 Ghi nhận chênh lệch\n\n'
-                      '📌 Dùng khi: Kiểm kê định kỳ, đối chiếu hàng tồn.',
+                          '🔍 Quét QR/Barcode để kiểm hàng\n'
+                          '🔍 So sánh số lượng thực tế vs hệ thống\n'
+                          '🔍 Ghi nhận chênh lệch\n\n'
+                          '📌 Dùng khi: Kiểm kê định kỳ, đối chiếu hàng tồn.',
                       Icons.qr_code_scanner,
                       Colors.purple,
                     ),
@@ -3218,7 +3341,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                           Text(
                             "Đối chiếu tồn kho",
-                            style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade600,
+                            ),
                           ),
                         ],
                       ),
@@ -3376,8 +3502,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   MaterialPageRoute(builder: (_) => const StaffListView()),
                 ),
               ),
-              _staffQuickCard(
-                "Hiệu suất\nLàm việc",
+              _staffQuickCardWithHelp(
+                "LƯƠNG\nTính lương",
                 Icons.bar_chart,
                 Colors.orange,
                 () => Navigator.push(
@@ -3386,6 +3512,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     builder: (_) => const StaffPerformanceView(),
                   ),
                 ),
+                _showSalaryHelpDialog,
               ),
               _staffQuickCard(
                 "Lịch làm\nViệc",
@@ -3404,7 +3531,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 Colors.green,
                 () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const HRSalarySettingsView()),
+                  MaterialPageRoute(
+                    builder: (_) => const HRSalarySettingsView(),
+                  ),
                 ),
               ),
             ],
@@ -3418,7 +3547,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             Colors.teal,
             () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const AttendanceManagementView()),
+              MaterialPageRoute(
+                builder: (_) => const AttendanceManagementView(),
+              ),
             ),
             subtitle: "Xem chấm công tất cả nhân viên theo ngày/tháng.",
           ),
@@ -3488,6 +3619,237 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Card với nút help cho LƯƠNG Tính lương
+  Widget _staffQuickCardWithHelp(
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+    VoidCallback onHelpTap,
+  ) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            gradient: LinearGradient(
+              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Stack(
+            children: [
+              // Nút Help ở góc trên phải
+              Positioned(
+                right: -4,
+                top: -4,
+                child: IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: color.withOpacity(0.3), blurRadius: 4),
+                      ],
+                    ),
+                    child: Icon(Icons.help_outline, color: color, size: 16),
+                  ),
+                  onPressed: onHelpTap,
+                  tooltip: 'Hướng dẫn sử dụng',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ),
+              // Nội dung chính
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: color, size: 24),
+                  ),
+                  const SizedBox(height: 6),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: color.withOpacity(0.9),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Hiển thị popup hướng dẫn sử dụng LƯƠNG Tính lương
+  void _showSalaryHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.bar_chart,
+                color: Colors.orange,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'HƯỚNG DẪN TÍNH LƯƠNG',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildHelpSection(
+                '📋 Truy cập bảng lương',
+                'Vào tab Nhân sự → Nhấn "LƯƠNG Tính lương" để xem bảng lương toàn bộ nhân viên.',
+                Colors.blue,
+              ),
+              _buildHelpSection(
+                '⚙️ Cài đặt lương',
+                '• Cài đặt mặc định: Icon ⚙️ → Tab "MẶC ĐỊNH"\n'
+                    '• Cài đặt riêng: Tab "NHÂN VIÊN" → Chọn NV → "Cài đặt riêng"',
+                Colors.green,
+              ),
+              _buildHelpSection(
+                '💰 Các thành phần lương',
+                '• Lương cơ bản (tháng/ngày/giờ)\n'
+                    '• Hoa hồng bán hàng (% hoặc cố định)\n'
+                    '• Hoa hồng sửa chữa\n'
+                    '• Phụ cấp (đi lại, ăn trưa, điện thoại...)\n'
+                    '• Tăng ca OT (hệ số 150%, 200%...)',
+                Colors.orange,
+              ),
+              _buildHelpSection(
+                '📊 Xem chi tiết',
+                'Nhấn vào tên nhân viên để xem:\n'
+                    '• THU NHẬP: Lương + Hoa hồng + Phụ cấp + Thưởng + OT\n'
+                    '• KHẤU TRỪ: Thuế TNCN + BHXH + BHYT + BHTN\n'
+                    '• THỰC LĨNH: Tổng thu nhập - Tổng khấu trừ',
+                Colors.purple,
+              ),
+              _buildHelpSection(
+                '🖨️ In phiếu lương',
+                '• In tổng hợp: Icon 🖨️ → "In bảng lương tổng hợp"\n'
+                    '• In cá nhân: Mở chi tiết NV → "In phiếu lương"',
+                Colors.teal,
+              ),
+              _buildHelpSection(
+                '💵 Thuế & Bảo hiểm',
+                'Icon 💳 "Cài đặt Khấu trừ/Thuế":\n'
+                    '• Giảm trừ cá nhân: 11 triệu\n'
+                    '• BHXH 8%, BHYT 1.5%, BHTN 1%',
+                Colors.red,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'ĐÃ HIỂU',
+              style: TextStyle(
+                color: Colors.orange,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const StaffPerformanceView()),
+              );
+            },
+            icon: const Icon(Icons.arrow_forward, size: 16),
+            label: const Text('ĐI ĐẾN BẢNG LƯƠNG'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Widget cho mỗi section trong help dialog
+  Widget _buildHelpSection(String title, String content, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              content,
+              style: const TextStyle(fontSize: 12, height: 1.4),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3596,9 +3958,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   Colors.orange,
                   () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const DebtView(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const DebtView()),
                   ),
                 ),
                 _financeQuickCard(
@@ -3675,7 +4035,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               Colors.indigo,
               () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const FinancialActivityLogView()),
+                MaterialPageRoute(
+                  builder: (_) => const FinancialActivityLogView(),
+                ),
               ),
               subtitle: "Theo dõi mọi hoạt động thu chi.",
             ),

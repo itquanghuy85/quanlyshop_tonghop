@@ -30,7 +30,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   final ScrollController _scrollCtrl = ScrollController();
   final FocusNode _focusNode = FocusNode();
   final DBHelper _db = DBHelper();
-  
+
   // State
   bool _isLoading = true;
   bool _isSending = false;
@@ -38,23 +38,32 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   List<ChatMessage> _pinnedMessages = [];
   List<TypingUser> _typingUsers = [];
   List<OnlineUser> _onlineUsers = [];
-  
+
   // Reply state
   ChatMessage? _replyingTo;
-  
+
   // Search state
   bool _isSearching = false;
   String _searchQuery = '';
   List<ChatMessage> _searchResults = [];
-  
+
   // Subscriptions
   StreamSubscription? _messagesSubscription;
   StreamSubscription? _pinnedSubscription;
   StreamSubscription? _typingSubscription;
   StreamSubscription? _onlineSubscription;
-  
+
   // Emoji reactions
-  final List<String> _reactions = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+  final List<String> _reactions = [
+    '👍',
+    '❤️',
+    '😂',
+    '😮',
+    '😢',
+    '🔥',
+    '👏',
+    '🎉',
+  ];
 
   @override
   void initState() {
@@ -90,12 +99,20 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
 
   void _initChat() async {
     setState(() => _isLoading = true);
-    
+
     // Set online
     await ChatService.setOnlineStatus(true);
-    
+
+    // Mark all chat as read for this user (for badge count)
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      await UserService.markChatAsRead(uid);
+    }
+
     // Subscribe to messages
-    _messagesSubscription = ChatService.messagesStream(limit: 100).listen((messages) {
+    _messagesSubscription = ChatService.messagesStream(limit: 100).listen((
+      messages,
+    ) {
       if (mounted) {
         setState(() {
           _messages = messages;
@@ -107,17 +124,17 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
         }
       }
     });
-    
+
     // Subscribe to pinned
     _pinnedSubscription = ChatService.pinnedMessagesStream().listen((pinned) {
       if (mounted) setState(() => _pinnedMessages = pinned);
     });
-    
+
     // Subscribe to typing
     _typingSubscription = ChatService.typingUsersStream().listen((users) {
       if (mounted) setState(() => _typingUsers = users);
     });
-    
+
     // Subscribe to online users
     _onlineSubscription = ChatService.onlineUsersStream().listen((users) {
       if (mounted) setState(() => _onlineUsers = users);
@@ -133,9 +150,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   Future<void> _sendMessage() async {
     final text = _msgCtrl.text.trim();
     if (text.isEmpty || _isSending) return;
-    
+
     setState(() => _isSending = true);
-    
+
     try {
       await ChatService.sendTextMessage(
         message: text,
@@ -143,7 +160,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
         replyToMessage: _replyingTo?.message,
         replyToSender: _replyingTo?.senderName,
       );
-      
+
       _msgCtrl.clear();
       _cancelReply();
       _scrollToBottom();
@@ -177,14 +194,14 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     try {
       final picker = ImagePicker();
       final images = await picker.pickMultiImage(imageQuality: 70);
-      
+
       if (images.isEmpty) return;
-      
+
       setState(() => _isSending = true);
-      
+
       final files = images.map((xfile) => File(xfile.path)).toList();
       await ChatService.sendImageMessage(images: files);
-      
+
       _scrollToBottom();
     } catch (e) {
       _showError('Không thể gửi hình ảnh');
@@ -196,7 +213,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   Future<void> _showReactionPicker(ChatMessage message) async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null || message.id == null) return;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -209,7 +226,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Chọn biểu cảm', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              'Chọn biểu cảm',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 16),
             Wrap(
               spacing: 12,
@@ -224,9 +244,13 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: hasReacted ? Colors.blue.shade50 : Colors.grey.shade100,
+                      color: hasReacted
+                          ? Colors.blue.shade50
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(12),
-                      border: hasReacted ? Border.all(color: Colors.blue, width: 2) : null,
+                      border: hasReacted
+                          ? Border.all(color: Colors.blue, width: 2)
+                          : null,
                     ),
                     child: Text(emoji, style: const TextStyle(fontSize: 28)),
                   ),
@@ -243,7 +267,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   void _showMessageActions(ChatMessage message) {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     final isOwner = message.senderId == userId;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -342,7 +366,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
 
   void _showEditDialog(ChatMessage message) {
     final editCtrl = TextEditingController(text: message.message);
-    
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -428,7 +452,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                     const SizedBox(height: 16),
                     const Text(
                       'Gim đơn hàng vào chat',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -442,10 +469,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               ),
               Expanded(
                 child: TabBarView(
-                  children: [
-                    _buildRepairList(),
-                    _buildSaleList(),
-                  ],
+                  children: [_buildRepairList(), _buildSaleList()],
                 ),
               ),
             ],
@@ -477,9 +501,22 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                   backgroundColor: _getStatusColor(r.status),
                   child: const Icon(Icons.build, color: Colors.white, size: 20),
                 ),
-                title: Text(r.customerName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('${r.model} - ${r.issue}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: Text(_getStatusText(r.status), style: TextStyle(color: _getStatusColor(r.status), fontSize: 12)),
+                title: Text(
+                  r.customerName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  '${r.model} - ${r.issue}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Text(
+                  _getStatusText(r.status),
+                  style: TextStyle(
+                    color: _getStatusColor(r.status),
+                    fontSize: 12,
+                  ),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _pinRepairOrder(r);
@@ -512,13 +549,27 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               child: ListTile(
                 leading: CircleAvatar(
                   backgroundColor: Colors.green,
-                  child: const Icon(Icons.shopping_cart, color: Colors.white, size: 20),
+                  child: const Icon(
+                    Icons.shopping_cart,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
-                title: Text(s.customerName ?? 'Khách lẻ', style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text(s.productNames ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  s.customerName ?? 'Khách lẻ',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  s.productNames ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 trailing: Text(
                   NumberFormat.compact(locale: 'vi').format(s.totalPrice),
-                  style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -533,7 +584,8 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   }
 
   Future<void> _pinRepairOrder(Repair repair) async {
-    final message = '''
+    final message =
+        '''
 🛠️ ĐƠN SỬA CHỮA #${repair.id}
 👤 ${repair.customerName} - 📱 ${repair.phone}
 📲 ${repair.model}
@@ -547,12 +599,13 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       linkedKey: repair.firestoreId ?? repair.id.toString(),
       linkedSummary: 'Đơn #${repair.id} - ${repair.customerName}',
     );
-    
+
     _scrollToBottom();
   }
 
   Future<void> _pinSaleOrder(SaleOrder sale) async {
-    final message = '''
+    final message =
+        '''
 🛒 ĐƠN BÁN HÀNG
 👤 ${sale.customerName ?? 'Khách lẻ'} - 📱 ${sale.phone ?? 'N/A'}
 📦 ${sale.productNames}
@@ -563,9 +616,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       message: message,
       linkedType: 'sale',
       linkedKey: sale.firestoreId ?? 'sale_${sale.soldAt}',
-      linkedSummary: '${sale.customerName ?? 'Khách lẻ'} - ${NumberFormat.compact(locale: 'vi').format(sale.totalPrice)}đ',
+      linkedSummary:
+          '${sale.customerName ?? 'Khách lẻ'} - ${NumberFormat.compact(locale: 'vi').format(sale.totalPrice)}đ',
     );
-    
+
     _scrollToBottom();
   }
 
@@ -584,7 +638,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       setState(() => _searchResults = []);
       return;
     }
-    
+
     final results = await ChatService.searchMessages(query);
     if (mounted) setState(() => _searchResults = results);
   }
@@ -605,21 +659,31 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
 
   Color _getStatusColor(int status) {
     switch (status) {
-      case 1: return Colors.blue;
-      case 2: return Colors.orange;
-      case 3: return Colors.green;
-      case 4: return Colors.purple;
-      default: return Colors.grey;
+      case 1:
+        return Colors.blue;
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.green;
+      case 4:
+        return Colors.purple;
+      default:
+        return Colors.grey;
     }
   }
 
   String _getStatusText(int status) {
     switch (status) {
-      case 1: return 'Đã nhận';
-      case 2: return 'Đang sửa';
-      case 3: return 'Xong';
-      case 4: return 'Đã giao';
-      default: return '?';
+      case 1:
+        return 'Đã nhận';
+      case 2:
+        return 'Đang sửa';
+      case 3:
+        return 'Xong';
+      case 4:
+        return 'Đã giao';
+      default:
+        return '?';
     }
   }
 
@@ -632,25 +696,25 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
         children: [
           // Pinned messages
           if (_pinnedMessages.isNotEmpty) _buildPinnedSection(),
-          
+
           // Online users indicator
           if (_onlineUsers.isNotEmpty) _buildOnlineIndicator(),
-          
+
           // Messages list
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _isSearching && _searchResults.isNotEmpty
-                    ? _buildSearchResults()
-                    : _buildMessagesList(),
+                ? _buildSearchResults()
+                : _buildMessagesList(),
           ),
-          
+
           // Typing indicator
           if (_typingUsers.isNotEmpty) _buildTypingIndicator(),
-          
+
           // Reply preview
           if (_replyingTo != null) _buildReplyPreview(),
-          
+
           // Input area
           _buildInputArea(),
         ],
@@ -674,14 +738,24 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               ),
               child: TextField(
                 autofocus: true,
-                style: const TextStyle(color: CustomAppBar.kTextPrimary, fontSize: 15),
+                style: const TextStyle(
+                  color: CustomAppBar.kTextPrimary,
+                  fontSize: 15,
+                ),
                 cursorColor: AppBarAccents.chat,
                 decoration: InputDecoration(
                   hintText: 'Tìm tin nhắn...',
                   hintStyle: TextStyle(color: Colors.grey.shade500),
-                  prefixIcon: Icon(Icons.search, color: AppBarAccents.chat, size: 20),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: AppBarAccents.chat,
+                    size: 20,
+                  ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                 ),
                 onChanged: _search,
               ),
@@ -689,17 +763,32 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Chat nội bộ', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: CustomAppBar.kTextPrimary)),
+                const Text(
+                  'Chat nội bộ',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: CustomAppBar.kTextPrimary,
+                  ),
+                ),
                 if (_onlineUsers.isNotEmpty)
                   Text(
                     '${_onlineUsers.length} người online',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: AppBarAccents.chat),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: AppBarAccents.chat,
+                    ),
                   ),
               ],
             ),
       actions: [
         IconButton(
-          icon: Icon(_isSearching ? Icons.close : Icons.search_rounded, size: 22, color: AppBarAccents.chat),
+          icon: Icon(
+            _isSearching ? Icons.close : Icons.search_rounded,
+            size: 22,
+            color: AppBarAccents.chat,
+          ),
           onPressed: _toggleSearch,
           splashRadius: 20,
         ),
@@ -718,7 +807,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
             }
           },
           itemBuilder: (ctx) => [
-            const PopupMenuItem(value: 'markRead', child: Text('Đánh dấu đã đọc')),
+            const PopupMenuItem(
+              value: 'markRead',
+              child: Text('Đánh dấu đã đọc'),
+            ),
             const PopupMenuItem(value: 'pinned', child: Text('Tin ghim')),
           ],
         ),
@@ -775,7 +867,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                 children: [
                   const Icon(Icons.push_pin, color: Colors.amber),
                   const SizedBox(width: 8),
-                  const Text('Tin nhắn đã ghim', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Tin nhắn đã ghim',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -788,7 +883,8 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               child: ListView.builder(
                 padding: const EdgeInsets.all(12),
                 itemCount: _pinnedMessages.length,
-                itemBuilder: (ctx, i) => _buildMessageBubble(_pinnedMessages[i]),
+                itemBuilder: (ctx, i) =>
+                    _buildMessageBubble(_pinnedMessages[i]),
               ),
             ),
           ],
@@ -831,16 +927,26 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey.shade300),
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 80,
+              color: Colors.grey.shade300,
+            ),
             const SizedBox(height: 16),
-            Text('Chưa có tin nhắn', style: TextStyle(color: Colors.grey.shade500)),
+            Text(
+              'Chưa có tin nhắn',
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
             const SizedBox(height: 8),
-            Text('Hãy gửi tin nhắn đầu tiên!', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+            Text(
+              'Hãy gửi tin nhắn đầu tiên!',
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+            ),
           ],
         ),
       );
     }
-    
+
     return ListView.builder(
       controller: _scrollCtrl,
       reverse: true,
@@ -862,15 +968,17 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     final userId = FirebaseAuth.instance.currentUser?.uid;
     final isMe = message.senderId == userId;
     final isSystem = message.messageType == 'system';
-    
+
     if (isSystem) {
       return _buildSystemMessage(message);
     }
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
-        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isMe
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           // Reply preview
           if (message.replyToMessage != null)
@@ -891,7 +999,11 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                 children: [
                   Text(
                     message.replyToSender ?? '',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
                   ),
                   Text(
                     message.replyToMessage!,
@@ -902,13 +1014,15 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                 ],
               ),
             ),
-          
+
           // Message bubble
           GestureDetector(
             onLongPress: () => _showMessageActions(message),
             onDoubleTap: () => _showReactionPicker(message),
             child: Container(
-              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.75,
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: isMe ? const Color(0xFF2962FF) : Colors.white,
@@ -939,12 +1053,15 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                         color: Colors.blue.shade700,
                       ),
                     ),
-                  
+
                   // Priority indicator
                   if (message.priority > 0)
                     Container(
                       margin: const EdgeInsets.only(bottom: 4),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Color(message.priorityColor).withAlpha(30),
                         borderRadius: BorderRadius.circular(4),
@@ -958,32 +1075,39 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                         ),
                       ),
                     ),
-                  
+
                   // Message content
                   Text(
                     message.isDeleted ? message.message : message.message,
                     style: TextStyle(
                       color: isMe ? Colors.white : Colors.black87,
-                      fontStyle: message.isDeleted ? FontStyle.italic : FontStyle.normal,
+                      fontStyle: message.isDeleted
+                          ? FontStyle.italic
+                          : FontStyle.normal,
                     ),
                   ),
-                  
+
                   // Linked order
-                  if (message.linkedType != null && message.linkedSummary != null)
+                  if (message.linkedType != null &&
+                      message.linkedSummary != null)
                     GestureDetector(
                       onTap: () => _openLinkedOrder(message),
                       child: Container(
                         margin: const EdgeInsets.only(top: 8),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: isMe ? Colors.white.withAlpha(30) : Colors.grey.shade100,
+                          color: isMe
+                              ? Colors.white.withAlpha(30)
+                              : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              message.linkedType == 'repair' ? Icons.build : Icons.shopping_cart,
+                              message.linkedType == 'repair'
+                                  ? Icons.build
+                                  : Icons.shopping_cart,
                               size: 16,
                               color: isMe ? Colors.white70 : Colors.blue,
                             ),
@@ -1008,9 +1132,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                         ),
                       ),
                     ),
-                  
+
                   // Images
-                  if (message.mediaUrls != null && message.mediaUrls!.isNotEmpty)
+                  if (message.mediaUrls != null &&
+                      message.mediaUrls!.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Wrap(
@@ -1030,7 +1155,11 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                                   width: 150,
                                   height: 150,
                                   color: Colors.grey.shade200,
-                                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
                                 );
                               },
                             ),
@@ -1038,7 +1167,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                         }).toList(),
                       ),
                     ),
-                  
+
                   // Footer: time + edited + pin
                   const SizedBox(height: 4),
                   Row(
@@ -1076,7 +1205,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               ),
             ),
           ),
-          
+
           // Reactions
           if (message.totalReactions > 0)
             Container(
@@ -1089,33 +1218,38 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                 spacing: 4,
                 children: message.reactions!.entries
                     .where((e) => e.value.isNotEmpty)
-                    .map((e) => GestureDetector(
-                          onTap: () {
-                            if (message.id != null && userId != null) {
-                              ChatService.toggleReaction(
-                                message.id!,
-                                e.key,
-                                e.value.contains(userId),
-                              );
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: e.value.contains(userId)
-                                  ? Colors.blue.shade50
-                                  : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                              border: e.value.contains(userId)
-                                  ? Border.all(color: Colors.blue.shade200)
-                                  : null,
-                            ),
-                            child: Text(
-                              '${e.key} ${e.value.length}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
+                    .map(
+                      (e) => GestureDetector(
+                        onTap: () {
+                          if (message.id != null && userId != null) {
+                            ChatService.toggleReaction(
+                              message.id!,
+                              e.key,
+                              e.value.contains(userId),
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
                           ),
-                        ))
+                          decoration: BoxDecoration(
+                            color: e.value.contains(userId)
+                                ? Colors.blue.shade50
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: e.value.contains(userId)
+                                ? Border.all(color: Colors.blue.shade200)
+                                : null,
+                          ),
+                          child: Text(
+                            '${e.key} ${e.value.length}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
             ),
@@ -1143,17 +1277,23 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
 
   Future<void> _openLinkedOrder(ChatMessage message) async {
     if (message.linkedType == null || message.linkedKey == null) return;
-    
+
     try {
       if (message.linkedType == 'repair') {
         final repair = await _db.getRepairByFirestoreId(message.linkedKey!);
         if (repair != null && mounted) {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => RepairDetailView(repair: repair)));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => RepairDetailView(repair: repair)),
+          );
         }
       } else if (message.linkedType == 'sale') {
         final sale = await _db.getSaleByFirestoreId(message.linkedKey!);
         if (sale != null && mounted) {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => SaleDetailView(sale: sale)));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => SaleDetailView(sale: sale)),
+          );
         }
       }
     } catch (e) {
@@ -1166,15 +1306,15 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          SizedBox(
-            width: 24,
-            height: 16,
-            child: _TypingDots(),
-          ),
+          SizedBox(width: 24, height: 16, child: _TypingDots()),
           const SizedBox(width: 8),
           Text(
             '${_typingUsers.map((u) => u.userName).join(', ')} đang nhập...',
-            style: const TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ],
       ),
@@ -1205,7 +1345,11 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               children: [
                 Text(
                   'Trả lời ${_replyingTo!.senderName}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
                 ),
                 Text(
                   _replyingTo!.message,
@@ -1247,14 +1391,14 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               onPressed: _isSending ? null : _pickAndSendImage,
               tooltip: 'Gửi hình ảnh',
             ),
-            
+
             // Pin order button
             IconButton(
               icon: const Icon(Icons.attach_file, color: Colors.orange),
               onPressed: _showPinOrderDialog,
               tooltip: 'Gim đơn hàng',
             ),
-            
+
             // Text field
             Expanded(
               child: Container(
@@ -1273,14 +1417,17 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                     hintText: 'Nhập tin nhắn...',
                     hintStyle: TextStyle(color: Colors.grey.shade500),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                   ),
                 ),
               ),
             ),
-            
+
             const SizedBox(width: 8),
-            
+
             // Send button
             Container(
               decoration: const BoxDecoration(
@@ -1314,7 +1461,8 @@ class _TypingDots extends StatefulWidget {
   State<_TypingDots> createState() => _TypingDotsState();
 }
 
-class _TypingDotsState extends State<_TypingDots> with TickerProviderStateMixin {
+class _TypingDotsState extends State<_TypingDots>
+    with TickerProviderStateMixin {
   late List<AnimationController> _controllers;
   late List<Animation<double>> _animations;
 
@@ -1327,14 +1475,14 @@ class _TypingDotsState extends State<_TypingDots> with TickerProviderStateMixin 
         duration: const Duration(milliseconds: 400),
       );
     });
-    
+
     _animations = _controllers.map((c) {
-      return Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(
-        parent: c,
-        curve: Curves.easeInOut,
-      ));
+      return Tween<double>(
+        begin: 0,
+        end: 1,
+      ).animate(CurvedAnimation(parent: c, curve: Curves.easeInOut));
     }).toList();
-    
+
     _startAnimation();
   }
 

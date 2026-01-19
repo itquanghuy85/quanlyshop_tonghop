@@ -721,6 +721,7 @@ function getAndroidPriority(type) {
   switch (type) {
     case 'new_order':
     case 'payment':
+    case 'chat':
       return 'high';
     case 'inventory':
     case 'staff':
@@ -741,6 +742,8 @@ function getChannelId(type) {
       return 'inventory_channel';
     case 'staff':
       return 'staff_channel';
+    case 'chat':
+      return 'chat_channel';
     case 'system':
     default:
       return 'system_channel';
@@ -758,6 +761,8 @@ function getAllowedRolesForNotificationType(type) {
       return ['admin', 'owner', 'manager', 'technician'];
     case 'staff':
       return ['admin', 'owner', 'manager'];
+    case 'chat':
+      return ['admin', 'owner', 'manager', 'employee', 'technician', 'user'];
     case 'system':
     default:
       return ['admin', 'owner', 'manager', 'employee', 'technician', 'user'];

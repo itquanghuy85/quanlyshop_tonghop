@@ -6,16 +6,17 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import '../models/chat_message_model.dart';
 import 'user_service.dart';
+import 'notification_service.dart';
 
 /// Service quản lý Chat nâng cao với đầy đủ tính năng
 class ChatService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static final FirebaseStorage _storage = FirebaseStorage.instance;
-  
+
   static const String _collectionChats = 'chats';
   static const String _collectionTyping = 'chat_typing';
   static const String _collectionOnline = 'chat_online';
-  
+
   // Typing debounce
   static Timer? _typingTimer;
   static bool _isTyping = false;
@@ -34,12 +35,12 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return null;
-      
+
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return null;
-      
+
       final userName = user.email?.split('@').first.toUpperCase() ?? 'USER';
-      
+
       final chatMessage = ChatMessage(
         shopId: shopId,
         senderId: user.uid,
@@ -54,12 +55,21 @@ class ChatService {
         createdAt: DateTime.now(),
         priority: priority,
       );
-      
-      final docRef = await _db.collection(_collectionChats).add(chatMessage.toMap());
-      
+
+      final docRef = await _db
+          .collection(_collectionChats)
+          .add(chatMessage.toMap());
+
       // Stop typing indicator
       await setTypingStatus(false);
-      
+
+      // Send push notification to shop members
+      await NotificationService.sendCloudNotification(
+        title: '💬 $userName',
+        body: message.length > 50 ? '${message.substring(0, 50)}...' : message,
+        type: 'chat',
+      );
+
       debugPrint('📨 Chat: Sent message ${docRef.id}');
       return docRef.id;
     } catch (e) {
@@ -79,12 +89,12 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return null;
-      
+
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return null;
-      
+
       final userName = user.email?.split('@').first.toUpperCase() ?? 'USER';
-      
+
       final chatMessage = ChatMessage(
         shopId: shopId,
         senderId: user.uid,
@@ -98,8 +108,10 @@ class ChatService {
         readBy: [user.uid],
         createdAt: DateTime.now(),
       );
-      
-      final docRef = await _db.collection(_collectionChats).add(chatMessage.toMap());
+
+      final docRef = await _db
+          .collection(_collectionChats)
+          .add(chatMessage.toMap());
       return docRef.id;
     } catch (e) {
       debugPrint('❌ Chat sendLinkedMessage error: $e');
@@ -115,7 +127,7 @@ class ChatService {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return null;
-      
+
       final chatMessage = ChatMessage(
         shopId: shopId,
         senderId: 'system',
@@ -126,8 +138,10 @@ class ChatService {
         createdAt: DateTime.now(),
         priority: priority,
       );
-      
-      final docRef = await _db.collection(_collectionChats).add(chatMessage.toMap());
+
+      final docRef = await _db
+          .collection(_collectionChats)
+          .add(chatMessage.toMap());
       return docRef.id;
     } catch (e) {
       debugPrint('❌ Chat sendSystemMessage error: $e');
@@ -143,22 +157,23 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return null;
-      
+
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return null;
-      
+
       final userName = user.email?.split('@').first.toUpperCase() ?? 'USER';
-      
+
       // Upload images
       final List<String> urls = [];
       for (final image in images) {
-        final fileName = 'chat_${DateTime.now().millisecondsSinceEpoch}_${urls.length}.jpg';
+        final fileName =
+            'chat_${DateTime.now().millisecondsSinceEpoch}_${urls.length}.jpg';
         final ref = _storage.ref().child('chat_images/$shopId/$fileName');
         await ref.putFile(image);
         final url = await ref.getDownloadURL();
         urls.add(url);
       }
-      
+
       final chatMessage = ChatMessage(
         shopId: shopId,
         senderId: user.uid,
@@ -169,8 +184,10 @@ class ChatService {
         readBy: [user.uid],
         createdAt: DateTime.now(),
       );
-      
-      final docRef = await _db.collection(_collectionChats).add(chatMessage.toMap());
+
+      final docRef = await _db
+          .collection(_collectionChats)
+          .add(chatMessage.toMap());
       return docRef.id;
     } catch (e) {
       debugPrint('❌ Chat sendImageMessage error: $e');
@@ -185,11 +202,11 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
-      
+
       await _db.collection(_collectionChats).doc(messageId).update({
         'reactions.$emoji': FieldValue.arrayUnion([user.uid]),
       });
-      
+
       debugPrint('👍 Chat: Added reaction $emoji to $messageId');
       return true;
     } catch (e) {
@@ -203,11 +220,11 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
-      
+
       await _db.collection(_collectionChats).doc(messageId).update({
         'reactions.$emoji': FieldValue.arrayRemove([user.uid]),
       });
-      
+
       return true;
     } catch (e) {
       debugPrint('❌ Chat removeReaction error: $e');
@@ -216,7 +233,11 @@ class ChatService {
   }
 
   /// Toggle reaction
-  static Future<bool> toggleReaction(String messageId, String emoji, bool hasReacted) async {
+  static Future<bool> toggleReaction(
+    String messageId,
+    String emoji,
+    bool hasReacted,
+  ) async {
     if (hasReacted) {
       return removeReaction(messageId, emoji);
     } else {
@@ -229,20 +250,20 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
-      
+
       // Verify ownership
       final doc = await _db.collection(_collectionChats).doc(messageId).get();
       if (doc.data()?['senderId'] != user.uid) {
         debugPrint('❌ Chat: Cannot edit - not owner');
         return false;
       }
-      
+
       await _db.collection(_collectionChats).doc(messageId).update({
         'message': newMessage,
         'isEdited': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       return true;
     } catch (e) {
       debugPrint('❌ Chat editMessage error: $e');
@@ -255,23 +276,23 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
-      
+
       // Verify ownership or admin
       final doc = await _db.collection(_collectionChats).doc(messageId).get();
       final isOwner = doc.data()?['senderId'] == user.uid;
       final isAdmin = await UserService.isCurrentUserAdmin();
-      
+
       if (!isOwner && !isAdmin) {
         debugPrint('❌ Chat: Cannot delete - not owner or admin');
         return false;
       }
-      
+
       await _db.collection(_collectionChats).doc(messageId).update({
         'isDeleted': true,
         'message': '🗑️ Tin nhắn đã bị xóa',
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       return true;
     } catch (e) {
       debugPrint('❌ Chat deleteMessage error: $e');
@@ -298,7 +319,7 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-      
+
       await _db.collection(_collectionChats).doc(messageId).update({
         'readBy': FieldValue.arrayUnion([user.uid]),
       });
@@ -312,21 +333,23 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-      
+
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return;
-      
+
       // Get unread messages
-      final unread = await _db.collection(_collectionChats)
+      final unread = await _db
+          .collection(_collectionChats)
           .where('shopId', isEqualTo: shopId)
           .where('readBy', arrayContains: user.uid)
           .get();
-      
+
       // Batch update - lấy các tin nhắn chưa đọc
-      final allDocs = await _db.collection(_collectionChats)
+      final allDocs = await _db
+          .collection(_collectionChats)
           .where('shopId', isEqualTo: shopId)
           .get();
-      
+
       final batch = _db.batch();
       for (final doc in allDocs.docs) {
         final readBy = (doc.data()['readBy'] as List?) ?? [];
@@ -337,7 +360,7 @@ class ChatService {
         }
       }
       await batch.commit();
-      
+
       debugPrint('✅ Chat: Marked all as read');
     } catch (e) {
       debugPrint('❌ Chat markAllAsRead error: $e');
@@ -356,12 +379,13 @@ class ChatService {
       yield [];
       return;
     }
-    
-    Query<Map<String, dynamic>> query = _db.collection(_collectionChats)
+
+    Query<Map<String, dynamic>> query = _db
+        .collection(_collectionChats)
         .where('shopId', isEqualTo: shopId)
         .orderBy('createdAt', descending: true)
         .limit(limit);
-    
+
     yield* query.snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => ChatMessage.fromSnapshot(doc)).toList();
     });
@@ -374,15 +398,18 @@ class ChatService {
       yield [];
       return;
     }
-    
-    yield* _db.collection(_collectionChats)
+
+    yield* _db
+        .collection(_collectionChats)
         .where('shopId', isEqualTo: shopId)
         .where('isPinned', isEqualTo: true)
         .orderBy('createdAt', descending: true)
         .limit(10)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) => ChatMessage.fromSnapshot(doc)).toList();
+          return snapshot.docs
+              .map((doc) => ChatMessage.fromSnapshot(doc))
+              .toList();
         });
   }
 
@@ -391,20 +418,21 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return 0;
-      
+
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return 0;
-      
-      final snapshot = await _db.collection(_collectionChats)
+
+      final snapshot = await _db
+          .collection(_collectionChats)
           .where('shopId', isEqualTo: shopId)
           .get();
-      
+
       int count = 0;
       for (final doc in snapshot.docs) {
         final readBy = (doc.data()['readBy'] as List?) ?? [];
         if (!readBy.contains(user.uid)) count++;
       }
-      
+
       return count;
     } catch (e) {
       debugPrint('❌ Chat getUnreadCount error: $e');
@@ -419,14 +447,15 @@ class ChatService {
       yield 0;
       return;
     }
-    
+
     final shopId = await UserService.getCurrentShopId();
     if (shopId == null) {
       yield 0;
       return;
     }
-    
-    yield* _db.collection(_collectionChats)
+
+    yield* _db
+        .collection(_collectionChats)
         .where('shopId', isEqualTo: shopId)
         .snapshots()
         .map((snapshot) {
@@ -446,28 +475,34 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-      
+
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return;
-      
+
       _isTyping = isTyping;
-      
+
       if (isTyping) {
         final userName = user.email?.split('@').first.toUpperCase() ?? 'USER';
-        await _db.collection(_collectionTyping).doc('${shopId}_${user.uid}').set({
-          'shopId': shopId,
-          'userId': user.uid,
-          'userName': userName,
-          'startedAt': FieldValue.serverTimestamp(),
-        });
-        
+        await _db
+            .collection(_collectionTyping)
+            .doc('${shopId}_${user.uid}')
+            .set({
+              'shopId': shopId,
+              'userId': user.uid,
+              'userName': userName,
+              'startedAt': FieldValue.serverTimestamp(),
+            });
+
         // Auto clear after 5s
         _typingTimer?.cancel();
         _typingTimer = Timer(const Duration(seconds: 5), () {
           setTypingStatus(false);
         });
       } else {
-        await _db.collection(_collectionTyping).doc('${shopId}_${user.uid}').delete();
+        await _db
+            .collection(_collectionTyping)
+            .doc('${shopId}_${user.uid}')
+            .delete();
         _typingTimer?.cancel();
       }
     } catch (e) {
@@ -483,8 +518,9 @@ class ChatService {
       yield [];
       return;
     }
-    
-    yield* _db.collection(_collectionTyping)
+
+    yield* _db
+        .collection(_collectionTyping)
         .where('shopId', isEqualTo: shopId)
         .snapshots()
         .map((snapshot) {
@@ -502,12 +538,12 @@ class ChatService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
-      
+
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return;
-      
+
       final userName = user.email?.split('@').first.toUpperCase() ?? 'USER';
-      
+
       await _db.collection(_collectionOnline).doc('${shopId}_${user.uid}').set({
         'shopId': shopId,
         'userId': user.uid,
@@ -527,8 +563,9 @@ class ChatService {
       yield [];
       return;
     }
-    
-    yield* _db.collection(_collectionOnline)
+
+    yield* _db
+        .collection(_collectionOnline)
         .where('shopId', isEqualTo: shopId)
         .where('isOnline', isEqualTo: true)
         .snapshots()
@@ -546,20 +583,24 @@ class ChatService {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return [];
-      
-      final snapshot = await _db.collection(_collectionChats)
+
+      final snapshot = await _db
+          .collection(_collectionChats)
           .where('shopId', isEqualTo: shopId)
           .orderBy('createdAt', descending: true)
           .limit(500)
           .get();
-      
+
       final queryLower = query.toLowerCase();
       return snapshot.docs
           .map((doc) => ChatMessage.fromSnapshot(doc))
-          .where((msg) => 
-              msg.message.toLowerCase().contains(queryLower) ||
-              msg.senderName.toLowerCase().contains(queryLower) ||
-              (msg.linkedSummary?.toLowerCase().contains(queryLower) ?? false))
+          .where(
+            (msg) =>
+                msg.message.toLowerCase().contains(queryLower) ||
+                msg.senderName.toLowerCase().contains(queryLower) ||
+                (msg.linkedSummary?.toLowerCase().contains(queryLower) ??
+                    false),
+          )
           .toList();
     } catch (e) {
       debugPrint('❌ Chat searchMessages error: $e');
@@ -570,7 +611,16 @@ class ChatService {
   // ============== UTILITY ==============
 
   /// Lấy danh sách emoji reactions phổ biến
-  static List<String> get commonReactions => ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'];
+  static List<String> get commonReactions => [
+    '👍',
+    '❤️',
+    '😂',
+    '😮',
+    '😢',
+    '🔥',
+    '👏',
+    '🎉',
+  ];
 
   /// Lấy tin nhắn theo ID
   static Future<ChatMessage?> getMessageById(String messageId) async {
@@ -589,24 +639,25 @@ class ChatService {
     try {
       final isAdmin = await UserService.isCurrentUserAdmin();
       if (!isAdmin) return 0;
-      
+
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return 0;
-      
+
       final cutoff = DateTime.now().subtract(Duration(days: daysOld));
-      
-      final snapshot = await _db.collection(_collectionChats)
+
+      final snapshot = await _db
+          .collection(_collectionChats)
           .where('shopId', isEqualTo: shopId)
           .where('createdAt', isLessThan: Timestamp.fromDate(cutoff))
           .where('isPinned', isEqualTo: false)
           .get();
-      
+
       final batch = _db.batch();
       for (final doc in snapshot.docs) {
         batch.delete(doc.reference);
       }
       await batch.commit();
-      
+
       debugPrint('🗑️ Chat: Deleted ${snapshot.docs.length} old messages');
       return snapshot.docs.length;
     } catch (e) {
