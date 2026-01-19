@@ -97,10 +97,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
       if (mounted) Navigator.of(context).pop(); // Đóng loading
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -118,7 +115,11 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
         ),
         title: const Text(
           "BẢNG LƯƠNG NHÂN VIÊN",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+            color: Colors.white,
+          ),
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -378,10 +379,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
           const SizedBox(height: 16),
           Text(
             'Hãy thêm nhân viên vào shop trước',
-            style: TextStyle(
-              color: Colors.grey.shade500,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
           ),
         ],
       ),
@@ -946,8 +944,48 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
     );
   }
 
-  /// In phiếu lương cá nhân
+  /// In phiếu lương cá nhân - hiện dialog chọn loại máy in
   Future<void> _printIndividualSlip(SalaryBreakdown data) async {
+    // Hiện dialog chọn loại in
+    final printType = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Chọn cách in'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+              title: const Text('In PDF (A4)'),
+              subtitle: const Text('In qua máy in thường'),
+              onTap: () => Navigator.pop(ctx, 'pdf'),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.receipt_long, color: Colors.orange),
+              title: const Text('In WiFi POS 80mm'),
+              subtitle: const Text('Máy in hóa đơn nhiệt'),
+              onTap: () => Navigator.pop(ctx, 'thermal_80'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt, color: Colors.blue),
+              title: const Text('In WiFi POS 58mm'),
+              subtitle: const Text('Máy in bill nhỏ'),
+              onTap: () => Navigator.pop(ctx, 'thermal_58'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+        ],
+      ),
+    );
+
+    if (printType == null) return;
+
     try {
       showDialog(
         context: context,
@@ -961,7 +999,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
-                  Text('Đang tạo phiếu lương...'),
+                  Text('Đang in phiếu lương...'),
                 ],
               ),
             ),
@@ -969,9 +1007,31 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
         ),
       );
 
-      await SalarySlipPdfService.printSalarySlip(data);
+      bool success = true;
+      if (printType == 'pdf') {
+        await SalarySlipPdfService.printSalarySlip(data);
+      } else {
+        final is80mm = printType == 'thermal_80';
+        success = await SalarySlipPdfService.printSalarySlipThermal(
+          data,
+          is80mm: is80mm,
+        );
+      }
 
       if (mounted) Navigator.of(context).pop();
+
+      if (!success && printType != 'pdf') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Không thể kết nối máy in. Kiểm tra IP trong Cài đặt máy in.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
       if (mounted) {

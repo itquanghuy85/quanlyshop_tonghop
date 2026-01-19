@@ -657,6 +657,23 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     );
   }
 
+  /// Mở dialog xem hình ảnh lớn
+  void _openImageViewer(
+    List<String> urls,
+    int initialIndex,
+    String? senderName,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _ImageViewerDialog(
+          imageUrls: urls,
+          initialIndex: initialIndex,
+          senderName: senderName,
+        ),
+      ),
+    );
+  }
+
   Color _getStatusColor(int status) {
     switch (status) {
       case 1:
@@ -824,25 +841,102 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   }
 
   Widget _buildPinnedSection() {
+    final latestPin = _pinnedMessages.first;
+    final isMe = latestPin.senderId == FirebaseAuth.instance.currentUser?.uid;
+
     return Container(
-      color: Colors.amber.shade50,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: InkWell(
-        onTap: _showPinnedMessages,
-        child: Row(
-          children: [
-            const Icon(Icons.push_pin, size: 16, color: Colors.amber),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '${_pinnedMessages.length} tin ghim: ${_pinnedMessages.first.message}',
-                style: const TextStyle(fontSize: 13),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.amber.shade100, Colors.amber.shade50],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.amber.withAlpha(40),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _showPinnedMessages,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                // Pin icon với animation pulse
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.amber,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.push_pin,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '📌 ${_pinnedMessages.length} tin ghim',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber.shade800,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '• ${latestPin.senderName}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.amber.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        latestPin.messageType == 'image'
+                            ? '📷 Hình ảnh'
+                            : latestPin.message,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade800,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.expand_more,
+                    size: 18,
+                    color: Colors.amber.shade800,
+                  ),
+                ),
+              ],
             ),
-            const Icon(Icons.chevron_right, size: 20, color: Colors.grey),
-          ],
+          ),
         ),
       ),
     );
@@ -1133,7 +1227,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                       ),
                     ),
 
-                  // Images
+                  // Images - bấm vào để xem lớn
                   if (message.mediaUrls != null &&
                       message.mediaUrls!.isNotEmpty)
                     Padding(
@@ -1141,27 +1235,41 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                       child: Wrap(
                         spacing: 4,
                         runSpacing: 4,
-                        children: message.mediaUrls!.map((url) {
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              url,
-                              width: 150,
-                              height: 150,
-                              fit: BoxFit.cover,
-                              loadingBuilder: (ctx, child, progress) {
-                                if (progress == null) return child;
-                                return Container(
+                        children: message.mediaUrls!.asMap().entries.map((
+                          entry,
+                        ) {
+                          final index = entry.key;
+                          final url = entry.value;
+                          return GestureDetector(
+                            onTap: () => _openImageViewer(
+                              message.mediaUrls!,
+                              index,
+                              message.senderName,
+                            ),
+                            child: Hero(
+                              tag: 'chat_image_$url',
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  url,
                                   width: 150,
                                   height: 150,
-                                  color: Colors.grey.shade200,
-                                  child: const Center(
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                );
-                              },
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (ctx, child, progress) {
+                                    if (progress == null) return child;
+                                    return Container(
+                                      width: 150,
+                                      height: 150,
+                                      color: Colors.grey.shade200,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
                             ),
                           );
                         }).toList(),
@@ -1450,6 +1558,120 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Dialog xem hình ảnh lớn
+class _ImageViewerDialog extends StatefulWidget {
+  final List<String> imageUrls;
+  final int initialIndex;
+  final String? senderName;
+
+  const _ImageViewerDialog({
+    required this.imageUrls,
+    this.initialIndex = 0,
+    this.senderName,
+  });
+
+  @override
+  State<_ImageViewerDialog> createState() => _ImageViewerDialogState();
+}
+
+class _ImageViewerDialogState extends State<_ImageViewerDialog> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.senderName != null)
+              Text(
+                widget.senderName!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            if (widget.imageUrls.length > 1)
+              Text(
+                '${_currentIndex + 1}/${widget.imageUrls.length}',
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Chức năng tải xuống sẽ được phát triển'),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.imageUrls.length,
+        onPageChanged: (index) => setState(() => _currentIndex = index),
+        itemBuilder: (context, index) {
+          return InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Center(
+              child: Hero(
+                tag: 'chat_image_${widget.imageUrls[index]}',
+                child: Image.network(
+                  widget.imageUrls[index],
+                  fit: BoxFit.contain,
+                  loadingBuilder: (ctx, child, progress) {
+                    if (progress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: progress.expectedTotalBytes != null
+                            ? progress.cumulativeBytesLoaded /
+                                  progress.expectedTotalBytes!
+                            : null,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
+                  errorBuilder: (ctx, err, stack) => const Center(
+                    child: Icon(
+                      Icons.broken_image,
+                      color: Colors.white54,
+                      size: 64,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

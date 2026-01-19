@@ -1,10 +1,13 @@
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/material.dart' show Colors;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/salary_breakdown_model.dart';
 import 'user_service.dart';
 
@@ -17,11 +20,7 @@ class SalarySlipPdfService {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) {
-        return {
-          'name': 'CỬA HÀNG',
-          'address': '',
-          'phone': '',
-        };
+        return {'name': 'CỬA HÀNG', 'address': '', 'phone': ''};
       }
 
       final doc = await FirebaseFirestore.instance
@@ -42,11 +41,7 @@ class SalarySlipPdfService {
     } catch (e) {
       debugPrint('Error getting shop info: $e');
     }
-    return {
-      'name': 'CỬA HÀNG',
-      'address': '',
-      'phone': '',
-    };
+    return {'name': 'CỬA HÀNG', 'address': '', 'phone': ''};
   }
 
   /// Format tiền tệ
@@ -160,7 +155,10 @@ class SalarySlipPdfService {
               child: pw.Text(
                 shopInfo['name']?.toString().substring(0, 1).toUpperCase() ??
                     'S',
-                style: titleStyle.copyWith(color: PdfColors.white, fontSize: 30),
+                style: titleStyle.copyWith(
+                  color: PdfColors.white,
+                  fontSize: 30,
+                ),
               ),
             ),
           ),
@@ -175,15 +173,9 @@ class SalarySlipPdfService {
                   style: titleStyle.copyWith(color: PdfColors.blue900),
                 ),
                 if (shopInfo['address']?.toString().isNotEmpty == true)
-                  pw.Text(
-                    'Địa chỉ: ${shopInfo['address']}',
-                    style: baseStyle,
-                  ),
+                  pw.Text('Địa chỉ: ${shopInfo['address']}', style: baseStyle),
                 if (shopInfo['phone']?.toString().isNotEmpty == true)
-                  pw.Text(
-                    'Điện thoại: ${shopInfo['phone']}',
-                    style: baseStyle,
-                  ),
+                  pw.Text('Điện thoại: ${shopInfo['phone']}', style: baseStyle),
                 if (shopInfo['taxCode']?.toString().isNotEmpty == true)
                   pw.Text(
                     'Mã số thuế: ${shopInfo['taxCode']}',
@@ -219,10 +211,20 @@ class SalarySlipPdfService {
           pw.Row(
             children: [
               pw.Expanded(
-                child: _buildInfoRow('Họ và tên:', data.staffName, boldStyle, baseStyle),
+                child: _buildInfoRow(
+                  'Họ và tên:',
+                  data.staffName,
+                  boldStyle,
+                  baseStyle,
+                ),
               ),
               pw.Expanded(
-                child: _buildInfoRow('Mã NV:', data.staffId.substring(0, 8), boldStyle, baseStyle),
+                child: _buildInfoRow(
+                  'Mã NV:',
+                  data.staffId.substring(0, 8),
+                  boldStyle,
+                  baseStyle,
+                ),
               ),
             ],
           ),
@@ -282,9 +284,19 @@ class SalarySlipPdfService {
         decoration: const pw.BoxDecoration(color: PdfColors.blue100),
         children: [
           _tableCell('STT', boldStyle, isHeader: true),
-          _tableCell('KHOẢN MỤC', boldStyle, isHeader: true, align: pw.Alignment.centerLeft),
+          _tableCell(
+            'KHOẢN MỤC',
+            boldStyle,
+            isHeader: true,
+            align: pw.Alignment.centerLeft,
+          ),
           _tableCell('CHI TIẾT', boldStyle, isHeader: true),
-          _tableCell('SỐ TIỀN', boldStyle, isHeader: true, align: pw.Alignment.centerRight),
+          _tableCell(
+            'SỐ TIỀN',
+            boldStyle,
+            isHeader: true,
+            align: pw.Alignment.centerRight,
+          ),
         ],
       ),
     );
@@ -296,91 +308,107 @@ class SalarySlipPdfService {
 
     // 1. Lương cơ bản
     stt++;
-    rows.add(_dataRow(
-      stt.toString(),
-      'Lương cơ bản',
-      data.salaryType == 'monthly'
-          ? 'Lương tháng'
-          : '${data.workDays} ngày x ${_formatCurrency(data.baseSalary / 26)}',
-      data.calculatedBaseSalary,
-      baseStyle,
-    ));
+    rows.add(
+      _dataRow(
+        stt.toString(),
+        'Lương cơ bản',
+        data.salaryType == 'monthly'
+            ? 'Lương tháng'
+            : '${data.workDays} ngày x ${_formatCurrency(data.baseSalary / 26)}',
+        data.calculatedBaseSalary,
+        baseStyle,
+      ),
+    );
 
     // 2. Hoa hồng bán hàng
     if (data.calculatedSaleComm > 0) {
       stt++;
-      rows.add(_dataRow(
-        stt.toString(),
-        'Hoa hồng bán hàng',
-        '${data.saleOrderCount} đơn - ${data.saleCommType == 'percent' ? '${data.saleCommValue}%' : 'Cố định'}',
-        data.calculatedSaleComm,
-        baseStyle,
-      ));
+      rows.add(
+        _dataRow(
+          stt.toString(),
+          'Hoa hồng bán hàng',
+          '${data.saleOrderCount} đơn - ${data.saleCommType == 'percent' ? '${data.saleCommValue}%' : 'Cố định'}',
+          data.calculatedSaleComm,
+          baseStyle,
+        ),
+      );
     }
 
     // 3. Hoa hồng sửa chữa
     if (data.calculatedRepairComm > 0) {
       stt++;
-      rows.add(_dataRow(
-        stt.toString(),
-        'Hoa hồng sửa chữa',
-        '${data.repairOrderCount} đơn - ${data.repairCommType == 'percent' ? '${data.repairCommValue}%' : 'Cố định'}',
-        data.calculatedRepairComm,
-        baseStyle,
-      ));
+      rows.add(
+        _dataRow(
+          stt.toString(),
+          'Hoa hồng sửa chữa',
+          '${data.repairOrderCount} đơn - ${data.repairCommType == 'percent' ? '${data.repairCommValue}%' : 'Cố định'}',
+          data.calculatedRepairComm,
+          baseStyle,
+        ),
+      );
     }
 
     // 4. Phụ cấp
     if (data.calculatedAllowance > 0) {
       stt++;
-      rows.add(_dataRow(
-        stt.toString(),
-        'Phụ cấp',
-        'Xăng xe, ăn trưa, điện thoại...',
-        data.calculatedAllowance,
-        baseStyle,
-      ));
+      rows.add(
+        _dataRow(
+          stt.toString(),
+          'Phụ cấp',
+          'Xăng xe, ăn trưa, điện thoại...',
+          data.calculatedAllowance,
+          baseStyle,
+        ),
+      );
     }
 
     // 5. Làm thêm giờ
     if (data.calculatedOT > 0) {
       stt++;
-      rows.add(_dataRow(
-        stt.toString(),
-        'Làm thêm giờ (OT)',
-        '${data.overtimeHours.toStringAsFixed(1)}h x ${data.overtimeRate.toStringAsFixed(0)}%',
-        data.calculatedOT,
-        baseStyle,
-      ));
+      rows.add(
+        _dataRow(
+          stt.toString(),
+          'Làm thêm giờ (OT)',
+          '${data.overtimeHours.toStringAsFixed(1)}h x ${data.overtimeRate.toStringAsFixed(0)}%',
+          data.calculatedOT,
+          baseStyle,
+        ),
+      );
     }
 
     // 6. Thưởng đạt chỉ tiêu
     if (data.calculatedBonus > 0) {
       stt++;
-      rows.add(_dataRow(
-        stt.toString(),
-        'Thưởng đạt chỉ tiêu',
-        'Đạt/vượt target tháng',
-        data.calculatedBonus,
-        baseStyle,
-      ));
+      rows.add(
+        _dataRow(
+          stt.toString(),
+          'Thưởng đạt chỉ tiêu',
+          'Đạt/vượt target tháng',
+          data.calculatedBonus,
+          baseStyle,
+        ),
+      );
     }
 
     // 7. Thưởng tùy chỉnh
     for (final bonus in data.customBonuses) {
       stt++;
-      rows.add(_dataRow(
-        stt.toString(),
-        '🎉 ${bonus.name}',
-        bonus.note ?? 'Thưởng',
-        bonus.amount,
-        baseStyle,
-        isBonus: true,
-      ));
+      rows.add(
+        _dataRow(
+          stt.toString(),
+          '🎉 ${bonus.name}',
+          bonus.note ?? 'Thưởng',
+          bonus.amount,
+          baseStyle,
+          isBonus: true,
+        ),
+      );
     }
 
     // Tổng thu nhập
-    rows.add(_subtotalRow('TỔNG THU NHẬP (GROSS)', data.grossIncome, boldStyle));
+    rows.add(
+      _subtotalRow('TỔNG THU NHẬP (GROSS)', data.grossIncome, boldStyle),
+    );
 
     // === KHẤU TRỪ ===
     if (data.totalDeductions > 0) {
@@ -389,114 +417,132 @@ class SalarySlipPdfService {
       // Trừ đi muộn
       if (data.lateDeduction > 0) {
         stt++;
-        rows.add(_dataRow(
-          stt.toString(),
-          'Trừ đi muộn',
-          '${data.lateDays} lần',
-          -data.lateDeduction,
-          baseStyle,
-          isNegative: true,
-        ));
+        rows.add(
+          _dataRow(
+            stt.toString(),
+            'Trừ đi muộn',
+            '${data.lateDays} lần',
+            -data.lateDeduction,
+            baseStyle,
+            isNegative: true,
+          ),
+        );
       }
 
       // Trừ về sớm
       if (data.earlyLeaveDeduction > 0) {
         stt++;
-        rows.add(_dataRow(
-          stt.toString(),
-          'Trừ về sớm',
-          '${data.earlyLeaveDays} lần',
-          -data.earlyLeaveDeduction,
-          baseStyle,
-          isNegative: true,
-        ));
+        rows.add(
+          _dataRow(
+            stt.toString(),
+            'Trừ về sớm',
+            '${data.earlyLeaveDays} lần',
+            -data.earlyLeaveDeduction,
+            baseStyle,
+            isNegative: true,
+          ),
+        );
       }
 
       // Trừ nghỉ quá phép
       if (data.absenceDeduction > 0) {
         stt++;
-        rows.add(_dataRow(
-          stt.toString(),
-          'Nghỉ quá phép',
-          '${data.absentDays} ngày',
-          -data.absenceDeduction,
-          baseStyle,
-          isNegative: true,
-        ));
+        rows.add(
+          _dataRow(
+            stt.toString(),
+            'Nghỉ quá phép',
+            '${data.absentDays} ngày',
+            -data.absenceDeduction,
+            baseStyle,
+            isNegative: true,
+          ),
+        );
       }
 
       // Khấu trừ tùy chỉnh
       for (final deduct in data.customDeductions) {
         stt++;
-        rows.add(_dataRow(
-          stt.toString(),
-          '📌 ${deduct.name}',
-          deduct.note ?? 'Khấu trừ',
-          -deduct.amount,
-          baseStyle,
-          isNegative: true,
-        ));
+        rows.add(
+          _dataRow(
+            stt.toString(),
+            '📌 ${deduct.name}',
+            deduct.note ?? 'Khấu trừ',
+            -deduct.amount,
+            baseStyle,
+            isNegative: true,
+          ),
+        );
       }
 
       // BHXH
       if (data.socialInsurance > 0) {
         stt++;
-        rows.add(_dataRow(
-          stt.toString(),
-          'BHXH',
-          '8% lương đóng BH',
-          -data.socialInsurance,
-          baseStyle,
-          isNegative: true,
-        ));
+        rows.add(
+          _dataRow(
+            stt.toString(),
+            'BHXH',
+            '8% lương đóng BH',
+            -data.socialInsurance,
+            baseStyle,
+            isNegative: true,
+          ),
+        );
       }
 
       // BHYT
       if (data.healthInsurance > 0) {
         stt++;
-        rows.add(_dataRow(
-          stt.toString(),
-          'BHYT',
-          '1.5% lương đóng BH',
-          -data.healthInsurance,
-          baseStyle,
-          isNegative: true,
-        ));
+        rows.add(
+          _dataRow(
+            stt.toString(),
+            'BHYT',
+            '1.5% lương đóng BH',
+            -data.healthInsurance,
+            baseStyle,
+            isNegative: true,
+          ),
+        );
       }
 
       // BHTN
       if (data.unemploymentInsurance > 0) {
         stt++;
-        rows.add(_dataRow(
-          stt.toString(),
-          'BHTN',
-          '1% lương đóng BH',
-          -data.unemploymentInsurance,
-          baseStyle,
-          isNegative: true,
-        ));
+        rows.add(
+          _dataRow(
+            stt.toString(),
+            'BHTN',
+            '1% lương đóng BH',
+            -data.unemploymentInsurance,
+            baseStyle,
+            isNegative: true,
+          ),
+        );
       }
 
       // Thuế TNCN
       if (data.personalIncomeTax > 0) {
         stt++;
-        rows.add(_dataRow(
-          stt.toString(),
-          'Thuế TNCN',
-          'Theo biểu thuế lũy tiến',
-          -data.personalIncomeTax,
-          baseStyle,
-          isNegative: true,
-        ));
+        rows.add(
+          _dataRow(
+            stt.toString(),
+            'Thuế TNCN',
+            'Theo biểu thuế lũy tiến',
+            -data.personalIncomeTax,
+            baseStyle,
+            isNegative: true,
+          ),
+        );
       }
 
       // Tổng khấu trừ
-      rows.add(_subtotalRow(
-        'TỔNG KHẤU TRỪ',
-        -data.totalDeductions,
-        boldStyle,
-        isNegative: true,
-      ));
+      rows.add(
+        _subtotalRow(
+          'TỔNG KHẤU TRỪ',
+          -data.totalDeductions,
+          boldStyle,
+          isNegative: true,
+        ),
+      );
     }
 
     return pw.Table(
@@ -524,16 +570,17 @@ class SalarySlipPdfService {
     );
   }
 
-  static pw.TableRow _sectionRow(String title, pw.TextStyle boldStyle, {bool isDeduction = false}) {
+  static pw.TableRow _sectionRow(
+    String title,
+    pw.TextStyle boldStyle, {
+    bool isDeduction = false,
+  }) {
     return pw.TableRow(
       decoration: pw.BoxDecoration(
         color: isDeduction ? PdfColors.red50 : PdfColors.green50,
       ),
       children: [
-        pw.Container(
-          padding: const pw.EdgeInsets.all(6),
-          child: pw.Text(''),
-        ),
+        pw.Container(padding: const pw.EdgeInsets.all(6), child: pw.Text('')),
         pw.Container(
           padding: const pw.EdgeInsets.all(6),
           child: pw.Text(
@@ -561,8 +608,8 @@ class SalarySlipPdfService {
     final color = isNegative
         ? PdfColors.red700
         : isBonus
-            ? PdfColors.green700
-            : PdfColors.black;
+        ? PdfColors.green700
+        : PdfColors.black;
 
     return pw.TableRow(
       children: [
@@ -662,8 +709,7 @@ class SalarySlipPdfService {
     pw.TextStyle boldStyle,
   ) {
     final now = DateTime.now();
-    final dateStr =
-        'Ngày ${now.day} tháng ${now.month} năm ${now.year}';
+    final dateStr = 'Ngày ${now.day} tháng ${now.month} năm ${now.year}';
 
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -743,7 +789,18 @@ class SalarySlipPdfService {
   static String _numberToVietnamese(int number) {
     if (number == 0) return 'Không đồng';
 
-    final units = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+    final units = [
+      '',
+      'một',
+      'hai',
+      'ba',
+      'bốn',
+      'năm',
+      'sáu',
+      'bảy',
+      'tám',
+      'chín',
+    ];
     final groups = ['', 'nghìn', 'triệu', 'tỷ'];
 
     String result = '';
@@ -799,6 +856,349 @@ class SalarySlipPdfService {
     }
 
     return result.trim();
+  }
+
+  /// In phiếu lương qua máy in WiFi POS (hỗ trợ 80mm và 58mm)
+  static Future<bool> printSalarySlipThermal(
+    SalaryBreakdown data, {
+    bool is80mm = true,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ipAddress =
+          prefs.getString('thermal_printer_ip') ??
+          prefs.getString('printer_ip');
+
+      if (ipAddress == null || ipAddress.isEmpty) {
+        debugPrint('❌ Không tìm thấy IP máy in');
+        return false;
+      }
+
+      final PaperSize paper = is80mm ? PaperSize.mm80 : PaperSize.mm58;
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(paper, profile);
+      final shopInfo = await _getShopInfo();
+
+      List<int> bytes = [];
+
+      // ===== HEADER SHOP =====
+      bytes += generator.text(
+        shopInfo['name']?.toString().toUpperCase() ?? 'CUA HANG',
+        styles: const PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          height: PosTextSize.size2,
+          width: PosTextSize.size1,
+        ),
+      );
+      if (shopInfo['phone']?.toString().isNotEmpty == true) {
+        bytes += generator.text(
+          'DT: ${shopInfo['phone']}',
+          styles: const PosStyles(align: PosAlign.center),
+        );
+      }
+      bytes += generator.hr(ch: '=');
+
+      // ===== TIÊU ĐỀ PHIẾU LƯƠNG =====
+      bytes += generator.text(
+        'PHIEU LUONG T${data.month.toString().padLeft(2, '0')}/${data.year}',
+        styles: const PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          height: PosTextSize.size1,
+          width: PosTextSize.size2,
+        ),
+      );
+      bytes += generator.feed(1);
+
+      // ===== THÔNG TIN NHÂN VIÊN =====
+      bytes += generator.text(
+        'Nhan vien: ${_removeVietnamese(data.staffName)}',
+        styles: const PosStyles(bold: true),
+      );
+      bytes += generator.text(
+        'Loai luong: ${data.salaryType == 'monthly' ? 'Thang' : 'Ngay'}',
+      );
+      bytes += generator.text('Ngay cong: ${data.workDays} ngay');
+      bytes += generator.hr(ch: '-');
+
+      // ===== THU NHẬP =====
+      bytes += generator.text(
+        '[ THU NHAP ]',
+        styles: const PosStyles(bold: true),
+      );
+
+      // Lương cơ bản
+      bytes += generator.row([
+        PosColumn(text: 'Luong co ban:', width: 7),
+        PosColumn(
+          text: _formatShort(data.calculatedBaseSalary),
+          width: 5,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+      ]);
+
+      // Hoa hồng
+      if (data.calculatedSaleComm > 0) {
+        bytes += generator.row([
+          PosColumn(text: 'HH ban hang (${data.saleOrderCount}):', width: 7),
+          PosColumn(
+            text: _formatShort(data.calculatedSaleComm),
+            width: 5,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      }
+      if (data.calculatedRepairComm > 0) {
+        bytes += generator.row([
+          PosColumn(text: 'HH sua chua (${data.repairOrderCount}):', width: 7),
+          PosColumn(
+            text: _formatShort(data.calculatedRepairComm),
+            width: 5,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      }
+
+      // Phụ cấp
+      if (data.calculatedAllowance > 0) {
+        bytes += generator.row([
+          PosColumn(text: 'Phu cap:', width: 7),
+          PosColumn(
+            text: _formatShort(data.calculatedAllowance),
+            width: 5,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      }
+
+      // OT
+      if (data.calculatedOT > 0) {
+        bytes += generator.row([
+          PosColumn(
+            text: 'OT (${data.overtimeHours.toStringAsFixed(1)}h):',
+            width: 7,
+          ),
+          PosColumn(
+            text: _formatShort(data.calculatedOT),
+            width: 5,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      }
+
+      // Thưởng
+      if (data.calculatedBonus > 0) {
+        bytes += generator.row([
+          PosColumn(text: 'Thuong chi tieu:', width: 7),
+          PosColumn(
+            text: _formatShort(data.calculatedBonus),
+            width: 5,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      }
+
+      // Thưởng tùy chỉnh
+      for (final bonus in data.customBonuses) {
+        bytes += generator.row([
+          PosColumn(text: '+ ${_removeVietnamese(bonus.name)}:', width: 7),
+          PosColumn(
+            text: _formatShort(bonus.amount),
+            width: 5,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      }
+
+      // Tổng thu nhập
+      bytes += generator.hr(ch: '-');
+      bytes += generator.row([
+        PosColumn(
+          text: 'TONG THU NHAP:',
+          width: 7,
+          styles: const PosStyles(bold: true),
+        ),
+        PosColumn(
+          text: _formatShort(data.grossIncome),
+          width: 5,
+          styles: const PosStyles(align: PosAlign.right, bold: true),
+        ),
+      ]);
+
+      // ===== KHẤU TRỪ =====
+      if (data.totalDeductions > 0) {
+        bytes += generator.feed(1);
+        bytes += generator.text(
+          '[ KHAU TRU ]',
+          styles: const PosStyles(bold: true),
+        );
+
+        if (data.lateDeduction > 0) {
+          bytes += generator.row([
+            PosColumn(text: 'Di muon (${data.lateDays}):', width: 7),
+            PosColumn(
+              text: '-${_formatShort(data.lateDeduction)}',
+              width: 5,
+              styles: const PosStyles(align: PosAlign.right),
+            ),
+          ]);
+        }
+        if (data.earlyLeaveDeduction > 0) {
+          bytes += generator.row([
+            PosColumn(text: 'Ve som (${data.earlyLeaveDays}):', width: 7),
+            PosColumn(
+              text: '-${_formatShort(data.earlyLeaveDeduction)}',
+              width: 5,
+              styles: const PosStyles(align: PosAlign.right),
+            ),
+          ]);
+        }
+        if (data.absenceDeduction > 0) {
+          bytes += generator.row([
+            PosColumn(text: 'Nghi qua phep:', width: 7),
+            PosColumn(
+              text: '-${_formatShort(data.absenceDeduction)}',
+              width: 5,
+              styles: const PosStyles(align: PosAlign.right),
+            ),
+          ]);
+        }
+
+        // Khấu trừ tùy chỉnh
+        for (final d in data.customDeductions) {
+          bytes += generator.row([
+            PosColumn(text: '- ${_removeVietnamese(d.name)}:', width: 7),
+            PosColumn(
+              text: '-${_formatShort(d.amount)}',
+              width: 5,
+              styles: const PosStyles(align: PosAlign.right),
+            ),
+          ]);
+        }
+
+        // Bảo hiểm
+        if (data.socialInsurance > 0) {
+          bytes += generator.row([
+            PosColumn(text: 'BHXH:', width: 7),
+            PosColumn(
+              text: '-${_formatShort(data.socialInsurance)}',
+              width: 5,
+              styles: const PosStyles(align: PosAlign.right),
+            ),
+          ]);
+        }
+        if (data.healthInsurance > 0) {
+          bytes += generator.row([
+            PosColumn(text: 'BHYT:', width: 7),
+            PosColumn(
+              text: '-${_formatShort(data.healthInsurance)}',
+              width: 5,
+              styles: const PosStyles(align: PosAlign.right),
+            ),
+          ]);
+        }
+        if (data.personalIncomeTax > 0) {
+          bytes += generator.row([
+            PosColumn(text: 'Thue TNCN:', width: 7),
+            PosColumn(
+              text: '-${_formatShort(data.personalIncomeTax)}',
+              width: 5,
+              styles: const PosStyles(align: PosAlign.right),
+            ),
+          ]);
+        }
+
+        bytes += generator.hr(ch: '-');
+        bytes += generator.row([
+          PosColumn(
+            text: 'TONG KHAU TRU:',
+            width: 7,
+            styles: const PosStyles(bold: true),
+          ),
+          PosColumn(
+            text: '-${_formatShort(data.totalDeductions)}',
+            width: 5,
+            styles: const PosStyles(align: PosAlign.right, bold: true),
+          ),
+        ]);
+      }
+
+      // ===== THỰC NHẬN =====
+      bytes += generator.hr(ch: '=');
+      bytes += generator.text(
+        'THUC NHAN:',
+        styles: const PosStyles(align: PosAlign.center, bold: true),
+      );
+      bytes += generator.text(
+        '${_formatCurrency(data.totalSalary)}',
+        styles: const PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ),
+      );
+      bytes += generator.hr(ch: '=');
+
+      // ===== FOOTER =====
+      bytes += generator.text(
+        'In: ${DateFormat('HH:mm dd/MM/yyyy').format(DateTime.now())}',
+        styles: const PosStyles(
+          align: PosAlign.center,
+          fontType: PosFontType.fontB,
+        ),
+      );
+      bytes += generator.text(
+        'Quan Ly Shop',
+        styles: const PosStyles(
+          align: PosAlign.center,
+          fontType: PosFontType.fontB,
+        ),
+      );
+      bytes += generator.feed(2);
+      bytes += generator.cut();
+
+      // Gửi in
+      final socket = await Socket.connect(
+        ipAddress,
+        9100,
+        timeout: const Duration(seconds: 5),
+      );
+      socket.add(Uint8List.fromList(bytes));
+      await socket.flush();
+      await socket.close();
+
+      debugPrint('✅ In phiếu lương thermal thành công');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Lỗi in thermal: $e');
+      return false;
+    }
+  }
+
+  /// Xóa dấu tiếng Việt để in thermal
+  static String _removeVietnamese(String str) {
+    const vietnamese =
+        'àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴÈÉẸẺẼÊỀẾỆỂỄÌÍỊỈĨÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠÙÚỤỦŨƯỪỨỰỬỮỲÝỴỶỸĐ';
+    const nonVietnamese =
+        'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyydAAAAAAAAAAAAAAAAAEEEEEEEEEEEIIIIIOOOOOOOOOOOOOOOOOUUUUUUUUUUUYYYYYD';
+
+    String result = str;
+    for (int i = 0; i < vietnamese.length; i++) {
+      result = result.replaceAll(vietnamese[i], nonVietnamese[i]);
+    }
+    return result;
+  }
+
+  /// Format số tiền ngắn gọn cho thermal
+  static String _formatShort(double amount) {
+    if (amount >= 1000000) {
+      return '${(amount / 1000000).toStringAsFixed(1)}tr';
+    } else if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(0)}k';
+    }
+    return amount.toStringAsFixed(0);
   }
 
   /// In phiếu lương
@@ -875,10 +1275,7 @@ class SalarySlipPdfService {
                   'In lúc: ${DateFormat('HH:mm dd/MM/yyyy').format(DateTime.now())}',
                   style: baseStyle,
                 ),
-                pw.Text(
-                  'Phần mềm Quản Lý Shop',
-                  style: baseStyle,
-                ),
+                pw.Text('Phần mềm Quản Lý Shop', style: baseStyle),
               ],
             ),
           ],
@@ -920,7 +1317,8 @@ class SalarySlipPdfService {
                 final i = entry.key;
                 final s = entry.value;
                 final totalComm = s.calculatedSaleComm + s.calculatedRepairComm;
-                final totalBonus = s.calculatedBonus +
+                final totalBonus =
+                    s.calculatedBonus +
                     s.customBonuses.fold(0.0, (sum, b) => sum + b.amount);
 
                 return pw.TableRow(
@@ -929,11 +1327,21 @@ class SalarySlipPdfService {
                   ),
                   children: [
                     _tableCell('${i + 1}', baseStyle),
-                    _tableCell(s.staffName, baseStyle, align: pw.Alignment.centerLeft),
+                    _tableCell(
+                      s.staffName,
+                      baseStyle,
+                      align: pw.Alignment.centerLeft,
+                    ),
                     _tableCell('${s.workDays}', baseStyle),
-                    _tableCell(_formatCurrency(s.calculatedBaseSalary), baseStyle),
+                    _tableCell(
+                      _formatCurrency(s.calculatedBaseSalary),
+                      baseStyle,
+                    ),
                     _tableCell(_formatCurrency(totalComm), baseStyle),
-                    _tableCell(_formatCurrency(s.calculatedAllowance), baseStyle),
+                    _tableCell(
+                      _formatCurrency(s.calculatedAllowance),
+                      baseStyle,
+                    ),
                     _tableCell(_formatCurrency(totalBonus), baseStyle),
                     _tableCell(
                       _formatCurrency(s.grossIncome),
@@ -958,31 +1366,49 @@ class SalarySlipPdfService {
                   _tableCell('TỔNG CỘNG', boldStyle),
                   _tableCell('', boldStyle),
                   _tableCell(
-                    _formatCurrency(salaries.fold(0.0, (s, d) => s + d.calculatedBaseSalary)),
+                    _formatCurrency(
+                      salaries.fold(0.0, (s, d) => s + d.calculatedBaseSalary),
+                    ),
                     boldStyle,
                   ),
                   _tableCell(
-                    _formatCurrency(salaries.fold(0.0, (s, d) => s + d.calculatedSaleComm + d.calculatedRepairComm)),
+                    _formatCurrency(
+                      salaries.fold(
+                        0.0,
+                        (s, d) =>
+                            s + d.calculatedSaleComm + d.calculatedRepairComm,
+                      ),
+                    ),
                     boldStyle,
                   ),
                   _tableCell(
-                    _formatCurrency(salaries.fold(0.0, (s, d) => s + d.calculatedAllowance)),
+                    _formatCurrency(
+                      salaries.fold(0.0, (s, d) => s + d.calculatedAllowance),
+                    ),
                     boldStyle,
                   ),
                   _tableCell(
-                    _formatCurrency(salaries.fold(0.0, (s, d) => s + d.calculatedBonus)),
+                    _formatCurrency(
+                      salaries.fold(0.0, (s, d) => s + d.calculatedBonus),
+                    ),
                     boldStyle,
                   ),
                   _tableCell(
-                    _formatCurrency(salaries.fold(0.0, (s, d) => s + d.grossIncome)),
+                    _formatCurrency(
+                      salaries.fold(0.0, (s, d) => s + d.grossIncome),
+                    ),
                     boldStyle.copyWith(color: PdfColors.blue800),
                   ),
                   _tableCell(
-                    _formatCurrency(salaries.fold(0.0, (s, d) => s + d.totalDeductions)),
+                    _formatCurrency(
+                      salaries.fold(0.0, (s, d) => s + d.totalDeductions),
+                    ),
                     boldStyle.copyWith(color: PdfColors.red800),
                   ),
                   _tableCell(
-                    _formatCurrency(salaries.fold(0.0, (s, d) => s + d.totalSalary)),
+                    _formatCurrency(
+                      salaries.fold(0.0, (s, d) => s + d.totalSalary),
+                    ),
                     boldStyle.copyWith(color: PdfColors.green900, fontSize: 11),
                   ),
                 ],
