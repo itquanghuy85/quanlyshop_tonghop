@@ -44,8 +44,8 @@ class OrderListViewState extends State<OrderListView> {
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
-  // Status filter - null means all, otherwise specific status
-  int? _statusFilter; // null=all, 1=tiếp nhận, 2=đang sửa, 3=xong, 4=đã giao
+  // Status filter - Set để cho phép chọn nhiều trạng thái
+  Set<int> _statusFilters = {}; // Empty = all, {1,2} = tiếp nhận + đang sửa
 
   bool get canDelete => widget.role == 'admin' || widget.role == 'owner';
 
@@ -109,8 +109,8 @@ class OrderListViewState extends State<OrderListView> {
           !widget.statusFilter!.contains(r.status)) {
         return false;
       }
-      // User-selected status filter
-      if (_statusFilter != null && r.status != _statusFilter) {
+      // User-selected status filter - cho phép chọn nhiều trạng thái
+      if (_statusFilters.isNotEmpty && !_statusFilters.contains(r.status)) {
         return false;
       }
       if (widget.todayOnly) {
@@ -156,7 +156,7 @@ class OrderListViewState extends State<OrderListView> {
   int get _activeFilterCount {
     int count = 0;
     if (_timeFilter != 'all' && !widget.todayOnly) count++;
-    if (_statusFilter != null) count++;
+    if (_statusFilters.isNotEmpty) count++;
     return count;
   }
 
@@ -204,7 +204,7 @@ class OrderListViewState extends State<OrderListView> {
                         _timeFilter = 'all';
                         _customStartDate = null;
                         _customEndDate = null;
-                        _statusFilter = null;
+                        _statusFilters = {};
                       });
                     },
                     child: const Text('Đặt lại tất cả'),
@@ -213,9 +213,9 @@ class OrderListViewState extends State<OrderListView> {
               ),
               const SizedBox(height: 16),
 
-              // STATUS FILTER
+              // STATUS FILTER - CHO PHÉP CHỌN NHIỀU
               const Text(
-                'TRẠNG THÁI',
+                'TRẠNG THÁI (chọn nhiều)',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
@@ -227,13 +227,31 @@ class OrderListViewState extends State<OrderListView> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _statusChip('Tất cả', null, setSheetState),
-                  _statusChip('Tiếp nhận', 1, setSheetState, Colors.blue),
-                  _statusChip('Đang sửa', 2, setSheetState, Colors.orange),
-                  _statusChip('Đã xong', 3, setSheetState, Colors.green),
-                  _statusChip('Đã giao', 4, setSheetState, Colors.purple),
+                  _statusChipMulti('Tất cả', null, setSheetState),
+                  _statusChipMulti('Tiếp nhận', 1, setSheetState, Colors.blue),
+                  _statusChipMulti('Đang sửa', 2, setSheetState, Colors.orange),
+                  _statusChipMulti('Đã xong', 3, setSheetState, Colors.green),
+                  _statusChipMulti(
+                    'Chờ duyệt',
+                    5,
+                    setSheetState,
+                    Colors.deepOrange,
+                  ),
+                  _statusChipMulti('Đã giao', 4, setSheetState, Colors.purple),
                 ],
               ),
+              if (_statusFilters.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Đã chọn: ${_statusFilters.length} trạng thái',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 20),
 
               // TIME FILTER
@@ -364,16 +382,33 @@ class OrderListViewState extends State<OrderListView> {
     );
   }
 
-  Widget _statusChip(
+  Widget _statusChipMulti(
     String label,
     int? value,
     StateSetter setSheetState, [
     Color? activeColor,
   ]) {
-    final isSelected = _statusFilter == value;
+    // null = "Tất cả" - khi bấm sẽ clear hết selection
+    final isSelected = value == null
+        ? _statusFilters.isEmpty
+        : _statusFilters.contains(value);
     final color = activeColor ?? const Color(0xFF2962FF);
     return GestureDetector(
-      onTap: () => setSheetState(() => _statusFilter = value),
+      onTap: () {
+        setSheetState(() {
+          if (value == null) {
+            // Bấm "Tất cả" -> clear hết
+            _statusFilters = {};
+          } else {
+            // Toggle trạng thái được chọn
+            if (_statusFilters.contains(value)) {
+              _statusFilters.remove(value);
+            } else {
+              _statusFilters.add(value);
+            }
+          }
+        });
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
@@ -381,12 +416,22 @@ class OrderListViewState extends State<OrderListView> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: isSelected ? color : Colors.grey.shade300),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black87,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected && value != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Icon(Icons.check_circle, size: 14, color: Colors.white),
+              ),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.black87,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -706,19 +751,22 @@ class OrderListViewState extends State<OrderListView> {
           : DismissDirection.none,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        padding: const EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
           color: Colors.red,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.delete_forever, color: Colors.white, size: 30),
+        child: const Icon(Icons.delete_forever, color: Colors.white, size: 24),
       ),
       confirmDismiss: (_) async {
         _confirmDelete(r);
         return false;
       },
       child: Card(
-        margin: const EdgeInsets.only(bottom: 16),
+        margin: const EdgeInsets.only(
+          bottom: 8,
+        ), // Giảm margin để hiện nhiều đơn hơn
+        elevation: 1,
         child: InkWell(
           onTap: () async {
             final res = await Navigator.push(
@@ -727,44 +775,44 @@ class OrderListViewState extends State<OrderListView> {
             );
             if (res == true) _loadInitialData();
           },
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10), // Giảm padding
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // STT (Số thứ tự)
+                // STT (Số thứ tự) - thu nhỏ
                 Container(
-                  width: 28,
-                  height: 28,
-                  margin: const EdgeInsets.only(right: 8),
+                  width: 24,
+                  height: 24,
+                  margin: const EdgeInsets.only(right: 6),
                   decoration: BoxDecoration(
                     color: const Color(0xFF2962FF).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Center(
                     child: Text(
                       '$index',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: 10,
                         color: Color(0xFF2962FF),
                       ),
                     ),
                   ),
                 ),
-                // 1. HÌNH ẢNH NHẬN MÁY
+                // 1. HÌNH ẢNH NHẬN MÁY - thu nhỏ
                 SizedBox(
-                  width: 70,
-                  height: 70,
+                  width: 50,
+                  height: 50,
                   child: Stack(
                     children: [
                       Container(
-                        width: 70,
-                        height: 70,
+                        width: 50,
+                        height: 50,
                         decoration: BoxDecoration(
                           color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                           image: firstImage.isNotEmpty
                               ? DecorationImage(
                                   image: firstImage.startsWith('http')
@@ -779,27 +827,28 @@ class OrderListViewState extends State<OrderListView> {
                             ? const Icon(
                                 Icons.image_not_supported_outlined,
                                 color: Colors.grey,
+                                size: 20,
                               )
                             : null,
                       ),
                       if (images.length > 1)
                         Positioned(
-                          bottom: 4,
-                          right: 4,
+                          bottom: 2,
+                          right: 2,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
+                              horizontal: 4,
+                              vertical: 1,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.black54,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               "+${images.length - 1}",
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 10,
+                                fontSize: 8,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -809,34 +858,38 @@ class OrderListViewState extends State<OrderListView> {
                   ),
                 ),
 
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
 
-                // 2. THÔNG TIN CHI TIẾT
+                // 2. THÔNG TIN CHI TIẾT - thu nhỏ font
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         r.model,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 15,
+                          fontSize: 12, // Giảm từ 15 xuống 12
                           color: Color(0xFF2962FF),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        "Khách: ${r.customerName}",
+                        r.customerName,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
-                          fontSize: 12,
+                          fontSize: 11, // Giảm từ 12 xuống 11
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
                       Text(
-                        "Lỗi: ${r.issue.split('|').first}",
+                        r.issue.split('|').first,
                         style: const TextStyle(
                           color: Colors.redAccent,
-                          fontSize: 11,
+                          fontSize: 10, // Giảm từ 11 xuống 10
                           fontWeight: FontWeight.w500,
                         ),
                         maxLines: 1,
@@ -857,31 +910,32 @@ class OrderListViewState extends State<OrderListView> {
                   ),
                 ),
 
-                // 3. TRẠNG THÁI & THỜI GIAN
+                // 3. TRẠNG THÁI & THỜI GIAN - thu nhỏ
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       DateFormat('dd/MM').format(
                         DateTime.fromMillisecondsSinceEpoch(r.createdAt),
                       ),
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      style: const TextStyle(fontSize: 9, color: Colors.grey),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                        horizontal: 6,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
                         color: _getStatusColor(r.status).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         _getStatusLabel(r.status),
                         style: TextStyle(
                           color: _getStatusColor(r.status),
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -906,6 +960,8 @@ class OrderListViewState extends State<OrderListView> {
         return "SỬA XONG";
       case 4:
         return "ĐÃ GIAO";
+      case 5:
+        return "CHỜ DUYỆT";
       default:
         return "KHÁC";
     }
@@ -921,6 +977,8 @@ class OrderListViewState extends State<OrderListView> {
         return Colors.green;
       case 4:
         return Colors.purple;
+      case 5:
+        return Colors.deepOrange;
       default:
         return Colors.grey;
     }

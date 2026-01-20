@@ -517,15 +517,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       final parsedTotal = MoneyUtils.parseCurrency(totalPrice.text);
       final parsedCost = MoneyUtils.parseCurrency(totalCost.text);
       final parsedDiscount = MoneyUtils.parseCurrency(discount.text);
-      s.totalPrice = parsedTotal > 0 && parsedTotal < 100000
-          ? parsedTotal * 1000
-          : parsedTotal;
-      s.totalCost = parsedCost > 0 && parsedCost < 100000
-          ? parsedCost * 1000
-          : parsedCost;
-      s.discount = parsedDiscount > 0 && parsedDiscount < 100000
-          ? parsedDiscount * 1000
-          : parsedDiscount;
+      s.totalPrice = parsedTotal;
+      s.totalCost = parsedCost;
+      s.discount = parsedDiscount;
       s.warranty = warranty;
       s.paymentMethod = payment;
       if (payment != 'TRẢ GÓP (NH)') {

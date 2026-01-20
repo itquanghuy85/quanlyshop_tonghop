@@ -14,7 +14,7 @@ class Repair {
   String? deliveredImage; 
   String warranty;
   String partsUsed;
-  int status; // 1: Nhận, 2: Sửa, 3: Xong, 4: Giao
+  int status; // 1: Nhận, 2: Sửa, 3: Xong, 4: Giao, 5: Chờ duyệt giao
   int price;
   int cost;
   String paymentMethod;

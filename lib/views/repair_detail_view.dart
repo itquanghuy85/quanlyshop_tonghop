@@ -112,6 +112,27 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     final repairsBefore = await db.getAllRepairs();
     debugPrint('Repairs count before update: ${repairsBefore.length}');
+
+    // Kiểm tra nếu bấm "Đã giao" (status 4) và user không phải admin/owner
+    // thì chuyển sang trạng thái 5 (Chờ duyệt giao) thay vì 4
+    if (newStatus == 4) {
+      final currentRole = await UserService.getRoleFast();
+      final isManagerOrOwner = currentRole == 'admin' || currentRole == 'owner';
+
+      if (!isManagerOrOwner) {
+        // Nhân viên thường: chuyển sang trạng thái "Chờ duyệt giao" (5)
+        await _submitForDeliveryApproval();
+        return;
+      }
+    }
+
+    // Duyệt đơn chờ giao (từ status 5 -> 4) - chỉ admin/owner mới thấy nút này
+    if (r.status == 5 && newStatus == 4) {
+      // Admin/owner duyệt đơn chờ giao
+      await _approveDelivery();
+      return;
+    }
+
     if (newStatus == 4) {
       // GIAO MÁY
       String payMethod = "TIỀN MẶT";
@@ -355,6 +376,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         return "SỬA XONG";
       case 4:
         return "ĐÃ GIAO";
+      case 5:
+        return "CHỜ DUYỆT GIAO";
       default:
         return "KHÁC";
     }
@@ -370,9 +393,381 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         return AppColors.success;
       case 4:
         return AppColors.primary;
+      case 5:
+        return Colors.deepOrange; // Màu cho trạng thái chờ duyệt
       default:
         return Colors.grey;
     }
+  }
+
+  /// Nhân viên submit đơn chờ duyệt giao (status 5)
+  Future<void> _submitForDeliveryApproval() async {
+    String payMethod = "TIỀN MẶT";
+    String selectedWarranty = r.warranty.isEmpty ? "1 THÁNG" : r.warranty;
+    final List<String> warrantyOptions = [
+      "KO BH",
+      "1 THÁNG",
+      "3 THÁNG",
+      "6 THÁNG",
+      "12 THÁNG",
+    ];
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          title: const Text("GỬI YÊU CẦU GIAO MÁY"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Đơn sẽ được gửi cho quản lý duyệt trước khi hoàn tất giao máy',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Chọn thời gian bảo hành:",
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: warrantyOptions
+                    .map(
+                      (opt) => ChoiceChip(
+                        label: Text(opt, style: AppTextStyles.caption),
+                        selected: selectedWarranty == opt,
+                        onSelected: (v) => setS(() => selectedWarranty = opt),
+                        selectedColor: AppColors.primary.withOpacity(0.2),
+                      ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "Hình thức thanh toán:",
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: ["TIỀN MẶT", "CHUYỂN KHOẢN", "CÔNG NỢ"]
+                    .map(
+                      (m) => ChoiceChip(
+                        label: Text(m, style: AppTextStyles.caption),
+                        selected: payMethod == m,
+                        onSelected: (v) => setS(() => payMethod = m),
+                        selectedColor: AppColors.secondary.withOpacity(0.2),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("HỦY"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepOrange,
+              ),
+              child: const Text(
+                "GỬI YÊU CẦU DUYỆT",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirm != true) return;
+
+    r.warranty = selectedWarranty;
+    r.paymentMethod = payMethod;
+    r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
+    r.isSynced = false;
+
+    setState(() {
+      r.status = 5; // Chờ duyệt giao
+      _isUpdating = true;
+    });
+
+    try {
+      await db.upsertRepair(r);
+
+      if (r.id != null) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.repair,
+          entityId: r.id!,
+          firestoreId: r.firestoreId,
+          operation: SyncOperation.update,
+          data: r.toMap(),
+        );
+      }
+
+      final user = FirebaseAuth.instance.currentUser;
+      final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
+
+      // Gửi notification cho quản lý
+      await NotificationService.sendCloudNotification(
+        title: '📋 YÊU CẦU DUYỆT GIAO MÁY',
+        body:
+            '${r.customerName} - ${r.model} (${MoneyUtils.formatCurrency(r.price)}đ)',
+        type: 'approval_needed',
+      );
+
+      // Log và chat
+      await db.logAction(
+        userId: user?.uid ?? "0",
+        userName: userName,
+        action: "YÊU CẦU DUYỆT GIAO",
+        type: "REPAIR",
+        targetId: r.firestoreId,
+        desc: "Yêu cầu duyệt giao máy ${r.model} cho khách ${r.customerName}",
+      );
+
+      final key = r.firestoreId ?? "repair_${r.createdAt}";
+      await FirestoreService.sendChat(
+        message:
+            "📋 YÊU CẦU DUYỆT GIAO: ${r.model} - ${r.customerName} - ${MoneyUtils.formatCurrency(r.price)}đ",
+        senderId: user?.uid ?? 'guest',
+        senderName: userName,
+        linkedType: 'repair',
+        linkedKey: key,
+        linkedSummary: "Chờ duyệt giao - ${r.customerName}",
+      );
+
+      NotificationService.showSnackBar(
+        "Đã gửi yêu cầu duyệt giao máy",
+        color: Colors.deepOrange,
+      );
+      EventBus().emit('repairs_changed');
+    } catch (e) {
+      debugPrint('Error submitting for approval: $e');
+    }
+    setState(() => _isUpdating = false);
+  }
+
+  /// Quản lý duyệt đơn giao máy (status 5 -> 4)
+  Future<void> _approveDelivery() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("DUYỆT GIAO MÁY"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Khách: ${r.customerName}",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text("Máy: ${r.model}"),
+                  Text("Giá: ${MoneyUtils.formatCurrency(r.price)}đ"),
+                  Text("Bảo hành: ${r.warranty}"),
+                  Text("Thanh toán: ${r.paymentMethod}"),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Xác nhận duyệt giao máy và hoàn tất giao dịch?",
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("HỦY"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx, false);
+              // Từ chối - quay lại status 3
+              await _rejectDeliveryApproval();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text("TỪ CHỐI"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text("DUYỆT", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    r.deliveredAt = DateTime.now().millisecondsSinceEpoch;
+    r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
+    r.isSynced = false;
+
+    final user = FirebaseAuth.instance.currentUser;
+    final userName = user?.email?.split('@').first.toUpperCase() ?? "QL";
+
+    setState(() {
+      r.status = 4; // Đã giao
+      _isUpdating = true;
+    });
+
+    try {
+      // Tạo công nợ nếu thanh toán công nợ
+      if (r.paymentMethod == "CÔNG NỢ") {
+        final debtFId =
+            "debt_${DateTime.now().millisecondsSinceEpoch}_${r.phone.hashCode}";
+        final debtData = {
+          'personName': r.customerName,
+          'phone': r.phone,
+          'totalAmount': r.price,
+          'paidAmount': 0,
+          'type': "CUSTOMER_OWES",
+          'status': "ACTIVE",
+          'createdAt': DateTime.now().millisecondsSinceEpoch,
+          'note': "Nợ tiền sửa máy: ${r.model}",
+          'linkedId': r.firestoreId,
+          'firestoreId': debtFId,
+        };
+        final debtId = await db.insertDebt(debtData);
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.debt,
+          entityId: debtId,
+          firestoreId: debtFId,
+          operation: SyncOperation.create,
+          data: debtData,
+        );
+      }
+
+      await db.upsertRepair(r);
+
+      if (r.id != null) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.repair,
+          entityId: r.id!,
+          firestoreId: r.firestoreId,
+          operation: SyncOperation.update,
+          data: r.toMap(),
+        );
+      }
+
+      // Log
+      await db.logAction(
+        userId: user?.uid ?? "0",
+        userName: userName,
+        action: "DUYỆT GIAO MÁY",
+        type: "REPAIR",
+        targetId: r.firestoreId,
+        desc:
+            "Đã duyệt giao máy ${r.model} cho khách ${r.customerName}. Bảo hành: ${r.warranty}",
+      );
+
+      // Chat notification
+      final key = r.firestoreId ?? "repair_${r.createdAt}";
+      final summary =
+          "ĐƠN SỬA - ${r.customerName} - ${r.phone} - ${r.model} - ${MoneyUtils.formatCurrency(r.price)}đ";
+      await FirestoreService.sendChat(
+        message: "✅ ĐÃ DUYỆT GIAO MÁY: $summary",
+        senderId: user?.uid ?? 'guest',
+        senderName: userName,
+        linkedType: 'repair',
+        linkedKey: key,
+        linkedSummary: summary,
+      );
+
+      NotificationService.showSnackBar(
+        "Đã duyệt và hoàn tất giao máy",
+        color: Colors.green,
+      );
+      EventBus().emit('repairs_changed');
+    } catch (e) {
+      debugPrint('Error approving delivery: $e');
+    }
+    setState(() => _isUpdating = false);
+  }
+
+  /// Từ chối duyệt giao - quay lại status 3 (Sửa xong)
+  Future<void> _rejectDeliveryApproval() async {
+    r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
+    r.isSynced = false;
+
+    setState(() {
+      r.status = 3;
+      _isUpdating = true;
+    });
+
+    try {
+      await db.upsertRepair(r);
+      if (r.id != null) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.repair,
+          entityId: r.id!,
+          firestoreId: r.firestoreId,
+          operation: SyncOperation.update,
+          data: r.toMap(),
+        );
+      }
+
+      final user = FirebaseAuth.instance.currentUser;
+      final userName = user?.email?.split('@').first.toUpperCase() ?? "QL";
+
+      await db.logAction(
+        userId: user?.uid ?? "0",
+        userName: userName,
+        action: "TỪ CHỐI GIAO",
+        type: "REPAIR",
+        targetId: r.firestoreId,
+        desc: "Từ chối duyệt giao máy ${r.model}",
+      );
+
+      NotificationService.showSnackBar(
+        "Đã từ chối - đơn quay lại trạng thái Sửa xong",
+        color: Colors.red,
+      );
+      EventBus().emit('repairs_changed');
+    } catch (e) {
+      debugPrint('Error rejecting delivery: $e');
+    }
+    setState(() => _isUpdating = false);
   }
 
   Future<void> _saveData() async {
@@ -655,12 +1050,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       setState(() {
         final parsedPrice = MoneyUtils.parseCurrency(priceC.text);
         final parsedCost = MoneyUtils.parseCurrency(costC.text);
-        r.price = parsedPrice > 0 && parsedPrice < 100000
-            ? parsedPrice * 1000
-            : parsedPrice;
-        r.cost = parsedCost > 0 && parsedCost < 100000
-            ? parsedCost * 1000
-            : parsedCost;
+        r.price = parsedPrice;
+        r.cost = parsedCost;
       });
       // Note: Chi phí linh kiện được theo dõi qua repair.cost và tính vào repairCost trong báo cáo
       // Không cần tạo expense riêng để tránh double-counting
@@ -871,6 +1262,71 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Widget _buildActionButtons() {
     if (r.status == 4) return const SizedBox();
+
+    // Status 5: Chờ duyệt giao - chỉ quản lý mới thấy nút duyệt
+    if (r.status == 5) {
+      return FutureBuilder<String>(
+        future: UserService.getRoleFast(),
+        builder: (context, snapshot) {
+          final role = snapshot.data ?? 'user';
+          final isManager = role == 'admin' || role == 'owner';
+
+          return Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.deepOrange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.deepOrange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.hourglass_empty,
+                      color: Colors.deepOrange.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isManager
+                            ? 'Đơn đang chờ bạn duyệt giao máy'
+                            : 'Đang chờ quản lý duyệt giao máy',
+                        style: TextStyle(
+                          color: Colors.deepOrange.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isManager) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _approveDelivery(),
+                    icon: const Icon(Icons.check_circle, size: 18),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    label: const Text(
+                      "DUYỆT GIAO MÁY",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      );
+    }
+
     return Column(
       children: [
         // Row 1: Đang sửa + Đã xong
