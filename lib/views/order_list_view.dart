@@ -46,6 +46,7 @@ class OrderListViewState extends State<OrderListView> {
 
   // Status filter - Set để cho phép chọn nhiều trạng thái
   Set<int> _statusFilters = {}; // Empty = all, {1,2} = tiếp nhận + đang sửa
+  bool _filterPendingApproval = false; // Lọc đơn chờ duyệt giao
 
   bool get canDelete => widget.role == 'admin' || widget.role == 'owner';
 
@@ -109,9 +110,14 @@ class OrderListViewState extends State<OrderListView> {
           !widget.statusFilter!.contains(r.status)) {
         return false;
       }
-      // User-selected status filter - cho phép chọn nhiều trạng thái
-      if (_statusFilters.isNotEmpty && !_statusFilters.contains(r.status)) {
-        return false;
+      // Lọc đơn chờ duyệt giao
+      if (_filterPendingApproval) {
+        if (!r.pendingDeliveryApproval) return false;
+      } else {
+        // User-selected status filter - cho phép chọn nhiều trạng thái
+        if (_statusFilters.isNotEmpty && !_statusFilters.contains(r.status)) {
+          return false;
+        }
       }
       if (widget.todayOnly) {
         final d = DateTime.fromMillisecondsSinceEpoch(r.createdAt);
@@ -231,12 +237,7 @@ class OrderListViewState extends State<OrderListView> {
                   _statusChipMulti('Tiếp nhận', 1, setSheetState, Colors.blue),
                   _statusChipMulti('Đang sửa', 2, setSheetState, Colors.orange),
                   _statusChipMulti('Đã xong', 3, setSheetState, Colors.green),
-                  _statusChipMulti(
-                    'Chờ duyệt',
-                    5,
-                    setSheetState,
-                    Colors.deepOrange,
-                  ),
+                  _pendingApprovalChip(setSheetState),
                   _statusChipMulti('Đã giao', 4, setSheetState, Colors.purple),
                 ],
               ),
@@ -390,7 +391,7 @@ class OrderListViewState extends State<OrderListView> {
   ]) {
     // null = "Tất cả" - khi bấm sẽ clear hết selection
     final isSelected = value == null
-        ? _statusFilters.isEmpty
+        ? _statusFilters.isEmpty && !_filterPendingApproval
         : _statusFilters.contains(value);
     final color = activeColor ?? const Color(0xFF2962FF);
     return GestureDetector(
@@ -399,6 +400,7 @@ class OrderListViewState extends State<OrderListView> {
           if (value == null) {
             // Bấm "Tất cả" -> clear hết
             _statusFilters = {};
+            _filterPendingApproval = false;
           } else {
             // Toggle trạng thái được chọn
             if (_statusFilters.contains(value)) {
@@ -406,6 +408,7 @@ class OrderListViewState extends State<OrderListView> {
             } else {
               _statusFilters.add(value);
             }
+            _filterPendingApproval = false; // Reset pending filter
           }
         });
       },
@@ -426,6 +429,46 @@ class OrderListViewState extends State<OrderListView> {
               ),
             Text(
               label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.black87,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _pendingApprovalChip(StateSetter setSheetState) {
+    final isSelected = _filterPendingApproval;
+    final color = Colors.deepOrange;
+    return GestureDetector(
+      onTap: () {
+        setSheetState(() {
+          _filterPendingApproval = !_filterPendingApproval;
+          if (_filterPendingApproval) {
+            _statusFilters = {}; // Clear other filters when selecting pending
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? color : Colors.grey.shade300),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isSelected)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Icon(Icons.check_circle, size: 14, color: Colors.white),
+              ),
+            Text(
+              'Chờ duyệt',
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.black87,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -928,13 +971,22 @@ class OrderListViewState extends State<OrderListView> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(r.status).withOpacity(0.15),
+                        color: _getStatusColor(
+                          r.status,
+                          pendingApproval: r.pendingDeliveryApproval,
+                        ).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        _getStatusLabel(r.status),
+                        _getStatusLabel(
+                          r.status,
+                          pendingApproval: r.pendingDeliveryApproval,
+                        ),
                         style: TextStyle(
-                          color: _getStatusColor(r.status),
+                          color: _getStatusColor(
+                            r.status,
+                            pendingApproval: r.pendingDeliveryApproval,
+                          ),
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
                         ),
@@ -950,7 +1002,10 @@ class OrderListViewState extends State<OrderListView> {
     );
   }
 
-  String _getStatusLabel(int status) {
+  String _getStatusLabel(int status, {bool pendingApproval = false}) {
+    if (status == 3 && pendingApproval) {
+      return "CHỜ DUYỆT";
+    }
     switch (status) {
       case 1:
         return "TIẾP NHẬN";
@@ -960,14 +1015,15 @@ class OrderListViewState extends State<OrderListView> {
         return "SỬA XONG";
       case 4:
         return "ĐÃ GIAO";
-      case 5:
-        return "CHỜ DUYỆT";
       default:
         return "KHÁC";
     }
   }
 
-  Color _getStatusColor(int status) {
+  Color _getStatusColor(int status, {bool pendingApproval = false}) {
+    if (status == 3 && pendingApproval) {
+      return Colors.deepOrange;
+    }
     switch (status) {
       case 1:
         return Colors.blue;
@@ -977,8 +1033,6 @@ class OrderListViewState extends State<OrderListView> {
         return Colors.green;
       case 4:
         return Colors.purple;
-      case 5:
-        return Colors.deepOrange;
       default:
         return Colors.grey;
     }

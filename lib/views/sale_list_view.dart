@@ -52,7 +52,7 @@ class _SaleListViewState extends State<SaleListView> {
   Future<void> _refresh() async {
     setState(() => _loading = true);
     final data = await db.getAllSales();
-    
+
     if (!mounted) return;
     setState(() {
       _sales = data;
@@ -420,11 +420,18 @@ class _SaleListViewState extends State<SaleListView> {
               decoration: InputDecoration(
                 hintText: "Tìm theo tên khách, máy hoặc IMEI...",
                 hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-                prefixIcon: Icon(Icons.search_rounded, color: AppBarAccents.sales, size: 20),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: AppBarAccents.sales,
+                  size: 20,
+                ),
                 prefixIconConstraints: const BoxConstraints(minWidth: 40),
                 filled: true,
                 fillColor: Colors.grey.shade100,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none,
@@ -532,7 +539,7 @@ class _SaleListViewState extends State<SaleListView> {
                           ),
                         )
                       : ListView.builder(
-                          padding: const EdgeInsets.all(15),
+                          padding: const EdgeInsets.all(8),
                           itemCount: list.length,
                           itemBuilder: (ctx, i) {
                             final s = list[i];
@@ -543,14 +550,14 @@ class _SaleListViewState extends State<SaleListView> {
                             final index = i + 1;
 
                             return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
+                              margin: const EdgeInsets.only(bottom: 8),
                               decoration: BoxDecoration(
                                 color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(12),
                                 boxShadow: const [
                                   BoxShadow(
                                     color: AppColors.shadow,
-                                    blurRadius: 10,
+                                    blurRadius: 6,
                                   ),
                                 ],
                               ),
@@ -564,18 +571,19 @@ class _SaleListViewState extends State<SaleListView> {
                                     ),
                                   ).then((_) => _refresh());
                                 },
-                                contentPadding: const EdgeInsets.all(15),
+                                contentPadding: const EdgeInsets.all(10),
                                 leading: Container(
-                                  width: 32,
-                                  height: 32,
+                                  width: 28,
+                                  height: 28,
                                   decoration: BoxDecoration(
                                     color: AppColors.success.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Center(
                                     child: Text(
                                       '$index',
-                                      style: AppTextStyles.body2.copyWith(
+                                      style: const TextStyle(
+                                        fontSize: 10,
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.success,
                                       ),
@@ -592,7 +600,8 @@ class _SaleListViewState extends State<SaleListView> {
                                           Flexible(
                                             child: Text(
                                               s.customerName.toUpperCase(),
-                                              style: AppTextStyles.body2.copyWith(
+                                              style: const TextStyle(
+                                                fontSize: 11,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                               overflow: TextOverflow.ellipsis,
@@ -603,7 +612,8 @@ class _SaleListViewState extends State<SaleListView> {
                                     ),
                                     Text(
                                       date,
-                                      style: AppTextStyles.overline.copyWith(
+                                      style: TextStyle(
+                                        fontSize: 9,
                                         color: AppColors.onSurface.withOpacity(
                                           0.6,
                                         ),
@@ -615,10 +625,11 @@ class _SaleListViewState extends State<SaleListView> {
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const SizedBox(height: 6),
+                                    const SizedBox(height: 4),
                                     Text(
                                       s.productNames,
-                                      style: AppTextStyles.body2.copyWith(
+                                      style: const TextStyle(
+                                        fontSize: 11,
                                         color: AppColors.primary,
                                         fontWeight: FontWeight.w900,
                                       ),
@@ -627,15 +638,18 @@ class _SaleListViewState extends State<SaleListView> {
                                     ),
                                     Text(
                                       "IMEI: ${s.productImeis}",
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.onSurface,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: AppColors.onSurface.withOpacity(
+                                          0.7,
+                                        ),
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     const Padding(
                                       padding: EdgeInsets.symmetric(
-                                        vertical: 8,
+                                        vertical: 6,
                                       ),
                                       child: Divider(height: 1),
                                     ),
@@ -667,38 +681,39 @@ class _SaleListViewState extends State<SaleListView> {
                                           ),
                                       ],
                                     ),
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 6),
                                     Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
                                         Container(
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
+                                            horizontal: 6,
+                                            vertical: 3,
                                           ),
                                           decoration: BoxDecoration(
                                             color: _getPayColor(
                                               s.paymentMethod,
                                             ).withAlpha(25),
                                             borderRadius: BorderRadius.circular(
-                                              8,
+                                              6,
                                             ),
                                           ),
                                           child: Text(
                                             s.paymentMethod,
-                                            style: AppTextStyles.overline
-                                                .copyWith(
-                                                  color: _getPayColor(
-                                                    s.paymentMethod,
-                                                  ),
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              color: _getPayColor(
+                                                s.paymentMethod,
+                                              ),
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
                                         Text(
                                           "NV: ${s.sellerName}",
-                                          style: AppTextStyles.caption.copyWith(
+                                          style: TextStyle(
+                                            fontSize: 9,
                                             fontStyle: FontStyle.italic,
                                             color: AppColors.onSurface
                                                 .withOpacity(0.6),
@@ -800,14 +815,16 @@ class _SaleListViewState extends State<SaleListView> {
       children: [
         Text(
           label,
-          style: AppTextStyles.overline.copyWith(
+          style: TextStyle(
+            fontSize: 8,
             color: AppColors.onSurface.withOpacity(0.6),
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           "$value đ",
-          style: AppTextStyles.caption.copyWith(
+          style: TextStyle(
+            fontSize: 10,
             fontWeight: FontWeight.w900,
             color: color,
           ),

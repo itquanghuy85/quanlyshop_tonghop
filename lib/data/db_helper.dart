@@ -54,10 +54,10 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 64,
+      version: 65,
       onCreate: (db, version) async {
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT)',
+          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, brand TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT)',
@@ -101,8 +101,7 @@ class DBHelper {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS payroll_locks(id INTEGER PRIMARY KEY AUTOINCREMENT, monthKey TEXT UNIQUE, locked INTEGER DEFAULT 0, lockedBy TEXT, lockedAt INTEGER, note TEXT)',
         );
-        await db.execute(
-          '''CREATE TABLE IF NOT EXISTS employee_salary_settings(
+        await db.execute('''CREATE TABLE IF NOT EXISTS employee_salary_settings(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             firestoreId TEXT UNIQUE,
             staffId TEXT NOT NULL,
@@ -129,8 +128,7 @@ class DBHelper {
             updatedBy TEXT,
             isActive INTEGER DEFAULT 1,
             isSynced INTEGER DEFAULT 0
-          )'''
-        );
+          )''');
         await db.execute(
           'CREATE TABLE IF NOT EXISTS purchase_orders(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, orderCode TEXT UNIQUE, supplierName TEXT, supplierPhone TEXT, supplierAddress TEXT, itemsJson TEXT, totalAmount INTEGER, totalCost INTEGER, createdAt INTEGER, createdBy TEXT, status TEXT DEFAULT "PENDING", paymentMethod TEXT, notes TEXT, isSynced INTEGER DEFAULT 0)',
         );
@@ -1399,33 +1397,45 @@ class DBHelper {
         }
         if (oldV < 62) {
           // v62: Thêm các cột còn thiếu vào bảng work_schedules
-          debugPrint('DB upgrade v62: Adding missing columns to work_schedules...');
+          debugPrint(
+            'DB upgrade v62: Adding missing columns to work_schedules...',
+          );
           try {
-            await db.execute('ALTER TABLE work_schedules ADD COLUMN holidays TEXT');
+            await db.execute(
+              'ALTER TABLE work_schedules ADD COLUMN holidays TEXT',
+            );
             debugPrint('v62: added holidays column');
           } catch (e) {
             debugPrint('v62 error (holidays): $e');
           }
           try {
-            await db.execute('ALTER TABLE work_schedules ADD COLUMN weekdayOtRate INTEGER DEFAULT 150');
+            await db.execute(
+              'ALTER TABLE work_schedules ADD COLUMN weekdayOtRate INTEGER DEFAULT 150',
+            );
             debugPrint('v62: added weekdayOtRate column');
           } catch (e) {
             debugPrint('v62 error (weekdayOtRate): $e');
           }
           try {
-            await db.execute('ALTER TABLE work_schedules ADD COLUMN weekendOtRate INTEGER DEFAULT 200');
+            await db.execute(
+              'ALTER TABLE work_schedules ADD COLUMN weekendOtRate INTEGER DEFAULT 200',
+            );
             debugPrint('v62: added weekendOtRate column');
           } catch (e) {
             debugPrint('v62 error (weekendOtRate): $e');
           }
           try {
-            await db.execute('ALTER TABLE work_schedules ADD COLUMN holidayOtRate INTEGER DEFAULT 300');
+            await db.execute(
+              'ALTER TABLE work_schedules ADD COLUMN holidayOtRate INTEGER DEFAULT 300',
+            );
             debugPrint('v62: added holidayOtRate column');
           } catch (e) {
             debugPrint('v62 error (holidayOtRate): $e');
           }
           try {
-            await db.execute('ALTER TABLE work_schedules ADD COLUMN shopId TEXT');
+            await db.execute(
+              'ALTER TABLE work_schedules ADD COLUMN shopId TEXT',
+            );
             debugPrint('v62: added shopId column');
           } catch (e) {
             debugPrint('v62 error (shopId): $e');
@@ -1436,43 +1446,57 @@ class DBHelper {
           // v63: Mở rộng payroll_settings để hỗ trợ nhiều loại hoa hồng và phụ cấp
           debugPrint('DB upgrade v63: Extending payroll_settings...');
           try {
-            await db.execute('ALTER TABLE payroll_settings ADD COLUMN saleCommType TEXT DEFAULT "percent"');
+            await db.execute(
+              'ALTER TABLE payroll_settings ADD COLUMN saleCommType TEXT DEFAULT "percent"',
+            );
             debugPrint('v63: added saleCommType column');
           } catch (e) {
             debugPrint('v63 error (saleCommType): $e');
           }
           try {
-            await db.execute('ALTER TABLE payroll_settings ADD COLUMN repairCommType TEXT DEFAULT "percent"');
+            await db.execute(
+              'ALTER TABLE payroll_settings ADD COLUMN repairCommType TEXT DEFAULT "percent"',
+            );
             debugPrint('v63: added repairCommType column');
           } catch (e) {
             debugPrint('v63 error (repairCommType): $e');
           }
           try {
-            await db.execute('ALTER TABLE payroll_settings ADD COLUMN transportAllowance INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE payroll_settings ADD COLUMN transportAllowance INTEGER DEFAULT 0',
+            );
             debugPrint('v63: added transportAllowance column');
           } catch (e) {
             debugPrint('v63 error (transportAllowance): $e');
           }
           try {
-            await db.execute('ALTER TABLE payroll_settings ADD COLUMN mealAllowance INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE payroll_settings ADD COLUMN mealAllowance INTEGER DEFAULT 0',
+            );
             debugPrint('v63: added mealAllowance column');
           } catch (e) {
             debugPrint('v63 error (mealAllowance): $e');
           }
           try {
-            await db.execute('ALTER TABLE payroll_settings ADD COLUMN phoneAllowance INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE payroll_settings ADD COLUMN phoneAllowance INTEGER DEFAULT 0',
+            );
             debugPrint('v63: added phoneAllowance column');
           } catch (e) {
             debugPrint('v63 error (phoneAllowance): $e');
           }
           try {
-            await db.execute('ALTER TABLE payroll_settings ADD COLUMN targetBonus INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE payroll_settings ADD COLUMN targetBonus INTEGER DEFAULT 0',
+            );
             debugPrint('v63: added targetBonus column');
           } catch (e) {
             debugPrint('v63 error (targetBonus): $e');
           }
           try {
-            await db.execute('ALTER TABLE payroll_settings ADD COLUMN monthlyTarget INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE payroll_settings ADD COLUMN monthlyTarget INTEGER DEFAULT 0',
+            );
             debugPrint('v63: added monthlyTarget column');
           } catch (e) {
             debugPrint('v63 error (monthlyTarget): $e');
@@ -1481,7 +1505,9 @@ class DBHelper {
         }
         if (oldV < 64) {
           // v64: Thêm bảng employee_salary_settings để lưu cài đặt lương cho từng nhân viên
-          debugPrint('DB upgrade v64: Adding employee_salary_settings table...');
+          debugPrint(
+            'DB upgrade v64: Adding employee_salary_settings table...',
+          );
           try {
             await db.execute('''
               CREATE TABLE IF NOT EXISTS employee_salary_settings(
@@ -1514,13 +1540,32 @@ class DBHelper {
               )
             ''');
             // Index để query nhanh theo staffId và shopId
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_employee_salary_staff ON employee_salary_settings(staffId)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_employee_salary_shop ON employee_salary_settings(shopId)');
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_employee_salary_staff ON employee_salary_settings(staffId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_employee_salary_shop ON employee_salary_settings(shopId)',
+            );
             debugPrint('v64: created employee_salary_settings table');
           } catch (e) {
             debugPrint('v64 error (employee_salary_settings): $e');
           }
           debugPrint('DB upgrade v64: completed');
+        }
+        if (oldV < 65) {
+          // v65: Thêm cột pendingDeliveryApproval vào repairs để chờ duyệt giao máy
+          debugPrint(
+            'DB upgrade v65: Adding pendingDeliveryApproval column...',
+          );
+          try {
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN pendingDeliveryApproval INTEGER DEFAULT 0',
+            );
+            debugPrint('v65: added pendingDeliveryApproval column to repairs');
+          } catch (e) {
+            debugPrint('v65 error (pendingDeliveryApproval): $e');
+          }
+          debugPrint('DB upgrade v65: completed');
         }
         debugPrint('DB upgrade completed');
       },
@@ -1748,7 +1793,9 @@ class DBHelper {
           await db.execute(
             'ALTER TABLE supplier_import_history ADD COLUMN importedByUid TEXT',
           );
-          debugPrint('DB: added importedByUid column to supplier_import_history');
+          debugPrint(
+            'DB: added importedByUid column to supplier_import_history',
+          );
         } catch (e) {
           debugPrint(
             'DB: importedByUid column already exists in supplier_import_history or error: $e',
@@ -3417,7 +3464,7 @@ class DBHelper {
     final db = await database;
     final shopId = await UserService.getCurrentShopId();
     if (shopId == null) return [];
-    
+
     return await db.query(
       'employee_salary_settings',
       where: 'shopId = ? AND isActive = 1',
@@ -3427,18 +3474,20 @@ class DBHelper {
   }
 
   /// Lấy cài đặt lương của một nhân viên theo staffId
-  Future<Map<String, dynamic>?> getEmployeeSalarySettingByStaffId(String staffId) async {
+  Future<Map<String, dynamic>?> getEmployeeSalarySettingByStaffId(
+    String staffId,
+  ) async {
     final db = await database;
     final shopId = await UserService.getCurrentShopId();
     if (shopId == null) return null;
-    
+
     final results = await db.query(
       'employee_salary_settings',
       where: 'shopId = ? AND staffId = ? AND isActive = 1',
       whereArgs: [shopId, staffId],
       limit: 1,
     );
-    
+
     if (results.isEmpty) return null;
     return results.first;
   }
@@ -3461,13 +3510,16 @@ class DBHelper {
     cleanData['shopId'] = shopId;
     cleanData['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
     cleanData['isSynced'] = 0;
-    
+
     // Đảm bảo createdAt là INTEGER
     if (cleanData['createdAt'] is DateTime) {
-      cleanData['createdAt'] = (cleanData['createdAt'] as DateTime).millisecondsSinceEpoch;
+      cleanData['createdAt'] =
+          (cleanData['createdAt'] as DateTime).millisecondsSinceEpoch;
     } else if (cleanData['createdAt'] is String) {
       final parsed = DateTime.tryParse(cleanData['createdAt'] as String);
-      cleanData['createdAt'] = parsed?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch;
+      cleanData['createdAt'] =
+          parsed?.millisecondsSinceEpoch ??
+          DateTime.now().millisecondsSinceEpoch;
     }
 
     // Check existing
@@ -3490,7 +3542,8 @@ class DBHelper {
       return existing.first['id'] as int;
     } else {
       // Insert
-      cleanData['createdAt'] = cleanData['createdAt'] ?? DateTime.now().millisecondsSinceEpoch;
+      cleanData['createdAt'] =
+          cleanData['createdAt'] ?? DateTime.now().millisecondsSinceEpoch;
       cleanData['isActive'] = 1;
       return await db.insert('employee_salary_settings', cleanData);
     }
@@ -3503,7 +3556,7 @@ class DBHelper {
     if (firestoreId == null && staffId == null) return;
 
     final db = await database;
-    
+
     // Chuyển đổi các giá trị về đúng kiểu
     final cleanData = <String, dynamic>{};
     data.forEach((key, value) {
@@ -3558,16 +3611,17 @@ class DBHelper {
     }
 
     // Insert new
-    await db.insert('employee_salary_settings', cleanData, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'employee_salary_settings',
+      cleanData,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   /// Lấy các cài đặt chưa sync để đẩy lên cloud
   Future<List<Map<String, dynamic>>> getUnsyncedEmployeeSalarySettings() async {
     final db = await database;
-    return await db.query(
-      'employee_salary_settings',
-      where: 'isSynced = 0',
-    );
+    return await db.query('employee_salary_settings', where: 'isSynced = 0');
   }
 
   /// Đánh dấu đã sync
@@ -3587,7 +3641,11 @@ class DBHelper {
     final shopId = await UserService.getCurrentShopId();
     await db.update(
       'employee_salary_settings',
-      {'isActive': 0, 'isSynced': 0, 'updatedAt': DateTime.now().millisecondsSinceEpoch},
+      {
+        'isActive': 0,
+        'isSynced': 0,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
       where: 'staffId = ? AND shopId = ?',
       whereArgs: [staffId, shopId],
     );
@@ -4715,7 +4773,7 @@ class DBHelper {
     if (returns.isEmpty) return 0;
 
     final returnIds = returns.map((r) => r['id'] as int).toList();
-    
+
     // Tính tổng quantity từ các item có productImei tương ứng (case-insensitive)
     int total = 0;
     for (final returnId in returnIds) {
@@ -4748,7 +4806,7 @@ class DBHelper {
     if (returns.isEmpty) return 0;
 
     final returnIds = returns.map((r) => r['id'] as int).toList();
-    
+
     // Tính tổng quantity từ các item có productId tương ứng
     int total = 0;
     for (final returnId in returnIds) {
@@ -4774,11 +4832,7 @@ class DBHelper {
         where: 'salesReturnId = ?',
         whereArgs: [id],
       );
-      await txn.delete(
-        'sales_returns',
-        where: 'id = ?',
-        whereArgs: [id],
-      );
+      await txn.delete('sales_returns', where: 'id = ?', whereArgs: [id]);
     });
   }
 
@@ -4853,7 +4907,7 @@ class DBHelper {
 
     String whereClause = 'returnDate >= ? AND returnDate <= ? AND status = ?';
     List<dynamic> whereArgs = [startDate, endDate, 'APPROVED'];
-    
+
     if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
       whereClause += ' AND shopId = ?';
       whereArgs.add(effectiveShopId);
@@ -4879,18 +4933,19 @@ class DBHelper {
   }
 
   // ========== FINANCIAL ACTIVITY LOG METHODS ==========
-  
+
   /// Insert một activity mới vào log
   Future<int> insertFinancialActivity(Map<String, dynamic> data) async {
     final db = await database;
     final cleanData = Map<String, dynamic>.from(data);
     cleanData.remove('id');
-    
+
     // Đảm bảo có shopId
-    if (cleanData['shopId'] == null || (cleanData['shopId'] as String).isEmpty) {
+    if (cleanData['shopId'] == null ||
+        (cleanData['shopId'] as String).isEmpty) {
       cleanData['shopId'] = UserService.getShopIdSync();
     }
-    
+
     return await db.insert('financial_activity_log', cleanData);
   }
 
@@ -4907,49 +4962,56 @@ class DBHelper {
   }) async {
     final db = await database;
     final effectiveShopId = shopId ?? UserService.getShopIdSync();
-    
+
     List<String> conditions = [];
     List<dynamic> args = [];
-    
+
     if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
       conditions.add('shopId = ?');
       args.add(effectiveShopId);
     }
-    
+
     if (startDate != null) {
       conditions.add('createdAt >= ?');
       args.add(startDate);
     }
-    
+
     if (endDate != null) {
       conditions.add('createdAt <= ?');
       args.add(endDate);
     }
-    
+
     if (activityType != null && activityType.isNotEmpty) {
       conditions.add('activityType = ?');
       args.add(activityType);
     }
-    
+
     if (direction != null && direction.isNotEmpty) {
       conditions.add('direction = ?');
       args.add(direction);
     }
-    
+
     if (searchQuery != null && searchQuery.isNotEmpty) {
-      conditions.add('(title LIKE ? OR customerName LIKE ? OR phone LIKE ? OR description LIKE ?)');
+      conditions.add(
+        '(title LIKE ? OR customerName LIKE ? OR phone LIKE ? OR description LIKE ?)',
+      );
       final q = '%$searchQuery%';
       args.addAll([q, q, q, q]);
     }
-    
-    final whereClause = conditions.isNotEmpty ? conditions.join(' AND ') : '1=1';
-    
-    return await db.rawQuery('''
+
+    final whereClause = conditions.isNotEmpty
+        ? conditions.join(' AND ')
+        : '1=1';
+
+    return await db.rawQuery(
+      '''
       SELECT * FROM financial_activity_log
       WHERE $whereClause
       ORDER BY createdAt DESC
       LIMIT ? OFFSET ?
-    ''', [...args, limit, offset]);
+    ''',
+      [...args, limit, offset],
+    );
   }
 
   /// Lấy tổng hợp activity theo khoảng thời gian
@@ -4960,15 +5022,15 @@ class DBHelper {
   }) async {
     final db = await database;
     final effectiveShopId = shopId ?? UserService.getShopIdSync();
-    
+
     String whereClause = 'createdAt >= ? AND createdAt <= ?';
     List<dynamic> args = [startDate, endDate];
-    
+
     if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
       whereClause += ' AND shopId = ?';
       args.add(effectiveShopId);
     }
-    
+
     final result = await db.rawQuery('''
       SELECT 
         COUNT(*) as totalCount,
@@ -4983,7 +5045,7 @@ class DBHelper {
       FROM financial_activity_log
       WHERE $whereClause
     ''', args);
-    
+
     if (result.isNotEmpty) {
       return {
         'totalCount': result.first['totalCount'] ?? 0,
@@ -4998,16 +5060,24 @@ class DBHelper {
       };
     }
     return {
-      'totalCount': 0, 'totalIn': 0, 'totalOut': 0,
-      'saleCount': 0, 'expenseCount': 0, 'purchaseCount': 0,
-      'debtCollectCount': 0, 'debtPayCount': 0, 'settlementCount': 0,
+      'totalCount': 0,
+      'totalIn': 0,
+      'totalOut': 0,
+      'saleCount': 0,
+      'expenseCount': 0,
+      'purchaseCount': 0,
+      'debtCollectCount': 0,
+      'debtPayCount': 0,
+      'settlementCount': 0,
     };
   }
 
   /// Xóa activity cũ hơn N ngày (để tối ưu DB)
   Future<int> deleteOldFinancialActivities(int daysOld) async {
     final db = await database;
-    final cutoff = DateTime.now().subtract(Duration(days: daysOld)).millisecondsSinceEpoch;
+    final cutoff = DateTime.now()
+        .subtract(Duration(days: daysOld))
+        .millisecondsSinceEpoch;
     return await db.delete(
       'financial_activity_log',
       where: 'createdAt < ?',
@@ -5016,7 +5086,10 @@ class DBHelper {
   }
 
   /// Kiểm tra activity đã tồn tại chưa (theo referenceType + referenceId)
-  Future<bool> financialActivityExists(String referenceType, String referenceId) async {
+  Future<bool> financialActivityExists(
+    String referenceType,
+    String referenceId,
+  ) async {
     final db = await database;
     final result = await db.query(
       'financial_activity_log',

@@ -10,11 +10,11 @@ class Repair {
   String issue;
   String accessories;
   String address;
-  String? imagePath; 
-  String? deliveredImage; 
+  String? imagePath;
+  String? deliveredImage;
   String warranty;
   String partsUsed;
-  int status; // 1: Nhận, 2: Sửa, 3: Xong, 4: Giao, 5: Chờ duyệt giao
+  int status; // 1: Nhận, 2: Sửa, 3: Xong, 4: Giao
   int price;
   int cost;
   String paymentMethod;
@@ -40,10 +40,17 @@ class Repair {
   // Ghi chú đơn sửa
   String? notes;
 
+  // Chờ duyệt giao máy (status 3 + pendingDeliveryApproval = true)
+  bool pendingDeliveryApproval;
+
   // Getter for receive images
   List<String> get receiveImages {
     if (imagePath == null || imagePath!.isEmpty) return [];
-    return imagePath!.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    return imagePath!
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   Repair({
@@ -78,9 +85,10 @@ class Repair {
     this.condition,
     this.services = const [],
     this.notes,
+    this.pendingDeliveryApproval = false,
   });
 
-  /// Tổng chi phí = cost (linh kiện + dịch vụ đã lưu) 
+  /// Tổng chi phí = cost (linh kiện + dịch vụ đã lưu)
   /// Luôn dùng trường cost vì nó đã được cập nhật khi thêm linh kiện/dịch vụ
   int get totalCost => cost;
 
@@ -117,6 +125,7 @@ class Repair {
       'condition': condition,
       'services': jsonEncode(services.map((s) => s.toMap()).toList()),
       'notes': notes,
+      'pendingDeliveryApproval': pendingDeliveryApproval ? 1 : 0,
     };
   }
 
@@ -151,10 +160,15 @@ class Repair {
       color: map['color'],
       imei: map['imei'],
       condition: map['condition'],
-      services: map['services'] != null 
-        ? (jsonDecode(map['services']) as List).map((s) => RepairService.fromMap(s)).toList()
-        : [],
+      services: map['services'] != null
+          ? (jsonDecode(map['services']) as List)
+                .map((s) => RepairService.fromMap(s))
+                .toList()
+          : [],
       notes: map['notes'],
+      pendingDeliveryApproval:
+          map['pendingDeliveryApproval'] == 1 ||
+          map['pendingDeliveryApproval'] == true,
     );
   }
 
@@ -190,6 +204,7 @@ class Repair {
     String? condition,
     List<RepairService>? services,
     String? notes,
+    bool? pendingDeliveryApproval,
   }) {
     return Repair(
       id: id ?? this.id,
@@ -223,6 +238,8 @@ class Repair {
       condition: condition ?? this.condition,
       services: services ?? this.services,
       notes: notes ?? this.notes,
+      pendingDeliveryApproval:
+          pendingDeliveryApproval ?? this.pendingDeliveryApproval,
     );
   }
 }

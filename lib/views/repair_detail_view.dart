@@ -114,20 +114,20 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     debugPrint('Repairs count before update: ${repairsBefore.length}');
 
     // Kiểm tra nếu bấm "Đã giao" (status 4) và user không phải admin/owner
-    // thì chuyển sang trạng thái 5 (Chờ duyệt giao) thay vì 4
+    // thì set pendingDeliveryApproval = true thay vì chuyển status
     if (newStatus == 4) {
       final currentRole = await UserService.getRoleFast();
       final isManagerOrOwner = currentRole == 'admin' || currentRole == 'owner';
 
       if (!isManagerOrOwner) {
-        // Nhân viên thường: chuyển sang trạng thái "Chờ duyệt giao" (5)
+        // Nhân viên thường: đánh dấu chờ duyệt giao (giữ nguyên status 3)
         await _submitForDeliveryApproval();
         return;
       }
     }
 
-    // Duyệt đơn chờ giao (từ status 5 -> 4) - chỉ admin/owner mới thấy nút này
-    if (r.status == 5 && newStatus == 4) {
+    // Reset pendingDeliveryApproval khi giao thành công
+    if (newStatus == 4 && r.pendingDeliveryApproval) {
       // Admin/owner duyệt đơn chờ giao
       await _approveDelivery();
       return;
@@ -366,7 +366,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     setState(() => _isUpdating = false);
   }
 
-  String _getStatusText(int s) {
+  String _getStatusText(int s, {bool pendingApproval = false}) {
+    if (s == 3 && pendingApproval) {
+      return "CHỜ DUYỆT GIAO";
+    }
     switch (s) {
       case 1:
         return "TIẾP NHẬN";
@@ -376,14 +379,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         return "SỬA XONG";
       case 4:
         return "ĐÃ GIAO";
-      case 5:
-        return "CHỜ DUYỆT GIAO";
       default:
         return "KHÁC";
     }
   }
 
-  Color _getStatusColor(int s) {
+  Color _getStatusColor(int s, {bool pendingApproval = false}) {
+    if (s == 3 && pendingApproval) {
+      return Colors.deepOrange; // Màu cho trạng thái chờ duyệt
+    }
     switch (s) {
       case 1:
         return Colors.blue;
@@ -393,14 +397,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         return AppColors.success;
       case 4:
         return AppColors.primary;
-      case 5:
-        return Colors.deepOrange; // Màu cho trạng thái chờ duyệt
       default:
         return Colors.grey;
     }
   }
 
-  /// Nhân viên submit đơn chờ duyệt giao (status 5)
+  /// Nhân viên submit đơn chờ duyệt giao (pendingDeliveryApproval = true)
   Future<void> _submitForDeliveryApproval() async {
     String payMethod = "TIỀN MẶT";
     String selectedWarranty = r.warranty.isEmpty ? "1 THÁNG" : r.warranty;
@@ -518,7 +520,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     r.isSynced = false;
 
     setState(() {
-      r.status = 5; // Chờ duyệt giao
+      r.pendingDeliveryApproval =
+          true; // Đánh dấu chờ duyệt (giữ nguyên status 3)
       _isUpdating = true;
     });
 
@@ -578,7 +581,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     setState(() => _isUpdating = false);
   }
 
-  /// Quản lý duyệt đơn giao máy (status 5 -> 4)
+  /// Quản lý duyệt đơn giao máy (pendingDeliveryApproval -> status 4)
   Future<void> _approveDelivery() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -648,6 +651,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     setState(() {
       r.status = 4; // Đã giao
+      r.pendingDeliveryApproval = false; // Reset pending flag
       _isUpdating = true;
     });
 
@@ -725,13 +729,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     setState(() => _isUpdating = false);
   }
 
-  /// Từ chối duyệt giao - quay lại status 3 (Sửa xong)
+  /// Từ chối duyệt giao - reset pendingDeliveryApproval
   Future<void> _rejectDeliveryApproval() async {
     r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
     r.isSynced = false;
 
     setState(() {
-      r.status = 3;
+      r.pendingDeliveryApproval =
+          false; // Reset pending flag (giữ nguyên status 3)
       _isUpdating = true;
     });
 
@@ -1245,9 +1250,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               children: [
                 Text(r.model.toUpperCase(), style: AppTextStyles.headline5),
                 Text(
-                  _getStatusText(r.status),
+                  _getStatusText(
+                    r.status,
+                    pendingApproval: r.pendingDeliveryApproval,
+                  ),
                   style: AppTextStyles.body2.copyWith(
-                    color: color,
+                    color: _getStatusColor(
+                      r.status,
+                      pendingApproval: r.pendingDeliveryApproval,
+                    ),
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
                   ),
@@ -1263,8 +1274,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   Widget _buildActionButtons() {
     if (r.status == 4) return const SizedBox();
 
-    // Status 5: Chờ duyệt giao - chỉ quản lý mới thấy nút duyệt
-    if (r.status == 5) {
+    // Chờ duyệt giao (status 3 + pendingDeliveryApproval = true) - chỉ quản lý mới thấy nút duyệt
+    if (r.status == 3 && r.pendingDeliveryApproval) {
       return FutureBuilder<String>(
         future: UserService.getRoleFast(),
         builder: (context, snapshot) {
