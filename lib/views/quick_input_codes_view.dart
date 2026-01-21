@@ -981,14 +981,28 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
       _modelCtrl.text = code.model ?? '';
       _capacityCtrl.text = code.capacity ?? '';
       _colorCtrl.text = code.color ?? '';
-      _selectedColor = code.color;
-      _conditionCtrl.text = code.condition ?? '';
+      // Map màu sắc về giá trị chuẩn
+      _selectedColor = code.color != null && code.color!.isNotEmpty
+          ? (_colorOptions.keys.contains(code.color!.toUpperCase()) 
+              ? code.color!.toUpperCase() 
+              : ProductConstants.mapColor(code.color))
+          : null;
+      // Map condition về giá trị chuẩn trong conditionsShort
+      if (code.condition != null && code.condition!.isNotEmpty) {
+        final mappedCondition = ProductConstants.mapConditionShort(code.condition!);
+        _conditionCtrl.text = _conditionSuggestions.contains(mappedCondition) 
+            ? mappedCondition 
+            : '';
+      }
       _costCtrl.text = code.cost?.toString() ?? '';
       _priceCtrl.text = code.price?.toString() ?? '';
       _descriptionCtrl.text = code.description ?? '';
       _supplierCtrl.text = code.supplier ?? '';
       _selectedSupplier = code.supplier;
-      _paymentMethod = code.paymentMethod;
+      // Map payment method về giá trị chuẩn
+      _paymentMethod = code.paymentMethod != null && _paymentMethods.contains(code.paymentMethod)
+          ? code.paymentMethod
+          : null;
     }
   }
 

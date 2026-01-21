@@ -283,7 +283,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     if (newStatus == 3) {
       r.finishedAt = DateTime.now().millisecondsSinceEpoch;
-      r.pendingDeliveryApproval = true; // Tự động chờ duyệt khi sửa xong
+      // Không tự động set pendingDeliveryApproval = true
+      // Để user chủ động bấm nút "GIAO MÁY" sau khi sửa xong
     }
 
     // Update lastCaredAt for conflict resolution during sync
