@@ -126,10 +126,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
           iconColor: Colors.amber,
         ),
         GuideStep(
-          title: '✅ LƯU & XÁC NHẬN',
+          title: '✅ LƯU VÀO HÀNG CHỜ',
           description:
-              'Điền đầy đủ: Tên, Giá vốn, NCC, Phương thức TT. Hàng sẽ vào kho ngay lập tức.',
-          icon: Icons.check_circle,
+              'Điền đầy đủ: Tên, Giá vốn, NCC, Phương thức TT. Hàng sẽ vào "Hàng chờ xác nhận", cần duyệt để vào kho chính.',
+          icon: Icons.inventory_2,
           iconColor: Colors.green,
         ),
         GuideStep(
@@ -174,14 +174,29 @@ class _SmartStockInViewState extends State<SmartStockInView> {
 
       if (_productType == 'DIEN_THOAI') {
         _imeiCtrl.text = item.imei ?? '';
-        _selectedBrand = item.brand;
+        // Validate brand - chỉ set nếu có trong list
+        if (item.brand != null && _brands.contains(item.brand)) {
+          _selectedBrand = item.brand;
+        }
         _modelCtrl.text = item.model ?? '';
-        _selectedCapacity = item.capacity;
-        _selectedColor = item.color;
-        _selectedCondition = item.condition;
+        // Validate capacity - chỉ set nếu có trong list
+        if (item.capacity != null && _capacities.contains(item.capacity)) {
+          _selectedCapacity = item.capacity;
+        }
+        // Validate color - chỉ set nếu có trong list
+        if (item.color != null && _colors.contains(item.color)) {
+          _selectedColor = item.color;
+        }
+        // Validate condition - chỉ set nếu có trong list
+        if (item.condition != null && _conditions.contains(item.condition)) {
+          _selectedCondition = item.condition;
+        }
       } else {
         _skuCtrl.text = item.sku ?? '';
-        _selectedUnit = item.unit;
+        // Validate unit - chỉ set nếu có trong list
+        if (item.unit != null && _units.contains(item.unit)) {
+          _selectedUnit = item.unit;
+        }
       }
     }
 
@@ -197,7 +212,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         _selectedSupplierId = null;
       }
     }
-    _selectedPaymentMethod = entry.paymentMethod;
+    // Validate payment method - chỉ set nếu có trong list
+    if (entry.paymentMethod != null && _paymentMethods.contains(entry.paymentMethod)) {
+      _selectedPaymentMethod = entry.paymentMethod;
+    }
     _notesCtrl.text = entry.notes ?? '';
   }
 
@@ -371,7 +389,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     }
   }
 
-  /// Lưu và xác nhận ngay (QUICK)
+  /// Lưu đầy đủ thông tin - TẤT CẢ đều qua HÀNG CHỜ XÁC NHẬN
+  /// Theo yêu cầu: Dù nhập đầy đủ thông tin vẫn phải qua "HÀNG CHỜ XÁC NHẬN" 
+  /// mới vào kho chính và ghi nhận số liệu tài chính liên quan
   Future<void> _saveAndConfirm() async {
     if (_hasIMEIConflict) {
       NotificationService.showSnackBar(
@@ -400,22 +420,24 @@ class _SmartStockInViewState extends State<SmartStockInView> {
 
       bool success;
       if (widget.editEntry != null) {
-        // Cập nhật rồi xác nhận
+        // Cập nhật phiếu đã có
         debugPrint('📋 _saveAndConfirm: Updating existing entry...');
         success = await _service.updateEntry(entry);
         debugPrint('📋 _saveAndConfirm: updateEntry result=$success');
-        if (success && entry.firestoreId != null) {
-          debugPrint('📋 _saveAndConfirm: Confirming entry...');
-          success = await _service.confirmEntry(entry.firestoreId!);
-          debugPrint('📋 _saveAndConfirm: confirmEntry result=$success');
-        }
       } else {
-        // Nhập nhanh
-        debugPrint('📋 _saveAndConfirm: Quick stock in...');
-        success = await _service.quickStockIn(entry);
+        // TẤT CẢ đều vào HÀNG CHỜ XÁC NHẬN trước
+        // Không xác nhận ngay dù đầy đủ thông tin
+        debugPrint('📋 _saveAndConfirm: Saving to pending (draft)...');
+        final created = await _service.saveDraft(entry);
+        success = created != null;
+        debugPrint('📋 _saveAndConfirm: saveDraft result=$success');
       }
 
       if (success && mounted) {
+        NotificationService.showSnackBar(
+          'Đã lưu vào hàng chờ xác nhận. Vui lòng xác nhận để nhập kho chính.',
+          color: Colors.green,
+        );
         Navigator.pop(context, true);
       }
     } finally {
@@ -1219,7 +1241,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Nút Lưu & Xác nhận - chỉ bật khi đủ thông tin
+                // Nút Lưu vào hàng chờ - đủ thông tin mới bật
                 Expanded(
                   flex: 2,
                   child: ElevatedButton.icon(
@@ -1235,8 +1257,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.check_circle, size: 18),
-                    label: Text(_isSaving ? 'Đang lưu...' : 'LƯU & XÁC NHẬN'),
+                        : const Icon(Icons.inventory_2, size: 18),
+                    label: Text(_isSaving ? 'Đang lưu...' : 'LƯU VÀO HÀNG CHỜ'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _canConfirmNow
                           ? Colors.green
