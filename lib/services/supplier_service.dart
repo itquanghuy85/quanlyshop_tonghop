@@ -239,7 +239,8 @@ class SupplierService {
     final imports = await db.getSupplierImportHistory(int.parse(supplierId));
     for (var import in imports.where((i) => i['shopId'] == shopId)) {
       totalImports++;
-      totalImportValue += import['totalCost'] ?? 0;
+      // FIX: Field name is 'totalAmount', not 'totalCost'
+      totalImportValue += import['totalAmount'] ?? import['totalCost'] ?? 0;
     }
 
     totalOwed = totalImportValue - totalPaid;

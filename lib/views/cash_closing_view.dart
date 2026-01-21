@@ -46,6 +46,7 @@ class _CashClosingViewState extends State<CashClosingView>
   List<Map<String, dynamic>> _debtPayments = [];
   List<Map<String, dynamic>> _supplierImports = [];
   List<Map<String, dynamic>> _supplierPayments = [];
+  List<Map<String, dynamic>> _repairPartnerPayments = []; // FIX: Thêm thanh toán đối tác sửa chữa
   Map<String, dynamic>? _previousDayClosing;
   Map<String, dynamic>? _todayClosing;
 
@@ -55,6 +56,7 @@ class _CashClosingViewState extends State<CashClosingView>
   StreamSubscription? _closingSubscription;
   StreamSubscription? _debtPaymentsSubscription;
   StreamSubscription? _supplierPaymentsSubscription;
+  StreamSubscription? _repairPartnerPaymentsSubscription; // FIX: Thêm subscription
   StreamSubscription? _supplierImportsSubscription;
   StreamSubscription? _salesSubscription;
   StreamSubscription? _repairsSubscription;
@@ -78,6 +80,7 @@ class _CashClosingViewState extends State<CashClosingView>
     _closingSubscription?.cancel();
     _debtPaymentsSubscription?.cancel();
     _supplierPaymentsSubscription?.cancel();
+    _repairPartnerPaymentsSubscription?.cancel(); // FIX: Cancel subscription
     _supplierImportsSubscription?.cancel();
     _salesSubscription?.cancel();
     _repairsSubscription?.cancel();
@@ -129,6 +132,15 @@ class _CashClosingViewState extends State<CashClosingView>
     // supplier_payments - ROOT collection
     _supplierPaymentsSubscription = firestore
         .collection('supplier_payments')
+        .where('shopId', isEqualTo: shopId)
+        .snapshots()
+        .listen((_) {
+          _scheduleReload();
+        });
+
+    // FIX: repair_partner_payments - ROOT collection (thanh toán đối tác sửa chữa)
+    _repairPartnerPaymentsSubscription = firestore
+        .collection('repair_partner_payments')
         .where('shopId', isEqualTo: shopId)
         .snapshots()
         .listen((_) {
@@ -213,6 +225,11 @@ class _CashClosingViewState extends State<CashClosingView>
             .collection('supplier_payments')
             .where('shopId', isEqualTo: shopId)
             .get(),
+        // FIX: repair_partner_payments - thanh toán đối tác sửa chữa
+        firestore
+            .collection('repair_partner_payments')
+            .where('shopId', isEqualTo: shopId)
+            .get(),
       ]);
 
       // Parse sales - filter deleted
@@ -270,6 +287,28 @@ class _CashClosingViewState extends State<CashClosingView>
           })
           .toList();
 
+      // FIX: Parse repair_partner_payments - thanh toán đối tác sửa chữa
+      // Filter deleted: accept deleted == null, 0, false, but reject true or 1
+      final repairPartnerPayments = results[5].docs
+          .where((doc) {
+            final deleted = doc.data()['deleted'];
+            return deleted != true && deleted != 1;
+          })
+          .map((doc) {
+            final data = doc.data();
+            data['firestoreId'] = doc.id;
+            _convertTimestampFields(data);
+            return data;
+          })
+          .toList();
+      
+      // DEBUG: Log repair partner payments loaded
+      debugPrint('=== REPAIR PARTNER PAYMENTS LOADED ===');
+      debugPrint('Total count: ${repairPartnerPayments.length}');
+      for (var p in repairPartnerPayments) {
+        debugPrint('  - ${p['partnerName']}: ${p['amount']}đ, paidAt: ${p['paidAt']}, method: ${p['paymentMethod']}');
+      }
+
       // FIX BUG-007: Load supplier imports từ Firestore thay vì SQLite
       // Để đảm bảo sync giữa các thiết bị (Device A == Device B)
       final supplierImportsSnapshot = await firestore
@@ -325,6 +364,7 @@ class _CashClosingViewState extends State<CashClosingView>
           _debtPayments = debtPayments.cast<Map<String, dynamic>>();
           _supplierImports = supplierImports;
           _supplierPayments = supplierPayments.cast<Map<String, dynamic>>();
+          _repairPartnerPayments = repairPartnerPayments.cast<Map<String, dynamic>>(); // FIX: Lưu thanh toán đối tác
           _previousDayClosing = previousClosing;
           _todayClosing = todayClosing;
           _isLoading = false;
@@ -2388,6 +2428,26 @@ class _CashClosingViewState extends State<CashClosingView>
         'amount': (pay['amount'] ?? 0) as int,
       });
     }
+    // FIX: Thêm thanh toán đối tác sửa chữa vào tab Chi
+    for (var pay in _repairPartnerPayments.where(
+      (p) => _isSameDay((p['paidAt'] ?? 0) as int, date),
+    )) {
+      // Lấy tên đối tác từ payment hoặc mặc định
+      String partnerName = 'Đối tác sửa chữa';
+      if (pay['partnerName'] != null) {
+        partnerName = pay['partnerName'] as String;
+      }
+      list.add({
+        'icon': '🔧',
+        'title': 'Trả đối tác sửa chữa',
+        'subtitle':
+            '$partnerName • ${(pay['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
+        'time': DateFormat('HH:mm').format(
+          DateTime.fromMillisecondsSinceEpoch((pay['paidAt'] ?? 0) as int),
+        ),
+        'amount': (pay['amount'] ?? 0) as int,
+      });
+    }
     // FIX BUG-CC-004: debt_payments với debtType='SHOP_OWES' hoặc 'OTHER_SHOP_OWES' là trả nợ NCC
     // (thanh toán NCC từ trang Công nợ NCC lưu vào debt_payments, không phải supplier_payments)
     for (var p in _debtPayments.where((p) {
@@ -2573,6 +2633,23 @@ class _CashClosingViewState extends State<CashClosingView>
       final amount = p['amount'] as int? ?? 0;
       final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
 
+      supplierPaid += amount;
+
+      if (method == 'TIỀN MẶT') {
+        cashOut += amount;
+      } else {
+        bankOut += amount;
+      }
+    }
+
+    // ===== FIX: REPAIR PARTNER PAYMENTS (thanh toán đối tác sửa chữa) =====
+    for (var p in _repairPartnerPayments.where(
+      (p) => _isSameDay((p['paidAt'] ?? 0) as int, now),
+    )) {
+      final amount = p['amount'] as int? ?? 0;
+      final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
+
+      // Tính vào chi tiền (trả cho đối tác sửa chữa)
       supplierPaid += amount;
 
       if (method == 'TIỀN MẶT') {

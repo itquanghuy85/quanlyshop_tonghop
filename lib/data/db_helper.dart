@@ -1,7 +1,7 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/repair_model.dart';
 import '../models/product_model.dart';
 import '../models/sale_order_model.dart';
@@ -54,7 +54,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 65,
+      version: 66,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
@@ -90,7 +90,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS supplier_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, supplierId INTEGER, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS repair_partner_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, partnerId INTEGER, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS repair_partner_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, partnerId INTEGER, partnerName TEXT, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, updatedAt INTEGER)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS cash_closings(id INTEGER PRIMARY KEY AUTOINCREMENT, dateKey TEXT UNIQUE, cashStart INTEGER DEFAULT 0, bankStart INTEGER DEFAULT 0, cashEnd INTEGER DEFAULT 0, bankEnd INTEGER DEFAULT 0, expectedCashDelta INTEGER DEFAULT 0, expectedBankDelta INTEGER DEFAULT 0, note TEXT, createdAt INTEGER)',
@@ -529,7 +529,7 @@ class DBHelper {
           }
           try {
             await db.execute(
-              'CREATE TABLE IF NOT EXISTS repair_partner_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, partnerId INTEGER, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+              'CREATE TABLE IF NOT EXISTS repair_partner_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, partnerId INTEGER, partnerName TEXT, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, updatedAt INTEGER)',
             );
           } catch (e) {
             debugPrint('DB upgrade error (repair_partner_payments): $e');
@@ -1567,6 +1567,29 @@ class DBHelper {
           }
           debugPrint('DB upgrade v65: completed');
         }
+        if (oldV < 66) {
+          // v66: Thêm cột partnerName và updatedAt vào repair_partner_payments để hiển thị trong chốt quỹ
+          debugPrint(
+            'DB upgrade v66: Adding partnerName and updatedAt columns to repair_partner_payments...',
+          );
+          try {
+            await db.execute(
+              'ALTER TABLE repair_partner_payments ADD COLUMN partnerName TEXT',
+            );
+            debugPrint('v66: added partnerName column to repair_partner_payments');
+          } catch (e) {
+            debugPrint('v66 error (partnerName): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE repair_partner_payments ADD COLUMN updatedAt INTEGER',
+            );
+            debugPrint('v66: added updatedAt column to repair_partner_payments');
+          } catch (e) {
+            debugPrint('v66 error (updatedAt): $e');
+          }
+          debugPrint('DB upgrade v66: completed');
+        }
         debugPrint('DB upgrade completed');
       },
       onOpen: (db) async {
@@ -2528,16 +2551,57 @@ class DBHelper {
         'UPDATE products SET status = ? WHERE id = ?',
         [status, id],
       );
+  
+  /// Trừ số lượng sản phẩm trong kho và sync ngay lập tức
   Future<void> deductProductQuantity(int id, int amount) async {
     final db = await database;
+    
+    // Lấy thông tin product trước để có firestoreId và quantity
+    final productResult = await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    
+    if (productResult.isEmpty) return;
+    
+    final product = productResult.first;
+    final currentQty = (product['quantity'] as int?) ?? 0;
+    final newQty = currentQty - amount;
+    final firestoreId = product['firestoreId'] as String?;
+    
     await db.rawUpdate(
-      'UPDATE products SET quantity = quantity - ? WHERE id = ?',
-      [amount, id],
+      'UPDATE products SET quantity = quantity - ?, updatedAt = ?, isSynced = 0 WHERE id = ?',
+      [amount, DateTime.now().millisecondsSinceEpoch, id],
     );
     await db.rawUpdate(
       'UPDATE products SET status = 0 WHERE id = ? AND quantity <= 0',
       [id],
     );
+    
+    // FIX: Sync ngay lập tức để tránh trường hợp 2 thiết bị bán cùng 1 sản phẩm
+    if (firestoreId != null && firestoreId.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('products')
+            .doc(firestoreId)
+            .update({
+          'quantity': newQty < 0 ? 0 : newQty,
+          'status': newQty <= 0 ? 0 : 1,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        // Đánh dấu đã sync
+        await db.rawUpdate(
+          'UPDATE products SET isSynced = 1 WHERE id = ?',
+          [id],
+        );
+        debugPrint('✅ Synced product quantity: $firestoreId, newQty: $newQty');
+      } catch (e) {
+        debugPrint('⚠️ Failed to sync product quantity immediately: $e');
+        // Vẫn tiếp tục vì local đã update, sẽ sync sau
+      }
+    }
   }
 
   Future<void> addProductQuantity(int id, int amount) async {
@@ -3278,7 +3342,7 @@ class DBHelper {
     );
   }
 
-  /// Trừ số lượng phụ tùng trong kho
+  /// Trừ số lượng phụ tùng trong kho và sync ngay lập tức
   Future<bool> deductPartQuantity(int partId, int quantity) async {
     final db = await database;
     final part = await getPartById(partId);
@@ -3287,16 +3351,45 @@ class DBHelper {
     final currentQty = part['quantity'] as int? ?? 0;
     if (currentQty < quantity) return false; // Không đủ hàng
 
+    final newQty = currentQty - quantity;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final firestoreId = part['firestoreId'] as String?;
+    
     await db.update(
       'repair_parts',
       {
-        'quantity': currentQty - quantity,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        'quantity': newQty,
+        'updatedAt': now,
         'isSynced': 0, // Cần sync lại khi có thay đổi
       },
       where: 'id = ?',
       whereArgs: [partId],
     );
+    
+    // FIX: Sync ngay lập tức để tránh trường hợp 2 thiết bị dùng cùng 1 part
+    if (firestoreId != null && firestoreId.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('repair_parts')
+            .doc(firestoreId)
+            .update({
+          'quantity': newQty,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        // Đánh dấu đã sync
+        await db.update(
+          'repair_parts',
+          {'isSynced': 1},
+          where: 'id = ?',
+          whereArgs: [partId],
+        );
+        debugPrint('✅ Synced part quantity: $firestoreId, newQty: $newQty');
+      } catch (e) {
+        debugPrint('⚠️ Failed to sync part quantity immediately: $e');
+        // Vẫn return true vì local đã update, sẽ sync sau
+      }
+    }
+    
     return true;
   }
 

@@ -66,8 +66,13 @@ class RepairPartnerPaymentService {
       where: 'id = ?',
       whereArgs: [payment.id],
     ));
+    // FIX: Save to Firestore with proper boolean values
+    final mapData = payment.toMap();
+    mapData['deleted'] = payment.deleted; // boolean, not integer
+    mapData['isSynced'] = true; // for consistency
+    mapData.remove('id'); // Firestore doesn't need local ID
     await _firestore.collection('repair_partner_payments').doc(docId).set({
-      ...payment.toMap(),
+      ...mapData,
       'shopId': shopId,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -107,7 +112,7 @@ class RepairPartnerPaymentService {
     final user = FirebaseAuth.instance.currentUser;
     final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
     
-    // Get partner name for logging
+    // Get partner name for logging and cash closing display
     String partnerName = 'Đối tác sửa chữa';
     try {
       final partnerService = RepairPartnerService();
@@ -121,6 +126,7 @@ class RepairPartnerPaymentService {
     
     final payment = RepairPartnerPayment(
       partnerId: partnerId,
+      partnerName: partnerName, // FIX: Thêm tên đối tác để hiển thị trong chốt quỹ
       amount: amount,
       paidAt: now,
       paymentMethod: paymentMethod,

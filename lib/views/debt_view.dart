@@ -14,9 +14,10 @@ import '../services/firestore_service.dart';
 import '../services/financial_activity_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../services/repair_partner_service.dart';
-import '../services/repair_partner_payment_service.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
+import '../models/repair_partner_model.dart';
+import 'repair_partner_detail_view.dart';
 
 class DebtView extends StatefulWidget {
   const DebtView({super.key});
@@ -28,7 +29,6 @@ class _DebtViewState extends State<DebtView>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final db = DBHelper();
   final _partnerService = RepairPartnerService();
-  final _partnerPaymentService = RepairPartnerPaymentService();
   late TabController _tabController;
   List<Map<String, dynamic>> _debts = [];
   List<Map<String, dynamic>> _partnerDebts = []; // Công nợ đối tác sửa chữa
@@ -45,11 +45,11 @@ class _DebtViewState extends State<DebtView>
     _refresh();
 
     // Listen to global events (e.g., debts changed) to refresh the list when other parts of the app write debts
-    _eventSub = EventBus().stream.where((e) => e == 'debts_changed').listen((
-      _,
-    ) {
-      if (mounted) _refresh();
-    });
+    _eventSub = EventBus().stream
+        .where((e) => e == 'debts_changed' || e == 'repair_partners_changed')
+        .listen((_) {
+          if (mounted) _refresh();
+        });
 
     // Hiển thị hướng dẫn cho người dùng mới
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -68,25 +68,29 @@ class _DebtViewState extends State<DebtView>
       steps: const [
         GuideStep(
           title: '📊 3 loại công nợ',
-          description: 'KHÁCH NỢ (khách chưa TT), NỢ NCC (nợ nhà cung cấp), NỢ ĐỐI TÁC (nợ thợ sửa ngoài).',
+          description:
+              'KHÁCH NỢ (khách chưa TT), NỢ NCC (nợ nhà cung cấp), NỢ ĐỐI TÁC (nợ thợ sửa ngoài).',
           icon: Icons.category,
           iconColor: Colors.blue,
         ),
         GuideStep(
           title: '💰 Ghi nhận thanh toán',
-          description: 'Nhấn vào khoản nợ để xem chi tiết và ghi nhận thanh toán từng phần hoặc toàn bộ.',
+          description:
+              'Nhấn vào khoản nợ để xem chi tiết và ghi nhận thanh toán từng phần hoặc toàn bộ.',
           icon: Icons.payment,
           iconColor: Colors.green,
         ),
         GuideStep(
           title: '📅 Theo dõi hạn nợ',
-          description: 'Nợ quá hạn sẽ được highlight đỏ. Báo cáo tổng hợp giúp theo dõi dòng tiền.',
+          description:
+              'Nợ quá hạn sẽ được highlight đỏ. Báo cáo tổng hợp giúp theo dõi dòng tiền.',
           icon: Icons.event,
           iconColor: Colors.orange,
         ),
         GuideStep(
           title: '🔄 Tự động tạo nợ',
-          description: 'Khi bán hàng/nhập kho chọn "CÔNG NỢ", hệ thống tự tạo khoản nợ tương ứng.',
+          description:
+              'Khi bán hàng/nhập kho chọn "CÔNG NỢ", hệ thống tự tạo khoản nợ tương ứng.',
           icon: Icons.auto_mode,
           iconColor: Colors.purple,
         ),
@@ -107,35 +111,41 @@ class _DebtViewState extends State<DebtView>
 
   Future<void> _refresh() async {
     setState(() => _isLoading = true);
-    
+
     // Load regular debts
     final data = await db.getAllDebts();
-    
+
     // Load partner debts
     final partners = await _partnerService.getRepairPartners();
     final partnerDebts = <Map<String, dynamic>>[];
-    
+
     for (final partner in partners) {
       final stats = await _partnerService.getPartnerRepairStats(partner.id!);
       final totalCost = stats?['totalCost'] ?? 0;
       final totalPaid = stats?['totalPaid'] ?? 0;
+      final totalRepairs = stats?['totalOrders'] ?? 0;
       final remain = totalCost - totalPaid;
-      
+
       if (remain > 0) {
         partnerDebts.add({
           'id': partner.id,
           'partnerId': partner.id,
+          'name': partner.name, // Key used by _partnerDebtCard
           'partnerName': partner.name,
           'phone': partner.phone,
+          'totalCost': totalCost, // Key used by _partnerDebtCard
           'totalAmount': totalCost,
+          'totalPaid': totalPaid, // Key used by _partnerDebtCard
           'paidAmount': totalPaid,
+          'totalRepairs': totalRepairs, // Key used by _partnerDebtCard
+          'remainingDebt': remain, // Key used by _partnerDebtCard
           'remain': remain,
           'type': 'REPAIR_PARTNER',
           'createdAt': partner.createdAt,
         });
       }
     }
-    
+
     if (!mounted) return;
     setState(() {
       // Filter out soft-deleted debts
@@ -308,7 +318,9 @@ class _DebtViewState extends State<DebtView>
   void _payDebt(Map<String, dynamic> debt) async {
     // Kiểm tra ngày hôm nay đã chốt quỹ chưa (thanh toán ở ngày hiện tại)
     final today = DateTime.now();
-    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    final canEdit = await AdjustmentService.canEditDirectly(
+      today.millisecondsSinceEpoch,
+    );
     if (!canEdit && mounted) {
       NotificationService.showSnackBar(
         '❌ Ngày hôm nay đã chốt quỹ! Không thể thu tiền trả nợ.',
@@ -334,11 +346,15 @@ class _DebtViewState extends State<DebtView>
                   controller: payC,
                   keyboardType: TextInputType.number,
                   inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(labelText: "SỐ TIỀN THU (VNĐ)"),
+                  decoration: const InputDecoration(
+                    labelText: "SỐ TIỀN THU (VNĐ)",
+                  ),
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 1,
-                    max: (debt['totalAmount'] as int? ?? 0) - (debt['paidAmount'] as int? ?? 0),
+                    max:
+                        (debt['totalAmount'] as int? ?? 0) -
+                        (debt['paidAmount'] as int? ?? 0),
                     fieldName: 'Số tiền thu',
                   ),
                 ),
@@ -392,13 +408,14 @@ class _DebtViewState extends State<DebtView>
                 final debtFId = debt['firestoreId'] as String?;
                 if (debtFId != null && debtFId.isNotEmpty) {
                   // Có firestoreId → dùng transaction để đảm bảo atomic
-                  final txResult = await FirestoreService.executeDebtPaymentTransaction(
-                    debtFirestoreId: debtFId,
-                    payAmount: payAmount,
-                    paymentMethod: method,
-                    createdBy: userName,
-                  );
-                  
+                  final txResult =
+                      await FirestoreService.executeDebtPaymentTransaction(
+                        debtFirestoreId: debtFId,
+                        payAmount: payAmount,
+                        paymentMethod: method,
+                        createdBy: userName,
+                      );
+
                   if (!txResult['success']) {
                     NotificationService.showSnackBar(
                       "❌ ${txResult['error'] ?? 'Lỗi thanh toán'}",
@@ -406,13 +423,14 @@ class _DebtViewState extends State<DebtView>
                     );
                     return;
                   }
-                  
+
                   // Transaction thành công → cập nhật local DB
                   await db.updateDebtPaid(debt['id'], payAmount);
-                  
+
                   // Lưu payment vào local (thêm debtType để cash_closing phân biệt được)
                   final paymentData = {
-                    'firestoreId': txResult['paymentDocId'] ?? "pay_${now}_${user?.uid}",
+                    'firestoreId':
+                        txResult['paymentDocId'] ?? "pay_${now}_${user?.uid}",
                     'debtId': debt['id'],
                     'debtFirestoreId': debtFId,
                     'debtType': debt['type'] ?? 'CUSTOMER_OWES',
@@ -423,12 +441,14 @@ class _DebtViewState extends State<DebtView>
                     'isSynced': 1, // Đã sync qua transaction
                   };
                   await db.insertDebtPayment(paymentData);
-                  
+
                   // Ghi nhật ký hoạt động tài chính - phân biệt loại nợ
                   try {
                     final debtType = debt['type'] ?? 'CUSTOMER_OWES';
                     // FIX: Bao gồm OTHER_SHOP_OWES cho công nợ khác (shop nợ)
-                    if (debtType == 'SHOP_OWES' || debtType == 'OWED' || debtType == 'OTHER_SHOP_OWES') {
+                    if (debtType == 'SHOP_OWES' ||
+                        debtType == 'OWED' ||
+                        debtType == 'OTHER_SHOP_OWES') {
                       // Trả nợ NCC/Khác → logSupplierPayment (direction = OUT)
                       await FinancialActivityService.logSupplierPayment(
                         firestoreId: paymentData['firestoreId'] as String,
@@ -437,7 +457,9 @@ class _DebtViewState extends State<DebtView>
                         supplierName: debt['personName'] ?? '',
                         createdAt: now,
                         createdBy: userName,
-                        note: debtType == 'OTHER_SHOP_OWES' ? 'Trả nợ đối tác' : 'Trả nợ NCC',
+                        note: debtType == 'OTHER_SHOP_OWES'
+                            ? 'Trả nợ đối tác'
+                            : 'Trả nợ NCC',
                       );
                     } else {
                       // Thu nợ khách (CUSTOMER_OWES, OTHER_CUSTOMER_OWES) → logDebtCollection (direction = IN)
@@ -467,12 +489,14 @@ class _DebtViewState extends State<DebtView>
                     'createdBy': userName,
                   };
                   final paymentId = await db.insertDebtPayment(paymentData);
-                  
+
                   // Ghi nhật ký hoạt động tài chính (offline) - phân biệt loại nợ
                   try {
                     final debtType = debt['type'] ?? 'CUSTOMER_OWES';
                     // FIX: Bao gồm OTHER_SHOP_OWES cho công nợ khác (shop nợ)
-                    if (debtType == 'SHOP_OWES' || debtType == 'OWED' || debtType == 'OTHER_SHOP_OWES') {
+                    if (debtType == 'SHOP_OWES' ||
+                        debtType == 'OWED' ||
+                        debtType == 'OTHER_SHOP_OWES') {
                       // Trả nợ NCC/Khác → logSupplierPayment (direction = OUT)
                       await FinancialActivityService.logSupplierPayment(
                         firestoreId: paymentData['firestoreId'] as String,
@@ -481,7 +505,9 @@ class _DebtViewState extends State<DebtView>
                         supplierName: debt['personName'] ?? '',
                         createdAt: now,
                         createdBy: userName,
-                        note: debtType == 'OTHER_SHOP_OWES' ? 'Trả nợ đối tác' : 'Trả nợ NCC',
+                        note: debtType == 'OTHER_SHOP_OWES'
+                            ? 'Trả nợ đối tác'
+                            : 'Trả nợ NCC',
                       );
                     } else {
                       // Thu nợ khách (CUSTOMER_OWES, OTHER_CUSTOMER_OWES) → logDebtCollection (direction = IN)
@@ -498,7 +524,7 @@ class _DebtViewState extends State<DebtView>
                   } catch (e) {
                     debugPrint('Failed to log financial activity: $e');
                   }
-                  
+
                   // Queue sync debt payment to cloud via SyncOrchestrator
                   await SyncOrchestrator().enqueue(
                     entityType: SyncEntityType.debtPayment,
@@ -510,7 +536,7 @@ class _DebtViewState extends State<DebtView>
 
                   // CẬP NHẬT SỐ TIỀN ĐÃ TRẢ
                   await db.updateDebtPaid(debt['id'], payAmount);
-                  
+
                   // Queue sync updated debt to cloud
                   final allDebts = await db.getAllDebts();
                   final updatedDebt = allDebts.firstWhere(
@@ -575,7 +601,9 @@ class _DebtViewState extends State<DebtView>
                       purchase.status = 'RECEIVED';
                       await db.updatePurchaseOrder(purchase);
                       // Queue sync via SyncOrchestrator
-                      final orderId = await db.getPurchaseOrderIdByFirestoreId(purchase.firestoreId ?? '');
+                      final orderId = await db.getPurchaseOrderIdByFirestoreId(
+                        purchase.firestoreId ?? '',
+                      );
                       await SyncOrchestrator().enqueue(
                         entityType: SyncEntityType.purchaseOrder,
                         entityId: orderId ?? 0,
@@ -628,10 +656,11 @@ class _DebtViewState extends State<DebtView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    
+
     // Đếm số công nợ còn hiệu lực (bao gồm cả partner debts)
-    final activeDebtsCount = _debts.where(_isActiveDebt).length + _partnerDebts.length;
-    
+    final activeDebtsCount =
+        _debts.where(_isActiveDebt).length + _partnerDebts.length;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: CustomAppBar.buildWithTabs(
@@ -682,30 +711,30 @@ class _DebtViewState extends State<DebtView>
                 _buildDebtList('OTHER'),
               ],
             ),
-      floatingActionButton: _tabController.index == 2 
+      floatingActionButton: _tabController.index == 2
           ? null // Không có FAB cho tab đối tác (quản lý qua trang đối tác)
           : FloatingActionButton(
-        onPressed: () {
-          if (_tabController.index == 0) {
-            _createCustomerDebt(); // Tạo nợ khách hàng (phải thu)
-          } else if (_tabController.index == 1) {
-            _createSupplierDebt(); // Tạo nợ nhà cung cấp (phải trả)
-          } else if (_tabController.index == 3) {
-            _createOtherDebt(); // Tạo công nợ khác
-          }
-        },
-        backgroundColor: _tabController.index == 0
-            ? Colors.redAccent
-            : _tabController.index == 1
-            ? Colors.blueAccent
-            : Colors.purpleAccent,
-        tooltip: _tabController.index == 0
-            ? 'Tạo nợ khách hàng'
-            : _tabController.index == 1
-            ? 'Tạo nợ nhà cung cấp'
-            : 'Tạo công nợ khác',
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+              onPressed: () {
+                if (_tabController.index == 0) {
+                  _createCustomerDebt(); // Tạo nợ khách hàng (phải thu)
+                } else if (_tabController.index == 1) {
+                  _createSupplierDebt(); // Tạo nợ nhà cung cấp (phải trả)
+                } else if (_tabController.index == 3) {
+                  _createOtherDebt(); // Tạo công nợ khác
+                }
+              },
+              backgroundColor: _tabController.index == 0
+                  ? Colors.redAccent
+                  : _tabController.index == 1
+                  ? Colors.blueAccent
+                  : Colors.purpleAccent,
+              tooltip: _tabController.index == 0
+                  ? 'Tạo nợ khách hàng'
+                  : _tabController.index == 1
+                  ? 'Tạo nợ nhà cung cấp'
+                  : 'Tạo công nợ khác',
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
     );
   }
 
@@ -718,12 +747,12 @@ class _DebtViewState extends State<DebtView>
       // Không bỏ qua UNPAID vì đó là nợ chưa trả hết
     }
     if (status == 'PAID' || status == 'CANCELLED') return false;
-    
+
     // Kiểm tra số tiền còn nợ (clamp để không âm)
     final totalAmount = d['totalAmount'] as int? ?? 0;
     final paidAmount = d['paidAmount'] as int? ?? 0;
     final remaining = (totalAmount - paidAmount).clamp(0, totalAmount);
-    
+
     // Công nợ hợp lệ: còn tiền nợ > 0 và tổng nợ > 0
     return remaining > 0 && totalAmount > 0;
   }
@@ -734,26 +763,23 @@ class _DebtViewState extends State<DebtView>
       list = _debts
           .where(
             (d) =>
-                d['type'].toString().startsWith('OTHER_') &&
-                _isActiveDebt(d),
+                d['type'].toString().startsWith('OTHER_') && _isActiveDebt(d),
           )
           .toList();
     } else if (type == 'CUSTOMER_OWES') {
       // Khách nợ shop: CUSTOMER_OWES hoặc legacy 'OWE'
-      list = _debts
-          .where((d) {
-            final debtType = d['type']?.toString() ?? '';
-            return (debtType == 'CUSTOMER_OWES' || debtType == 'OWE') && _isActiveDebt(d);
-          })
-          .toList();
+      list = _debts.where((d) {
+        final debtType = d['type']?.toString() ?? '';
+        return (debtType == 'CUSTOMER_OWES' || debtType == 'OWE') &&
+            _isActiveDebt(d);
+      }).toList();
     } else if (type == 'SHOP_OWES') {
       // Shop nợ NCC: SHOP_OWES hoặc legacy 'OWED'
-      list = _debts
-          .where((d) {
-            final debtType = d['type']?.toString() ?? '';
-            return (debtType == 'SHOP_OWES' || debtType == 'OWED') && _isActiveDebt(d);
-          })
-          .toList();
+      list = _debts.where((d) {
+        final debtType = d['type']?.toString() ?? '';
+        return (debtType == 'SHOP_OWES' || debtType == 'OWED') &&
+            _isActiveDebt(d);
+      }).toList();
     } else {
       list = _debts
           .where((d) => d['type'] == type && _isActiveDebt(d))
@@ -953,11 +979,7 @@ class _DebtViewState extends State<DebtView>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.handshake_outlined,
-              size: 80,
-              color: Colors.grey[300],
-            ),
+            Icon(Icons.handshake_outlined, size: 80, color: Colors.grey[300]),
             const SizedBox(height: 10),
             Text(
               "Không có công nợ đối tác sửa chữa",
@@ -985,11 +1007,7 @@ class _DebtViewState extends State<DebtView>
 
     return Column(
       children: [
-        _summaryHeader(
-          "TỔNG NỢ ĐỐI TÁC SỬA CHỮA",
-          totalRemain,
-          Colors.orange,
-        ),
+        _summaryHeader("TỔNG NỢ ĐỐI TÁC SỬA CHỮA", totalRemain, Colors.orange),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -1016,7 +1034,7 @@ class _DebtViewState extends State<DebtView>
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: () => _showPartnerPaymentDialog(partner),
+        onTap: () => _navigateToPartnerDetail(partner),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -1057,7 +1075,10 @@ class _DebtViewState extends State<DebtView>
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -1083,14 +1104,15 @@ class _DebtViewState extends State<DebtView>
                   _buildStatColumn('Còn nợ', remainingDebt, Colors.orange),
                 ],
               ),
+              // Nút xem chi tiết & thanh toán - điều hướng đến trang quản lý đối tác
               if (remainingDebt > 0) ...[
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () => _showPartnerPaymentDialog(partner),
-                    icon: const Icon(Icons.payment, size: 18),
-                    label: const Text('THANH TOÁN'),
+                    onPressed: () => _navigateToPartnerDetail(partner),
+                    icon: const Icon(Icons.visibility, size: 18),
+                    label: const Text('XEM CHI TIẾT & THANH TOÁN'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
@@ -1131,136 +1153,40 @@ class _DebtViewState extends State<DebtView>
     );
   }
 
-  /// Dialog thanh toán cho đối tác sửa chữa
-  Future<void> _showPartnerPaymentDialog(Map<String, dynamic> partner) async {
-    final name = partner['name'] ?? 'Đối tác';
-    final remainingDebt = partner['remainingDebt'] as int? ?? 0;
-    final partnerId = partner['id'] ?? '';
-
-    if (remainingDebt <= 0) {
+  /// Điều hướng đến trang chi tiết đối tác để thanh toán
+  /// (Thay vì thanh toán trực tiếp ở đây, chuyển đến trang chi tiết có đầy đủ lịch sử và audit log)
+  Future<void> _navigateToPartnerDetail(Map<String, dynamic> partner) async {
+    final partnerId = partner['id'];
+    if (partnerId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đối tác này không còn nợ!')),
+        const SnackBar(content: Text('Không tìm thấy thông tin đối tác!')),
       );
       return;
     }
 
-    final payController = TextEditingController();
-    final noteController = TextEditingController();
-    String paymentMethod = 'TIỀN MẶT';
-
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text('Thanh toán cho $name'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Còn nợ: ${MoneyUtils.formatCurrency(remainingDebt)}',
-                  style: TextStyle(
-                    color: Colors.orange[700],
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: payController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Số tiền thanh toán',
-                    hintText: 'VD: 500 = 500,000đ',
-                    border: const OutlineInputBorder(),
-                    suffixText: 'x1000',
-                    helperText: 'Nhập 500 = 500,000đ',
-                  ),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 16),
-                const Text('Phương thức thanh toán:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: ['TIỀN MẶT', 'CHUYỂN KHOẢN'].map((m) => ChoiceChip(
-                    label: Text(m),
-                    selected: paymentMethod == m,
-                    onSelected: (_) => setDialogState(() => paymentMethod = m),
-                    selectedColor: Colors.orange.withOpacity(0.3),
-                  )).toList(),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: noteController,
-                  decoration: const InputDecoration(
-                    labelText: 'Ghi chú (tùy chọn)',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 2,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('HỦY'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final amount = MoneyUtils.parseCurrency(payController.text);
-                if (amount <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Vui lòng nhập số tiền hợp lệ!')),
-                  );
-                  return;
-                }
-                if (amount > remainingDebt) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Số tiền không được vượt quá ${MoneyUtils.formatCurrency(remainingDebt)}',
-                      ),
-                    ),
-                  );
-                  return;
-                }
-                Navigator.pop(ctx, {'amount': amount, 'method': paymentMethod});
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-              child: const Text('THANH TOÁN', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (result != null) {
-      final amount = result['amount'] as int;
-      final method = result['method'] as String;
-      final note = noteController.text.trim();
-
-      try {
-        await _partnerPaymentService.addPayment(
-          partnerId: partnerId,
-          amount: amount,
-          paymentMethod: method,
-          note: note.isEmpty ? 'Thanh toán từ trang công nợ' : note,
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đã thanh toán ${MoneyUtils.formatCurrency(amount)} cho $name'),
-            backgroundColor: Colors.green,
+    try {
+      // Lấy thông tin đối tác đầy đủ từ service
+      final partnerObj = await _partnerService.getRepairPartnerById(partnerId);
+      if (partnerObj != null && mounted) {
+        final result = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => RepairPartnerDetailView(partner: partnerObj),
           ),
         );
-        _refresh();
-      } catch (e) {
+        // Refresh nếu có thay đổi từ trang chi tiết
+        if (result == true) {
+          _refresh();
+        }
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi thanh toán: $e'),
-            backgroundColor: Colors.red,
-          ),
+          const SnackBar(content: Text('Không tìm thấy đối tác!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -1404,7 +1330,9 @@ class _DebtViewState extends State<DebtView>
   void _createOtherDebt() async {
     // Kiểm tra ngày hôm nay đã chốt quỹ chưa
     final today = DateTime.now();
-    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    final canEdit = await AdjustmentService.canEditDirectly(
+      today.millisecondsSinceEpoch,
+    );
     if (!canEdit && mounted) {
       NotificationService.showSnackBar(
         '❌ Ngày hôm nay đã chốt quỹ! Không thể tạo công nợ mới.',
@@ -1412,7 +1340,7 @@ class _DebtViewState extends State<DebtView>
       );
       return;
     }
-    
+
     final nameC = TextEditingController();
     final phoneC = TextEditingController();
     final amountC = TextEditingController();
@@ -1434,13 +1362,19 @@ class _DebtViewState extends State<DebtView>
                 children: [
                   TextFormField(
                     controller: nameC,
-                    decoration: const InputDecoration(labelText: "Tên người nợ"),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập tên người nợ' : null,
+                    decoration: const InputDecoration(
+                      labelText: "Tên người nợ",
+                    ),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Vui lòng nhập tên người nợ'
+                        : null,
                   ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: phoneC,
-                    decoration: const InputDecoration(labelText: "Số điện thoại"),
+                    decoration: const InputDecoration(
+                      labelText: "Số điện thoại",
+                    ),
                     keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 10),
@@ -1448,8 +1382,14 @@ class _DebtViewState extends State<DebtView>
                     controller: amountC,
                     keyboardType: TextInputType.number,
                     inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                    decoration: const InputDecoration(labelText: "Số tiền nợ (VNĐ)"),
-                    validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền nợ'),
+                    decoration: const InputDecoration(
+                      labelText: "Số tiền nợ (VNĐ)",
+                    ),
+                    validator: (v) => MoneyUtils.validateAmount(
+                      v ?? '',
+                      min: 1,
+                      fieldName: 'Số tiền nợ',
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -1585,7 +1525,9 @@ class _DebtViewState extends State<DebtView>
                 if (!(formKey.currentState?.validate() ?? false)) return;
 
                 final parsed = MoneyUtils.parseCurrency(amountC.text);
-                final debtAmount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
+                final debtAmount = parsed >= 1000 && parsed < 100000
+                    ? parsed * 1000
+                    : parsed;
                 if (debtAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
@@ -1638,7 +1580,9 @@ class _DebtViewState extends State<DebtView>
   void _createCustomerDebt() async {
     // Kiểm tra ngày hôm nay đã chốt quỹ chưa
     final today = DateTime.now();
-    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    final canEdit = await AdjustmentService.canEditDirectly(
+      today.millisecondsSinceEpoch,
+    );
     if (!canEdit && mounted) {
       NotificationService.showSnackBar(
         '❌ Ngày hôm nay đã chốt quỹ! Không thể tạo công nợ mới.',
@@ -1646,7 +1590,7 @@ class _DebtViewState extends State<DebtView>
       );
       return;
     }
-    
+
     final nameC = TextEditingController();
     final phoneC = TextEditingController();
     final amountC = TextEditingController();
@@ -1665,7 +1609,9 @@ class _DebtViewState extends State<DebtView>
               TextFormField(
                 controller: nameC,
                 decoration: const InputDecoration(labelText: "Tên khách hàng"),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập tên khách hàng' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Vui lòng nhập tên khách hàng'
+                    : null,
               ),
               const SizedBox(height: 10),
               TextFormField(
@@ -1678,8 +1624,14 @@ class _DebtViewState extends State<DebtView>
                 controller: amountC,
                 keyboardType: TextInputType.number,
                 inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                decoration: const InputDecoration(labelText: "Số tiền nợ (VNĐ)"),
-                validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền nợ'),
+                decoration: const InputDecoration(
+                  labelText: "Số tiền nợ (VNĐ)",
+                ),
+                validator: (v) => MoneyUtils.validateAmount(
+                  v ?? '',
+                  min: 1,
+                  fieldName: 'Số tiền nợ',
+                ),
               ),
               const SizedBox(height: 10),
               TextField(
@@ -1700,7 +1652,9 @@ class _DebtViewState extends State<DebtView>
 
               try {
                 final parsed = MoneyUtils.parseCurrency(amountC.text);
-                final debtAmount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
+                final debtAmount = parsed >= 1000 && parsed < 100000
+                    ? parsed * 1000
+                    : parsed;
                 if (debtAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
@@ -1738,7 +1692,7 @@ class _DebtViewState extends State<DebtView>
                   action: "TẠO NỢ",
                   type: "DEBT",
                   targetId: newDebtData['firestoreId'] as String,
-                    desc:
+                  desc:
                       "Tạo nợ khách hàng: ${nameC.text} - ${MoneyUtils.formatCurrency(debtAmount)}.",
                 );
 
@@ -1768,7 +1722,9 @@ class _DebtViewState extends State<DebtView>
   void _createSupplierDebt() async {
     // Kiểm tra ngày hôm nay đã chốt quỹ chưa
     final today = DateTime.now();
-    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    final canEdit = await AdjustmentService.canEditDirectly(
+      today.millisecondsSinceEpoch,
+    );
     if (!canEdit && mounted) {
       NotificationService.showSnackBar(
         '❌ Ngày hôm nay đã chốt quỹ! Không thể tạo công nợ mới.',
@@ -1776,7 +1732,7 @@ class _DebtViewState extends State<DebtView>
       );
       return;
     }
-    
+
     final nameC = TextEditingController();
     final phoneC = TextEditingController();
     final amountC = TextEditingController();
@@ -1794,8 +1750,12 @@ class _DebtViewState extends State<DebtView>
             children: [
               TextFormField(
                 controller: nameC,
-                decoration: const InputDecoration(labelText: "Tên nhà cung cấp"),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập tên nhà cung cấp' : null,
+                decoration: const InputDecoration(
+                  labelText: "Tên nhà cung cấp",
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Vui lòng nhập tên nhà cung cấp'
+                    : null,
               ),
               const SizedBox(height: 10),
               TextFormField(
@@ -1808,8 +1768,14 @@ class _DebtViewState extends State<DebtView>
                 controller: amountC,
                 keyboardType: TextInputType.number,
                 inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                decoration: const InputDecoration(labelText: "Số tiền nợ (VNĐ)"),
-                validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền nợ'),
+                decoration: const InputDecoration(
+                  labelText: "Số tiền nợ (VNĐ)",
+                ),
+                validator: (v) => MoneyUtils.validateAmount(
+                  v ?? '',
+                  min: 1,
+                  fieldName: 'Số tiền nợ',
+                ),
               ),
               const SizedBox(height: 10),
               TextField(
@@ -1830,7 +1796,9 @@ class _DebtViewState extends State<DebtView>
 
               try {
                 final parsed = MoneyUtils.parseCurrency(amountC.text);
-                final debtAmount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
+                final debtAmount = parsed >= 1000 && parsed < 100000
+                    ? parsed * 1000
+                    : parsed;
                 if (debtAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
@@ -1868,7 +1836,7 @@ class _DebtViewState extends State<DebtView>
                   action: "TẠO NỢ",
                   type: "DEBT",
                   targetId: newDebtData['firestoreId'] as String,
-                    desc:
+                  desc:
                       "Tạo nợ nhà cung cấp: ${nameC.text} - ${MoneyUtils.formatCurrency(debtAmount)}.",
                 );
 

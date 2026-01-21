@@ -59,6 +59,7 @@ import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../services/encryption_service.dart';
+import '../services/repair_partner_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -142,7 +143,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         debugPrint('HomeView: Received event: $event');
         if ((event == 'debts_changed' ||
                 event == 'sales_changed' ||
-                event == 'repairs_changed') &&
+                event == 'repairs_changed' ||
+                event == 'expenses_changed' ||
+                event == 'products_changed') &&
             mounted) {
           debugPrint('HomeView: Loading stats for event: $event');
           _debouncedLoadStats();
@@ -1348,6 +1351,23 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         if (remain > 0 && totalAmount > 0) debtR += remain;
       }
 
+      // FIX: Tính thêm nợ đối tác sửa chữa (repair partners)
+      try {
+        final partnerService = RepairPartnerService();
+        final partners = await partnerService.getRepairPartners();
+        for (final partner in partners) {
+          final stats = await partnerService.getPartnerRepairStats(partner.id!);
+          if (stats != null) {
+            final totalCost = (stats['totalCost'] ?? 0) as int;
+            final totalPaid = (stats['totalPaid'] ?? 0) as int;
+            final remain = totalCost - totalPaid;
+            if (remain > 0) debtR += remain;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error loading partner debts for home: $e');
+      }
+
       // Tính tổng số dữ liệu local (để biết máy mới hay không)
       final products = await db.getAllProducts();
       final totalRecords = repairs.length + sales.length + products.length;
@@ -1451,18 +1471,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           elevation: 0,
           title: Row(
             children: [
-              const Icon(
-                Icons.store_rounded,
-                color: Colors.white,
-                size: 22,
-              ),
+              const Icon(Icons.store_rounded, color: Colors.white, size: 22),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   _getTabTitle(_currentIndex),
-                  style: AppTextStyles.headline6.copyWith(
-                    color: Colors.white,
-                  ),
+                  style: AppTextStyles.headline6.copyWith(color: Colors.white),
                 ),
               ),
             ],
@@ -1505,11 +1519,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   builder: (_) => GlobalSearchView(role: widget.role),
                 ),
               ),
-              icon: const Icon(
-                Icons.search,
-                color: Colors.white,
-                size: 28,
-              ),
+              icon: const Icon(Icons.search, color: Colors.white, size: 28),
               tooltip: 'Tìm kiếm toàn app',
             ),
             // Simple sync indicator - tự động sync, tap để force sync
@@ -2536,9 +2546,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 child: InkWell(
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const SmartStockInView(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const SmartStockInView()),
                   ),
                   borderRadius: BorderRadius.circular(15),
                   child: Padding(
