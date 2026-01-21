@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../constants/product_constants.dart';
 import '../models/quick_input_code_model.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
@@ -598,313 +599,228 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
   Widget _buildCodeCard(QuickInputCode code) {
     final isPhone = code.type == 'DIEN_THOAI';
     final mainColor = isPhone ? Colors.blue : Colors.orange;
+    
+    // Determine card color based on sync and active status
+    final bgColor = !code.isActive 
+        ? Colors.grey.shade100 
+        : code.isSynced 
+            ? Colors.green.shade50 
+            : Colors.orange.shade50;
+    final borderColor = !code.isActive 
+        ? Colors.grey.shade400 
+        : code.isSynced 
+            ? Colors.green.shade300 
+            : Colors.orange.shade300;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: !code.isSynced
-            ? Border.all(color: Colors.orange.withOpacity(0.5), width: 2)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      color: bgColor,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: borderColor),
       ),
       child: Column(
         children: [
           // Header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Icon loại sản phẩm
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: mainColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+          InkWell(
+            onTap: () => _showAddEditDialog(code),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  // Icon loại sản phẩm
+                  Text(
+                    isPhone ? '📱' : '🎧',
+                    style: const TextStyle(fontSize: 24),
                   ),
-                  child: Icon(
-                    isPhone ? Icons.smartphone : Icons.inventory_2,
-                    color: mainColor,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
+                  const SizedBox(width: 10),
 
-                // Thông tin chính
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        code.name,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: code.isActive ? Colors.black87 : Colors.grey,
-                          decoration: code.isActive
-                              ? null
-                              : TextDecoration.lineThrough,
+                  // Thông tin chính
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          code.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: code.isActive ? Colors.black87 : Colors.grey,
+                            decoration: code.isActive
+                                ? null
+                                : TextDecoration.lineThrough,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isPhone
-                            ? '${code.brand ?? ''} ${code.model ?? ''}'.trim()
-                            : code.description ?? 'Phụ kiện/Linh kiện',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
+                        Text(
+                          isPhone
+                              ? '${code.brand ?? ''} ${code.model ?? ''}'.trim()
+                              : code.description ?? 'Phụ kiện',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
 
-                // Status badges
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    // Active/Inactive badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: code.isActive
-                            ? Colors.green.shade50
-                            : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            code.isActive
-                                ? Icons.check_circle
-                                : Icons.pause_circle,
-                            size: 12,
-                            color: code.isActive ? Colors.green : Colors.grey,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            code.isActive ? 'BẬT' : 'TẮT',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: code.isActive ? Colors.green : Colors.grey,
-                            ),
-                          ),
-                        ],
+                  // Status badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: code.isActive ? mainColor : Colors.grey,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      code.isActive ? 'BẬT' : 'TẮT',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (!code.isSynced) ...[
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.cloud_off,
-                              size: 10,
-                              color: Colors.orange,
-                            ),
-                            SizedBox(width: 2),
-                            Text(
-                              'CHƯA SYNC',
-                              style: TextStyle(
-                                fontSize: 8,
-                                color: Colors.orange,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Chi tiết (expandable)
-          Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-              title: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: Colors.grey.shade400,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Xem chi tiết',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 ],
               ),
+            ),
+          ),
+          
+          const SizedBox(height: 4),
+          
+          // Info chips row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
               children: [
-                Container(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Column(
-                    children: [
-                      // Thông tin chi tiết
-                      if (isPhone) ...[
-                        _buildDetailRow('Thương hiệu', code.brand),
-                        _buildDetailRow('Model', code.model),
-                        _buildDetailRow('Dung lượng', code.capacity),
-                        _buildDetailRow('Màu sắc', code.color),
-                        _buildDetailRow('Tình trạng', code.condition),
-                      ],
-                      if (code.description?.isNotEmpty == true && !isPhone)
-                        _buildDetailRow('Mô tả', code.description),
-                      _buildDetailRow('Nhà cung cấp', code.supplier),
-                      _buildDetailRow('Thanh toán', code.paymentMethod),
-
-                      const SizedBox(height: 12),
-
-                      // Giá
-                      Row(
-                        children: [
-                          if (code.cost != null && code.cost! > 0)
-                            Expanded(
-                              child: _buildPriceBox(
-                                'Giá nhập',
-                                code.cost!,
-                                Colors.red,
-                              ),
-                            ),
-                          if (code.cost != null && code.price != null)
-                            const SizedBox(width: 12),
-                          if (code.price != null && code.price! > 0)
-                            Expanded(
-                              child: _buildPriceBox(
-                                'Giá bán',
-                                code.price!,
-                                Colors.green,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
+                if (code.cost != null && code.cost! > 0)
+                  _quickCodeInfoChip(
+                    'Vốn: ${NumberFormat.compact(locale: 'vi').format(code.cost)}đ',
+                    Colors.red.shade100,
                   ),
-                ),
+                if (code.price != null && code.price! > 0)
+                  _quickCodeInfoChip(
+                    'Bán: ${NumberFormat.compact(locale: 'vi').format(code.price)}đ',
+                    Colors.green.shade100,
+                  ),
+                if (code.color != null && code.color!.isNotEmpty)
+                  _quickCodeInfoChip('🎨 ${code.color}', Colors.pink.shade50),
+                if (code.condition != null && code.condition!.isNotEmpty)
+                  _quickCodeInfoChip('📦 ${code.condition}', Colors.cyan.shade50),
+                if (code.supplier != null && code.supplier!.isNotEmpty)
+                  _quickCodeInfoChip('🏭 ${code.supplier}', Colors.purple.shade100),
+                if (!code.isSynced)
+                  _quickCodeInfoChip('☁️ Chưa sync', Colors.orange.shade200),
               ],
             ),
           ),
+          
+          const SizedBox(height: 8),
+          const Divider(height: 1),
 
-          // Action buttons
+          // Action buttons - compact
           Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-            ),
-            child: Column(
+            padding: const EdgeInsets.all(8),
+            child: Row(
               children: [
-                // Nút nhập kho
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: code.isActive
-                            ? () => _fastImportToInventory(code)
-                            : null,
-                        icon: const Icon(Icons.bolt, size: 18),
-                        label: const Text('NHẬP NHANH'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade600,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
+                // Nhập nhanh
+                Expanded(
+                  child: SizedBox(
+                    height: 32,
+                    child: ElevatedButton(
+                      onPressed: code.isActive
+                          ? () => _fastImportToInventory(code)
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.bolt, size: 14),
+                          SizedBox(width: 4),
+                          Text('Nhanh', style: TextStyle(fontSize: 10)),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: code.isActive
-                            ? () => _importToInventory(code)
-                            : null,
-                        icon: const Icon(Icons.inventory, size: 18),
-                        label: const Text('NHẬP ĐẦY ĐỦ'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.blue.shade700,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          side: BorderSide(color: Colors.blue.shade300),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-
-                // Nút quản lý
-                Row(
-                  children: [
-                    _buildActionButton(
-                      icon: code.isActive ? Icons.pause : Icons.play_arrow,
-                      label: code.isActive ? 'TẮT' : 'BẬT',
-                      color: code.isActive ? Colors.orange : Colors.green,
-                      onTap: () => _toggleActive(code),
+                const SizedBox(width: 4),
+                // Nhập đầy đủ
+                Expanded(
+                  child: SizedBox(
+                    height: 32,
+                    child: OutlinedButton(
+                      onPressed: code.isActive
+                          ? () => _importToInventory(code)
+                          : null,
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.inventory, size: 14),
+                          SizedBox(width: 4),
+                          Text('Đầy đủ', style: TextStyle(fontSize: 10)),
+                        ],
+                      ),
                     ),
-                    const SizedBox(width: 8),
-                    _buildActionButton(
-                      icon: Icons.edit,
-                      label: 'SỬA',
-                      color: Colors.blue,
-                      onTap: () => _showAddEditDialog(code),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildActionButton(
-                      icon: Icons.copy,
-                      label: 'COPY',
-                      color: Colors.purple,
-                      onTap: () => _copyCode(code),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildActionButton(
-                      icon: Icons.delete,
-                      label: 'XÓA',
-                      color: Colors.red,
-                      onTap: () => _deleteCode(code),
-                    ),
-                  ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                // Sửa
+                SizedBox(
+                  height: 32,
+                  width: 40,
+                  child: IconButton(
+                    onPressed: () => _showAddEditDialog(code),
+                    icon: const Icon(Icons.edit, size: 16),
+                    padding: EdgeInsets.zero,
+                    color: Colors.blue,
+                  ),
+                ),
+                // Xóa
+                SizedBox(
+                  height: 32,
+                  width: 40,
+                  child: IconButton(
+                    onPressed: () => _deleteCode(code),
+                    icon: const Icon(Icons.delete, size: 16),
+                    padding: EdgeInsets.zero,
+                    color: Colors.red,
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+  
+  Widget _quickCodeInfoChip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(text, style: const TextStyle(fontSize: 10)),
     );
   }
 
@@ -1025,45 +941,32 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   String? _selectedSupplier;
   List<Map<String, dynamic>> _suppliers = [];
 
-  // Danh sách gợi ý
-  final List<String> _brandSuggestions = [
-    'IPHONE',
-    'SAMSUNG',
-    'XIAOMI',
-    'OPPO',
-    'VIVO',
-    'REALME',
-    'HUAWEI',
-    'NOKIA',
-    'ASUS',
-    'GOOGLE',
-  ];
-  final List<String> _capacitySuggestions = [
-    '32GB',
-    '64GB',
-    '128GB',
-    '256GB',
-    '512GB',
-    '1TB',
-  ];
+  // Danh sách gợi ý - sử dụng constants để đồng bộ
+  List<String> get _brandSuggestions => ProductConstants.brands;
+  List<String> get _capacitySuggestions => ProductConstants.capacities;
   // Đồng bộ với fast_stock_in_view.dart
-  final List<String> _conditionSuggestions = ['MỚI', '99', 'KHÁC'];
-  final List<String> _paymentMethods = ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'];
+  List<String> get _conditionSuggestions => ProductConstants.conditionsShort;
+  List<String> get _paymentMethods => ProductConstants.paymentMethods;
 
-  // Danh sách màu sắc với color code - đồng bộ với fast_stock_in_view.dart
+  // Danh sách màu sắc với color code - đồng bộ với constants
   final Map<String, Color> _colorOptions = {
     'ĐEN': Colors.black,
     'TRẮNG': Colors.white,
-    'XANH DƯƠNG': Colors.blue,
-    'XANH LÁ': Colors.green,
+    'XANH': Colors.blue,
     'ĐỎ': Colors.red,
     'VÀNG': Colors.amber,
     'TÍM': Colors.purple,
     'HỒNG': Colors.pink,
-    'CAM': Colors.orange,
-    'XÁM': Colors.grey,
     'BẠC': const Color(0xFFC0C0C0),
-    'VÀNG ĐỒNG': const Color(0xFFB8860B),
+    'XANH LÁ': Colors.green,
+    'CAM': Colors.orange,
+    'XANH DƯƠNG': Colors.blue,
+    'GOLD': const Color(0xFFFFD700),
+    'TITAN TỰ NHIÊN': const Color(0xFF8B7355),
+    'TITAN ĐEN': const Color(0xFF2C2C2C),
+    'TITAN TRẮNG': const Color(0xFFF5F5F5),
+    'TITAN XÁM': const Color(0xFF808080),
+    'KHÁC': Colors.grey,
   };
 
   @override

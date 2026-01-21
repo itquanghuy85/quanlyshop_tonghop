@@ -631,25 +631,30 @@ class _SaleListViewState extends State<SaleListView> {
                             }
                             
                             final s = list[i];
-                            final date = DateFormat('HH:mm - dd/MM/yy').format(
+                            final date = DateFormat('dd/MM HH:mm').format(
                               DateTime.fromMillisecondsSinceEpoch(s.soldAt),
                             );
                             final remain = s.finalPrice - s.downPayment;
                             final index = i + 1;
+                            
+                            // Determine card color based on payment status
+                            final isPaid = remain <= 0;
+                            final bgColor = isPaid 
+                                ? Colors.green.shade50 
+                                : Colors.orange.shade50;
+                            final borderColor = isPaid 
+                                ? Colors.green.shade300 
+                                : Colors.orange.shade300;
 
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: AppColors.shadow,
-                                    blurRadius: 6,
-                                  ),
-                                ],
+                            return Card(
+                              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              color: bgColor,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(color: borderColor),
                               ),
-                              child: ListTile(
+                              child: InkWell(
                                 onTap: () {
                                   HapticFeedback.lightImpact();
                                   Navigator.push(
@@ -659,157 +664,134 @@ class _SaleListViewState extends State<SaleListView> {
                                     ),
                                   ).then((_) => _refresh());
                                 },
-                                contentPadding: const EdgeInsets.all(10),
-                                leading: Container(
-                                  width: 28,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.success.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '$index',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.success,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                title: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Row(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Header row
+                                      Row(
                                         children: [
-                                          Flexible(
-                                            child: Text(
-                                              s.customerName.toUpperCase(),
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
+                                          // STT
+                                          Container(
+                                            width: 28,
+                                            height: 28,
+                                            decoration: BoxDecoration(
+                                              color: borderColor.withValues(alpha: 0.3),
+                                              borderRadius: BorderRadius.circular(6),
                                             ),
+                                            child: Center(
+                                              child: Text(
+                                                '$index',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: borderColor,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          // Thông tin chính
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  s.productNames,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                Text(
+                                                  '${s.customerName} • ${s.phone}',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.grey.shade700,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          // Status + Date
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 3,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: isPaid ? Colors.green : Colors.orange,
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  isPaid ? 'ĐÃ THU' : 'CÒN NỢ',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                date,
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
-                                    ),
-                                    Text(
-                                      date,
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        color: AppColors.onSurface.withOpacity(
-                                          0.6,
-                                        ),
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      s.productNames,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    Text(
-                                      "IMEI: ${s.productImeis}",
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: AppColors.onSurface.withOpacity(
-                                          0.7,
-                                        ),
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: 6,
-                                      ),
-                                      child: Divider(height: 1),
-                                    ),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Flexible(
-                                          child: _statItem(
-                                            "TỔNG TIỀN",
-                                            fmt.format(s.finalPrice),
-                                            AppColors.onSurface,
+                                      
+                                      const SizedBox(height: 8),
+                                      
+                                      // Info chips row
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: [
+                                          // Tổng tiền
+                                          _saleInfoChip(
+                                            '💰 ${fmt.format(s.finalPrice)}đ',
+                                            Colors.blue.shade100,
                                           ),
-                                        ),
-                                        Flexible(
-                                          child: _statItem(
-                                            "ĐÃ THU",
-                                            fmt.format(s.downPayment),
-                                            AppColors.success,
-                                          ),
-                                        ),
-                                        if (remain > 0)
-                                          Flexible(
-                                            child: _statItem(
-                                              "CÒN NỢ",
-                                              fmt.format(remain),
-                                              AppColors.error,
+                                          // Đã thu
+                                          if (s.downPayment > 0)
+                                            _saleInfoChip(
+                                              '✅ ${fmt.format(s.downPayment)}đ',
+                                              Colors.green.shade100,
                                             ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 3,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: _getPayColor(
-                                              s.paymentMethod,
-                                            ).withAlpha(25),
-                                            borderRadius: BorderRadius.circular(
-                                              6,
+                                          // Còn nợ
+                                          if (remain > 0)
+                                            _saleInfoChip(
+                                              '⚠️ Nợ ${fmt.format(remain)}đ',
+                                              Colors.red.shade100,
                                             ),
+                                          // Phương thức
+                                          _saleInfoChip(
+                                            '💳 ${s.paymentMethod}',
+                                            _getPayColor(s.paymentMethod).withAlpha(40),
                                           ),
-                                          child: Text(
-                                            s.paymentMethod,
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              color: _getPayColor(
-                                                s.paymentMethod,
-                                              ),
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                          // NV
+                                          _saleInfoChip(
+                                            '👤 ${s.sellerName}',
+                                            Colors.purple.shade100,
                                           ),
-                                        ),
-                                        Text(
-                                          "NV: ${s.sellerName}",
-                                          style: TextStyle(
-                                            fontSize: 9,
-                                            fontStyle: FontStyle.italic,
-                                            color: AppColors.onSurface
-                                                .withOpacity(0.6),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             );
@@ -926,5 +908,21 @@ class _SaleListViewState extends State<SaleListView> {
     if (m.contains("CHUYỂN KHOẢN")) return AppColors.primary;
     if (m.contains("TRẢ GÓP")) return AppColors.warning;
     return AppColors.error;
+  }
+  
+  Widget _saleInfoChip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text, 
+        style: const TextStyle(fontSize: 10),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
   }
 }

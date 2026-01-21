@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../constants/product_constants.dart';
 import '../models/stock_entry_model.dart';
 import '../models/supplier_model.dart';
 import '../models/quick_input_code_model.dart';
@@ -61,31 +62,13 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   // Data
   List<Map<String, dynamic>> _suppliers = [];
 
-  // Options
-  final _brands = [
-    'IPHONE',
-    'SAMSUNG',
-    'OPPO',
-    'XIAOMI',
-    'VIVO',
-    'REALME',
-    'KHÁC',
-  ];
-  final _capacities = ['64GB', '128GB', '256GB', '512GB', '1TB'];
-  final _colors = [
-    'ĐEN',
-    'TRẮNG',
-    'XANH',
-    'ĐỎ',
-    'VÀNG',
-    'TÍM',
-    'HỒNG',
-    'BẠC',
-    'XANH LÁ',
-  ];
-  final _conditions = ['MỚI', '99%', '98%', '97%', '95%', 'KHÁC'];
-  final _units = ['Cái', 'Hộp', 'Bộ', 'Chiếc', 'Cuộn', 'Túi'];
-  final _paymentMethods = ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'];
+  // Options - sử dụng constants để đồng bộ
+  List<String> get _brands => ProductConstants.brands;
+  List<String> get _capacities => ProductConstants.capacities;
+  List<String> get _colors => ProductConstants.colors;
+  List<String> get _conditions => ProductConstants.conditions;
+  final _units = ProductConstants.units;
+  final _paymentMethods = ProductConstants.paymentMethods;
 
   @override
   void initState() {

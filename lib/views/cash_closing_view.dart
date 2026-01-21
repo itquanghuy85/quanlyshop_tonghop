@@ -1644,63 +1644,123 @@ class _CashClosingViewState extends State<CashClosingView>
 
   Widget _transactionCard(Map<String, dynamic> t, bool isIncome) {
     final color = isIncome ? Colors.green : Colors.red;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 5),
-        ],
+    final bgColor = isIncome ? Colors.green.shade50 : Colors.red.shade50;
+    final borderColor = isIncome ? Colors.green.shade300 : Colors.red.shade300;
+    
+    return Card(
+      margin: EdgeInsets.zero,
+      color: bgColor,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: borderColor),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              t['icon'] as String? ?? '💰',
-              style: const TextStyle(fontSize: 20),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row
+            Row(
               children: [
                 Text(
-                  t['title'] as String? ?? '',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                  t['icon'] as String? ?? '💰',
+                  style: const TextStyle(fontSize: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t['title'] as String? ?? '',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        t['subtitle'] as String? ?? '',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  t['subtitle'] as String? ?? '',
-                  style: const TextStyle(fontSize: 11, color: Colors.black54),
-                ),
-                Text(
-                  t['time'] as String? ?? '',
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        "${isIncome ? '+' : '-'}${MoneyUtils.formatVND(t['amount'] as int)}",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      t['time'] as String? ?? '',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ),
-          Text(
-            "${isIncome ? '+' : '-'}${MoneyUtils.formatVND(t['amount'] as int)}",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: color,
-              fontSize: 14,
-            ),
-          ),
-        ],
+            
+            // Info chips row (if applicable)
+            if (t['paymentMethod'] != null || t['customerName'] != null) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  if (t['paymentMethod'] != null)
+                    _cashClosingInfoChip(
+                      '💳 ${t['paymentMethod']}',
+                      Colors.blue.shade100,
+                    ),
+                  if (t['customerName'] != null && (t['customerName'] as String).isNotEmpty)
+                    _cashClosingInfoChip(
+                      '👤 ${t['customerName']}',
+                      Colors.purple.shade100,
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
+    );
+  }
+  
+  Widget _cashClosingInfoChip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(text, style: const TextStyle(fontSize: 10)),
     );
   }
 

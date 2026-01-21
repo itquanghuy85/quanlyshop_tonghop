@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../constants/product_constants.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../models/debt_model.dart';
@@ -77,38 +78,15 @@ class _FastStockInViewState extends State<FastStockInView> {
 
   List<Map<String, dynamic>> suppliers = [];
 
-  // Options
-  final List<String> brands = ['IPHONE', 'SAMSUNG', 'OPPO', 'REDMI', 'KHÁC'];
-  final List<String> capacities = ['64GB', '128GB', '256GB', '512GB', '1TB'];
-  final List<String> colors = ['ĐEN', 'TRẮNG', 'XANH', 'ĐỎ', 'VÀNG', 'TÍM'];
-  final List<String> conditions = ['MỚI', '99', 'KHÁC'];
-  final List<String> paymentMethods = ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'];
+  // Options - sử dụng constants để đồng bộ
+  List<String> get brands => ProductConstants.brands;
+  List<String> get capacities => ProductConstants.capacities;
+  List<String> get colors => ProductConstants.colors;
+  List<String> get conditions => ProductConstants.conditionsShort;
+  List<String> get paymentMethods => ProductConstants.paymentMethods;
 
   // Model suggestions based on brand
-  final Map<String, List<String>> modelSuggestions = {
-    'IPHONE': [
-      // iPhone 17 series
-      '17 PRO MAX', '17 PRO', '17 PLUS', '17',
-      // iPhone 16 series
-      '16 PRO MAX', '16 PRO', '16 PLUS', '16',
-      // iPhone 15 series
-      '15 PRO MAX', '15 PRO', '15 PLUS', '15',
-      // iPhone 14 series
-      '14 PRO MAX', '14 PRO', '14 PLUS', '14',
-      // iPhone 13 series
-      '13 PRO MAX', '13 PRO', '13 MINI', '13',
-      // iPhone 12 series
-      '12 PRO MAX', '12 PRO', '12 MINI', '12',
-      // iPhone 11 series
-      '11 PRO MAX', '11 PRO', '11',
-      // Older models
-      'XS MAX', 'XS', 'XR', 'X', 'SE 2022', 'SE 2020', '8 PLUS', '8',
-    ],
-    'SAMSUNG': ['S24', 'S23', 'S22', 'S21', 'A54', 'A34', 'A14'],
-    'OPPO': ['A18', 'A17', 'A16', 'A15', 'F11', 'F9'],
-    'REDMI': ['13C', '12C', '11', '10', '9', 'Note 12'],
-    'KHÁC': [],
-  };
+  Map<String, List<String>> get modelSuggestions => ProductConstants.modelSuggestions;
 
   @override
   void initState() {
@@ -126,25 +104,9 @@ class _FastStockInViewState extends State<FastStockInView> {
   }
 
   /// Map các giá trị condition từ mã nhập nhanh về danh sách conditions hiện tại
-  /// Ví dụ: 'LIKE NEW 99%' -> '99', 'MỚI 100%' -> 'MỚI'
+  /// Sử dụng ProductConstants.mapConditionShort để đồng bộ
   String _mapConditionValue(String condition) {
-    final conditionUpper = condition.toUpperCase();
-
-    // Map các biến thể của "MỚI 100%"
-    if (conditionUpper.contains('MỚI 100') ||
-        conditionUpper == 'MỚI' ||
-        conditionUpper == 'NEW 100' ||
-        conditionUpper == '100%') {
-      return 'MỚI';
-    }
-
-    // Map các biến thể của "99%", "LIKE NEW 99%"
-    if (conditionUpper.contains('99') || conditionUpper.contains('LIKE NEW')) {
-      return '99';
-    }
-
-    // Map các biến thể khác (98%, 95%, CŨ, ĐÃ QUA SD, etc.)
-    return 'KHÁC';
+    return ProductConstants.mapConditionShort(condition);
   }
 
   void _preFillFromQuickInputCode(QuickInputCode code) {

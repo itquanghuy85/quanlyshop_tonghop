@@ -44,7 +44,7 @@ class _PartsSelectionDialogState extends State<PartsSelectionDialog> {
           children: [
             Tooltip(
               message: "Chọn phụ tùng cần dùng cho đơn sửa.",
-              child: const Text(
+              child: Text(
                 "CHỌN LINH KIỆN",
                 style: AppTextStyles.headline4,
               ),

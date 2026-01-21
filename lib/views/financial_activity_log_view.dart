@@ -636,6 +636,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   Widget _buildSummarySection() {
     final totalIn = _summary['totalIn'] as int? ?? 0;
     final totalOut = _summary['totalOut'] as int? ?? 0;
+    final totalDebt = _summary['totalDebt'] as int? ?? 0;
     final totalCount = _summary['totalCount'] as int? ?? 0;
 
     return Container(
@@ -682,11 +683,41 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                 child: _buildSummaryItem(
                   icon: Icons.receipt_long,
                   iconColor: Colors.amberAccent,
-                  label: 'Giao dịch',
-                  value: totalCount.toString(),
+                  label: 'Công nợ',
+                  value: _formatMoney(totalDebt),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withAlpha(30),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '💵 Lãi thực: ',
+                  style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12),
+                ),
+                Text(
+                  _formatMoney(totalIn - totalOut),
+                  style: TextStyle(
+                    color: (totalIn - totalOut) >= 0 ? Colors.greenAccent : Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Text(
+                  '📊 $totalCount giao dịch',
+                  style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12),
+                ),
+              ],
+            ),
           ),
         ],
       ),
