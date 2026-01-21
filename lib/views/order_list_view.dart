@@ -882,9 +882,37 @@ class OrderListViewState extends State<OrderListView> {
   }
 
   Widget _buildRepairCard(Repair r, int index) {
-    final bool isDone = r.status >= 3;
     final List<String> images = r.receiveImages;
     final String firstImage = images.isNotEmpty ? images.first : "";
+    
+    // Determine card color based on status
+    Color bgColor;
+    Color borderColor;
+    switch (r.status) {
+      case 1: // TIẾP NHẬN
+        bgColor = Colors.blue.shade50;
+        borderColor = Colors.blue.shade300;
+        break;
+      case 2: // ĐANG SỬA
+        bgColor = Colors.orange.shade50;
+        borderColor = Colors.orange.shade300;
+        break;
+      case 3: // SỬA XONG
+        bgColor = r.pendingDeliveryApproval
+            ? Colors.deepOrange.shade50
+            : Colors.green.shade50;
+        borderColor = r.pendingDeliveryApproval
+            ? Colors.deepOrange.shade300
+            : Colors.green.shade300;
+        break;
+      case 4: // ĐÃ GIAO
+        bgColor = Colors.purple.shade50;
+        borderColor = Colors.purple.shade300;
+        break;
+      default:
+        bgColor = Colors.grey.shade50;
+        borderColor = Colors.grey.shade300;
+    }
 
     return Dismissible(
       key: Key(r.firestoreId ?? r.createdAt.toString()),
@@ -896,7 +924,7 @@ class OrderListViewState extends State<OrderListView> {
         padding: const EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
           color: Colors.red,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: const Icon(Icons.delete_forever, color: Colors.white, size: 24),
       ),
@@ -905,10 +933,13 @@ class OrderListViewState extends State<OrderListView> {
         return false;
       },
       child: Card(
-        margin: const EdgeInsets.only(
-          bottom: 8,
-        ), // Giảm margin để hiện nhiều đơn hơn
-        elevation: 1,
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        color: bgColor,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: borderColor),
+        ),
         child: InkWell(
           onTap: () async {
             final res = await Navigator.push(
@@ -917,186 +948,207 @@ class OrderListViewState extends State<OrderListView> {
             );
             if (res == true) _loadInitialData();
           },
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.all(10), // Giảm padding
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // STT (Số thứ tự) - thu nhỏ
-                Container(
-                  width: 24,
-                  height: 24,
-                  margin: const EdgeInsets.only(right: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2962FF).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '$index',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                        color: Color(0xFF2962FF),
-                      ),
-                    ),
-                  ),
-                ),
-                // 1. HÌNH ẢNH NHẬN MÁY - thu nhỏ
-                SizedBox(
-                  width: 50,
-                  height: 50,
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                          image: firstImage.isNotEmpty
-                              ? DecorationImage(
-                                  image: firstImage.startsWith('http')
-                                      ? NetworkImage(firstImage)
-                                      : FileImage(File(firstImage))
-                                            as ImageProvider,
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
-                        ),
-                        child: firstImage.isEmpty
-                            ? const Icon(
-                                Icons.image_not_supported_outlined,
-                                color: Colors.grey,
-                                size: 20,
-                              )
-                            : null,
-                      ),
-                      if (images.length > 1)
-                        Positioned(
-                          bottom: 2,
-                          right: 2,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              "+${images.length - 1}",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 8,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // 2. THÔNG TIN CHI TIẾT - thu nhỏ font
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        r.model,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12, // Giảm từ 15 xuống 12
-                          color: Color(0xFF2962FF),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        r.customerName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 11, // Giảm từ 12 xuống 11
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        r.issue.split('|').first,
-                        style: const TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 10, // Giảm từ 11 xuống 10
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        "Ghi chú: ${r.accessories}",
-                        style: const TextStyle(
-                          color: Colors.blueGrey,
-                          fontSize: 10,
-                          fontStyle: FontStyle.italic,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 3. TRẠNG THÁI & THỜI GIAN - thu nhỏ
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
+                // Header row
+                Row(
                   children: [
-                    Text(
-                      DateFormat('dd/MM').format(
-                        DateTime.fromMillisecondsSinceEpoch(r.createdAt),
-                      ),
-                      style: const TextStyle(fontSize: 9, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 4),
+                    // STT (Số thứ tự)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 3,
-                      ),
+                      width: 28,
+                      height: 28,
                       decoration: BoxDecoration(
-                        color: _getStatusColor(
-                          r.status,
-                          pendingApproval: r.pendingDeliveryApproval,
-                        ).withOpacity(0.15),
+                        color: borderColor.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(
-                        _getStatusLabel(
-                          r.status,
-                          pendingApproval: r.pendingDeliveryApproval,
-                        ),
-                        style: TextStyle(
-                          color: _getStatusColor(
-                            r.status,
-                            pendingApproval: r.pendingDeliveryApproval,
+                      child: Center(
+                        child: Text(
+                          '$index',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                            color: borderColor,
                           ),
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    // HÌNH ẢNH NHẬN MÁY
+                    SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                              image: firstImage.isNotEmpty
+                                  ? DecorationImage(
+                                      image: firstImage.startsWith('http')
+                                          ? NetworkImage(firstImage)
+                                          : FileImage(File(firstImage))
+                                                as ImageProvider,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                            ),
+                            child: firstImage.isEmpty
+                                ? const Icon(
+                                    Icons.phone_android,
+                                    color: Colors.grey,
+                                    size: 24,
+                                  )
+                                : null,
+                          ),
+                          if (images.length > 1)
+                            Positioned(
+                              bottom: 2,
+                              right: 2,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  "+${images.length - 1}",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Thông tin chính
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.model,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '${r.customerName} • ${r.phone}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Status + Date
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(
+                              r.status,
+                              pendingApproval: r.pendingDeliveryApproval,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _getStatusLabel(
+                              r.status,
+                              pendingApproval: r.pendingDeliveryApproval,
+                            ),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          DateFormat('dd/MM HH:mm').format(
+                            DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+                          ),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Info chips row
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    // Lỗi / Vấn đề
+                    _repairInfoChip(
+                      '🔧 ${r.issue.split('|').first}',
+                      Colors.red.shade100,
+                    ),
+                    // Giá
+                    if (r.price > 0)
+                      _repairInfoChip(
+                        '💰 ${NumberFormat.compact(locale: 'vi').format(r.price)}đ',
+                        Colors.green.shade100,
+                      ),
+                    // Ghi chú
+                    if (r.accessories.isNotEmpty)
+                      _repairInfoChip(
+                        '📝 ${r.accessories}',
+                        Colors.blue.shade100,
+                      ),
                   ],
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+  
+  Widget _repairInfoChip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text, 
+        style: const TextStyle(fontSize: 11),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

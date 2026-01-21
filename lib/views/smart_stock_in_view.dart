@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../models/stock_entry_model.dart';
 import '../models/supplier_model.dart';
+import '../models/quick_input_code_model.dart';
 import '../services/stock_entry_service.dart';
 import '../services/supplier_service.dart';
 import '../services/user_service.dart';
@@ -13,8 +14,9 @@ import '../widgets/currency_text_field.dart';
 /// Form nhập kho thông minh - hỗ trợ cả Nhập nhanh và Nhập tạm
 class SmartStockInView extends StatefulWidget {
   final StockEntry? editEntry; // Để chỉnh sửa phiếu DRAFT
+  final QuickInputCode? quickInputCode; // Để điền từ mã nhập nhanh
 
-  const SmartStockInView({super.key, this.editEntry});
+  const SmartStockInView({super.key, this.editEntry, this.quickInputCode});
 
   @override
   State<SmartStockInView> createState() => _SmartStockInViewState();
@@ -154,8 +156,67 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       if (widget.editEntry != null) {
         _loadEditData();
       }
+      // Load từ QuickInputCode nếu có
+      if (widget.quickInputCode != null) {
+        _loadQuickInputData();
+      }
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  /// Load dữ liệu từ QuickInputCode để điền vào form
+  void _loadQuickInputData() {
+    final code = widget.quickInputCode!;
+    
+    // Set loại sản phẩm
+    _productType = code.type;
+    _nameCtrl.text = code.name;
+    _quantityCtrl.text = '1';
+    
+    // Giá
+    if (code.cost != null && code.cost! > 0) {
+      _costCtrl.text = CurrencyTextField.formatDisplay(code.cost!.toInt());
+    }
+    if (code.price != null && code.price! > 0) {
+      _priceCtrl.text = CurrencyTextField.formatDisplay(code.price!.toInt());
+    }
+    
+    // Thông tin điện thoại
+    if (code.type == 'DIEN_THOAI') {
+      if (code.brand != null && _brands.contains(code.brand)) {
+        _selectedBrand = code.brand;
+      }
+      _modelCtrl.text = code.model ?? '';
+      if (code.capacity != null && _capacities.contains(code.capacity)) {
+        _selectedCapacity = code.capacity;
+      }
+      if (code.color != null && _colors.contains(code.color)) {
+        _selectedColor = code.color;
+      }
+      if (code.condition != null && _conditions.contains(code.condition)) {
+        _selectedCondition = code.condition;
+      }
+    }
+    // Phụ kiện không có unit trong QuickInputCode
+    
+    // Nhà cung cấp
+    if (code.supplier != null && code.supplier!.isNotEmpty) {
+      final supplierMatch = _suppliers.where((s) => s['name'] == code.supplier).toList();
+      if (supplierMatch.isNotEmpty) {
+        _selectedSupplier = code.supplier;
+        _selectedSupplierId = supplierMatch.first['firestoreId']?.toString();
+      }
+    }
+    
+    // Phương thức thanh toán
+    if (code.paymentMethod != null && _paymentMethods.contains(code.paymentMethod)) {
+      _selectedPaymentMethod = code.paymentMethod;
+    }
+    
+    // Ghi chú
+    if (code.description != null && code.description!.isNotEmpty) {
+      _notesCtrl.text = code.description!;
     }
   }
 

@@ -4,14 +4,14 @@ import 'package:intl/intl.dart';
 import '../models/quick_input_code_model.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
+import '../services/firestore_service.dart';
 import '../services/sync_service.dart';
-import '../services/sync_orchestrator.dart';
 import '../services/supplier_service.dart';
 import '../data/db_helper.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/gradient_fab.dart';
-import 'stock_in_view.dart';
+import 'smart_stock_in_view.dart';
 import 'fast_stock_in_view.dart';
 
 enum QuickInputFilter { all, active, inactive, unsynced }
@@ -231,19 +231,18 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
 
     if (confirm == true) {
       try {
-        // Queue delete sync via SyncOrchestrator
+        // XÓA FIRESTORE TRƯỚC để tránh sync lại
         if (code.firestoreId != null && code.firestoreId!.isNotEmpty) {
-          await SyncOrchestrator().enqueue(
-            entityType: SyncEntityType.quickInputCode,
-            entityId: code.id!,
-            firestoreId: code.firestoreId,
-            operation: SyncOperation.delete,
-            data: {'firestoreId': code.firestoreId},
-          );
+          await FirestoreService.deleteQuickInputCode(code.firestoreId!);
         }
         // Sau đó xóa local
         await db.deleteQuickInputCode(code.id!);
-        await _loadCodes();
+        // Refresh list ngay lập tức
+        if (mounted) {
+          setState(() {
+            _codes.removeWhere((c) => c.id == code.id);
+          });
+        }
         NotificationService.showSnackBar(
           'Đã xóa mã nhập nhanh',
           color: Colors.green,
@@ -291,27 +290,12 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
   }
 
   void _importToInventory(QuickInputCode code) {
-    // Tạo dữ liệu prefill từ QuickInputCode
-    final prefilledData = {
-      'name': code.name,
-      'type': code.type,
-      'brand': code.brand,
-      'model': code.model,
-      'capacity': code.capacity,
-      'color': code.color,
-      'condition': code.condition,
-      'cost': code.cost,
-      'price': code.price,
-      'supplier': code.supplier,
-      'paymentMethod': code.paymentMethod,
-      'notes': code.description,
-      'quantity': 1,
-    };
-
+    // Chuyển tới SmartStockInView với dữ liệu từ QuickInputCode
+    // SmartStockInView không cần prefilledData, thay vào đó dùng QuickInputCode
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => StockInView(prefilledData: prefilledData),
+        builder: (_) => SmartStockInView(quickInputCode: code),
       ),
     ).then((_) => _loadCodes());
   }

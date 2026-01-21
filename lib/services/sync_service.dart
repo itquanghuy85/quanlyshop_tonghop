@@ -430,6 +430,16 @@ class SyncService {
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
 
+              // Chuyển đổi Timestamp sang milliseconds cho SQLite
+              if (data['createdAt'] is Timestamp) {
+                data['createdAt'] =
+                    (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
+              }
+              if (data['updatedAt'] is Timestamp) {
+                data['updatedAt'] =
+                    (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
+              }
+
               // BẢO TOÀN isPending và pendingSupplier từ local nếu cloud không có
               // (để tránh mất trạng thái Kho Tạm khi sync)
               final existingProduct = await db.getProductByFirestoreId(docId);

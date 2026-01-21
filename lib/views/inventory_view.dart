@@ -23,7 +23,7 @@ import 'supplier_list_view.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../models/printer_types.dart';
-import 'stock_in_view.dart';
+import 'smart_stock_in_view.dart';
 import 'global_search_view.dart';
 import 'fast_stock_in_view.dart';
 import 'parts_inventory_view.dart';
@@ -1825,12 +1825,12 @@ class _InventoryViewState extends State<InventoryView>
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
-                // Nhập kho button
+                // Nhập kho button - chuyển tới SmartStockInView
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const StockInView()),
+                      MaterialPageRoute(builder: (_) => const SmartStockInView()),
                     ).then((_) => _refresh()),
                     icon: Icon(Icons.add_box_rounded, size: _iconSize - 2),
                     label: Text("NHẬP KHO", style: AppTextStyles.caption.copyWith(fontSize: 11)),
