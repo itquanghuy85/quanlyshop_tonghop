@@ -13,6 +13,8 @@ import '../services/adjustment_service.dart';
 import '../services/firestore_service.dart';
 import '../services/financial_activity_service.dart';
 import '../services/first_time_guide_service.dart';
+import '../services/repair_partner_service.dart';
+import '../services/repair_partner_payment_service.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
 
@@ -25,8 +27,11 @@ class DebtView extends StatefulWidget {
 class _DebtViewState extends State<DebtView>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final db = DBHelper();
+  final _partnerService = RepairPartnerService();
+  final _partnerPaymentService = RepairPartnerPaymentService();
   late TabController _tabController;
   List<Map<String, dynamic>> _debts = [];
+  List<Map<String, dynamic>> _partnerDebts = []; // Công nợ đối tác sửa chữa
   bool _isLoading = true;
   bool _isSyncing = false;
   String _syncStatus = 'Đã đồng bộ';
@@ -35,7 +40,7 @@ class _DebtViewState extends State<DebtView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadRole();
     _refresh();
 
@@ -102,11 +107,40 @@ class _DebtViewState extends State<DebtView>
 
   Future<void> _refresh() async {
     setState(() => _isLoading = true);
+    
+    // Load regular debts
     final data = await db.getAllDebts();
+    
+    // Load partner debts
+    final partners = await _partnerService.getRepairPartners();
+    final partnerDebts = <Map<String, dynamic>>[];
+    
+    for (final partner in partners) {
+      final stats = await _partnerService.getPartnerRepairStats(partner.id!);
+      final totalCost = stats?['totalCost'] ?? 0;
+      final totalPaid = stats?['totalPaid'] ?? 0;
+      final remain = totalCost - totalPaid;
+      
+      if (remain > 0) {
+        partnerDebts.add({
+          'id': partner.id,
+          'partnerId': partner.id,
+          'partnerName': partner.name,
+          'phone': partner.phone,
+          'totalAmount': totalCost,
+          'paidAmount': totalPaid,
+          'remain': remain,
+          'type': 'REPAIR_PARTNER',
+          'createdAt': partner.createdAt,
+        });
+      }
+    }
+    
     if (!mounted) return;
     setState(() {
       // Filter out soft-deleted debts
       _debts = data.where((d) => (d['deleted'] ?? 0) != 1).toList();
+      _partnerDebts = partnerDebts;
       _isLoading = false;
     });
   }
@@ -595,8 +629,8 @@ class _DebtViewState extends State<DebtView>
   Widget build(BuildContext context) {
     super.build(context);
     
-    // Đếm số công nợ còn hiệu lực
-    final activeDebtsCount = _debts.where(_isActiveDebt).length;
+    // Đếm số công nợ còn hiệu lực (bao gồm cả partner debts)
+    final activeDebtsCount = _debts.where(_isActiveDebt).length + _partnerDebts.length;
     
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
@@ -606,8 +640,9 @@ class _DebtViewState extends State<DebtView>
         tabController: _tabController,
         tabs: const [
           Tab(text: "KHÁCH NỢ"),
-          Tab(text: "SHOP NỢ NCC"),
-          Tab(text: "CÔNG NỢ KHÁC"),
+          Tab(text: "NỢ NCC"),
+          Tab(text: "NỢ ĐỐI TÁC"),
+          Tab(text: "KHÁC"),
         ],
         accentColor: AppBarAccents.customer,
         actions: [
@@ -643,16 +678,19 @@ class _DebtViewState extends State<DebtView>
               children: [
                 _buildDebtList('CUSTOMER_OWES'),
                 _buildDebtList('SHOP_OWES'),
+                _buildPartnerDebtList(), // Tab mới cho công nợ đối tác sửa chữa
                 _buildDebtList('OTHER'),
               ],
             ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: _tabController.index == 2 
+          ? null // Không có FAB cho tab đối tác (quản lý qua trang đối tác)
+          : FloatingActionButton(
         onPressed: () {
           if (_tabController.index == 0) {
             _createCustomerDebt(); // Tạo nợ khách hàng (phải thu)
           } else if (_tabController.index == 1) {
             _createSupplierDebt(); // Tạo nợ nhà cung cấp (phải trả)
-          } else {
+          } else if (_tabController.index == 3) {
             _createOtherDebt(); // Tạo công nợ khác
           }
         },
@@ -906,6 +944,326 @@ class _DebtViewState extends State<DebtView>
         ),
       ],
     );
+  }
+
+  /// Build danh sách công nợ đối tác sửa chữa
+  Widget _buildPartnerDebtList() {
+    if (_partnerDebts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.handshake_outlined,
+              size: 80,
+              color: Colors.grey[300],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "Không có công nợ đối tác sửa chữa",
+              style: AppTextStyles.body1.copyWith(
+                color: AppColors.onSurface.withOpacity(0.5),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Quản lý đối tác tại: Cài đặt > Quản lý đối tác",
+              style: AppTextStyles.body2.copyWith(
+                color: AppColors.onSurface.withOpacity(0.4),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Tính tổng còn nợ
+    int totalRemain = _partnerDebts.fold(0, (sum, p) {
+      return sum + (p['remainingDebt'] as int? ?? 0);
+    });
+
+    return Column(
+      children: [
+        _summaryHeader(
+          "TỔNG NỢ ĐỐI TÁC SỬA CHỮA",
+          totalRemain,
+          Colors.orange,
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _partnerDebts.length,
+            itemBuilder: (ctx, i) => _partnerDebtCard(_partnerDebts[i], i + 1),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Card hiển thị công nợ đối tác
+  Widget _partnerDebtCard(Map<String, dynamic> partner, int index) {
+    final name = partner['name'] ?? 'Đối tác $index';
+    final phone = partner['phone'] ?? '';
+    final totalRepairs = partner['totalRepairs'] ?? 0;
+    final totalCost = partner['totalCost'] as int? ?? 0;
+    final totalPaid = partner['totalPaid'] as int? ?? 0;
+    final remainingDebt = partner['remainingDebt'] as int? ?? 0;
+    final partnerId = partner['id'] ?? '';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () => _showPartnerPaymentDialog(partner),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.orange.withOpacity(0.2),
+                    child: Text(
+                      '$index',
+                      style: TextStyle(
+                        color: Colors.orange[700],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: AppTextStyles.body1.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (phone.isNotEmpty)
+                          Text(
+                            phone,
+                            style: AppTextStyles.body2.copyWith(
+                              color: AppColors.onSurface.withOpacity(0.6),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$totalRepairs đơn',
+                      style: AppTextStyles.body2.copyWith(
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildStatColumn('Tổng phí', totalCost, Colors.grey),
+                  _buildStatColumn('Đã trả', totalPaid, Colors.green),
+                  _buildStatColumn('Còn nợ', remainingDebt, Colors.orange),
+                ],
+              ),
+              if (remainingDebt > 0) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showPartnerPaymentDialog(partner),
+                    icon: const Icon(Icons.payment, size: 18),
+                    label: const Text('THANH TOÁN'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatColumn(String label, int amount, Color color) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: AppTextStyles.body2.copyWith(
+            color: AppColors.onSurface.withOpacity(0.6),
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          MoneyUtils.formatCurrency(amount),
+          style: AppTextStyles.body1.copyWith(
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Dialog thanh toán cho đối tác sửa chữa
+  Future<void> _showPartnerPaymentDialog(Map<String, dynamic> partner) async {
+    final name = partner['name'] ?? 'Đối tác';
+    final remainingDebt = partner['remainingDebt'] as int? ?? 0;
+    final partnerId = partner['id'] ?? '';
+
+    if (remainingDebt <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đối tác này không còn nợ!')),
+      );
+      return;
+    }
+
+    final payController = TextEditingController();
+    final noteController = TextEditingController();
+    String paymentMethod = 'TIỀN MẶT';
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text('Thanh toán cho $name'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Còn nợ: ${MoneyUtils.formatCurrency(remainingDebt)}',
+                  style: TextStyle(
+                    color: Colors.orange[700],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: payController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Số tiền thanh toán',
+                    hintText: 'VD: 500 = 500,000đ',
+                    border: const OutlineInputBorder(),
+                    suffixText: 'x1000',
+                    helperText: 'Nhập 500 = 500,000đ',
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 16),
+                const Text('Phương thức thanh toán:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: ['TIỀN MẶT', 'CHUYỂN KHOẢN'].map((m) => ChoiceChip(
+                    label: Text(m),
+                    selected: paymentMethod == m,
+                    onSelected: (_) => setDialogState(() => paymentMethod = m),
+                    selectedColor: Colors.orange.withOpacity(0.3),
+                  )).toList(),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Ghi chú (tùy chọn)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('HỦY'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final amount = MoneyUtils.parseCurrency(payController.text);
+                if (amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Vui lòng nhập số tiền hợp lệ!')),
+                  );
+                  return;
+                }
+                if (amount > remainingDebt) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Số tiền không được vượt quá ${MoneyUtils.formatCurrency(remainingDebt)}',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx, {'amount': amount, 'method': paymentMethod});
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text('THANH TOÁN', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null) {
+      final amount = result['amount'] as int;
+      final method = result['method'] as String;
+      final note = noteController.text.trim();
+
+      try {
+        await _partnerPaymentService.addPayment(
+          partnerId: partnerId,
+          amount: amount,
+          paymentMethod: method,
+          note: note.isEmpty ? 'Thanh toán từ trang công nợ' : note,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã thanh toán ${MoneyUtils.formatCurrency(amount)} cho $name'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _refresh();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi thanh toán: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _summaryHeader(String label, int amount, Color color) {

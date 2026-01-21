@@ -1393,10 +1393,9 @@ class _SupplierListViewState extends State<SupplierListView>
             ElevatedButton(
               onPressed: () async {
                 if (!(formKey.currentState?.validate() ?? false)) return;
-                final parsed = MoneyUtils.parseCurrency(payCtrl.text);
-                final amount = parsed >= 1000 && parsed < 100000
-                    ? parsed * 1000
-                    : parsed;
+                // MoneyUtils.parseCurrency đã xử lý đơn vị nghìn (VD: "500" -> 500000)
+                // KHÔNG nhân thêm x1000
+                final amount = MoneyUtils.parseCurrency(payCtrl.text);
                 await _paymentService.addPayment(
                   partnerId: d.partner.id!,
                   amount: amount,
