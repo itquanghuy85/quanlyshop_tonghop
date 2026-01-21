@@ -5,6 +5,8 @@ class RepairService {
   int? partnerId; // Optional, if outsourced to partner
   int cost; // Cost for this service
   String? partnerName; // For display, not stored
+  String?
+  paymentMethod; // Phương thức thanh toán đối tác: TIỀN MẶT, CHUYỂN KHOẢN, CÔNG NỢ
   bool isSynced;
   bool deleted;
 
@@ -15,6 +17,7 @@ class RepairService {
     this.partnerId,
     this.cost = 0,
     this.partnerName,
+    this.paymentMethod,
     this.isSynced = false,
     this.deleted = false,
   });
@@ -26,6 +29,7 @@ class RepairService {
       'serviceName': serviceName,
       'partnerId': partnerId,
       'cost': cost,
+      'paymentMethod': paymentMethod,
       'isSynced': isSynced ? 1 : 0,
       'deleted': deleted ? 1 : 0,
     };
@@ -38,6 +42,7 @@ class RepairService {
       serviceName: map['serviceName'] ?? '',
       partnerId: map['partnerId'],
       cost: map['cost'] is int ? map['cost'] : 0,
+      paymentMethod: map['paymentMethod'],
       isSynced: map['isSynced'] == 1 || map['isSynced'] == true,
       deleted: map['deleted'] == 1 || map['deleted'] == true,
     );
@@ -50,6 +55,7 @@ class RepairService {
     int? partnerId,
     int? cost,
     String? partnerName,
+    String? paymentMethod,
     bool? isSynced,
     bool? deleted,
   }) {
@@ -60,6 +66,7 @@ class RepairService {
       partnerId: partnerId ?? this.partnerId,
       cost: cost ?? this.cost,
       partnerName: partnerName ?? this.partnerName,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       isSynced: isSynced ?? this.isSynced,
       deleted: deleted ?? this.deleted,
     );

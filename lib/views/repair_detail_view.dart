@@ -15,6 +15,7 @@ import '../models/repair_service_model.dart';
 import '../models/repair_partner_model.dart';
 import '../services/unified_printer_service.dart';
 import '../services/repair_partner_service.dart';
+import '../services/repair_partner_payment_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../models/printer_types.dart';
 import '../widgets/printer_selection_dialog.dart';
@@ -1773,6 +1774,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       selectedPartner = null;
     }
 
+    // Phương thức thanh toán cho đối tác
+    String? selectedPaymentMethod = editService?.paymentMethod;
+    final paymentMethods = ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'];
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1796,48 +1801,76 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           ),
           content: Form(
             key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: serviceCtrl,
-                  decoration: const InputDecoration(labelText: "Tên dịch vụ *"),
-                  textCapitalization: TextCapitalization.characters,
-                  validator: (v) => (v ?? '').trim().isEmpty
-                      ? 'Vui lòng nhập tên dịch vụ'
-                      : null,
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: costCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(labelText: "Chi phí (VNĐ)"),
-                  validator: (v) => MoneyUtils.validateAmount(
-                    v ?? '',
-                    min: 1,
-                    fieldName: 'Chi phí',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                if (_partners.isNotEmpty)
-                  DropdownButtonFormField<RepairPartner?>(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: serviceCtrl,
                     decoration: const InputDecoration(
-                      labelText: "Đối tác (tùy chọn)",
+                      labelText: "Tên dịch vụ *",
                     ),
-                    value: selectedPartner,
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text("Không có đối tác"),
-                      ),
-                      ..._partners.map(
-                        (p) => DropdownMenuItem(value: p, child: Text(p.name)),
-                      ),
-                    ],
-                    onChanged: (p) => setS(() => selectedPartner = p),
+                    textCapitalization: TextCapitalization.characters,
+                    validator: (v) => (v ?? '').trim().isEmpty
+                        ? 'Vui lòng nhập tên dịch vụ'
+                        : null,
                   ),
-              ],
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: costCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                    decoration: const InputDecoration(
+                      labelText: "Chi phí (VNĐ)",
+                    ),
+                    validator: (v) => MoneyUtils.validateAmount(
+                      v ?? '',
+                      min: 1,
+                      fieldName: 'Chi phí',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (_partners.isNotEmpty)
+                    DropdownButtonFormField<RepairPartner?>(
+                      decoration: const InputDecoration(
+                        labelText: "Đối tác (tùy chọn)",
+                      ),
+                      value: selectedPartner,
+                      items: [
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text("Không có đối tác"),
+                        ),
+                        ..._partners.map(
+                          (p) =>
+                              DropdownMenuItem(value: p, child: Text(p.name)),
+                        ),
+                      ],
+                      onChanged: (p) => setS(() => selectedPartner = p),
+                    ),
+                  // Phương thức thanh toán (chỉ hiện khi có đối tác)
+                  if (selectedPartner != null) ...[
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: "Phương thức TT đối tác *",
+                        prefixIcon: Icon(Icons.payment, size: 20),
+                      ),
+                      value: selectedPaymentMethod,
+                      items: paymentMethods
+                          .map(
+                            (m) => DropdownMenuItem(value: m, child: Text(m)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setS(() => selectedPaymentMethod = v),
+                      validator: (v) =>
+                          selectedPartner != null && (v == null || v.isEmpty)
+                          ? 'Vui lòng chọn phương thức TT'
+                          : null,
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           actions: [
@@ -1865,6 +1898,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   cost: cost,
                   partnerId: selectedPartner?.id,
                   partnerName: selectedPartner?.name,
+                  paymentMethod: selectedPaymentMethod,
                 );
                 Navigator.pop(ctx);
                 await _saveService(service, editIndex);
@@ -1904,6 +1938,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           issue: service.serviceName,
           repairContent: service.serviceName,
         );
+
+        // Ghi nhận thanh toán đối tác nếu không phải CÔNG NỢ
+        if (service.paymentMethod != null &&
+            service.paymentMethod != 'CÔNG NỢ') {
+          final paymentService = RepairPartnerPaymentService();
+          await paymentService.addPayment(
+            partnerId: service.partnerId!,
+            amount: service.cost,
+            paymentMethod: service.paymentMethod!,
+            note:
+                'TT dịch vụ: ${service.serviceName} - Đơn sửa #${r.firestoreId}',
+          );
+        }
       }
 
       NotificationService.showSnackBar(

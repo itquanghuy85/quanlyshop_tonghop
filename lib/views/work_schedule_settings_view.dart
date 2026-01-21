@@ -65,7 +65,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
   String? selectedStaff;
   List<Map<String, dynamic>> staffList = [];
   Map<String, double> staffSalaries = {};
-  
+
   // Staff Work Schedules (loaded into state to avoid FutureBuilder issues)
   Map<String, Map<String, dynamic>> _staffWorkSchedules = {};
 
@@ -77,7 +77,8 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
   String? _currentShopId;
 
   bool _loading = true;
-  bool _refreshingStaff = false; // For refreshing staff list without resetting tabs
+  bool _refreshingStaff =
+      false; // For refreshing staff list without resetting tabs
 
   @override
   void initState() {
@@ -119,7 +120,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
             .get();
         if (doc.exists) {
           firestoreSchedule = doc.data();
-          debugPrint('📋 Loaded work schedule from Firestore: $firestoreSchedule');
+          debugPrint(
+            '📋 Loaded work schedule from Firestore: $firestoreSchedule',
+          );
         }
       }
 
@@ -129,7 +132,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
         endTimeCtrl.text = firestoreSchedule['endTime'] ?? '17:00';
         breakTimeCtrl.text = (firestoreSchedule['breakTime'] ?? 1).toString();
         maxOtHoursCtrl.text = (firestoreSchedule['maxOtHours'] ?? 4).toString();
-        
+
         // Load work days from Firestore
         final workDaysStr = firestoreSchedule['workDays'] as String?;
         if (workDaysStr != null) {
@@ -138,34 +141,53 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
             workDays[i] = days[i] == '1';
           }
         }
-        
+
         // Load holidays from Firestore
         final holidaysStr = firestoreSchedule['holidays'] as String?;
         if (holidaysStr != null && holidaysStr.isNotEmpty) {
           holidays = holidaysStr.split(',').where((h) => h.isNotEmpty).toList();
         }
-        
+
         // Load OT rates from Firestore
-        weekdayOtRateCtrl.text = (firestoreSchedule['weekdayOtRate'] ?? 150).toString();
-        weekendOtRateCtrl.text = (firestoreSchedule['weekendOtRate'] ?? 200).toString();
-        holidayOtRateCtrl.text = (firestoreSchedule['holidayOtRate'] ?? 300).toString();
-        
+        weekdayOtRateCtrl.text = (firestoreSchedule['weekdayOtRate'] ?? 150)
+            .toString();
+        weekendOtRateCtrl.text = (firestoreSchedule['weekendOtRate'] ?? 200)
+            .toString();
+        holidayOtRateCtrl.text = (firestoreSchedule['holidayOtRate'] ?? 300)
+            .toString();
+
         // Also update SharedPreferences for local cache
         await prefs.setString('work_start_time', startTimeCtrl.text);
         await prefs.setString('work_end_time', endTimeCtrl.text);
-        await prefs.setInt('work_break_time', int.tryParse(breakTimeCtrl.text) ?? 1);
-        await prefs.setInt('work_max_ot_hours', int.tryParse(maxOtHoursCtrl.text) ?? 4);
+        await prefs.setInt(
+          'work_break_time',
+          int.tryParse(breakTimeCtrl.text) ?? 1,
+        );
+        await prefs.setInt(
+          'work_max_ot_hours',
+          int.tryParse(maxOtHoursCtrl.text) ?? 4,
+        );
         await prefs.setString('work_days', workDaysStr ?? '0,1,1,1,1,1,0');
         await prefs.setString('work_holidays', holidaysStr ?? '');
-        await prefs.setInt('weekday_ot_rate', int.tryParse(weekdayOtRateCtrl.text) ?? 150);
-        await prefs.setInt('weekend_ot_rate', int.tryParse(weekendOtRateCtrl.text) ?? 200);
-        await prefs.setInt('holiday_ot_rate', int.tryParse(holidayOtRateCtrl.text) ?? 300);
+        await prefs.setInt(
+          'weekday_ot_rate',
+          int.tryParse(weekdayOtRateCtrl.text) ?? 150,
+        );
+        await prefs.setInt(
+          'weekend_ot_rate',
+          int.tryParse(weekendOtRateCtrl.text) ?? 200,
+        );
+        await prefs.setInt(
+          'holiday_ot_rate',
+          int.tryParse(holidayOtRateCtrl.text) ?? 300,
+        );
       } else {
         // Fallback to SharedPreferences
         startTimeCtrl.text = prefs.getString('work_start_time') ?? '08:00';
         endTimeCtrl.text = prefs.getString('work_end_time') ?? '17:00';
         breakTimeCtrl.text = (prefs.getInt('work_break_time') ?? 1).toString();
-        maxOtHoursCtrl.text = (prefs.getInt('work_max_ot_hours') ?? 4).toString();
+        maxOtHoursCtrl.text = (prefs.getInt('work_max_ot_hours') ?? 4)
+            .toString();
 
         // Load work days from SharedPreferences
         final workDaysStr = prefs.getString('work_days');
@@ -183,9 +205,12 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
         }
 
         // Load OT rates from SharedPreferences
-        weekdayOtRateCtrl.text = (prefs.getInt('weekday_ot_rate') ?? 150).toString();
-        weekendOtRateCtrl.text = (prefs.getInt('weekend_ot_rate') ?? 200).toString();
-        holidayOtRateCtrl.text = (prefs.getInt('holiday_ot_rate') ?? 300).toString();
+        weekdayOtRateCtrl.text = (prefs.getInt('weekday_ot_rate') ?? 150)
+            .toString();
+        weekendOtRateCtrl.text = (prefs.getInt('weekend_ot_rate') ?? 200)
+            .toString();
+        holidayOtRateCtrl.text = (prefs.getInt('holiday_ot_rate') ?? 300)
+            .toString();
       }
 
       // Load staff salaries
@@ -204,7 +229,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
 
       // Load staff list from shop
       await _loadStaffList();
-      
+
       // Load work schedules for all staff
       await _loadStaffWorkSchedules();
 
@@ -221,63 +246,79 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
     try {
       final db = FirebaseFirestore.instance;
       final currentUser = FirebaseAuth.instance.currentUser;
-      
-      debugPrint('📋 _loadStaffList: isSuperAdmin=$_isSuperAdmin, shopId=$_currentShopId');
-      
+
+      debugPrint(
+        '📋 _loadStaffList: isSuperAdmin=$_isSuperAdmin, shopId=$_currentShopId',
+      );
+
       // Nếu chưa có shopId, thử lấy từ nhiều nguồn
       if (_currentShopId == null || _currentShopId!.isEmpty) {
         // 1. Thử từ UserService cache
         _currentShopId = await UserService.getCurrentShopId();
         debugPrint('📋 Got shopId from UserService: $_currentShopId');
-        
+
         // 2. Thử từ Firestore user doc
-        if ((_currentShopId == null || _currentShopId!.isEmpty) && currentUser != null) {
-          final userDoc = await db.collection('users').doc(currentUser.uid).get();
+        if ((_currentShopId == null || _currentShopId!.isEmpty) &&
+            currentUser != null) {
+          final userDoc = await db
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
           final shopIdFromDoc = userDoc.data()?['shopId'] as String?;
           if (shopIdFromDoc != null && shopIdFromDoc.isNotEmpty) {
             _currentShopId = shopIdFromDoc;
             debugPrint('📋 Got shopId from Firestore doc: $_currentShopId');
           }
         }
-        
+
         // 3. Với non-super-admin, dùng uid làm shopId (owner mặc định)
-        if ((_currentShopId == null || _currentShopId!.isEmpty) && !_isSuperAdmin && currentUser != null) {
+        if ((_currentShopId == null || _currentShopId!.isEmpty) &&
+            !_isSuperAdmin &&
+            currentUser != null) {
           _currentShopId = currentUser.uid;
           debugPrint('📋 Using uid as shopId fallback: $_currentShopId');
         }
       }
-      
+
       // Vẫn không có shopId = trả về rỗng
       if (_currentShopId == null || _currentShopId!.isEmpty) {
-        debugPrint('⚠️ No shopId found after all attempts, returning empty staffList');
+        debugPrint(
+          '⚠️ No shopId found after all attempts, returning empty staffList',
+        );
         staffList = [];
         return;
       }
-      
+
       // Query users với shopId filter
       debugPrint('📋 Querying users with shopId: $_currentShopId');
-      
+
       // Thực hiện queries:
       // 1. Users có shopId trùng với _currentShopId
       // 2. Users có shopId trùng uid của owner (nếu khác _currentShopId)
       // 3. User hiện tại (owner case)
       final List<Map<String, dynamic>> allStaff = [];
       final Set<String> addedIds = {};
-      
+
       // Query 1: Users có shopId == _currentShopId
       try {
         final snapshot = await db
             .collection('users')
             .where('shopId', isEqualTo: _currentShopId)
             .get();
-        debugPrint('📋 Found ${snapshot.docs.length} staff with shopId=$_currentShopId');
-        
+        debugPrint(
+          '📋 Found ${snapshot.docs.length} staff with shopId=$_currentShopId',
+        );
+
         for (var doc in snapshot.docs) {
           if (!addedIds.contains(doc.id)) {
             final data = doc.data();
             allStaff.add({
               'id': doc.id,
-              'name': data['name'] ?? data['displayName'] ?? data['email']?.toString().split('@').first ?? 'Unknown',
+              'name':
+                  data['name'] ??
+                  data['displayName'] ??
+                  data['email']?.toString().split('@').first ??
+                  'Unknown',
               'email': data['email'] ?? '',
               'role': data['role'] ?? 'user',
             });
@@ -287,7 +328,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       } catch (e) {
         debugPrint('❌ Query users with shopId failed: $e');
       }
-      
+
       // Query 2: Nếu shopId khác uid, thử query thêm với uid làm shopId (owner's employees)
       if (currentUser != null && _currentShopId != currentUser.uid) {
         try {
@@ -295,14 +336,20 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               .collection('users')
               .where('shopId', isEqualTo: currentUser.uid)
               .get();
-          debugPrint('📋 Found ${snapshot2.docs.length} staff with shopId=${currentUser.uid} (owner uid)');
-          
+          debugPrint(
+            '📋 Found ${snapshot2.docs.length} staff with shopId=${currentUser.uid} (owner uid)',
+          );
+
           for (var doc in snapshot2.docs) {
             if (!addedIds.contains(doc.id)) {
               final data = doc.data();
               allStaff.add({
                 'id': doc.id,
-                'name': data['name'] ?? data['displayName'] ?? data['email']?.toString().split('@').first ?? 'Unknown',
+                'name':
+                    data['name'] ??
+                    data['displayName'] ??
+                    data['email']?.toString().split('@').first ??
+                    'Unknown',
                 'email': data['email'] ?? '',
                 'role': data['role'] ?? 'user',
               });
@@ -313,50 +360,67 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
           debugPrint('❌ Query users with owner uid failed: $e');
         }
       }
-      
+
       // Query 3: LUÔN thêm current user vào danh sách nếu chưa có
       // (Đảm bảo owner/chủ shop luôn xuất hiện trong danh sách)
       if (currentUser != null && !addedIds.contains(currentUser.uid)) {
         try {
-          final ownerDoc = await db.collection('users').doc(currentUser.uid).get();
+          final ownerDoc = await db
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
           if (ownerDoc.exists) {
             final data = ownerDoc.data()!;
             allStaff.add({
               'id': currentUser.uid,
-              'name': data['name'] ?? data['displayName'] ?? currentUser.email?.split('@').first ?? 'Owner',
+              'name':
+                  data['name'] ??
+                  data['displayName'] ??
+                  currentUser.email?.split('@').first ??
+                  'Owner',
               'email': data['email'] ?? currentUser.email ?? '',
               'role': data['role'] ?? 'owner',
             });
             addedIds.add(currentUser.uid);
-            debugPrint('📋 Added owner/current user to staff list: ${currentUser.uid}');
+            debugPrint(
+              '📋 Added owner/current user to staff list: ${currentUser.uid}',
+            );
           } else {
             // User doc không tồn tại, tạo entry từ auth info
             allStaff.add({
               'id': currentUser.uid,
-              'name': currentUser.displayName ?? currentUser.email?.split('@').first ?? 'Owner',
+              'name':
+                  currentUser.displayName ??
+                  currentUser.email?.split('@').first ??
+                  'Owner',
               'email': currentUser.email ?? '',
               'role': 'owner',
             });
             addedIds.add(currentUser.uid);
-            debugPrint('📋 Added current user from auth info: ${currentUser.uid}');
+            debugPrint(
+              '📋 Added current user from auth info: ${currentUser.uid}',
+            );
           }
         } catch (e) {
           debugPrint('❌ Query owner doc failed: $e');
           // Fallback: thêm từ auth info
           allStaff.add({
             'id': currentUser.uid,
-            'name': currentUser.displayName ?? currentUser.email?.split('@').first ?? 'Owner',
+            'name':
+                currentUser.displayName ??
+                currentUser.email?.split('@').first ??
+                'Owner',
             'email': currentUser.email ?? '',
             'role': 'owner',
           });
           addedIds.add(currentUser.uid);
         }
       }
-      
+
       debugPrint('📋 Total staff loaded: ${allStaff.length}');
-      
+
       staffList = allStaff;
-      
+
       // Sort by name
       staffList.sort(
         (a, b) => (a['name'] as String).compareTo(b['name'] as String),
@@ -372,7 +436,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
   Future<void> _loadStaffWorkSchedules() async {
     final db = DBHelper();
     final Map<String, Map<String, dynamic>> schedules = {};
-    
+
     for (final staff in staffList) {
       final userId = staff['id'] as String;
       try {
@@ -390,10 +454,10 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
             await db.upsertWorkSchedule(userId, schedule!);
           }
         }
-        
+
         // Nếu không có trên Firestore, dùng local DB
         schedule ??= await db.getWorkSchedule(userId);
-        
+
         if (schedule != null) {
           schedules[userId] = schedule;
         }
@@ -406,11 +470,36 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
         }
       }
     }
-    
+
     setState(() {
       _staffWorkSchedules = schedules;
     });
-    debugPrint('📋 Loaded ${schedules.length} work schedules for ${staffList.length} staff');
+    debugPrint(
+      '📋 Loaded ${schedules.length} work schedules for ${staffList.length} staff',
+    );
+  }
+
+  /// Auto load staff list khi vào tab Nhân viên
+  Future<void> _autoLoadStaff() async {
+    if (_refreshingStaff) return;
+    setState(() => _refreshingStaff = true);
+    try {
+      // Đảm bảo có shopId trước
+      if (_currentShopId == null || _currentShopId!.isEmpty) {
+        _currentShopId = await UserService.getCurrentShopId();
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if ((_currentShopId == null || _currentShopId!.isEmpty) &&
+            currentUser != null) {
+          _currentShopId = currentUser.uid;
+        }
+      }
+      await _loadStaffList();
+      await _loadStaffWorkSchedules();
+    } catch (e) {
+      debugPrint('❌ _autoLoadStaff error: $e');
+    } finally {
+      if (mounted) setState(() => _refreshingStaff = false);
+    }
   }
 
   Future<void> _loadAttendanceRecords() async {
@@ -439,7 +528,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final shopId = _currentShopId;
-      
+
       // Prepare data for sync
       final workDaysStr = workDays.map((d) => d ? '1' : '0').join(',');
       final holidaysStr = holidays.join(',');
@@ -460,13 +549,28 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       // Save to SharedPreferences (for local cache)
       await prefs.setString('work_start_time', startTimeCtrl.text);
       await prefs.setString('work_end_time', endTimeCtrl.text);
-      await prefs.setInt('work_break_time', int.tryParse(breakTimeCtrl.text) ?? 1);
-      await prefs.setInt('work_max_ot_hours', int.tryParse(maxOtHoursCtrl.text) ?? 4);
+      await prefs.setInt(
+        'work_break_time',
+        int.tryParse(breakTimeCtrl.text) ?? 1,
+      );
+      await prefs.setInt(
+        'work_max_ot_hours',
+        int.tryParse(maxOtHoursCtrl.text) ?? 4,
+      );
       await prefs.setString('work_days', workDaysStr);
       await prefs.setString('work_holidays', holidaysStr);
-      await prefs.setInt('weekday_ot_rate', int.tryParse(weekdayOtRateCtrl.text) ?? 150);
-      await prefs.setInt('weekend_ot_rate', int.tryParse(weekendOtRateCtrl.text) ?? 200);
-      await prefs.setInt('holiday_ot_rate', int.tryParse(holidayOtRateCtrl.text) ?? 300);
+      await prefs.setInt(
+        'weekday_ot_rate',
+        int.tryParse(weekdayOtRateCtrl.text) ?? 150,
+      );
+      await prefs.setInt(
+        'weekend_ot_rate',
+        int.tryParse(weekendOtRateCtrl.text) ?? 200,
+      );
+      await prefs.setInt(
+        'holiday_ot_rate',
+        int.tryParse(holidayOtRateCtrl.text) ?? 300,
+      );
 
       // Save to local DB
       await DBHelper().upsertWorkSchedule('shop_general', scheduleData);
@@ -555,9 +659,18 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Cài đặt lịch làm việc'),
+          title: const Text('CÀI ĐẶT LỊCH LÀM VIỆC'),
           automaticallyImplyLeading: true,
-          backgroundColor: const Color(0xFF1976D2),
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
           iconTheme: const IconThemeData(color: Colors.white),
           bottom: const TabBar(
@@ -572,48 +685,68 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
         ),
         body: TabBarView(
           children: [
-            _buildGeneralSettingsTab(), 
+            _buildGeneralSettingsTab(),
             _buildStaffManagementTabSimple(),
           ],
         ),
       ),
     );
   }
-  
+
   /// Simplified Staff Management Tab - không dùng Builder hay try-catch
   Widget _buildStaffManagementTabSimple() {
-    debugPrint('🟢 _buildStaffManagementTabSimple called, staffList=${staffList.length}');
-    
+    debugPrint(
+      '🟢 _buildStaffManagementTabSimple called, staffList=${staffList.length}',
+    );
+
     if (staffList.isEmpty) {
+      // Tự động load lại nếu chưa có data và không đang loading
+      if (!_refreshingStaff && !_loading) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && staffList.isEmpty && !_refreshingStaff) {
+            _autoLoadStaff();
+          }
+        });
+      }
+
       return Container(
         color: Colors.grey.shade100,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.people_outline, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              const Text('Chưa có nhân viên', style: TextStyle(fontSize: 18)),
-              const SizedBox(height: 16),
-              if (_refreshingStaff)
-                const CircularProgressIndicator()
-              else
+              if (_refreshingStaff) ...[
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                const Text(
+                  'Đang tải danh sách nhân viên...',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ] else ...[
+                const Icon(Icons.people_outline, size: 64, color: Colors.grey),
+                const SizedBox(height: 16),
+                const Text(
+                  'Chưa có dữ liệu nhân viên',
+                  style: TextStyle(fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Bấm tải lại để cập nhật',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 16),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.refresh),
                   label: const Text('Tải lại'),
-                  onPressed: () async {
-                    setState(() => _refreshingStaff = true);
-                    await _loadStaffList();
-                    await _loadStaffWorkSchedules();
-                    setState(() => _refreshingStaff = false);
-                  },
+                  onPressed: _autoLoadStaff,
                 ),
+              ],
             ],
           ),
         ),
       );
     }
-    
+
     return Container(
       color: Colors.white,
       child: ListView.builder(
@@ -632,14 +765,17 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                     const SizedBox(width: 12),
                     Text(
                       'Số nhân viên: ${staffList.length}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
               ),
             );
           }
-          
+
           if (index == 1) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -659,18 +795,20 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               ),
             );
           }
-          
+
           final staffIndex = index - 2;
           final staff = staffList[staffIndex];
           final staffId = staff['id'] as String;
           final schedule = _staffWorkSchedules[staffId];
           final hasSchedule = schedule != null;
-          
+
           return Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: hasSchedule ? Colors.green.shade100 : Colors.grey.shade200,
+                backgroundColor: hasSchedule
+                    ? Colors.green.shade100
+                    : Colors.grey.shade200,
                 child: Icon(
                   hasSchedule ? Icons.check : Icons.schedule,
                   color: hasSchedule ? Colors.green : Colors.grey,
@@ -684,11 +822,17 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               subtitle: hasSchedule
                   ? Text(
                       '${schedule['startTime'] ?? '08:00'} - ${schedule['endTime'] ?? '17:00'}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
                     )
                   : Text(
                       'Chưa cài đặt lịch',
-                      style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade700,
+                      ),
                     ),
               trailing: IconButton(
                 icon: Icon(Icons.edit, color: Colors.blue.shade600),
@@ -829,10 +973,10 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
     return Builder(
       builder: (context) {
         debugPrint('📋 _buildStaffManagementTab START');
-        
+
         try {
           debugPrint('📋 staffList.length = ${staffList.length}');
-          
+
           // Show message if no staff found
           if (staffList.isEmpty) {
             debugPrint('📋 staffList is EMPTY - showing empty message');
@@ -842,7 +986,11 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+                    Icon(
+                      Icons.people_outline,
+                      size: 64,
+                      color: Colors.grey[400],
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'Chưa có nhân viên nào',
@@ -879,7 +1027,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
           }
 
           debugPrint('📋 Building full staff management content');
-          
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -890,271 +1038,281 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                   color: Colors.blue.shade50,
                   child: Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Text('Số nhân viên: ${staffList.length}', 
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text(
+                      'Số nhân viên: ${staffList.length}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // === SECTION: Lịch làm việc từng nhân viên ===
-                _buildSectionTitle('Lịch làm việc từng nhân viên', Icons.schedule),
+                _buildSectionTitle(
+                  'Lịch làm việc từng nhân viên',
+                  Icons.schedule,
+                ),
                 const SizedBox(height: 12),
                 _buildStaffWorkScheduleList(),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // === SECTION: Lương nhân viên ===
                 _buildSectionTitle('Cài đặt lương', Icons.attach_money),
                 const SizedBox(height: 12),
-          Card(
-            elevation: 1,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  DropdownButtonFormField<String>(
-                    value: selectedStaff,
-                    decoration: const InputDecoration(
-                      labelText: 'Chọn nhân viên',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    items: staffList.map((staff) {
-                      return DropdownMenuItem<String>(
-                        value: staff['id'] as String,
-                        child: Text(
-                          '${staff['name']} (${_getShortRoleName(staff['role'])})',
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) => setState(() => selectedStaff = value),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: staffSalaryCtrl,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            NumberTextInputFormatter(),
-                          ],
-                          decoration: const InputDecoration(
-                            labelText: 'Lương cơ bản (VNĐ)',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: _saveStaffSalary,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                        ),
-                        child: const Text(
-                          'Lưu',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Danh sách lương
-          if (staffSalaries.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            ...staffSalaries.entries.map((entry) {
-              final staff = staffList.firstWhere(
-                (s) => s['id'] == entry.key,
-                orElse: () => {'name': 'Unknown', 'role': 'user'},
-              );
-              return Card(
-                child: ListTile(
-                  dense: true,
-                  title: Text(
-                    '${staff['name']} (${_getShortRoleName(staff['role'])})',
-                  ),
-                  trailing: Text(
-                    '${NumberFormat('#,###').format(entry.value)} đ',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ],
-
-          const SizedBox(height: 24),
-
-          // === SECTION: Chấm công ===
-          _buildSectionTitle('Tra cứu chấm công', Icons.fingerprint),
-          const SizedBox(height: 12),
-
-          // Date + Staff picker
-          Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime.now().subtract(
-                        const Duration(days: 365),
-                      ),
-                      lastDate: DateTime.now().add(const Duration(days: 30)),
-                    );
-                    if (date != null) {
-                      setState(() => selectedDate = date);
-                      await _loadAttendanceRecords();
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade400),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today, size: 18),
-                        const SizedBox(width: 8),
-                        Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            value: selectedStaffForAttendance,
-            decoration: const InputDecoration(
-              labelText: 'Nhân viên',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            items: staffList.map((staff) {
-              return DropdownMenuItem<String>(
-                value: staff['id'] as String,
-                child: Text(
-                  '${staff['name']} (${_getShortRoleName(staff['role'])})',
-                ),
-              );
-            }).toList(),
-            onChanged: (value) async {
-              setState(() => selectedStaffForAttendance = value);
-              await _loadAttendanceRecords();
-            },
-          ),
-
-          const SizedBox(height: 16),
-
-          // Attendance info
-          if (selectedStaffForAttendance != null) ...[
-            if (attendanceRecords.isEmpty)
-              Card(
-                color: Colors.grey.shade100,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Center(
-                    child: Text(
-                      'Không có dữ liệu chấm công ngày ${DateFormat('dd/MM').format(selectedDate)}',
-                      style: TextStyle(color: Colors.grey.shade600),
-                    ),
-                  ),
-                ),
-              )
-            else
-              ...attendanceRecords.map(
-                (record) => Card(
+                Card(
+                  elevation: 1,
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        DropdownButtonFormField<String>(
+                          value: selectedStaff,
+                          decoration: const InputDecoration(
+                            labelText: 'Chọn nhân viên',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items: staffList.map((staff) {
+                            return DropdownMenuItem<String>(
+                              value: staff['id'] as String,
+                              child: Text(
+                                '${staff['name']} (${_getShortRoleName(staff['role'])})',
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) =>
+                              setState(() => selectedStaff = value),
+                        ),
+                        const SizedBox(height: 12),
                         Row(
                           children: [
-                            if (record.checkInAt != null) ...[
-                              const Icon(
-                                Icons.login,
-                                color: Colors.green,
-                                size: 18,
+                            Expanded(
+                              child: TextField(
+                                controller: staffSalaryCtrl,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  NumberTextInputFormatter(),
+                                ],
+                                decoration: const InputDecoration(
+                                  labelText: 'Lương cơ bản (VNĐ)',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Vào: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkInAt!))}',
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: _saveStaffSalary,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
                               ),
-                            ],
-                            const SizedBox(width: 16),
-                            if (record.checkOutAt != null) ...[
-                              const Icon(
-                                Icons.logout,
-                                color: Colors.red,
-                                size: 18,
+                              child: const Text(
+                                'Lưu',
+                                style: TextStyle(color: Colors.white),
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Ra: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!))}',
-                              ),
-                            ],
+                            ),
                           ],
                         ),
-                        if (record.status.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Chip(
-                            label: Text(
-                              record.status == 'approved'
-                                  ? 'Đã duyệt'
-                                  : record.status == 'rejected'
-                                  ? 'Từ chối'
-                                  : 'Chờ duyệt',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            backgroundColor: record.status == 'approved'
-                                ? Colors.green.shade100
-                                : record.status == 'rejected'
-                                ? Colors.red.shade100
-                                : Colors.orange.shade100,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ],
                       ],
                     ),
                   ),
                 ),
-              ),
-          ] else
-            Card(
-              color: Colors.blue.shade50,
-              child: const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(
-                  child: Text(
-                    'Chọn nhân viên để xem chấm công',
-                    style: TextStyle(color: Colors.blue),
-                  ),
+
+                // Danh sách lương
+                if (staffSalaries.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ...staffSalaries.entries.map((entry) {
+                    final staff = staffList.firstWhere(
+                      (s) => s['id'] == entry.key,
+                      orElse: () => {'name': 'Unknown', 'role': 'user'},
+                    );
+                    return Card(
+                      child: ListTile(
+                        dense: true,
+                        title: Text(
+                          '${staff['name']} (${_getShortRoleName(staff['role'])})',
+                        ),
+                        trailing: Text(
+                          '${NumberFormat('#,###').format(entry.value)} đ',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+
+                const SizedBox(height: 24),
+
+                // === SECTION: Chấm công ===
+                _buildSectionTitle('Tra cứu chấm công', Icons.fingerprint),
+                const SizedBox(height: 12),
+
+                // Date + Staff picker
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate,
+                            firstDate: DateTime.now().subtract(
+                              const Duration(days: 365),
+                            ),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 30),
+                            ),
+                          );
+                          if (date != null) {
+                            setState(() => selectedDate = date);
+                            await _loadAttendanceRecords();
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade400),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                DateFormat('dd/MM/yyyy').format(selectedDate),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedStaffForAttendance,
+                  decoration: const InputDecoration(
+                    labelText: 'Nhân viên',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: staffList.map((staff) {
+                    return DropdownMenuItem<String>(
+                      value: staff['id'] as String,
+                      child: Text(
+                        '${staff['name']} (${_getShortRoleName(staff['role'])})',
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) async {
+                    setState(() => selectedStaffForAttendance = value);
+                    await _loadAttendanceRecords();
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Attendance info
+                if (selectedStaffForAttendance != null) ...[
+                  if (attendanceRecords.isEmpty)
+                    Card(
+                      color: Colors.grey.shade100,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Center(
+                          child: Text(
+                            'Không có dữ liệu chấm công ngày ${DateFormat('dd/MM').format(selectedDate)}',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    ...attendanceRecords.map(
+                      (record) => Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  if (record.checkInAt != null) ...[
+                                    const Icon(
+                                      Icons.login,
+                                      color: Colors.green,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Vào: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkInAt!))}',
+                                    ),
+                                  ],
+                                  const SizedBox(width: 16),
+                                  if (record.checkOutAt != null) ...[
+                                    const Icon(
+                                      Icons.logout,
+                                      color: Colors.red,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Ra: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!))}',
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              if (record.status.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Chip(
+                                  label: Text(
+                                    record.status == 'approved'
+                                        ? 'Đã duyệt'
+                                        : record.status == 'rejected'
+                                        ? 'Từ chối'
+                                        : 'Chờ duyệt',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  backgroundColor: record.status == 'approved'
+                                      ? Colors.green.shade100
+                                      : record.status == 'rejected'
+                                      ? Colors.red.shade100
+                                      : Colors.orange.shade100,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ] else
+                  Card(
+                    color: Colors.blue.shade50,
+                    child: const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(
+                        child: Text(
+                          'Chọn nhân viên để xem chấm công',
+                          style: TextStyle(color: Colors.blue),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
-    );
+          );
         } catch (e, stackTrace) {
           debugPrint('❌ Error in _buildStaffManagementTab: $e');
           debugPrint('$stackTrace');
@@ -1242,18 +1400,20 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
         ),
       );
     }
-    
+
     return Column(
       children: staffList.map((staff) {
         final staffId = staff['id'] as String;
         final schedule = _staffWorkSchedules[staffId];
         final hasSchedule = schedule != null;
-        
+
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: hasSchedule ? Colors.green.shade100 : Colors.grey.shade200,
+              backgroundColor: hasSchedule
+                  ? Colors.green.shade100
+                  : Colors.grey.shade200,
               child: Icon(
                 hasSchedule ? Icons.check : Icons.schedule,
                 color: hasSchedule ? Colors.green : Colors.grey,
@@ -1271,13 +1431,13 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                   )
                 : Text(
                     'Chưa cài đặt lịch',
-                    style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.orange.shade700,
+                    ),
                   ),
             trailing: IconButton(
-              icon: Icon(
-                Icons.edit,
-                color: Colors.blue.shade600,
-              ),
+              icon: Icon(Icons.edit, color: Colors.blue.shade600),
               onPressed: () => _editStaffWorkSchedule(staff, schedule),
             ),
           ),
@@ -1309,7 +1469,10 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       final savedDays = currentSchedule?['workDays'];
       if (savedDays is String && savedDays.isNotEmpty) {
         // Parse "1,2,3,4,5,6" format
-        final dayIndices = savedDays.split(',').map((s) => int.tryParse(s.trim()) ?? -1).toList();
+        final dayIndices = savedDays
+            .split(',')
+            .map((s) => int.tryParse(s.trim()) ?? -1)
+            .toList();
         return dayIndices.contains(i);
       } else if (savedDays is List) {
         return savedDays.contains(i);
@@ -1353,7 +1516,8 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                             initialTime: TimeOfDay.now(),
                           );
                           if (time != null) {
-                            startCtrl.text = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                            startCtrl.text =
+                                '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
                           }
                         },
                         decoration: const InputDecoration(
@@ -1375,7 +1539,8 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                             initialTime: TimeOfDay.now(),
                           );
                           if (time != null) {
-                            endCtrl.text = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+                            endCtrl.text =
+                                '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
                           }
                         },
                         decoration: const InputDecoration(
@@ -1389,7 +1554,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Nghỉ trưa + OT
                 Row(
                   children: [
@@ -1421,7 +1586,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Ngày làm việc
                 const Text(
                   'Ngày làm việc:',
@@ -1433,7 +1598,10 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                   runSpacing: 4,
                   children: List.generate(7, (index) {
                     return FilterChip(
-                      label: Text(dayNames[index], style: const TextStyle(fontSize: 12)),
+                      label: Text(
+                        dayNames[index],
+                        style: const TextStyle(fontSize: 12),
+                      ),
                       selected: workDays[index],
                       onSelected: (selected) {
                         setDialogState(() => workDays[index] = selected);
@@ -1463,20 +1631,25 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                 for (int i = 0; i < workDays.length; i++) {
                   if (workDays[i]) workDayIndices.add(i);
                 }
-                
+
                 final newSchedule = {
                   'userId': staff['id'],
                   'startTime': startCtrl.text,
                   'endTime': endCtrl.text,
                   'breakTime': int.tryParse(breakCtrl.text) ?? 1,
                   'maxOtHours': int.tryParse(maxOtCtrl.text) ?? 4,
-                  'workDays': workDayIndices.join(','), // Store as "1,2,3,4,5,6"
+                  'workDays': workDayIndices.join(
+                    ',',
+                  ), // Store as "1,2,3,4,5,6"
                   'updatedAt': DateTime.now().millisecondsSinceEpoch,
                   'shopId': _currentShopId,
                 };
-                
-                await DBHelper().upsertWorkSchedule(staff['id'] as String, newSchedule);
-                
+
+                await DBHelper().upsertWorkSchedule(
+                  staff['id'] as String,
+                  newSchedule,
+                );
+
                 // Sync to Firestore
                 if (_currentShopId != null) {
                   await FirebaseFirestore.instance
@@ -1484,14 +1657,14 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                       .doc('staff_${staff['id']}_$_currentShopId')
                       .set(newSchedule, SetOptions(merge: true));
                 }
-                
+
                 // Cập nhật state ngay lập tức
                 _staffWorkSchedules[staff['id'] as String] = newSchedule;
-                
+
                 if (!mounted) return;
                 Navigator.pop(ctx);
                 setState(() {}); // Refresh UI
-                
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Đã lưu lịch làm việc cho ${staff['name']}'),

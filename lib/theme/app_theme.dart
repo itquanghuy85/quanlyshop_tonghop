@@ -39,27 +39,23 @@ class AppTheme {
       textTheme: AppTextStyles.textTheme,
 
       // ========== APP BAR ==========
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.onSurface,
+      // Gradient style - sử dụng màu Purple chủ đạo
+      // Các screen cần gradient thực sự sử dụng AppUIHelpers.buildGradientAppBar()
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF7B1FA2), // Purple 700 - màu gradient chủ đạo
+        foregroundColor: Colors.white,
         elevation: 0,
-        scrolledUnderElevation: 0.5,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
-        centerTitle: true,
+        centerTitle: false,
         titleTextStyle: TextStyle(
-          color: AppColors.onSurface,
-          fontWeight: FontWeight.w600,
-          fontSize: 17,
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
           letterSpacing: -0.3,
         ),
-        iconTheme: IconThemeData(
-          color: AppColors.primary,
-          size: 22,
-        ),
-        actionsIconTheme: IconThemeData(
-          color: AppColors.primary,
-          size: 22,
-        ),
+        iconTheme: IconThemeData(color: Colors.white, size: 22),
+        actionsIconTheme: IconThemeData(color: Colors.white, size: 22),
         toolbarHeight: 56,
       ),
 
@@ -86,10 +82,7 @@ class AppTheme {
       tabBarTheme: TabBarThemeData(
         labelColor: AppColors.primary,
         unselectedLabelColor: AppColors.onSurface.withAlpha(150),
-        labelStyle: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-        ),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
         unselectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.w400,
           fontSize: 13,
@@ -126,7 +119,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius),
           borderSide: const BorderSide(color: AppColors.outline),
@@ -153,9 +149,7 @@ class AppTheme {
         hintStyle: AppTextStyles.body2.copyWith(
           color: AppColors.onSurface.withOpacity(0.5),
         ),
-        errorStyle: AppTextStyles.caption.copyWith(
-          color: AppColors.error,
-        ),
+        errorStyle: AppTextStyles.caption.copyWith(color: AppColors.error),
       ),
 
       // ========== DIALOG ==========
@@ -163,7 +157,9 @@ class AppTheme {
         backgroundColor: AppColors.surface,
         elevation: 8,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius * 1.5),
+          borderRadius: BorderRadius.circular(
+            AppButtonStyles.borderRadius * 1.5,
+          ),
         ),
         titleTextStyle: AppTextStyles.headline6,
         contentTextStyle: AppTextStyles.body1,
@@ -209,10 +205,7 @@ class AppTheme {
       ),
 
       // ========== ICON THEME ==========
-      iconTheme: const IconThemeData(
-        color: AppColors.onSurface,
-        size: 24,
-      ),
+      iconTheme: const IconThemeData(color: AppColors.onSurface, size: 24),
 
       // ========== DIVIDER ==========
       dividerTheme: const DividerThemeData(
