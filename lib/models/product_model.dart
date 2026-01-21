@@ -92,6 +92,22 @@ class Product {
     }
     return defaultValue;
   }
+  
+  /// Helper: parse timestamp từ dynamic (hỗ trợ int, Timestamp, DateTime)
+  static int _parseTimestamp(dynamic value, [int defaultValue = 0]) {
+    if (value == null) return defaultValue;
+    if (value is int) return value > 0 ? value : defaultValue;
+    if (value is DateTime) return value.millisecondsSinceEpoch;
+    // Handle Firestore Timestamp
+    if (value.runtimeType.toString().contains('Timestamp')) {
+      try {
+        // Firestore Timestamp has toDate() method
+        final date = (value as dynamic).toDate() as DateTime;
+        return date.millisecondsSinceEpoch;
+      } catch (_) {}
+    }
+    return defaultValue;
+  }
 
   factory Product.fromMap(Map<String, dynamic> map) {
     return Product(
@@ -108,8 +124,8 @@ class Product {
       description: map['description'] ?? "",
       images: map['images'],
       warranty: map['warranty'],
-      createdAt: map['createdAt'] is int ? map['createdAt'] : 0,
-      updatedAt: map['updatedAt'] is int ? map['updatedAt'] : null,
+      createdAt: _parseTimestamp(map['createdAt'], DateTime.now().millisecondsSinceEpoch),
+      updatedAt: map['updatedAt'] != null ? _parseTimestamp(map['updatedAt']) : null,
       supplier: map['supplier'],
       type: map['type'] ?? 'DIEN_THOAI',
       quantity: _parseInt(map['quantity'], 1),

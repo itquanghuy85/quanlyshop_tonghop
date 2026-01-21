@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../models/repair_partner_payment_model.dart';
 import '../services/user_service.dart';
+import '../services/financial_activity_service.dart';
+import '../services/repair_partner_service.dart';
 
 class RepairPartnerPaymentService {
   final DBHelper _db = DBHelper();
@@ -92,6 +95,7 @@ class RepairPartnerPaymentService {
   }
 
   /// Add a payment with simplified parameters
+  /// Ghi nhận vào chốt quỹ và nhật ký tài chính
   Future<int> addPayment({
     required int partnerId,
     required int amount,
@@ -99,14 +103,49 @@ class RepairPartnerPaymentService {
     String? note,
   }) async {
     final shopId = await UserService.getCurrentShopId() ?? '';
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final user = FirebaseAuth.instance.currentUser;
+    final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
+    
+    // Get partner name for logging
+    String partnerName = 'Đối tác sửa chữa';
+    try {
+      final partnerService = RepairPartnerService();
+      final partner = await partnerService.getRepairPartnerById(partnerId);
+      if (partner != null) {
+        partnerName = partner.name;
+      }
+    } catch (e) {
+      // Ignore error, use default name
+    }
+    
     final payment = RepairPartnerPayment(
       partnerId: partnerId,
       amount: amount,
-      paidAt: DateTime.now().millisecondsSinceEpoch,
+      paidAt: now,
       paymentMethod: paymentMethod,
       note: note,
       shopId: shopId,
     );
-    return await addPartnerPayment(payment);
+    final paymentId = await addPartnerPayment(payment);
+    
+    // Ghi nhật ký tài chính - Trả nợ đối tác sửa chữa (direction = OUT)
+    try {
+      final firestoreId = payment.firestoreId ?? 'part_pay_$now';
+      await FinancialActivityService.logSupplierPayment(
+        firestoreId: firestoreId,
+        amount: amount,
+        paymentMethod: paymentMethod,
+        supplierName: partnerName,
+        createdAt: now,
+        createdBy: userName,
+        note: note ?? 'Trả nợ đối tác sửa chữa: $partnerName',
+      );
+    } catch (e) {
+      // Log error but don't fail the payment
+      print('Failed to log financial activity for partner payment: $e');
+    }
+    
+    return paymentId;
   }
 }

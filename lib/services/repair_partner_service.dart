@@ -19,6 +19,23 @@ class RepairPartnerService {
         .toList();
   }
 
+  /// Get repair partner by ID
+  Future<RepairPartner?> getRepairPartnerById(int partnerId) async {
+    final shopId = await UserService.getCurrentShopId();
+    final data = await db.getRepairPartners();
+    final partnerData = data.where((p) => 
+        p['id'] == partnerId && 
+        p['shopId'] == shopId && 
+        p['deleted'] != 1 && 
+        p['deleted'] != true
+    ).firstOrNull;
+    
+    if (partnerData != null) {
+      return RepairPartner.fromMap(partnerData);
+    }
+    return null;
+  }
+
   Future<RepairPartner?> addRepairPartner(RepairPartner partner) async {
     final partnerMap = partner.toMap();
     final shopId = await UserService.getCurrentShopId();
