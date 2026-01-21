@@ -2610,21 +2610,27 @@ class _InventoryViewState extends State<InventoryView>
   Widget _buildProfessionalCard(Product p, [int? index]) {
     final bool isSelected = _selectedIds.contains(p.id);
     final bool isPending = p.isPending; // Kho tạm
+    
+    // Type icon like pending_stock_list_view
+    String typeIcon = p.type == 'DIEN_THOAI' ? '📱' : '🎧';
+    if (p.type == 'LINH_KIEN') typeIcon = '🔧';
+    
+    // Colors based on state
+    final bgColor = isPending
+        ? Colors.orange.shade50
+        : (p.quantity <= 0 ? Colors.red.shade50 : Colors.white);
+    final borderColor = isSelected
+        ? Colors.red
+        : (isPending ? Colors.orange.shade300 : (p.quantity <= 0 ? Colors.red.shade200 : Colors.grey.shade200));
+    
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 6),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isSelected
-              ? Colors.red
-              : (isPending ? Colors.orange : Colors.transparent),
-          width: isPending ? 2 : (isSelected ? 2 : 0),
-        ),
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: borderColor, width: isSelected ? 2 : 1),
       ),
-      elevation: 2,
-      color: isPending
-          ? Colors.orange.shade50
-          : null, // Nền cam nhạt cho kho tạm
+      elevation: 1,
+      color: bgColor,
       child: InkWell(
         onLongPress: () {
           HapticFeedback.heavyImpact();
@@ -2638,242 +2644,157 @@ class _InventoryViewState extends State<InventoryView>
         },
         onTap: () =>
             _isSelectionMode ? _toggleSelection(p.id!) : _showProductDetail(p),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: EdgeInsets.all(_cardPadding),
-          child: Row(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // STT (Số thứ tự)
-              if (index != null) ...[
-                Container(
-                  width: 28,
-                  height: 28,
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: isPending
-                        ? Colors.orange.withOpacity(0.2)
-                        : AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '$index',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: isPending
-                            ? Colors.orange.shade700
-                            : AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-              // Brand Icon with Pending badge
-              Stack(
+              // Header row
+              Row(
                 children: [
-                  Container(
-                    padding: EdgeInsets.all(_cardPadding - 2),
-                    decoration: BoxDecoration(
-                      color: isPending
-                          ? Colors.orange.withAlpha(40)
-                          : _getBrandColor(p.name).withAlpha(25),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      p.type == 'DIEN_THOAI'
-                          ? Icons.phone_iphone
-                          : Icons.headset_mic,
-                      color: isPending ? Colors.orange : _getBrandColor(p.name),
-                      size: _iconSize,
-                    ),
-                  ),
-                  if (isPending)
-                    Positioned(
-                      right: -2,
-                      top: -2,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
-                          color: Colors.orange,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.hourglass_empty,
-                          size: 10,
-                          color: Colors.white,
+                  // STT + Type icon
+                  if (index != null)
+                    Container(
+                      width: 24,
+                      height: 24,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: BoxDecoration(
+                        color: isPending
+                            ? Colors.orange.withOpacity(0.2)
+                            : AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$index',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                            color: isPending ? Colors.orange.shade700 : AppColors.primary,
+                          ),
                         ),
                       ),
                     ),
-                ],
-              ),
-
-              SizedBox(width: _pad),
-
-              // Product Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                  Text(typeIcon, style: const TextStyle(fontSize: 18)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (isPending)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            margin: const EdgeInsets.only(right: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.orange,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'KHO TẠM',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
+                        Row(
+                          children: [
+                            if (isPending)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                margin: const EdgeInsets.only(right: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: const Text(
+                                  'TẠM',
+                                  style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            Expanded(
+                              child: Text(
+                                p.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: isPending ? Colors.orange.shade800 : const Color(0xFF1A237E),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                          ),
-                        Expanded(
-                          child: Text(
-                            p.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: _titleFontSize - 2,
-                              color: isPending
-                                  ? Colors.orange.shade800
-                                  : const Color(0xFF1A237E),
-                            ),
+                          ],
+                        ),
+                        // Detail line: capacity/IMEI
+                        if (p.capacity != null || p.imei != null)
+                          Text(
+                            [p.capacity, if (p.imei != null && p.imei!.isNotEmpty) 'IMEI: ${p.imei}']
+                                .where((e) => e != null && e.isNotEmpty)
+                                .join(' • '),
+                            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ),
                       ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      p.capacity ?? "Chi tiết trống",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.blueGrey,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.fingerprint,
-                          size: 12,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            p.imei ?? "N/A",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.access_time,
-                          size: 12,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            "Nhập: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(p.createdAt))}",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Price and Quantity
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (isPending) ...[
-                    // Hiển thị trạng thái chờ xác nhận giá cho kho tạm
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.shade100,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.orange.shade300),
-                      ),
-                      child: const Text(
-                        'Chờ giá',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ] else ...[
-                    Text(
-                      "${MoneyUtils.formatCurrency(p.price)} đ",
-                      style: TextStyle(
-                        color: Colors.redAccent,
-                        fontWeight: FontWeight.bold,
-                        fontSize: _smallFontSize + 2,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withAlpha(25),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      "TỒN: ${p.quantity}",
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontSize: _smallFontSize - 1,
-                        fontWeight: FontWeight.bold,
-                      ),
                     ),
                   ),
+                  // Quantity badge
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: p.quantity > 0 ? Colors.blue.shade50 : Colors.red.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'x${p.quantity}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                            color: p.quantity > 0 ? Colors.blue.shade700 : Colors.red,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(p.createdAt)),
+                        style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                  if (isSelected) ...[
+                    const SizedBox(width: 6),
+                    const Icon(Icons.check_circle, color: Colors.red, size: 20),
+                  ],
                 ],
               ),
-
-              // Selection indicator
-              if (isSelected) ...[
-                const SizedBox(width: 8),
-                const Icon(Icons.check_circle, color: Colors.red, size: 24),
-              ],
+              
+              const SizedBox(height: 6),
+              
+              // Info chips row
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  if (!isPending && p.cost > 0)
+                    _compactChip('Vốn: ${NumberFormat.compact(locale: 'vi').format(p.cost)}đ', Colors.orange.shade100),
+                  if (!isPending)
+                    _compactChip('Bán: ${NumberFormat.compact(locale: 'vi').format(p.price)}đ', Colors.green.shade100),
+                  if (p.color != null && p.color!.isNotEmpty)
+                    _compactChip('🎨 ${p.color}', Colors.pink.shade50),
+                  if (p.condition != null && p.condition!.isNotEmpty)
+                    _compactChip('📦 ${p.condition}', Colors.cyan.shade50),
+                  if (p.supplier != null && p.supplier!.isNotEmpty)
+                    _compactChip('🏭 ${p.supplier}', Colors.purple.shade50),
+                  if (isPending)
+                    _compactChip('⏳ Chờ giá', Colors.yellow.shade100),
+                ],
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+  
+  Widget _compactChip(String label, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500),
       ),
     );
   }

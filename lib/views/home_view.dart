@@ -2528,16 +2528,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           children: [
             Expanded(
               child: Card(
-                color: Colors.orange.shade50,
+                color: Colors.green.shade50,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
-                  side: BorderSide(color: Colors.orange.shade200),
+                  side: BorderSide(color: Colors.green.shade300, width: 2),
                 ),
                 child: InkWell(
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const FastInventoryInputView(),
+                      builder: (_) => const SmartStockInView(),
                     ),
                   ),
                   borderRadius: BorderRadius.circular(15),
@@ -2548,26 +2548,26 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.orange.shade100,
+                            color: Colors.green.shade100,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
-                            Icons.inventory,
-                            color: Colors.orange,
+                            Icons.add_box,
+                            color: Colors.green,
                             size: 28,
                           ),
                         ),
                         const SizedBox(height: 10),
                         const Text(
-                          "NHẬP KHO",
+                          "+ NHẬP KHO",
                           style: TextStyle(
-                            color: Colors.orange,
+                            color: Colors.green,
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                           ),
                         ),
                         const Text(
-                          "Nhập hàng nhanh",
+                          "Nhập kho mới",
                           style: TextStyle(fontSize: 10, color: Colors.grey),
                         ),
                       ],

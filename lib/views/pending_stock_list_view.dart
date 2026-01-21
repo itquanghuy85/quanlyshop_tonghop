@@ -348,7 +348,55 @@ class _PendingStockListViewState extends State<PendingStockListView> {
 
   Widget _buildEntryCard(StockEntry entry) {
     final item = entry.items.isNotEmpty ? entry.items.first : null;
-    if (item == null) return const SizedBox.shrink();
+    
+    // Hiển thị card lỗi nếu không có items
+    if (item == null) {
+      return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        color: Colors.red.shade50,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: Colors.red.shade300),
+        ),
+        child: ListTile(
+          leading: const Icon(Icons.error_outline, color: Colors.red),
+          title: const Text(
+            'Phiếu nhập bị lỗi',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.red),
+          ),
+          subtitle: Text(
+            'ID: ${entry.firestoreId ?? "N/A"}\nKhông có sản phẩm trong phiếu',
+            style: const TextStyle(fontSize: 11),
+          ),
+          trailing: IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () async {
+              if (entry.firestoreId != null) {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Xóa phiếu lỗi?', style: TextStyle(fontSize: 14)),
+                    content: const Text('Phiếu này không có sản phẩm và cần được xóa.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        child: const Text('Xóa', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await _service.cancelEntry(entry.firestoreId!);
+                  await _loadData();
+                }
+              }
+            },
+          ),
+        ),
+      );
+    }
 
     final dateStr = entry.createdAt != null
         ? DateFormat('dd/MM HH:mm').format(entry.createdAt!)
