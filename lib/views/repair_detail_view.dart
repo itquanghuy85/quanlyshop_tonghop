@@ -27,6 +27,8 @@ import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
+import 'parts_inventory_view.dart';
+import 'repair_partner_list_view.dart';
 
 class RepairDetailView extends StatefulWidget {
   final Repair repair;
@@ -113,21 +115,23 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     final repairsBefore = await db.getAllRepairs();
     debugPrint('Repairs count before update: ${repairsBefore.length}');
 
-    // Kiểm tra nếu bấm "Đã giao" (status 4) và user không phải admin/owner
-    // thì set pendingDeliveryApproval = true thay vì chuyển status
+    // Chỉ admin/owner mới được giao máy (status 4)
+    // Nếu đơn đang chờ duyệt (pendingDeliveryApproval = true), phải duyệt trước
     if (newStatus == 4) {
       final currentRole = await UserService.getRoleFast();
       final isManagerOrOwner = currentRole == 'admin' || currentRole == 'owner';
+      debugPrint(
+        'Giao máy check: role=$currentRole, isManager=$isManagerOrOwner, pending=${r.pendingDeliveryApproval}',
+      );
 
       if (!isManagerOrOwner) {
-        // Nhân viên thường: đánh dấu chờ duyệt giao (giữ nguyên status 3)
-        await _submitForDeliveryApproval();
+        NotificationService.showSnackBar(
+          'Chỉ quản lý/chủ shop mới được duyệt giao máy',
+          color: Colors.red,
+        );
         return;
       }
-    }
 
-    // Reset pendingDeliveryApproval khi giao thành công
-    if (newStatus == 4 && r.pendingDeliveryApproval) {
       // Admin/owner duyệt đơn chờ giao
       await _approveDelivery();
       return;
@@ -276,7 +280,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
     }
 
-    if (newStatus == 3) r.finishedAt = DateTime.now().millisecondsSinceEpoch;
+    if (newStatus == 3) {
+      r.finishedAt = DateTime.now().millisecondsSinceEpoch;
+      r.pendingDeliveryApproval = true; // Tự động chờ duyệt khi sửa xong
+    }
 
     // Update lastCaredAt for conflict resolution during sync
     r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
@@ -520,8 +527,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     r.isSynced = false;
 
     setState(() {
-      r.pendingDeliveryApproval =
-          true; // Đánh dấu chờ duyệt (giữ nguyên status 3)
+      // Nếu đơn chưa ở status 3 (Sửa xong), chuyển lên status 3 trước
+      if (r.status < 3) {
+        r.status = 3;
+        r.finishedAt = DateTime.now().millisecondsSinceEpoch;
+      }
+      r.pendingDeliveryApproval = true; // Đánh dấu chờ duyệt
       _isUpdating = true;
     });
 
@@ -852,6 +863,31 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
     }
     if (mounted) setState(() => _isUpdating = false);
+  }
+
+  /// Lối tắt vào Kho Linh Kiện Sửa Chữa
+  void _navigateToPartsInventory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: const Text('KHO LINH KIỆN SỬA CHỮA'),
+            backgroundColor: const Color(0xFF7B1FA2),
+            foregroundColor: Colors.white,
+          ),
+          body: const PartsInventoryViewContent(),
+        ),
+      ),
+    );
+  }
+
+  /// Lối tắt vào Đối Tác Sửa Chữa
+  void _navigateToRepairPartners() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const RepairPartnerListView()),
+    );
   }
 
   /// Dialog chọn phụ tùng từ kho và tự động trừ kho
@@ -1272,15 +1308,21 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Widget _buildActionButtons() {
+    debugPrint(
+      '_buildActionButtons: status=${r.status}, pendingDeliveryApproval=${r.pendingDeliveryApproval}',
+    );
+
     if (r.status == 4) return const SizedBox();
 
     // Chờ duyệt giao (status 3 + pendingDeliveryApproval = true) - chỉ quản lý mới thấy nút duyệt
     if (r.status == 3 && r.pendingDeliveryApproval) {
+      debugPrint('Showing pending approval UI');
       return FutureBuilder<String>(
         future: UserService.getRoleFast(),
         builder: (context, snapshot) {
           final role = snapshot.data ?? 'user';
           final isManager = role == 'admin' || role == 'owner';
+          debugPrint('Role check: role=$role, isManager=$isManager');
 
           return Column(
             children: [
@@ -1338,9 +1380,75 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
     }
 
+    // Status 3 và chưa gửi duyệt - hiện nút gửi yêu cầu giao
+    if (r.status == 3 && !r.pendingDeliveryApproval) {
+      return FutureBuilder<String>(
+        future: UserService.getRoleFast(),
+        builder: (context, snapshot) {
+          final role = snapshot.data ?? 'user';
+          final isManager = role == 'admin' || role == 'owner';
+
+          return Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Đã sửa xong - sẵn sàng giao máy',
+                        style: TextStyle(
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: isManager
+                      ? () =>
+                            _updateStatus(4) // Admin/owner giao trực tiếp
+                      : () =>
+                            _submitForDeliveryApproval(), // Staff gửi yêu cầu duyệt
+                  icon: Icon(
+                    isManager ? Icons.local_shipping : Icons.send,
+                    size: 18,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isManager
+                        ? Colors.green
+                        : Colors.deepOrange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  label: Text(
+                    isManager ? "GIAO MÁY" : "GỬI YÊU CẦU GIAO",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+    // Status < 3: hiện nút ĐANG SỬA và ĐÃ XONG
     return Column(
       children: [
-        // Row 1: Đang sửa + Đã xong
         if (r.status < 3)
           Row(
             children: [
@@ -1358,7 +1466,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   ),
                 ),
               if (r.status == 1) const SizedBox(width: 10),
-              // Nút ĐÃ XONG
+              // Nút ĐÃ XONG - sau khi bấm sẽ tự động chờ duyệt
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () => _updateStatus(3),
@@ -1372,17 +1480,6 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               ),
             ],
           ),
-        if (r.status < 3) const SizedBox(height: 10),
-        // Row 2: Giao máy
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => _updateStatus(4),
-            icon: const Icon(Icons.handshake, size: 18),
-            style: AppButtonStyles.elevatedButtonStyle,
-            label: Text("GIAO MÁY", style: AppTextStyles.button),
-          ),
-        ),
       ],
     );
   }
@@ -1438,42 +1535,57 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             ),
           ],
           const SizedBox(height: 10),
-          Wrap(
-            alignment: WrapAlignment.spaceEvenly,
-            spacing: 4,
-            runSpacing: 4,
-            children: [
-              TextButton.icon(
-                onPressed: _selectPartsFromInventory,
-                icon: const Icon(
-                  Icons.inventory_2,
-                  size: 14,
-                  color: Colors.purple,
+          // Chỉ khóa các nút sửa khi ĐÃ GIAO (status 4)
+          if (r.status < 4)
+            Wrap(
+              alignment: WrapAlignment.spaceEvenly,
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                TextButton.icon(
+                  onPressed: _selectPartsFromInventory,
+                  icon: const Icon(
+                    Icons.inventory_2,
+                    size: 14,
+                    color: Colors.purple,
+                  ),
+                  label: Text(
+                    "Phụ tùng",
+                    style: AppTextStyles.caption.copyWith(color: Colors.purple),
+                  ),
                 ),
-                label: Text(
-                  "Phụ tùng",
-                  style: AppTextStyles.caption.copyWith(color: Colors.purple),
+                // Lối tắt vào Kho Linh Kiện
+                TextButton.icon(
+                  onPressed: _navigateToPartsInventory,
+                  icon: const Icon(
+                    Icons.warehouse,
+                    size: 14,
+                    color: Colors.teal,
+                  ),
+                  label: Text(
+                    "Kho LK",
+                    style: AppTextStyles.caption.copyWith(color: Colors.teal),
+                  ),
                 ),
-              ),
-              TextButton.icon(
-                onPressed: _editFinancials,
-                icon: const Icon(Icons.edit, size: 14),
-                label: Text("Sửa giá", style: AppTextStyles.caption),
-              ),
-              TextButton.icon(
-                onPressed: _editTechnicianNotes,
-                icon: const Icon(
-                  Icons.note_add,
-                  size: 14,
-                  color: Colors.orange,
+                TextButton.icon(
+                  onPressed: _editFinancials,
+                  icon: const Icon(Icons.edit, size: 14),
+                  label: Text("Sửa giá", style: AppTextStyles.caption),
                 ),
-                label: Text(
-                  "KTV",
-                  style: AppTextStyles.caption.copyWith(color: Colors.orange),
+                TextButton.icon(
+                  onPressed: _editTechnicianNotes,
+                  icon: const Icon(
+                    Icons.note_add,
+                    size: 14,
+                    color: Colors.orange,
+                  ),
+                  label: Text(
+                    "KTV",
+                    style: AppTextStyles.caption.copyWith(color: Colors.orange),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );
@@ -1520,6 +1632,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              // Chỉ khóa nút thêm dịch vụ khi ĐÃ GIAO (status 4)
               if (r.status != 4)
                 TextButton.icon(
                   onPressed: _showAddServiceDialog,
@@ -1595,6 +1708,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    // Chỉ khóa nút sửa dịch vụ khi ĐÃ GIAO (status 4)
                     if (r.status != 4)
                       IconButton(
                         icon: const Icon(
@@ -1663,7 +1777,23 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          title: Text(editService != null ? "Sửa dịch vụ" : "Thêm dịch vụ"),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(editService != null ? "Sửa dịch vụ" : "Thêm dịch vụ"),
+              // Lối tắt vào Đối Tác Sửa Chữa
+              IconButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _navigateToRepairPartners();
+                },
+                icon: const Icon(Icons.group, color: Colors.teal, size: 20),
+                tooltip: 'Xem đối tác sửa chữa',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
           content: Form(
             key: formKey,
             child: Column(

@@ -7,17 +7,20 @@ import '../models/product_model.dart';
 import '../models/debt_model.dart';
 import '../models/quick_input_code_model.dart';
 import '../models/supplier_model.dart';
+import '../models/stock_entry_model.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
+import '../services/stock_entry_service.dart';
 import '../utils/sku_generator.dart';
 import '../utils/imei_extractor.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/imei_scan_result_dialog.dart';
 import 'quick_input_library_view.dart';
+import 'pending_stock_list_view.dart';
 
 // Formatter to force uppercase input without triggering controller loops
 class UpperCaseTextFormatter extends TextInputFormatter {
@@ -987,6 +990,185 @@ class _FastStockInViewState extends State<FastStockInView> {
     }
   }
 
+  /// Lưu vào Hàng Chờ Xác Nhận thay vì nhập trực tiếp vào kho
+  /// Flow mới: Tất cả sản phẩm đều phải qua hàng chờ xác nhận trước khi vào kho chính
+  Future<void> _saveToStockEntry() async {
+    CurrencyTextField.finalizeAll();
+
+    // Validate thông tin cơ bản
+    if (selectedBrand == null ||
+        selectedColor == null ||
+        selectedCondition == null) {
+      NotificationService.showSnackBar(
+        "Vui lòng chọn đầy đủ thông tin cơ bản!",
+        color: Colors.red,
+      );
+      return;
+    }
+
+    if (modelCtrl.text.trim().isEmpty) {
+      NotificationService.showSnackBar(
+        "Vui lòng nhập model!",
+        color: Colors.red,
+      );
+      return;
+    }
+
+    final cost = _parseMoneyWithK(costCtrl.text);
+    final price = _parseMoneyWithK(priceCtrl.text);
+    final quantity = int.tryParse(quantityCtrl.text) ?? 1;
+
+    if (quantity <= 0) {
+      NotificationService.showSnackBar(
+        "Số lượng phải lớn hơn 0!",
+        color: Colors.red,
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+
+    try {
+      // Tạo tên sản phẩm
+      final productName =
+          '$selectedBrand ${modelCtrl.text.trim()} ${selectedCapacity ?? ""} $selectedColor $selectedCondition'
+              .toUpperCase()
+              .trim()
+              .replaceAll(RegExp(r'\s+'), ' ');
+
+      // Lấy supplier ID nếu có
+      String? supplierId;
+      if (selectedSupplier != null && suppliers.isNotEmpty) {
+        final supplierData = suppliers.firstWhere(
+          (s) => s['name'] == selectedSupplier,
+          orElse: () => {},
+        );
+        supplierId = supplierData['id']?.toString();
+      }
+
+      // Lấy shopId
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null || shopId.isEmpty) {
+        NotificationService.showSnackBar(
+          "Không tìm thấy thông tin shop!",
+          color: Colors.red,
+        );
+        setState(() => _saving = false);
+        return;
+      }
+
+      // Tạo StockEntryItem
+      final item = StockEntryItem(
+        name: productName,
+        quantity: quantity,
+        cost: cost > 0 ? cost.toDouble() : null,
+        price: price > 0 ? price.toDouble() : null,
+        imei: imeiCtrl.text.trim().isNotEmpty ? imeiCtrl.text.trim() : null,
+        brand: selectedBrand,
+        model: modelCtrl.text.trim(),
+        capacity: selectedCapacity,
+        color: selectedColor,
+        condition: selectedCondition,
+        productType: 'DIEN_THOAI',
+      );
+
+      // Tạo StockEntry (DRAFT)
+      final entry = StockEntry(
+        shopId: shopId,
+        status: StockEntryStatus.draft,
+        entryType:
+            cost > 0 &&
+                selectedSupplier != null &&
+                selectedPaymentMethod != null
+            ? StockEntryType.quick
+            : StockEntryType.staging,
+        items: [item],
+        supplierId: supplierId,
+        supplierName: selectedSupplier,
+        paymentMethod: selectedPaymentMethod,
+        notes: 'Nhập từ Nhập Kho Nhanh',
+      );
+
+      final stockService = StockEntryService();
+      final savedEntry = await stockService.createEntry(entry);
+
+      if (savedEntry != null) {
+        final user = FirebaseAuth.instance.currentUser;
+        final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
+
+        // Log action
+        await db.logAction(
+          userId: user?.uid ?? "0",
+          userName: userName,
+          action: "TẠO PHIẾU NHẬP",
+          type: "STOCK_ENTRY",
+          targetId: savedEntry.firestoreId,
+          desc: "Tạo phiếu nhập: $productName - SL: $quantity",
+        );
+
+        // Thông báo
+        NotificationService.showSnackBar(
+          "Đã lưu vào Hàng Chờ Xác Nhận!",
+          color: Colors.orange,
+        );
+
+        // Hỏi user có muốn mở trang xác nhận không
+        final goToPending = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Đã tạo phiếu nhập'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Sản phẩm: $productName'),
+                Text('Số lượng: $quantity'),
+                const SizedBox(height: 12),
+                const Text(
+                  'Phiếu đã được lưu vào "Hàng Chờ Xác Nhận".\n'
+                  'Bạn cần XÁC NHẬN phiếu để hàng vào kho chính.',
+                  style: TextStyle(color: Colors.orange),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('NHẬP TIẾP'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text(
+                  'XEM HÀNG CHỜ',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        _resetForm();
+
+        if (goToPending == true && context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PendingStockListView()),
+          );
+        }
+      } else {
+        NotificationService.showSnackBar(
+          "Lỗi tạo phiếu nhập!",
+          color: Colors.red,
+        );
+      }
+    } catch (e) {
+      NotificationService.showSnackBar("Lỗi: $e", color: Colors.red);
+    } finally {
+      setState(() => _saving = false);
+    }
+  }
+
   String _getNhomFromBrand(String brand) {
     switch (brand) {
       case 'IPHONE':
@@ -1504,25 +1686,50 @@ class _FastStockInViewState extends State<FastStockInView> {
                   _buildCurrencyField('Giá bán (VNĐ)', priceCtrl, Icons.sell),
 
                   const SizedBox(height: 24),
+                  // Nút chính: Lưu vào Hàng Chờ Xác Nhận
                   Center(
-                    child: ElevatedButton(
-                      onPressed: _saving ? null : _saveProduct,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 16,
-                        ),
-                        backgroundColor: Colors.green,
-                      ),
-                      child: _saving
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'XÁC NHẬN NHẬP KHO',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                    child: Column(
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _saving ? null : _saveToStockEntry,
+                          icon: const Icon(Icons.pending_actions),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
                             ),
+                            backgroundColor: Colors.orange,
+                          ),
+                          label: _saving
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Text(
+                                  'LƯU VÀO HÀNG CHỜ XÁC NHẬN',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const PendingStockListView(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.list_alt, size: 16),
+                          label: const Text(
+                            'Xem hàng chờ xác nhận',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
