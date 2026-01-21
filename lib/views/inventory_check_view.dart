@@ -148,8 +148,9 @@ class _InventoryCheckViewState extends State<InventoryCheckView> {
           Expanded(
             child: SegmentedButton<String>(
               segments: const [
-                ButtonSegment(value: 'DIEN_THOAI', label: Text('Máy'), icon: Icon(Icons.phone_android, size: 16)),
-                ButtonSegment(value: 'PHỤ KIỆN', label: Text('Phụ kiện'), icon: Icon(Icons.headset, size: 16)),
+                ButtonSegment(value: 'DIEN_THOAI', label: Text('Máy', style: TextStyle(fontSize: 11)), icon: Icon(Icons.phone_android, size: 14)),
+                ButtonSegment(value: 'PHỤ KIỆN', label: Text('Phụ kiện', style: TextStyle(fontSize: 11)), icon: Icon(Icons.headset, size: 14)),
+                ButtonSegment(value: 'LINH_KIEN', label: Text('Linh kiện', style: TextStyle(fontSize: 11)), icon: Icon(Icons.build, size: 14)),
               ],
               selected: {_selectedType},
               onSelectionChanged: (val) {
@@ -186,12 +187,20 @@ class _InventoryCheckViewState extends State<InventoryCheckView> {
       itemCount: _checkItems.length,
       itemBuilder: (ctx, i) {
         final item = _checkItems[i];
+        final hasImei = item.imei != null && item.imei!.isNotEmpty;
+        final subtitleText = hasImei 
+            ? "IMEI: ${item.imei}" 
+            : _selectedType == 'PHỤ KIỆN' 
+                ? "Phụ tùng sửa chữa" 
+                : _selectedType == 'LINH_KIEN'
+                    ? "Linh kiện (không IMEI)"
+                    : "Mã SP: ${item.itemId}";
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: item.isChecked ? Colors.green.shade200 : Colors.transparent)),
           child: ListTile(
             title: Text(item.itemName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            subtitle: Text(item.imei ?? "Mã phụ kiện", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            subtitle: Text(subtitleText, style: const TextStyle(fontSize: 11, color: Colors.grey)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

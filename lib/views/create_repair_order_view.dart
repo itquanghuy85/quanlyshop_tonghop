@@ -595,6 +595,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         editService.partnerId == null) {
       selectedPartner = null;
     }
+    
+    // Thêm payment method đồng bộ với repair_detail_view
+    String? selectedPaymentMethod = editService?.paymentMethod ?? 'TIỀN MẶT';
+    final paymentMethods = ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'];
 
     showDialog(
       context: context,
@@ -603,47 +607,70 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
           title: Text(editService != null ? "Sửa dịch vụ" : "Thêm dịch vụ"),
           content: Form(
             key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: serviceCtrl,
-                  decoration: const InputDecoration(labelText: "Tên dịch vụ *"),
-                  textCapitalization: TextCapitalization.characters,
-                  validator: (v) => (v ?? '').trim().isEmpty
-                      ? 'Vui lòng nhập tên dịch vụ'
-                      : null,
-                ),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: costCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(labelText: "Chi phí (VNĐ)"),
-                  validator: (v) => MoneyUtils.validateAmount(
-                    v ?? '',
-                    min: 1,
-                    fieldName: 'Chi phí',
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: serviceCtrl,
+                    decoration: const InputDecoration(labelText: "Tên dịch vụ *"),
+                    textCapitalization: TextCapitalization.characters,
+                    validator: (v) => (v ?? '').trim().isEmpty
+                        ? 'Vui lòng nhập tên dịch vụ'
+                        : null,
                   ),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<RepairPartner>(
-                  decoration: const InputDecoration(
-                    labelText: "Đối tác (tùy chọn)",
-                  ),
-                  initialValue: selectedPartner,
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Text("Không có đối tác"),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: costCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [MoneyUtils.currencyInputFormatter()],
+                    decoration: const InputDecoration(labelText: "Chi phí (VNĐ)"),
+                    validator: (v) => MoneyUtils.validateAmount(
+                      v ?? '',
+                      min: 1,
+                      fieldName: 'Chi phí',
                     ),
-                    ..._partners.map(
-                      (p) => DropdownMenuItem(value: p, child: Text(p.name)),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<RepairPartner>(
+                    decoration: const InputDecoration(
+                      labelText: "Đối tác (tùy chọn)",
+                    ),
+                    initialValue: selectedPartner,
+                    items: [
+                      const DropdownMenuItem(
+                        value: null,
+                        child: Text("Không có đối tác"),
+                      ),
+                      ..._partners.map(
+                        (p) => DropdownMenuItem(value: p, child: Text(p.name)),
+                      ),
+                    ],
+                    onChanged: (p) => setS(() => selectedPartner = p),
+                  ),
+                  // Phương thức thanh toán (chỉ hiện khi có đối tác) - đồng bộ với repair_detail_view
+                  if (selectedPartner != null) ...[
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: "Phương thức TT đối tác *",
+                        prefixIcon: Icon(Icons.payment, size: 20),
+                      ),
+                      value: selectedPaymentMethod,
+                      items: paymentMethods
+                          .map(
+                            (m) => DropdownMenuItem(value: m, child: Text(m)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setS(() => selectedPaymentMethod = v),
+                      validator: (v) =>
+                          selectedPartner != null && (v == null || v.isEmpty)
+                          ? 'Vui lòng chọn phương thức TT'
+                          : null,
                     ),
                   ],
-                  onChanged: (p) => setS(() => selectedPartner = p),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
@@ -663,6 +690,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   cost: cost,
                   partnerId: selectedPartner?.id,
                   partnerName: selectedPartner?.name,
+                  paymentMethod: selectedPartner != null ? selectedPaymentMethod : null,
                 );
                 setState(() {
                   if (editService != null) {

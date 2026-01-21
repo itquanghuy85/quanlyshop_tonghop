@@ -2025,7 +2025,11 @@ class _InventoryViewState extends State<InventoryView>
                   ),
                   DropdownMenuItem(
                     value: "PHỤ KIỆN",
-                    child: Text("🔧 Phụ kiện"),
+                    child: Text("🔧 Phụ kiện (Kho sửa chữa)"),
+                  ),
+                  DropdownMenuItem(
+                    value: "LINH_KIEN",
+                    child: Text("⚙️ Linh kiện (Sản phẩm)"),
                   ),
                 ],
                 onChanged: (value) {
@@ -2185,7 +2189,17 @@ class _InventoryViewState extends State<InventoryView>
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text("IMEI: ${item.imei ?? 'N/A'}"),
+                            if (item.imei != null && item.imei!.isNotEmpty)
+                              Text("IMEI: ${item.imei}")
+                            else
+                              Text(
+                                _selectedType == 'PHỤ KIỆN' 
+                                    ? "Phụ tùng sửa chữa" 
+                                    : _selectedType == 'LINH_KIEN'
+                                        ? "Linh kiện (không IMEI)"
+                                        : "Mã SP: ${item.itemId}",
+                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                              ),
                             Text(
                               "SL hiện tại: ${item.quantity}",
                               style: TextStyle(

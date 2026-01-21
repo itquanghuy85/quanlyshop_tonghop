@@ -3214,9 +3214,14 @@ class DBHelper {
   ) async {
     final db = await database;
     if (type == 'DIEN_THOAI') {
-      return await db.query('products', where: 'status = 1');
+      // Điện thoại - có IMEI, từ bảng products với status = 1 (còn hàng)
+      return await db.query('products', where: 'status = 1 AND type = ?', whereArgs: ['DIEN_THOAI']);
+    } else if (type == 'LINH_KIEN') {
+      // Linh kiện - từ bảng products với type = 'LINH KIỆN' hoặc 'LINH_KIEN'
+      return await db.query('products', where: 'status = 1 AND (type = ? OR type = ?)', whereArgs: ['LINH KIỆN', 'LINH_KIEN']);
     }
-    return await db.query('repair_parts');
+    // PHỤ KIỆN - từ bảng repair_parts (kho phụ tùng sửa chữa)
+    return await db.query('repair_parts', where: '(deleted = 0 OR deleted IS NULL) AND quantity > 0');
   }
 
   // --- PARTS HELPERS ---

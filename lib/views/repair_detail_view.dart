@@ -867,20 +867,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     if (mounted) setState(() => _isUpdating = false);
   }
 
-  /// Lối tắt vào Kho Linh Kiện Sửa Chữa
+  /// Lối tắt vào Kho Phụ Tùng (PartsInventoryView)
   void _navigateToPartsInventory() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          appBar: AppBar(
-            title: const Text('KHO LINH KIỆN SỬA CHỮA'),
-            backgroundColor: const Color(0xFF7B1FA2),
-            foregroundColor: Colors.white,
-          ),
-          body: const PartsInventoryViewContent(),
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => const PartsInventoryView()),
     );
   }
 
