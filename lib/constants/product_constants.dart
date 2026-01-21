@@ -1,5 +1,5 @@
 /// Các hằng số dùng chung cho sản phẩm
-/// Đồng bộ giữa: NHẬP KHO MỚI, HÀNG CHỜ XÁC NHẬN, QUẢN LÝ KHO, 
+/// Đồng bộ giữa: NHẬP KHO MỚI, HÀNG CHỜ XÁC NHẬN, QUẢN LÝ KHO,
 /// THÊM MÃ NHẬP NHANH, NHẬP KHO NHANH
 class ProductConstants {
   /// Danh sách màu sắc
@@ -57,7 +57,7 @@ class ProductConstants {
     'ĐÃ QUA SD',
     'KHÁC',
   ];
-  
+
   /// Danh sách tình trạng ngắn gọn (dùng cho input nhanh)
   static const List<String> conditionsShort = [
     'MỚI',
@@ -108,7 +108,7 @@ class ProductConstants {
       '17 PRO MAX', '17 PRO', '17 PLUS', '17',
       // iPhone 16 series
       '16 PRO MAX', '16 PRO', '16 PLUS', '16',
-      // iPhone 15 series  
+      // iPhone 15 series
       '15 PRO MAX', '15 PRO', '15 PLUS', '15',
       // iPhone 14 series
       '14 PRO MAX', '14 PRO', '14 PLUS', '14',
@@ -204,7 +204,7 @@ class ProductConstants {
 
     return 'KHÁC';
   }
-  
+
   /// Map condition ngắn từ giá trị khác nhau (cho fast_stock_in)
   static String mapConditionShort(String condition) {
     final conditionUpper = condition.toUpperCase().trim();
@@ -229,12 +229,12 @@ class ProductConstants {
   static String mapColor(String? color) {
     if (color == null || color.isEmpty) return 'KHÁC';
     final colorUpper = color.toUpperCase().trim();
-    
+
     // Tìm trong danh sách chuẩn
     for (final c in colors) {
       if (c == colorUpper) return c;
     }
-    
+
     // Map các biến thể
     if (colorUpper.contains('BLACK') || colorUpper.contains('ĐEN')) return 'ĐEN';
     if (colorUpper.contains('WHITE') || colorUpper.contains('TRẮNG')) return 'TRẮNG';
@@ -253,7 +253,7 @@ class ProductConstants {
       if (colorUpper.contains('TRẮNG') || colorUpper.contains('WHITE')) return 'TITAN TRẮNG';
       if (colorUpper.contains('XÁM') || colorUpper.contains('GRAY')) return 'TITAN XÁM';
     }
-    
+
     return 'KHÁC';
   }
 }

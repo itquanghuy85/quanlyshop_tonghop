@@ -79,27 +79,44 @@ kết nối dữ liệu của "nhập kho" "nhập kho nhanh" khi bấm "XÁC NH
 nhập điện thoại hay phụ kiện linh kiện đều phải qua hang chờ xác nhận mới vào kho chính.và mới ghi nhận số liệu tài chính liên quan.
 "HÀNG CHỜ XÁC NHẬN" -list hàng chờ. bấm vào báo lỗi chữ vàng nền đỏ:  drop down : ' item == null......(khi lấy dữ "liệu từ nhập kho nhanh") nhập kho thường cũng đồng bộ và phải xác nhận mới vào kho chính."NHẬP KHO MỚI" sửa lại nếu nhập đầy đủ thông tin cũng phải qua "HÀNG CHỜ XÁC NHẬN" mới vào kho chính và ghi nhận số liệu tài chính liên quan.( linh kiện và phụ kiện cũng phải qua hàng chờ xác nhận mới vào kho chính( nhập kho nhanh và nhập kho thường đều phải qua hàng chờ xác nhận mới vào kho chính và ghi nhận số liệu tài chính liên quan).    )
 thêm phương thuc thanh toán cho đối tác khi bấm vào "+ THÊM DỊCH VỤ"- "thêm dịch vụ từ đối tác sửa chữa" trong "CHI TIẾT ĐƠN SỬA". nhớ đồng bộ tài chính với "QUẢN LÝ ĐỐI TÁC"-"ĐỐI TÁC SỬA CHỮA".
-"cài đặt lịch làm viêc" tab "Nhân viên" lỗi trống báo "không có dữ liệu" dù đã có nhân viên.bấm tải lại thì mới lòa nhân viên ( vấn đề này liên quan đến tính lương nhân viên vì liên quan đến lịch làm việc của nhân viên )
-tôi thấy appbar của "KHO LINH KIỆN SỬA CHỮA" có màu nền là dải màu nhìn rất đẹp. bạn hãy áp dụng dải màu này cho tất cả các appbar trong toàn bộ app để đồng bộ giao diện.(dải màu nên kết hợp 2 màu cho đẹp hơn)
 "HÀNG CHỜ XÁC NHẬN" -list hàng chờ. bấm vào báo lỗi chữ vàng nền đỏ:  drop down : ' item == null......(khi lấy dữ "liệu từ nhập kho nhanh") nếu lấy dữ liệu từ "NHẬP KHO MỚI" thì ko bị lỗi.
 thay thế lối tắt khi bấm " NHẬP MỚI" vào trang "NHẬP KHO MỚI" thay vì vào trang nhập kho như hiện tại.
-appbar tất cả các trang đang không đồng bộ màu sắc. hãy đồng bộ tất cả appbar trong toàn bộ app với dải màu (dải màu nếu 2 hoặc 3 màu thì đẹp hơn).có lẽ do 1 số trang đang thiết lập themese thủ công(hãy xóa bỏ thủ công và chỉ sử dụng themese). hãy kiểm tra và sửa lại.( quan trọng)
 công nợ trong "ĐỐI TÁC SỬA CHỮA" chưa được ghi vào công nợ nhà cung cấp trong trang công nợ.
 "QUẢN L Ý ĐỐI TÁC" "NHÀ CUNG CẤP" và "ĐỐI TÁC SỬA CHỮA": SỬA LẠI thêm nút tìm kiếm theo tên nhà cung cấp và tên đối tác sửa chữa.thu gọn các cac nút chức năng cho gọn gàng hơn hiển thị được nhiều nhà cung cấp và đối tác sửa chữa hơn trong 1 trang.
 giảm tải cho app khi khởi động bằng cách load dữ liệu lười biếng (lazy loading) cho tất cả các list dài (vd: danh sách sản phẩm trong kho, danh sách đơn bán, danh sách đơn sửa, danh sách khách hàng, danh sách nhà cung cấp, danh sách đối tác sửa chữa, danh sách nhân viên...)khi mở app sau khi đăng nhập  load app lần đầu load quá lâu do phải load quá nhiều dữ liệu. hãy kiểm tra và sửa lại.đề xuất phương án tối ưu để load nhanh app khi khởi động xong mới load dữ liệu khi cần thiết.
+Thay lối tắt chuyển tới trang cho "+ NHẬP KHO" " thay vào đó là trang "NHẬP KHO MỚI"
+2
+thêm phương thuc thanh toán cho đối tác khi bấm vào "+ THÊM DỊCH VỤ"- "thêm dịch vụ từ đối tác sửa chữa" trong "CHI TIẾT ĐƠN SỬA". nhớ đồng bộ tài chính với "QUẢN LÝ ĐỐI TÁC"-"ĐỐI TÁC SỬA CHỮA".
+thay thế lối tắt khi bấm " NHẬP MỚI" vào trang "NHẬP KHO MỚI" thay vì vào trang nhập kho như hiện tại.
+"NHẬP KHO MỚI" sửa lại nếu nhập đầy đủ thông tin cũng phải qua "HÀNG CHỜ XÁC NHẬN" mới vào kho chính và ghi nhận số liệu tài chính liên quan.( linh kiện và phụ kiện cũng phải qua hàng chờ xác nhận mới vào kho chính( nhập kho nhanh và nhập kho thường đều phải qua hàng chờ xác nhận mới vào kho chính và ghi nhận số liệu tài chính liên quan).    )
+hãy làm ơn đọc kỹ tất cả các lỗi tôi đã liệt kê ở trên và xử lý triệt để tất cả các lỗi đó một cách hoàn hảo nhất có thể. 
 
+tôi thấY : "QUẢN LÝ KHO"-" + NHẬP KHO" Chưa tới trang "NHẬP KHO MỚI". hãy làm cho kỹ ko phải sửa lại lần nữa.
+Hãy chỉnh sửa list đơn sửa chi giống như list chờ nhập kho: hiển thị đầy đủ thông tin.
+list hàng trong kho "QUẢN LÝ KHO"  thời gian thấy để 01/01 8h00 có vẻ như sai tôi đang nhập kho lúc 17h00 ngày 21/01
+"MÃ NHẬP NHANH" list mã nhập nhanh khi tôi xóa 1 mã thoát ra vào lại thì mã đó vẫn còn chưa bị xóa.
+list mã nhập nhanh: khi bấm nút "NHẬP ĐẦY ĐỦ" hãy sửa lại điền thông tin vào trang "NHẬP KHO MỚI" thay vì trang "NHẬP KHO" như hiện tại.
+list đơn bán hãy chỉnh sửa giống như list chờ nhập kho: hiển thị đầy đủ thông tin.
 
+sửa chữa trạng thái thiếu trạng thái giao máy cho khách hàng trong chi tiết đơn sửa.
+trong đơn sửa khi thêm dịch vụ từ đối tác sửa chữa. khi chọn phương thuec công nợ thì báo lỗi: data exception.
+chỉnh sửa lại list đơn bán giống như list chờ nhập kho: hiển thị đầy đủ thông tin.
+chỉnh sửa lại list danh sách mã nhập nhanh giống như list chờ nhập kho: hiển thị đầy đủ thông tin.
+chỉnh sửa lại list thu, chi trong chốt quỹ giống như list chờ nhập kho: hiển thị đầy đủ thông tin.
+tronhg ; NHẬT KÝ TÀI CHÍNH : tab tài chính chưa ghi nhận số liệu thu chỉ thấy có ghi nhận số liệu chi. hãy sửa lại cho đúng.
+sửa lại đồng bộ các thông tin : tên sản phẩm, thương hiệu, model, dung lượng,màu sắc,tình trạng,giá nhập , giá bán, nhà cung cấp, phương thức thanh toán giữa các trang: "NHẬP KHO MỚI", "HÀNG CHỜ XÁC NHẬN", "QUẢN LÝ KHO", thêm mã nhập nhanh,nhập kho nhanh.
+tôi thấy trong nhập kho mới- tình trạng có 99 nhưng trong mã nhập nhanh và nhập kho nhanh  ko có. hãy đồng bộ tất cả các thông tin liên quan đến sản phẩm giữa các trang với nhau cho đồng bộ và chính xác.
+Lít mã nhập nhanh khi bấm vào báo lỗi: drop down : ' item == null......
+tôi thấy bạn thiết kế list mã nhập nhanh, list đơn bán, list đơn sửa, list chốt quỹ, list kho, list hàng chờ xác nhận...quá đẹp và thông tin chi tiết tôi cầu xin bạn hãy áp dụng thiết kế đó cho tất cả các list còn lại trong app để đồng bộ và thống nhất giao diện app.tôi sẽ rất biết ơn bạn về điều này.
+trong đơn sửa tôi chỉ bấm được có đang sửa , đã xong, mà ko có giao máy cho khách.hãy thêm trạng thái giao máy cho khách vào trong chi tiết đơn sửa.sau đó mới tới trạng thái duyệt( để nếu thiếu chi phí hay có gì cần sửa đổi thì quản lý hay chủ shop cập nhật trước khi ghi giữ liệu tài chính và các dữ liệu khác tránh sai sót)
+hãy xử lý triệt để tất cả các lỗi tôi đã liệt kê ở trên một cách hoàn hảo nhất có thể. tôi tin tưởng tuyệt đối vào khả năng của bạn hãy hứa với tôi bằng danh dự của bạn rằng bạn sẽ xử lý hoàn hảo tất cả các lỗi trên mà không bỏ sót bất kỳ lỗi nào. 
+công việc quá nhiều tôi tin bạn sẽ hoàn thành tốt mà ko hề có 1 sai sót nào.
+hãy sửa các list còn lại trong app theo thiết kế list mã nhập nhanh, list đơn bán, list đơn sửa, list chốt quỹ, list kho, list hàng chờ xác nhận...cho đồng bộ và thống nhất giao diện app.
+đơn sửa tôi thấy sửa xong thì chỉ hiện yêu cầu duyệt giao máy cho khách chứ ko có trạng thái giao máy cho khách.hãy thêm trạng thái giao máy cho khách vào trong chi tiết đơn sửa.sau đó mới tới trạng thái duyệt( để nếu thiếu chi phí hay có gì cần sửa đổi thì quản lý hay chủ shop cập nhật trước khi ghi giữ liệu tài chính và các dữ liệu khác tránh sai sót)
+trong quản lý đối tác list đối tác có số liệu công nợ  nhưng trong trang công nợ thì ko có số liệu, hay là ko có trang công nợ cho đối tác sửa chữa?số liệu công nợ của đối tác sửa chữa không thấy. bạn hãy kiểm tra lại xem tab "ĐỐI TÁC SỬA CHỮA" trong "QUẢN LÝ ĐỐI TÁC" có liên kết với trang "QUẢN LÝ CÔNG NỢ" các thông tin tài chính có đồng bộ với nhau không?có lưu chi phí hay thu chi trong chốt quỹ hay quản lý tài chính không? khi tôi thanh toán công nợ cho đối tác sửa chữa thì các số liệu có được cập nhật đúng không?      và sửa lỗi nhập tiền trong thanh toán công nợ cho đối tác sửa chữa bị lỗi tự nhân x1000
 
-
-
-
-
-
-
-
-
-
-
+tôi muốn khi giao máy xong chưa ghi số liệu và chuyển qua trạng thái duyệt thì có thể sửa lại các thông tin về chi phí dịch vụ, linh kiện thay thế... nếu có sai sót. khi duyet thì mới ghi nhận các số liệu tài chính liên quan. hãy xử lý triệt để.
+"MÃ NHẬP NHANH" list mã nhập nhanh khi bấm vào sửa thông tin báo lỗi chữ vàng nền đỏ:  drop down : ' item == null......
 
 
 

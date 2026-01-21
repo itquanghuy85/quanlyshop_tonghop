@@ -730,7 +730,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                   items: const [
                     DropdownMenuItem(value: null, child: Text('Chưa chọn')),
                     DropdownMenuItem(value: 'MỚI', child: Text('MỚI - Mới 100%')),
-                    DropdownMenuItem(value: '99', child: Text('99 - Like New')),
+                    DropdownMenuItem(value: '99', child: Text('99 - 99')),
                     DropdownMenuItem(value: 'KHÁC', child: Text('KHÁC')),
                   ],
                   onChanged: (val) => setState(() => _conditionCtrl.text = val ?? ''),
