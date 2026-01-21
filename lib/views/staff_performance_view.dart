@@ -108,6 +108,15 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
@@ -121,8 +130,9 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             color: Colors.white,
           ),
         ),
-        backgroundColor: AppColors.primary,
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           // Nút in bảng lương

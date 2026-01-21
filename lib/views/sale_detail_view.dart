@@ -918,9 +918,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       backgroundColor: _backgroundColor,
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [_primaryColor, _primaryColor.withOpacity(0.7)],
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),

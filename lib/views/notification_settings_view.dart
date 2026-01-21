@@ -105,11 +105,20 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
       appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         title: const Text(
           "CÀI ĐẶT THÔNG BÁO",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
         ),
-        backgroundColor: const Color(0xFF2962FF),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.white,
       ),

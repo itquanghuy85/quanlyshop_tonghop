@@ -1041,9 +1041,19 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       return Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
           title: const Text("TẠO ĐƠN BÁN HÀNG"),
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
         ),
         body: const Center(
           child: Text(
@@ -1058,9 +1068,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.success, AppColors.success.withOpacity(0.7)],
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1068,6 +1078,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        elevation: 0,
         title: Tooltip(
           message: widget.editSale != null
               ? "Chỉnh sửa thông tin đơn bán hàng"

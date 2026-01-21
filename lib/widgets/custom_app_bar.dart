@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 
-/// Widget AppBar và TabBar - Thiết kế Compact & Modern
+/// Widget AppBar và TabBar - Thiết kế Compact & Modern với Gradient
 class CustomAppBar {
   CustomAppBar._();
 
@@ -18,6 +18,17 @@ class CustomAppBar {
   static const Color kPrimaryLight = Color(0xFF42A5F5);
   static const Color kPrimaryDark = Color(0xFF1565C0);
   
+  // ========== GRADIENT COLORS ==========
+  static const Color kGradientStart = Color(0xFF6A1B9A); // Purple 800
+  static const Color kGradientEnd = Color(0xFF9C27B0);   // Purple 500
+  
+  /// Default gradient for AppBar
+  static const LinearGradient kDefaultGradient = LinearGradient(
+    colors: [kGradientStart, kGradientEnd],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
   static const Color kAccentGreen = Color(0xFF43A047);
   static const Color kAccentOrange = Color(0xFFFB8C00);
   static const Color kAccentRed = Color(0xFFE53935);
@@ -29,7 +40,7 @@ class CustomAppBar {
   static const Color kTextSecondary = Color(0xFF616161);
   static const Color kDivider = Color(0xFFEEEEEE);
 
-  /// AppBar CLEAN - Nền trắng, chữ tối
+  /// AppBar với Gradient - Modern style
   static PreferredSizeWidget build({
     required String title,
     String? subtitle,
@@ -43,9 +54,47 @@ class CustomAppBar {
     double? elevation,
     VoidCallback? onBackPressed,
     SystemUiOverlayStyle? systemOverlayStyle,
+    bool useGradient = true, // Mặc định dùng gradient
   }) {
-    final bgColor = backgroundColor ?? kSurfaceWhite;
     final accent = accentColor ?? kPrimaryColor;
+    
+    // Nếu dùng gradient
+    if (useGradient) {
+      return AppBar(
+        toolbarHeight: kAppBarHeight,
+        elevation: elevation ?? kAppBarElevation,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        centerTitle: centerTitle,
+        automaticallyImplyLeading: showBackButton,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: kDefaultGradient),
+        ),
+        leading: leading ?? (showBackButton && onBackPressed != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_rounded, size: 20, color: Colors.white),
+                onPressed: onBackPressed,
+              )
+            : null),
+        title: _buildTitleWhite(title, subtitle),
+        actions: actions != null
+            ? [
+                ...actions.map((a) => Theme(
+                  data: ThemeData(iconTheme: const IconThemeData(color: Colors.white)),
+                  child: a,
+                )),
+                const SizedBox(width: 4),
+              ]
+            : null,
+        bottom: bottom,
+      );
+    }
+    
+    // Nền sáng - chữ tối (legacy style)
+    final bgColor = backgroundColor ?? kSurfaceWhite;
     final isLight = bgColor.computeLuminance() > 0.5;
     final fgColor = isLight ? kTextPrimary : Colors.white;
     
@@ -156,7 +205,7 @@ class CustomAppBar {
     );
   }
 
-  /// AppBar với Tabs - Clean style
+  /// AppBar với Tabs - Gradient style
   static PreferredSizeWidget buildWithTabs({
     required String title,
     String? subtitle,
@@ -167,9 +216,49 @@ class CustomAppBar {
     bool showBackButton = true,
     bool isScrollable = false,
     VoidCallback? onBackPressed,
+    bool useGradient = true,
   }) {
     final accent = accentColor ?? kPrimaryColor;
     
+    // Gradient style
+    if (useGradient) {
+      return AppBar(
+        toolbarHeight: kAppBarHeight,
+        elevation: kAppBarElevation,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        automaticallyImplyLeading: showBackButton,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: kDefaultGradient),
+        ),
+        leading: showBackButton && onBackPressed != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_rounded, size: 20, color: Colors.white),
+                onPressed: onBackPressed,
+              )
+            : null,
+        title: _buildTitleWhite(title, subtitle),
+        actions: actions != null
+            ? [
+                ...actions.map((a) => Theme(
+                  data: ThemeData(iconTheme: const IconThemeData(color: Colors.white)),
+                  child: a,
+                )),
+                const SizedBox(width: 8),
+              ]
+            : null,
+        bottom: CustomTabBar.buildGradient(
+          controller: tabController,
+          tabs: tabs,
+          isScrollable: isScrollable,
+        ),
+      );
+    }
+    
+    // Legacy white style
     return AppBar(
       toolbarHeight: kAppBarHeight,
       elevation: kAppBarElevation,
@@ -254,6 +343,46 @@ class CustomAppBar {
   }
 
   // ========== PRIVATE HELPERS ==========
+  
+  /// Build title for gradient (white text)
+  static Widget _buildTitleWhite(String title, String? subtitle) {
+    if (subtitle == null) {
+      return Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: kTitleFontSize,
+          color: Colors.white,
+          letterSpacing: -0.3,
+        ),
+      );
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: kTitleFontSize,
+            color: Colors.white,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            fontSize: kSubtitleFontSize,
+            fontWeight: FontWeight.w400,
+            color: Colors.white70,
+          ),
+        ),
+      ],
+    );
+  }
   
   static Widget _buildTitle(String title, String? subtitle, Color titleColor, Color accentColor) {
     if (subtitle == null) {
@@ -364,6 +493,39 @@ class CustomTabBar {
           labelPadding: const EdgeInsets.symmetric(horizontal: 12),
           tabs: tabs,
         ),
+      ),
+    );
+  }
+
+  /// TabBar cho Gradient AppBar (text trắng)
+  static PreferredSizeWidget buildGradient({
+    required TabController controller,
+    required List<Tab> tabs,
+    bool isScrollable = false,
+    EdgeInsetsGeometry? padding,
+  }) {
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(CustomAppBar.kTabBarHeight),
+      child: TabBar(
+        controller: controller,
+        isScrollable: isScrollable,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white70,
+        labelStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w400,
+          fontSize: 12,
+        ),
+        indicatorSize: TabBarIndicatorSize.label,
+        indicatorWeight: 2,
+        indicatorColor: Colors.white,
+        dividerColor: Colors.transparent,
+        padding: padding ?? const EdgeInsets.symmetric(horizontal: 4),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+        tabs: tabs,
       ),
     );
   }

@@ -82,9 +82,19 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.partner.name),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: Text(widget.partner.name, style: const TextStyle(color: Colors.white)),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
             onPressed: () async {
@@ -103,9 +113,9 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
         ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppColors.onPrimary,
-          labelColor: AppColors.onPrimary,
-          unselectedLabelColor: AppColors.onPrimary.withOpacity(0.7),
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
           tabs: const [
             Tab(text: 'ĐƠN ĐÃ GỬI'),
             Tab(text: 'THANH TOÁN'),

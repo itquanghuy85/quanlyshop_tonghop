@@ -251,11 +251,21 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: Text(
-          "NHẬP KHO SIÊU TỐC",
-          style: AppTextStyles.headline6.copyWith(fontWeight: FontWeight.bold),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
         ),
-        backgroundColor: AppColors.surface,
+        title: const Text(
+          "NHẬP KHO SIÊU TỐC",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: true,
         bottom: TabBar(
@@ -265,9 +275,9 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
             Tab(icon: Icon(Icons.qr_code_scanner), text: "Scan QR"),
             Tab(icon: Icon(Icons.inventory), text: "Batch"),
           ],
-          labelColor: const Color(0xFF2962FF),
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xFF2962FF),
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
         ),
         actions: [
           IconButton(

@@ -535,9 +535,9 @@ class _RevenueViewState extends State<RevenueView>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.primary, AppColors.primary.withOpacity(0.7)],
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -545,6 +545,7 @@ class _RevenueViewState extends State<RevenueView>
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

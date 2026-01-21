@@ -785,9 +785,19 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('KIỂM KHO NHANH'),
-        backgroundColor: const Color(0xFF2962FF),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text('KIỂM KHO NHANH', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           // Zone selector
           TextButton.icon(

@@ -1711,9 +1711,19 @@ class _InventoryViewState extends State<InventoryView>
       return Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
           title: const Text("QUẢN LÝ KHO TỔNG"),
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.onPrimary,
           automaticallyImplyLeading: true,
         ),
         body: const Center(

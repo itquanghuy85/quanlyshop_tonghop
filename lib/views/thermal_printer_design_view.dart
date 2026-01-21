@@ -95,12 +95,26 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
         title: const Text("CẤU HÌNH IN SIÊU CẤP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         automaticallyImplyLeading: true,
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
-          labelColor: const Color(0xFF2962FF),
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [Tab(text: "KẾT NỐI"), Tab(text: "MẪU TEM"), Tab(text: "HÓA ĐƠN")],
         ),
       ),

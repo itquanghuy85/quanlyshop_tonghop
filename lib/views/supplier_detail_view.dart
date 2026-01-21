@@ -76,11 +76,24 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.supplier.name),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: Text(widget.supplier.name, style: const TextStyle(color: Colors.white)),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
         bottom: TabBar(
           controller: _tab,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: 'Lịch sử nhập'),
             Tab(text: 'Công nợ'),

@@ -113,9 +113,18 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Chọn Shop để Xem'),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text('Chọn Shop để Xem', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         centerTitle: true,
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [

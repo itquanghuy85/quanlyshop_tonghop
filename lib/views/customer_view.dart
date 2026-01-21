@@ -248,9 +248,18 @@ class _CustomerListViewState extends State<CustomerListView> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        elevation: 2,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
         automaticallyImplyLeading: true,
         title: Text(
           _isSelectionMode 
@@ -258,23 +267,23 @@ class _CustomerListViewState extends State<CustomerListView> {
             : _showUnassignedOnly 
               ? "KHÁCH HÀNG CHƯA GÁN SHOP (${_customers.length})"
               : "HỆ THỐNG KHÁCH HÀNG (${_customers.length})", 
-          style: AppTextStyles.headline6.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.bold)
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
         ),
         actions: _isSelectionMode ? [
           IconButton(
-            icon: const Icon(Icons.close, color: AppColors.onPrimary),
+            icon: const Icon(Icons.close, color: Colors.white),
             onPressed: _cancelSelection,
             tooltip: "Hủy chọn",
           ),
           if (_isAdmin)
             IconButton(
-              icon: const Icon(Icons.delete_forever, color: AppColors.onPrimary),
+              icon: const Icon(Icons.delete_forever, color: Colors.white),
               onPressed: _isDeleting ? null : _deleteSelectedCustomers,
               tooltip: "Xóa các khách đã chọn",
             ),
         ] : [
           IconButton(
-            icon: Icon(_showUnassignedOnly ? Icons.group : Icons.group_off, color: AppColors.onPrimary),
+            icon: Icon(_showUnassignedOnly ? Icons.group : Icons.group_off, color: Colors.white),
             onPressed: () {
               setState(() => _showUnassignedOnly = !_showUnassignedOnly);
               _refresh();

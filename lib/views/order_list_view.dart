@@ -611,12 +611,9 @@ class OrderListViewState extends State<OrderListView> {
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                const Color(0xFF2962FF),
-                const Color(0xFF2962FF).withOpacity(0.7),
-              ],
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -631,9 +628,9 @@ class OrderListViewState extends State<OrderListView> {
             ),
             Text(
               '$count máy • $pendingCount đang xử lý',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 11,
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white70,
               ),
             ),
           ],

@@ -132,14 +132,23 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        title: Text('QUẢN LÝ ĐỐI TÁC & NHÀ CUNG CẤP', style: AppTextStyles.headline6.copyWith(color: AppColors.onPrimary)),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        title: const Text('QUẢN LÝ ĐỐI TÁC & NHÀ CUNG CẤP', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         bottom: TabBar(
           controller: _tabController,
-          labelStyle: AppTextStyles.body2.copyWith(color: AppColors.onPrimary, fontWeight: FontWeight.w700),
-          unselectedLabelStyle: AppTextStyles.body2.copyWith(color: AppColors.onPrimary.withOpacity(0.7)),
-          indicatorColor: AppColors.onPrimary,
+          labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          unselectedLabelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: 'ĐỐI TÁC SỬA CHỮA'),
             Tab(text: 'NHÀ CUNG CẤP'),

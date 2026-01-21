@@ -194,9 +194,9 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
     return Scaffold(
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [const Color(0xFF2962FF), const Color(0xFF2962FF).withOpacity(0.7)],
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -204,6 +204,7 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

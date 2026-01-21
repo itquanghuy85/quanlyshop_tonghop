@@ -121,11 +121,20 @@ class _DebtAnalysisViewState extends State<DebtAnalysisView> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
-        title: Text(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        title: const Text(
           'Phân tích dữ liệu nợ',
-          style: AppTextStyles.headline5.copyWith(color: AppColors.onPrimary),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
         ),
         actions: [
           IconButton(

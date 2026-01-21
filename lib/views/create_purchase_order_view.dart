@@ -527,8 +527,19 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("TẠO ĐƠN NHẬP HÀNG"),
-        backgroundColor: Colors.orange,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text("TẠO ĐƠN NHẬP HÀNG", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: Form(
         key: _formKey,

@@ -1772,6 +1772,15 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(
+        flexibleSpace: _isSelectionMode ? null : Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         leading: _isSelectionMode
             ? IconButton(
                 icon: const Icon(Icons.close),
@@ -1790,9 +1799,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                 "KHO LINH KIỆN SỬA CHỮA",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-        backgroundColor: _isSelectionMode ? Colors.red.shade700 : _primaryColor,
+        backgroundColor: _isSelectionMode ? Colors.red.shade700 : Colors.transparent,
         foregroundColor: Colors.white,
-        elevation: 2,
+        elevation: 0,
         automaticallyImplyLeading: !_isSelectionMode,
         actions: _isSelectionMode
             ? [

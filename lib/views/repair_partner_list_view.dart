@@ -111,7 +111,19 @@ class _RepairPartnerListViewState extends State<RepairPartnerListView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("ĐỐI TÁC SỬA CHỮA", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text("ĐỐI TÁC SỬA CHỮA", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),

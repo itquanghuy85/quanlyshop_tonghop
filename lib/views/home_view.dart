@@ -1437,13 +1437,23 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: AppColors.surface,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
           elevation: 0,
           title: Row(
             children: [
               const Icon(
                 Icons.store_rounded,
-                color: AppColors.primary,
+                color: Colors.white,
                 size: 22,
               ),
               const SizedBox(width: 8),
@@ -1451,7 +1461,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 child: Text(
                   _getTabTitle(_currentIndex),
                   style: AppTextStyles.headline6.copyWith(
-                    color: AppColors.onSurface,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -1468,8 +1478,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 icon: Icon(
                   Icons.notifications,
                   color: _notificationWorking
-                      ? AppColors.success
-                      : AppColors.secondary,
+                      ? Colors.greenAccent
+                      : Colors.white70,
                 ),
                 tooltip: _notificationWorking
                     ? 'Thông báo (đang hoạt động)'
@@ -1485,7 +1495,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
               icon: const Icon(
                 Icons.qr_code_scanner_rounded,
-                color: AppColors.primary,
+                color: Colors.white,
               ),
             ),
             IconButton(
@@ -1497,7 +1507,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
               icon: const Icon(
                 Icons.search,
-                color: AppColors.primary,
+                color: Colors.white,
                 size: 28,
               ),
               tooltip: 'Tìm kiếm toàn app',

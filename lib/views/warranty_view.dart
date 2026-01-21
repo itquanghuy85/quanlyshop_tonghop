@@ -105,8 +105,17 @@ class _WarrantyViewState extends State<WarrantyView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Text("SIÊU TRUNG TÂM BẢO HÀNH", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        elevation: 0, backgroundColor: const Color(0xFF2962FF), foregroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text("SIÊU TRUNG TÂM BẢO HÀNH", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+        elevation: 0, backgroundColor: Colors.transparent, foregroundColor: Colors.white,
         automaticallyImplyLeading: true,
         actions: [IconButton(onPressed: _loadAllWarranty, icon: const Icon(Icons.refresh_rounded, color: Colors.white))],
       ),

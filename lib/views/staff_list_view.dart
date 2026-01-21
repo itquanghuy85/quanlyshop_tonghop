@@ -890,6 +890,18 @@ class _StaffListViewState extends State<StaffListView> {
     if (!_hasManageStaffAccess && !_isSuperAdmin) {
       return Scaffold(
         appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
           title: const Text("QUẢN LÝ NHÂN VIÊN"),
           automaticallyImplyLeading: true,
         ),

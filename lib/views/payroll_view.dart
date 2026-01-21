@@ -300,7 +300,21 @@ class _PayrollViewState extends State<PayrollView> {
   Widget build(BuildContext context) {
     if (!_hasPermission) {
       return Scaffold(
-        appBar: AppBar(title: const Text('BẢNG LƯƠNG')),
+        appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          title: const Text('BẢNG LƯƠNG'),
+        ),
         body: const Center(
           child: Text(
             "Bạn không có quyền truy cập tính năng này",
@@ -312,7 +326,22 @@ class _PayrollViewState extends State<PayrollView> {
 
     final summary = _calc();
     return Scaffold(
-      appBar: AppBar(title: const Text('BẢNG LƯƠNG'), automaticallyImplyLeading: true),
+      appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('BẢNG LƯƠNG'),
+        automaticallyImplyLeading: true,
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(

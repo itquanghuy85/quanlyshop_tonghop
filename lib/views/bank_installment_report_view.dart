@@ -220,11 +220,20 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
       appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         title: const Text(
           'THỐNG KÊ TRẢ GÓP NH',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
         ),
-        backgroundColor: Colors.indigo,
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [

@@ -154,9 +154,19 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PHIẾU TIẾP NHẬN SỬA CHỮA'),
-        backgroundColor: Colors.blue,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('PHIẾ́U TIẾ́P NHẬN SỬa CHỮa'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

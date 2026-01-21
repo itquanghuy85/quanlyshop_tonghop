@@ -279,6 +279,18 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
     if (!_hasPermission) {
       return Scaffold(
         appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
           title: const Text("CHẤM CÔNG NHÂN VIÊN"),
         ),
         body: Center(
@@ -294,9 +306,9 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
       backgroundColor: AppColors.background,
       appBar: AppBar(
         flexibleSpace: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.teal, Colors.teal.withOpacity(0.7)],
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -304,6 +316,7 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

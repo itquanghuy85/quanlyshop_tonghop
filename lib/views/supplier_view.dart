@@ -368,14 +368,25 @@ class _SupplierViewState extends State<SupplierView> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
         title: Row(
           children: [
-            const Icon(Icons.business_center, color: AppColors.onPrimary, size: 28),
+            const Icon(Icons.business_center, color: Colors.white, size: 28),
             const SizedBox(width: 12),
-            Text("QUẢN LÝ NHÀ CUNG CẤP", style: AppTextStyles.headline6.copyWith(color: AppColors.onPrimary)),
+            Text("QUẢN LÝ NHÀ CUNG CẤP", style: AppTextStyles.headline6.copyWith(color: Colors.white)),
           ],
         ),
-        foregroundColor: AppColors.onPrimary,
         automaticallyImplyLeading: true,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(80),

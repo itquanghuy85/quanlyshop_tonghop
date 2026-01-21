@@ -101,7 +101,19 @@ class _PayrollSettingsViewState extends State<PayrollSettingsView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: AppBar(
-        title: const Text("CÀI ĐẶT LƯƠNG & HOA HỒNG", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text("CÀI ĐẶT LƯƠNG & HOA HỒNG", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           TextButton.icon(
             onPressed: _save,

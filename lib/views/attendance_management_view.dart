@@ -211,8 +211,17 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('THEO DÕI CHẤM CÔNG', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: AppColors.primary,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text('THEO DÕI CHẤM CÔNG', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
