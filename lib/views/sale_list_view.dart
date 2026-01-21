@@ -20,8 +20,14 @@ class SaleListView extends StatefulWidget {
 
 class _SaleListViewState extends State<SaleListView> {
   final db = DBHelper();
+  final ScrollController _scrollController = ScrollController();
   List<SaleOrder> _sales = [];
+  List<SaleOrder> _allLoadedSales = []; // Cache for filtering
   bool _loading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _currentOffset = 0;
+  static const int _pageSize = 30;
   String _search = "";
 
   // Filter states
@@ -29,6 +35,12 @@ class _SaleListViewState extends State<SaleListView> {
   String _paymentStatusFilter = 'all'; // all, paid, debt
   DateTime? _customStartDate;
   DateTime? _customEndDate;
+  
+  /// Check if we need full data (for filtering)
+  bool get _needsFullData => 
+      _search.isNotEmpty || 
+      _timeFilter != 'all' || 
+      _paymentStatusFilter != 'all';
 
   @override
   void initState() {
@@ -37,6 +49,10 @@ class _SaleListViewState extends State<SaleListView> {
       _timeFilter = 'today';
     }
     _refresh();
+    
+    // Setup scroll listener for lazy loading
+    _scrollController.addListener(_onScroll);
+    
     // Listen to sales changes (e.g., when settlement is received)
     EventBus().on('sales_changed', (_) {
       if (mounted) _refresh();
@@ -45,19 +61,71 @@ class _SaleListViewState extends State<SaleListView> {
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     // EventBus auto-manages listeners via weak references
     super.dispose();
   }
+  
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 300) {
+      _loadMoreIfNeeded();
+    }
+  }
+  
+  Future<void> _loadMoreIfNeeded() async {
+    if (_isLoadingMore || !_hasMore || _needsFullData) return;
+    
+    setState(() => _isLoadingMore = true);
+    
+    try {
+      final newData = await db.getSalesPaged(_pageSize, _currentOffset);
+      if (mounted) {
+        setState(() {
+          _allLoadedSales.addAll(newData);
+          _sales = _allLoadedSales;
+          _currentOffset += _pageSize;
+          _isLoadingMore = false;
+          _hasMore = newData.length >= _pageSize;
+        });
+      }
+    } catch (e) {
+      debugPrint('SaleListView: Error loading more: $e');
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
+  }
 
   Future<void> _refresh() async {
-    setState(() => _loading = true);
-    final data = await db.getAllSales();
-
-    if (!mounted) return;
     setState(() {
-      _sales = data;
-      _loading = false;
+      _loading = true;
+      _currentOffset = 0;
+      _allLoadedSales = [];
+      _hasMore = true;
     });
+    
+    if (_needsFullData || widget.todayOnly) {
+      // Load all data for filtering
+      final data = await db.getAllSales();
+      if (!mounted) return;
+      setState(() {
+        _allLoadedSales = data;
+        _sales = data;
+        _loading = false;
+        _hasMore = false;
+      });
+    } else {
+      // Lazy load first page
+      final firstPage = await db.getSalesPaged(_pageSize, 0);
+      if (!mounted) return;
+      setState(() {
+        _allLoadedSales = firstPage;
+        _sales = firstPage;
+        _currentOffset = _pageSize;
+        _loading = false;
+        _hasMore = firstPage.length >= _pageSize;
+      });
+    }
   }
 
   List<SaleOrder> _applyFilters() {
@@ -539,9 +607,29 @@ class _SaleListViewState extends State<SaleListView> {
                           ),
                         )
                       : ListView.builder(
+                          controller: _scrollController,
                           padding: const EdgeInsets.all(8),
-                          itemCount: list.length,
+                          itemCount: list.length + (_isLoadingMore ? 1 : 0) + (!_hasMore && list.isNotEmpty ? 1 : 0),
                           itemBuilder: (ctx, i) {
+                            if (i >= list.length) {
+                              if (_isLoadingMore) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
+                              // End of list indicator
+                              return Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Center(
+                                  child: Text(
+                                    'Đã hiển thị ${list.length} đơn bán',
+                                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                  ),
+                                ),
+                              );
+                            }
+                            
                             final s = list[i];
                             final date = DateFormat('HH:mm - dd/MM/yy').format(
                               DateTime.fromMillisecondsSinceEpoch(s.soldAt),

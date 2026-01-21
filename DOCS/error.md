@@ -64,3 +64,44 @@ trang công nợ: khi trả nợ nhà cung cấp thì số liệu trong chốt q
 trang "cài đặt lịch làm việc: cài đặt lịch làm việc chưa được đồng bộ.( tab nhân viên và tab cài đặt chung). "lịch làm việc"-"ngày làm việc" khi bấm chọn ngày làm việc thì không lưu được(thoát ra vào lại thì ngày làm việc không được lưu). bạn hãy tạo 1 trang lưu thông tin toàn bộ cho quản lý và chủ shop theo giõi chấm công nhân viên.(đẹp- chuyên nghiệp- hiệu quả-đồng bộ)."lịch sử chấm công" đang bị trùng nội dung với "CHẤM CÔNG".
 kiểm tra chức năng của tất cả trong "TRUNG TÂM ĐỒNG BỘ" nội dung nào chưa đúng hay chưa hoạt động hãy sửa lại cho đúng và hoạt động ổn định.
 "QUẢN LÝ TÀI CHÍNH"khi bấm vào "tổng quan doanh thu" reload liên tục khi bấm vào." CHI TIẾT GIAO DỊCH" cũng bị reload liên tục.
+trong "TÀI CHÍNH ĐƠN SỬA" Tôi nhập 50.000 thì tự nhận là 50.000.000 hãy sửa lại cho đúng.
+list "DANH SÁCH MÁY SỬA" thu nhỏ cỡ chữ tiêu đề sản phẩm cho gọn.làm sao để hiện được nhiều đơn sửa hơn trong 1 trang.
+"BỘ LỌC CHỈ CHO CHỌN 1 TRẠNG THÁI" trong "DANH SÁCH MÁY SỬA" hãy cho phép chọn nhiều trạng thái cùng lúc.
+hiện tại trong đơn sửa hãy cho tôi 1 đề xuất để khi nhân viên bấm đã giao thì giữ liệu lưu vào 1 trạng thái tam thời để chờ quản lý duyệt trước khi chuyển sang trạng thái đã giao và khóa giao dịch. vào 1 list để quản lý duyệt.
+tôi không nhìn thấy nút chờ duyệt khi vào chi tiết đơn sửa của nhân viên.
+list đơn bán và các list khac hãy chỉnh suat tiêu đề sản phẩm thu nhỏ cỡ chữ giảm xuống cho gọn.
+"CHI TIẾT ĐƠN SỬA" thêm lối tắt vào "KHO LINH KIỆN SỬA CHỮA"(kho này đã tồn tại rồi) để dễ dàng kiểm tra linh kiện có trong kho.
+"Thêm dịch vụ" thêm lối tắt vào "ĐỐI TÁC SỬA CHỮA" để dễ dàng kiểm tra dịch vụ có trong danh mục.
+"THÊM MÃ NHẬP NHANH"-"Màu sắc" hãy thay đổi thanh dropdown thành chọn màu để dễ dàng chọn màu sắc hơn. đồng bộ với danh sách màu trong "NHẬP KHO MỚI"-tab "điện thoại"-"màu sắc" dropdown, 
+"THÔNG TIN KHÁC"-"nhà cung cấp "dropdown lấy từ danh sách nhà cung cấp("QUẢN LÝ ĐỐI TÁC" tab "NHÀ CUNG CẤP").
+Đồng bộ tương tự 73-74-75 với " THÊM MÃ NHẬP NHANH"- tab "Phụ kiện".
+kết nối dữ liệu của "nhập kho" "nhập kho nhanh" khi bấm "XÁC NHẬN NHẬP KHO" thì dữ liệu được lưu vào trang "HÀNG CHỜ XÁC NHẬN" và từ trang "HÀNG CHỜ XÁC NHẬN" bấm "XÁC NHẬN" thì dữ liệu được lưu vào kho chính và ghi nhận các giao dịch tài chính liên quan ( kể cả đã đầy đủ thông tin kế toán hay chưa đầy đủ thông tin kế toán).
+nhập điện thoại hay phụ kiện linh kiện đều phải qua hang chờ xác nhận mới vào kho chính.và mới ghi nhận số liệu tài chính liên quan.
+"HÀNG CHỜ XÁC NHẬN" -list hàng chờ. bấm vào báo lỗi chữ vàng nền đỏ:  drop down : ' item == null......(khi lấy dữ "liệu từ nhập kho nhanh") nhập kho thường cũng đồng bộ và phải xác nhận mới vào kho chính."NHẬP KHO MỚI" sửa lại nếu nhập đầy đủ thông tin cũng phải qua "HÀNG CHỜ XÁC NHẬN" mới vào kho chính và ghi nhận số liệu tài chính liên quan.( linh kiện và phụ kiện cũng phải qua hàng chờ xác nhận mới vào kho chính( nhập kho nhanh và nhập kho thường đều phải qua hàng chờ xác nhận mới vào kho chính và ghi nhận số liệu tài chính liên quan).    )
+thêm phương thuc thanh toán cho đối tác khi bấm vào "+ THÊM DỊCH VỤ"- "thêm dịch vụ từ đối tác sửa chữa" trong "CHI TIẾT ĐƠN SỬA". nhớ đồng bộ tài chính với "QUẢN LÝ ĐỐI TÁC"-"ĐỐI TÁC SỬA CHỮA".
+"cài đặt lịch làm viêc" tab "Nhân viên" lỗi trống báo "không có dữ liệu" dù đã có nhân viên.bấm tải lại thì mới lòa nhân viên ( vấn đề này liên quan đến tính lương nhân viên vì liên quan đến lịch làm việc của nhân viên )
+tôi thấy appbar của "KHO LINH KIỆN SỬA CHỮA" có màu nền là dải màu nhìn rất đẹp. bạn hãy áp dụng dải màu này cho tất cả các appbar trong toàn bộ app để đồng bộ giao diện.(dải màu nên kết hợp 2 màu cho đẹp hơn)
+"HÀNG CHỜ XÁC NHẬN" -list hàng chờ. bấm vào báo lỗi chữ vàng nền đỏ:  drop down : ' item == null......(khi lấy dữ "liệu từ nhập kho nhanh") nếu lấy dữ liệu từ "NHẬP KHO MỚI" thì ko bị lỗi.
+thay thế lối tắt khi bấm " NHẬP MỚI" vào trang "NHẬP KHO MỚI" thay vì vào trang nhập kho như hiện tại.
+appbar tất cả các trang đang không đồng bộ màu sắc. hãy đồng bộ tất cả appbar trong toàn bộ app với dải màu (dải màu nếu 2 hoặc 3 màu thì đẹp hơn).có lẽ do 1 số trang đang thiết lập themese thủ công(hãy xóa bỏ thủ công và chỉ sử dụng themese). hãy kiểm tra và sửa lại.( quan trọng)
+công nợ trong "ĐỐI TÁC SỬA CHỮA" chưa được ghi vào công nợ nhà cung cấp trong trang công nợ.
+"QUẢN L Ý ĐỐI TÁC" "NHÀ CUNG CẤP" và "ĐỐI TÁC SỬA CHỮA": SỬA LẠI thêm nút tìm kiếm theo tên nhà cung cấp và tên đối tác sửa chữa.thu gọn các cac nút chức năng cho gọn gàng hơn hiển thị được nhiều nhà cung cấp và đối tác sửa chữa hơn trong 1 trang.
+giảm tải cho app khi khởi động bằng cách load dữ liệu lười biếng (lazy loading) cho tất cả các list dài (vd: danh sách sản phẩm trong kho, danh sách đơn bán, danh sách đơn sửa, danh sách khách hàng, danh sách nhà cung cấp, danh sách đối tác sửa chữa, danh sách nhân viên...)khi mở app sau khi đăng nhập  load app lần đầu load quá lâu do phải load quá nhiều dữ liệu. hãy kiểm tra và sửa lại.đề xuất phương án tối ưu để load nhanh app khi khởi động xong mới load dữ liệu khi cần thiết.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+nhiều thông tin cần xử lý trước tiên đọc nọi dung cần thay đổi sau đó hãy tìm hiểu cặn kẽ logic và tính toán những điều cần thay đổi, một khi đã làm là hoàn thiện hoàn hảo luôn bạn có tự tin vào khả năng xử lý không hãy hứa danh dự với tôi bằng uy tin của mình để đảm bảo.

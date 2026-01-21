@@ -36,7 +36,12 @@ class OrderListViewState extends State<OrderListView> {
   StreamSubscription? _eventSubscription;
 
   List<Repair> _displayedRepairs = [];
+  List<Repair> _allLoadedRepairs = []; // Cache for filtering
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _currentOffset = 0;
+  static const int _pageSize = 30;
   String _currentSearch = "";
 
   // Date filter
@@ -49,11 +54,23 @@ class OrderListViewState extends State<OrderListView> {
   bool _filterPendingApproval = false; // Lọc đơn chờ duyệt giao
 
   bool get canDelete => widget.role == 'admin' || widget.role == 'owner';
+  
+  /// Check if we need full data (for filtering)
+  bool get _needsFullData => 
+      _currentSearch.isNotEmpty || 
+      _timeFilter != 'all' || 
+      _statusFilters.isNotEmpty ||
+      _filterPendingApproval ||
+      widget.statusFilter != null ||
+      widget.todayOnly;
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+    
+    // Setup scroll listener for lazy loading
+    _scrollController.addListener(_onScroll);
 
     // Listen for repairs_changed events to refresh list
     _eventSubscription = EventBus().stream.listen((event) {
@@ -69,25 +86,90 @@ class OrderListViewState extends State<OrderListView> {
   @override
   void dispose() {
     _eventSubscription?.cancel();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
   }
+  
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 300) {
+      _loadMoreIfNeeded();
+    }
+  }
+  
+  Future<void> _loadMoreIfNeeded() async {
+    if (_isLoadingMore || !_hasMore || _needsFullData) return;
+    
+    setState(() => _isLoadingMore = true);
+    
+    try {
+      final newData = await db.getRepairsPaged(_pageSize, _currentOffset);
+      if (mounted) {
+        setState(() {
+          _allLoadedRepairs.addAll(newData);
+          _displayedRepairs = _allLoadedRepairs;
+          _currentOffset += _pageSize;
+          _isLoadingMore = false;
+          _hasMore = newData.length >= _pageSize;
+        });
+      }
+    } catch (e) {
+      debugPrint('OrderListView: Error loading more: $e');
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
+  }
 
   Future<void> _loadInitialData() async {
-    setState(() => _isLoading = true);
-    final all = await db.getAllRepairs();
-    if (!mounted) return;
     setState(() {
-      _displayedRepairs = _applyFilters(all);
-      _isLoading = false;
+      _isLoading = true;
+      _currentOffset = 0;
+      _allLoadedRepairs = [];
+      _hasMore = true;
     });
+    
+    if (_needsFullData) {
+      // Load all data for filtering
+      final all = await db.getAllRepairs();
+      if (!mounted) return;
+      setState(() {
+        _allLoadedRepairs = all;
+        _displayedRepairs = _applyFilters(all);
+        _isLoading = false;
+        _hasMore = false;
+      });
+    } else {
+      // Lazy load first page
+      final firstPage = await db.getRepairsPaged(_pageSize, 0);
+      if (!mounted) return;
+      setState(() {
+        _allLoadedRepairs = firstPage;
+        _displayedRepairs = firstPage;
+        _currentOffset = _pageSize;
+        _isLoading = false;
+        _hasMore = firstPage.length >= _pageSize;
+      });
+    }
   }
 
   void _onSearch(String val) async {
     setState(() => _currentSearch = val);
-    final all = await db.getAllRepairs();
+    
+    if (val.isEmpty && !_needsFullData) {
+      // Back to lazy loading mode
+      _loadInitialData();
+      return;
+    }
+    
+    // Need full data for search
+    if (_allLoadedRepairs.isEmpty || _hasMore) {
+      final all = await db.getAllRepairs();
+      _allLoadedRepairs = all;
+      _hasMore = false;
+    }
+    
     setState(() {
-      final filtered = _applyFilters(all);
+      final filtered = _applyFilters(_allLoadedRepairs);
       if (val.isEmpty) {
         _displayedRepairs = filtered;
       } else {
@@ -754,10 +836,30 @@ class OrderListViewState extends State<OrderListView> {
                 : RefreshIndicator(
                     onRefresh: _loadInitialData,
                     child: ListView.builder(
+                      controller: _scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _displayedRepairs.length,
-                      itemBuilder: (ctx, i) =>
-                          _buildRepairCard(_displayedRepairs[i], i + 1),
+                      itemCount: _displayedRepairs.length + (_isLoadingMore ? 1 : 0) + (!_hasMore && _displayedRepairs.isNotEmpty ? 1 : 0),
+                      itemBuilder: (ctx, i) {
+                        if (i < _displayedRepairs.length) {
+                          return _buildRepairCard(_displayedRepairs[i], i + 1);
+                        }
+                        if (_isLoadingMore) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        // End of list indicator
+                        return Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Center(
+                            child: Text(
+                              'Đã hiển thị ${_displayedRepairs.length} đơn sửa',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
           ),

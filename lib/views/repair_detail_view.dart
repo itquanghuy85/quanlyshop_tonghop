@@ -1939,17 +1939,53 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           repairContent: service.serviceName,
         );
 
-        // Ghi nhận thanh toán đối tác nếu không phải CÔNG NỢ
-        if (service.paymentMethod != null &&
-            service.paymentMethod != 'CÔNG NỢ') {
-          final paymentService = RepairPartnerPaymentService();
-          await paymentService.addPayment(
-            partnerId: service.partnerId!,
-            amount: service.cost,
-            paymentMethod: service.paymentMethod!,
-            note:
-                'TT dịch vụ: ${service.serviceName} - Đơn sửa #${r.firestoreId}',
-          );
+        // Ghi nhận thanh toán hoặc công nợ đối tác
+        if (service.paymentMethod != null) {
+          if (service.paymentMethod != 'CÔNG NỢ') {
+            // Thanh toán ngay → ghi nhận payment
+            final paymentService = RepairPartnerPaymentService();
+            await paymentService.addPayment(
+              partnerId: service.partnerId!,
+              amount: service.cost,
+              paymentMethod: service.paymentMethod!,
+              note:
+                  'TT dịch vụ: ${service.serviceName} - Đơn sửa #${r.firestoreId}',
+            );
+          } else {
+            // CÔNG NỢ → tạo debt record vào bảng debts để hiện trong trang Quản lý công nợ
+            final shopId = await UserService.getCurrentShopId() ?? '';
+            final now = DateTime.now().millisecondsSinceEpoch;
+            final debtFId = 'debt_partner_${now}_${service.partnerId}';
+            final debtData = {
+              'firestoreId': debtFId,
+              'type': 'SHOP_OWES', // Shop nợ đối tác
+              'personName': service.partnerName ?? 'Đối tác sửa chữa',
+              'phone': '',
+              'totalAmount': service.cost,
+              'paidAmount': 0,
+              'note': 'Công nợ đối tác: ${service.serviceName} - Đơn sửa ${r.model} (${r.customerName})',
+              'status': 'ACTIVE',
+              'createdAt': now,
+              'shopId': shopId,
+              'linkedId': r.firestoreId, // Liên kết với đơn sửa
+              'relatedPartId': service.partnerId.toString(), // ID đối tác
+              'deleted': 0,
+              'isSynced': 0,
+            };
+            final debtId = await db.insertDebt(debtData);
+            
+            // Sync debt to cloud
+            await SyncOrchestrator().enqueue(
+              entityType: SyncEntityType.debt,
+              entityId: debtId,
+              firestoreId: debtFId,
+              operation: SyncOperation.create,
+              data: debtData,
+            );
+            
+            debugPrint('✅ Created partner debt: $debtFId for ${service.partnerName}');
+            EventBus().emit('debts_changed');
+          }
         }
       }
 

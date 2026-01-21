@@ -2137,6 +2137,27 @@ class DBHelper {
       (await database).delete('repairs', where: 'id = ?', whereArgs: [id]);
   Future<int> deleteRepairByFirestoreId(String fId) async => (await database)
       .delete('repairs', where: 'firestoreId = ?', whereArgs: [fId]);
+  
+  /// Get repairs with pagination support for lazy loading
+  /// Returns [limit] repairs starting from [offset], ordered by createdAt DESC
+  Future<List<Repair>> getRepairsPaged(int limit, int offset) async {
+    final maps = await (await database).query(
+      'repairs',
+      orderBy: 'createdAt DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return List.generate(maps.length, (i) => Repair.fromMap(maps[i]));
+  }
+
+  /// Get total count of repairs for pagination
+  Future<int> getRepairsCount() async {
+    final result = await (await database).rawQuery(
+      'SELECT COUNT(*) as count FROM repairs',
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
   Future<List<Repair>> getAllRepairs() async {
     final maps = await (await database).query(
       'repairs',
@@ -2206,6 +2227,27 @@ class DBHelper {
       (await database).delete('sales', where: 'id = ?', whereArgs: [id]);
   Future<int> deleteSaleByFirestoreId(String fId) async => (await database)
       .delete('sales', where: 'firestoreId = ?', whereArgs: [fId]);
+
+  /// Get sales with pagination support for lazy loading
+  /// Returns [limit] sales starting from [offset], ordered by soldAt DESC
+  Future<List<SaleOrder>> getSalesPaged(int limit, int offset) async {
+    final maps = await (await database).query(
+      'sales',
+      orderBy: 'soldAt DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return List.generate(maps.length, (i) => SaleOrder.fromMap(maps[i]));
+  }
+
+  /// Get total count of sales for pagination
+  Future<int> getSalesCount() async {
+    final result = await (await database).rawQuery(
+      'SELECT COUNT(*) as count FROM sales',
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
   Future<List<SaleOrder>> getAllSales() async {
     final maps = await (await database).query('sales', orderBy: 'soldAt DESC');
     final sales = List.generate(maps.length, (i) => SaleOrder.fromMap(maps[i]));
@@ -2337,6 +2379,52 @@ class DBHelper {
       orderBy: 'createdAt DESC',
     );
     return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
+  }
+
+  /// Get products with pagination support for lazy loading
+  /// Returns [limit] products starting from [offset], ordered by createdAt DESC
+  Future<List<Product>> getProductsPaged(int limit, int offset, {String? type, bool inStockOnly = false}) async {
+    String? where;
+    List<dynamic>? whereArgs;
+    
+    if (type != null && inStockOnly) {
+      where = 'type = ? AND quantity > 0 AND (status = 1 OR status IS NULL)';
+      whereArgs = [type];
+    } else if (type != null) {
+      where = 'type = ?';
+      whereArgs = [type];
+    } else if (inStockOnly) {
+      where = 'quantity > 0 AND (status = 1 OR status IS NULL)';
+    }
+    
+    final maps = await (await database).query(
+      'products',
+      where: where,
+      whereArgs: whereArgs,
+      orderBy: 'createdAt DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
+  }
+
+  /// Get total count of products for pagination
+  Future<int> getProductsCount({String? type, bool inStockOnly = false}) async {
+    String query = 'SELECT COUNT(*) as count FROM products';
+    List<dynamic> args = [];
+    
+    if (type != null && inStockOnly) {
+      query += ' WHERE type = ? AND quantity > 0 AND (status = 1 OR status IS NULL)';
+      args.add(type);
+    } else if (type != null) {
+      query += ' WHERE type = ?';
+      args.add(type);
+    } else if (inStockOnly) {
+      query += ' WHERE quantity > 0 AND (status = 1 OR status IS NULL)';
+    }
+    
+    final result = await (await database).rawQuery(query, args);
+    return Sqflite.firstIntValue(result) ?? 0;
   }
 
   Future<List<Product>> getAllProducts() async {
