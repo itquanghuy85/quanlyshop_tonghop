@@ -116,9 +116,8 @@ hãy sửa các list còn lại trong app theo thiết kế list mã nhập nhan
 trong quản lý đối tác list đối tác có số liệu công nợ  nhưng trong trang công nợ thì ko có số liệu, hay là ko có trang công nợ cho đối tác sửa chữa?số liệu công nợ của đối tác sửa chữa không thấy. bạn hãy kiểm tra lại xem tab "ĐỐI TÁC SỬA CHỮA" trong "QUẢN LÝ ĐỐI TÁC" có liên kết với trang "QUẢN LÝ CÔNG NỢ" các thông tin tài chính có đồng bộ với nhau không?có lưu chi phí hay thu chi trong chốt quỹ hay quản lý tài chính không? khi tôi thanh toán công nợ cho đối tác sửa chữa thì các số liệu có được cập nhật đúng không?      và sửa lỗi nhập tiền trong thanh toán công nợ cho đối tác sửa chữa bị lỗi tự nhân x1000
 
 tôi muốn khi giao máy xong chưa ghi số liệu và chuyển qua trạng thái duyệt thì có thể sửa lại các thông tin về chi phí dịch vụ, linh kiện thay thế... nếu có sai sót. khi duyet thì mới ghi nhận các số liệu tài chính liên quan. hãy xử lý triệt để.
-"MÃ NHẬP NHANH" list mã nhập nhanh khi bấm vào sửa thông tin báo lỗi chữ vàng nền đỏ:  drop down : ' item == null......
-
-
-
-
+hãy sửa các list còn lại trong app theo thiết kế list mã nhập nhanh, list đơn bán, list đơn sửa, list chốt quỹ, list kho, list hàng chờ xác nhận...cho đồng bộ và thống nhất giao diện app.
+list hàng trong kho thấy đên 01/01 8h00 là ko đúng tôi nhập kho lúc 17h00 ngày 21/01
+khi tôi thanh toán nợ trong trang công nợ đối tác sửa chữa thì không lưu thông tin vào chốt quỹ và nhật ký tài chính.
+Trong chi tiết đơn sửa- "Kho LK" hãy trỏ tới trang "phụ tùng" trong "QUẢN LÝ KHO"
 nhiều thông tin cần xử lý trước tiên đọc nọi dung cần thay đổi sau đó hãy tìm hiểu cặn kẽ logic và tính toán những điều cần thay đổi, một khi đã làm là hoàn thiện hoàn hảo luôn bạn có tự tin vào khả năng xử lý không hãy hứa danh dự với tôi bằng uy tin của mình để đảm bảo.

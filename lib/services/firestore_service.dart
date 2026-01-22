@@ -10,6 +10,7 @@ import '../models/quick_input_code_model.dart';
 import 'user_service.dart';
 import 'notification_service.dart';
 import 'encryption_service.dart';
+import 'money_validation_service.dart';
 
 class FirestoreService {
   static final _db = FirebaseFirestore.instance;
@@ -46,6 +47,13 @@ class FirestoreService {
   // --- QUẢN LÝ ĐƠN NHẬP HÀNG (MỚI BỔ SUNG ĐỂ SỬA LỖI BUILD) ---
   static Future<String?> addPurchaseOrder(PurchaseOrder order) async {
     try {
+      // --- MONEY VALIDATION ---
+      try {
+        MoneyValidationService.validateAmount(order.totalAmount);
+      } catch (e) {
+        debugPrint('❌ addPurchaseOrder: MoneyValidationService failed: $e');
+        return null;
+      }
       final shopId = await UserService.getCurrentShopId();
       final docId =
           order.firestoreId ?? "po_${order.createdAt}_${order.orderCode}";
@@ -157,6 +165,14 @@ class FirestoreService {
   // --- CÁC HÀM CỐ LÕI KHÁC (KHÔNG THAY ĐỔI LOGIC) ---
   static Future<String?> addRepair(Repair r) async {
     try {
+      // --- MONEY VALIDATION ---
+      try {
+        MoneyValidationService.validateAmount(r.price);
+        MoneyValidationService.validateAmount(r.cost);
+      } catch (e) {
+        debugPrint('❌ addRepair: MoneyValidationService failed: $e');
+        return null;
+      }
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null && !UserService.isCurrentUserSuperAdmin()) {
         throw Exception(
@@ -188,6 +204,14 @@ class FirestoreService {
   static Future<void> upsertRepair(Repair r) async {
     if (r.firestoreId == null) return;
     try {
+      // --- MONEY VALIDATION ---
+      try {
+        MoneyValidationService.validateAmount(r.price);
+        MoneyValidationService.validateAmount(r.cost);
+      } catch (e) {
+        debugPrint('❌ upsertRepair: MoneyValidationService failed: $e');
+        return;
+      }
       final data = EncryptionService.encryptMap(r.toMap());
       await _db
           .collection('repairs')
@@ -232,12 +256,24 @@ class FirestoreService {
           'Không tìm thấy thông tin cửa hàng. Vui lòng đăng xuất và đăng nhập lại.',
         );
       }
-      if (s.totalPrice <= 0 || s.totalCost < 0) {
-        debugPrint(
-          '❌ addSale: invalid price - totalPrice=${s.totalPrice}, totalCost=${s.totalCost}',
+
+      // --- MONEY VALIDATION ---
+      try {
+        MoneyValidationService.validateSale(
+          totalPrice: s.totalPrice,
+          totalCost: s.totalCost,
+          discount: s.discount,
+          isInstallment: s.isInstallment,
+          downPayment: s.downPayment,
+          loanAmount: s.loanAmount,
+          loanAmount2: s.loanAmount2,
+          // products: ... (add if available)
         );
-        throw Exception('Số tiền bán hàng không hợp lệ');
+      } catch (e) {
+        debugPrint('❌ addSale: MoneyValidationService failed: $e');
+        return null;
       }
+
       final docId = s.firestoreId ?? "sale_${s.soldAt}";
       final docRef = _db.collection('sales').doc(docId);
       Map<String, dynamic> data = s.toMap();
@@ -269,6 +305,21 @@ class FirestoreService {
   static Future<void> updateSaleCloud(SaleOrder s) async {
     if (s.firestoreId == null) return;
     try {
+      // --- MONEY VALIDATION ---
+      try {
+        MoneyValidationService.validateSale(
+          totalPrice: s.totalPrice,
+          totalCost: s.totalCost,
+          discount: s.discount,
+          isInstallment: s.isInstallment,
+          downPayment: s.downPayment,
+          loanAmount: s.loanAmount,
+          loanAmount2: s.loanAmount2,
+        );
+      } catch (e) {
+        debugPrint('❌ updateSaleCloud: MoneyValidationService failed: $e');
+        return;
+      }
       final shopId = await UserService.getCurrentShopId();
       Map<String, dynamic> data = s.toMap();
       data['shopId'] = shopId;
@@ -292,6 +343,14 @@ class FirestoreService {
 
   static Future<String?> addProduct(Product p) async {
     try {
+      // --- MONEY VALIDATION ---
+      try {
+        MoneyValidationService.validateAmount(p.price);
+        MoneyValidationService.validateAmount(p.cost);
+      } catch (e) {
+        debugPrint('❌ addProduct: MoneyValidationService failed: $e');
+        return null;
+      }
       final shopId = await UserService.getCurrentShopId();
       final docId = p.firestoreId ?? "prod_${p.createdAt}";
       final docRef = _db.collection('products').doc(docId);
@@ -310,6 +369,14 @@ class FirestoreService {
   static Future<void> updateProductCloud(Product p) async {
     if (p.firestoreId == null) return;
     try {
+      // --- MONEY VALIDATION ---
+      try {
+        MoneyValidationService.validateAmount(p.price);
+        MoneyValidationService.validateAmount(p.cost);
+      } catch (e) {
+        debugPrint('❌ updateProductCloud: MoneyValidationService failed: $e');
+        return;
+      }
       final encryptedData = EncryptionService.encryptMap(p.toMap());
       await _db
           .collection('products')
@@ -376,6 +443,13 @@ class FirestoreService {
 
   static Future<void> addDebtCloud(Map<String, dynamic> debtData) async {
     try {
+      // --- MONEY VALIDATION ---
+      try {
+        MoneyValidationService.validateAmount(debtData['totalAmount'] ?? 0);
+      } catch (e) {
+        debugPrint('❌ addDebtCloud: MoneyValidationService failed: $e');
+        rethrow;
+      }
       final shopId = await UserService.getCurrentShopId();
       final String docId =
           debtData['firestoreId'] ??
@@ -401,6 +475,23 @@ class FirestoreService {
       final String docId =
           paymentData['firestoreId'] ??
           "pay_${paymentData['paidAt']}_${paymentData['debtId'] ?? 'debt'}";
+
+      // --- MONEY VALIDATION ---
+      try {
+        // Extract required fields for validation
+        final paymentAmount = paymentData['amount'] ?? 0;
+        final totalDebt = paymentData['totalDebt'] ?? 0;
+        final alreadyPaid = paymentData['alreadyPaid'] ?? 0;
+        MoneyValidationService.validateDebtPayment(
+          paymentAmount: paymentAmount,
+          totalDebt: totalDebt,
+          alreadyPaid: alreadyPaid,
+        );
+      } catch (e) {
+        debugPrint('❌ addDebtPaymentCloud: MoneyValidationService failed: $e');
+        return;
+      }
+
       paymentData['shopId'] = shopId;
       paymentData['firestoreId'] = docId;
       final encryptedData = EncryptionService.encryptMap(paymentData);

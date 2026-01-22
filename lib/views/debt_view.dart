@@ -249,6 +249,7 @@ class _DebtViewState extends State<DebtView>
                     final date = DateFormat(
                       'HH:mm - dd/MM/yyyy',
                     ).format(DateTime.fromMillisecondsSinceEpoch(p['paidAt']));
+                    
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(12),
