@@ -14,7 +14,6 @@ import '../controllers/fast_inventory_input_controller.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
 import '../services/repair_partner_service.dart';
-import '../services/supplier_payment_service.dart';
 import '../services/repair_partner_payment_service.dart';
 import '../services/user_service.dart';
 import '../widgets/validated_text_field.dart';
@@ -100,25 +99,59 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         _supplierProductPrices.addAll(prices);
       }
 
+      // Load debts for suppliers (SHOP_OWES type), filter deleted
+      // PHẢI load trước khi load payments vì cần map từ debt -> payment
+      final allDebts = await _db.getAllDebts();
+      _supplierDebts = allDebts.where((debt) {
+        final isDeleted = (debt['deleted'] ?? 0) == 1;
+        return debt['type'] == 'SHOP_OWES' && !isDeleted;
+      }).toList();
+
       // Load payments
       final partnerPaymentService = RepairPartnerPaymentService();
-      final supplierPaymentService = SupplierPaymentService();
       for (var partner in _repairPartners) {
         final payments = await partnerPaymentService.getPartnerPayments(partner.id!);
         _partnerPayments.addAll(payments);
       }
+      
+      // Load supplier payments từ debt_payments (thay vì supplier_payments)
+      // Vì thanh toán NCC đều đi qua PaymentIntent -> debt_payments
+      final allDebtPayments = await _db.getAllDebtPaymentsForSync();
       for (var supplier in _suppliers) {
-        final payments = await supplierPaymentService.getSupplierPayments(supplier.id!);
-        _supplierPayments.addAll(payments);
+        // Tìm các khoản thanh toán cho supplier này
+        // debt_payments chứa debtFirestoreId liên kết với debt, mà debt có personName = supplier.name
+        final supplierDebtIds = _supplierDebts
+            .where((d) => (d['personName'] ?? '').toString().toUpperCase() == supplier.name.toUpperCase())
+            .map((d) => d['firestoreId'] as String?)
+            .where((id) => id != null)
+            .toSet();
+        
+        // Cũng tìm các debtId local
+        final supplierDebtLocalIds = _supplierDebts
+            .where((d) => (d['personName'] ?? '').toString().toUpperCase() == supplier.name.toUpperCase())
+            .map((d) => d['id'] as int?)
+            .where((id) => id != null)
+            .toSet();
+        
+        for (var dp in allDebtPayments) {
+          final dpDebtFirestoreId = dp['debtFirestoreId'] as String?;
+          final dpDebtId = dp['debtId'] as int?;
+          
+          if ((dpDebtFirestoreId != null && supplierDebtIds.contains(dpDebtFirestoreId)) ||
+              (dpDebtId != null && supplierDebtLocalIds.contains(dpDebtId))) {
+            _supplierPayments.add(SupplierPayment(
+              id: dp['id'] as int?,
+              firestoreId: dp['firestoreId'] as String?,
+              supplierId: supplier.id!,
+              supplierName: supplier.name,
+              amount: dp['amount'] as int? ?? 0,
+              paymentMethod: dp['paymentMethod'] as String? ?? 'CASH',
+              paidAt: dp['paidAt'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+              note: dp['note'] as String?,
+            ));
+          }
+        }
       }
-
-      // Load debts for suppliers (SHOP_OWES type), filter deleted
-      _supplierDebts = await _db.getAllDebts();
-      _supplierDebts = _supplierDebts.where((debt) {
-        final status = debt['status']?.toString().toLowerCase();
-        final isDeleted = (debt['deleted'] ?? 0) == 1;
-        return debt['type'] == 'SHOP_OWES' && status != 'paid' && !isDeleted;
-      }).toList();
 
     } catch (e) {
       debugPrint('Error loading data: $e');

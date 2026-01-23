@@ -167,8 +167,8 @@ class _SaleListViewState extends State<SaleListView> {
           break;
       }
 
-      // Payment status filter
-      final remain = s.totalPrice - s.downPayment;
+      // Payment status filter - dùng remainingDebt tính đúng nợ thực tế
+      final remain = s.remainingDebt;
       switch (_paymentStatusFilter) {
         case 'paid':
           if (remain > 0) return false;
@@ -417,9 +417,7 @@ class _SaleListViewState extends State<SaleListView> {
     int totalRevenue = list.fold(0, (sum, s) => sum + s.totalPrice);
     int totalDebt = list.fold(
       0,
-      (sum, s) =>
-          sum +
-          (s.totalPrice - s.downPayment > 0 ? s.totalPrice - s.downPayment : 0),
+      (sum, s) => sum + s.remainingDebt, // Dùng getter mới tính đúng nợ thực tế
     );
 
     return Scaffold(
@@ -634,11 +632,11 @@ class _SaleListViewState extends State<SaleListView> {
                             final date = DateFormat('dd/MM HH:mm').format(
                               DateTime.fromMillisecondsSinceEpoch(s.soldAt),
                             );
-                            final remain = s.finalPrice - s.downPayment;
+                            final remain = s.remainingDebt; // Dùng getter mới
                             final index = i + 1;
                             
                             // Determine card color based on payment status
-                            final isPaid = remain <= 0;
+                            final isPaid = s.isPaid; // Dùng getter mới
                             final bgColor = isPaid 
                                 ? Colors.green.shade50 
                                 : Colors.orange.shade50;

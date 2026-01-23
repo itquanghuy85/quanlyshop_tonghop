@@ -914,26 +914,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
 
       // Lưu sale vào local DB (cloud đã có từ transaction)
       await db.upsertSale(sale);
-
-      // Ghi nhật ký hoạt động tài chính - FIX: Dùng finalPrice (đã trừ giảm giá)
-      try {
-        await FinancialActivityService.logSale(
-          firestoreId: sale.firestoreId ?? 'SALE_${sale.soldAt}',
-          totalPrice: finalPrice, // FIX: Dùng finalPrice thay vì totalPrice
-          paymentMethod: _paymentMethod,
-          customerName: sale.customerName ?? '',
-          phone: sale.phone ?? '',
-          productNames: sale.productNames ?? '',
-          sellerName: sale.sellerName ?? '',
-          soldAt: sale.soldAt,
-          isInstallment: _isInstallment,
-          downPayment: _isInstallment ? (sale.downPayment ?? 0) : 0,
-          downPaymentMethod: _isInstallment ? _downPaymentMethod : null,
-          bankName: _isInstallment ? (sale.bankName ?? '') : null,
-        );
-      } catch (e) {
-        debugPrint('Failed to log financial activity: $e');
-      }
+      // NOTE: FinancialActivityService.logSale REMOVED - ledger handled by PaymentIntentService
 
       // Lưu debt vào local DB nếu có (dùng upsert để tránh duplicate khi sync)
       if (debtDataForTransaction != null) {

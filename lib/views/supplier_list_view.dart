@@ -3,18 +3,17 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/supplier_model.dart';
 import '../models/repair_partner_model.dart';
+import '../models/payment_intent_model.dart';
 import '../services/supplier_service.dart';
 import '../services/repair_partner_service.dart';
 import '../services/repair_partner_payment_service.dart';
 import '../services/user_service.dart';
 import '../services/first_time_guide_service.dart';
-import '../services/financial_activity_service.dart';
 import '../data/db_helper.dart';
 import '../utils/money_utils.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import '../services/audit_service.dart';
-import '../services/sync_orchestrator.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -25,6 +24,7 @@ import 'repair_partner_form_view.dart';
 import 'repair_partner_detail_view.dart';
 import 'create_sale_view.dart';
 import 'inventory_view.dart';
+import 'unified_payment_page.dart';
 
 class SupplierListView extends StatefulWidget {
   const SupplierListView({super.key});
@@ -935,96 +935,43 @@ class _SupplierListViewState extends State<SupplierListView>
             (e['totalAmount'] as int? ?? 0) > (e['paidAmount'] as int? ?? 0),
         orElse: () => {},
       );
-      if (target.isEmpty) {
-        NotificationService.showSnackBar(
-          'Không tìm thấy công nợ để thanh toán',
-          color: Colors.red,
-        );
-        return;
-      }
-
-      final debtId = target['id'] as int;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final paymentData = {
-        'firestoreId': 'pay_${now}_${d.supplier.id ?? 'sup'}',
-        'debtId': debtId,
-        'debtFirestoreId': target['firestoreId'],
-        'amount': amount,
-        'paidAt': now,
-        'paymentMethod': method,
-        'note': note,
-        'createdBy':
-            FirebaseAuth.instance.currentUser?.email
-                ?.split('@')
-                .first
-                .toUpperCase() ??
-            'NV',
-      };
-
-      final paymentId = await _db.insertDebtPayment(paymentData);
-      // Queue debt payment sync via SyncOrchestrator
-      await SyncOrchestrator().enqueue(
-        entityType: SyncEntityType.debtPayment,
-        entityId: paymentId,
-        firestoreId: paymentData['firestoreId'] as String?,
-        operation: SyncOperation.create,
-        data: paymentData,
-      );
-
-      await _db.updateDebtPaid(debtId, amount);
-      final allDebts = await _db.getAllDebts();
-      final updated = allDebts.firstWhere((e) => e['id'] == debtId);
-      // Queue debt update sync via SyncOrchestrator
-      await SyncOrchestrator().enqueue(
-        entityType: SyncEntityType.debt,
-        entityId: debtId,
-        firestoreId: updated['firestoreId'] as String?,
-        operation: SyncOperation.update,
-        data: Map<String, dynamic>.from(updated),
-      );
-
-      // Ghi nhật ký hệ thống
-      await AuditService.logAction(
-        action: 'SUPPLIER_PAYMENT',
-        entityType: 'supplier',
-        entityId: d.supplier.id?.toString() ?? '',
-        summary:
-            'Thanh toán công nợ NCC ${d.supplier.name}: ${MoneyUtils.formatCurrency(amount)} ($method)',
-        payload: {
+      
+      final debtFId = target.isNotEmpty 
+          ? (target['firestoreId'] as String? ?? 'debt_supplier_${d.supplier.id}')
+          : 'debt_supplier_${d.supplier.id}';
+      
+      // Tạo PaymentIntent và navigate đến UnifiedPaymentPage
+      final user = FirebaseAuth.instance.currentUser;
+      final intent = PaymentIntent(
+        id: 'pi_supplier_pay_${DateTime.now().millisecondsSinceEpoch}_${d.supplier.id}',
+        type: PaymentIntentType.supplierDebt,
+        amount: amount,
+        description: 'Trả nợ NCC: ${d.supplier.name}',
+        referenceId: debtFId,
+        referenceType: 'supplier_debt',
+        personName: d.supplier.name,
+        personPhone: d.supplier.phone,
+        notes: note.isNotEmpty ? note : null,
+        createdBy: user?.uid ?? 'unknown',
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        metadata: {
           'supplierId': d.supplier.id,
           'supplierName': d.supplier.name,
-          'amount': amount,
-          'paymentMethod': method,
-          'note': note,
-          'remainBefore': d.remain,
-          'remainAfter': d.remain - amount,
+          'debtId': target.isNotEmpty ? target['id'] : null,
+          'debtFirestoreId': debtFId,
+          'debtType': 'SHOP_OWES',
+          'suggestedMethod': method,
         },
       );
-
-      // Ghi nhật ký hoạt động tài chính (direction = OUT)
-      try {
-        final now = DateTime.now().millisecondsSinceEpoch;
-        await FinancialActivityService.logSupplierPayment(
-          firestoreId: paymentData['firestoreId'] as String,
-          amount: amount,
-          paymentMethod: method,
-          supplierName: d.supplier.name,
-          createdAt: now,
-          createdBy: paymentData['createdBy'] as String? ?? 'NV',
-          note: note.isNotEmpty ? note : 'Thanh toán công nợ NCC',
-        );
-      } catch (e) {
-        debugPrint('Failed to log financial activity: $e');
+      
+      // Navigate đến UnifiedPaymentPage để xác nhận thanh toán
+      if (mounted) {
+        await UnifiedPaymentPage.navigateWithIntent(context, intent);
+        // Reload data sau khi thanh toán
+        await _load();
       }
-
-      EventBus().emit('debts_changed');
-      NotificationService.showSnackBar(
-        'Đã ghi nhận thanh toán',
-        color: Colors.green,
-      );
-      await _load();
     } catch (e) {
-      NotificationService.showSnackBar('Lỗi thanh toán: $e', color: Colors.red);
+      NotificationService.showSnackBar('Lỗi: $e', color: Colors.red);
     }
   }
 

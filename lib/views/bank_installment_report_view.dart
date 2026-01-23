@@ -47,11 +47,17 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
     
     try {
       final allSales = await db.getAllSales();
+      debugPrint('BankInstallment: Total sales = ${allSales.length}');
       
       // Lọc đơn trả góp ngân hàng
       _allInstallmentSales = allSales.where((s) => 
         s.isInstallment && s.paymentMethod.toUpperCase() == 'TRẢ GÓP (NH)'
       ).toList();
+      
+      debugPrint('BankInstallment: Installment sales = ${_allInstallmentSales.length}');
+      for (var s in _allInstallmentSales) {
+        debugPrint('  - ${s.customerName}: bank1=${s.bankName} loan1=${s.loanAmount}, bank2=${s.bankName2} loan2=${s.loanAmount2}');
+      }
       
       // Sort by date descending
       _allInstallmentSales.sort((a, b) => b.soldAt.compareTo(a.soldAt));
@@ -128,14 +134,14 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
     for (var s in sales) {
       totalAmount += s.totalPrice;
       totalDownPayment += s.downPayment;
-      totalLoanAmount += s.loanAmount;
+      totalLoanAmount += s.loanAmount + s.loanAmount2; // Include both loans
       totalFee += s.settlementFee;
       
       if (s.settlementReceivedAt != null) {
-        totalReceived += s.settlementAmount > 0 ? s.settlementAmount : s.loanAmount;
+        totalReceived += s.settlementAmount > 0 ? s.settlementAmount : (s.loanAmount + s.loanAmount2);
         countReceived++;
       } else {
-        totalPending += s.loanAmount;
+        totalPending += s.loanAmount + s.loanAmount2; // Include both loans
         countPending++;
       }
     }
@@ -158,7 +164,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
     final result = <String, Map<String, int>>{};
     
     for (var s in sales) {
-      // Xử lý cả trường hợp null và empty string
+      // Xử lý NH thứ nhất
       final bank = (s.bankName == null || s.bankName!.isEmpty) 
           ? 'Không xác định' 
           : s.bankName!;
@@ -182,6 +188,32 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
             (s.settlementAmount > 0 ? s.settlementAmount : s.loanAmount);
       } else {
         result[bank]!['totalPending'] = (result[bank]!['totalPending'] ?? 0) + s.loanAmount;
+      }
+      
+      // Xử lý NH thứ hai (nếu có)
+      if (s.loanAmount2 > 0 && s.bankName2 != null && s.bankName2!.isNotEmpty) {
+        final bank2 = s.bankName2!;
+        
+        if (!result.containsKey(bank2)) {
+          result[bank2] = {
+            'count': 0,
+            'totalAmount': 0,
+            'totalReceived': 0,
+            'totalPending': 0,
+            'totalFee': 0,
+          };
+        }
+        
+        result[bank2]!['count'] = (result[bank2]!['count'] ?? 0) + 1;
+        result[bank2]!['totalAmount'] = (result[bank2]!['totalAmount'] ?? 0) + s.loanAmount2;
+        // settlementFee chỉ tính cho NH chính
+        
+        // Giả định: nếu đơn đã tất toán thì cả 2 NH đều tất toán
+        if (s.settlementReceivedAt != null) {
+          result[bank2]!['totalReceived'] = (result[bank2]!['totalReceived'] ?? 0) + s.loanAmount2;
+        } else {
+          result[bank2]!['totalPending'] = (result[bank2]!['totalPending'] ?? 0) + s.loanAmount2;
+        }
       }
     }
     

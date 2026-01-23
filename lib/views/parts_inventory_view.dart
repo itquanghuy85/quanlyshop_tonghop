@@ -8,6 +8,8 @@ import '../services/event_bus.dart';
 import '../services/audit_service.dart';
 import '../services/adjustment_service.dart';
 import '../services/sync_orchestrator.dart';
+import '../services/payment_intent_service.dart';
+import '../models/payment_intent_model.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/gradient_fab.dart';
@@ -1243,74 +1245,81 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         EventBus().emit('suppliers_changed');
                       }
 
-                      if (paymentMethod == 'CÔNG NỢ') {
-                        // BUG-005: Block save nếu CÔNG NỢ nhưng không chọn NCC
-                        if (selectedSupplierId == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                '⚠️ CÔNG NỢ phải chọn Nhà cung cấp!',
-                              ),
-                              backgroundColor: Colors.red,
-                            ),
+                      // Tạo PaymentIntent cho nhập linh kiện
+                      final totalCost = cost * qty;
+                      if (totalCost > 0) {
+                        final user = FirebaseAuth.instance.currentUser;
+                        if (paymentMethod == 'CÔNG NỢ') {
+                          // Công nợ NCC → Tạo debt record + PaymentIntent (CHỞ CHI)
+                          final debtFId = 'debt_part_${DateTime.now().millisecondsSinceEpoch}_${selectedSupplierId ?? 0}';
+                          final debtData = {
+                            'firestoreId': debtFId,
+                            'personName': supplierName,
+                            'phone': '',
+                            'totalAmount': totalCost,
+                            'paidAmount': 0,
+                            'type': 'SHOP_OWES',
+                            'status': 'ACTIVE',
+                            'createdAt': DateTime.now().millisecondsSinceEpoch,
+                            'note': 'Nhập linh kiện: $partName x$qty',
+                            'linkedId': null,
+                            'isSynced': 0,
+                          };
+                          final debtId = await db.insertDebt(debtData);
+                          
+                          if (debtId > 0) {
+                            await SyncOrchestrator().enqueue(
+                              entityType: SyncEntityType.debt,
+                              entityId: debtId,
+                              firestoreId: debtFId,
+                              operation: SyncOperation.create,
+                              data: debtData,
+                            );
+                          }
+                          
+                          // Tạo PaymentIntent để trả nợ sau (CHỞ CHI)
+                          final intent = PaymentIntent(
+                            id: 'pi_part_debt_${DateTime.now().millisecondsSinceEpoch}_$partName',
+                            type: PaymentIntentType.supplierDebt,
+                            amount: totalCost,
+                            description: 'Trả nợ nhập linh kiện: $partName - $supplierName',
+                            referenceId: debtFId,
+                            referenceType: 'part_debt',
+                            personName: supplierName,
+                            createdBy: user?.uid ?? 'unknown',
+                            createdAt: DateTime.now().millisecondsSinceEpoch,
+                            metadata: {
+                              'partName': partName,
+                              'quantity': qty,
+                              'debtId': debtId,
+                              'debtFirestoreId': debtFId,
+                              'debtType': 'SHOP_OWES',
+                            },
                           );
-                          return;
-                        }
-                        final debtFirestoreId = 'debt_part_${now}_$insertedId';
-                        final debtId = await db.insertDebt({
-                          'firestoreId': debtFirestoreId,
-                          'type': 'SHOP_OWES',
-                          'personName': supplierName,
-                          'phone':
-                              _suppliers.firstWhere(
-                                (s) => s['id'] == selectedSupplierId,
-                                orElse: () => {},
-                              )['phone'] ??
-                              '',
-                          'totalAmount': cost * qty,
-                          'paidAmount': 0,
-                          'note': 'Nhập linh kiện: $partName x$qty',
-                          'status': 'unpaid',
-                          'createdAt': now,
-                          'shopId': shopId,
-                          'isSynced': 0,
-                          'relatedPartId': insertedId,
-                        });
-                        // Enqueue debt sync
-                        if (debtId > 0) {
-                          await SyncOrchestrator().enqueue(
-                            entityType: SyncEntityType.debt,
-                            entityId: debtId,
-                            firestoreId: debtFirestoreId,
-                            operation: SyncOperation.create,
+                          await PaymentIntentService.createIntent(intent);
+                          debugPrint('💳 Created PaymentIntent for part debt: ${intent.id}');
+                          EventBus().emit('debts_changed');
+                        } else {
+                          // Tiền mặt/Chuyển khoản → Tạo PaymentIntent để xác nhận thanh toán (CHỞ CHI)
+                          final intent = PaymentIntent(
+                            id: 'pi_part_${DateTime.now().millisecondsSinceEpoch}_$partName',
+                            type: PaymentIntentType.supplierDebt,
+                            amount: totalCost,
+                            description: 'Chi nhập linh kiện: $partName - $supplierName',
+                            referenceId: null,
+                            referenceType: 'part',
+                            personName: supplierName,
+                            createdBy: user?.uid ?? 'unknown',
+                            createdAt: DateTime.now().millisecondsSinceEpoch,
+                            metadata: {
+                              'partName': partName,
+                              'quantity': qty,
+                              'paymentMethod': paymentMethod,
+                            },
                           );
+                          await PaymentIntentService.createIntent(intent);
+                          debugPrint('💳 Created PaymentIntent for part payment: ${intent.id}');
                         }
-                        EventBus().emit('debts_changed');
-                      } else {
-                        final expenseFirestoreId = 'exp_part_${now}_$insertedId';
-                        final expenseId = await db.insertExpense({
-                          'firestoreId': expenseFirestoreId,
-                          'category': 'NHẬP LINH KIỆN',
-                          'description':
-                              'Nhập linh kiện: $partName x$qty${selectedSupplierId != null ? " từ $supplierName" : ""}',
-                          'amount': cost * qty,
-                          'date': now,
-                          'paymentMethod': paymentMethod,
-                          'createdAt': now,
-                          'shopId': shopId,
-                          'isSynced': 0,
-                          'relatedPartId': insertedId,
-                        });
-                        // Enqueue expense sync
-                        if (expenseId > 0) {
-                          await SyncOrchestrator().enqueue(
-                            entityType: SyncEntityType.expense,
-                            entityId: expenseId,
-                            firestoreId: expenseFirestoreId,
-                            operation: SyncOperation.create,
-                          );
-                        }
-                        EventBus().emit('expenses_changed');
                       }
                     } else {
                       final originalDate = part['createdAt'] as int? ?? now;

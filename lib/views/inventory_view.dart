@@ -2931,50 +2931,10 @@ class _InventoryViewState extends State<InventoryView>
                 targetId: p.imei,
                 desc: "Đã nhập máy ${p.name}",
               );
-              if (payMethod != "CÔNG NỢ") {
-                final expFId = 'exp_${ts}_${p.name.hashCode}';
-                final expData = {
-                  'firestoreId': expFId,
-                  'title': "NHẬP HÀNG: ${p.name}",
-                  'amount': p.cost * p.quantity,
-                  'category': "NHẬP HÀNG",
-                  'date': ts,
-                  'paymentMethod': payMethod,
-                  'note': "Nhập từ $supplier",
-                };
-                final expenseId = await db.insertExpense(expData);
-
-                // Queue sync via SyncOrchestrator
-                await SyncOrchestrator().enqueue(
-                  entityType: SyncEntityType.expense,
-                  entityId: expenseId,
-                  firestoreId: expFId,
-                  operation: SyncOperation.create,
-                  data: expData,
-                );
-              } else {
-                final debtFId = 'debt_inv_$ts';
-                final debtData = {
-                  'firestoreId': debtFId,
-                  'personName': supplier,
-                  'totalAmount': p.cost * p.quantity,
-                  'paidAmount': 0,
-                  'type': "SHOP_OWES",
-                  'status': "ACTIVE",
-                  'createdAt': ts,
-                  'note': "Nợ tiền máy ${p.name}",
-                };
-                final debtId = await db.insertDebt(debtData);
-
-                // Queue sync via SyncOrchestrator
-                await SyncOrchestrator().enqueue(
-                  entityType: SyncEntityType.debt,
-                  entityId: debtId,
-                  firestoreId: debtFId,
-                  operation: SyncOperation.create,
-                  data: debtData,
-                );
-              }
+              // NOTE: Direct insertExpense/insertDebt for stock-in BLOCKED
+              // Payment must go through PaymentIntentService -> UnifiedPaymentPage
+              // Product is saved, but payment execution is separate flow
+              
               await db.upsertProduct(p);
 
               // Get product ID and queue sync
@@ -3482,59 +3442,9 @@ class _InventoryViewState extends State<InventoryView>
               }
 
               // 3. Xử lý thanh toán
-              if (selectedPaymentMethod == 'CÔNG NỢ') {
-                // Tạo công nợ nhà cung cấp
-                final supplierPhone = supplierData['phone']?.toString() ?? '';
-                final debt = Debt(
-                  personName: selectedSupplier!,
-                  phone: supplierPhone,
-                  totalAmount: cost * p.quantity,
-                  paidAmount: 0,
-                  type: 'SHOP_OWES',
-                  status: 'ACTIVE',
-                  createdAt: ts,
-                  note: 'Công nợ xác nhận giá từ Kho Tạm - ${p.name}',
-                  linkedId: p.firestoreId,
-                );
-                debt.firestoreId = "debt_confirm_${ts}_${p.imei}";
-                await db.upsertDebt(debt);
-
-                final debtId = await db.getDebtIdByFirestoreId(
-                  debt.firestoreId!,
-                );
-                if (debtId != null) {
-                  await SyncOrchestrator().enqueue(
-                    entityType: SyncEntityType.debt,
-                    entityId: debtId,
-                    firestoreId: debt.firestoreId,
-                    operation: SyncOperation.create,
-                    data: debt.toMap(),
-                  );
-                }
-                EventBus().emit('debts_changed');
-              } else {
-                // Tạo expense cho tiền mặt/chuyển khoản
-                final expFId = "exp_confirm_${ts}_${p.imei}";
-                final exp = {
-                  'firestoreId': expFId,
-                  'title': 'Xác nhận giá Kho Tạm - $selectedSupplier',
-                  'amount': cost * p.quantity,
-                  'category': 'NHẬP HÀNG',
-                  'date': ts,
-                  'note': 'Xác nhận giá ${p.name} từ Kho Tạm',
-                  'paymentMethod': selectedPaymentMethod,
-                  'createdAt': ts,
-                };
-                final expenseId = await db.insertExpense(exp);
-                await SyncOrchestrator().enqueue(
-                  entityType: SyncEntityType.expense,
-                  entityId: expenseId,
-                  firestoreId: expFId,
-                  operation: SyncOperation.create,
-                  data: exp,
-                );
-                EventBus().emit('expenses_changed');
-              }
+              // NOTE: Direct insertExpense/upsertDebt for staging confirm BLOCKED
+              // Payment must go through PaymentIntentService -> UnifiedPaymentPage
+              // Product is updated but payment execution is separate flow
 
               // 4. Log action
               await db.logAction(

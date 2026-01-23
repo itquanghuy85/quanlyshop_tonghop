@@ -1136,5 +1136,5 @@ class AppLocalizationsVi extends AppLocalizations {
   String get checkBluetoothOn => 'Kiểm tra Bluetooth có bật...';
 
   @override
-  String get appVersion => 'Phiên bản 1.0.1+9';
+  String get appVersion => 'Phiên bản 3.4.0';
 }

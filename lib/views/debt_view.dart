@@ -11,13 +11,16 @@ import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import '../services/adjustment_service.dart';
 import '../services/firestore_service.dart';
-import '../services/financial_activity_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../services/repair_partner_service.dart';
+import '../services/payment_intent_service.dart';
+import '../models/payment_intent_model.dart';
+import '../constants/financial_constants.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
 import '../models/repair_partner_model.dart';
 import 'repair_partner_detail_view.dart';
+import 'unified_payment_page.dart';
 
 class DebtView extends StatefulWidget {
   const DebtView({super.key});
@@ -114,8 +117,12 @@ class _DebtViewState extends State<DebtView>
 
     // Load regular debts
     final data = await db.getAllDebts();
+    debugPrint('DebtView: getAllDebts returned ${data.length} debts');
+    for (final d in data) {
+      debugPrint('  - type=${d['type']}, personName=${d['personName']}, totalAmount=${d['totalAmount']}, deleted=${d['deleted']}, firestoreId=${d['firestoreId']}');
+    }
 
-    // Load partner debts
+    // Load partner debts from repair stats
     final partners = await _partnerService.getRepairPartners();
     final partnerDebts = <Map<String, dynamic>>[];
 
@@ -142,14 +149,60 @@ class _DebtViewState extends State<DebtView>
           'remain': remain,
           'type': 'REPAIR_PARTNER',
           'createdAt': partner.createdAt,
+          'source': 'repairs', // Mark source
         });
       }
+    }
+    
+    // Also include REPAIR_PARTNER debts from debts table (manual entries)
+    // Bao gồm cả debts có firestoreId chứa 'test_debt_partner' (fix cho data cũ bị sai type)
+    final manualPartnerDebts = data.where((d) => 
+      (d['deleted'] ?? 0) != 1 &&
+      ((d['totalAmount'] ?? 0) - (d['paidAmount'] ?? 0)) > 0 &&
+      (d['type'] == 'REPAIR_PARTNER' || 
+       (d['firestoreId']?.toString().contains('debt_partner') ?? false))
+    ).toList();
+    
+    debugPrint('DebtView: Found ${manualPartnerDebts.length} manual REPAIR_PARTNER debts');
+    for (final d in manualPartnerDebts) {
+      debugPrint('  - ${d['personName']}: ${d['totalAmount']}');
+    }
+    
+    for (final d in manualPartnerDebts) {
+      final total = d['totalAmount'] as int? ?? 0;
+      final paid = d['paidAmount'] as int? ?? 0;
+      final remain = total - paid;
+      
+      partnerDebts.add({
+        'id': d['id'],
+        'partnerId': null,
+        'name': d['personName'] ?? 'Không rõ',
+        'partnerName': d['personName'] ?? 'Không rõ',
+        'phone': d['phone'] ?? '',
+        'totalCost': total,
+        'totalAmount': total,
+        'totalPaid': paid,
+        'paidAmount': paid,
+        'totalRepairs': 0,
+        'remainingDebt': remain,
+        'remain': remain,
+        'type': 'REPAIR_PARTNER',
+        'createdAt': d['createdAt'],
+        'source': 'manual', // Mark source
+        'firestoreId': d['firestoreId'],
+        'note': d['note'],
+      });
     }
 
     if (!mounted) return;
     setState(() {
-      // Filter out soft-deleted debts
-      _debts = data.where((d) => (d['deleted'] ?? 0) != 1).toList();
+      // Filter out soft-deleted debts and REPAIR_PARTNER (handled separately)
+      // Also filter out debts with firestoreId containing 'debt_partner' (fix for old data with wrong type)
+      _debts = data.where((d) => 
+        (d['deleted'] ?? 0) != 1 && 
+        d['type'] != 'REPAIR_PARTNER' &&
+        !(d['firestoreId']?.toString().contains('debt_partner') ?? false)
+      ).toList();
       _partnerDebts = partnerDebts;
       _isLoading = false;
     });
@@ -332,7 +385,6 @@ class _DebtViewState extends State<DebtView>
 
     final formKey = GlobalKey<FormState>();
     final payC = TextEditingController();
-    String method = "TIỀN MẶT";
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -359,19 +411,6 @@ class _DebtViewState extends State<DebtView>
                     fieldName: 'Số tiền thu',
                   ),
                 ),
-                const SizedBox(height: 15),
-                Wrap(
-                  spacing: 8,
-                  children: ["TIỀN MẶT", "CHUYỂN KHOẢN"]
-                      .map(
-                        (m) => ChoiceChip(
-                          label: Text(m, style: AppTextStyles.caption),
-                          selected: method == m,
-                          onSelected: (v) => setS(() => method = m),
-                        ),
-                      )
-                      .toList(),
-                ),
               ],
             ),
           ),
@@ -384,266 +423,59 @@ class _DebtViewState extends State<DebtView>
               onPressed: () async {
                 if (!(formKey.currentState?.validate() ?? false)) return;
                 final parsed = MoneyUtils.parseCurrency(payC.text);
-                // Không tự động nhân 1000 - người dùng nhập bao nhiêu dùng bấy nhiêu
                 final payAmount = parsed;
                 if (payAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
-                final userName =
-                    user?.email?.split('@').first.toUpperCase() ?? "NV";
-                final now = DateTime.now().millisecondsSinceEpoch;
+                
+                // Đóng dialog trước
+                Navigator.of(ctx).pop();
 
-                int total = debt['totalAmount'];
-                int alreadyPaid = debt['paidAmount'] ?? 0;
-                int remain = total - alreadyPaid;
-
-                if (payAmount > remain) {
-                  NotificationService.showSnackBar(
-                    "Số tiền trả không được vượt số nợ còn lại!",
-                    color: Colors.red,
-                  );
-                  return;
-                }
-
-                // === FIRESTORE TRANSACTION: Tránh race condition khi 2 user thanh toán cùng lúc ===
-                final debtFId = debt['firestoreId'] as String?;
-                if (debtFId != null && debtFId.isNotEmpty) {
-                  // Có firestoreId → dùng transaction để đảm bảo atomic
-                  final txResult =
-                      await FirestoreService.executeDebtPaymentTransaction(
-                        debtFirestoreId: debtFId,
-                        payAmount: payAmount,
-                        paymentMethod: method,
-                        createdBy: userName,
-                      );
-
-                  if (!txResult['success']) {
-                    NotificationService.showSnackBar(
-                      "❌ ${txResult['error'] ?? 'Lỗi thanh toán'}",
-                      color: Colors.red,
-                    );
-                    return;
-                  }
-
-                  // Transaction thành công → cập nhật local DB
-                  await db.updateDebtPaid(debt['id'], payAmount);
-
-                  // Lưu payment vào local (thêm debtType để cash_closing phân biệt được)
-                  final paymentData = {
-                    'firestoreId':
-                        txResult['paymentDocId'] ?? "pay_${now}_${user?.uid}",
-                    'debtId': debt['id'],
-                    'debtFirestoreId': debtFId,
-                    'debtType': debt['type'] ?? 'CUSTOMER_OWES',
-                    'amount': payAmount,
-                    'paidAt': now,
-                    'paymentMethod': method,
-                    'createdBy': userName,
-                    'isSynced': 1, // Đã sync qua transaction
-                  };
-                  await db.insertDebtPayment(paymentData);
-
-                  // Ghi nhật ký hoạt động tài chính - phân biệt loại nợ
-                  try {
-                    final debtType = debt['type'] ?? 'CUSTOMER_OWES';
-                    // FIX: Bao gồm OTHER_SHOP_OWES cho công nợ khác (shop nợ)
-                    if (debtType == 'SHOP_OWES' ||
-                        debtType == 'OWED' ||
-                        debtType == 'OTHER_SHOP_OWES') {
-                      // Trả nợ NCC/Khác → logSupplierPayment (direction = OUT)
-                      await FinancialActivityService.logSupplierPayment(
-                        firestoreId: paymentData['firestoreId'] as String,
-                        amount: payAmount,
-                        paymentMethod: method,
-                        supplierName: debt['personName'] ?? '',
-                        createdAt: now,
-                        createdBy: userName,
-                        note: debtType == 'OTHER_SHOP_OWES'
-                            ? 'Trả nợ đối tác'
-                            : 'Trả nợ NCC',
-                      );
-                    } else {
-                      // Thu nợ khách (CUSTOMER_OWES, OTHER_CUSTOMER_OWES) → logDebtCollection (direction = IN)
-                      await FinancialActivityService.logDebtCollection(
-                        firestoreId: paymentData['firestoreId'] as String,
-                        amount: payAmount,
-                        paymentMethod: method,
-                        customerName: debt['personName'] ?? '',
-                        phone: debt['phone'] ?? '',
-                        createdAt: now,
-                        createdBy: userName,
-                      );
-                    }
-                  } catch (e) {
-                    debugPrint('Failed to log financial activity: $e');
-                  }
-                } else {
-                  // Chưa có firestoreId → xử lý offline-first như cũ
-                  final paymentData = {
-                    'firestoreId': "pay_${now}_${user?.uid}",
+                // Xác định loại nợ để tạo PaymentIntent phù hợp
+                final debtType = debt['type'] ?? 'CUSTOMER_OWES';
+                final isCustomerDebt = debtType == 'CUSTOMER_OWES';
+                
+                // Tạo PaymentIntent và redirect đến UnifiedPaymentPage
+                final intent = PaymentIntent(
+                  id: 'debt_pay_${DateTime.now().millisecondsSinceEpoch}_${debt['id']}',
+                  type: isCustomerDebt 
+                      ? PaymentIntentType.customerDebtCollection 
+                      : PaymentIntentType.supplierDebt,
+                  amount: payAmount,
+                  description: isCustomerDebt 
+                      ? 'Thu nợ khách: ${debt['personName'] ?? 'N/A'}'
+                      : 'Trả nợ NCC: ${debt['personName'] ?? 'N/A'}',
+                  personName: debt['personName'],
+                  personPhone: debt['phone'],
+                  referenceId: debt['firestoreId'],
+                  referenceType: 'debt',
+                  createdBy: user?.uid ?? 'unknown',
+                  createdAt: DateTime.now().millisecondsSinceEpoch,
+                  metadata: {
                     'debtId': debt['id'],
                     'debtFirestoreId': debt['firestoreId'],
-                    'debtType': debt['type'] ?? 'CUSTOMER_OWES',
-                    'amount': payAmount,
-                    'paidAt': now,
-                    'paymentMethod': method,
-                    'createdBy': userName,
-                  };
-                  final paymentId = await db.insertDebtPayment(paymentData);
-
-                  // Ghi nhật ký hoạt động tài chính (offline) - phân biệt loại nợ
-                  try {
-                    final debtType = debt['type'] ?? 'CUSTOMER_OWES';
-                    // FIX: Bao gồm OTHER_SHOP_OWES cho công nợ khác (shop nợ)
-                    if (debtType == 'SHOP_OWES' ||
-                        debtType == 'OWED' ||
-                        debtType == 'OTHER_SHOP_OWES') {
-                      // Trả nợ NCC/Khác → logSupplierPayment (direction = OUT)
-                      await FinancialActivityService.logSupplierPayment(
-                        firestoreId: paymentData['firestoreId'] as String,
-                        amount: payAmount,
-                        paymentMethod: method,
-                        supplierName: debt['personName'] ?? '',
-                        createdAt: now,
-                        createdBy: userName,
-                        note: debtType == 'OTHER_SHOP_OWES'
-                            ? 'Trả nợ đối tác'
-                            : 'Trả nợ NCC',
-                      );
-                    } else {
-                      // Thu nợ khách (CUSTOMER_OWES, OTHER_CUSTOMER_OWES) → logDebtCollection (direction = IN)
-                      await FinancialActivityService.logDebtCollection(
-                        firestoreId: paymentData['firestoreId'] as String,
-                        amount: payAmount,
-                        paymentMethod: method,
-                        customerName: debt['personName'] ?? '',
-                        phone: debt['phone'] ?? '',
-                        createdAt: now,
-                        createdBy: userName,
-                      );
-                    }
-                  } catch (e) {
-                    debugPrint('Failed to log financial activity: $e');
-                  }
-
-                  // Queue sync debt payment to cloud via SyncOrchestrator
-                  await SyncOrchestrator().enqueue(
-                    entityType: SyncEntityType.debtPayment,
-                    entityId: paymentId,
-                    firestoreId: paymentData['firestoreId'] as String,
-                    operation: SyncOperation.create,
-                    data: paymentData,
-                  );
-
-                  // CẬP NHẬT SỐ TIỀN ĐÃ TRẢ
-                  await db.updateDebtPaid(debt['id'], payAmount);
-
-                  // Queue sync updated debt to cloud
-                  final allDebts = await db.getAllDebts();
-                  final updatedDebt = allDebts.firstWhere(
-                    (e) => e['id'] == debt['id'],
-                  );
-                  await SyncOrchestrator().enqueue(
-                    entityType: SyncEntityType.debt,
-                    entityId: debt['id'] as int,
-                    firestoreId: debt['firestoreId'] as String?,
-                    operation: SyncOperation.update,
-                    data: Map<String, dynamic>.from(updatedDebt),
-                  );
-                }
-
-                // Cập nhật đơn hàng liên kết (nếu có)
-                if (debt['linkedId'] != null) {
-                  await db.updateOrderStatusFromDebt(
-                    debt['linkedId'],
-                    alreadyPaid + payAmount,
-                  );
-                  // Queue sync for linked orders
-                  if (debt['linkedId'].startsWith('sale_')) {
-                    final sales = await db.getAllSales();
-                    final matching = sales.where(
-                      (s) => s.firestoreId == debt['linkedId'],
-                    );
-                    final sale = matching.isNotEmpty ? matching.first : null;
-                    if (sale != null && sale.id != null) {
-                      await SyncOrchestrator().enqueue(
-                        entityType: SyncEntityType.sale,
-                        entityId: sale.id!,
-                        firestoreId: sale.firestoreId,
-                        operation: SyncOperation.update,
-                        data: sale.toMap(),
-                      );
-                    }
-                  } else if (debt['linkedId'].startsWith('rep_')) {
-                    final repairs = await db.getAllRepairs();
-                    final matching = repairs.where(
-                      (r) => r.firestoreId == debt['linkedId'],
-                    );
-                    final repair = matching.isNotEmpty ? matching.first : null;
-                    if (repair != null && repair.id != null) {
-                      await SyncOrchestrator().enqueue(
-                        entityType: SyncEntityType.repair,
-                        entityId: repair.id!,
-                        firestoreId: repair.firestoreId,
-                        operation: SyncOperation.update,
-                        data: repair.toMap(),
-                      );
-                    }
-                  } else {
-                    // Assume it's a purchase order code
-                    final purchases = await db.getAllPurchaseOrders();
-                    final matching = purchases.where(
-                      (p) => p.orderCode == debt['linkedId'],
-                    );
-                    final purchase = matching.isNotEmpty
-                        ? matching.first
-                        : null;
-                    if (purchase != null) {
-                      purchase.status = 'RECEIVED';
-                      await db.updatePurchaseOrder(purchase);
-                      // Queue sync via SyncOrchestrator
-                      final orderId = await db.getPurchaseOrderIdByFirestoreId(
-                        purchase.firestoreId ?? '',
-                      );
-                      await SyncOrchestrator().enqueue(
-                        entityType: SyncEntityType.purchaseOrder,
-                        entityId: orderId ?? 0,
-                        firestoreId: purchase.firestoreId,
-                        operation: SyncOperation.update,
-                        data: purchase.toMap(),
-                      );
-                    }
-                  }
-                }
-
-                // Clean any potential duplicate data after debt payment
-                try {
-                  await db.cleanDuplicateData();
-                } catch (e) {
-                  debugPrint('Error cleaning duplicate data: $e');
-                }
-
-                // Nhật ký
-                await db.logAction(
-                  userId: user?.uid ?? "0",
-                  userName: userName,
-                  action: "THU NỢ",
-                  type: "DEBT",
-                  targetId: debt['firestoreId'],
-                  desc: "Khách trả ${MoneyUtils.formatCurrency(payAmount)}.",
+                    'debtType': debtType,
+                    'linkedId': debt['linkedId'],
+                  },
                 );
 
-                EventBus().emit('debts_changed');
-                // Đóng dialog TRƯỚC rồi mới show snackbar và refresh
-                Navigator.of(ctx).pop();
-                if (!mounted) return;
-                NotificationService.showSnackBar(
-                  "Đã thu nợ ${MoneyUtils.formatCurrency(payAmount)}đ!",
-                  color: Colors.green,
+                final result = await UnifiedPaymentPage.navigateWithIntent(
+                  context,
+                  intent,
                 );
-                await _refresh();
+
+                if (result != null && result.success) {
+                  EventBus().emit('debts_changed');
+                  if (mounted) {
+                    NotificationService.showSnackBar(
+                      "Đã ${isCustomerDebt ? 'thu' : 'trả'} nợ ${MoneyUtils.formatCurrency(payAmount)}đ!",
+                      color: Colors.green,
+                    );
+                    await _refresh();
+                  }
+                }
               },
-              child: const Text("XÁC NHẬN"),
+              child: const Text("TIẾP TỤC"),
             ),
           ],
         ),
@@ -1020,7 +852,7 @@ class _DebtViewState extends State<DebtView>
     );
   }
 
-  /// Card hiển thị công nợ đối tác
+  /// Card hiển thị công nợ đối tác - style giống pending_stock_list_view
   Widget _partnerDebtCard(Map<String, dynamic> partner, int index) {
     final name = partner['name'] ?? 'Đối tác $index';
     final phone = partner['phone'] ?? '';
@@ -1028,101 +860,191 @@ class _DebtViewState extends State<DebtView>
     final totalCost = partner['totalCost'] as int? ?? 0;
     final totalPaid = partner['totalPaid'] as int? ?? 0;
     final remainingDebt = partner['remainingDebt'] as int? ?? 0;
-    final partnerId = partner['id'] ?? '';
+    final note = partner['note']?.toString() ?? '';
+    final source = partner['source'] ?? 'repairs';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Colors.orange.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.orange.shade200),
+      ),
       child: InkWell(
         onTap: () => _navigateToPartnerDetail(partner),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header row
               Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.orange.withOpacity(0.2),
-                    child: Text(
-                      '$index',
-                      style: TextStyle(
-                        color: Colors.orange[700],
-                        fontWeight: FontWeight.bold,
+                  // Index badge
+                  Container(
+                    width: 28,
+                    height: 28,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$index',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade800,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  // Type icon
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.handshake,
+                      color: Colors.orange.shade800,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Name and phone
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          name,
-                          style: AppTextStyles.body1.copyWith(
+                          name.toUpperCase(),
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         if (phone.isNotEmpty)
                           Text(
-                            phone,
-                            style: AppTextStyles.body2.copyWith(
-                              color: AppColors.onSurface.withOpacity(0.6),
+                            '📞 $phone',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade700,
                             ),
                           ),
                       ],
                     ),
                   ),
+                  // Order count badge
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '$totalRepairs đơn',
-                      style: AppTextStyles.body2.copyWith(
-                        color: Colors.blue[700],
-                        fontWeight: FontWeight.w500,
+                      style: TextStyle(
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
+              
+              const SizedBox(height: 10),
+              
+              // Info chips row
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  _debtInfoChip(
+                    '🔧 Đối tác sửa chữa',
+                    Colors.orange.withValues(alpha: 0.2),
+                    Colors.orange.shade800,
+                  ),
+                  _debtInfoChip(
+                    source == 'manual' ? '📝 Thủ công' : '🔄 Tự động',
+                    Colors.grey.shade200,
+                    Colors.grey.shade700,
+                  ),
+                  if (note.isNotEmpty)
+                    _debtInfoChip(
+                      '📝 ${note.length > 20 ? "${note.substring(0, 20)}..." : note}',
+                      Colors.grey.shade200,
+                      Colors.grey.shade700,
+                    ),
+                ],
+              ),
+              
+              const Divider(height: 16),
+              
+              // Amount row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildStatColumn('Tổng phí', totalCost, Colors.grey),
-                  _buildStatColumn('Đã trả', totalPaid, Colors.green),
-                  _buildStatColumn('Còn nợ', remainingDebt, Colors.orange),
-                ],
-              ),
-              // Nút xem chi tiết & thanh toán - điều hướng đến trang quản lý đối tác
-              if (remainingDebt > 0) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _navigateToPartnerDetail(partner),
-                    icon: const Icon(Icons.visibility, size: 18),
-                    label: const Text('XEM CHI TIẾT & THANH TOÁN'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                  _buildDebtAmount('Tổng phí', totalCost, Colors.grey.shade700),
+                  _buildDebtAmount('Đã trả', totalPaid, Colors.green),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'CÒN NỢ',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        Text(
+                          MoneyUtils.formatCurrency(remainingDebt),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                ],
+              ),
+              
+              // Action button
+              if (remainingDebt > 0) ...[
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => _navigateToPartnerDetail(partner),
+                      icon: const Icon(Icons.visibility, size: 16),
+                      label: const Text(
+                        'Xem & Thanh toán',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ],
@@ -1229,84 +1151,280 @@ class _DebtViewState extends State<DebtView>
     final int total = d['totalAmount'];
     final int paid = d['paidAmount'] ?? 0;
     final int remain = (total - paid).clamp(0, total);
-    final date = DateFormat(
-      'dd/MM/yyyy',
-    ).format(DateTime.fromMillisecondsSinceEpoch(d['createdAt']));
+    final createdAt = d['createdAt'] as int? ?? 0;
+    final date = DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(createdAt));
+    final time = DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(createdAt));
+    final personName = (d['personName'] ?? 'N/A').toString();
+    final phone = d['phone']?.toString() ?? '';
+    final note = d['note']?.toString() ?? '';
+    final debtType = d['type']?.toString() ?? 'CUSTOMER_OWES';
+    
+    // Determine colors based on debt type
+    final isCustomerDebt = debtType == 'CUSTOMER_OWES' || debtType == 'OWE' || debtType == 'OTHER_CUSTOMER_OWES';
+    final mainColor = isCustomerDebt ? Colors.red : Colors.blue;
+    final bgColor = isCustomerDebt ? Colors.red.shade50 : Colors.blue.shade50;
+    final borderColor = isCustomerDebt ? Colors.red.shade200 : Colors.blue.shade200;
+    
+    // Calculate days since creation for urgency
+    final daysSince = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(createdAt)).inDays;
+    final isUrgent = daysSince > 30;
+    final isVeryUrgent = daysSince > 60;
 
-    return Container(
+    return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10),
-        ],
+      color: isVeryUrgent ? Colors.red.shade100 : (isUrgent ? Colors.orange.shade50 : bgColor),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isVeryUrgent ? Colors.red.shade400 : (isUrgent ? Colors.orange.shade300 : borderColor),
+          width: isVeryUrgent ? 2 : 1,
+        ),
       ),
-      child: ListTile(
+      child: InkWell(
         onTap: () => _showDebtHistory(d),
-        contentPadding: const EdgeInsets.all(15),
-        leading: index != null
-            ? Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    '$index',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                      fontSize: 12,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row
+              Row(
+                children: [
+                  // Index badge
+                  if (index != null)
+                    Container(
+                      width: 28,
+                      height: 28,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        color: mainColor.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$index',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: mainColor,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Type icon
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: mainColor.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isCustomerDebt ? Icons.arrow_downward : Icons.arrow_upward,
+                      color: mainColor,
+                      size: 18,
                     ),
                   ),
-                ),
-              )
-            : null,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                (d['personName'] ?? 'N/A').toString().toUpperCase(),
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+                  const SizedBox(width: 10),
+                  // Name and phone
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          personName.toUpperCase(),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (phone.isNotEmpty)
+                          Text(
+                            '📞 $phone',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Date and time
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        date,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      Text(
+                        time,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ),
-            Text(
-              date,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (d['phone'] != null)
-              Text(
-                "SĐT: ${d['phone']}",
-                style: const TextStyle(fontSize: 11, color: Colors.blueGrey),
+              
+              const SizedBox(height: 10),
+              
+              // Info chips row
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  _debtInfoChip(
+                    isCustomerDebt ? 'Phải thu' : 'Phải trả',
+                    mainColor.withValues(alpha: 0.2),
+                    mainColor,
+                  ),
+                  if (note.isNotEmpty)
+                    _debtInfoChip(
+                      '📝 ${note.length > 25 ? "${note.substring(0, 25)}..." : note}',
+                      Colors.grey.shade200,
+                      Colors.grey.shade700,
+                    ),
+                  if (isVeryUrgent)
+                    _debtInfoChip(
+                      '⚠️ Quá $daysSince ngày',
+                      Colors.red.shade200,
+                      Colors.red.shade800,
+                    )
+                  else if (isUrgent)
+                    _debtInfoChip(
+                      '⏰ $daysSince ngày',
+                      Colors.orange.shade200,
+                      Colors.orange.shade800,
+                    ),
+                ],
               ),
-            Text(
-              "Nội dung: ${d['note'] ?? ''}",
-              style: const TextStyle(fontSize: 11),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _miniValue("ĐÃ TRẢ", paid, Colors.green),
-                _miniValue("CÒN NỢ", remain, Colors.red),
-              ],
-            ),
-          ],
+              
+              const Divider(height: 16),
+              
+              // Amount row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildDebtAmount('Tổng nợ', total, Colors.grey.shade700),
+                  _buildDebtAmount('Đã trả', paid, Colors.green),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: mainColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'CÒN NỢ',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        Text(
+                          MoneyUtils.formatCurrency(remain),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              
+              // Action button
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _showDebtHistory(d),
+                    icon: const Icon(Icons.history, size: 16),
+                    label: const Text('Lịch sử', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _payDebt(d),
+                    icon: Icon(isCustomerDebt ? Icons.call_received : Icons.call_made, size: 16),
+                    label: Text(
+                      isCustomerDebt ? 'Thu nợ' : 'Trả nợ',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: mainColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       ),
+    );
+  }
+
+  Widget _debtInfoChip(String text, Color bgColor, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          color: textColor,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDebtAmount(String label, int amount, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade500,
+          ),
+        ),
+        Text(
+          MoneyUtils.formatCurrency(amount),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 

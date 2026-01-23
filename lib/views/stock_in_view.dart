@@ -5,19 +5,19 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../models/supplier_model.dart';
+import '../models/payment_intent_model.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/supplier_service.dart';
 import '../services/event_bus.dart';
 import '../services/sync_orchestrator.dart';
-import '../services/financial_activity_service.dart';
+import '../services/payment_intent_service.dart';
 import '../utils/imei_extractor.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/imei_scan_result_dialog.dart';
 import 'fast_stock_in_view.dart';
 import 'supplier_list_view.dart';
-import '../models/debt_model.dart';
 
 class StockInView extends StatefulWidget {
   final Map<String, dynamic>? prefilledData;
@@ -679,24 +679,7 @@ class _StockInViewState extends State<StockInView> {
               firestoreId: importHistory['firestoreId'] as String?,
               operation: SyncOperation.create,
             );
-
-            // Ghi nhật ký hoạt động tài chính - nhập hàng
-            try {
-              await FinancialActivityService.logPurchase(
-                firestoreId:
-                    importHistory['firestoreId'] as String? ??
-                    'purchase_${DateTime.now().millisecondsSinceEpoch}',
-                amount: product.cost * quantity,
-                paymentMethod: selectedPaymentMethod,
-                productName: product.name,
-                supplierName: supplierCtrl.text,
-                quantity: quantity,
-                createdAt: ts,
-                createdBy: userName,
-              );
-            } catch (e) {
-              debugPrint('Failed to log financial activity: $e');
-            }
+            // NOTE: FinancialActivityService.logPurchase REMOVED - ledger handled by PaymentIntentService
           }
 
           // Cập nhật giá nhà cung cấp
@@ -756,46 +739,84 @@ class _StockInViewState extends State<StockInView> {
         linkedSummary: product.name,
       );
 
-      // Chi phí/công nợ NCC
-      if (selectedPaymentMethod == 'CÔNG NỢ') {
-        final supplierData = suppliers.firstWhere(
-          (s) => s['name'] == supplierCtrl.text,
-          orElse: () => {},
-        );
-        final supplierPhone = supplierData['phone']?.toString() ?? '';
-        final debt = Debt(
-          personName: supplierCtrl.text,
-          phone: supplierPhone,
-          totalAmount: product.cost * product.quantity,
-          paidAmount: 0,
-          type: 'SHOP_OWES',
-          status: 'ACTIVE',
-          createdAt: ts,
-          note: 'Công nợ nhập hàng ${product.name}',
-          linkedId: product.firestoreId,
-        );
-        debt.firestoreId =
-            "debt_${ts}_${supplierPhone.isNotEmpty ? supplierPhone : supplierCtrl.text.hashCode}";
-        try {
-          await db.upsertDebt(debt);
-          // Get debt ID after upsert and queue sync
-          final debtId = await db.getDebtIdByFirestoreId(debt.firestoreId!);
-          await SyncOrchestrator().enqueue(
-            entityType: SyncEntityType.debt,
-            entityId: debtId ?? 0,
-            firestoreId: debt.firestoreId,
-            operation: SyncOperation.create,
-            data: debt.toMap(),
+      // Tạo PaymentIntent cho nhập kho
+      final totalCost = (int.tryParse(quantityCtrl.text) ?? 1) * (product.cost ?? 0);
+      if (totalCost > 0) {
+        if (selectedPaymentMethod == 'CÔNG NỢ') {
+          // Công nợ NCC → Tạo debt record + PaymentIntent (CHỜ CHI)
+          final debtFId = 'debt_stockin_${DateTime.now().millisecondsSinceEpoch}_${supplierCtrl.text.hashCode}';
+          final debtData = {
+            'firestoreId': debtFId,
+            'personName': supplierCtrl.text.isNotEmpty ? supplierCtrl.text : 'NCC',
+            'phone': '',
+            'totalAmount': totalCost,
+            'paidAmount': 0,
+            'type': 'SHOP_OWES',
+            'status': 'ACTIVE',
+            'createdAt': DateTime.now().millisecondsSinceEpoch,
+            'note': 'Nhập kho: ${product.name} x${quantityCtrl.text}',
+            'linkedId': product.firestoreId,
+            'isSynced': 0,
+          };
+          final debtId = await db.insertDebt(debtData);
+          
+          if (debtId > 0) {
+            await SyncOrchestrator().enqueue(
+              entityType: SyncEntityType.debt,
+              entityId: debtId,
+              firestoreId: debtFId,
+              operation: SyncOperation.create,
+              data: debtData,
+            );
+          }
+          
+          // Tạo PaymentIntent để trả nợ sau (CHỜ CHI)
+          final intent = PaymentIntent(
+            id: 'pi_stockin_debt_${DateTime.now().millisecondsSinceEpoch}_${product.id}',
+            type: PaymentIntentType.supplierDebt,
+            amount: totalCost,
+            description: 'Trả nợ nhập kho: ${product.name} - ${supplierCtrl.text.isNotEmpty ? supplierCtrl.text : "NCC"}',
+            referenceId: debtFId,
+            referenceType: 'stockin_debt',
+            personName: supplierCtrl.text.isNotEmpty ? supplierCtrl.text : 'NCC',
+            createdBy: user?.uid ?? 'unknown',
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            metadata: {
+              'productId': product.id,
+              'productFirestoreId': product.firestoreId,
+              'productName': product.name,
+              'quantity': int.tryParse(quantityCtrl.text) ?? 1,
+              'debtId': debtId,
+              'debtFirestoreId': debtFId,
+              'debtType': 'SHOP_OWES',
+            },
           );
-        } catch (e) {
-          debugPrint('StockIn: Debt creation error: $e');
-          NotificationService.showSnackBar(
-            "Lỗi tạo công nợ: $e",
-            color: Colors.red,
+          await PaymentIntentService.createIntent(intent);
+          debugPrint('💳 Created PaymentIntent for stock-in debt: ${intent.id}');
+          EventBus().emit('debts_changed');
+        } else {
+          // Tiền mặt/Chuyển khoản → Tạo PaymentIntent để xác nhận thanh toán (CHỜ CHI)
+          final intent = PaymentIntent(
+            id: 'pi_stockin_${DateTime.now().millisecondsSinceEpoch}_${product.id}',
+            type: PaymentIntentType.supplierDebt,
+            amount: totalCost,
+            description: 'Chi nhập kho: ${product.name} - ${supplierCtrl.text.isNotEmpty ? supplierCtrl.text : "NCC"}',
+            referenceId: product.firestoreId,
+            referenceType: 'stockin',
+            personName: supplierCtrl.text.isNotEmpty ? supplierCtrl.text : 'NCC',
+            createdBy: user?.uid ?? 'unknown',
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            metadata: {
+              'productId': product.id,
+              'productFirestoreId': product.firestoreId,
+              'productName': product.name,
+              'quantity': int.tryParse(quantityCtrl.text) ?? 1,
+              'paymentMethod': selectedPaymentMethod,
+            },
           );
+          await PaymentIntentService.createIntent(intent);
+          debugPrint('💳 Created PaymentIntent for stock-in payment: ${intent.id}');
         }
-      } else {
-        await _addStockInExpense(product);
       }
 
       // Notify UI update for suppliers
@@ -812,50 +833,14 @@ class _StockInViewState extends State<StockInView> {
   }
 
   // THÊM CHI PHÍ NHẬP KHO VÀO TRANG CHI PHÍ
+  // NOTE: Method BLOCKED - must use PaymentIntentService for stock-in expenses
   Future<void> _addStockInExpense(Product product) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
-      final shopId = await UserService.getCurrentShopId();
-      final firestoreId =
-          'expense_${shopId}_${DateTime.now().millisecondsSinceEpoch}';
-
-      final expense = {
-        'amount': product.cost * product.quantity,
-        'category': 'NHẬP HÀNG',
-        'description':
-            'Nhập kho thủ công: ${product.name} - SL: ${product.quantity}',
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
-        'createdBy': userName,
-        'linkedId': product.firestoreId,
-        'paymentMethod': selectedPaymentMethod,
-        'isSynced': false,
-        'firestoreId': firestoreId,
-        'shopId': shopId,
-      };
-
-      // Thêm vào local DB
-      final expenseId = await db.insertExpense(expense);
-
-      // Queue sync via SyncOrchestrator
-      await SyncOrchestrator().enqueue(
-        entityType: SyncEntityType.expense,
-        entityId: expenseId,
-        firestoreId: firestoreId,
-        operation: SyncOperation.create,
-        data: expense,
-      );
-
-      // Notify expense change
-      EventBus().emit('expenses_changed');
-
-      debugPrint(
-        'Đã thêm chi phí nhập kho: ${product.cost * product.quantity} cho ${product.name}',
-      );
-    } catch (e) {
-      debugPrint('Lỗi thêm chi phí nhập kho: $e');
-      // Không throw error để không làm fail stock in
-    }
+    // BLOCKED: Direct insertExpense for stock-in must go through PaymentIntent flow
+    // Use PaymentIntentService.createIntent() -> UnifiedPaymentPage instead
+    debugPrint('⛔ _addStockInExpense BLOCKED - Use PaymentIntentService for stock-in payments');
+    throw UnsupportedError(
+      '_addStockInExpense blocked. Use PaymentIntentService.createIntent() -> UnifiedPaymentPage'
+    );
   }
 
   /// Mở scanner QR/Barcode để quét IMEI - xử lý thông minh QR nhiều dòng

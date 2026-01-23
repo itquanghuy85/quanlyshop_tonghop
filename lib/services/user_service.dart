@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'encryption_service.dart';
 import 'claims_service.dart';
+import 'payment_intent_service.dart';
 
 class UserService {
   // Validate input fields
@@ -112,6 +113,7 @@ class UserService {
     _cachedUid = null;
     _adminSelectedShopId = null;
     ClaimsService().stopClaimsSync(); // Stop claims listener on logout
+    PaymentIntentService.clearCache(); // Clear payment intent cache
   }
 
   /// Initialize claims sync after login

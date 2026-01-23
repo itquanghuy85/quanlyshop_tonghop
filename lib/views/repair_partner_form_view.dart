@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import '../models/repair_partner_model.dart';
 import '../services/repair_partner_service.dart';
-import '../services/notification_service.dart';
 import '../services/user_service.dart';
-import '../services/event_bus.dart';
+import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
 class RepairPartnerFormView extends StatefulWidget {
   final RepairPartner? editing;
+  
   const RepairPartnerFormView({super.key, this.editing});
 
   @override
@@ -17,24 +17,23 @@ class RepairPartnerFormView extends StatefulWidget {
 
 class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
   final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _noteCtrl = TextEditingController();
-  final _service = RepairPartnerService();
+  final _partnerService = RepairPartnerService();
+  
+  late TextEditingController _nameCtrl;
+  late TextEditingController _phoneCtrl;
+  late TextEditingController _noteCtrl;
   bool _active = true;
   bool _saving = false;
 
-  bool get _isEditing => widget.editing != null;
+  bool get isEditing => widget.editing != null;
 
   @override
   void initState() {
     super.initState();
-    if (_isEditing) {
-      _nameCtrl.text = widget.editing!.name;
-      _phoneCtrl.text = widget.editing!.phone ?? '';
-      _noteCtrl.text = widget.editing!.note ?? '';
-      _active = widget.editing!.active;
-    }
+    _nameCtrl = TextEditingController(text: widget.editing?.name ?? '');
+    _phoneCtrl = TextEditingController(text: widget.editing?.phone ?? '');
+    _noteCtrl = TextEditingController(text: widget.editing?.note ?? '');
+    _active = widget.editing?.active ?? true;
   }
 
   @override
@@ -46,51 +45,42 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    
     setState(() => _saving = true);
+    
     try {
       final shopId = await UserService.getCurrentShopId() ?? '';
-      final partner = RepairPartner(
-        id: widget.editing?.id,
-        name: _nameCtrl.text.trim().toUpperCase(),
-        phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
-        note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
-        active: _active,
-        shopId: shopId,
-        firestoreId: widget.editing?.firestoreId,
-        createdAt: widget.editing?.createdAt,
-        updatedAt: DateTime.now().millisecondsSinceEpoch,
-      );
-
-      if (_isEditing) {
-        final success = await _service.updateRepairPartner(partner);
+      
+      if (isEditing) {
+        final updated = widget.editing!.copyWith(
+          name: _nameCtrl.text.trim().toUpperCase(),
+          phone: _phoneCtrl.text.trim(),
+          note: _noteCtrl.text.trim(),
+          active: _active,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        );
+        final success = await _partnerService.updateRepairPartner(updated);
         if (success) {
-          NotificationService.showSnackBar(
-            'Đã cập nhật đối tác sửa chữa',
-            color: Colors.green,
-          );
-          EventBus().emit('repair_partners_changed');
+          NotificationService.showSnackBar('Đã cập nhật đối tác', color: Colors.green);
           if (mounted) Navigator.pop(context, true);
         } else {
-          NotificationService.showSnackBar(
-            'Lỗi cập nhật đối tác',
-            color: Colors.red,
-          );
+          NotificationService.showSnackBar('Lỗi cập nhật đối tác', color: Colors.red);
         }
       } else {
-        final result = await _service.addRepairPartner(partner);
+        final partner = RepairPartner(
+          name: _nameCtrl.text.trim().toUpperCase(),
+          phone: _phoneCtrl.text.trim(),
+          note: _noteCtrl.text.trim(),
+          active: _active,
+          shopId: shopId,
+        );
+        final result = await _partnerService.addRepairPartner(partner);
         if (result != null) {
-          NotificationService.showSnackBar(
-            'Đã thêm đối tác sửa chữa mới',
-            color: Colors.green,
-          );
-          EventBus().emit('repair_partners_changed');
+          NotificationService.showSnackBar('Đã thêm đối tác mới', color: Colors.green);
           if (mounted) Navigator.pop(context, true);
         } else {
-          NotificationService.showSnackBar(
-            'Lỗi thêm đối tác',
-            color: Colors.red,
-          );
+          NotificationService.showSnackBar('Lỗi thêm đối tác', color: Colors.red);
         }
       }
     } catch (e) {
@@ -108,25 +98,36 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF11998e), Color(0xFF38ef7d)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
         ),
-        title: Text(
-          _isEditing ? 'SỬA ĐỐI TÁC SỬA CHỮA' : 'THÊM ĐỐI TÁC SỬA CHỮA',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
+        title: Text(
+          isEditing ? 'SỬA ĐỐI TÁC' : 'THÊM ĐỐI TÁC MỚI',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
         actions: [
-          if (_isEditing)
+          if (_saving)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                ),
+              ),
+            )
+          else
             IconButton(
-              onPressed: _confirmDelete,
-              icon: const Icon(Icons.delete),
-              tooltip: 'Xóa',
+              onPressed: _save,
+              icon: const Icon(Icons.check),
+              tooltip: 'Lưu',
             ),
         ],
       ),
@@ -135,74 +136,80 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildSection('Thông tin đối tác', [
-              TextFormField(
-                controller: _nameCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(
-                  labelText: 'Tên đối tác *',
-                  hintText: 'VD: TIỆM SỬA DIEN_THOAI ABC',
-                  prefixIcon: Icon(Icons.business),
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Vui lòng nhập tên'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Số điện thoại',
-                  hintText: '0901234567',
-                  prefixIcon: Icon(Icons.phone),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _noteCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Ghi chú',
-                  hintText: 'Chuyên sửa iPhone, thay IC...',
-                  prefixIcon: Icon(Icons.note),
-                ),
-              ),
-            ]),
+            // Tên đối tác
+            _buildTextField(
+              controller: _nameCtrl,
+              label: 'Tên đối tác *',
+              hint: 'VD: TIỆM SỬA ABC',
+              icon: Icons.business,
+              caps: true,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) {
+                  return 'Vui lòng nhập tên đối tác';
+                }
+                return null;
+              },
+            ),
             const SizedBox(height: 16),
-            _buildSection('Trạng thái', [
-              SwitchListTile(
-                value: _active,
-                onChanged: (v) => setState(() => _active = v),
-                title: Text('Đang hoạt động', style: AppTextStyles.body1),
-                subtitle: Text(
-                  _active
-                      ? 'Đối tác sẽ xuất hiện trong danh sách chọn'
-                      : 'Đối tác sẽ bị ẩn',
-                  style: AppTextStyles.caption,
-                ),
-                secondary: Icon(
-                  _active ? Icons.check_circle : Icons.cancel,
-                  color: _active ? AppColors.success : AppColors.error,
+            
+            // Số điện thoại
+            _buildTextField(
+              controller: _phoneCtrl,
+              label: 'Số điện thoại',
+              hint: '0123456789',
+              icon: Icons.phone,
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 16),
+            
+            // Ghi chú
+            _buildTextField(
+              controller: _noteCtrl,
+              label: 'Ghi chú',
+              hint: 'Chuyên sửa màn hình, main board...',
+              icon: Icons.note,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+            
+            // Trạng thái
+            SwitchListTile(
+              title: Text('Đang hoạt động', style: AppTextStyles.body1),
+              subtitle: Text(
+                _active ? 'Đối tác đang hợp tác' : 'Tạm ngừng hợp tác',
+                style: AppTextStyles.caption.copyWith(
+                  color: _active ? AppColors.success : AppColors.warning,
                 ),
               ),
-            ]),
-            const SizedBox(height: 24),
+              value: _active,
+              onChanged: (v) => setState(() => _active = v),
+              activeColor: AppColors.success,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: AppColors.outline.withOpacity(0.5)),
+              ),
+              tileColor: AppColors.surface,
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Nút lưu
             ElevatedButton.icon(
               onPressed: _saving ? null : _save,
-              icon: _saving
+              icon: _saving 
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
-                  : const Icon(Icons.save),
-              label: Text(_isEditing ? 'CẬP NHẬT' : 'THÊM ĐỐI TÁC'),
+                  : Icon(isEditing ? Icons.save : Icons.add),
+              label: Text(isEditing ? 'CẬP NHẬT' : 'THÊM ĐỐI TÁC'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.onPrimary,
+                backgroundColor: isEditing ? AppColors.warning : AppColors.success,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -211,60 +218,47 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
     );
   }
 
-  Widget _buildSection(String title, List<Widget> children) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 6)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: AppTextStyles.headline6.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const Divider(height: 20),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Xác nhận xóa'),
-        content: Text(
-          'Bạn có chắc muốn xóa đối tác "${widget.editing!.name}"?',
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    IconData? icon,
+    bool caps = false,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      textCapitalization: caps ? TextCapitalization.characters : TextCapitalization.none,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      validator: validator,
+      style: AppTextStyles.body1,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: icon != null ? Icon(icon, color: AppColors.primary) : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.outline),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('HỦY'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('XÓA'),
-          ),
-        ],
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        filled: true,
+        fillColor: AppColors.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
-    if (confirmed == true) {
-      final success = await _service.deleteRepairPartner(widget.editing!.id!);
-      if (success) {
-        NotificationService.showSnackBar('Đã xóa đối tác', color: Colors.green);
-        EventBus().emit('repair_partners_changed');
-        if (mounted) Navigator.pop(context, true);
-      } else {
-        NotificationService.showSnackBar('Lỗi xóa đối tác', color: Colors.red);
-      }
-    }
   }
 }

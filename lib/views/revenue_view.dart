@@ -2543,12 +2543,12 @@ class _RevenueViewState extends State<RevenueView>
           (s) =>
               s.isInstallment &&
               s.settlementReceivedAt == null &&
-              s.loanAmount > 0,
+              (s.loanAmount > 0 || s.loanAmount2 > 0),
         )
         .toList();
     int pendingFromBank = pendingInstallments.fold(
       0,
-      (sum, s) => sum + s.loanAmount,
+      (sum, s) => sum + s.loanAmount + s.loanAmount2, // Include both loans
     );
 
     // Tổng phải thu
@@ -3065,7 +3065,15 @@ class _RevenueViewState extends State<RevenueView>
     final list = _sales.where((s) => _isInFilterPeriod(s.soldAt)).toList();
     list.sort((a, b) => b.soldAt.compareTo(a.soldAt));
 
-    final totalRevenue = list.fold<int>(0, (sum, s) => sum + s.totalPrice);
+    // Tính doanh thu đã thu thực tế (cash basis for installment)
+    final totalRevenue = list.fold<int>(0, (sum, s) {
+      if (s.isInstallment) {
+        // Trả góp: chỉ tính tiền đã thu (downPayment + settlement nếu có)
+        final settlementPaid = s.settlementReceivedAt != null ? s.settlementAmount : 0;
+        return sum + s.downPayment + settlementPaid;
+      }
+      return sum + s.totalPrice;
+    });
 
     return Column(
       children: [

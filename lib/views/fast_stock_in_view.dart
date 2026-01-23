@@ -813,98 +813,11 @@ class _FastStockInViewState extends State<FastStockInView> {
       }
 
       // Xử lý công nợ nhà cung cấp - ĐƠN GIẢN VÀ TRỰC TIẾP - CHỈ KHI KHÔNG PENDING
-      if (!isPending && selectedPaymentMethod == 'CÔNG NỢ') {
-        final supplierData = suppliers.firstWhere(
-          (s) => s['name'] == selectedSupplier,
-          orElse: () => {},
-        );
-        final supplierPhone = supplierData['phone']?.toString() ?? '';
-
-        // Tạo debt record đơn giản
-        final debt = Debt(
-          personName: selectedSupplier!,
-          phone: supplierPhone,
-          totalAmount: cost * quantity,
-          paidAmount: 0,
-          type: 'SHOP_OWES',
-          status: 'ACTIVE',
-          createdAt: ts,
-          note: 'Công nợ nhập hàng ${product.name}',
-          linkedId: product.firestoreId,
-        );
-
-        // Set firestoreId to prevent duplicates
-        debt.firestoreId = "debt_${ts}_$supplierPhone";
-
-        try {
-          debugPrint(
-            'FastStockIn: Creating debt for supplier $selectedSupplier, amount: ${cost * quantity}',
-          );
-          await db.upsertDebt(debt);
-          debugPrint(
-            'FastStockIn: Debt created successfully, firestoreId: ${debt.firestoreId}',
-          );
-
-          // Queue sync to cloud via SyncOrchestrator
-          final debtId = await db.getDebtIdByFirestoreId(debt.firestoreId!);
-          if (debtId != null) {
-            await SyncOrchestrator().enqueue(
-              entityType: SyncEntityType.debt,
-              entityId: debtId,
-              firestoreId: debt.firestoreId,
-              operation: SyncOperation.create,
-              data: debt.toMap(),
-            );
-          }
-
-          // Notify UI update
-          EventBus().emit('debts_changed');
-
-          NotificationService.showSnackBar(
-            "Đã tạo công nợ cho nhà cung cấp!",
-            color: Colors.green,
-          );
-        } catch (e) {
-          debugPrint('FastStockIn: Debt creation error: $e');
-          NotificationService.showSnackBar(
-            "Lỗi tạo công nợ: $e",
-            color: Colors.red,
-          );
-          return; // Don't continue if debt creation fails
-        }
-      } else if (!isPending) {
-        // Xử lý thanh toán tiền mặt/chuyển khoản - tạo expense record - CHỈ KHI KHÔNG PENDING
-        final expFId = "exp_stock_$ts";
-        final exp = {
-          'firestoreId': expFId,
-          'title': 'Nhập hàng - $selectedSupplier',
-          'amount': cost * quantity,
-          // CHUẨN HÓA: Dùng 'NHẬP HÀNG' thay vì 'PURCHASE' để đồng nhất với stock_in_view.dart
-          'category': 'NHẬP HÀNG',
-          'date': ts,
-          'note': 'Chi phí nhập hàng ${product.name}',
-          'paymentMethod': selectedPaymentMethod,
-          'createdAt': ts,
-        };
-        try {
-          final expenseId = await db.insertExpense(exp);
-
-          // Queue sync to cloud via SyncOrchestrator
-          await SyncOrchestrator().enqueue(
-            entityType: SyncEntityType.expense,
-            entityId: expenseId,
-            firestoreId: expFId,
-            operation: SyncOperation.create,
-            data: exp,
-          );
-          EventBus().emit('expenses_changed');
-        } catch (e) {
-          debugPrint('FastStockIn: Failed to create expense: $e');
-          NotificationService.showSnackBar(
-            "Lỗi tạo chi phí: $e",
-            color: Colors.red,
-          );
-        }
+      // NOTE: Direct upsertDebt/insertExpense for stock-in BLOCKED
+      // Payment must go through PaymentIntentService -> UnifiedPaymentPage
+      // Product is saved, but payment execution is separate flow
+      if (!isPending) {
+        debugPrint('FastStockIn: Payment via PaymentIntent flow required for $selectedPaymentMethod');
       }
 
       // Log action

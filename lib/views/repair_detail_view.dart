@@ -13,10 +13,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/repair_model.dart';
 import '../models/repair_service_model.dart';
 import '../models/repair_partner_model.dart';
+import '../models/payment_intent_model.dart';
 import '../services/unified_printer_service.dart';
 import '../services/repair_partner_service.dart';
 import '../services/repair_partner_payment_service.dart';
 import '../services/bluetooth_printer_service.dart';
+import '../services/payment_intent_service.dart';
 import '../models/printer_types.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../services/notification_service.dart';
@@ -29,7 +31,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import 'parts_inventory_view.dart';
-import 'repair_partner_list_view.dart';
+import 'repair_partner_view.dart';
 
 class RepairDetailView extends StatefulWidget {
   final Repair repair;
@@ -138,8 +140,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       return;
     }
 
+    // NOTE: Code below is DEAD CODE - kept for reference only
+    // Admin/owner always goes through _approveDelivery() above
+    /*
     if (newStatus == 4) {
-      // GIAO MÁY
+      // GIAO MÁY (DEAD CODE)
       String payMethod = "TIỀN MẶT";
       String selectedWarranty = r.warranty.isEmpty ? "1 THÁNG" : r.warranty;
       final List<String> warrantyOptions = [
@@ -264,6 +269,51 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           operation: SyncOperation.create,
           data: debtData,
         );
+        
+        // Tạo PaymentIntent cho việc thu nợ sau này (CHỜ THU)
+        final intent = PaymentIntent(
+          id: 'pi_repair_debt_${DateTime.now().millisecondsSinceEpoch}_${r.id}',
+          type: PaymentIntentType.customerDebtCollection,
+          amount: r.price,
+          description: 'Thu tiền sửa máy: ${r.model} - ${r.customerName}',
+          referenceId: debtFId,
+          referenceType: 'repair_debt',
+          personName: r.customerName,
+          personPhone: r.phone,
+          createdBy: user?.uid ?? 'unknown',
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          metadata: {
+            'repairId': r.id,
+            'repairFirestoreId': r.firestoreId,
+            'debtId': debtId,
+            'debtFirestoreId': debtFId,
+            'debtType': 'CUSTOMER_OWES',
+          },
+        );
+        await PaymentIntentService.createIntent(intent);
+        debugPrint('💳 Created PaymentIntent for repair debt collection: ${intent.id}');
+      } else if (r.price > 0) {
+        // Thanh toán tiền mặt/chuyển khoản - Tạo PaymentIntent (CHỜ THU)
+        final intent = PaymentIntent(
+          id: 'pi_repair_${DateTime.now().millisecondsSinceEpoch}_${r.id}',
+          type: PaymentIntentType.repairService,
+          amount: r.price,
+          description: 'Thu tiền sửa máy: ${r.model} - ${r.customerName}',
+          referenceId: r.firestoreId,
+          referenceType: 'repair',
+          personName: r.customerName,
+          personPhone: r.phone,
+          createdBy: user?.uid ?? 'unknown',
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          metadata: {
+            'repairId': r.id,
+            'repairFirestoreId': r.firestoreId,
+            'paymentMethod': payMethod,
+            'model': r.model,
+          },
+        );
+        await PaymentIntentService.createIntent(intent);
+        debugPrint('💳 Created PaymentIntent for repair payment: ${intent.id}');
       }
 
       // GHIM ĐƠN SỬA VÀO CHAT NỘI BỘ KHI GIAO MÁY
@@ -280,6 +330,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         linkedSummary: summary,
       );
     }
+    */
+    // END OF DEAD CODE BLOCK
 
     if (newStatus == 3) {
       r.finishedAt = DateTime.now().millisecondsSinceEpoch;
@@ -693,6 +745,51 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           operation: SyncOperation.create,
           data: debtData,
         );
+        
+        // Tạo PaymentIntent cho việc thu nợ sau này (CHỜ THU)
+        final intent = PaymentIntent(
+          id: 'pi_repair_debt_approve_${DateTime.now().millisecondsSinceEpoch}_${r.id}',
+          type: PaymentIntentType.customerDebtCollection,
+          amount: r.price,
+          description: 'Thu tiền sửa máy: ${r.model} - ${r.customerName}',
+          referenceId: debtFId,
+          referenceType: 'repair_debt',
+          personName: r.customerName,
+          personPhone: r.phone,
+          createdBy: user?.uid ?? 'unknown',
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          metadata: {
+            'repairId': r.id,
+            'repairFirestoreId': r.firestoreId,
+            'debtId': debtId,
+            'debtFirestoreId': debtFId,
+            'debtType': 'CUSTOMER_OWES',
+          },
+        );
+        await PaymentIntentService.createIntent(intent);
+        debugPrint('💳 Created PaymentIntent for repair debt collection (approve): ${intent.id}');
+      } else if (r.price > 0) {
+        // Thanh toán tiền mặt/chuyển khoản - Tạo PaymentIntent (CHỜ THU)
+        final intent = PaymentIntent(
+          id: 'pi_repair_approve_${DateTime.now().millisecondsSinceEpoch}_${r.id}',
+          type: PaymentIntentType.repairService,
+          amount: r.price,
+          description: 'Thu tiền sửa máy: ${r.model} - ${r.customerName}',
+          referenceId: r.firestoreId,
+          referenceType: 'repair',
+          personName: r.customerName,
+          personPhone: r.phone,
+          createdBy: user?.uid ?? 'unknown',
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          metadata: {
+            'repairId': r.id,
+            'repairFirestoreId': r.firestoreId,
+            'paymentMethod': r.paymentMethod,
+            'model': r.model,
+          },
+        );
+        await PaymentIntentService.createIntent(intent);
+        debugPrint('💳 Created PaymentIntent for repair payment (approve): ${intent.id}');
       }
 
       await db.upsertRepair(r);
@@ -879,7 +976,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   void _navigateToRepairPartners() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const RepairPartnerListView()),
+      MaterialPageRoute(builder: (_) => const RepairPartnerView()),
     );
   }
 
@@ -1919,30 +2016,47 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       await db.upsertRepair(r);
 
       // Handle partner history if service has partner
-      if (service.partnerId != null && r.firestoreId != null) {
-        final partnerService = RepairPartnerService();
-        await partnerService.createPartnerHistoryForRepair(
-          repairOrderId: r.firestoreId!,
-          partnerId: service.partnerId!,
-          partnerCost: service.cost,
-          customerName: r.customerName,
-          deviceModel: r.model,
-          issue: service.serviceName,
-          repairContent: service.serviceName,
-        );
+      if (service.partnerId != null) {
+        // Chỉ tạo partner history nếu có firestoreId
+        if (r.firestoreId != null) {
+          final partnerService = RepairPartnerService();
+          await partnerService.createPartnerHistoryForRepair(
+            repairOrderId: r.firestoreId!,
+            partnerId: service.partnerId!,
+            partnerCost: service.cost,
+            customerName: r.customerName,
+            deviceModel: r.model,
+            issue: service.serviceName,
+            repairContent: service.serviceName,
+          );
+        }
 
-        // Ghi nhận thanh toán hoặc công nợ đối tác
+        // Ghi nhận thanh toán hoặc công nợ đối tác (LUÔN tạo PaymentIntent)
+        debugPrint('🔍 Partner payment check: partnerId=${service.partnerId}, paymentMethod=${service.paymentMethod}');
         if (service.paymentMethod != null) {
           if (service.paymentMethod != 'CÔNG NỢ') {
-            // Thanh toán ngay → ghi nhận payment
-            final paymentService = RepairPartnerPaymentService();
-            await paymentService.addPayment(
-              partnerId: service.partnerId!,
+            // Thanh toán ngay → tạo PaymentIntent để xác nhận (CHỜ CHI)
+            final intent = PaymentIntent(
+              id: 'pi_partner_service_${DateTime.now().millisecondsSinceEpoch}_${service.partnerId}',
+              type: PaymentIntentType.repairPartnerDebt,
               amount: service.cost,
-              paymentMethod: service.paymentMethod!,
-              note:
-                  'TT dịch vụ: ${service.serviceName} - Đơn sửa #${r.firestoreId}',
+              description: 'Trả đối tác: ${service.partnerName ?? "N/A"} - ${service.serviceName}',
+              referenceId: r.firestoreId,
+              referenceType: 'repair_partner_service',
+              personName: service.partnerName,
+              createdBy: FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
+              createdAt: DateTime.now().millisecondsSinceEpoch,
+              metadata: {
+                'repairId': r.id,
+                'repairFirestoreId': r.firestoreId,
+                'partnerId': service.partnerId,
+                'partnerName': service.partnerName,
+                'serviceName': service.serviceName,
+                'paymentMethod': service.paymentMethod,
+              },
             );
+            await PaymentIntentService.createIntent(intent);
+            debugPrint('💳 Created PaymentIntent for partner payment: ${intent.id}');
           } else {
             // CÔNG NỢ → tạo debt record vào bảng debts để hiện trong trang Quản lý công nợ
             try {
@@ -1979,7 +2093,32 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 );
               }
               
+              // Tạo PaymentIntent cho việc trả nợ sau này (CHỜ CHI)
+              final intent = PaymentIntent(
+                id: 'pi_partner_debt_${now}_${service.partnerId}',
+                type: PaymentIntentType.repairPartnerDebt,
+                amount: service.cost,
+                description: 'Trả nợ đối tác: ${service.partnerName ?? "N/A"} - ${service.serviceName}',
+                referenceId: debtFId,
+                referenceType: 'partner_debt',
+                personName: service.partnerName,
+                createdBy: FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
+                createdAt: now,
+                metadata: {
+                  'repairId': r.id,
+                  'repairFirestoreId': r.firestoreId,
+                  'partnerId': service.partnerId,
+                  'partnerName': service.partnerName,
+                  'serviceName': service.serviceName,
+                  'debtId': debtId,
+                  'debtFirestoreId': debtFId,
+                  'debtType': 'SHOP_OWES',
+                },
+              );
+              await PaymentIntentService.createIntent(intent);
+              
               debugPrint('✅ Created partner debt: $debtFId for ${service.partnerName}');
+              debugPrint('💳 Created PaymentIntent for partner debt: ${intent.id}');
               EventBus().emit('debts_changed');
             } catch (e) {
               debugPrint('❌ Error creating partner debt: $e');

@@ -18,6 +18,18 @@ class DBHelper {
   DBHelper._internal();
   factory DBHelper() => _instance;
 
+  /// Helper để lấy shopId hiện tại (dùng cho query, không throw exception)
+  /// Trả về shopId hoặc null nếu không có
+  Future<String?> _getCurrentShopId() async {
+    // Thử lấy từ cache trước (nhanh)
+    final cachedShopId = UserService.getShopIdSync();
+    if (cachedShopId != null && cachedShopId.isNotEmpty) {
+      return cachedShopId;
+    }
+    // Nếu không có cache, thử lấy từ Firestore
+    return await UserService.getCurrentShopId();
+  }
+
   /// Helper để đảm bảo shopId hợp lệ trước khi ghi dữ liệu quan trọng
   /// Trả về shopId hoặc throw Exception nếu không có
   Future<String> _ensureValidShopId([String? existingShopId]) async {
@@ -54,7 +66,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 66,
+      version: 67,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
@@ -1589,6 +1601,41 @@ class DBHelper {
             debugPrint('v66 error (updatedAt): $e');
           }
           debugPrint('DB upgrade v66: completed');
+        }
+        if (oldV < 67) {
+          // v67: Add payment_intents table for persistent payment intent storage
+          debugPrint('DB upgrade v67: Creating payment_intents table...');
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS payment_intents(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                intentId TEXT UNIQUE NOT NULL,
+                type TEXT NOT NULL,
+                amount INTEGER NOT NULL,
+                description TEXT,
+                status TEXT DEFAULT 'pending',
+                personName TEXT,
+                personPhone TEXT,
+                referenceId TEXT,
+                referenceType TEXT,
+                paymentMethod TEXT,
+                createdBy TEXT,
+                createdAt INTEGER,
+                paidBy TEXT,
+                paidAt INTEGER,
+                notes TEXT,
+                metadata TEXT,
+                shopId TEXT,
+                isSynced INTEGER DEFAULT 0
+              )
+            ''');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_payment_intents_status ON payment_intents(status)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_payment_intents_type ON payment_intents(type)');
+            debugPrint('v67: created payment_intents table');
+          } catch (e) {
+            debugPrint('v67 error (payment_intents): $e');
+          }
+          debugPrint('DB upgrade v67: completed');
         }
         debugPrint('DB upgrade completed');
       },
@@ -5317,5 +5364,177 @@ class DBHelper {
     } else {
       await db.insert('financial_activity_log', cleanData);
     }
+  }
+
+  // =====================================================================
+  // PAYMENT INTENTS METHODS
+  // =====================================================================
+
+  /// Insert a new payment intent
+  Future<int> insertPaymentIntent(Map<String, dynamic> data) async {
+    final db = await database;
+    // Ensure table exists
+    try {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS payment_intents(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          intentId TEXT UNIQUE NOT NULL,
+          type TEXT NOT NULL,
+          amount INTEGER NOT NULL,
+          description TEXT,
+          status TEXT DEFAULT 'PENDING',
+          personName TEXT,
+          personPhone TEXT,
+          referenceId TEXT,
+          referenceType TEXT,
+          paymentMethod TEXT,
+          createdBy TEXT,
+          createdAt INTEGER,
+          paidBy TEXT,
+          paidAt INTEGER,
+          notes TEXT,
+          metadata TEXT,
+          shopId TEXT,
+          isSynced INTEGER DEFAULT 0
+        )
+      ''');
+    } catch (e) {
+      debugPrint('DB: ensure payment_intents table error: $e');
+    }
+    return await db.insert('payment_intents', data);
+  }
+
+  /// Get all payment intents (for loading on app start) - filtered by current shopId
+  Future<List<Map<String, dynamic>>> getAllPaymentIntents() async {
+    final db = await database;
+    final shopId = await _getCurrentShopId();
+    if (shopId == null) {
+      return []; // No shopId = return empty list
+    }
+    return await db.query(
+      'payment_intents',
+      where: 'shopId = ?',
+      whereArgs: [shopId],
+      orderBy: 'createdAt DESC',
+    );
+  }
+
+  /// Get pending payment intents (filtered by current shopId)
+  Future<List<Map<String, dynamic>>> getPendingPaymentIntents() async {
+    final db = await database;
+    final shopId = await _getCurrentShopId();
+    if (shopId == null) {
+      // No shopId = return empty list (new shop or not logged in)
+      return [];
+    }
+    return await db.query(
+      'payment_intents',
+      where: 'status = ? AND shopId = ?',
+      whereArgs: ['PENDING', shopId], // Must match PaymentIntentStatus.pending.code = 'PENDING'
+      orderBy: 'createdAt DESC',
+    );
+  }
+
+  /// Get payment intents by status - filtered by current shopId
+  Future<List<Map<String, dynamic>>> getPaymentIntentsByStatus(String status) async {
+    final db = await database;
+    final shopId = await _getCurrentShopId();
+    if (shopId == null) {
+      return []; // No shopId = return empty list
+    }
+    return await db.query(
+      'payment_intents',
+      where: 'status = ? AND shopId = ?',
+      whereArgs: [status, shopId],
+      orderBy: 'createdAt DESC',
+    );
+  }
+
+  /// Get payment intent by intentId
+  Future<Map<String, dynamic>?> getPaymentIntentByIntentId(String intentId) async {
+    final db = await database;
+    final results = await db.query(
+      'payment_intents',
+      where: 'intentId = ?',
+      whereArgs: [intentId],
+      limit: 1,
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  /// Update payment intent
+  Future<int> updatePaymentIntent(String intentId, Map<String, dynamic> data) async {
+    final db = await database;
+    return await db.update(
+      'payment_intents',
+      data,
+      where: 'intentId = ?',
+      whereArgs: [intentId],
+    );
+  }
+
+  /// Update payment intent status
+  Future<int> updatePaymentIntentStatus(String intentId, String status, {String? paidBy, int? paidAt, String? paymentMethod}) async {
+    final db = await database;
+    final data = <String, dynamic>{'status': status};
+    if (paidBy != null) data['paidBy'] = paidBy;
+    if (paidAt != null) data['paidAt'] = paidAt;
+    if (paymentMethod != null) data['paymentMethod'] = paymentMethod;
+    return await db.update(
+      'payment_intents',
+      data,
+      where: 'intentId = ?',
+      whereArgs: [intentId],
+    );
+  }
+
+  /// Delete payment intent
+  Future<int> deletePaymentIntent(String intentId) async {
+    final db = await database;
+    return await db.delete(
+      'payment_intents',
+      where: 'intentId = ?',
+      whereArgs: [intentId],
+    );
+  }
+
+  /// Get payment intents history (completed/cancelled/failed) - filtered by current shopId
+  Future<List<Map<String, dynamic>>> getPaymentIntentsHistory({int limit = 100}) async {
+    final db = await database;
+    final shopId = await _getCurrentShopId();
+    if (shopId == null) {
+      // No shopId = return empty list (new shop or not logged in)
+      return [];
+    }
+    return await db.query(
+      'payment_intents',
+      where: 'status != ? AND shopId = ?',
+      whereArgs: ['PENDING', shopId], // Must match PaymentIntentStatus.pending.code = 'PENDING'
+      orderBy: 'paidAt DESC, createdAt DESC',
+      limit: limit,
+    );
+  }
+
+  /// Get payment intents by type - filtered by current shopId
+  Future<List<Map<String, dynamic>>> getPaymentIntentsByType(String type, {String? status}) async {
+    final db = await database;
+    final shopId = await _getCurrentShopId();
+    if (shopId == null) {
+      return []; // No shopId = return empty list
+    }
+    if (status != null) {
+      return await db.query(
+        'payment_intents',
+        where: 'type = ? AND status = ? AND shopId = ?',
+        whereArgs: [type, status, shopId],
+        orderBy: 'createdAt DESC',
+      );
+    }
+    return await db.query(
+      'payment_intents',
+      where: 'type = ? AND shopId = ?',
+      whereArgs: [type, shopId],
+      orderBy: 'createdAt DESC',
+    );
   }
 }

@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../models/repair_partner_payment_model.dart';
 import '../services/user_service.dart';
-import '../services/financial_activity_service.dart';
 import '../services/repair_partner_service.dart';
 
 class RepairPartnerPaymentService {
@@ -134,23 +133,7 @@ class RepairPartnerPaymentService {
       shopId: shopId,
     );
     final paymentId = await addPartnerPayment(payment);
-    
-    // Ghi nhật ký tài chính - Trả nợ đối tác sửa chữa (direction = OUT)
-    try {
-      final firestoreId = payment.firestoreId ?? 'part_pay_$now';
-      await FinancialActivityService.logSupplierPayment(
-        firestoreId: firestoreId,
-        amount: amount,
-        paymentMethod: paymentMethod,
-        supplierName: partnerName,
-        createdAt: now,
-        createdBy: userName,
-        note: note ?? 'Trả nợ đối tác sửa chữa: $partnerName',
-      );
-    } catch (e) {
-      // Log error but don't fail the payment
-      print('Failed to log financial activity for partner payment: $e');
-    }
+    // NOTE: FinancialActivityService.logSupplierPayment REMOVED - ledger handled by PaymentIntentService
     
     return paymentId;
   }

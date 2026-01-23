@@ -1,0 +1,1054 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../data/db_helper.dart';
+import '../core/utils/money_utils.dart' as core_money;
+import '../utils/money_utils.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
+
+/// Trang báo cáo tài chính tổng hợp
+/// Hiển thị TẤT CẢ giao dịch liên quan đến tiền:
+/// - Bán hàng, Sửa chữa
+/// - Chi phí, Nhập hàng
+/// - Công nợ (thu/chi)
+/// - Thanh toán nợ
+class FinancialReportView extends StatefulWidget {
+  const FinancialReportView({super.key});
+
+  @override
+  State<FinancialReportView> createState() => _FinancialReportViewState();
+}
+
+/// Model giao dịch tổng hợp
+class TransactionItem {
+  final String id;
+  final int timestamp;
+  final String type; // SALE, REPAIR, EXPENSE, DEBT_IN, DEBT_OUT, PAYMENT_IN, PAYMENT_OUT
+  final String category; // Chi tiết loại
+  final String description;
+  final int amount;
+  final bool isIncome; // true = thu vào, false = chi ra
+  final String? personName; // Khách hàng/NCC/Đối tác
+  final String? note;
+
+  TransactionItem({
+    required this.id,
+    required this.timestamp,
+    required this.type,
+    required this.category,
+    required this.description,
+    required this.amount,
+    required this.isIncome,
+    this.personName,
+    this.note,
+  });
+
+  DateTime get dateTime => DateTime.fromMillisecondsSinceEpoch(timestamp);
+}
+
+class _FinancialReportViewState extends State<FinancialReportView>
+    with SingleTickerProviderStateMixin {
+  final _db = DBHelper();
+  late TabController _tabController;
+
+  List<TransactionItem> _transactions = [];
+  bool _loading = true;
+
+  // Filters
+  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
+  DateTime _endDate = DateTime.now();
+  Set<String> _selectedTypes = {};
+  bool _showIncomeOnly = false;
+  bool _showExpenseOnly = false;
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
+  // Summary
+  int _totalIncome = 0;
+  int _totalExpense = 0;
+
+  // Filter types
+  static const _typeFilters = [
+    {'key': 'SALE', 'label': 'Bán hàng', 'icon': Icons.shopping_cart, 'color': Colors.green},
+    {'key': 'REPAIR', 'label': 'Sửa chữa', 'icon': Icons.build, 'color': Colors.blue},
+    {'key': 'EXPENSE', 'label': 'Chi phí', 'icon': Icons.money_off, 'color': Colors.red},
+    {'key': 'PURCHASE', 'label': 'Nhập hàng', 'icon': Icons.inventory, 'color': Colors.orange},
+    {'key': 'DEBT_COLLECT', 'label': 'Thu nợ', 'icon': Icons.call_received, 'color': Colors.teal},
+    {'key': 'DEBT_PAY', 'label': 'Trả nợ', 'icon': Icons.call_made, 'color': Colors.purple},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+
+    try {
+      final startMs = DateTime(_startDate.year, _startDate.month, _startDate.day).millisecondsSinceEpoch;
+      final endMs = DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59).millisecondsSinceEpoch;
+
+      final List<TransactionItem> allTransactions = [];
+
+      // 1. Bán hàng
+      final sales = await _db.getAllSales();
+      for (final sale in sales) {
+        final soldAt = sale.soldAt;
+        if (soldAt >= startMs && soldAt <= endMs && sale.isSynced != false) {
+          // Tính số tiền thực nhận = downPayment (trả trước) + settlementAmount (NH tất toán)
+          final actualPaid = sale.isInstallment 
+              ? (sale.downPayment + sale.settlementAmount)
+              : sale.totalPrice;
+          
+          allTransactions.add(TransactionItem(
+            id: 'sale_${sale.id}',
+            timestamp: soldAt,
+            type: 'SALE',
+            category: sale.isInstallment ? 'Bán trả góp' : 'Bán hàng',
+            description: sale.customerName.isNotEmpty ? sale.customerName : 'Khách lẻ',
+            amount: actualPaid,
+            isIncome: true,
+            personName: sale.customerName,
+            note: sale.notes,
+          ));
+          
+          // Chi phí vốn hàng bán
+          if (sale.totalCost > 0) {
+            allTransactions.add(TransactionItem(
+              id: 'sale_cost_${sale.id}',
+              timestamp: soldAt,
+              type: 'EXPENSE',
+              category: 'Giá vốn',
+              description: 'Vốn: ${sale.customerName.isNotEmpty ? sale.customerName : "Khách lẻ"}',
+              amount: sale.totalCost,
+              isIncome: false,
+            ));
+          }
+        }
+      }
+
+      // 2. Sửa chữa
+      final repairs = await _db.getAllRepairs();
+      for (final repair in repairs) {
+        final deliveredAt = repair.deliveredAt ?? repair.createdAt;
+        if (deliveredAt >= startMs && deliveredAt <= endMs && repair.status == 4 && !repair.deleted) {
+          allTransactions.add(TransactionItem(
+            id: 'repair_${repair.id}',
+            timestamp: deliveredAt,
+            type: 'REPAIR',
+            category: 'Sửa chữa',
+            description: '${repair.model} - ${repair.customerName}',
+            amount: repair.price,
+            isIncome: true,
+            personName: repair.customerName,
+            note: repair.issue,
+          ));
+          
+          // Chi phí linh kiện
+          if (repair.cost > 0) {
+            allTransactions.add(TransactionItem(
+              id: 'repair_cost_${repair.id}',
+              timestamp: deliveredAt,
+              type: 'EXPENSE',
+              category: 'Chi phí linh kiện',
+              description: 'LK: ${repair.model}',
+              amount: repair.cost,
+              isIncome: false,
+            ));
+          }
+        }
+      }
+
+      // 3. Chi phí
+      final expenses = await _db.getAllExpenses();
+      for (final e in expenses) {
+        final createdAt = (e['createdAt'] as int?) ?? 0;
+        if (createdAt >= startMs && createdAt <= endMs && (e['deleted'] ?? 0) != 1) {
+          allTransactions.add(TransactionItem(
+            id: 'expense_${e['id']}',
+            timestamp: createdAt,
+            type: 'EXPENSE',
+            category: (e['category'] as String?) ?? 'Chi phí khác',
+            description: (e['description'] as String?) ?? (e['category'] as String?) ?? 'Chi phí',
+            amount: (e['amount'] as int?) ?? 0,
+            isIncome: false,
+            note: e['note'] as String?,
+          ));
+        }
+      }
+
+      // 4. Công nợ và thanh toán nợ
+      final debts = await _db.getAllDebts();
+      for (final d in debts) {
+        final createdAt = (d['createdAt'] as int?) ?? 0;
+        final debtType = d['type'] as String? ?? '';
+        final personName = d['personName'] as String?;
+        final totalAmount = (d['totalAmount'] as int?) ?? 0;
+
+        // Shop nợ NCC/Đối tác (SHOP_OWES)
+        if (debtType == 'SHOP_OWES' && createdAt >= startMs && createdAt <= endMs && (d['deleted'] ?? 0) != 1) {
+          allTransactions.add(TransactionItem(
+            id: 'debt_out_${d['id']}',
+            timestamp: createdAt,
+            type: 'DEBT_OUT',
+            category: 'Nợ NCC/Đối tác',
+            description: 'Nợ: ${personName ?? "N/A"}',
+            amount: totalAmount,
+            isIncome: false, // Nợ phải trả
+            personName: personName,
+            note: d['note'] as String?,
+          ));
+        }
+
+        // Lấy các lần thanh toán nợ
+        final debtId = d['id'] as int?;
+        if (debtId != null) {
+          final payments = await _db.getDebtPayments(debtId);
+          for (final p in payments) {
+            final paidAt = (p['paidAt'] as int?) ?? 0;
+            if (paidAt >= startMs && paidAt <= endMs) {
+              if (debtType == 'CUSTOMER_OWES') {
+                // Thu nợ từ khách
+                allTransactions.add(TransactionItem(
+                  id: 'payment_in_${p['id']}',
+                  timestamp: paidAt,
+                  type: 'DEBT_COLLECT',
+                  category: 'Thu nợ khách',
+                  description: 'Thu nợ: ${personName ?? "Khách"}',
+                  amount: (p['amount'] as int?) ?? 0,
+                  isIncome: true,
+                  personName: personName,
+                  note: p['note'] as String?,
+                ));
+              } else if (debtType == 'SHOP_OWES') {
+                // Trả nợ NCC/Đối tác
+                allTransactions.add(TransactionItem(
+                  id: 'payment_out_${p['id']}',
+                  timestamp: paidAt,
+                  type: 'DEBT_PAY',
+                  category: 'Trả nợ NCC',
+                  description: 'Trả nợ: ${personName ?? "NCC"}',
+                  amount: (p['amount'] as int?) ?? 0,
+                  isIncome: false,
+                  personName: personName,
+                  note: p['note'] as String?,
+                ));
+              }
+            }
+          }
+        }
+      }
+
+      // Sắp xếp theo thời gian mới nhất
+      allTransactions.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+      // Filter và tính summary
+      final filtered = _filterTransactions(allTransactions);
+      int income = 0, expense = 0;
+      for (final t in filtered) {
+        if (t.isIncome) {
+          income += t.amount;
+        } else {
+          expense += t.amount;
+        }
+      }
+
+      setState(() {
+        _transactions = filtered;
+        _totalIncome = income;
+        _totalExpense = expense;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading financial report: $e');
+      setState(() => _loading = false);
+    }
+  }
+
+  List<TransactionItem> _filterTransactions(List<TransactionItem> items) {
+    return items.where((t) {
+      // Filter by type
+      if (_selectedTypes.isNotEmpty && !_selectedTypes.contains(t.type)) {
+        return false;
+      }
+      // Filter income/expense
+      if (_showIncomeOnly && !t.isIncome) return false;
+      if (_showExpenseOnly && t.isIncome) return false;
+      // Search
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final match = t.description.toLowerCase().contains(q) ||
+            t.category.toLowerCase().contains(q) ||
+            (t.personName?.toLowerCase().contains(q) ?? false) ||
+            (t.note?.toLowerCase().contains(q) ?? false);
+        if (!match) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text('Báo Cáo Tài Chính', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showFilterDialog,
+            tooltip: 'Bộ lọc',
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadData,
+            tooltip: 'Làm mới',
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          tabs: const [
+            Tab(text: 'TẤT CẢ'),
+            Tab(text: 'THU VÀO'),
+            Tab(text: 'CHI RA'),
+          ],
+          onTap: (index) {
+            setState(() {
+              _showIncomeOnly = index == 1;
+              _showExpenseOnly = index == 2;
+            });
+            _loadData();
+          },
+        ),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                _buildSummaryCard(),
+                _buildDateRangeBar(),
+                _buildQuickFilters(),
+                Expanded(child: _buildTransactionList()),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSummaryCard() {
+    final net = _totalIncome - _totalExpense;
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: net >= 0
+              ? [Colors.green.shade400, Colors.green.shade600]
+              : [Colors.red.shade400, Colors.red.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: (net >= 0 ? Colors.green : Colors.red).withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _summaryItem('Thu vào', _totalIncome, Icons.arrow_downward),
+              Container(width: 1, height: 40, color: Colors.white30),
+              _summaryItem('Chi ra', _totalExpense, Icons.arrow_upward),
+            ],
+          ),
+          const Divider(color: Colors.white30, height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(net >= 0 ? Icons.trending_up : Icons.trending_down, color: Colors.white, size: 28),
+              const SizedBox(width: 8),
+              Text(
+                'Lợi nhuận: ${MoneyUtils.formatCurrency(net)}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryItem(String label, int amount, IconData icon) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 4),
+            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          MoneyUtils.formatCurrency(amount),
+          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateRangeBar() {
+    final df = DateFormat('dd/MM/yyyy');
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: InkWell(
+        onTap: _selectDateRange,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.date_range, color: AppColors.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '${df.format(_startDate)} - ${df.format(_endDate)}',
+                  style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.w500),
+                ),
+              ),
+              const Icon(Icons.arrow_drop_down, color: AppColors.primary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickFilters() {
+    return Container(
+      height: 50,
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          _filterChip('Tất cả', null, _selectedTypes.isEmpty),
+          ..._typeFilters.map((f) => _filterChip(
+                f['label'] as String,
+                f['key'] as String,
+                _selectedTypes.contains(f['key']),
+                icon: f['icon'] as IconData,
+                color: f['color'] as Color,
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip(String label, String? key, bool selected, {IconData? icon, Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: selected ? Colors.white : (color ?? AppColors.onSurface)),
+              const SizedBox(width: 4),
+            ],
+            Text(label),
+          ],
+        ),
+        selected: selected,
+        onSelected: (v) {
+          setState(() {
+            if (key == null) {
+              _selectedTypes.clear();
+            } else {
+              if (v) {
+                _selectedTypes.add(key);
+              } else {
+                _selectedTypes.remove(key);
+              }
+            }
+          });
+          _loadData();
+        },
+        selectedColor: color ?? AppColors.primary,
+        backgroundColor: AppColors.surface,
+        labelStyle: TextStyle(
+          color: selected ? Colors.white : AppColors.onSurface,
+          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionList() {
+    if (_transactions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long, size: 64, color: AppColors.onSurface.withValues(alpha: 0.3)),
+            const SizedBox(height: 16),
+            Text(
+              'Không có giao dịch nào',
+              style: AppTextStyles.body1.copyWith(color: AppColors.onSurface.withValues(alpha: 0.6)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Group by date
+    final grouped = <String, List<TransactionItem>>{};
+    final df = DateFormat('dd/MM/yyyy');
+    for (final t in _transactions) {
+      final key = df.format(t.dateTime);
+      grouped.putIfAbsent(key, () => []).add(t);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 80),
+      itemCount: grouped.length,
+      itemBuilder: (ctx, index) {
+        final date = grouped.keys.elementAt(index);
+        final items = grouped[date]!;
+        
+        // Tính tổng trong ngày
+        int dayIncome = 0, dayExpense = 0;
+        for (final t in items) {
+          if (t.isIncome) {
+            dayIncome += t.amount;
+          } else {
+            dayExpense += t.amount;
+          }
+        }
+        final dayNet = dayIncome - dayExpense;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date header with summary
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: dayNet >= 0 
+                    ? [Colors.green.shade50, Colors.green.shade100]
+                    : [Colors.red.shade50, Colors.red.shade100],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: dayNet >= 0 ? Colors.green.shade200 : Colors.red.shade200,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: dayNet >= 0 ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          date,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          '${items.length} giao dịch',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (dayIncome > 0) ...[
+                            Icon(Icons.arrow_downward, size: 12, color: Colors.green.shade700),
+                            Text(
+                              '+${core_money.MoneyUtils.formatCompact(dayIncome)}',
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                          if (dayIncome > 0 && dayExpense > 0)
+                            const Text(' • ', style: TextStyle(fontSize: 10)),
+                          if (dayExpense > 0) ...[
+                            Icon(Icons.arrow_upward, size: 12, color: Colors.red.shade700),
+                            Text(
+                              '-${core_money.MoneyUtils.formatCompact(dayExpense)}',
+                              style: TextStyle(
+                                color: Colors.red.shade700,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: dayNet >= 0 ? Colors.green : Colors.red,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${dayNet >= 0 ? "+" : ""}${core_money.MoneyUtils.formatCompact(dayNet)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Transaction cards
+            ...items.map((t) => _buildTransactionCard(t)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTransactionCard(TransactionItem t) {
+    final time = DateFormat('HH:mm').format(t.dateTime);
+    final icon = _getTypeIcon(t.type);
+    final typeColor = _getTypeColor(t.type);
+    final amountColor = t.isIncome ? Colors.green : Colors.red;
+
+    // Background color based on type
+    final bgColor = t.isIncome ? Colors.green.shade50 : Colors.red.shade50;
+    final borderColor = t.isIncome ? Colors.green.shade200 : Colors.red.shade200;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      color: bgColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: borderColor),
+      ),
+      child: InkWell(
+        onTap: () => _showTransactionDetail(t),
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row
+              Row(
+                children: [
+                  // Type icon
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: typeColor.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: typeColor, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  // Description
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.description,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (t.personName != null && t.personName!.isNotEmpty)
+                          Text(
+                            t.personName!,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Amount and time
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: amountColor,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '${t.isIncome ? "+" : "-"}${MoneyUtils.formatCurrency(t.amount)}đ',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        time,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Info chips row
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  _infoChip(
+                    t.category,
+                    typeColor.withValues(alpha: 0.2),
+                    typeColor,
+                  ),
+                  if (t.note != null && t.note!.isNotEmpty)
+                    _infoChip(
+                      '📝 ${t.note!.length > 20 ? "${t.note!.substring(0, 20)}..." : t.note}',
+                      Colors.grey.shade200,
+                      Colors.grey.shade700,
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoChip(String text, Color bgColor, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10,
+          color: textColor,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  IconData _getTypeIcon(String type) {
+    switch (type) {
+      case 'SALE':
+        return Icons.shopping_cart;
+      case 'REPAIR':
+        return Icons.build;
+      case 'EXPENSE':
+        return Icons.money_off;
+      case 'PURCHASE':
+        return Icons.inventory;
+      case 'DEBT_IN':
+      case 'DEBT_OUT':
+        return Icons.account_balance_wallet;
+      case 'DEBT_COLLECT':
+        return Icons.call_received;
+      case 'DEBT_PAY':
+        return Icons.call_made;
+      default:
+        return Icons.receipt;
+    }
+  }
+
+  Color _getTypeColor(String type) {
+    switch (type) {
+      case 'SALE':
+        return Colors.green;
+      case 'REPAIR':
+        return Colors.blue;
+      case 'EXPENSE':
+        return Colors.red;
+      case 'PURCHASE':
+        return Colors.orange;
+      case 'DEBT_IN':
+      case 'DEBT_OUT':
+        return Colors.purple;
+      case 'DEBT_COLLECT':
+        return Colors.teal;
+      case 'DEBT_PAY':
+        return Colors.deepPurple;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  void _showTransactionDetail(TransactionItem t) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: (t.isIncome ? Colors.green : Colors.red).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _getTypeIcon(t.type),
+                    color: t.isIncome ? Colors.green : Colors.red,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(t.category, style: AppTextStyles.headline6),
+                      Text(
+                        DateFormat('dd/MM/yyyy HH:mm').format(t.dateTime),
+                        style: AppTextStyles.caption,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _detailRow('Mô tả', t.description),
+            _detailRow('Số tiền', '${t.isIncome ? "+" : "-"}${MoneyUtils.formatCurrency(t.amount)}',
+                valueColor: t.isIncome ? Colors.green : Colors.red),
+            if (t.personName != null && t.personName!.isNotEmpty) _detailRow('Đối tượng', t.personName!),
+            if (t.note != null && t.note!.isNotEmpty) _detailRow('Ghi chú', t.note!),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Đóng'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(label, style: AppTextStyles.caption),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTextStyles.body2.copyWith(
+                fontWeight: FontWeight.w500,
+                color: valueColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _selectDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
+      locale: const Locale('vi', 'VN'),
+    );
+    if (picked != null) {
+      setState(() {
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
+      _loadData();
+    }
+  }
+
+  Future<void> _showFilterDialog() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Bộ lọc nâng cao', style: AppTextStyles.headline6),
+                  TextButton(
+                    onPressed: () {
+                      setModalState(() {
+                        _selectedTypes.clear();
+                        _searchQuery = '';
+                        _searchController.clear();
+                      });
+                    },
+                    child: const Text('Xóa bộ lọc'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  labelText: 'Tìm kiếm',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onChanged: (v) => setModalState(() => _searchQuery = v),
+              ),
+              const SizedBox(height: 16),
+              Text('Loại giao dịch', style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _typeFilters
+                    .map((f) => FilterChip(
+                          label: Text(f['label'] as String),
+                          selected: _selectedTypes.contains(f['key']),
+                          onSelected: (v) {
+                            setModalState(() {
+                              if (v) {
+                                _selectedTypes.add(f['key'] as String);
+                              } else {
+                                _selectedTypes.remove(f['key']);
+                              }
+                            });
+                          },
+                          selectedColor: (f['color'] as Color).withValues(alpha: 0.3),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _loadData();
+                  },
+                  child: const Text('Áp dụng'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

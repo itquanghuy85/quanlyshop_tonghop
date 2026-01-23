@@ -4,6 +4,7 @@
 // - Manage PaymentIntent lifecycle (create, execute, cancel)
 // - ONLY service allowed to execute payments
 // - Integrates with MoneyValidationService and MoneyTransactionService
+// - PERSISTS payment intents to database
 //
 // RULES:
 // - PaymentIntent can only be executed ONCE
@@ -11,14 +12,17 @@
 // - All payments MUST go through this service
 //
 // Created: 2026-01-22
+// Updated: 2026-01-22 (Added database persistence)
 // Author: AI Assistant (Phase 6 - Unified Payment)
 
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../models/payment_intent_model.dart';
 import '../data/db_helper.dart';
 import 'money_validation_service.dart';
 import 'money_transaction_service.dart';
 import '../constants/financial_constants.dart';
+import 'user_service.dart';
 
 /// Result of a payment execution
 class PaymentExecutionResult {
@@ -67,8 +71,139 @@ class PaymentExecutionResult {
 class PaymentIntentService {
   static final DBHelper _db = DBHelper();
 
-  // In-memory cache of pending payment intents (for current session)
+  // In-memory cache of ALL payment intents (for current session)
+  // Key: intent.id, Value: PaymentIntent
   static final Map<String, PaymentIntent> _pendingIntents = {};
+
+  // History of completed/cancelled intents (limited to last 100)
+  static final List<PaymentIntent> _historyIntents = [];
+  
+  // Flag to track if data has been loaded from database
+  static bool _isInitialized = false;
+  
+  // Track current shopId to detect shop changes
+  static String? _currentShopId;
+
+  // ---------------------------------------------------------------------------
+  // INITIALIZATION (Load from database)
+  // ---------------------------------------------------------------------------
+
+  /// Initialize service by loading pending intents from database
+  static Future<void> initialize() async {
+    // Check if shop has changed - if so, need to reinitialize
+    final currentShopId = UserService.getShopIdSync();
+    if (_isInitialized && _currentShopId != currentShopId) {
+      debugPrint('💳 Shop changed from $_currentShopId to $currentShopId, reinitializing...');
+      await reinitialize();
+      return;
+    }
+    
+    if (_isInitialized) return;
+    
+    _currentShopId = currentShopId;
+    
+    try {
+      // Load pending intents from database
+      final pendingRows = await _db.getPendingPaymentIntents();
+      debugPrint('💳 DB returned ${pendingRows.length} pending rows');
+      for (final row in pendingRows) {
+        final intent = _intentFromDbRow(row);
+        _pendingIntents[intent.id] = intent;
+        debugPrint('💳 Loaded from DB: ${intent.id} - ${intent.type.code} - ${intent.status.code}');
+      }
+      
+      // Load history (completed/cancelled/failed)
+      final historyRows = await _db.getPaymentIntentsHistory(limit: 100);
+      for (final row in historyRows) {
+        final intent = _intentFromDbRow(row);
+        _historyIntents.add(intent);
+      }
+      
+      _isInitialized = true;
+      debugPrint('💳 PaymentIntentService initialized: ${_pendingIntents.length} pending, ${_historyIntents.length} history');
+    } catch (e) {
+      debugPrint('❌ PaymentIntentService initialization error: $e');
+      _isInitialized = true; // Mark as initialized to prevent repeated failures
+    }
+  }
+
+  /// Reinitialize service - call when shop changes or user logs out
+  /// This clears all cached data and reloads from database
+  static Future<void> reinitialize() async {
+    debugPrint('💳 Reinitializing PaymentIntentService...');
+    _pendingIntents.clear();
+    _historyIntents.clear();
+    _isInitialized = false;
+    _currentShopId = null;
+    await initialize();
+  }
+  
+  /// Clear all cached data (call on logout)
+  static void clearCache() {
+    debugPrint('💳 Clearing PaymentIntentService cache...');
+    _pendingIntents.clear();
+    _historyIntents.clear();
+    _isInitialized = false;
+    _currentShopId = null;
+  }
+
+  /// Convert database row to PaymentIntent
+  static PaymentIntent _intentFromDbRow(Map<String, dynamic> row) {
+    // Parse metadata from JSON string
+    Map<String, dynamic>? metadata;
+    if (row['metadata'] != null && row['metadata'].toString().isNotEmpty) {
+      try {
+        metadata = jsonDecode(row['metadata']);
+      } catch (e) {
+        debugPrint('Error parsing metadata: $e');
+      }
+    }
+    
+    return PaymentIntent(
+      id: row['intentId'] ?? '',
+      type: PaymentIntentType.fromCode(row['type']),
+      amount: row['amount'] ?? 0,
+      status: PaymentIntentStatus.fromCode(row['status']),
+      paymentMethod: row['paymentMethod'] != null
+          ? PaymentMethod.fromCode(row['paymentMethod'])
+          : null,
+      description: row['description'] ?? '',
+      referenceId: row['referenceId'],
+      referenceType: row['referenceType'],
+      personName: row['personName'],
+      personPhone: row['personPhone'],
+      notes: row['notes'],
+      createdBy: row['createdBy'] ?? '',
+      createdAt: row['createdAt'] ?? 0,
+      paidBy: row['paidBy'],
+      paidAt: row['paidAt'],
+      metadata: metadata,
+    );
+  }
+
+  /// Convert PaymentIntent to database row
+  static Map<String, dynamic> _intentToDbRow(PaymentIntent intent) {
+    return {
+      'intentId': intent.id,
+      'type': intent.type.code,
+      'amount': intent.amount,
+      'status': intent.status.code,
+      'description': intent.description,
+      'personName': intent.personName,
+      'personPhone': intent.personPhone,
+      'referenceId': intent.referenceId,
+      'referenceType': intent.referenceType,
+      'paymentMethod': intent.paymentMethod?.code,
+      'createdBy': intent.createdBy,
+      'createdAt': intent.createdAt,
+      'paidBy': intent.paidBy,
+      'paidAt': intent.paidAt,
+      'notes': intent.notes,
+      'metadata': intent.metadata != null ? jsonEncode(intent.metadata) : null,
+      'shopId': UserService.getShopIdSync(),
+      'isSynced': 0,
+    };
+  }
 
   // ---------------------------------------------------------------------------
   // INTENT LIFECYCLE
@@ -78,32 +213,111 @@ class PaymentIntentService {
   ///
   /// This does NOT execute the payment. It only creates a pending intent
   /// that must be executed through the Unified Payment Page.
-  static PaymentIntent createIntent(PaymentIntent intent) {
+  static Future<PaymentIntent> createIntent(PaymentIntent intent) async {
     if (intent.status != PaymentIntentStatus.pending) {
       throw ArgumentError('New payment intent must have PENDING status');
     }
 
-    // Store in cache
+    // Store in memory cache
     _pendingIntents[intent.id] = intent;
+    
+    // Persist to database
+    try {
+      await _db.insertPaymentIntent(_intentToDbRow(intent));
+      debugPrint('💳 PaymentIntent created and persisted: ${intent.id} - ${intent.type.code}');
+    } catch (e) {
+      debugPrint('⚠️ PaymentIntent DB insert error: $e');
+      // Still keep in memory even if DB fails
+    }
 
-    debugPrint('💳 PaymentIntent created: ${intent.id} - ${intent.type.code}');
     return intent;
   }
 
   /// Get a pending payment intent by ID
   static PaymentIntent? getIntent(String intentId) {
-    return _pendingIntents[intentId];
+    // Check pending intents first
+    if (_pendingIntents.containsKey(intentId)) {
+      return _pendingIntents[intentId];
+    }
+    // Check history
+    return _historyIntents.cast<PaymentIntent?>().firstWhere(
+      (i) => i?.id == intentId,
+      orElse: () => null,
+    );
   }
 
   /// Get all pending payment intents
-  static List<PaymentIntent> getPendingIntents() {
+  /// Note: This is async to ensure data is loaded from DB first
+  static Future<List<PaymentIntent>> getPendingIntents() async {
+    // Ensure data is loaded from database
+    if (!_isInitialized) {
+      await initialize();
+    }
     return _pendingIntents.values
         .where((i) => i.status == PaymentIntentStatus.pending)
         .toList();
   }
+  
+  /// Get pending income intents (CHỜ THU)
+  static Future<List<PaymentIntent>> getPendingIncomeIntents() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+    return _pendingIntents.values
+        .where((i) => i.status == PaymentIntentStatus.pending && i.isIncome)
+        .toList();
+  }
+  
+  /// Get pending expense intents (CHỜ CHI)
+  static Future<List<PaymentIntent>> getPendingExpenseIntents() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+    return _pendingIntents.values
+        .where((i) => i.status == PaymentIntentStatus.pending && i.isExpense)
+        .toList();
+  }
+
+  /// Get all payment intents (pending + history)
+  static Future<List<PaymentIntent>> getAllIntents() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+    final all = <PaymentIntent>[];
+    all.addAll(_pendingIntents.values);
+    all.addAll(_historyIntents);
+    return all;
+  }
+
+  /// Get history of completed/cancelled intents
+  static Future<List<PaymentIntent>> getHistoryIntents() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+    return List.unmodifiable(_historyIntents);
+  }
+
+  /// Move intent to history after completion/cancellation
+  static Future<void> _moveToHistory(PaymentIntent intent) async {
+    // Remove from pending
+    _pendingIntents.remove(intent.id);
+    
+    // Add to history (limit to 100)
+    _historyIntents.insert(0, intent);
+    if (_historyIntents.length > 100) {
+      _historyIntents.removeLast();
+    }
+    
+    // Update in database
+    try {
+      await _db.updatePaymentIntent(intent.id, _intentToDbRow(intent));
+    } catch (e) {
+      debugPrint('⚠️ PaymentIntent DB update error: $e');
+    }
+  }
 
   /// Cancel a payment intent
-  static bool cancelIntent(String intentId, {String? reason}) {
+  static Future<bool> cancelIntent(String intentId, {String? reason}) async {
     final intent = _pendingIntents[intentId];
     if (intent == null) {
       debugPrint('❌ PaymentIntent not found: $intentId');
@@ -119,6 +333,9 @@ class PaymentIntentService {
     intent.notes = reason != null
         ? '${intent.notes ?? ''}\nHủy: $reason'.trim()
         : intent.notes;
+
+    // Move to history
+    await _moveToHistory(intent);
 
     debugPrint('🚫 PaymentIntent cancelled: $intentId');
     return true;
@@ -201,6 +418,9 @@ class PaymentIntentService {
       // 6. Update related entities based on payment type
       await _updateRelatedEntities(intent, paymentMethod);
 
+      // 7. Move to history
+      await _moveToHistory(intent);
+
       debugPrint('✅ Payment executed: ${intent.id} - ${intent.amount}đ');
 
       return PaymentExecutionResult.success(
@@ -211,6 +431,9 @@ class PaymentIntentService {
       // Mark as failed
       intent.status = PaymentIntentStatus.failed;
       intent.notes = '${intent.notes ?? ''}\nLỗi: $e'.trim();
+      
+      // Move failed to history too
+      await _moveToHistory(intent);
 
       debugPrint('❌ Payment execution failed: $e');
       return PaymentExecutionResult.failure(
@@ -225,25 +448,35 @@ class PaymentIntentService {
     PaymentIntent intent,
     PaymentMethod paymentMethod,
   ) async {
-    final db = await _db.database;
     final now = DateTime.now().millisecondsSinceEpoch;
 
     switch (intent.type) {
       case PaymentIntentType.supplierDebt:
       case PaymentIntentType.customerDebtCollection:
       case PaymentIntentType.otherDebt:
+      case PaymentIntentType.inventoryPurchase: // Thêm: nhập kho có công nợ
+      case PaymentIntentType.partsStockIn: // Thêm: nhập linh kiện có công nợ
         // Update debt payment
-        if (intent.referenceId != null) {
+        if (intent.metadata != null && intent.metadata!['debtId'] != null) {
+          final debtId = intent.metadata!['debtId'];
+          final debtFirestoreId = intent.metadata!['debtFirestoreId'];
+          
           await _db.insertDebtPayment({
             'firestoreId': 'dp_${intent.id}',
-            'debtId': intent.referenceId,
+            'debtId': debtId,
+            'debtFirestoreId': debtFirestoreId,
             'amount': intent.amount,
             'paymentMethod': paymentMethod.code,
             'paidAt': now,
-            'paidBy': intent.paidBy,
+            'createdBy': intent.paidBy,
             'note': intent.notes,
             'isSynced': 0,
           });
+          
+          // Update debt paidAmount
+          if (debtId is int) {
+            await _db.updateDebtPaid(debtId, intent.amount);
+          }
         }
         break;
 
@@ -254,10 +487,10 @@ class PaymentIntentService {
         await _db.insertExpense({
           'firestoreId': 'exp_${intent.id}',
           'amount': intent.amount,
-          'note': intent.description,
+          'title': intent.description,
+          'note': intent.notes,
           'paymentMethod': paymentMethod.code,
           'createdAt': now,
-          'createdBy': intent.paidBy,
           'category': intent.metadata?['category'] ?? 'OTHER',
           'isSynced': 0,
         });
@@ -269,13 +502,55 @@ class PaymentIntentService {
         await _db.insertExpense({
           'firestoreId': 'salary_${intent.id}',
           'amount': intent.amount,
-          'note': intent.description,
+          'title': intent.description,
+          'note': intent.notes,
           'paymentMethod': paymentMethod.code,
           'createdAt': now,
-          'createdBy': intent.paidBy,
           'category': 'SALARY',
           'isSynced': 0,
         });
+        break;
+        
+      case PaymentIntentType.repairService:
+        // Repair payment - cũng cần update debt nếu có
+        if (intent.metadata != null && intent.metadata!['debtId'] != null) {
+          final debtId = intent.metadata!['debtId'];
+          final debtFirestoreId = intent.metadata!['debtFirestoreId'];
+          
+          await _db.insertDebtPayment({
+            'firestoreId': 'dp_${intent.id}',
+            'debtId': debtId,
+            'debtFirestoreId': debtFirestoreId,
+            'amount': intent.amount,
+            'paymentMethod': paymentMethod.code,
+            'paidAt': now,
+            'createdBy': intent.paidBy,
+            'note': intent.notes,
+            'isSynced': 0,
+          });
+          
+          // Update debt paidAmount
+          if (debtId is int) {
+            await _db.updateDebtPaid(debtId, intent.amount);
+          }
+        }
+        break;
+        
+      case PaymentIntentType.repairPartnerDebt:
+        // Partner debt payment
+        if (intent.metadata != null && intent.metadata!['partnerId'] != null) {
+          final partnerId = intent.metadata!['partnerId'];
+          await _db.insertRepairPartnerPayment({
+            'firestoreId': 'rpp_${intent.id}',
+            'partnerId': partnerId,
+            'partnerName': intent.personName,
+            'amount': intent.amount,
+            'paymentMethod': paymentMethod.code,
+            'paidAt': now,
+            'note': intent.notes,
+            'isSynced': 0,
+          });
+        }
         break;
 
       default:
@@ -288,6 +563,14 @@ class PaymentIntentService {
   // UTILITY METHODS
   // ---------------------------------------------------------------------------
 
+  /// Reload intents from database
+  static Future<void> reload() async {
+    _pendingIntents.clear();
+    _historyIntents.clear();
+    _isInitialized = false;
+    await initialize();
+  }
+
   /// Clear all pending intents (use with caution)
   static void clearPendingIntents() {
     _pendingIntents.clear();
@@ -295,17 +578,27 @@ class PaymentIntentService {
   }
 
   /// Get statistics about payment intents
-  static Map<String, int> getStatistics() {
+  static Map<String, dynamic> getStatistics() {
     int pending = 0;
     int completed = 0;
     int cancelled = 0;
     int failed = 0;
+    int totalPendingIncome = 0;
+    int totalPendingExpense = 0;
 
     for (final intent in _pendingIntents.values) {
+      if (intent.status == PaymentIntentStatus.pending) {
+        pending++;
+        if (intent.isIncome) {
+          totalPendingIncome += intent.amount;
+        } else {
+          totalPendingExpense += intent.amount;
+        }
+      }
+    }
+    
+    for (final intent in _historyIntents) {
       switch (intent.status) {
-        case PaymentIntentStatus.pending:
-          pending++;
-          break;
         case PaymentIntentStatus.completed:
           completed++;
           break;
@@ -315,6 +608,8 @@ class PaymentIntentService {
         case PaymentIntentStatus.failed:
           failed++;
           break;
+        default:
+          break;
       }
     }
 
@@ -323,7 +618,31 @@ class PaymentIntentService {
       'completed': completed,
       'cancelled': cancelled,
       'failed': failed,
-      'total': _pendingIntents.length,
+      'total': _pendingIntents.length + _historyIntents.length,
+      'totalPendingIncome': totalPendingIncome,
+      'totalPendingExpense': totalPendingExpense,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // TESTING & DEBUG UTILITIES
+  // ---------------------------------------------------------------------------
+
+  /// Delete a payment intent by ID (for testing/cleanup)
+  static Future<bool> deleteIntent(String intentId) async {
+    try {
+      // Remove from memory
+      _pendingIntents.remove(intentId);
+      _historyIntents.removeWhere((i) => i.id == intentId);
+      
+      // Remove from database
+      await _db.deletePaymentIntent(intentId);
+      
+      debugPrint('🗑️ PaymentIntent deleted: $intentId');
+      return true;
+    } catch (e) {
+      debugPrint('❌ PaymentIntent delete error: $e');
+      return false;
+    }
   }
 }

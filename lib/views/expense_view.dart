@@ -14,11 +14,15 @@ import '../services/user_service.dart';
 import '../services/adjustment_service.dart';
 import '../services/event_bus.dart';
 import '../services/financial_activity_service.dart';
+import '../services/payment_intent_service.dart';
+import '../models/payment_intent_model.dart';
+import '../constants/financial_constants.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import '../widgets/gradient_fab.dart';
 import 'fast_stock_in_view.dart';
+import 'unified_payment_page.dart';
 import '../widgets/custom_app_bar.dart';
 
 class ExpenseView extends StatefulWidget {
@@ -486,66 +490,46 @@ class _ExpenseViewState extends State<ExpenseView> {
                         final parsed = MoneyUtils.parseCurrency(amountC.text);
                         final amount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
 
-                        final String fId =
-                            "exp_${DateTime.now().millisecondsSinceEpoch}_${titleC.text.hashCode}";
-                        final expData = {
-                          'firestoreId': fId,
-                          'title': titleC.text.toUpperCase(),
-                          'amount': amount,
-                          'category': category,
-                          'date': DateTime.now().millisecondsSinceEpoch,
-                          'note': noteC.text,
-                          'paymentMethod': payMethod,
-                        };
-
+                        final user = FirebaseAuth.instance.currentUser;
                         final navigator = Navigator.of(ctx);
-                        final expenseId = await db.insertExpense(expData);
                         
-                        // Ghi nhật ký hoạt động tài chính
-                        try {
-                          await FinancialActivityService.logExpense(
-                            firestoreId: fId,
-                            amount: amount,
-                            paymentMethod: payMethod,
-                            title: titleC.text.toUpperCase(),
-                            category: category,
-                            note: noteC.text,
+                        // Create PaymentIntent and redirect to UnifiedPaymentPage
+                        final intent = PaymentIntent(
+                          id: 'exp_${DateTime.now().millisecondsSinceEpoch}_${titleC.text.hashCode}',
+                          type: category == 'ĐIỆN NƯỚC' || category == 'INTERNET' 
+                              ? PaymentIntentType.utilityExpense 
+                              : PaymentIntentType.operatingExpense,
+                          amount: amount,
+                          description: '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
+                          createdBy: user?.uid ?? 'unknown',
+                          createdAt: DateTime.now().millisecondsSinceEpoch,
+                          metadata: {
+                            'category': category,
+                            'title': titleC.text.toUpperCase(),
+                            'note': noteC.text,
+                          },
+                        );
+
+                        navigator.pop(); // Close dialog first
+                        
+                        // Navigate to UnifiedPaymentPage
+                        final result = await UnifiedPaymentPage.navigateWithIntent(
+                          context,
+                          intent,
+                        );
+
+                        if (result != null && result.success) {
+                          EventBus().emit('expenses_changed');
+                          NotificationService.showSnackBar(
+                            "Đã lưu chi phí!",
+                            color: AppColors.success,
                           );
-                        } catch (e) {
-                          debugPrint('Failed to log financial activity: $e');
                         }
                         
-                        // Queue sync to cloud via SyncOrchestrator
-                        await SyncOrchestrator().enqueue(
-                          entityType: SyncEntityType.expense,
-                          entityId: expenseId,
-                          firestoreId: fId,
-                          operation: SyncOperation.create,
-                          data: expData,
-                        );
-
-                        final user = FirebaseAuth.instance.currentUser;
-                        await db.logAction(
-                          userId: user?.uid ?? "0",
-                          userName:
-                              user?.email?.split('@').first.toUpperCase() ??
-                              "NV",
-                          action: "CHI PHÍ",
-                          type: "FINANCE",
-                          desc: "Đã chi ${MoneyUtils.formatCurrency(amount)}",
-                        );
-
-                        EventBus().emit('expenses_changed');
-                        if (!mounted) return;
-                        navigator.pop();
-                        NotificationService.showSnackBar(
-                          "Đã lưu chi phí!",
-                          color: AppColors.success,
-                        );
                         setState(() {
                           _isSaving = false;
                         });
-                        await _refresh(); // Load lại data từ DB thay vì chỉ filter
+                        await _refresh();
                       },
                 child: Text(
                   "LƯU CHI PHÍ",

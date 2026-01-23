@@ -43,11 +43,16 @@ import 'cash_closing_view.dart';
 import 'transaction_detail_view.dart';
 import 'bank_installment_report_view.dart';
 import 'financial_activity_log_view.dart';
+import 'financial_report_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
+import 'pending_payments_list_view.dart';
+import 'payment_intent_test_view.dart';
+import 'attendance_salary_test_view.dart';
 import '../data/db_helper.dart';
 import '../widgets/pending_stock_widget.dart';
+import '../widgets/pending_payments_widget.dart';
 import '../models/sale_order_model.dart';
 import '../widgets/unified_sync_button.dart';
 import '../widgets/notification_badge.dart';
@@ -1706,6 +1711,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           // CHAT NHÓM - ngay dưới lời chào, nổi bật với badge
           _buildChatCard(),
 
+          // TRUY CẬP NHANH QUAN TRỌNG - ghim ra home
+          _buildPinnedShortcutsSection(),
+
           // TỔNG QUAN TÀI CHÍNH - Chỉ hiện cho owner/superadmin
           if (widget.role == 'owner' || _isSuperAdmin) ...[
             _buildSectionHeader("TỔNG QUAN TÀI CHÍNH"),
@@ -2371,6 +2379,137 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Widget hiển thị 2 lối tắt quan trọng: Hàng chờ xác nhận & Thanh toán
+  Widget _buildPinnedShortcutsSection() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Icon(Icons.push_pin, size: 14, color: Colors.grey.shade600),
+                const SizedBox(width: 6),
+                Text(
+                  'TRUY CẬP NHANH',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Two cards in a row
+          Row(
+            children: [
+              // Hàng chờ xác nhận
+              Expanded(
+                child: _buildPinnedCard(
+                  icon: Icons.pending_actions,
+                  title: 'Hàng chờ XN',
+                  subtitle: 'Nhập tạm',
+                  color: Colors.orange,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PendingStockListView()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Thanh toán
+              Expanded(
+                child: _buildPinnedCard(
+                  icon: Icons.account_balance_wallet,
+                  title: 'Thanh toán',
+                  subtitle: 'Thu/Chi',
+                  color: Colors.green,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PendingPaymentsListView()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Widget card cho lối tắt được ghim
+  Widget _buildPinnedCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: color.withValues(alpha: 0.3)),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [color.withValues(alpha: 0.05), color.withValues(alpha: 0.1)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: color.withValues(alpha: 0.9),
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 14, color: color.withValues(alpha: 0.5)),
+            ],
           ),
         ),
       ),
@@ -3150,6 +3289,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           // Header Section
           _buildTabHeader("QUẢN LÝ KHO", Icons.inventory_2, Colors.orange),
           const SizedBox(height: 12),
+
+          // Pending Payments Widget (Thanh toán chờ xử lý)
+          const PendingPaymentsWidget(),
+          const SizedBox(height: 8),
 
           // Pending Stock Widget (Hàng chờ xác nhận)
           const PendingStockWidget(),
@@ -3960,13 +4103,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 _financeQuickCard(
-                  "Chi tiết\nGiao dịch",
-                  Icons.receipt_long,
+                  "Báo cáo\nTài chính",
+                  Icons.assessment,
                   Colors.purple,
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const TransactionDetailView(),
+                      builder: (_) => const FinancialReportView(),
                     ),
                   ),
                 ),
@@ -4018,6 +4161,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             const SizedBox(height: 20),
             _buildSectionHeader("QUẢN LÝ"),
             _tabMenuItem(
+              "Thanh toán",
+              Icons.account_balance_wallet,
+              Colors.green,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PendingPaymentsListView()),
+              ),
+              subtitle: "Quản lý tất cả các giao dịch thu/chi.",
+            ),
+            _tabMenuItem(
               "Quản lý chi phí",
               Icons.money_off,
               Colors.red,
@@ -4046,6 +4199,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 MaterialPageRoute(builder: (_) => const DebtView()),
               ),
               subtitle: "Ghi nhận và thanh toán các khoản nợ.",
+            ),
+            _tabMenuItem(
+              "Báo cáo tài chính",
+              Icons.assessment,
+              Colors.teal,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FinancialReportView()),
+              ),
+              subtitle: "Tổng hợp tất cả giao dịch thu chi.",
             ),
             _tabMenuItem(
               "Nhật ký tài chính",

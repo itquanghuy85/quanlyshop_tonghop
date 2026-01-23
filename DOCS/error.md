@@ -120,4 +120,11 @@ hãy sửa các list còn lại trong app theo thiết kế list mã nhập nhan
 list hàng trong kho thấy đên 01/01 8h00 là ko đúng tôi nhập kho lúc 17h00 ngày 21/01
 khi tôi thanh toán nợ trong trang công nợ đối tác sửa chữa thì không lưu thông tin vào chốt quỹ và nhật ký tài chính.
 Trong chi tiết đơn sửa- "Kho LK" hãy trỏ tới trang "phụ tùng" trong "QUẢN LÝ KHO"
+hãy lên kịch bản chi tiết tôi test và đọc số liệu cho bạn bạn hãy lên cho tôi để có thể test được : 
+1 sửa chữa: dịch vụ sửa chữa ,nợ đối tác, thanh toán nợ ck- tm , nhập kho phụ tùng công nợ tm ck, thanh toán công nợ 1 phần và...
+nhập kho máy , phụ kiện, công nợ ck tm,thanh toán,
+
+tạo tk chủ shop mới hoàn toàn: số liệu trắng
+1: thêm đơn sửa mới:  giá dự kiên
+
 nhiều thông tin cần xử lý trước tiên đọc nọi dung cần thay đổi sau đó hãy tìm hiểu cặn kẽ logic và tính toán những điều cần thay đổi, một khi đã làm là hoàn thiện hoàn hảo luôn bạn có tự tin vào khả năng xử lý không hãy hứa danh dự với tôi bằng uy tin của mình để đảm bảo.

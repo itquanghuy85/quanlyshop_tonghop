@@ -10,6 +10,8 @@ import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
 import '../services/sync_orchestrator.dart';
+import '../services/payment_intent_service.dart';
+import '../models/payment_intent_model.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 
@@ -211,34 +213,60 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
           );
         }
 
+        // Tạo PaymentIntent cho việc trả nợ NCC sau này (CHỜ CHI)
+        final user = FirebaseAuth.instance.currentUser;
+        final intent = PaymentIntent(
+          id: 'pi_purchase_debt_${DateTime.now().millisecondsSinceEpoch}_${order.orderCode}',
+          type: PaymentIntentType.supplierDebt,
+          amount: order.totalCost,
+          description: 'Trả nợ NCC: ${supplierNameCtrl.text.trim()} - Đơn ${order.orderCode}',
+          referenceId: debt.firestoreId,
+          referenceType: 'purchase_debt',
+          personName: supplierNameCtrl.text.trim(),
+          personPhone: supplierPhoneCtrl.text.trim(),
+          createdBy: user?.uid ?? 'unknown',
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          metadata: {
+            'orderCode': order.orderCode,
+            'orderFirestoreId': order.firestoreId,
+            'debtId': debtId,
+            'debtFirestoreId': debt.firestoreId,
+            'debtType': 'SHOP_OWES',
+            'supplierName': supplierNameCtrl.text.trim(),
+          },
+        );
+        await PaymentIntentService.createIntent(intent);
+        debugPrint('💳 Created PaymentIntent for purchase debt: ${intent.id}');
+
         // Notify UI update
         EventBus().emit('debts_changed');
       } else {
-        // If payment method is cash/bank transfer, create expense record
-        final ts = DateTime.now().millisecondsSinceEpoch;
-        final fId = "exp_purchase_$ts";
-        final exp = {
-          'firestoreId': fId,
-          'title': 'Đơn nhập hàng ${order.orderCode}',
-          'amount': order.totalCost,
-          'category': 'PURCHASE',
-          'date': ts,
-          'note': 'Thanh toán đơn nhập hàng từ ${supplierNameCtrl.text.trim()}',
-          'paymentMethod': _paymentMethod,
-          'createdAt': ts,
-        };
-        final expenseId = await db.insertExpense(exp);
-        
-        // Queue sync to Firestore via SyncOrchestrator
-        await SyncOrchestrator().enqueue(
-          entityType: SyncEntityType.expense,
-          entityId: expenseId,
-          firestoreId: fId,
-          operation: SyncOperation.create,
-          data: exp,
+        // Thanh toán tiền mặt/chuyển khoản → Tạo PaymentIntent để xác nhận thanh toán (CHỜ CHI)
+        final user = FirebaseAuth.instance.currentUser;
+        final intent = PaymentIntent(
+          id: 'pi_purchase_${DateTime.now().millisecondsSinceEpoch}_${order.orderCode}',
+          type: PaymentIntentType.supplierDebt,
+          amount: order.totalCost,
+          description: 'Chi nhập hàng: ${supplierNameCtrl.text.trim()} - Đơn ${order.orderCode}',
+          referenceId: order.orderCode,
+          referenceType: 'purchase_order',
+          personName: supplierNameCtrl.text.trim(),
+          personPhone: supplierPhoneCtrl.text.trim(),
+          createdBy: user?.uid ?? 'unknown',
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          metadata: {
+            'orderCode': order.orderCode,
+            'orderFirestoreId': order.firestoreId,
+            'supplierName': supplierNameCtrl.text.trim(),
+            'paymentMethod': _paymentMethod,
+          },
         );
-        EventBus().emit('expenses_changed');
+        await PaymentIntentService.createIntent(intent);
+        debugPrint('💳 Created PaymentIntent for purchase payment: ${intent.id}');
       }
+      // NOTE: Direct insertExpense for PURCHASE BLOCKED
+      // Payment for purchase orders must go through PaymentIntentService
+      // The order is saved but payment execution requires UnifiedPaymentPage
 
       // Generate firestoreId and save to local DB
       final firestoreId = order.firestoreId ?? "po_${order.createdAt}_${order.orderCode}";
@@ -621,39 +649,14 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
   }
 
   // THÊM CHI PHÍ NHẬP HÀNG VÀO TRANG CHI PHÍ
+  // NOTE: Method BLOCKED - must use PaymentIntentService for purchase expenses
   Future<void> _addPurchaseExpense(PurchaseOrder order) async {
-    try {
-      final ts = DateTime.now().millisecondsSinceEpoch;
-      final fId = "exp_purchase_add_${ts}_${order.orderCode}";
-      final expense = {
-        'firestoreId': fId,
-        'amount': order.totalCost,
-        'category': 'NHẬP HÀNG',
-        'description': 'Nhập hàng từ ${order.supplierName} - ${order.orderCode}',
-        'createdAt': ts,
-        'createdBy': _currentUserName,
-        'linkedId': order.orderCode,
-        'paymentMethod': order.paymentMethod ?? 'TIỀN MẶT',
-        'isSynced': 0,
-      };
-
-      // Thêm vào local DB
-      final expenseId = await db.insertExpense(expense);
-
-      // Queue sync to Firestore via SyncOrchestrator
-      await SyncOrchestrator().enqueue(
-        entityType: SyncEntityType.expense,
-        entityId: expenseId,
-        firestoreId: fId,
-        operation: SyncOperation.create,
-        data: expense,
-      );
-
-      debugPrint('Đã thêm chi phí nhập hàng: ${order.totalCost} cho đơn ${order.orderCode}');
-    } catch (e) {
-      debugPrint('Lỗi thêm chi phí nhập hàng: $e');
-      // Không throw error để không làm fail purchase order
-    }
+    // BLOCKED: Direct insertExpense for purchases must go through PaymentIntent flow
+    // Use PaymentIntentService.createIntent() -> UnifiedPaymentPage instead
+    debugPrint('⛔ _addPurchaseExpense BLOCKED - Use PaymentIntentService for purchase payments');
+    throw UnsupportedError(
+      '_addPurchaseExpense blocked. Use PaymentIntentService.createIntent() -> UnifiedPaymentPage'
+    );
   }
 
   // Future<void> _updateLocalInventoryFromPurchaseOrder(PurchaseOrder order) async {

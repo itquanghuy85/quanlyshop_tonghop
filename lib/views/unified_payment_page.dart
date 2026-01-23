@@ -40,7 +40,7 @@ class UnifiedPaymentPage extends StatefulWidget {
     PaymentIntent intent,
   ) async {
     // Register the intent
-    PaymentIntentService.createIntent(intent);
+    await PaymentIntentService.createIntent(intent);
 
     // Navigate to payment page
     final result = await Navigator.of(context).push<PaymentExecutionResult>(

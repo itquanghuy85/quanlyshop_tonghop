@@ -1136,5 +1136,5 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkBluetoothOn => 'Check if Bluetooth is on...';
 
   @override
-  String get appVersion => 'Version 1.0.1+9';
+  String get appVersion => 'Version 3.4.0';
 }

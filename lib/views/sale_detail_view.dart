@@ -20,7 +20,8 @@ import '../services/user_service.dart';
 import '../services/audit_service.dart';
 import '../services/unified_printer_service.dart';
 import '../services/bluetooth_printer_service.dart';
-import '../services/financial_activity_service.dart';
+import '../services/payment_intent_service.dart';
+import '../models/payment_intent_model.dart';
 import '../models/printer_types.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../theme/app_colors.dart';
@@ -320,45 +321,13 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     }
 
     EventBus().emit('sales_changed');
+    // NOTE: FinancialActivityService.logSettlement REMOVED - ledger handled by PaymentIntentService
 
-    // Ghi nhật ký hoạt động tài chính - tất toán
-    try {
-      await FinancialActivityService.logSettlement(
-        saleFirestoreId: s.firestoreId ?? 'sale_${s.soldAt}',
-        amount: received,
-        bankName: s.bankName ?? 'NH',
-        customerName: s.customerName ?? '',
-        productNames: s.productNames ?? '',
-        settlementFee: fee,
-        createdAt: nowMs,
-      );
-    } catch (e) {
-      debugPrint('Failed to log financial activity: $e');
-    }
-
-    if (fee > 0) {
-      final expFId = 'exp_${nowMs}_${s.firestoreId.hashCode}';
-      final expData = {
-        'firestoreId': expFId,
-        'title': "Phí NH trả góp ${s.bankName ?? ''}",
-        'amount': fee,
-        'category': 'Phí NH',
-        'date': nowMs,
-        'note': s.settlementNote ?? '',
-        'paymentMethod': 'CHUYỂN KHOẢN',
-      };
-      final expenseId = await db.insertExpense(expData);
-
-      // Queue sync expense to cloud via SyncOrchestrator
-      await SyncOrchestrator().enqueue(
-        entityType: SyncEntityType.expense,
-        entityId: expenseId,
-        firestoreId: expFId,
-        operation: SyncOperation.create,
-        data: expData,
-      );
-      EventBus().emit('expenses_changed');
-    }
+    // NOTE: Direct insertExpense for bank fee BLOCKED
+    // Fee expenses must go through PaymentIntentService -> UnifiedPaymentPage
+    // if (fee > 0) {
+    //   BLOCKED: Must use PaymentIntentService.createIntent() -> UnifiedPaymentPage
+    // }
 
     if (!mounted) return;
     AuditService.logAction(
@@ -607,6 +576,31 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           operation: SyncOperation.create,
           data: newDebt,
         );
+        
+        // Tạo PaymentIntent cho việc thu nợ sau này (CHỜ THU)
+        final user = FirebaseAuth.instance.currentUser;
+        final intent = PaymentIntent(
+          id: 'pi_sale_debt_${DateTime.now().millisecondsSinceEpoch}_${s.id}',
+          type: PaymentIntentType.customerDebtCollection,
+          amount: debtAmount,
+          description: 'Thu tiền bán hàng: ${s.customerName}',
+          referenceId: debtFId,
+          referenceType: 'sale_debt',
+          personName: s.customerName,
+          personPhone: s.phone,
+          createdBy: user?.uid ?? 'unknown',
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          metadata: {
+            'saleId': s.id,
+            'saleFirestoreId': s.firestoreId,
+            'debtId': debtId,
+            'debtFirestoreId': debtFId,
+            'debtType': 'CUSTOMER_OWES',
+          },
+        );
+        await PaymentIntentService.createIntent(intent);
+        debugPrint('💳 Created PaymentIntent for sale debt collection: ${intent.id}');
+        
         EventBus().emit('debts_changed');
       }
     } else if (oldPaymentMethod == 'CÔNG NỢ' && payment != 'CÔNG NỢ') {

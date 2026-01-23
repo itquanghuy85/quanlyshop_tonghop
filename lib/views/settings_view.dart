@@ -635,7 +635,7 @@ class _SettingsViewState extends State<SettingsView> {
                 const SizedBox(height: 50),
                 Center(
                   child: Text(
-                    "Phiên bản 3.2.0",
+                    "Phiên bản 3.4.0",
                     style: TextStyle(color: Colors.grey.shade400, fontSize: 10),
                   ),
                 ),

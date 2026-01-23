@@ -196,22 +196,10 @@ class AdjustmentService {
       }
       
       // 3. Nếu đã thanh toán (TIỀN MẶT/CHUYỂN KHOẢN), tạo phiếu chi/thu bổ sung
-      else if ((paymentMethod == 'TIỀN MẶT' || paymentMethod == 'CHUYỂN KHOẢN') && costDelta != 0) {
-        final expenseFirestoreId = 'adj_exp_${now}_$partId';
-        await _db.insertExpense({
-          'firestoreId': expenseFirestoreId,
-          'category': costDelta > 0 ? 'ĐIỀU CHỈNH TĂNG' : 'ĐIỀU CHỈNH GIẢM',
-          'description': 'Điều chỉnh giá nhập: $partName${supplierName != null ? " từ $supplierName" : ""} - $reason',
-          'amount': costDelta, // Dương = chi thêm, Âm = hoàn lại
-          'date': now,
-          'paymentMethod': paymentMethod,
-          'createdAt': now,
-          'shopId': shopId,
-          'isSynced': 0,
-          'isAdjustment': 1,
-          'adjustmentRef': adjustmentId,
-        });
-      }
+      // NOTE: Direct insertExpense BLOCKED - use PaymentIntentService for adjustments
+      // else if ((paymentMethod == 'TIỀN MẶT' || paymentMethod == 'CHUYỂN KHOẢN') && costDelta != 0) {
+      //   BLOCKED: Must use PaymentIntentService.createIntent() -> UnifiedPaymentPage
+      // }
 
       // 4. Cập nhật giá cost trong repair_parts (giá mới cho tương lai)
       await database.update(
@@ -334,75 +322,10 @@ class AdjustmentService {
       });
 
       // 2. Xử lý thay đổi thanh toán
-      if (paymentDelta != 0) {
-        // Tạo phiếu chi/thu bổ sung ở ngày hiện tại
-        if (newPaymentMethod == 'TIỀN MẶT' || newPaymentMethod == 'CHUYỂN KHOẢN') {
-          await _db.insertExpense({
-            'firestoreId': 'adj_exp_${now}_$partId',
-            'category': paymentDelta > 0 ? 'THANH TOÁN BỔ SUNG' : 'HOÀN TIỀN ĐIỀU CHỈNH',
-            'description': 'Điều chỉnh thanh toán: $partName${supplierName != null ? " từ $supplierName" : ""} - $reason',
-            'amount': paymentDelta,
-            'date': now,
-            'paymentMethod': newPaymentMethod,
-            'createdAt': now,
-            'shopId': shopId,
-            'isSynced': 0,
-            'isAdjustment': 1,
-            'adjustmentRef': adjustmentId,
-          });
-        }
-
-        // Điều chỉnh công nợ nếu có
-        if (supplierId != null && totalCost != null) {
-          final oldDebtAmount = oldPaymentMethod == 'CÔNG NỢ' ? totalCost : (totalCost - oldPaidAmount);
-          final newDebtAmount = newPaymentMethod == 'CÔNG NỢ' ? totalCost : (totalCost - newPaidAmount);
-          final debtDelta = newDebtAmount - oldDebtAmount;
-          
-          if (debtDelta != 0) {
-            // Tìm và cập nhật công nợ
-            final debts = await database.query(
-              'debts',
-              where: "relatedPartId = ? AND type = 'SHOP_OWES'",
-              whereArgs: [partId.toString()],
-            );
-            
-            if (debts.isNotEmpty) {
-              final debt = debts.first;
-              final debtId = debt['id'] as int;
-              final currentTotal = debt['totalAmount'] as int? ?? 0;
-              
-              await database.update(
-                'debts',
-                {
-                  'totalAmount': currentTotal + debtDelta,
-                  'note': '${debt['note']} [Điều chỉnh TT ${DateFormat('dd/MM/yyyy').format(DateTime.now())}: ${debtDelta > 0 ? '+' : ''}${NumberFormat('#,###').format(debtDelta)}đ]',
-                  'isSynced': 0,
-                },
-                where: 'id = ?',
-                whereArgs: [debtId],
-              );
-            } else if (debtDelta > 0) {
-              // Tạo công nợ mới nếu chuyển sang công nợ
-              await _db.insertDebt({
-                'firestoreId': 'debt_adj_${now}_$partId',
-                'type': 'SHOP_OWES',
-                'personName': supplierName ?? 'NCC',
-                'phone': '',
-                'totalAmount': debtDelta,
-                'paidAmount': 0,
-                'note': 'Công nợ từ điều chỉnh thanh toán: $partName - $reason',
-                'status': 'unpaid',
-                'createdAt': now,
-                'shopId': shopId,
-                'isSynced': 0,
-                'isAdjustment': 1,
-                'adjustmentRef': adjustmentId,
-                'relatedPartId': partId.toString(),
-              });
-            }
-          }
-        }
-      }
+      // NOTE: Direct insertExpense and insertDebt BLOCKED - use PaymentIntentService for payment changes
+      // if (paymentDelta != 0) {
+      //   BLOCKED: Must use PaymentIntentService.createIntent() -> UnifiedPaymentPage
+      // }
 
       // 3. Ghi audit log
       await AuditService.logAction(
@@ -514,18 +437,9 @@ class AdjustmentService {
         whereArgs: [debtId],
       );
       
+      // NOTE: Direct insertExpense BLOCKED - use PaymentIntentService for debt payments
       // 3. Ghi chi tiêu ở ngày hiện tại
-      await _db.insertExpense({
-        'firestoreId': 'exp_debt_${now}_$debtId',
-        'category': 'THANH TOÁN CÔNG NỢ',
-        'description': 'Thanh toán công nợ${supplierName != null ? " NCC $supplierName" : ""}${note != null ? " - $note" : ""}',
-        'amount': amount,
-        'date': now,
-        'paymentMethod': paymentMethod,
-        'createdAt': now,
-        'shopId': shopId,
-        'isSynced': 0,
-      });
+      // BLOCKED: Must use PaymentIntentService.createIntent() -> UnifiedPaymentPage
       
       // 4. Ghi audit log
       await AuditService.logAction(

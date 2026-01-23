@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/supplier_model.dart';
+import '../models/payment_intent_model.dart';
 import '../services/supplier_service.dart';
 import '../data/db_helper.dart';
 import '../utils/money_utils.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
-import '../services/sync_orchestrator.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/gradient_fab.dart';
+import 'unified_payment_page.dart';
 
 class SupplierDetailView extends StatefulWidget {
   final Supplier supplier;
@@ -321,8 +322,8 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
               if (!(formKey.currentState?.validate() ?? false)) return;
               final raw = MoneyUtils.parseCurrency(payCtrl.text);
               final amount = raw > 0 && raw < 100000 ? raw * 1000 : raw;
+              Navigator.pop(ctx);
               await _confirmPay(amount, method, note);
-              if (mounted) Navigator.pop(ctx);
             },
             child: const Text('XÁC NHẬN'),
           ),
@@ -332,45 +333,50 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
   }
 
   Future<void> _confirmPay(int amount, String method, String note) async {
-    try {
-      final target = _debts.firstWhere((d) => (d['totalAmount'] as int? ?? 0) > (d['paidAmount'] as int? ?? 0));
-      final debtId = target['id'] as int;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final paymentData = {
-        'firestoreId': 'pay_${now}_${widget.supplier.id ?? 'sup'}',
-        'debtId': debtId,
-        'debtFirestoreId': target['firestoreId'],
-        'amount': amount,
-        'paidAt': now,
-        'paymentMethod': method,
-        'note': note,
-        'createdBy': FirebaseAuth.instance.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV',
-      };
-      final paymentId = await _db.insertDebtPayment(paymentData);
-      // Queue debt payment sync via SyncOrchestrator
-      await SyncOrchestrator().enqueue(
-        entityType: SyncEntityType.debtPayment,
-        entityId: paymentId,
-        firestoreId: paymentData['firestoreId'] as String?,
-        operation: SyncOperation.create,
-        data: paymentData,
-      );
-      await _db.updateDebtPaid(debtId, amount);
-      final allDebts = await _db.getAllDebts();
-      final updated = allDebts.firstWhere((e) => e['id'] == debtId);
-      // Queue debt update sync via SyncOrchestrator
-      await SyncOrchestrator().enqueue(
-        entityType: SyncEntityType.debt,
-        entityId: debtId,
-        firestoreId: updated['firestoreId'] as String?,
-        operation: SyncOperation.update,
-        data: Map<String, dynamic>.from(updated),
-      );
-      EventBus().emit('debts_changed');
-      NotificationService.showSnackBar('Đã ghi thanh toán', color: Colors.green);
-      await _load();
-    } catch (e) {
-      NotificationService.showSnackBar('Lỗi thanh toán: $e', color: Colors.red);
+    // Tìm debt có thể trả
+    final activeDebts = _debts.where((d) => 
+      (d['status'] ?? 'ACTIVE') == 'ACTIVE' && 
+      ((d['totalAmount'] as int? ?? 0) - (d['paidAmount'] as int? ?? 0)) > 0
+    ).toList();
+    
+    if (activeDebts.isEmpty) {
+      NotificationService.showSnackBar('Không có công nợ cần thanh toán', color: Colors.orange);
+      return;
+    }
+    
+    // Lấy debt đầu tiên có thể trả
+    final debt = activeDebts.first;
+    final debtFId = debt['firestoreId'] as String? ?? 'debt_supplier_${widget.supplier.id}';
+    
+    // Tạo PaymentIntent và navigate đến UnifiedPaymentPage
+    final user = FirebaseAuth.instance.currentUser;
+    final intent = PaymentIntent(
+      id: 'pi_supplier_pay_${DateTime.now().millisecondsSinceEpoch}_${widget.supplier.id}',
+      type: PaymentIntentType.supplierDebt,
+      amount: amount,
+      description: 'Trả nợ NCC: ${widget.supplier.name}',
+      referenceId: debtFId,
+      referenceType: 'supplier_debt',
+      personName: widget.supplier.name,
+      personPhone: widget.supplier.phone,
+      notes: note.isNotEmpty ? note : null,
+      createdBy: user?.uid ?? 'unknown',
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      metadata: {
+        'supplierId': widget.supplier.id,
+        'supplierName': widget.supplier.name,
+        'debtId': debt['id'],
+        'debtFirestoreId': debtFId,
+        'debtType': 'SHOP_OWES',
+        'suggestedMethod': method,
+      },
+    );
+    
+    // Navigate đến UnifiedPaymentPage để xác nhận thanh toán
+    if (mounted) {
+      await UnifiedPaymentPage.navigateWithIntent(context, intent);
+      // Reload data sau khi thanh toán
+      _load();
     }
   }
 }

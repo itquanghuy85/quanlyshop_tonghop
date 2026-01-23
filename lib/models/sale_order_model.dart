@@ -69,6 +69,16 @@ class SaleOrder {
 
   /// Giá cuối sau giảm giá
   int get finalPrice => totalPrice - discount > 0 ? totalPrice - discount : 0;
+  
+  /// Số tiền còn nợ thực tế (không tính tiền vay NH vì NH sẽ tất toán)
+  /// = Giá cuối - Trả trước - Vay NH1 - Vay NH2
+  int get remainingDebt {
+    final debt = finalPrice - downPayment - loanAmount - loanAmount2;
+    return debt > 0 ? debt : 0;
+  }
+  
+  /// Kiểm tra đã thanh toán đủ chưa
+  bool get isPaid => remainingDebt == 0;
 
   Map<String, dynamic> toMap() {
     return {

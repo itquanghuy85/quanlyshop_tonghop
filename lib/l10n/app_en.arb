@@ -420,5 +420,5 @@
   "bluetoothPrinterTest": "BLUETOOTH PRINTER TEST",
   "checkBluetoothPermission": "Check detailed Bluetooth permissions...",
   "checkBluetoothOn": "Check if Bluetooth is on...",
-  "appVersion": "Version 1.0.1+9"
+  "appVersion": "Version 3.4.0"
 }

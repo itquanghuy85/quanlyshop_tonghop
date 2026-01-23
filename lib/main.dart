@@ -25,8 +25,10 @@ import 'services/sync_health_check.dart'; // Kiểm tra sync health
 import 'services/sync_orchestrator.dart'; // Quản lý đồng bộ local -> cloud
 import 'services/cash_closing_notifier.dart'; // Realtime notify chốt quỹ
 import 'services/claims_service.dart'; // Custom claims management
+import 'services/payment_intent_service.dart'; // Payment intents management
 import 'data/db_helper.dart'; // Local database helper
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'widgets/loading_intro_screen.dart'; // Loading intro animation
 
 // Background message handler (must be top-level function)
 @pragma('vm:entry-point')
@@ -353,6 +355,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         // Khởi tạo CashClosingNotifier
         await CashClosingNotifier.instance.init();
         debugPrint('✅ CashClosingNotifier initialized');
+
+        // Khởi tạo PaymentIntentService (load pending intents từ DB)
+        await PaymentIntentService.initialize();
+        debugPrint('✅ PaymentIntentService initialized');
       } catch (e) {
         debugPrint('❌ Lỗi đồng bộ: $e');
       }
@@ -440,6 +446,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                 isSuperAdmin
                     ? 'Đang kiểm tra quyền...'
                     : 'Đang đồng bộ dữ liệu cửa hàng...',
+                showIntro: !isSuperAdmin, // Hiển thị intro cho user thường
               );
             }
             if (roleSnap.hasError || !roleSnap.hasData) {
@@ -466,7 +473,16 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildLoadingScreen(String message) {
+  Widget _buildLoadingScreen(String message, {bool showIntro = false}) {
+    // Sử dụng LoadingIntroScreen với animation khi sync data
+    if (showIntro) {
+      return LoadingIntroScreen(
+        message: message,
+        subMessage: 'Vui lòng đợi trong giây lát...',
+      );
+    }
+    
+    // Fallback simple loading cho các trường hợp nhanh
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: Center(

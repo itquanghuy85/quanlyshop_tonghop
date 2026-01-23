@@ -469,75 +469,20 @@ class StockEntryService {
         };
       });
       
-      // === GHI LOCAL FINANCIAL ACTIVITY LOG ===
+      // NOTE: Direct insertFinancialActivity, insertDebt, insertExpense REMOVED
+      // Ledger and financial records are now handled by PaymentIntentService
+      // The Firestore transaction in confirmStockEntry already records the payment
+      
+      // === GHI SUPPLIER_IMPORT_HISTORY VÀO LOCAL DB ===
       if (result['success'] == true) {
         final entry = result['entry'] as StockEntry;
-        final totalCost = result['totalCost'] as double;
-        final direction = result['direction'] as String;
-        final userId = result['userId'] as String?;
         final userName = _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
         final now = DateTime.now().millisecondsSinceEpoch;
         
         try {
           final db = DBHelper();
           
-          // 1. Ghi financial_activity_log
-          await db.insertFinancialActivity({
-            'activityType': 'PURCHASE', // Nhập hàng = PURCHASE
-            'amount': totalCost.toInt(),
-            'direction': direction,
-            'paymentMethod': entry.paymentMethod,
-            'referenceType': 'stock_entry',
-            'referenceId': entryId,
-            'title': 'Nhập kho từ ${entry.supplierName ?? "NCC"}',
-            'description': 'Nhập ${entry.totalQuantity} sản phẩm - ${entry.paymentMethod}',
-            'customerName': entry.supplierName,
-            'productInfo': entry.items.map((i) => i.name).join(', '),
-            'createdAt': now,
-            'createdBy': userName, // Tên thay vì ID
-            'shopId': entry.shopId,
-            'isSynced': 1, // Đã ghi Firestore rồi
-          });
-          debugPrint('✅ confirmEntry: Local financial_activity_log saved');
-          
-          // 2. Nếu công nợ, ghi vào bảng debts
-          if (entry.paymentMethod == 'CÔNG NỢ') {
-            await db.insertDebt({
-              'firestoreId': 'debt_stockin_${now}_${entry.supplierId ?? 'sup'}',
-              'personName': entry.supplierName ?? 'NCC',
-              'phone': '', // Không có số điện thoại từ stock entry
-              'totalAmount': totalCost.toInt(),
-              'paidAmount': 0,
-              'type': 'SHOP_OWES', // Shop nợ NCC
-              'status': 'active',
-              'createdAt': now,
-              'note': 'Nhập kho: ${entry.totalQuantity} sản phẩm',
-              'linkedId': entryId,
-              'createdBy': userName,
-              'shopId': entry.shopId,
-              'isSynced': 1,
-            });
-            debugPrint('✅ confirmEntry: Local debt (SHOP_OWES) saved');
-          } else {
-            // 2b. Nếu TIỀN MẶT/CHUYỂN KHOẢN, tạo expense để hiện trong chốt quỹ
-            final expFId = 'exp_stockin_${now}_${entryId}';
-            await db.insertExpense({
-              'firestoreId': expFId,
-              'title': 'Nhập hàng - ${entry.supplierName ?? "NCC"}',
-              'amount': totalCost.toInt(),
-              'category': 'NHẬP HÀNG',
-              'date': now,
-              'note': 'Nhập ${entry.totalQuantity} sản phẩm',
-              'paymentMethod': entry.paymentMethod,
-              'createdAt': now,
-              'createdBy': userName,
-              'shopId': entry.shopId,
-              'isSynced': 0,
-            });
-            debugPrint('✅ confirmEntry: Local expense for ${entry.paymentMethod} saved');
-          }
-          
-          // 3. Ghi supplier_import_history vào local DB
+          // Ghi supplier_import_history vào local DB
           // Lookup supplier local ID từ name hoặc firestoreId
           int? supplierLocalId;
           if (entry.supplierName != null) {
