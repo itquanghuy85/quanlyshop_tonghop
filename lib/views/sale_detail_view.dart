@@ -23,6 +23,7 @@ import '../services/bluetooth_printer_service.dart';
 import '../services/payment_intent_service.dart';
 import '../models/payment_intent_model.dart';
 import '../models/printer_types.dart';
+import '../constants/financial_constants.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -321,13 +322,50 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     }
 
     EventBus().emit('sales_changed');
-    // NOTE: FinancialActivityService.logSettlement REMOVED - ledger handled by PaymentIntentService
 
-    // NOTE: Direct insertExpense for bank fee BLOCKED
-    // Fee expenses must go through PaymentIntentService -> UnifiedPaymentPage
-    // if (fee > 0) {
-    //   BLOCKED: Must use PaymentIntentService.createIntent() -> UnifiedPaymentPage
-    // }
+    // Tạo PaymentIntent cho khoản thu từ ngân hàng tất toán (status = completed vì đã nhận tiền)
+    final user = FirebaseAuth.instance.currentUser;
+    final intentId = 'pi_settlement_${s.firestoreId ?? s.id}_$nowMs';
+    final settlementIntent = PaymentIntent(
+      id: intentId,
+      type: PaymentIntentType.saleInstallment,
+      status: PaymentIntentStatus.completed,
+      amount: received,
+      personName: s.bankName ?? 'NGÂN HÀNG',
+      personPhone: '',
+      description:
+          'Ngân hàng ${s.bankName ?? ""} tất toán - KH: ${s.customerName}',
+      linkedEntityType: 'sale',
+      linkedEntityId: s.firestoreId ?? 'sale_${s.soldAt}',
+      createdBy: user?.uid ?? 'unknown',
+      createdAt: nowMs,
+      paymentMethod: PaymentMethod.bank,
+      completedAt: nowMs,
+    );
+    await PaymentIntentService.createIntent(settlementIntent);
+    debugPrint('💳 Created PaymentIntent for bank settlement: $intentId');
+
+    // Ghi chi phí NH nếu có fee > 0
+    if (fee > 0) {
+      final feeIntentId = 'pi_bank_fee_${s.firestoreId ?? s.id}_$nowMs';
+      final feeIntent = PaymentIntent(
+        id: feeIntentId,
+        type: PaymentIntentType.operatingExpense,
+        status: PaymentIntentStatus.completed,
+        amount: fee,
+        personName: s.bankName ?? 'NGÂN HÀNG',
+        personPhone: '',
+        description: 'Phí NH ${s.bankName ?? ""} - KH: ${s.customerName}',
+        linkedEntityType: 'sale',
+        linkedEntityId: s.firestoreId ?? 'sale_${s.soldAt}',
+        createdBy: user?.uid ?? 'unknown',
+        createdAt: nowMs,
+        paymentMethod: PaymentMethod.bank,
+        completedAt: nowMs,
+      );
+      await PaymentIntentService.createIntent(feeIntent);
+      debugPrint('💳 Created PaymentIntent for bank fee: $feeIntentId');
+    }
 
     if (!mounted) return;
     AuditService.logAction(
@@ -425,7 +463,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                   controller: discount,
                   keyboardType: TextInputType.number,
                   inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(labelText: "Giảm giá (VNĐ)"),
+                  decoration: const InputDecoration(
+                    labelText: "Giảm giá (VNĐ)",
+                  ),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: warranty,
@@ -520,7 +560,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     // Update debt if payment method is debt
     // FIX: Sử dụng finalPrice (đã trừ discount) thay vì totalPrice
     final debtAmount = s.finalPrice;
-    
+
     if (s.paymentMethod == 'CÔNG NỢ') {
       final existingDebts = await db.getAllDebts();
       final linkedDebt = existingDebts
@@ -576,7 +616,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           operation: SyncOperation.create,
           data: newDebt,
         );
-        
+
         // Tạo PaymentIntent cho việc thu nợ sau này (CHỜ THU)
         final user = FirebaseAuth.instance.currentUser;
         final intent = PaymentIntent(
@@ -599,8 +639,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           },
         );
         await PaymentIntentService.createIntent(intent);
-        debugPrint('💳 Created PaymentIntent for sale debt collection: ${intent.id}');
-        
+        debugPrint(
+          '💳 Created PaymentIntent for sale debt collection: ${intent.id}',
+        );
+
         EventBus().emit('debts_changed');
       }
     } else if (oldPaymentMethod == 'CÔNG NỢ' && payment != 'CÔNG NỢ') {
@@ -828,10 +870,17 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                       color: Colors.pink,
                     ),
                   ),
-                  Text("ĐC: $_shopAddr", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
+                  Text(
+                    "ĐC: $_shopAddr",
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                    ),
+                  ),
                   Text(
                     "SĐT: $_shopPhone",
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                    ),
                   ),
                 ],
               ),
@@ -842,7 +891,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           Center(
             child: Text(
               "HÓA ĐƠN BÁN LẺ",
-              style: TextStyle(fontSize: AppTextStyles.headline1.fontSize, fontWeight: FontWeight.w900),
+              style: TextStyle(
+                fontSize: AppTextStyles.headline1.fontSize,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
           const SizedBox(height: 14),
@@ -929,11 +981,17 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           children: [
             Text(
               "CHI TIẾT ĐƠN BÁN",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline2.fontSize),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: AppTextStyles.headline2.fontSize,
+              ),
             ),
             Text(
               s.customerName,
-              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.white70),
+              style: TextStyle(
+                fontSize: AppTextStyles.body1.fontSize,
+                color: Colors.white70,
+              ),
             ),
           ],
         ),
@@ -1126,7 +1184,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         Text(l, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
         Text(
           v,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: AppTextStyles.headline5.fontSize,
+          ),
         ),
       ],
     ),

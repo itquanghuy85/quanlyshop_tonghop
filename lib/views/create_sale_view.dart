@@ -1671,11 +1671,15 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               style: AppTextStyles.body2,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          ...["FE", "HOME", "HD"].map(
-                            (b) => Padding(
-                              padding: const EdgeInsets.only(left: 2),
-                              child: ActionChip(
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: ["FE", "HOME", "MIRAE", "HD", "F83", "T86"]
+                            .map(
+                              (b) => ActionChip(
                                 label: Text(
                                   b,
                                   style: AppTextStyles.caption.copyWith(
@@ -1687,9 +1691,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                 visualDensity: VisualDensity.compact,
                                 padding: EdgeInsets.zero,
                               ),
-                            ),
-                          ),
-                        ],
+                            )
+                            .toList(),
                       ),
 
                       // Ngân hàng thứ 2
@@ -1749,11 +1752,15 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                 style: AppTextStyles.body2,
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            ...["MIRAE", "F83", "T86"].map(
-                              (b) => Padding(
-                                padding: const EdgeInsets.only(left: 2),
-                                child: ActionChip(
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: ["FE", "HOME", "MIRAE", "HD", "F83", "T86"]
+                              .map(
+                                (b) => ActionChip(
                                   label: Text(
                                     b,
                                     style: AppTextStyles.caption.copyWith(
@@ -1765,9 +1772,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                   visualDensity: VisualDensity.compact,
                                   padding: EdgeInsets.zero,
                                 ),
-                              ),
-                            ),
-                          ],
+                              )
+                              .toList(),
                         ),
                       ],
                     ],
