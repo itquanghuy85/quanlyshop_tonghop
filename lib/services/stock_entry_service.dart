@@ -2,28 +2,30 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/stock_entry_model.dart';
+import '../models/payment_intent_model.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
+import '../services/payment_intent_service.dart';
 import '../data/db_helper.dart';
 
 /// Service quản lý phiếu nhập kho (Staging Inventory)
 class StockEntryService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
   static const String _collection = 'stock_entries';
-  
+
   // === HELPER METHODS ===
   void _showError(String message) {
     NotificationService.showSnackBar(message, color: Colors.red);
   }
-  
+
   void _showSuccess(String message) {
     NotificationService.showSnackBar(message, color: Colors.green);
   }
-  
+
   // === CRUD OPERATIONS ===
-  
+
   /// Tạo phiếu nhập kho mới (DRAFT hoặc QUICK)
   Future<StockEntry?> createEntry(StockEntry entry) async {
     try {
@@ -32,29 +34,30 @@ class StockEntryService {
         _showError('Không tìm thấy thông tin shop');
         return null;
       }
-      
+
       final userId = _auth.currentUser?.uid;
-      
+
       // Tính tổng giá vốn
       final totalCost = entry.items.fold<double>(
-        0, (total, item) => total + item.totalCost,
+        0,
+        (total, item) => total + item.totalCost,
       );
-      
+
       final newEntry = entry.copyWith(
         shopId: shopId,
         totalCost: totalCost > 0 ? totalCost : null,
         createdBy: userId,
         createdAt: DateTime.now(),
       );
-      
+
       final mapData = newEntry.toMap();
-      debugPrint('📦 createEntry: status=${mapData['status']}, entryType=${mapData['entryType']}, shopId=$shopId');
+      debugPrint(
+        '📦 createEntry: status=${mapData['status']}, entryType=${mapData['entryType']}, shopId=$shopId',
+      );
       debugPrint('📦 createEntry map: $mapData');
-      
-      final docRef = await _firestore
-          .collection(_collection)
-          .add(mapData);
-      
+
+      final docRef = await _firestore.collection(_collection).add(mapData);
+
       debugPrint('✅ createEntry SUCCESS: docId=${docRef.id}');
       return newEntry.copyWith(firestoreId: docRef.id);
     } catch (e) {
@@ -62,7 +65,7 @@ class StockEntryService {
       return null;
     }
   }
-  
+
   /// Cập nhật phiếu (chỉ cho DRAFT)
   Future<bool> updateEntry(StockEntry entry) async {
     try {
@@ -70,33 +73,34 @@ class StockEntryService {
         _showError('Không tìm thấy ID phiếu');
         return false;
       }
-      
+
       if (entry.locked || entry.isConfirmed) {
         _showError('Phiếu đã khóa, không thể sửa');
         return false;
       }
-      
+
       // Tính lại tổng giá vốn
       final totalCost = entry.items.fold<double>(
-        0, (total, item) => total + item.totalCost,
+        0,
+        (total, item) => total + item.totalCost,
       );
-      
+
       final updatedEntry = entry.copyWith(
         totalCost: totalCost > 0 ? totalCost : null,
         updatedAt: DateTime.now(),
       );
-      
+
       // Dùng forUpdate: true để tránh ghi đè createdAt
       final updateMap = updatedEntry.toMap(forUpdate: true);
       debugPrint('📝 updateEntry: firestoreId=${entry.firestoreId}');
       debugPrint('📝 updateEntry map keys: ${updateMap.keys.toList()}');
       debugPrint('📝 updateEntry map: $updateMap');
-      
+
       await _firestore
           .collection(_collection)
           .doc(entry.firestoreId)
           .update(updateMap);
-      
+
       _showSuccess('Đã cập nhật phiếu');
       return true;
     } catch (e) {
@@ -105,7 +109,7 @@ class StockEntryService {
       return false;
     }
   }
-  
+
   /// Hủy phiếu (chỉ cho DRAFT)
   Future<bool> cancelEntry(String entryId) async {
     try {
@@ -114,18 +118,18 @@ class StockEntryService {
         _showError('Không tìm thấy phiếu');
         return false;
       }
-      
+
       final entry = StockEntry.fromMap(doc.data()!, docId: doc.id);
       if (entry.locked || entry.isConfirmed) {
         _showError('Phiếu đã khóa, không thể hủy');
         return false;
       }
-      
+
       await _firestore.collection(_collection).doc(entryId).update({
         'status': 'cancelled', // lowercase để match với toMap()
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       _showSuccess('Đã hủy phiếu');
       return true;
     } catch (e) {
@@ -133,7 +137,7 @@ class StockEntryService {
       return false;
     }
   }
-  
+
   /// Lấy phiếu theo ID
   Future<StockEntry?> getEntry(String entryId) async {
     try {
@@ -144,26 +148,28 @@ class StockEntryService {
       return null;
     }
   }
-  
+
   /// Lấy danh sách phiếu DRAFT (hàng chờ xác nhận)
   Future<List<StockEntry>> getPendingEntries() async {
     try {
       final shopId = await UserService.getCurrentShopId();
       debugPrint('📋 getPendingEntries: shopId=$shopId');
       if (shopId == null) return [];
-      
+
       final query = await _firestore
           .collection(_collection)
           .where('shopId', isEqualTo: shopId)
           .where('status', isEqualTo: 'draft') // lowercase để match với toMap()
           .orderBy('createdAt', descending: true)
           .get();
-      
+
       debugPrint('📋 getPendingEntries: found ${query.docs.length} docs');
       for (final doc in query.docs) {
-        debugPrint('   - doc ${doc.id}: status=${doc.data()['status']}, items=${(doc.data()['items'] as List?)?.length ?? 0}');
+        debugPrint(
+          '   - doc ${doc.id}: status=${doc.data()['status']}, items=${(doc.data()['items'] as List?)?.length ?? 0}',
+        );
       }
-      
+
       return query.docs
           .map((doc) => StockEntry.fromMap(doc.data(), docId: doc.id))
           .toList();
@@ -172,26 +178,26 @@ class StockEntryService {
       return [];
     }
   }
-  
+
   /// Đếm số phiếu chờ xác nhận
   Future<int> getPendingCount() async {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return 0;
-      
+
       final query = await _firestore
           .collection(_collection)
           .where('shopId', isEqualTo: shopId)
           .where('status', isEqualTo: 'draft') // lowercase để match với toMap()
           .count()
           .get();
-      
+
       return query.count ?? 0;
     } catch (e) {
       return 0;
     }
   }
-  
+
   /// Lấy danh sách phiếu đã xác nhận
   Future<List<StockEntry>> getConfirmedEntries({
     DateTime? startDate,
@@ -201,35 +207,42 @@ class StockEntryService {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return [];
-      
+
       Query query = _firestore
           .collection(_collection)
           .where('shopId', isEqualTo: shopId)
-          .where('status', isEqualTo: 'confirmed'); // lowercase để match với toMap()
-      
+          .where(
+            'status',
+            isEqualTo: 'confirmed',
+          ); // lowercase để match với toMap()
+
       if (startDate != null) {
         query = query.where('confirmedAt', isGreaterThanOrEqualTo: startDate);
       }
       if (endDate != null) {
         query = query.where('confirmedAt', isLessThanOrEqualTo: endDate);
       }
-      
+
       final result = await query
           .orderBy('confirmedAt', descending: true)
           .limit(limit)
           .get();
-      
+
       return result.docs
-          .map((doc) => StockEntry.fromMap(
-              doc.data() as Map<String, dynamic>, docId: doc.id))
+          .map(
+            (doc) => StockEntry.fromMap(
+              doc.data() as Map<String, dynamic>,
+              docId: doc.id,
+            ),
+          )
           .toList();
     } catch (e) {
       return [];
     }
   }
-  
+
   // === XÁC NHẬN NHẬP KHO (ATOMIC TRANSACTION) ===
-  
+
   /// Xác nhận nhập kho - PHẢI atomic
   /// Tạo products + financial_activity + supplier_debt (nếu công nợ)
   Future<bool> confirmEntry(String entryId) async {
@@ -237,51 +250,63 @@ class StockEntryService {
     try {
       final result = await _firestore.runTransaction((transaction) async {
         debugPrint('🔄 confirmEntry: Inside transaction');
-        
+
         // 1. Lấy phiếu nhập
         final entryRef = _firestore.collection(_collection).doc(entryId);
         final entryDoc = await transaction.get(entryRef);
-        
+
         if (!entryDoc.exists) {
           debugPrint('❌ confirmEntry: Entry not found');
           throw Exception('Không tìm thấy phiếu');
         }
-        
+
         final entryData = entryDoc.data()!;
-        debugPrint('🔄 confirmEntry: Entry data - status=${entryData['status']}, supplierId=${entryData['supplierId']}, paymentMethod=${entryData['paymentMethod']}');
-        
+        debugPrint(
+          '🔄 confirmEntry: Entry data - status=${entryData['status']}, supplierId=${entryData['supplierId']}, paymentMethod=${entryData['paymentMethod']}',
+        );
+
         final entry = StockEntry.fromMap(entryData, docId: entryDoc.id);
-        debugPrint('🔄 confirmEntry: Parsed entry - status=${entry.status}, canConfirm=${entry.canConfirm}, missingInfo=${entry.missingInfo}');
-        debugPrint('🔄 confirmEntry: shopId=${entry.shopId}, items=${entry.items.length}, totalCost=${entry.calculatedTotalCost}');
-        
+        debugPrint(
+          '🔄 confirmEntry: Parsed entry - status=${entry.status}, canConfirm=${entry.canConfirm}, missingInfo=${entry.missingInfo}',
+        );
+        debugPrint(
+          '🔄 confirmEntry: shopId=${entry.shopId}, items=${entry.items.length}, totalCost=${entry.calculatedTotalCost}',
+        );
+
         // 2. Validate
         if (entry.status != StockEntryStatus.draft) {
           debugPrint('❌ confirmEntry: Entry not draft, status=${entry.status}');
           throw Exception('Phiếu đã được xử lý');
         }
-        
+
         if (!entry.canConfirm) {
-          debugPrint('❌ confirmEntry: Cannot confirm - ${entry.missingInfo.join(", ")}');
+          debugPrint(
+            '❌ confirmEntry: Cannot confirm - ${entry.missingInfo.join(", ")}',
+          );
           throw Exception('Chưa đủ thông tin: ${entry.missingInfo.join(", ")}');
         }
-        
+
         // 3. Tạo products từ items
         final userId = _auth.currentUser?.uid;
-        
+
         for (final item in entry.items) {
           // === XỬ LÝ LINH KIỆN: Lưu vào repair_parts thay vì products ===
           if (item.productType == 'LINH_KIEN') {
             final partRef = _firestore.collection('repair_parts').doc();
             final now = DateTime.now().millisecondsSinceEpoch;
-            final userName = _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
-            
+            final userName =
+                _auth.currentUser?.email?.split('@').first.toUpperCase() ??
+                'NV';
+
             transaction.set(partRef, {
               'partName': item.name,
               'compatibleModels': item.model ?? '',
               'cost': (item.cost ?? 0).toInt(),
               'price': (item.price ?? 0).toInt(),
               'quantity': item.quantity,
-              'supplierId': entry.supplierId != null ? int.tryParse(entry.supplierId!) : null,
+              'supplierId': entry.supplierId != null
+                  ? int.tryParse(entry.supplierId!)
+                  : null,
               'paymentMethod': entry.paymentMethod,
               'createdBy': userName,
               'createdAt': now,
@@ -292,101 +317,104 @@ class StockEntryService {
             });
             continue; // Skip the products creation for LINH_KIEN
           }
-          
+
           // === XỬ LÝ ĐIỆN THOẠI & PHỤ KIỆN: Lưu vào products ===
           // Xử lý đặc biệt cho điện thoại: nếu quantity > 1 và không có IMEI
           // → tách thành nhiều products riêng biệt
-          final bool isPhoneWithBatch = item.productType == 'DIEN_THOAI' 
-              && item.quantity > 1 
-              && (item.imei == null || item.imei!.isEmpty);
-          
+          final bool isPhoneWithBatch =
+              item.productType == 'DIEN_THOAI' &&
+              item.quantity > 1 &&
+              (item.imei == null || item.imei!.isEmpty);
+
           final int productsToCreate = isPhoneWithBatch ? item.quantity : 1;
           final int quantityPerProduct = isPhoneWithBatch ? 1 : item.quantity;
-          
+
           for (int i = 0; i < productsToCreate; i++) {
             final productRef = _firestore.collection('products').doc();
-          
+
             // Tạo tên sản phẩm đầy đủ
             String productName = item.name;
             if (item.productType == 'DIEN_THOAI') {
               final parts = <String>[item.name];
-            if (item.capacity != null && item.capacity!.isNotEmpty) {
-              parts.add(item.capacity!);
+              if (item.capacity != null && item.capacity!.isNotEmpty) {
+                parts.add(item.capacity!);
+              }
+              if (item.color != null && item.color!.isNotEmpty) {
+                parts.add(item.color!);
+              }
+              productName = parts.join(' ');
             }
-            if (item.color != null && item.color!.isNotEmpty) {
-              parts.add(item.color!);
+
+            // Tạo chi tiết
+            String detail = '';
+            if (item.productType == 'DIEN_THOAI') {
+              final detailParts = <String>[];
+              if (item.capacity != null && item.capacity!.isNotEmpty) {
+                detailParts.add(item.capacity!);
+              }
+              if (item.color != null && item.color!.isNotEmpty) {
+                detailParts.add(item.color!);
+              }
+              if (item.condition != null && item.condition!.isNotEmpty) {
+                detailParts.add(item.condition!);
+              }
+              detail = detailParts.join(' - ');
             }
-            productName = parts.join(' ');
-          }
-          
-          // Tạo chi tiết
-          String detail = '';
-          if (item.productType == 'DIEN_THOAI') {
-            final detailParts = <String>[];
-            if (item.capacity != null && item.capacity!.isNotEmpty) {
-              detailParts.add(item.capacity!);
+
+            // Tạo IMEI placeholder nếu là điện thoại batch
+            String productImei = item.imei ?? '';
+            if (isPhoneWithBatch) {
+              // Tạo IMEI placeholder: PENDING_<timestamp>_<index>
+              final timestamp = DateTime.now().millisecondsSinceEpoch;
+              productImei = 'PENDING_${timestamp}_${i + 1}';
             }
-            if (item.color != null && item.color!.isNotEmpty) {
-              detailParts.add(item.color!);
+
+            // Thêm số thứ tự vào tên nếu là batch
+            String finalProductName = productName;
+            if (isPhoneWithBatch && productsToCreate > 1) {
+              finalProductName = '$productName #${i + 1}';
             }
-            if (item.condition != null && item.condition!.isNotEmpty) {
-              detailParts.add(item.condition!);
-            }
-            detail = detailParts.join(' - ');
-          }
-          
-          // Tạo IMEI placeholder nếu là điện thoại batch
-          String productImei = item.imei ?? '';
-          if (isPhoneWithBatch) {
-            // Tạo IMEI placeholder: PENDING_<timestamp>_<index>
-            final timestamp = DateTime.now().millisecondsSinceEpoch;
-            productImei = 'PENDING_${timestamp}_${i + 1}';
-          }
-          
-          // Thêm số thứ tự vào tên nếu là batch
-          String finalProductName = productName;
-          if (isPhoneWithBatch && productsToCreate > 1) {
-            finalProductName = '$productName #${i + 1}';
-          }
-          
-          transaction.set(productRef, {
-            'name': finalProductName,
-            'detail': detail,
-            'type': item.productType,
-            'imei': productImei,
-            'brand': item.brand ?? '',
-            'model': item.model ?? '',
-            'cost': item.cost ?? 0,
-            'price': item.price ?? 0,
-            'quantity': quantityPerProduct,
-            'supplier': entry.supplierName ?? '',
-            'supplierId': entry.supplierId,
-            'paymentMethod': entry.paymentMethod, // Phương thức thanh toán
-            'status': 1, // Trong kho
-            'stockEntryId': entryId,
-            'shopId': entry.shopId,
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-            'deleted': false,
-            if (isPhoneWithBatch) 'needsImeiUpdate': true, // Đánh dấu cần cập nhật IMEI
-            if (isPhoneWithBatch) 'batchIndex': i + 1,
-          });
+
+            transaction.set(productRef, {
+              'name': finalProductName,
+              'detail': detail,
+              'type': item.productType,
+              'imei': productImei,
+              'brand': item.brand ?? '',
+              'model': item.model ?? '',
+              'cost': item.cost ?? 0,
+              'price': item.price ?? 0,
+              'quantity': quantityPerProduct,
+              'supplier': entry.supplierName ?? '',
+              'supplierId': entry.supplierId,
+              'paymentMethod': entry.paymentMethod, // Phương thức thanh toán
+              'status': 1, // Trong kho
+              'stockEntryId': entryId,
+              'shopId': entry.shopId,
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+              'deleted': false,
+              if (isPhoneWithBatch)
+                'needsImeiUpdate': true, // Đánh dấu cần cập nhật IMEI
+              if (isPhoneWithBatch) 'batchIndex': i + 1,
+            });
           } // End for loop products
         }
-        
+
         // 4. Ghi financial_activity
         final totalCost = entry.calculatedTotalCost;
         final activityRef = _firestore.collection('financial_activities').doc();
-        
+
         // Xác định loại giao dịch dựa trên payment method
         String direction = 'OUT'; // Chi tiền mua hàng
         if (entry.paymentMethod == 'CÔNG NỢ') {
           direction = 'DEBT'; // Ghi nợ, không chi tiền ngay
         }
-        
+
         // Lấy tên người dùng để hiển thị
-        final userName = _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
-        
+        final userName =
+            _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
+
         transaction.set(activityRef, {
           'type': 'STOCK_IN',
           'subType': 'NHAP_KHO',
@@ -394,7 +422,8 @@ class StockEntryService {
           'direction': direction,
           'referenceId': entryId,
           'referenceType': 'stock_entry',
-          'description': 'Nhập kho: ${entry.totalQuantity} sản phẩm từ ${entry.supplierName}',
+          'description':
+              'Nhập kho: ${entry.totalQuantity} sản phẩm từ ${entry.supplierName}',
           'paymentMethod': entry.paymentMethod,
           'supplierId': entry.supplierId,
           'supplierName': entry.supplierName,
@@ -403,7 +432,7 @@ class StockEntryService {
           'createdBy': userName, // Tên thay vì ID
           'createdByUid': userId, // Giữ lại UID để tra cứu
         });
-        
+
         // 5. Cập nhật công nợ NCC (nếu ghi nợ)
         if (entry.paymentMethod == 'CÔNG NỢ' && entry.supplierId != null) {
           final debtRef = _firestore.collection('supplier_debts').doc();
@@ -422,10 +451,12 @@ class StockEntryService {
             'notes': 'Nhập kho: ${entry.totalQuantity} sản phẩm',
           });
         }
-        
+
         // 5.5 Ghi lịch sử nhập hàng vào supplier_import_history
         for (final item in entry.items) {
-          final importRef = _firestore.collection('supplier_import_history').doc();
+          final importRef = _firestore
+              .collection('supplier_import_history')
+              .doc();
           transaction.set(importRef, {
             'supplierId': entry.supplierId,
             'supplierName': entry.supplierName,
@@ -446,7 +477,7 @@ class StockEntryService {
             'createdAt': FieldValue.serverTimestamp(),
           });
         }
-        
+
         // 6. Cập nhật trạng thái phiếu
         debugPrint('🔄 confirmEntry: Updating entry status to confirmed');
         transaction.update(entryRef, {
@@ -457,7 +488,7 @@ class StockEntryService {
           'confirmedBy': userId,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-        
+
         debugPrint('✅ confirmEntry: Transaction completed successfully');
         // Trả về thông tin để ghi local
         return {
@@ -468,56 +499,166 @@ class StockEntryService {
           'userId': userId,
         };
       });
-      
-      // NOTE: Direct insertFinancialActivity, insertDebt, insertExpense REMOVED
-      // Ledger and financial records are now handled by PaymentIntentService
-      // The Firestore transaction in confirmStockEntry already records the payment
-      
+
+      // === TẠO PAYMENTINTENT VÀ DEBT CHO LOCAL DB ===
+      // Đây là bước quan trọng để hiển thị trên trang "Thanh toán" và tài chính
+      if (result['success'] == true) {
+        final entry = result['entry'] as StockEntry;
+        final totalCost = (result['totalCost'] as double).toInt();
+        final direction = result['direction'] as String;
+        final userName =
+            _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
+        final now = DateTime.now().millisecondsSinceEpoch;
+
+        try {
+          final db = DBHelper();
+
+          if (entry.paymentMethod == 'CÔNG NỢ') {
+            // === TẠO DEBT TRONG LOCAL DB ===
+            final debtFirestoreId = 'debt_stock_${entryId}_${now}';
+            await db.insertDebt({
+              'firestoreId': debtFirestoreId,
+              'type': 'SHOP_OWES', // Shop nợ NCC
+              'personName': entry.supplierName ?? 'NCC',
+              'phone': '',
+              'totalAmount': totalCost,
+              'paidAmount': 0,
+              'status': 0, // Chưa thanh toán
+              'note':
+                  'Nhập kho: ${entry.totalQuantity} sản phẩm từ ${entry.supplierName}',
+              'linkedId': entryId,
+              'linkedType': 'stock_entry',
+              'createdAt': now,
+              'updatedAt': now,
+              'shopId': entry.shopId,
+              'isSynced': 1,
+            });
+            debugPrint(
+              '✅ confirmEntry: Created local DEBT for CÔNG NỢ: $totalCost',
+            );
+
+            // Tạo PaymentIntent với status COMPLETED (đã ghi nhận công nợ)
+            final intent = PaymentIntent(
+              id: 'pi_debt_${entryId}_$now',
+              type: PaymentIntentType.supplierDebt,
+              amount: totalCost,
+              description:
+                  'Công nợ nhập kho: ${entry.totalQuantity} SP từ ${entry.supplierName}',
+              referenceId: entryId,
+              referenceType: 'stock_entry',
+              status: PaymentIntentStatus.completed,
+              createdAt: DateTime.now(),
+              paidAt: DateTime.now(),
+              paymentMethod: 'CÔNG NỢ',
+              metadata: {
+                'supplierId': entry.supplierId,
+                'supplierName': entry.supplierName,
+                'debtFirestoreId': debtFirestoreId,
+              },
+            );
+            await PaymentIntentService.createIntent(intent);
+            debugPrint('✅ confirmEntry: Created PaymentIntent for CÔNG NỢ');
+          } else {
+            // === TIỀN MẶT / CHUYỂN KHOẢN - Tạo EXPENSE và PaymentIntent ===
+            // Ghi expense vào local DB
+            await db.insertExpense({
+              'firestoreId': 'exp_stock_${entryId}_$now',
+              'category': 'NHẬP HÀNG',
+              'title': 'Nhập kho từ ${entry.supplierName}',
+              'amount': totalCost,
+              'paymentMethod': entry.paymentMethod,
+              'note': 'Nhập ${entry.totalQuantity} sản phẩm',
+              'date': now,
+              'createdBy': userName,
+              'shopId': entry.shopId,
+              'isSynced': 1,
+            });
+            debugPrint(
+              '✅ confirmEntry: Created local EXPENSE for ${entry.paymentMethod}: $totalCost',
+            );
+
+            // Tạo PaymentIntent với status COMPLETED
+            final intent = PaymentIntent(
+              id: 'pi_stock_${entryId}_$now',
+              type: PaymentIntentType.inventoryPurchase,
+              amount: totalCost,
+              description:
+                  'Nhập kho: ${entry.totalQuantity} SP từ ${entry.supplierName}',
+              referenceId: entryId,
+              referenceType: 'stock_entry',
+              status: PaymentIntentStatus.completed,
+              createdAt: DateTime.now(),
+              paidAt: DateTime.now(),
+              paymentMethod: entry.paymentMethod,
+              metadata: {
+                'supplierId': entry.supplierId,
+                'supplierName': entry.supplierName,
+              },
+            );
+            await PaymentIntentService.createIntent(intent);
+            debugPrint(
+              '✅ confirmEntry: Created PaymentIntent for ${entry.paymentMethod}',
+            );
+          }
+        } catch (e) {
+          debugPrint(
+            '⚠️ confirmEntry: Failed to create local financial records: $e',
+          );
+          // Không fail cả flow, chỉ log warning
+        }
+      }
+
       // === GHI SUPPLIER_IMPORT_HISTORY VÀO LOCAL DB ===
       if (result['success'] == true) {
         final entry = result['entry'] as StockEntry;
-        final userName = _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
+        final userName =
+            _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
         final now = DateTime.now().millisecondsSinceEpoch;
-        
+
         try {
           final db = DBHelper();
-          
+
           // Ghi supplier_import_history vào local DB
           // Lookup supplier local ID từ name hoặc firestoreId với fuzzy matching
           int? supplierLocalId;
           if (entry.supplierName != null || entry.supplierId != null) {
             final suppliers = await db.getSuppliers();
             final supplierNameUpper = entry.supplierName?.toUpperCase().trim();
-            
+
             // Thử match theo nhiều cách
-            final matchedSupplier = suppliers.firstWhere(
-              (s) {
-                // Match by firestoreId first (most reliable)
-                if (entry.supplierId != null && s['firestoreId'] == entry.supplierId) {
-                  return true;
-                }
-                // Match by exact name (uppercase)
-                if (supplierNameUpper != null && 
-                    s['name']?.toString().toUpperCase().trim() == supplierNameUpper) {
-                  return true;
-                }
-                // Match by name contains (fuzzy)
-                if (supplierNameUpper != null && 
-                    s['name']?.toString().toUpperCase().contains(supplierNameUpper) == true) {
-                  return true;
-                }
-                return false;
-              },
-              orElse: () => {},
-            );
+            final matchedSupplier = suppliers.firstWhere((s) {
+              // Match by firestoreId first (most reliable)
+              if (entry.supplierId != null &&
+                  s['firestoreId'] == entry.supplierId) {
+                return true;
+              }
+              // Match by exact name (uppercase)
+              if (supplierNameUpper != null &&
+                  s['name']?.toString().toUpperCase().trim() ==
+                      supplierNameUpper) {
+                return true;
+              }
+              // Match by name contains (fuzzy)
+              if (supplierNameUpper != null &&
+                  s['name']?.toString().toUpperCase().contains(
+                        supplierNameUpper,
+                      ) ==
+                      true) {
+                return true;
+              }
+              return false;
+            }, orElse: () => {});
             supplierLocalId = matchedSupplier['id'] as int?;
-            
-            debugPrint('📦 confirmEntry: Supplier lookup - name="${entry.supplierName}", fsId="${entry.supplierId}", localId=$supplierLocalId');
+
+            debugPrint(
+              '📦 confirmEntry: Supplier lookup - name="${entry.supplierName}", fsId="${entry.supplierId}", localId=$supplierLocalId',
+            );
           }
-          
+
           for (final item in entry.items) {
             await db.insertSupplierImportHistory({
-              'firestoreId': 'import_${now}_${entry.supplierId ?? "sup"}_${item.name}',
+              'firestoreId':
+                  'import_${now}_${entry.supplierId ?? "sup"}_${item.name}',
               'supplierId': supplierLocalId ?? 0,
               'supplierName': entry.supplierName ?? 'NCC',
               'productName': item.name,
@@ -534,7 +675,7 @@ class StockEntryService {
               'shopId': entry.shopId,
               'isSynced': 1,
             });
-            
+
             // === NẾU LÀ LINH KIỆN, GHI VÀO LOCAL repair_parts ===
             if (item.productType == 'LINH_KIEN') {
               await db.upsertRepairPart({
@@ -553,7 +694,9 @@ class StockEntryService {
                 'isSynced': 1,
                 'deleted': 0,
               });
-              debugPrint('✅ confirmEntry: Local repair_part saved for ${item.name}');
+              debugPrint(
+                '✅ confirmEntry: Local repair_part saved for ${item.name}',
+              );
             }
           }
           debugPrint('✅ confirmEntry: Local supplier_import_history saved');
@@ -562,7 +705,7 @@ class StockEntryService {
           // Không fail cả flow, chỉ log warning
         }
       }
-      
+
       debugPrint('✅ confirmEntry: SUCCESS');
       _showSuccess('Đã xác nhận nhập kho');
       return result['success'] == true;
@@ -572,7 +715,7 @@ class StockEntryService {
       return false;
     }
   }
-  
+
   /// Nhập nhanh - tạo và xác nhận ngay trong 1 bước
   Future<bool> quickStockIn(StockEntry entry) async {
     try {
@@ -581,17 +724,15 @@ class StockEntryService {
         _showError('Chưa đủ thông tin: ${entry.missingInfo.join(", ")}');
         return false;
       }
-      
+
       // Tạo entry với type = QUICK
-      final quickEntry = entry.copyWith(
-        entryType: StockEntryType.quick,
-      );
-      
+      final quickEntry = entry.copyWith(entryType: StockEntryType.quick);
+
       final created = await createEntry(quickEntry);
       if (created == null || created.firestoreId == null) {
         return false;
       }
-      
+
       // Xác nhận ngay
       final confirmed = await confirmEntry(created.firestoreId!);
       if (!confirmed) {
@@ -599,7 +740,7 @@ class StockEntryService {
         await cancelEntry(created.firestoreId!);
         return false;
       }
-      
+
       _showSuccess('Đã nhập kho thành công');
       return true;
     } catch (e) {
@@ -607,18 +748,20 @@ class StockEntryService {
       return false;
     }
   }
-  
+
   /// Lưu tạm - chỉ tạo DRAFT
   Future<StockEntry?> saveDraft(StockEntry entry) async {
     try {
-      debugPrint('📝 saveDraft: entry status=${entry.status.name}, items=${entry.items.length}');
+      debugPrint(
+        '📝 saveDraft: entry status=${entry.status.name}, items=${entry.items.length}',
+      );
       final draftEntry = entry.copyWith(
         status: StockEntryStatus.draft,
         entryType: StockEntryType.staging,
         locked: false,
       );
       debugPrint('📝 saveDraft: draftEntry status=${draftEntry.status.name}');
-      
+
       final created = await createEntry(draftEntry);
       debugPrint('📝 saveDraft: created=${created?.firestoreId}');
       if (created != null) {
@@ -631,25 +774,25 @@ class StockEntryService {
       return null;
     }
   }
-  
+
   // === STATISTICS ===
-  
+
   /// Thống kê hàng chờ xác nhận
   Future<Map<String, dynamic>> getPendingStats() async {
     try {
       final entries = await getPendingEntries();
-      
+
       int totalItems = 0;
       int phoneCount = 0;
       int accessoryCount = 0;
       int partsCount = 0;
       double estimatedValue = 0;
       int oldestDays = 0;
-      
+
       for (final entry in entries) {
         for (final item in entry.items) {
           totalItems += item.quantity;
-          
+
           switch (item.productType) {
             case 'DIEN_THOAI':
               phoneCount += item.quantity;
@@ -661,15 +804,15 @@ class StockEntryService {
               partsCount += item.quantity;
               break;
           }
-          
+
           estimatedValue += item.totalCost;
         }
-        
+
         if (entry.daysSinceCreated > oldestDays) {
           oldestDays = entry.daysSinceCreated;
         }
       }
-      
+
       return {
         'total': entries.length,
         'totalItems': totalItems,
@@ -683,9 +826,9 @@ class StockEntryService {
       return {};
     }
   }
-  
+
   // === STREAM (REALTIME) ===
-  
+
   /// Stream danh sách hàng chờ
   Stream<List<StockEntry>> watchPendingEntries() async* {
     final shopId = await UserService.getCurrentShopId();
@@ -693,18 +836,20 @@ class StockEntryService {
       yield [];
       return;
     }
-    
+
     yield* _firestore
         .collection(_collection)
         .where('shopId', isEqualTo: shopId)
         .where('status', isEqualTo: 'draft') // lowercase để match với toMap()
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => StockEntry.fromMap(doc.data(), docId: doc.id))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => StockEntry.fromMap(doc.data(), docId: doc.id))
+              .toList(),
+        );
   }
-  
+
   /// Stream đếm số hàng chờ
   Stream<int> watchPendingCount() async* {
     final shopId = await UserService.getCurrentShopId();
@@ -712,7 +857,7 @@ class StockEntryService {
       yield 0;
       return;
     }
-    
+
     yield* _firestore
         .collection(_collection)
         .where('shopId', isEqualTo: shopId)
