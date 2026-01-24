@@ -705,9 +705,11 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 const SizedBox(width: 8),
                 IconButton(
                   onPressed: _scanIMEI,
-                  icon: const Icon(Icons.qr_code_scanner, size: 28),
+                  icon: const Icon(Icons.qr_code_scanner, size: 20),
                   color: Colors.blue,
                   tooltip: 'Quét IMEI',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               ],
             ),

@@ -464,8 +464,8 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               const TabBar(
                 labelColor: Colors.blue,
                 tabs: [
-                  Tab(icon: Icon(Icons.build), text: 'Sửa chữa'),
-                  Tab(icon: Icon(Icons.shopping_cart), text: 'Bán hàng'),
+                  Tab(icon: Icon(Icons.build, size: 18), text: 'Sửa'),
+                  Tab(icon: Icon(Icons.shopping_cart, size: 18), text: 'Bán'),
                 ],
               ),
               Expanded(

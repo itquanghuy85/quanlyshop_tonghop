@@ -142,8 +142,8 @@ class _LabelSettingsViewState extends State<LabelSettingsView> with SingleTicker
                     unselectedLabelColor: Colors.grey,
                     indicatorColor: Colors.purple,
                     tabs: const [
-                      Tab(icon: Icon(Icons.store), text: 'Thông tin Shop'),
-                      Tab(icon: Icon(Icons.style), text: 'Mẫu Tem'),
+                      Tab(icon: Icon(Icons.store, size: 18), text: 'Shop'),
+                      Tab(icon: Icon(Icons.style, size: 18), text: 'Mẫu Tem'),
                     ],
                   ),
                 ),

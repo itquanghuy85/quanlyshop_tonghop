@@ -274,8 +274,8 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           tabs: const [
-            Tab(icon: Icon(Icons.tune), text: 'MẶC ĐỊNH'),
-            Tab(icon: Icon(Icons.people), text: 'NHÂN VIÊN'),
+            Tab(icon: Icon(Icons.tune, size: 18), text: 'MẶC ĐỊNH'),
+            Tab(icon: Icon(Icons.people, size: 18), text: 'NHÂN VIÊN'),
           ],
         ),
         actions: [

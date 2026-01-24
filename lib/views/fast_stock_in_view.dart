@@ -1214,10 +1214,10 @@ class _FastStockInViewState extends State<FastStockInView> {
             // Nút thêm nhà cung cấp
             IconButton(
               onPressed: _addNewSupplier,
-              icon: const Icon(Icons.add_circle, color: Colors.green, size: 28),
+              icon: const Icon(Icons.add_circle, color: Colors.green, size: 20),
               tooltip: 'Thêm nhà cung cấp',
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             ),
             // Nút xóa nhà cung cấp đang chọn
             IconButton(
@@ -1227,11 +1227,11 @@ class _FastStockInViewState extends State<FastStockInView> {
               icon: Icon(
                 Icons.delete_outline,
                 color: validSelectedSupplier != null ? Colors.red : Colors.grey,
-                size: 24,
+                size: 18,
               ),
               tooltip: 'Xóa nhà cung cấp',
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
             ),
           ],
         ),

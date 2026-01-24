@@ -271,9 +271,9 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(icon: Icon(Icons.add_circle), text: "Nhập đơn"),
-            Tab(icon: Icon(Icons.qr_code_scanner), text: "Scan QR"),
-            Tab(icon: Icon(Icons.inventory), text: "Batch"),
+            Tab(icon: Icon(Icons.add_circle, size: 18), text: "Nhập"),
+            Tab(icon: Icon(Icons.qr_code_scanner, size: 18), text: "Scan"),
+            Tab(icon: Icon(Icons.inventory, size: 18), text: "Batch"),
           ],
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
