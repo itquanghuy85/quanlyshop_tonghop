@@ -338,6 +338,8 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: [
             Tab(
               child: Row(
@@ -345,7 +347,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 children: [
                   const Icon(Icons.arrow_downward, size: 16),
                   const SizedBox(width: 4),
-                  Text('CHỜ THU', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
+                  const Text('THU', style: TextStyle(fontSize: 13)),
                   if (_pendingIncome.isNotEmpty) ...[
                     const SizedBox(width: 4),
                     _buildBadge(_pendingIncome.length, Colors.blue),
@@ -359,7 +361,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 children: [
                   const Icon(Icons.arrow_upward, size: 16),
                   const SizedBox(width: 4),
-                  Text('CHỜ CHI', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
+                  const Text('CHI', style: TextStyle(fontSize: 13)),
                   if (_pendingExpense.isNotEmpty) ...[
                     const SizedBox(width: 4),
                     _buildBadge(_pendingExpense.length, Colors.orange),
@@ -373,7 +375,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 children: [
                   const Icon(Icons.history, size: 16),
                   const SizedBox(width: 4),
-                  Text('LỊCH SỬ', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
+                  const Text('SỬ', style: TextStyle(fontSize: 13)),
                 ],
               ),
             ),

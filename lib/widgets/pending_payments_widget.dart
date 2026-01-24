@@ -154,39 +154,57 @@ class _PendingPaymentsWidgetState extends State<PendingPaymentsWidget> {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              if (_totalPendingIncome > 0) ...[
-                                Icon(
-                                  Icons.arrow_downward,
-                                  size: 12,
-                                  color: Colors.blue.shade600,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  'Thu: ${NumberFormat.compact(locale: 'vi').format(_totalPendingIncome)}đ',
-                                  style: TextStyle(
-                                    fontSize: AppTextStyles.body1.fontSize,
-                                    color: Colors.blue.shade600,
-                                    fontWeight: FontWeight.w500,
+                              if (_totalPendingIncome > 0)
+                                Flexible(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.arrow_downward,
+                                        size: 12,
+                                        color: Colors.blue.shade600,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Flexible(
+                                        child: Text(
+                                          'Thu: ${NumberFormat.compact(locale: 'vi').format(_totalPendingIncome)}đ',
+                                          style: TextStyle(
+                                            fontSize: AppTextStyles.body1.fontSize,
+                                            color: Colors.blue.shade600,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                              ],
-                              if (_totalPendingExpense > 0) ...[
-                                Icon(
-                                  Icons.arrow_upward,
-                                  size: 12,
-                                  color: Colors.orange.shade600,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  'Chi: ${NumberFormat.compact(locale: 'vi').format(_totalPendingExpense)}đ',
-                                  style: TextStyle(
-                                    fontSize: AppTextStyles.body1.fontSize,
-                                    color: Colors.orange.shade600,
-                                    fontWeight: FontWeight.w500,
+                              if (_totalPendingExpense > 0)
+                                Flexible(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.arrow_upward,
+                                        size: 12,
+                                        color: Colors.orange.shade600,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Flexible(
+                                        child: Text(
+                                          'Chi: ${NumberFormat.compact(locale: 'vi').format(_totalPendingExpense)}đ',
+                                          style: TextStyle(
+                                            fontSize: AppTextStyles.body1.fontSize,
+                                            color: Colors.orange.shade600,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
                             ],
                           ),
                         ],
