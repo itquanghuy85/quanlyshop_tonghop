@@ -56,9 +56,13 @@ class _InventoryViewState extends State<InventoryView>
   bool _isLoadingMore = false;
   bool _hasMore = true;
   int _currentOffset = 0;
-  static const int _pageSize = 50;
+  static const int _pageSize = 10; // Load 10 products at a time for better performance
   int _unsyncedCount = 0;
   bool _isAdmin = false;
+  
+  // Total inventory summary from DB (not from paginated data)
+  int _totalQtyFromDB = 0;
+  int _totalCapitalFromDB = 0;
   bool _hasInventoryAccess = false;
   String _searchQuery = "";
   bool _showOutOfStock = false; // Hiển thị cả hàng hết
@@ -1400,6 +1404,9 @@ class _InventoryViewState extends State<InventoryView>
     final suppliers = await supplierService.getSuppliers();
     final unsyncedCount = await db.getUnsyncedQuickInputCodesCount();
     
+    // ALWAYS load total summary from DB first (for correct totals)
+    final summary = await db.getInventorySummary(type: _filterType == 'TẤT CẢ' ? null : _filterType);
+    
     if (_needsFullData) {
       // Load all data for filtering
       final data = await db.getAllProducts();
@@ -1410,6 +1417,8 @@ class _InventoryViewState extends State<InventoryView>
         _products = data;
         _suppliers = suppliers.map((s) => s.toMap()).toList();
         _unsyncedCount = unsyncedCount;
+        _totalQtyFromDB = summary['totalQty'] ?? 0;
+        _totalCapitalFromDB = summary['totalCapital'] ?? 0;
         _isLoading = false;
         _hasMore = false;
       });
@@ -1422,6 +1431,8 @@ class _InventoryViewState extends State<InventoryView>
         _products = firstPage;
         _suppliers = suppliers.map((s) => s.toMap()).toList();
         _unsyncedCount = unsyncedCount;
+        _totalQtyFromDB = summary['totalQty'] ?? 0;
+        _totalCapitalFromDB = summary['totalCapital'] ?? 0;
         _currentOffset = _pageSize;
         _isLoading = false;
         _hasMore = firstPage.length >= _pageSize;
@@ -1923,20 +1934,9 @@ class _InventoryViewState extends State<InventoryView>
       filteredList = filteredList.where((p) => p.quantity > 0).toList();
     }
 
-    // Tính tổng kho và vốn THEO FILTER (thay đổi theo loại hàng đang lọc)
-    List<Product> summaryProducts;
-    if (_filterType == 'TẤT CẢ') {
-      summaryProducts = _products.where((p) => p.quantity > 0).toList();
-    } else {
-      summaryProducts = _products
-          .where((p) => p.quantity > 0 && p.type == _filterType)
-          .toList();
-    }
-    int totalQty = summaryProducts.fold(0, (sum, item) => sum + item.quantity);
-    int totalCapital = summaryProducts.fold(
-      0,
-      (sum, item) => sum + (item.cost * item.quantity),
-    );
+    // Sử dụng tổng từ DB (đã tính từ TẤT CẢ sản phẩm, không phụ thuộc pagination)
+    final int totalQty = _totalQtyFromDB;
+    final int totalCapital = _totalCapitalFromDB;
 
     return Stack(
       children: [
@@ -2538,7 +2538,17 @@ class _InventoryViewState extends State<InventoryView>
               .length;
 
     return InkWell(
-      onTap: () => setState(() => _filterType = type),
+      onTap: () async {
+        setState(() => _filterType = type);
+        // Reload summary khi thay đổi filter
+        final summary = await db.getInventorySummary(type: type == 'TẤT CẢ' ? null : type);
+        if (mounted) {
+          setState(() {
+            _totalQtyFromDB = summary['totalQty'] ?? 0;
+            _totalCapitalFromDB = summary['totalCapital'] ?? 0;
+          });
+        }
+      },
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

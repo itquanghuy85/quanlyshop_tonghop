@@ -2496,6 +2496,40 @@ class DBHelper {
     final result = await (await database).rawQuery(query, args);
     return Sqflite.firstIntValue(result) ?? 0;
   }
+  
+  /// Get inventory summary (total quantity and capital) for all products
+  /// This calculates from ALL products in DB, not just paginated data
+  Future<Map<String, int>> getInventorySummary({String? type}) async {
+    String query = '''
+      SELECT 
+        COALESCE(SUM(quantity), 0) as totalQty,
+        COALESCE(SUM(cost * quantity), 0) as totalCapital
+      FROM products 
+      WHERE quantity > 0 AND (status = 1 OR status IS NULL)
+    ''';
+    List<dynamic> args = [];
+    
+    if (type != null && type != 'TẤT CẢ') {
+      query = '''
+        SELECT 
+          COALESCE(SUM(quantity), 0) as totalQty,
+          COALESCE(SUM(cost * quantity), 0) as totalCapital
+        FROM products 
+        WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND type = ?
+      ''';
+      args.add(type);
+    }
+    
+    final result = await (await database).rawQuery(query, args);
+    if (result.isEmpty) {
+      return {'totalQty': 0, 'totalCapital': 0};
+    }
+    
+    return {
+      'totalQty': (result.first['totalQty'] as num?)?.toInt() ?? 0,
+      'totalCapital': (result.first['totalCapital'] as num?)?.toInt() ?? 0,
+    };
+  }
 
   Future<List<Product>> getAllProducts() async {
     final maps = await (await database).query('products');

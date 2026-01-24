@@ -854,12 +854,14 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
                             ),
                             child: const Icon(Icons.qr_code, size: 40),
                           ),
-                        const SizedBox(width: 8),
+                        if (_fieldSettings.showQrCode && _fieldSettings.showProductCode)
+                          const SizedBox(width: 8),
                         if (_fieldSettings.showProductCode)
-                          Expanded(
+                          Flexible(
                             child: Text(
                               'Mã: ${product['id'] ?? product['productCode'] ?? 'N/A'}',
                               style: TextStyle(fontSize: 9, color: Colors.grey.shade700),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                       ],
