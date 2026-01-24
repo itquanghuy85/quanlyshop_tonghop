@@ -745,8 +745,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child:
-                  const Text('DUYỆT', style: TextStyle(color: Colors.white)),
+              child: const Text('DUYỆT', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -796,7 +795,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           operation: SyncOperation.create,
           data: debtData,
         );
-        
+
         // Tạo PaymentIntent cho việc thu nợ sau này (CHỜ THU)
         final intent = PaymentIntent(
           id: 'pi_repair_debt_approve_${DateTime.now().millisecondsSinceEpoch}_${r.id}',
@@ -818,7 +817,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           },
         );
         await PaymentIntentService.createIntent(intent);
-        debugPrint('💳 Created PaymentIntent for repair debt collection (approve): ${intent.id}');
+        debugPrint(
+          '💳 Created PaymentIntent for repair debt collection (approve): ${intent.id}',
+        );
       } else if (r.price > 0) {
         // Thanh toán tiền mặt/chuyển khoản - Tạo PaymentIntent (CHỜ THU)
         final intent = PaymentIntent(
@@ -840,7 +841,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           },
         );
         await PaymentIntentService.createIntent(intent);
-        debugPrint('💳 Created PaymentIntent for repair payment (approve): ${intent.id}');
+        debugPrint(
+          '💳 Created PaymentIntent for repair payment (approve): ${intent.id}',
+        );
       }
 
       await db.upsertRepair(r);
@@ -1149,7 +1152,56 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         });
       }
 
-      // === HỎI PHƯƠNG THỨC THANH TOÁN CHO PHỤ TÙNG ===
+      // === KIỂM TRA NGUỒN LINH KIỆN ===
+      // Nếu tất cả đều từ 'products' (đã nhập kho) → KHÔNG cần hỏi thanh toán
+      // vì chi phí đã ghi nhận khi nhập kho (công nợ/tiền mặt/CK)
+      final allFromProducts = selectedPartsInfo.every(
+        (p) => p['source'] == 'products',
+      );
+
+      if (allFromProducts) {
+        // Chỉ trừ kho và cập nhật partsUsed, không tạo debt/PaymentIntent
+        for (var partInfo in selectedPartsInfo) {
+          final success = await db.deductPartQuantityUnified(
+            partInfo['id'] as int,
+            partInfo['source'] as String,
+            partInfo['qty'] as int,
+          );
+          if (!success) {
+            debugPrint('⚠️ Failed to deduct part: ${partInfo['name']}');
+          }
+        }
+
+        // Cập nhật partsUsed và partsCost cho repair
+        final currentParts = r.partsUsed.isEmpty ? [] : r.partsUsed.split(', ');
+        final newPartsList = [...currentParts, ...usedParts];
+
+        await db.updateRepairField(r.id, 'partsUsed', newPartsList.join(', '));
+        await db.updateRepairField(
+          r.id,
+          'partsCost',
+          (r.partsCost ?? 0) + totalCost,
+        );
+
+        if (r.firestoreId != null) {
+          SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.repair,
+            entityId: r.id,
+            firestoreId: r.firestoreId,
+            operation: SyncOperation.update,
+          );
+        }
+
+        NotificationService.showSnackBar(
+          'Đã thêm phụ tùng từ kho: ${usedParts.join(', ')}\n(Chi phí đã ghi nhận khi nhập kho)',
+          color: Colors.green,
+        );
+
+        setState(() {});
+        return;
+      }
+
+      // === HỎI PHƯƠNG THỨC THANH TOÁN CHO PHỤ TÙNG (chỉ với repair_parts) ===
       final paymentResult = await showDialog<Map<String, dynamic>?>(
         context: context,
         builder: (ctx) => _PartsPaymentDialog(
@@ -1164,7 +1216,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
 
       final paymentMethod = paymentResult['method'] as String;
-      final supplierName = paymentResult['supplier'] as String? ?? 'Nhà cung cấp phụ tùng';
+      final supplierName =
+          paymentResult['supplier'] as String? ?? 'Nhà cung cấp phụ tùng';
 
       // === TRỪ KHO ===
       for (var partInfo in selectedPartsInfo) {
@@ -1181,7 +1234,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       // === XỬ LÝ THANH TOÁN ===
       final now = DateTime.now().millisecondsSinceEpoch;
       final shopId = await UserService.getCurrentShopId() ?? '';
-      
+
       if (paymentMethod == 'CÔNG NỢ') {
         // Tạo debt record - Shop nợ nhà cung cấp
         try {
@@ -1194,7 +1247,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             'phone': '',
             'totalAmount': totalCost,
             'paidAmount': 0,
-            'note': 'Công nợ phụ tùng: ${usedParts.join(', ')} - Đơn sửa ${r.model} (${r.customerName})',
+            'note':
+                'Công nợ phụ tùng: ${usedParts.join(', ')} - Đơn sửa ${r.model} (${r.customerName})',
             'status': 'ACTIVE',
             'createdAt': now,
             'shopId': shopId,
@@ -1204,7 +1258,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             'isSynced': 0,
           };
           final debtId = await db.insertDebt(debtData);
-          
+
           if (debtId > 0) {
             await SyncOrchestrator().enqueue(
               entityType: SyncEntityType.debt,
@@ -1214,13 +1268,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               data: debtData,
             );
           }
-          
+
           // Tạo PaymentIntent cho việc trả nợ sau
           final intent = PaymentIntent(
             id: 'pi_parts_debt_${now}_${r.id}',
             type: PaymentIntentType.repairPartnerDebt,
             amount: totalCost,
-            description: 'Trả nợ phụ tùng: $supplierName - ${usedParts.join(', ')}',
+            description:
+                'Trả nợ phụ tùng: $supplierName - ${usedParts.join(', ')}',
             referenceId: debtFId,
             referenceType: 'parts_debt',
             personName: supplierName,
@@ -1236,7 +1291,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             },
           );
           await PaymentIntentService.createIntent(intent);
-          
+
           debugPrint('✅ Created parts debt: $debtFId');
           EventBus().emit('debts_changed');
         } catch (e) {
@@ -1249,7 +1304,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             id: 'pi_parts_payment_${now}_${r.id}',
             type: PaymentIntentType.repairPartnerDebt,
             amount: totalCost,
-            description: 'Thanh toán phụ tùng: $supplierName - ${usedParts.join(', ')}',
+            description:
+                'Thanh toán phụ tùng: $supplierName - ${usedParts.join(', ')}',
             referenceId: r.firestoreId,
             referenceType: 'parts_payment',
             personName: supplierName,
@@ -1507,7 +1563,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 ),
               ),
             ),
-            
+
             // === COMPACT: Tài chính + Dịch vụ gộp ===
             Card(
               margin: const EdgeInsets.only(bottom: 8),
@@ -1519,9 +1575,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     // Header tài chính
                     Row(
                       children: [
-                        Icon(Icons.account_balance_wallet, size: 18, color: Colors.green.shade700),
+                        Icon(
+                          Icons.account_balance_wallet,
+                          size: 18,
+                          color: Colors.green.shade700,
+                        ),
                         const SizedBox(width: 8),
-                        Text("TÀI CHÍNH", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+                        Text(
+                          "TÀI CHÍNH",
+                          style: AppTextStyles.caption.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
                         const Spacer(),
                         TextButton.icon(
                           onPressed: _editFinancials,
@@ -1540,7 +1606,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       children: [
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.success.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(6),
@@ -1548,8 +1617,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text("LỢI NHUẬN", style: AppTextStyles.overline.copyWith(color: AppColors.success)),
-                                Text("${MoneyUtils.formatCurrency(r.price - r.cost)} đ", style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold, color: AppColors.success)),
+                                Text(
+                                  "LỢI NHUẬN",
+                                  style: AppTextStyles.overline.copyWith(
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                                Text(
+                                  "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+                                  style: AppTextStyles.body2.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.success,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -1565,9 +1645,21 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(Icons.build, size: 14, color: Colors.purple),
+                          const Icon(
+                            Icons.build,
+                            size: 14,
+                            color: Colors.purple,
+                          ),
                           const SizedBox(width: 4),
-                          Expanded(child: Text("PT: ${r.partsUsed}", style: AppTextStyles.caption.copyWith(color: Colors.purple), overflow: TextOverflow.ellipsis)),
+                          Expanded(
+                            child: Text(
+                              "PT: ${r.partsUsed}",
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.purple,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -1578,20 +1670,45 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         spacing: 4,
                         runSpacing: 4,
                         children: [
-                          _quickAction("Phụ tùng", Icons.inventory_2, Colors.purple, _selectPartsFromInventory),
-                          _quickAction("Kho LK", Icons.warehouse, Colors.teal, _navigateToPartsInventory),
-                          _quickAction("KTV", Icons.note_add, Colors.orange, _editTechnicianNotes),
+                          _quickAction(
+                            "Phụ tùng",
+                            Icons.inventory_2,
+                            Colors.purple,
+                            _selectPartsFromInventory,
+                          ),
+                          _quickAction(
+                            "Kho LK",
+                            Icons.warehouse,
+                            Colors.teal,
+                            _navigateToPartsInventory,
+                          ),
+                          _quickAction(
+                            "KTV",
+                            Icons.note_add,
+                            Colors.orange,
+                            _editTechnicianNotes,
+                          ),
                         ],
                       ),
                     ],
-                    
+
                     // Divider và Dịch vụ
                     const Divider(height: 16),
                     Row(
                       children: [
-                        Icon(Icons.handyman, size: 18, color: Colors.teal.shade700),
+                        Icon(
+                          Icons.handyman,
+                          size: 18,
+                          color: Colors.teal.shade700,
+                        ),
                         const SizedBox(width: 8),
-                        Text("DỊCH VỤ (${r.services.length})", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.teal.shade700)),
+                        Text(
+                          "DỊCH VỤ (${r.services.length})",
+                          style: AppTextStyles.caption.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal.shade700,
+                          ),
+                        ),
                         const Spacer(),
                         if (r.status != 4)
                           TextButton.icon(
@@ -1599,24 +1716,45 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                             icon: const Icon(Icons.add, size: 14),
                             label: const Text("Thêm"),
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
                               visualDensity: VisualDensity.compact,
                             ),
                           ),
                       ],
                     ),
                     if (r.services.isEmpty)
-                      Text("Chưa có dịch vụ", style: AppTextStyles.caption.copyWith(color: AppColors.onSurface.withOpacity(0.5), fontStyle: FontStyle.italic))
+                      Text(
+                        "Chưa có dịch vụ",
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.onSurface.withOpacity(0.5),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      )
                     else
-                      ...r.services.asMap().entries.map((e) => _buildCompactServiceItem(e.key, e.value)),
+                      ...r.services.asMap().entries.map(
+                        (e) => _buildCompactServiceItem(e.key, e.value),
+                      ),
                     if (r.services.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text("Tổng DV:", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
-                            Text("${MoneyUtils.formatCurrency(r.services.fold(0, (sum, s) => sum + s.cost))} đ", style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold, color: AppColors.warning)),
+                            Text(
+                              "Tổng DV:",
+                              style: AppTextStyles.caption.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              "${MoneyUtils.formatCurrency(r.services.fold(0, (sum, s) => sum + s.cost))} đ",
+                              style: AppTextStyles.body2.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.warning,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1624,7 +1762,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 ),
               ),
             ),
-            
+
             // === COMPACT: Khách hàng + Hình ảnh ===
             Card(
               margin: const EdgeInsets.only(bottom: 8),
@@ -1632,11 +1770,20 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 tilePadding: const EdgeInsets.symmetric(horizontal: 12),
                 dense: true,
                 initiallyExpanded: false, // Thu gọn mặc định để giảm scroll
-                leading: Icon(Icons.person, size: 18, color: Colors.blue.shade700),
+                leading: Icon(
+                  Icons.person,
+                  size: 18,
+                  color: Colors.blue.shade700,
+                ),
                 title: Row(
                   children: [
                     Expanded(
-                      child: Text(r.customerName.toUpperCase(), style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold)),
+                      child: Text(
+                        r.customerName.toUpperCase(),
+                        style: AppTextStyles.body2.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                     TextButton.icon(
                       onPressed: _callCustomer,
@@ -1657,19 +1804,40 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       children: [
                         // Info rows compact
                         _compactInfoRow("Lỗi", r.issue),
-                        if (r.accessories.isNotEmpty) _compactInfoRow("PK", r.accessories),
-                        if (r.warranty.isNotEmpty) _compactInfoRow("BH", r.warranty),
-                        if (r.notes != null && r.notes!.isNotEmpty) _compactInfoRow("Ghi chú", r.notes!),
-                        if (r.deliveredAt != null) _compactInfoRow("Giao", DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!))),
-                        
+                        if (r.accessories.isNotEmpty)
+                          _compactInfoRow("PK", r.accessories),
+                        if (r.warranty.isNotEmpty)
+                          _compactInfoRow("BH", r.warranty),
+                        if (r.notes != null && r.notes!.isNotEmpty)
+                          _compactInfoRow("Ghi chú", r.notes!),
+                        if (r.deliveredAt != null)
+                          _compactInfoRow(
+                            "Giao",
+                            DateFormat('dd/MM/yyyy HH:mm').format(
+                              DateTime.fromMillisecondsSinceEpoch(
+                                r.deliveredAt!,
+                              ),
+                            ),
+                          ),
+
                         // Hình ảnh
                         if (r.receiveImages.isNotEmpty) ...[
                           const Divider(height: 12),
                           Row(
                             children: [
-                              Icon(Icons.photo_library, size: 16, color: Colors.pink.shade700),
+                              Icon(
+                                Icons.photo_library,
+                                size: 16,
+                                color: Colors.pink.shade700,
+                              ),
                               const SizedBox(width: 4),
-                              Text("HÌNH ẢNH (${r.receiveImages.length})", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.pink.shade700)),
+                              Text(
+                                "HÌNH ẢNH (${r.receiveImages.length})",
+                                style: AppTextStyles.caption.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.pink.shade700,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 6),
@@ -1685,9 +1853,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                                   width: 60,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.grey.shade200),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
                                   ),
-                                  child: ClipRRect(borderRadius: BorderRadius.circular(8), child: _buildSmartImage(r.receiveImages[i])),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: _buildSmartImage(r.receiveImages[i]),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1699,7 +1872,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 60),
           ],
         ),
@@ -1718,16 +1891,30 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   // === COMPACT HELPER WIDGETS ===
-  
+
   Widget _buildCompactStatusRow() {
     Color color;
     IconData icon;
     switch (r.status) {
-      case 1: color = Colors.blue; icon = Icons.assignment_turned_in; break;
-      case 2: color = Colors.orange; icon = Icons.build; break;
-      case 3: color = AppColors.success; icon = Icons.check_circle; break;
-      case 4: color = AppColors.primary; icon = Icons.verified; break;
-      default: color = Colors.grey; icon = Icons.help_outline;
+      case 1:
+        color = Colors.blue;
+        icon = Icons.assignment_turned_in;
+        break;
+      case 2:
+        color = Colors.orange;
+        icon = Icons.build;
+        break;
+      case 3:
+        color = AppColors.success;
+        icon = Icons.check_circle;
+        break;
+      case 4:
+        color = AppColors.primary;
+        icon = Icons.verified;
+        break;
+      default:
+        color = Colors.grey;
+        icon = Icons.help_outline;
     }
     return Row(
       children: [
@@ -1737,11 +1924,22 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(r.model.toUpperCase(), style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold)),
               Text(
-                _getStatusText(r.status, pendingApproval: r.pendingDeliveryApproval),
+                r.model.toUpperCase(),
+                style: AppTextStyles.body1.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                _getStatusText(
+                  r.status,
+                  pendingApproval: r.pendingDeliveryApproval,
+                ),
                 style: AppTextStyles.caption.copyWith(
-                  color: _getStatusColor(r.status, pendingApproval: r.pendingDeliveryApproval),
+                  color: _getStatusColor(
+                    r.status,
+                    pendingApproval: r.pendingDeliveryApproval,
+                  ),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1762,14 +1960,28 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTextStyles.overline.copyWith(color: color, fontSize: 9)),
-          Text(MoneyUtils.formatCurrency(value), style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: color)),
+          Text(
+            label,
+            style: AppTextStyles.overline.copyWith(color: color, fontSize: 9),
+          ),
+          Text(
+            MoneyUtils.formatCurrency(value),
+            style: AppTextStyles.caption.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _quickAction(String label, IconData icon, Color color, VoidCallback onTap) {
+  Widget _quickAction(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
@@ -1784,7 +1996,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           children: [
             Icon(icon, size: 14, color: color),
             const SizedBox(width: 4),
-            Text(label, style: AppTextStyles.caption.copyWith(color: color, fontSize: 11)),
+            Text(
+              label,
+              style: AppTextStyles.caption.copyWith(color: color, fontSize: 11),
+            ),
           ],
         ),
       ),
@@ -1808,13 +2023,29 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.serviceName, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
+                Text(
+                  s.serviceName,
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 if (s.partnerName != null)
-                  Text("ĐT: ${s.partnerName}", style: AppTextStyles.overline.copyWith(color: Colors.purple)),
+                  Text(
+                    "ĐT: ${s.partnerName}",
+                    style: AppTextStyles.overline.copyWith(
+                      color: Colors.purple,
+                    ),
+                  ),
               ],
             ),
           ),
-          Text("${MoneyUtils.formatCurrency(s.cost)} đ", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: AppColors.warning)),
+          Text(
+            "${MoneyUtils.formatCurrency(s.cost)} đ",
+            style: AppTextStyles.caption.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.warning,
+            ),
+          ),
           if (r.status != 4)
             IconButton(
               icon: const Icon(Icons.edit, size: 14, color: Colors.grey),
@@ -1835,7 +2066,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         children: [
           SizedBox(
             width: 55,
-            child: Text("$label:", style: AppTextStyles.caption.copyWith(color: AppColors.onSurface.withOpacity(0.6))),
+            child: Text(
+              "$label:",
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.onSurface.withOpacity(0.6),
+              ),
+            ),
           ),
           Expanded(child: Text(value, style: AppTextStyles.caption)),
         ],
@@ -2092,15 +2328,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           children: [
             Text(
               "Lợi nhuận dự kiến",
-              style: AppTextStyles.body1.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold),
             ),
             Text(
               "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
-              style: AppTextStyles.headline5.copyWith(
-                color: AppColors.success,
-              ),
+              style: AppTextStyles.headline5.copyWith(color: AppColors.success),
             ),
           ],
         ),
@@ -2151,11 +2383,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               // Lối tắt vào Kho Linh Kiện
               TextButton.icon(
                 onPressed: _navigateToPartsInventory,
-                icon: const Icon(
-                  Icons.warehouse,
-                  size: 14,
-                  color: Colors.teal,
-                ),
+                icon: const Icon(Icons.warehouse, size: 14, color: Colors.teal),
                 label: Text(
                   "Kho LK",
                   style: AppTextStyles.caption.copyWith(color: Colors.teal),
@@ -2226,11 +2454,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.build_circle,
-                    size: 20,
-                    color: Colors.blue,
-                  ),
+                  const Icon(Icons.build_circle, size: 20, color: Colors.blue),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -2816,7 +3040,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         }
 
         // Ghi nhận thanh toán hoặc công nợ đối tác (LUÔN tạo PaymentIntent)
-        debugPrint('🔍 Partner payment check: partnerId=${service.partnerId}, paymentMethod=${service.paymentMethod}');
+        debugPrint(
+          '🔍 Partner payment check: partnerId=${service.partnerId}, paymentMethod=${service.paymentMethod}',
+        );
         if (service.paymentMethod != null) {
           if (service.paymentMethod != 'CÔNG NỢ') {
             // Thanh toán ngay → tạo PaymentIntent để xác nhận (CHỜ CHI)
@@ -2824,7 +3050,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               id: 'pi_partner_service_${DateTime.now().millisecondsSinceEpoch}_${service.partnerId}',
               type: PaymentIntentType.repairPartnerDebt,
               amount: service.cost,
-              description: 'Trả đối tác: ${service.partnerName ?? "N/A"} - ${service.serviceName}',
+              description:
+                  'Trả đối tác: ${service.partnerName ?? "N/A"} - ${service.serviceName}',
               referenceId: r.firestoreId,
               referenceType: 'repair_partner_service',
               personName: service.partnerName,
@@ -2840,7 +3067,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               },
             );
             await PaymentIntentService.createIntent(intent);
-            debugPrint('💳 Created PaymentIntent for partner payment: ${intent.id}');
+            debugPrint(
+              '💳 Created PaymentIntent for partner payment: ${intent.id}',
+            );
           } else {
             // CÔNG NỢ → tạo debt record vào bảng debts để hiện trong trang Quản lý công nợ
             try {
@@ -2855,17 +3084,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 'phone': '',
                 'totalAmount': service.cost,
                 'paidAmount': 0,
-                'note': 'Công nợ đối tác: ${service.serviceName} - Đơn sửa ${r.model} (${r.customerName})',
+                'note':
+                    'Công nợ đối tác: ${service.serviceName} - Đơn sửa ${r.model} (${r.customerName})',
                 'status': 'ACTIVE',
                 'createdAt': now,
                 'shopId': shopId,
                 'linkedId': r.firestoreId ?? '', // Liên kết với đơn sửa
-                'relatedPartId': service.partnerId?.toString() ?? '', // ID đối tác
+                'relatedPartId':
+                    service.partnerId?.toString() ?? '', // ID đối tác
                 'deleted': 0,
                 'isSynced': 0,
               };
               final debtId = await db.insertDebt(debtData);
-              
+
               // Sync debt to cloud
               if (debtId > 0) {
                 await SyncOrchestrator().enqueue(
@@ -2876,13 +3107,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   data: debtData,
                 );
               }
-              
+
               // Tạo PaymentIntent cho việc trả nợ sau này (CHỜ CHI)
               final intent = PaymentIntent(
                 id: 'pi_partner_debt_${now}_${service.partnerId}',
                 type: PaymentIntentType.repairPartnerDebt,
                 amount: service.cost,
-                description: 'Trả nợ đối tác: ${service.partnerName ?? "N/A"} - ${service.serviceName}',
+                description:
+                    'Trả nợ đối tác: ${service.partnerName ?? "N/A"} - ${service.serviceName}',
                 referenceId: debtFId,
                 referenceType: 'partner_debt',
                 personName: service.partnerName,
@@ -2900,9 +3132,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 },
               );
               await PaymentIntentService.createIntent(intent);
-              
-              debugPrint('✅ Created partner debt: $debtFId for ${service.partnerName}');
-              debugPrint('💳 Created PaymentIntent for partner debt: ${intent.id}');
+
+              debugPrint(
+                '✅ Created partner debt: $debtFId for ${service.partnerName}',
+              );
+              debugPrint(
+                '💳 Created PaymentIntent for partner debt: ${intent.id}',
+              );
               EventBus().emit('debts_changed');
             } catch (e) {
               debugPrint('❌ Error creating partner debt: $e');
@@ -3572,14 +3808,14 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
               ),
             ),
             const SizedBox(height: 12),
-            
+
             // Mô tả phụ tùng
             Text(
               'Phụ tùng: ${widget.partsDescription}',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 16),
-            
+
             // Nhập tên nhà cung cấp
             TextField(
               controller: _supplierController,
@@ -3592,19 +3828,23 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
               textCapitalization: TextCapitalization.characters,
             ),
             const SizedBox(height: 16),
-            
+
             // Chọn phương thức thanh toán
             const Text(
               'PHƯƠNG THỨC THANH TOÁN:',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 8),
-            
+
             // Radio buttons
             _buildPaymentOption('TIỀN MẶT', Icons.money, Colors.green),
-            _buildPaymentOption('CHUYỂN KHOẢN', Icons.account_balance, Colors.blue),
+            _buildPaymentOption(
+              'CHUYỂN KHOẢN',
+              Icons.account_balance,
+              Colors.blue,
+            ),
             _buildPaymentOption('CÔNG NỢ', Icons.access_time, Colors.orange),
-            
+
             // Cảnh báo nếu chọn công nợ
             if (_selectedMethod == 'CÔNG NỢ')
               Container(
@@ -3617,12 +3857,19 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Colors.orange.shade700,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Khoản nợ sẽ được ghi vào Quản lý công nợ',
-                        style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.orange.shade700,
+                        ),
                       ),
                     ),
                   ],
@@ -3646,7 +3893,9 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
             });
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: _selectedMethod == 'CÔNG NỢ' ? Colors.orange : Colors.green,
+            backgroundColor: _selectedMethod == 'CÔNG NỢ'
+                ? Colors.orange
+                : Colors.green,
           ),
           child: Text(
             _selectedMethod == 'CÔNG NỢ' ? 'GHI NỢ' : 'XÁC NHẬN',
@@ -3684,8 +3933,7 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
               ),
             ),
             const Spacer(),
-            if (isSelected)
-              Icon(Icons.check_circle, color: color, size: 20),
+            if (isSelected) Icon(Icons.check_circle, color: color, size: 20),
           ],
         ),
       ),

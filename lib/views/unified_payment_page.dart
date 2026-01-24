@@ -61,76 +61,89 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
   PaymentMethod _selectedMethod = PaymentMethod.cash;
   bool _isProcessing = false;
   String? _errorMessage;
+  bool _isCompleted = false; // Track if payment was completed
 
   @override
   Widget build(BuildContext context) {
     final intent = widget.intent;
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Thanh Toán'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => _handleCancel(context),
+    return PopScope(
+      canPop: !_isProcessing,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop && !_isCompleted) {
+          // User backed out without completing - cancel the intent
+          PaymentIntentService.cancelIntent(
+            widget.intent.id,
+            reason: 'User backed out',
+          );
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Thanh Toán'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => _handleCancel(context),
+          ),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Payment Info Card
-            _buildPaymentInfoCard(intent, theme),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Payment Info Card
+              _buildPaymentInfoCard(intent, theme),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Payment Method Selection
-            _buildPaymentMethodSection(theme),
+              // Payment Method Selection
+              _buildPaymentMethodSection(theme),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Error Message
-            if (_errorMessage != null)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: TextStyle(color: Colors.red.shade700),
+              // Error Message
+              if (_errorMessage != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: Colors.red.shade700),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+
+              const SizedBox(height: 24),
+
+              // Confirm Button
+              _buildConfirmButton(intent, theme),
+
+              const SizedBox(height: 16),
+
+              // Cancel Button
+              OutlinedButton(
+                onPressed: _isProcessing ? null : () => _handleCancel(context),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text('Hủy'),
               ),
-
-            const SizedBox(height: 24),
-
-            // Confirm Button
-            _buildConfirmButton(intent, theme),
-
-            const SizedBox(height: 16),
-
-            // Cancel Button
-            OutlinedButton(
-              onPressed: _isProcessing ? null : () => _handleCancel(context),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: const Text('Hủy'),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+      ), // Close PopScope
     );
   }
 
@@ -222,13 +235,19 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
             width: 100,
             child: Text(
               label,
-              style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.headline4.fontSize),
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: AppTextStyles.headline4.fontSize,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(fontWeight: FontWeight.w500, fontSize: AppTextStyles.headline4.fontSize),
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: AppTextStyles.headline4.fontSize,
+              ),
             ),
           ),
         ],
@@ -345,7 +364,10 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
             )
           : Text(
               isIncome ? 'XÁC NHẬN THU TIỀN' : 'XÁC NHẬN THANH TOÁN',
-              style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: AppTextStyles.headline3.fontSize,
+                fontWeight: FontWeight.bold,
+              ),
             ),
     );
   }
@@ -370,6 +392,9 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
       if (!mounted) return;
 
       if (result.success) {
+        // Mark as completed before pop
+        _isCompleted = true;
+
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

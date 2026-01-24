@@ -531,6 +531,7 @@ class StockEntryService {
             final debtData = {
               'firestoreId': debtFirestoreId,
               'type': 'SHOP_OWES', // Shop nợ NCC
+              'debtType': 'SHOP_OWES', // Thêm debtType để consistency
               'personName': normalizedSupplierName,
               'phone': '',
               'totalAmount': totalCost,
@@ -543,7 +544,8 @@ class StockEntryService {
               'createdAt': now,
               'updatedAt': now,
               'shopId': entry.shopId,
-              'isSynced': 1,
+              'deleted': 0, // Thêm deleted field
+              'isSynced': 0, // Đặt thành 0 để sync lên Firestore
             };
 
             final debtId = await db.insertDebt(debtData);
