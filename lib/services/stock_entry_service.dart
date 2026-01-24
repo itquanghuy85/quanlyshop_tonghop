@@ -7,6 +7,8 @@ import '../constants/financial_constants.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/payment_intent_service.dart';
+import '../services/event_bus.dart';
+import '../services/sync_orchestrator.dart';
 import '../data/db_helper.dart';
 
 /// Service quản lý phiếu nhập kho (Staging Inventory)
@@ -516,27 +518,50 @@ class StockEntryService {
 
           if (entry.paymentMethod == 'CÔNG NỢ') {
             // === TẠO DEBT TRONG LOCAL DB ===
-            final debtFirestoreId = 'debt_stock_${entryId}_${now}';
-            await db.insertDebt({
+            final debtFirestoreId = 'debt_stock_${entryId}_$now';
+            // Normalize supplierName để đảm bảo match khi query
+            final normalizedSupplierName = (entry.supplierName ?? 'NCC')
+                .toUpperCase()
+                .trim();
+
+            debugPrint(
+              '🔔 confirmEntry: Creating debt for supplier: $normalizedSupplierName, amount: $totalCost',
+            );
+
+            final debtData = {
               'firestoreId': debtFirestoreId,
               'type': 'SHOP_OWES', // Shop nợ NCC
-              'personName': entry.supplierName ?? 'NCC',
+              'personName': normalizedSupplierName,
               'phone': '',
               'totalAmount': totalCost,
               'paidAmount': 0,
-              'status': 0, // Chưa thanh toán
+              'status': 'ACTIVE', // Sử dụng ACTIVE để match với các debt khác
               'note':
-                  'Nhập kho: ${entry.totalQuantity} sản phẩm từ ${entry.supplierName}',
+                  'Nhập kho: ${entry.totalQuantity} sản phẩm từ $normalizedSupplierName',
               'linkedId': entryId,
               'linkedType': 'stock_entry',
               'createdAt': now,
               'updatedAt': now,
               'shopId': entry.shopId,
               'isSynced': 1,
-            });
+            };
+
+            final debtId = await db.insertDebt(debtData);
             debugPrint(
-              '✅ confirmEntry: Created local DEBT for CÔNG NỢ: $totalCost',
+              '✅ confirmEntry: Created local DEBT id=$debtId for CÔNG NỢ: $totalCost, supplier: $normalizedSupplierName',
             );
+
+            // Sync debt lên Firestore
+            if (debtId > 0) {
+              await SyncOrchestrator().enqueueDebt(
+                debtId,
+                firestoreId: debtFirestoreId,
+                operation: SyncOperation.create,
+              );
+            }
+
+            // Notify các view khác để refresh
+            EventBus().emit('debts_changed');
 
             // Tạo PaymentIntent với status COMPLETED (đã ghi nhận công nợ)
             final intent = PaymentIntent(
@@ -544,7 +569,7 @@ class StockEntryService {
               type: PaymentIntentType.supplierDebt,
               amount: totalCost,
               description:
-                  'Công nợ nhập kho: ${entry.totalQuantity} SP từ ${entry.supplierName}',
+                  'Công nợ nhập kho: ${entry.totalQuantity} SP từ $normalizedSupplierName',
               referenceId: entryId,
               referenceType: 'stock_entry',
               status: PaymentIntentStatus.completed,
@@ -552,10 +577,10 @@ class StockEntryService {
               createdAt: now,
               paidAt: now,
               paymentMethod: PaymentMethod.debt,
-              personName: entry.supplierName,
+              personName: normalizedSupplierName,
               metadata: {
                 'supplierId': entry.supplierId,
-                'supplierName': entry.supplierName,
+                'supplierName': normalizedSupplierName,
                 'debtFirestoreId': debtFirestoreId,
               },
             );
