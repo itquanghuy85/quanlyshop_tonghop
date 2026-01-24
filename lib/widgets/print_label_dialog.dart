@@ -242,14 +242,15 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: selected ? Colors.purple : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: selected ? Colors.white : Colors.grey, size: 24),
+            Icon(icon, color: selected ? Colors.white : Colors.grey, size: 22),
             const SizedBox(height: 4),
             Text(
               title,
@@ -257,14 +258,17 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
                 color: selected ? Colors.white : Colors.grey,
                 fontWeight: FontWeight.bold,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               subtitle,
               style: AppTextStyles.caption.copyWith(
                 color: selected ? Colors.white70 : Colors.grey,
-                fontSize: 10,
+                fontSize: 9,
               ),
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

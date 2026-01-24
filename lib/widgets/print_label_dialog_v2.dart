@@ -330,7 +330,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
           color: selected ? Colors.purple : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -338,26 +338,32 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: selected ? Colors.white : Colors.grey, size: 20),
-            const SizedBox(width: 6),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.caption.copyWith(
-                    color: selected ? Colors.white : Colors.grey,
-                    fontWeight: FontWeight.bold,
+            Icon(icon, color: selected ? Colors.white : Colors.grey, size: 18),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: AppTextStyles.caption.copyWith(
+                      color: selected ? Colors.white : Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: selected ? Colors.white70 : Colors.grey,
-                    fontSize: 9,
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: selected ? Colors.white70 : Colors.grey,
+                      fontSize: 9,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -970,22 +976,16 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
     String? wifiIp;
 
     try {
-      // Kiểm tra kết nối máy in
-      final isConnected = await BluetoothPrinterService.isConnected();
-      if (!isConnected) {
-        final result = await showDialog<Map<String, dynamic>?>(
-          context: context,
-          builder: (ctx) => const PrinterSelectionDialog(),
-        );
-        if (result == null) {
-          setState(() => _isPrinting = false);
-          return;
-        }
-        // Lấy cấu hình từ dialog
-        printerType = result['type'] as PrinterType?;
-        bluetoothPrinter = result['bluetoothPrinter'];
-        wifiIp = result['wifiIp'] as String?;
+      // Luôn hiển thị dialog chọn máy in (giống như in hóa đơn)
+      final result = await showPrinterSelectionDialog(context);
+      if (result == null) {
+        setState(() => _isPrinting = false);
+        return;
       }
+      // Lấy cấu hình từ dialog
+      printerType = result['type'] as PrinterType?;
+      bluetoothPrinter = result['bluetoothPrinter'];
+      wifiIp = result['wifiIp'] as String?;
 
       // Chuẩn bị dữ liệu in
       final printData = _buildPrintData();
