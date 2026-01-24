@@ -5,6 +5,7 @@ import '../services/notification_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/thermal_printer_service.dart';
 import '../theme/app_text_styles.dart';
+import 'label_settings_view.dart';
 
 class ThermalPrinterDesignView extends StatefulWidget {
   const ThermalPrinterDesignView({super.key});
@@ -251,6 +252,21 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
             _checkItem("Hiện Mã QR", _showLabelQR, (v) => setState(() => _showLabelQR = v!)),
             TextField(controller: _labelCustomCtrl, onChanged: (v)=>setState(() {}), decoration: const InputDecoration(labelText: "Chữ tùy biến cuối tem")),
           ]),
+          const SizedBox(height: 15),
+          // Nút mở cài đặt tem nâng cao
+          _sectionCard("CÀI ĐẶT TEM NÂNG CAO", [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.style, color: Colors.purple),
+              title: const Text("Thiết kế mẫu tem", style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text("Thông tin shop, công thức CPK, mẫu tem tùy chỉnh"),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LabelSettingsView()),
+              ),
+            ),
+          ], color: Colors.purple),
         ],
       ),
     );

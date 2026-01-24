@@ -405,9 +405,24 @@ class _LabelSettingsViewState extends State<LabelSettingsView> with SingleTicker
   }
 
   void _editTemplate(LabelTemplate template) {
-    // TODO: Mở dialog chỉnh sửa template
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Chỉnh sửa mẫu "${template.name}" - Coming soon!')),
+    // Mở dialog chỉnh sửa template
+    showDialog(
+      context: context,
+      builder: (ctx) => _EditTemplateDialog(
+        template: template,
+        onSave: (updatedTemplate) async {
+          await _labelService.saveTemplate(updatedTemplate);
+          await _loadData();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✅ Đã cập nhật mẫu "${updatedTemplate.name}"'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        },
+      ),
     );
   }
 
@@ -434,6 +449,309 @@ class _LabelSettingsViewState extends State<LabelSettingsView> with SingleTicker
     if (confirm == true) {
       await _labelService.deleteTemplate(template.id);
       await _loadData();
+    }
+  }
+}
+
+/// Dialog chỉnh sửa mẫu tem
+class _EditTemplateDialog extends StatefulWidget {
+  final LabelTemplate template;
+  final Function(LabelTemplate) onSave;
+
+  const _EditTemplateDialog({
+    required this.template,
+    required this.onSave,
+  });
+
+  @override
+  State<_EditTemplateDialog> createState() => _EditTemplateDialogState();
+}
+
+class _EditTemplateDialogState extends State<_EditTemplateDialog> {
+  late TextEditingController _nameCtrl;
+  late TextEditingController _cpkFormulaCtrl;
+  late LabelFieldSettings _fields;
+  late ShopInfoSettings _shopInfo;
+  late LabelSize _size;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.template.name);
+    _cpkFormulaCtrl = TextEditingController(text: widget.template.cpkFormula ?? 'price + 500000');
+    _fields = widget.template.fields;
+    _shopInfo = widget.template.shopInfo;
+    _size = widget.template.size;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _cpkFormulaCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade50,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(widget.template.type.icon, style: const TextStyle(fontSize: 20)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Chỉnh sửa mẫu tem',
+                          style: AppTextStyles.subtitle1.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          widget.template.type.displayName,
+                          style: AppTextStyles.caption.copyWith(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Tên mẫu
+                    TextField(
+                      controller: _nameCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Tên mẫu tem',
+                        prefixIcon: const Icon(Icons.label, size: 20),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Kích thước
+                    Text('Kích thước tem', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: LabelSize.values.map((size) => ChoiceChip(
+                        label: Text(size.displayName),
+                        selected: _size == size,
+                        onSelected: (v) => setState(() => _size = size),
+                        selectedColor: Colors.purple.shade100,
+                      )).toList(),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Công thức CPK
+                    if (widget.template.type == LabelType.sales || widget.template.type == LabelType.promotion) ...[
+                      TextField(
+                        controller: _cpkFormulaCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'Công thức tính giá CPK',
+                          hintText: 'price + 500000 hoặc price * 1.05',
+                          prefixIcon: const Icon(Icons.calculate, size: 20),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '💡 VD: "price + 500000" = Giá + 500k | "price * 1.05" = Giá + 5%',
+                        style: AppTextStyles.caption.copyWith(color: Colors.grey, fontStyle: FontStyle.italic),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Thông tin sản phẩm
+                    _buildSection('Thông tin sản phẩm', [
+                      _buildSwitch('Tên sản phẩm', _fields.showProductName, 
+                        (v) => setState(() => _fields = _fields.copyWith(showProductName: v))),
+                      _buildSwitch('Mã sản phẩm', _fields.showProductCode, 
+                        (v) => setState(() => _fields = _fields.copyWith(showProductCode: v))),
+                      _buildSwitch('Mã QR', _fields.showQrCode, 
+                        (v) => setState(() => _fields = _fields.copyWith(showQrCode: v))),
+                      _buildSwitch('IMEI/Serial', _fields.showImei, 
+                        (v) => setState(() => _fields = _fields.copyWith(showImei: v))),
+                      _buildSwitch('Dung lượng', _fields.showStorage, 
+                        (v) => setState(() => _fields = _fields.copyWith(showStorage: v))),
+                      _buildSwitch('Màu sắc', _fields.showColor, 
+                        (v) => setState(() => _fields = _fields.copyWith(showColor: v))),
+                      _buildSwitch('Tình trạng', _fields.showCondition, 
+                        (v) => setState(() => _fields = _fields.copyWith(showCondition: v))),
+                    ]),
+
+                    // Giá cả
+                    _buildSection('Thông tin giá', [
+                      _buildSwitch('Giá KPK (không PK)', _fields.showPriceKPK, 
+                        (v) => setState(() => _fields = _fields.copyWith(showPriceKPK: v))),
+                      _buildSwitch('Giá CPK (có PK)', _fields.showPriceCPK, 
+                        (v) => setState(() => _fields = _fields.copyWith(showPriceCPK: v))),
+                      if (widget.template.type == LabelType.promotion) ...[
+                        _buildSwitch('Giá gốc (gạch)', _fields.showOriginalPrice, 
+                          (v) => setState(() => _fields = _fields.copyWith(showOriginalPrice: v))),
+                        _buildSwitch('% Giảm giá', _fields.showDiscountPercent, 
+                          (v) => setState(() => _fields = _fields.copyWith(showDiscountPercent: v))),
+                      ],
+                    ]),
+
+                    // Thông tin shop
+                    _buildSection('Thông tin Shop', [
+                      _buildSwitch('Tên Shop', _shopInfo.showShopName, 
+                        (v) => setState(() => _shopInfo = _shopInfo.copyWith(showShopName: v))),
+                      _buildSwitch('Hotline', _shopInfo.showHotline, 
+                        (v) => setState(() => _shopInfo = _shopInfo.copyWith(showHotline: v))),
+                      _buildSwitch('Slogan', _shopInfo.showSlogan, 
+                        (v) => setState(() => _shopInfo = _shopInfo.copyWith(showSlogan: v))),
+                      _buildSwitch('Logo', _shopInfo.showLogo, 
+                        (v) => setState(() => _shopInfo = _shopInfo.copyWith(showLogo: v))),
+                    ]),
+
+                    // Khác
+                    _buildSection('Khác', [
+                      _buildSwitch('Bảo hành', _fields.showWarranty, 
+                        (v) => setState(() => _fields = _fields.copyWith(showWarranty: v))),
+                      _buildSwitch('Nhà cung cấp', _fields.showSupplier, 
+                        (v) => setState(() => _fields = _fields.copyWith(showSupplier: v))),
+                      _buildSwitch('Ngày nhập', _fields.showImportDate, 
+                        (v) => setState(() => _fields = _fields.copyWith(showImportDate: v))),
+                    ]),
+                  ],
+                ),
+              ),
+            ),
+            // Actions
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('HỦY'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSaving ? null : _saveTemplate,
+                      icon: _isSaving 
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.save),
+                      label: Text(_isSaving ? 'Đang lưu...' : 'LƯU MẪU TEM'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.purple.shade50,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            title,
+            style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.purple),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...children,
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildSwitch(String label, bool value, Function(bool) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, style: AppTextStyles.body2),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: Colors.purple,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveTemplate() async {
+    if (_nameCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập tên mẫu tem'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final updatedTemplate = widget.template.copyWith(
+        name: _nameCtrl.text.trim(),
+        size: _size,
+        fields: _fields,
+        shopInfo: _shopInfo,
+        cpkFormula: _cpkFormulaCtrl.text.trim().isEmpty ? null : _cpkFormulaCtrl.text.trim(),
+        updatedAt: DateTime.now(),
+      );
+
+      widget.onSave(updatedTemplate);
+      if (mounted) Navigator.pop(context);
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 }
