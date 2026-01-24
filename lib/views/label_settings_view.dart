@@ -411,7 +411,7 @@ class _LabelSettingsViewState extends State<LabelSettingsView> with SingleTicker
       builder: (ctx) => _EditTemplateDialog(
         template: template,
         onSave: (updatedTemplate) async {
-          await _labelService.saveTemplate(updatedTemplate);
+          await _labelService.updateTemplate(updatedTemplate);
           await _loadData();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
