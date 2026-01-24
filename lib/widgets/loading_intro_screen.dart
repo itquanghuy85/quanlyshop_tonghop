@@ -281,7 +281,7 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Text(
-                  'Phiên bản 1.0.0',
+                  'Phiên bản 1.5.0',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withOpacity(0.5),

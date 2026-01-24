@@ -164,4 +164,4 @@ Cuối ngày, vào **CHỐT QUỸ** kiểm tra:
 
 **Tác giả:** AI Assistant  
 **Ngày tạo:** 15/01/2026  
-**Phiên bản:** 1.0
+**Phiên bản:** 1.5

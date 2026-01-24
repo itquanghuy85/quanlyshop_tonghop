@@ -503,4 +503,185 @@ class UnifiedPrinterService {
     if (value is double) return MoneyUtils.formatVND(value.toInt());
     return value.toString();
   }
+
+  /// In tem sản phẩm nâng cao với LabelPrintData
+  Future<bool> printProductLabelAdvanced(dynamic printData) async {
+    try {
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(PaperSize.mm80, profile);
+      List<int> bytes = [];
+      bytes.addAll(generator.reset());
+
+      // Kiểm tra loại dữ liệu
+      if (printData is Map<String, dynamic>) {
+        // Fallback về cách cũ
+        return printProductQRLabel(printData);
+      }
+
+      // LabelPrintData từ model mới
+      final template = printData.template;
+      final product = printData.product as Map<String, dynamic>;
+      final fields = template.fields;
+      final shopInfo = template.shopInfo;
+      final customLines = printData.additionalLines as List<String>? ?? [];
+
+      // === HEADER SHOP ===
+      if (shopInfo.showShopName || shopInfo.showHotline) {
+        if (shopInfo.showShopName) {
+          final shopName = shopInfo.customShopName ?? '';
+          if (shopName.isNotEmpty) {
+            bytes.addAll(generator.text(
+              _removeDiacritics(shopName).toUpperCase(),
+              styles: const PosStyles(align: PosAlign.center, bold: true),
+            ));
+          }
+        }
+        if (shopInfo.showHotline) {
+          final hotline = shopInfo.customHotline ?? '';
+          if (hotline.isNotEmpty) {
+            bytes.addAll(generator.text(
+              "Hotline: $hotline",
+              styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
+            ));
+          }
+        }
+        bytes.addAll(generator.hr(ch: '-'));
+      }
+
+      // === TÊN SẢN PHẨM ===
+      if (fields.showProductName) {
+        bytes.addAll(generator.text(
+          _removeDiacritics(product['name'] ?? 'N/A').toUpperCase(),
+          styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2),
+        ));
+      }
+
+      // === THÔNG SỐ: Dung lượng | Màu | Tình trạng ===
+      final specs = <String>[];
+      if (fields.showStorage && product['capacity'] != null) specs.add(product['capacity']);
+      if (fields.showColor && product['color'] != null) specs.add(product['color']);
+      if (fields.showCondition && product['condition'] != null) specs.add(product['condition']);
+      if (specs.isNotEmpty) {
+        bytes.addAll(generator.text(
+          _removeDiacritics(specs.join(' | ')).toUpperCase(),
+          styles: const PosStyles(align: PosAlign.center, bold: true),
+        ));
+      }
+
+      // === GIÁ KPK / CPK ===
+      if (fields.showPriceKPK || fields.showPriceCPK) {
+        bytes.addAll(generator.feed(1));
+        
+        if (fields.showPriceKPK) {
+          final kpk = printData.priceKPK ?? product['price'] ?? 0;
+          bytes.addAll(generator.text(
+            "GIA KPK: ${MoneyUtils.formatVND(kpk)}",
+            styles: const PosStyles(align: PosAlign.center, bold: true),
+          ));
+        }
+        
+        if (fields.showPriceCPK) {
+          final cpk = printData.calculatedCPK ?? (product['price'] ?? 0) + 500000;
+          bytes.addAll(generator.text(
+            "GIA CPK: ${MoneyUtils.formatVND(cpk)}",
+            styles: const PosStyles(align: PosAlign.center, bold: true),
+          ));
+        }
+      }
+
+      // === GIÁ GỐC + % GIẢM (cho tem khuyến mãi) ===
+      if (fields.showOriginalPrice && printData.originalPrice != null && printData.originalPrice > 0) {
+        bytes.addAll(generator.text(
+          "GIA GOC: ${MoneyUtils.formatVND(printData.originalPrice)}",
+          styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
+        ));
+      }
+      if (fields.showDiscountPercent && printData.discountPercent != null && printData.discountPercent > 0) {
+        bytes.addAll(generator.text(
+          ">>> GIAM ${printData.discountPercent}% <<<",
+          styles: const PosStyles(align: PosAlign.center, bold: true),
+        ));
+      }
+
+      // === BẢO HÀNH ===
+      if (fields.showWarranty) {
+        final warranty = product['warrantyPeriod'] ?? '6 thang';
+        bytes.addAll(generator.text(
+          "BAO HANH: $_removeDiacritics(warranty)",
+          styles: const PosStyles(align: PosAlign.center),
+        ));
+      }
+
+      // === IMEI ===
+      if (fields.showImei && product['imei'] != null) {
+        bytes.addAll(generator.text(
+          "IMEI: ${product['imei']}",
+          styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
+        ));
+      }
+
+      // === NGÀY BÁN + NGÀY HẾT BH (cho tem bảo hành) ===
+      if (fields.showSaleDate && printData.saleDate != null) {
+        final dateStr = "${printData.saleDate.day}/${printData.saleDate.month}/${printData.saleDate.year}";
+        bytes.addAll(generator.text(
+          "NGAY BAN: $dateStr",
+          styles: const PosStyles(align: PosAlign.center),
+        ));
+      }
+      if (fields.showWarrantyEndDate && printData.warrantyEndDate != null) {
+        final endStr = "${printData.warrantyEndDate.day}/${printData.warrantyEndDate.month}/${printData.warrantyEndDate.year}";
+        bytes.addAll(generator.text(
+          "HET HAN BH: $endStr",
+          styles: const PosStyles(align: PosAlign.center, bold: true),
+        ));
+      }
+
+      // === QR CODE + MÃ SẢN PHẨM ===
+      if (fields.showQrCode) {
+        bytes.addAll(generator.feed(1));
+        final productId = product['id']?.toString() ?? product['firestoreId']?.toString() ?? 'unknown';
+        bytes.addAll(generator.qrcode("check_product:$productId", size: QRSize.size4, align: PosAlign.center));
+      }
+      if (fields.showProductCode) {
+        final code = product['productCode'] ?? product['id'] ?? 'N/A';
+        bytes.addAll(generator.text(
+          "Ma: $code",
+          styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
+        ));
+      }
+
+      // === NỘI DUNG TÙY BIẾN ===
+      if (customLines.isNotEmpty) {
+        bytes.addAll(generator.feed(1));
+        for (final line in customLines) {
+          if (line.trim().isNotEmpty) {
+            bytes.addAll(generator.text(
+              _removeDiacritics(line).toUpperCase(),
+              styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
+            ));
+          }
+        }
+      }
+
+      // === SLOGAN ===
+      if (shopInfo.showSlogan) {
+        final slogan = shopInfo.customSlogan ?? '';
+        if (slogan.isNotEmpty) {
+          bytes.addAll(generator.feed(1));
+          bytes.addAll(generator.text(
+            _removeDiacritics('"$slogan"'),
+            styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
+          ));
+        }
+      }
+
+      bytes.addAll(generator.feed(2));
+      bytes.addAll(generator.cut());
+
+      return _sendToPrinter(bytes);
+    } catch (e) {
+      print("Lỗi in tem nâng cao: $e");
+      return false;
+    }
+  }
 }

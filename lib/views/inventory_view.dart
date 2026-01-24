@@ -25,6 +25,7 @@ import 'supplier_list_view.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../widgets/print_label_dialog.dart';
+import '../widgets/print_label_dialog_v2.dart';
 import '../models/printer_types.dart';
 import 'smart_stock_in_view.dart';
 import 'global_search_view.dart';
@@ -466,8 +467,8 @@ class _InventoryViewState extends State<InventoryView>
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       Navigator.pop(ctx);
-                      // Hiển thị dialog in tem với tùy chọn tự động/tùy chỉnh
-                      await PrintLabelDialog.show(context, p.toMap());
+                      // Hiển thị dialog in tem nâng cao (V2)
+                      await PrintLabelDialogV2.show(context, p.toMap());
                     },
                     icon: const Icon(Icons.qr_code_2, color: Colors.white),
                     label: Text(
