@@ -1043,10 +1043,17 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
   }
 
   LabelPrintData _buildPrintData() {
+    // Merge shop settings vào shopInfo
+    final mergedShopInfo = _shopInfoSettings.copyWith(
+      customShopName: _shopInfoSettings.customShopName ?? _shopSettings?.shopName,
+      customHotline: _shopInfoSettings.customHotline ?? _shopSettings?.hotline,
+      customSlogan: _shopInfoSettings.customSlogan ?? _shopSettings?.slogan,
+    );
+    
     return LabelPrintData(
       template: _selectedTemplate!.copyWith(
         fields: _fieldSettings,
-        shopInfo: _shopInfoSettings,
+        shopInfo: mergedShopInfo,
       ),
       product: widget.product,
       quantity: _quantity,
