@@ -23,7 +23,8 @@ class FinancialReportView extends StatefulWidget {
 class TransactionItem {
   final String id;
   final int timestamp;
-  final String type; // SALE, REPAIR, EXPENSE, DEBT_IN, DEBT_OUT, PAYMENT_IN, PAYMENT_OUT
+  final String
+  type; // SALE, REPAIR, EXPENSE, DEBT_IN, DEBT_OUT, PAYMENT_IN, PAYMENT_OUT
   final String category; // Chi tiết loại
   final String description;
   final int amount;
@@ -69,12 +70,42 @@ class _FinancialReportViewState extends State<FinancialReportView>
 
   // Filter types
   static const _typeFilters = [
-    {'key': 'SALE', 'label': 'Bán hàng', 'icon': Icons.shopping_cart, 'color': Colors.green},
-    {'key': 'REPAIR', 'label': 'Sửa chữa', 'icon': Icons.build, 'color': Colors.blue},
-    {'key': 'EXPENSE', 'label': 'Chi phí', 'icon': Icons.money_off, 'color': Colors.red},
-    {'key': 'PURCHASE', 'label': 'Nhập hàng', 'icon': Icons.inventory, 'color': Colors.orange},
-    {'key': 'DEBT_COLLECT', 'label': 'Thu nợ', 'icon': Icons.call_received, 'color': Colors.teal},
-    {'key': 'DEBT_PAY', 'label': 'Trả nợ', 'icon': Icons.call_made, 'color': Colors.purple},
+    {
+      'key': 'SALE',
+      'label': 'Bán hàng',
+      'icon': Icons.shopping_cart,
+      'color': Colors.green,
+    },
+    {
+      'key': 'REPAIR',
+      'label': 'Sửa chữa',
+      'icon': Icons.build,
+      'color': Colors.blue,
+    },
+    {
+      'key': 'EXPENSE',
+      'label': 'Chi phí',
+      'icon': Icons.money_off,
+      'color': Colors.red,
+    },
+    {
+      'key': 'PURCHASE',
+      'label': 'Nhập hàng',
+      'icon': Icons.inventory,
+      'color': Colors.orange,
+    },
+    {
+      'key': 'DEBT_COLLECT',
+      'label': 'Thu nợ',
+      'icon': Icons.call_received,
+      'color': Colors.teal,
+    },
+    {
+      'key': 'DEBT_PAY',
+      'label': 'Trả nợ',
+      'icon': Icons.call_made,
+      'color': Colors.purple,
+    },
   ];
 
   @override
@@ -95,8 +126,19 @@ class _FinancialReportViewState extends State<FinancialReportView>
     setState(() => _loading = true);
 
     try {
-      final startMs = DateTime(_startDate.year, _startDate.month, _startDate.day).millisecondsSinceEpoch;
-      final endMs = DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59).millisecondsSinceEpoch;
+      final startMs = DateTime(
+        _startDate.year,
+        _startDate.month,
+        _startDate.day,
+      ).millisecondsSinceEpoch;
+      final endMs = DateTime(
+        _endDate.year,
+        _endDate.month,
+        _endDate.day,
+        23,
+        59,
+        59,
+      ).millisecondsSinceEpoch;
 
       final List<TransactionItem> allTransactions = [];
 
@@ -105,34 +147,54 @@ class _FinancialReportViewState extends State<FinancialReportView>
       for (final sale in sales) {
         final soldAt = sale.soldAt;
         if (soldAt >= startMs && soldAt <= endMs && sale.isSynced != false) {
-          // Tính số tiền thực nhận = downPayment (trả trước) + settlementAmount (NH tất toán)
-          final actualPaid = sale.isInstallment 
-              ? (sale.downPayment + sale.settlementAmount)
-              : sale.totalPrice;
-          
-          allTransactions.add(TransactionItem(
-            id: 'sale_${sale.id}',
-            timestamp: soldAt,
-            type: 'SALE',
-            category: sale.isInstallment ? 'Bán trả góp' : 'Bán hàng',
-            description: sale.customerName.isNotEmpty ? sale.customerName : 'Khách lẻ',
-            amount: actualPaid,
-            isIncome: true,
-            personName: sale.customerName,
-            note: sale.notes,
-          ));
-          
+          final isCongNo = sale.paymentMethod.toUpperCase() == 'CÔNG NỢ';
+
+          // Tính số tiền THỰC NHẬN (không tính công nợ)
+          // - Nếu trả góp: downPayment + settlementAmount (tiền từ NH)
+          // - Nếu CÔNG NỢ: 0đ (chưa nhận tiền)
+          // - Nếu tiền mặt/CK: toàn bộ totalPrice
+          final int actualPaid;
+          if (sale.isInstallment) {
+            actualPaid = sale.downPayment + sale.settlementAmount;
+          } else if (isCongNo) {
+            actualPaid = 0; // Công nợ - chưa nhận tiền
+          } else {
+            actualPaid = sale.totalPrice;
+          }
+
+          // Chỉ ghi nhận THU khi thực sự nhận được tiền
+          if (actualPaid > 0) {
+            allTransactions.add(
+              TransactionItem(
+                id: 'sale_${sale.id}',
+                timestamp: soldAt,
+                type: 'SALE',
+                category: sale.isInstallment ? 'Bán trả góp' : 'Bán hàng',
+                description: sale.customerName.isNotEmpty
+                    ? sale.customerName
+                    : 'Khách lẻ',
+                amount: actualPaid,
+                isIncome: true,
+                personName: sale.customerName,
+                note: sale.notes,
+              ),
+            );
+          }
+
           // Chi phí vốn hàng bán
           if (sale.totalCost > 0) {
-            allTransactions.add(TransactionItem(
-              id: 'sale_cost_${sale.id}',
-              timestamp: soldAt,
-              type: 'EXPENSE',
-              category: 'Giá vốn',
-              description: 'Vốn: ${sale.customerName.isNotEmpty ? sale.customerName : "Khách lẻ"}',
-              amount: sale.totalCost,
-              isIncome: false,
-            ));
+            allTransactions.add(
+              TransactionItem(
+                id: 'sale_cost_${sale.id}',
+                timestamp: soldAt,
+                type: 'EXPENSE',
+                category: 'Giá vốn',
+                description:
+                    'Vốn: ${sale.customerName.isNotEmpty ? sale.customerName : "Khách lẻ"}',
+                amount: sale.totalCost,
+                isIncome: false,
+              ),
+            );
           }
         }
       }
@@ -141,30 +203,37 @@ class _FinancialReportViewState extends State<FinancialReportView>
       final repairs = await _db.getAllRepairs();
       for (final repair in repairs) {
         final deliveredAt = repair.deliveredAt ?? repair.createdAt;
-        if (deliveredAt >= startMs && deliveredAt <= endMs && repair.status == 4 && !repair.deleted) {
-          allTransactions.add(TransactionItem(
-            id: 'repair_${repair.id}',
-            timestamp: deliveredAt,
-            type: 'REPAIR',
-            category: 'Sửa chữa',
-            description: '${repair.model} - ${repair.customerName}',
-            amount: repair.price,
-            isIncome: true,
-            personName: repair.customerName,
-            note: repair.issue,
-          ));
-          
+        if (deliveredAt >= startMs &&
+            deliveredAt <= endMs &&
+            repair.status == 4 &&
+            !repair.deleted) {
+          allTransactions.add(
+            TransactionItem(
+              id: 'repair_${repair.id}',
+              timestamp: deliveredAt,
+              type: 'REPAIR',
+              category: 'Sửa chữa',
+              description: '${repair.model} - ${repair.customerName}',
+              amount: repair.price,
+              isIncome: true,
+              personName: repair.customerName,
+              note: repair.issue,
+            ),
+          );
+
           // Chi phí linh kiện
           if (repair.cost > 0) {
-            allTransactions.add(TransactionItem(
-              id: 'repair_cost_${repair.id}',
-              timestamp: deliveredAt,
-              type: 'EXPENSE',
-              category: 'Chi phí linh kiện',
-              description: 'LK: ${repair.model}',
-              amount: repair.cost,
-              isIncome: false,
-            ));
+            allTransactions.add(
+              TransactionItem(
+                id: 'repair_cost_${repair.id}',
+                timestamp: deliveredAt,
+                type: 'EXPENSE',
+                category: 'Chi phí linh kiện',
+                description: 'LK: ${repair.model}',
+                amount: repair.cost,
+                isIncome: false,
+              ),
+            );
           }
         }
       }
@@ -173,17 +242,24 @@ class _FinancialReportViewState extends State<FinancialReportView>
       final expenses = await _db.getAllExpenses();
       for (final e in expenses) {
         final createdAt = (e['createdAt'] as int?) ?? 0;
-        if (createdAt >= startMs && createdAt <= endMs && (e['deleted'] ?? 0) != 1) {
-          allTransactions.add(TransactionItem(
-            id: 'expense_${e['id']}',
-            timestamp: createdAt,
-            type: 'EXPENSE',
-            category: (e['category'] as String?) ?? 'Chi phí khác',
-            description: (e['description'] as String?) ?? (e['category'] as String?) ?? 'Chi phí',
-            amount: (e['amount'] as int?) ?? 0,
-            isIncome: false,
-            note: e['note'] as String?,
-          ));
+        if (createdAt >= startMs &&
+            createdAt <= endMs &&
+            (e['deleted'] ?? 0) != 1) {
+          allTransactions.add(
+            TransactionItem(
+              id: 'expense_${e['id']}',
+              timestamp: createdAt,
+              type: 'EXPENSE',
+              category: (e['category'] as String?) ?? 'Chi phí khác',
+              description:
+                  (e['description'] as String?) ??
+                  (e['category'] as String?) ??
+                  'Chi phí',
+              amount: (e['amount'] as int?) ?? 0,
+              isIncome: false,
+              note: e['note'] as String?,
+            ),
+          );
         }
       }
 
@@ -196,18 +272,23 @@ class _FinancialReportViewState extends State<FinancialReportView>
         final totalAmount = (d['totalAmount'] as int?) ?? 0;
 
         // Shop nợ NCC/Đối tác (SHOP_OWES)
-        if (debtType == 'SHOP_OWES' && createdAt >= startMs && createdAt <= endMs && (d['deleted'] ?? 0) != 1) {
-          allTransactions.add(TransactionItem(
-            id: 'debt_out_${d['id']}',
-            timestamp: createdAt,
-            type: 'DEBT_OUT',
-            category: 'Nợ NCC/Đối tác',
-            description: 'Nợ: ${personName ?? "N/A"}',
-            amount: totalAmount,
-            isIncome: false, // Nợ phải trả
-            personName: personName,
-            note: d['note'] as String?,
-          ));
+        if (debtType == 'SHOP_OWES' &&
+            createdAt >= startMs &&
+            createdAt <= endMs &&
+            (d['deleted'] ?? 0) != 1) {
+          allTransactions.add(
+            TransactionItem(
+              id: 'debt_out_${d['id']}',
+              timestamp: createdAt,
+              type: 'DEBT_OUT',
+              category: 'Nợ NCC/Đối tác',
+              description: 'Nợ: ${personName ?? "N/A"}',
+              amount: totalAmount,
+              isIncome: false, // Nợ phải trả
+              personName: personName,
+              note: d['note'] as String?,
+            ),
+          );
         }
 
         // Lấy các lần thanh toán nợ
@@ -219,30 +300,34 @@ class _FinancialReportViewState extends State<FinancialReportView>
             if (paidAt >= startMs && paidAt <= endMs) {
               if (debtType == 'CUSTOMER_OWES') {
                 // Thu nợ từ khách
-                allTransactions.add(TransactionItem(
-                  id: 'payment_in_${p['id']}',
-                  timestamp: paidAt,
-                  type: 'DEBT_COLLECT',
-                  category: 'Thu nợ khách',
-                  description: 'Thu nợ: ${personName ?? "Khách"}',
-                  amount: (p['amount'] as int?) ?? 0,
-                  isIncome: true,
-                  personName: personName,
-                  note: p['note'] as String?,
-                ));
+                allTransactions.add(
+                  TransactionItem(
+                    id: 'payment_in_${p['id']}',
+                    timestamp: paidAt,
+                    type: 'DEBT_COLLECT',
+                    category: 'Thu nợ khách',
+                    description: 'Thu nợ: ${personName ?? "Khách"}',
+                    amount: (p['amount'] as int?) ?? 0,
+                    isIncome: true,
+                    personName: personName,
+                    note: p['note'] as String?,
+                  ),
+                );
               } else if (debtType == 'SHOP_OWES') {
                 // Trả nợ NCC/Đối tác
-                allTransactions.add(TransactionItem(
-                  id: 'payment_out_${p['id']}',
-                  timestamp: paidAt,
-                  type: 'DEBT_PAY',
-                  category: 'Trả nợ NCC',
-                  description: 'Trả nợ: ${personName ?? "NCC"}',
-                  amount: (p['amount'] as int?) ?? 0,
-                  isIncome: false,
-                  personName: personName,
-                  note: p['note'] as String?,
-                ));
+                allTransactions.add(
+                  TransactionItem(
+                    id: 'payment_out_${p['id']}',
+                    timestamp: paidAt,
+                    type: 'DEBT_PAY',
+                    category: 'Trả nợ NCC',
+                    description: 'Trả nợ: ${personName ?? "NCC"}',
+                    amount: (p['amount'] as int?) ?? 0,
+                    isIncome: false,
+                    personName: personName,
+                    note: p['note'] as String?,
+                  ),
+                );
               }
             }
           }
@@ -287,7 +372,8 @@ class _FinancialReportViewState extends State<FinancialReportView>
       // Search
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
-        final match = t.description.toLowerCase().contains(q) ||
+        final match =
+            t.description.toLowerCase().contains(q) ||
             t.category.toLowerCase().contains(q) ||
             (t.personName?.toLowerCase().contains(q) ?? false) ||
             (t.note?.toLowerCase().contains(q) ?? false);
@@ -311,7 +397,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
             ),
           ),
         ),
-        title: const Text('Báo Cáo Tài Chính', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Báo Cáo Tài Chính',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -375,7 +464,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: (net >= 0 ? Colors.green : Colors.red).withValues(alpha: 0.3),
+            color: (net >= 0 ? Colors.green : Colors.red).withValues(
+              alpha: 0.3,
+            ),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -395,7 +486,11 @@ class _FinancialReportViewState extends State<FinancialReportView>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(net >= 0 ? Icons.trending_up : Icons.trending_down, color: Colors.white, size: 28),
+              Icon(
+                net >= 0 ? Icons.trending_up : Icons.trending_down,
+                color: Colors.white,
+                size: 28,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Lợi nhuận: ${MoneyUtils.formatCurrency(net)}',
@@ -419,13 +514,23 @@ class _FinancialReportViewState extends State<FinancialReportView>
           children: [
             Icon(icon, color: Colors.white, size: 16),
             const SizedBox(width: 4),
-            Text(label, style: TextStyle(color: Colors.white70, fontSize: AppTextStyles.subtitle1.fontSize)),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: AppTextStyles.subtitle1.fontSize,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           MoneyUtils.formatCurrency(amount),
-          style: TextStyle(color: Colors.white, fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: AppTextStyles.headline3.fontSize,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
     );
@@ -452,7 +557,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
               Expanded(
                 child: Text(
                   '${df.format(_startDate)} - ${df.format(_endDate)}',
-                  style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.w500),
+                  style: AppTextStyles.body1.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               const Icon(Icons.arrow_drop_down, color: AppColors.primary),
@@ -472,19 +579,27 @@ class _FinancialReportViewState extends State<FinancialReportView>
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
           _filterChip('Tất cả', null, _selectedTypes.isEmpty),
-          ..._typeFilters.map((f) => _filterChip(
-                f['label'] as String,
-                f['key'] as String,
-                _selectedTypes.contains(f['key']),
-                icon: f['icon'] as IconData,
-                color: f['color'] as Color,
-              )),
+          ..._typeFilters.map(
+            (f) => _filterChip(
+              f['label'] as String,
+              f['key'] as String,
+              _selectedTypes.contains(f['key']),
+              icon: f['icon'] as IconData,
+              color: f['color'] as Color,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _filterChip(String label, String? key, bool selected, {IconData? icon, Color? color}) {
+  Widget _filterChip(
+    String label,
+    String? key,
+    bool selected, {
+    IconData? icon,
+    Color? color,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
@@ -492,7 +607,11 @@ class _FinancialReportViewState extends State<FinancialReportView>
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 16, color: selected ? Colors.white : (color ?? AppColors.onSurface)),
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? Colors.white : (color ?? AppColors.onSurface),
+              ),
               const SizedBox(width: 4),
             ],
             Text(label),
@@ -529,11 +648,17 @@ class _FinancialReportViewState extends State<FinancialReportView>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long, size: 64, color: AppColors.onSurface.withValues(alpha: 0.3)),
+            Icon(
+              Icons.receipt_long,
+              size: 64,
+              color: AppColors.onSurface.withValues(alpha: 0.3),
+            ),
             const SizedBox(height: 16),
             Text(
               'Không có giao dịch nào',
-              style: AppTextStyles.body1.copyWith(color: AppColors.onSurface.withValues(alpha: 0.6)),
+              style: AppTextStyles.body1.copyWith(
+                color: AppColors.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ],
         ),
@@ -554,7 +679,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
       itemBuilder: (ctx, index) {
         final date = grouped.keys.elementAt(index);
         final items = grouped[date]!;
-        
+
         // Tính tổng trong ngày
         int dayIncome = 0, dayExpense = 0;
         for (final t in items) {
@@ -575,15 +700,17 @@ class _FinancialReportViewState extends State<FinancialReportView>
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: dayNet >= 0 
-                    ? [Colors.green.shade50, Colors.green.shade100]
-                    : [Colors.red.shade50, Colors.red.shade100],
+                  colors: dayNet >= 0
+                      ? [Colors.green.shade50, Colors.green.shade100]
+                      : [Colors.red.shade50, Colors.red.shade100],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: dayNet >= 0 ? Colors.green.shade200 : Colors.red.shade200,
+                  color: dayNet >= 0
+                      ? Colors.green.shade200
+                      : Colors.red.shade200,
                 ),
               ),
               child: Row(
@@ -629,7 +756,11 @@ class _FinancialReportViewState extends State<FinancialReportView>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (dayIncome > 0) ...[
-                            Icon(Icons.arrow_downward, size: 12, color: Colors.green.shade700),
+                            Icon(
+                              Icons.arrow_downward,
+                              size: 12,
+                              color: Colors.green.shade700,
+                            ),
                             Text(
                               '+${core_money.MoneyUtils.formatCompact(dayIncome)}',
                               style: TextStyle(
@@ -640,9 +771,18 @@ class _FinancialReportViewState extends State<FinancialReportView>
                             ),
                           ],
                           if (dayIncome > 0 && dayExpense > 0)
-                            Text(' • ', style: TextStyle(fontSize: AppTextStyles.caption.fontSize)),
+                            Text(
+                              ' • ',
+                              style: TextStyle(
+                                fontSize: AppTextStyles.caption.fontSize,
+                              ),
+                            ),
                           if (dayExpense > 0) ...[
-                            Icon(Icons.arrow_upward, size: 12, color: Colors.red.shade700),
+                            Icon(
+                              Icons.arrow_upward,
+                              size: 12,
+                              color: Colors.red.shade700,
+                            ),
                             Text(
                               '-${core_money.MoneyUtils.formatCompact(dayExpense)}',
                               style: TextStyle(
@@ -656,7 +796,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
                       ),
                       const SizedBox(height: 2),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: dayNet >= 0 ? Colors.green : Colors.red,
                           borderRadius: BorderRadius.circular(4),
@@ -691,7 +834,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
 
     // Background color based on type
     final bgColor = t.isIncome ? Colors.green.shade50 : Colors.red.shade50;
-    final borderColor = t.isIncome ? Colors.green.shade200 : Colors.red.shade200;
+    final borderColor = t.isIncome
+        ? Colors.green.shade200
+        : Colors.red.shade200;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -753,7 +898,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: amountColor,
                           borderRadius: BorderRadius.circular(6),
@@ -779,9 +927,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // Info chips row
               Wrap(
                 spacing: 6,
@@ -887,7 +1035,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: (t.isIncome ? Colors.green : Colors.red).withValues(alpha: 0.1),
+                    color: (t.isIncome ? Colors.green : Colors.red).withValues(
+                      alpha: 0.1,
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -912,10 +1062,15 @@ class _FinancialReportViewState extends State<FinancialReportView>
             ),
             const SizedBox(height: 20),
             _detailRow('Mô tả', t.description),
-            _detailRow('Số tiền', '${t.isIncome ? "+" : "-"}${MoneyUtils.formatCurrency(t.amount)}',
-                valueColor: t.isIncome ? Colors.green : Colors.red),
-            if (t.personName != null && t.personName!.isNotEmpty) _detailRow('Đối tượng', t.personName!),
-            if (t.note != null && t.note!.isNotEmpty) _detailRow('Ghi chú', t.note!),
+            _detailRow(
+              'Số tiền',
+              '${t.isIncome ? "+" : "-"}${MoneyUtils.formatCurrency(t.amount)}',
+              valueColor: t.isIncome ? Colors.green : Colors.red,
+            ),
+            if (t.personName != null && t.personName!.isNotEmpty)
+              _detailRow('Đối tượng', t.personName!),
+            if (t.note != null && t.note!.isNotEmpty)
+              _detailRow('Ghi chú', t.note!),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -1007,31 +1162,42 @@ class _FinancialReportViewState extends State<FinancialReportView>
                 decoration: InputDecoration(
                   labelText: 'Tìm kiếm',
                   prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onChanged: (v) => setModalState(() => _searchQuery = v),
               ),
               const SizedBox(height: 16),
-              Text('Loại giao dịch', style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                'Loại giao dịch',
+                style: AppTextStyles.body2.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: _typeFilters
-                    .map((f) => FilterChip(
-                          label: Text(f['label'] as String),
-                          selected: _selectedTypes.contains(f['key']),
-                          onSelected: (v) {
-                            setModalState(() {
-                              if (v) {
-                                _selectedTypes.add(f['key'] as String);
-                              } else {
-                                _selectedTypes.remove(f['key']);
-                              }
-                            });
-                          },
-                          selectedColor: (f['color'] as Color).withValues(alpha: 0.3),
-                        ))
+                    .map(
+                      (f) => FilterChip(
+                        label: Text(f['label'] as String),
+                        selected: _selectedTypes.contains(f['key']),
+                        onSelected: (v) {
+                          setModalState(() {
+                            if (v) {
+                              _selectedTypes.add(f['key'] as String);
+                            } else {
+                              _selectedTypes.remove(f['key']);
+                            }
+                          });
+                        },
+                        selectedColor: (f['color'] as Color).withValues(
+                          alpha: 0.3,
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
               const SizedBox(height: 24),

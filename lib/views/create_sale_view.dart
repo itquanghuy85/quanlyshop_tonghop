@@ -18,6 +18,8 @@ import '../services/audit_service.dart';
 import '../services/claims_service.dart';
 import '../services/financial_activity_service.dart';
 import '../services/first_time_guide_service.dart';
+import '../services/payment_intent_service.dart';
+import '../models/payment_intent_model.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -101,31 +103,36 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       steps: const [
         GuideStep(
           title: '👤 Thông tin khách hàng',
-          description: 'Nhập SĐT để tự động điền tên khách cũ. Hoặc chọn từ danh bạ khách hàng.',
+          description:
+              'Nhập SĐT để tự động điền tên khách cũ. Hoặc chọn từ danh bạ khách hàng.',
           icon: Icons.person,
           iconColor: Colors.blue,
         ),
         GuideStep(
           title: '📦 Chọn sản phẩm',
-          description: 'Tìm kiếm và chọn sản phẩm trong kho. Có thể bán nhiều sản phẩm trong 1 đơn.',
+          description:
+              'Tìm kiếm và chọn sản phẩm trong kho. Có thể bán nhiều sản phẩm trong 1 đơn.',
           icon: Icons.inventory_2,
           iconColor: Colors.orange,
         ),
         GuideStep(
           title: '💰 Giá bán & Giảm giá',
-          description: 'Hệ thống tự tính tổng. Có thể nhập giảm giá trực tiếp hoặc điều chỉnh giá.',
+          description:
+              'Hệ thống tự tính tổng. Có thể nhập giảm giá trực tiếp hoặc điều chỉnh giá.',
           icon: Icons.attach_money,
           iconColor: Colors.green,
         ),
         GuideStep(
           title: '🏦 Thanh toán trả góp',
-          description: 'Bật trả góp để nhập tiền đặt cọc, số tiền vay và ngân hàng hỗ trợ.',
+          description:
+              'Bật trả góp để nhập tiền đặt cọc, số tiền vay và ngân hàng hỗ trợ.',
           icon: Icons.credit_card,
           iconColor: Colors.purple,
         ),
         GuideStep(
           title: '📝 Công nợ khách hàng',
-          description: 'Chọn "CÔNG NỢ" nếu khách chưa thanh toán đủ. Theo dõi trong mục Tài chính.',
+          description:
+              'Chọn "CÔNG NỢ" nếu khách chưa thanh toán đủ. Theo dõi trong mục Tài chính.',
           icon: Icons.account_balance_wallet,
           iconColor: Colors.red,
         ),
@@ -630,12 +637,12 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               .toUpperCase() ??
           "NV";
       int totalPrice = _parseCurrency(priceCtrl.text);
-      
+
       // Parse discount và tính finalPrice (thành tiền sau giảm giá)
       int discount = _parseCurrency(discountCtrl.text);
       int finalPrice = totalPrice - discount;
       if (finalPrice < 0) finalPrice = 0;
-      
+
       // FIX: paidAmount phải dựa trên finalPrice (sau giảm giá), không phải totalPrice
       int paidAmount = _parseCurrency(downPaymentCtrl.text);
       if (_paymentMethod != "CÔNG NỢ" &&
@@ -918,6 +925,90 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       await db.upsertSale(sale);
       // NOTE: FinancialActivityService.logSale REMOVED - ledger handled by PaymentIntentService
 
+      // === TẠO PAYMENTINTENT ĐỂ HIỂN THỊ TRÊN TRANG "THANH TOÁN" ===
+      try {
+        final saleRef = sale.firestoreId ?? 'sale_${sale.soldAt}';
+        final now = DateTime.now();
+
+        if (_paymentMethod == "CÔNG NỢ") {
+          // Công nợ khách hàng - chưa nhận tiền, ghi nhận debt
+          final intent = PaymentIntent(
+            id: 'pi_sale_debt_${saleRef}_${now.millisecondsSinceEpoch}',
+            type: PaymentIntentType.customerDebt,
+            amount: finalPrice,
+            description:
+                'Công nợ bán hàng: ${sale.customerName} - ${_selectedItems.length} SP',
+            referenceId: saleRef,
+            referenceType: 'sale',
+            status: PaymentIntentStatus.completed, // Đã ghi nhận công nợ
+            createdAt: now,
+            paidAt: now,
+            paymentMethod: 'CÔNG NỢ',
+            metadata: {
+              'customerName': sale.customerName,
+              'phone': sale.phone,
+              'productNames': sale.productNames,
+              'debtFirestoreId': debtDataForTransaction?['firestoreId'],
+            },
+          );
+          await PaymentIntentService.createIntent(intent);
+          debugPrint('✅ Created PaymentIntent for sale CÔNG NỢ: ${intent.id}');
+        } else if (_isInstallment) {
+          // Trả góp - ghi nhận tiền trả trước nếu có
+          if (_downPayment > 0) {
+            final intent = PaymentIntent(
+              id: 'pi_sale_down_${saleRef}_${now.millisecondsSinceEpoch}',
+              type: PaymentIntentType.salePayment,
+              amount: _downPayment,
+              description:
+                  'Trả trước trả góp: ${sale.customerName} - ${_selectedItems.length} SP',
+              referenceId: saleRef,
+              referenceType: 'sale',
+              status: PaymentIntentStatus.completed,
+              createdAt: now,
+              paidAt: now,
+              paymentMethod: _downPaymentMethod ?? 'TIỀN MẶT',
+              metadata: {
+                'customerName': sale.customerName,
+                'phone': sale.phone,
+                'productNames': sale.productNames,
+                'isInstallment': true,
+                'bankName': _selectedBank,
+              },
+            );
+            await PaymentIntentService.createIntent(intent);
+            debugPrint(
+              '✅ Created PaymentIntent for installment down payment: ${intent.id}',
+            );
+          }
+        } else {
+          // Tiền mặt / Chuyển khoản - đã nhận đủ tiền
+          final intent = PaymentIntent(
+            id: 'pi_sale_${saleRef}_${now.millisecondsSinceEpoch}',
+            type: PaymentIntentType.salePayment,
+            amount: finalPrice,
+            description:
+                'Bán hàng: ${sale.customerName} - ${_selectedItems.length} SP',
+            referenceId: saleRef,
+            referenceType: 'sale',
+            status: PaymentIntentStatus.completed,
+            createdAt: now,
+            paidAt: now,
+            paymentMethod: _paymentMethod,
+            metadata: {
+              'customerName': sale.customerName,
+              'phone': sale.phone,
+              'productNames': sale.productNames,
+            },
+          );
+          await PaymentIntentService.createIntent(intent);
+          debugPrint('✅ Created PaymentIntent for sale: ${intent.id}');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Failed to create PaymentIntent for sale: $e');
+        // Không fail sale nếu PaymentIntent thất bại
+      }
+
       // Lưu debt vào local DB nếu có (dùng upsert để tránh duplicate khi sync)
       if (debtDataForTransaction != null) {
         final firestoreId = debtDataForTransaction['firestoreId'] as String?;
@@ -1008,7 +1099,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         action: 'TẠO ĐƠN BÁN',
         entityType: 'SALE',
         entityId: sale.firestoreId ?? 'sale_${sale.soldAt}',
-        summary: 'Đã bán ${_selectedItems.length} sp cho ${sale.customerName} - ${MoneyUtils.formatCurrency(finalPrice)}đ',
+        summary:
+            'Đã bán ${_selectedItems.length} sp cho ${sale.customerName} - ${MoneyUtils.formatCurrency(finalPrice)}đ',
         payload: {
           'customerName': sale.customerName,
           'phone': sale.phone,
@@ -1056,7 +1148,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         body: Center(
           child: Text(
             "Bạn không có quyền truy cập tính năng này",
-            style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, color: Colors.grey),
+            style: TextStyle(
+              fontSize: AppTextStyles.headline3.fontSize,
+              color: Colors.grey,
+            ),
           ),
         ),
       );
@@ -1095,7 +1190,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               ),
               Text(
                 '${_selectedItems.length} sản phẩm đã chọn',
-                style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.white70),
+                style: TextStyle(
+                  fontSize: AppTextStyles.body1.fontSize,
+                  color: Colors.white70,
+                ),
               ),
             ],
           ),
@@ -1132,11 +1230,27 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                           // Search sản phẩm
                           Row(
                             children: [
-                              Icon(Icons.inventory_2, size: 18, color: Colors.purple.shade700),
+                              Icon(
+                                Icons.inventory_2,
+                                size: 18,
+                                color: Colors.purple.shade700,
+                              ),
                               const SizedBox(width: 8),
-                              Text("SẢN PHẨM", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.purple.shade700)),
+                              Text(
+                                "SẢN PHẨM",
+                                style: AppTextStyles.caption.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.purple.shade700,
+                                ),
+                              ),
                               const Spacer(),
-                              Text("${_selectedItems.length} đã chọn", style: AppTextStyles.caption.copyWith(color: Colors.purple, fontWeight: FontWeight.bold)),
+                              Text(
+                                "${_selectedItems.length} đã chọn",
+                                style: AppTextStyles.caption.copyWith(
+                                  color: Colors.purple,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -1145,30 +1259,47 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                             hint: "Tìm máy hoặc IMEI...",
                             onSearch: (v) => setState(
                               () => _filteredInStock = _allInStock
-                                  .where((p) => p.name.contains(v.toUpperCase()) || (p.imei ?? "").contains(v))
+                                  .where(
+                                    (p) =>
+                                        p.name.contains(v.toUpperCase()) ||
+                                        (p.imei ?? "").contains(v),
+                                  )
                                   .toList(),
                             ),
                           ),
                           if (_allInStock.isEmpty) _buildEmptyStockGuidance(),
-                          if (searchProdCtrl.text.isNotEmpty) _buildSearchResults(),
+                          if (searchProdCtrl.text.isNotEmpty)
+                            _buildSearchResults(),
                           _buildSelectedItemsList(),
-                          
+
                           // Divider giữa sản phẩm và khách hàng
                           const Divider(height: 16),
-                          
+
                           // Thông tin khách hàng compact
                           Row(
                             children: [
-                              Icon(Icons.person, size: 18, color: Colors.blue.shade700),
+                              Icon(
+                                Icons.person,
+                                size: 18,
+                                color: Colors.blue.shade700,
+                              ),
                               const SizedBox(width: 8),
-                              Text("KHÁCH HÀNG", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.blue.shade700)),
+                              Text(
+                                "KHÁCH HÀNG",
+                                style: AppTextStyles.caption.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
                               const Spacer(),
                               TextButton.icon(
                                 onPressed: _selectCustomer,
                                 icon: const Icon(Icons.search, size: 16),
                                 label: const Text("Chọn KH"),
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
                                   visualDensity: VisualDensity.compact,
                                 ),
                               ),
@@ -1183,11 +1314,18 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                   controller: nameCtrl,
                                   decoration: const InputDecoration(
                                     labelText: "TÊN",
-                                    prefixIcon: Icon(Icons.person_outline, size: 18),
+                                    prefixIcon: Icon(
+                                      Icons.person_outline,
+                                      size: 18,
+                                    ),
                                     isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
                                   ),
-                                  textCapitalization: TextCapitalization.characters,
+                                  textCapitalization:
+                                      TextCapitalization.characters,
                                   style: AppTextStyles.body2,
                                 ),
                               ),
@@ -1200,13 +1338,17 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                     labelText: "SĐT",
                                     prefixIcon: Icon(Icons.phone, size: 18),
                                     isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
                                   ),
                                   keyboardType: TextInputType.phone,
                                   style: AppTextStyles.body2,
                                 ),
                               ),
-                              if (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty)
+                              if (nameCtrl.text.trim().isNotEmpty &&
+                                  phoneCtrl.text.trim().isNotEmpty)
                                 IconButton(
                                   onPressed: _addCustomerQuick,
                                   icon: const Icon(Icons.person_add, size: 18),
@@ -1237,11 +1379,27 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: (_isSaving || _selectedItems.isEmpty) ? null : _processSale,
+                      onPressed: (_isSaving || _selectedItems.isEmpty)
+                          ? null
+                          : _processSale,
                       style: AppButtonStyles.successElevatedButtonStyle,
                       child: _isSaving
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text(_selectedItems.isEmpty ? "CHƯA CHỌN SẢN PHẨM" : "HOÀN TẤT ĐƠN HÀNG", style: AppTextStyles.button.copyWith(color: AppColors.onSuccess)),
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              _selectedItems.isEmpty
+                                  ? "CHƯA CHỌN SẢN PHẨM"
+                                  : "HOÀN TẤT ĐƠN HÀNG",
+                              style: AppTextStyles.button.copyWith(
+                                color: AppColors.onSuccess,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1260,28 +1418,50 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           children: [
             Icon(Icons.payment, size: 18, color: Colors.green.shade700),
             const SizedBox(width: 8),
-            Text("THANH TOÁN", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+            Text(
+              "THANH TOÁN",
+              style: AppTextStyles.caption.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade700,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
-        
+
         // Tổng tiền + Giảm giá trên 1 hàng
         Row(
           children: [
             Expanded(
               child: Row(
                 children: [
-                  Text("TỔNG:", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
+                  Text(
+                    "TỔNG:",
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(width: 4),
                   IconButton(
                     constraints: const BoxConstraints(),
                     padding: EdgeInsets.zero,
-                    icon: Icon(_autoCalcTotal ? Icons.lock_outline : Icons.edit, size: 16, color: AppColors.primary),
-                    onPressed: () => setState(() => _autoCalcTotal = !_autoCalcTotal),
+                    icon: Icon(
+                      _autoCalcTotal ? Icons.lock_outline : Icons.edit,
+                      size: 16,
+                      color: AppColors.primary,
+                    ),
+                    onPressed: () =>
+                        setState(() => _autoCalcTotal = !_autoCalcTotal),
                   ),
                   SizedBox(
                     width: 90,
-                    child: CurrencyTextField(controller: priceCtrl, label: "", enabled: !_autoCalcTotal, autoMultiply1000: false, onChanged: (_) => _calculateInstallment()),
+                    child: CurrencyTextField(
+                      controller: priceCtrl,
+                      label: "",
+                      enabled: !_autoCalcTotal,
+                      autoMultiply1000: false,
+                      onChanged: (_) => _calculateInstallment(),
+                    ),
                   ),
                 ],
               ),
@@ -1292,17 +1472,31 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 children: [
                   const Icon(Icons.discount, size: 16, color: Colors.orange),
                   const SizedBox(width: 4),
-                  Text("Giảm:", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.orange)),
+                  Text(
+                    "Giảm:",
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
                   SizedBox(
                     width: 80,
-                    child: CurrencyTextField(controller: discountCtrl, label: "", autoMultiply1000: false, onChanged: (_) { _calculateInstallment(); setState(() {}); }),
+                    child: CurrencyTextField(
+                      controller: discountCtrl,
+                      label: "",
+                      autoMultiply1000: false,
+                      onChanged: (_) {
+                        _calculateInstallment();
+                        setState(() {});
+                      },
+                    ),
                   ),
                 ],
               ),
             ),
           ],
         ),
-        
+
         // Thành tiền
         Container(
           margin: const EdgeInsets.symmetric(vertical: 6),
@@ -1315,34 +1509,57 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("THÀNH TIỀN:", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.green.shade700)),
-              Text("${_formatCurrency(_finalPrice)} Đ", style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+              Text(
+                "THÀNH TIỀN:",
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade700,
+                ),
+              ),
+              Text(
+                "${_formatCurrency(_finalPrice)} Đ",
+                style: AppTextStyles.body1.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade700,
+                ),
+              ),
             ],
           ),
         ),
-        
+
         // Payment methods compact
         Wrap(
           spacing: 6,
           runSpacing: 4,
-          children: ["TIỀN MẶT", "CHUYỂN KHOẢN", "CÔNG NỢ", "TRẢ GÓP (NH)"].map((e) => ChoiceChip(
-            label: Text(e, style: AppTextStyles.caption.copyWith(fontSize: 11)),
-            selected: _paymentMethod == e,
-            onSelected: (v) => setState(() {
-              _paymentMethod = e;
-              _isInstallment = (e == "TRẢ GÓP (NH)");
-              if (!_isInstallment) _hasSecondBank = false;
-            }),
-            visualDensity: VisualDensity.compact,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-          )).toList(),
+          children: ["TIỀN MẶT", "CHUYỂN KHOẢN", "CÔNG NỢ", "TRẢ GÓP (NH)"]
+              .map(
+                (e) => ChoiceChip(
+                  label: Text(
+                    e,
+                    style: AppTextStyles.caption.copyWith(fontSize: 11),
+                  ),
+                  selected: _paymentMethod == e,
+                  onSelected: (v) => setState(() {
+                    _paymentMethod = e;
+                    _isInstallment = (e == "TRẢ GÓP (NH)");
+                    if (!_isInstallment) _hasSecondBank = false;
+                  }),
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+              )
+              .toList(),
         ),
-        
+
         const Divider(height: 12),
-        
+
         // Số tiền thu thực tế
-        _moneyInput(downPaymentCtrl, _isInstallment ? "KHÁCH TRẢ TRƯỚC" : "SỐ TIỀN THU", AppColors.secondary),
-        
+        _moneyInput(
+          downPaymentCtrl,
+          _isInstallment ? "KHÁCH TRẢ TRƯỚC" : "SỐ TIỀN THU",
+          AppColors.secondary,
+        ),
+
         // Phương thức trả trước (trả góp) - Gộp trong ExpansionTile
         if (_isInstallment)
           Card(
@@ -1352,8 +1569,19 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               tilePadding: const EdgeInsets.symmetric(horizontal: 8),
               dense: true,
               initiallyExpanded: true,
-              leading: Icon(Icons.account_balance, color: Colors.blue.shade700, size: 18),
-              title: Text("CHI TIẾT TRẢ GÓP", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.blue.shade700, fontSize: 12)),
+              leading: Icon(
+                Icons.account_balance,
+                color: Colors.blue.shade700,
+                size: 18,
+              ),
+              title: Text(
+                "CHI TIẾT TRẢ GÓP",
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade700,
+                  fontSize: 12,
+                ),
+              ),
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -1364,18 +1592,44 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                         spacing: 6,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Text("TRẢ TRƯỚC:", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, fontSize: 11)),
-                          ...["T.MẶT", "C.KHOẢN"].map((m) => ChoiceChip(
-                            label: Text(m, style: AppTextStyles.caption.copyWith(fontSize: 10)),
-                            selected: _downPaymentMethod == (m == "C.KHOẢN" ? "CHUYỂN KHOẢN" : (m == "T.MẶT" ? "TIỀN MẶT" : m)),
-                            onSelected: (v) => setState(() => _downPaymentMethod = m == "C.KHOẢN" ? "CHUYỂN KHOẢN" : (m == "T.MẮT" ? "TIỀN MẶT" : m)),
-                            visualDensity: VisualDensity.compact,
-                            padding: EdgeInsets.zero,
-                          )),
+                          Text(
+                            "TRẢ TRƯỚC:",
+                            style: AppTextStyles.caption.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                          ...["T.MẶT", "C.KHOẢN"].map(
+                            (m) => ChoiceChip(
+                              label: Text(
+                                m,
+                                style: AppTextStyles.caption.copyWith(
+                                  fontSize: 10,
+                                ),
+                              ),
+                              selected:
+                                  _downPaymentMethod ==
+                                  (m == "C.KHOẢN"
+                                      ? "CHUYỂN KHOẢN"
+                                      : (m == "T.MẶT" ? "TIỀN MẶT" : m)),
+                              onSelected: (v) => setState(
+                                () => _downPaymentMethod = m == "C.KHOẢN"
+                                    ? "CHUYỂN KHOẢN"
+                                    : (m == "T.MẮT" ? "TIỀN MẶT" : m),
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      _moneyInput(loanAmountCtrl, _hasSecondBank ? "NH 1 VAY" : "NH VAY", AppColors.grey600, enabled: _hasSecondBank),
+                      _moneyInput(
+                        loanAmountCtrl,
+                        _hasSecondBank ? "NH 1 VAY" : "NH VAY",
+                        AppColors.grey600,
+                        enabled: _hasSecondBank,
+                      ),
                       const SizedBox(height: 6),
                       // Tên NH + Quick chips
                       Row(
@@ -1385,27 +1639,41 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               controller: bankCtrl,
                               decoration: const InputDecoration(
                                 labelText: "TÊN NH/TCTT",
-                                prefixIcon: Icon(Icons.account_balance, size: 18),
+                                prefixIcon: Icon(
+                                  Icons.account_balance,
+                                  size: 18,
+                                ),
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
                               ),
                               textCapitalization: TextCapitalization.characters,
                               style: AppTextStyles.body2,
                             ),
                           ),
                           const SizedBox(width: 4),
-                          ...["FE", "HOME", "HD"].map((b) => Padding(
-                            padding: const EdgeInsets.only(left: 2),
-                            child: ActionChip(
-                              label: Text(b, style: AppTextStyles.caption.copyWith(fontSize: 10)),
-                              onPressed: () => setState(() => bankCtrl.text = b),
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
+                          ...["FE", "HOME", "HD"].map(
+                            (b) => Padding(
+                              padding: const EdgeInsets.only(left: 2),
+                              child: ActionChip(
+                                label: Text(
+                                  b,
+                                  style: AppTextStyles.caption.copyWith(
+                                    fontSize: 10,
+                                  ),
+                                ),
+                                onPressed: () =>
+                                    setState(() => bankCtrl.text = b),
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                              ),
                             ),
-                          )),
+                          ),
                         ],
                       ),
-                      
+
                       // Ngân hàng thứ 2
                       const SizedBox(height: 6),
                       Row(
@@ -1417,8 +1685,13 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               value: _hasSecondBank,
                               onChanged: (v) => setState(() {
                                 _hasSecondBank = v ?? false;
-                                if (_hasSecondBank) _calculateBank2Loan();
-                                else { bankCtrl2.clear(); loanAmountCtrl2.text = "0"; _calculateInstallment(); }
+                                if (_hasSecondBank)
+                                  _calculateBank2Loan();
+                                else {
+                                  bankCtrl2.clear();
+                                  loanAmountCtrl2.text = "0";
+                                  _calculateInstallment();
+                                }
                               }),
                               visualDensity: VisualDensity.compact,
                             ),
@@ -1426,10 +1699,15 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                           Text("2 ngân hàng", style: AppTextStyles.caption),
                         ],
                       ),
-                      
+
                       if (_hasSecondBank) ...[
                         const SizedBox(height: 6),
-                        _moneyInput(loanAmountCtrl2, "NH 2 VAY", AppColors.grey600, enabled: false),
+                        _moneyInput(
+                          loanAmountCtrl2,
+                          "NH 2 VAY",
+                          AppColors.grey600,
+                          enabled: false,
+                        ),
                         const SizedBox(height: 6),
                         Row(
                           children: [
@@ -1438,24 +1716,39 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                 controller: bankCtrl2,
                                 decoration: const InputDecoration(
                                   labelText: "TÊN NH 2",
-                                  prefixIcon: Icon(Icons.account_balance, size: 18),
+                                  prefixIcon: Icon(
+                                    Icons.account_balance,
+                                    size: 18,
+                                  ),
                                   isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
                                 ),
-                                textCapitalization: TextCapitalization.characters,
+                                textCapitalization:
+                                    TextCapitalization.characters,
                                 style: AppTextStyles.body2,
                               ),
                             ),
                             const SizedBox(width: 4),
-                            ...["MIRAE", "F83", "T86"].map((b) => Padding(
-                              padding: const EdgeInsets.only(left: 2),
-                              child: ActionChip(
-                                label: Text(b, style: AppTextStyles.caption.copyWith(fontSize: 10)),
-                                onPressed: () => setState(() => bankCtrl2.text = b),
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.zero,
+                            ...["MIRAE", "F83", "T86"].map(
+                              (b) => Padding(
+                                padding: const EdgeInsets.only(left: 2),
+                                child: ActionChip(
+                                  label: Text(
+                                    b,
+                                    style: AppTextStyles.caption.copyWith(
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                  onPressed: () =>
+                                      setState(() => bankCtrl2.text = b),
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                ),
                               ),
-                            )),
+                            ),
                           ],
                         ),
                       ],
@@ -1465,9 +1758,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               ],
             ),
           ),
-        
+
         const Divider(height: 12),
-        
+
         // Bảo hành + Ghi chú trên 1 row
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1481,9 +1774,19 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   labelText: "BẢO HÀNH",
                   prefixIcon: Icon(Icons.verified_user, size: 16),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
                 ),
-                items: ["KO BH", "1 THÁNG", "3 THÁNG", "6 THÁNG", "12 THÁNG"].map((e) => DropdownMenuItem(value: e, child: Text(e, style: AppTextStyles.caption))).toList(),
+                items: ["KO BH", "1 THÁNG", "3 THÁNG", "6 THÁNG", "12 THÁNG"]
+                    .map(
+                      (e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e, style: AppTextStyles.caption),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (v) => setState(() => _saleWarranty = v ?? "KO BH"),
               ),
             ),
@@ -1496,7 +1799,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   labelText: "Ghi chú",
                   prefixIcon: Icon(Icons.note, size: 16),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                 ),
                 style: AppTextStyles.body2,
               ),
@@ -1530,162 +1836,219 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 size: 18,
                 color: AppColors.primary,
               ),
-                onPressed: () =>
-                    setState(() => _autoCalcTotal = !_autoCalcTotal),
-              ),
-              SizedBox(
-                width: 130,
-                child: CurrencyTextField(
-                  controller: priceCtrl,
-                  label: "",
-                  enabled: !_autoCalcTotal,
-                  autoMultiply1000: false,
-                  onChanged: (_) {
-                    _calculateInstallment();
-                  },
-                ),
-              ),
-              Text(
-                " Đ",
-                style: AppTextStyles.body1.copyWith(
-                  color: AppColors.error,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-
-          // GIẢM GIÁ TRỰC TIẾP
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.discount, size: 18, color: Colors.orange),
-                  const SizedBox(width: 6),
-                  Text(
-                    "GIẢM GIÁ:",
-                    style: AppTextStyles.body2.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(
-                width: 150,
-                child: CurrencyTextField(
-                  controller: discountCtrl,
-                  label: "",
-                  autoMultiply1000: false,
-                  onChanged: (_) {
-                    _calculateInstallment();
-                    setState(() {});
-                  },
-                ),
-              ),
-            ],
-          ),
-
-          // THÀNH TIỀN SAU GIẢM GIÁ - FIX: Luôn hiển thị để user thấy số tiền thực thu
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green.shade200),
+              onPressed: () => setState(() => _autoCalcTotal = !_autoCalcTotal),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            SizedBox(
+              width: 130,
+              child: CurrencyTextField(
+                controller: priceCtrl,
+                label: "",
+                enabled: !_autoCalcTotal,
+                autoMultiply1000: false,
+                onChanged: (_) {
+                  _calculateInstallment();
+                },
+              ),
+            ),
+            Text(
+              " Đ",
+              style: AppTextStyles.body1.copyWith(
+                color: AppColors.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+
+        // GIẢM GIÁ TRỰC TIẾP
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
               children: [
+                const Icon(Icons.discount, size: 18, color: Colors.orange),
+                const SizedBox(width: 6),
                 Text(
-                  "THÀNH TIỀN:",
-                  style: AppTextStyles.body1.copyWith(
+                  "GIẢM GIÁ:",
+                  style: AppTextStyles.body2.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.green.shade700,
-                  ),
-                ),
-                Text(
-                  "${_formatCurrency(_finalPrice)} Đ",
-                  style: AppTextStyles.headline6.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade700,
+                    color: Colors.orange,
                   ),
                 ),
               ],
             ),
-          ),
+            SizedBox(
+              width: 150,
+              child: CurrencyTextField(
+                controller: discountCtrl,
+                label: "",
+                autoMultiply1000: false,
+                onChanged: (_) {
+                  _calculateInstallment();
+                  setState(() {});
+                },
+              ),
+            ),
+          ],
+        ),
 
-          const SizedBox(height: 15),
+        // THÀNH TIỀN SAU GIẢM GIÁ - FIX: Luôn hiển thị để user thấy số tiền thực thu
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.green.shade200),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "THÀNH TIỀN:",
+                style: AppTextStyles.body1.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade700,
+                ),
+              ),
+              Text(
+                "${_formatCurrency(_finalPrice)} Đ",
+                style: AppTextStyles.headline6.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade700,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 15),
+        Wrap(
+          spacing: 8,
+          children: ["TIỀN MẶT", "CHUYỂN KHOẢN", "CÔNG NỢ", "TRẢ GÓP (NH)"]
+              .map(
+                (e) => ChoiceChip(
+                  label: Text(e, style: AppTextStyles.caption),
+                  selected: _paymentMethod == e,
+                  onSelected: (v) => setState(() {
+                    _paymentMethod = e;
+                    _isInstallment = (e == "TRẢ GÓP (NH)");
+                    if (!_isInstallment) {
+                      _hasSecondBank = false;
+                    }
+                  }),
+                ),
+              )
+              .toList(),
+        ),
+        const Divider(height: 30),
+        _moneyInput(
+          downPaymentCtrl,
+          _isInstallment ? "KHÁCH TRẢ TRƯỚC" : "SỐ TIỀN THU THỰC TẾ",
+          AppColors.secondary,
+        ),
+        // Phương thức thanh toán cho tiền trả trước
+        if (_isInstallment) ...[
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
-            children: ["TIỀN MẶT", "CHUYỂN KHOẢN", "CÔNG NỢ", "TRẢ GÓP (NH)"]
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                "TRẢ TRƯỚC:",
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              ...["TIỀN MẶT", "C.KHOẢN"].map(
+                (m) => ChoiceChip(
+                  label: Text(m, style: AppTextStyles.caption),
+                  selected:
+                      _downPaymentMethod ==
+                      (m == "C.KHOẢN" ? "CHUYỂN KHOẢN" : m),
+                  onSelected: (v) => setState(
+                    () => _downPaymentMethod = m == "C.KHOẢN"
+                        ? "CHUYỂN KHOẢN"
+                        : m,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (_isInstallment) ...[
+          const SizedBox(height: 10),
+          _moneyInput(
+            loanAmountCtrl,
+            _hasSecondBank ? "NGÂN HÀNG 1 CHO VAY" : "NGÂN HÀNG CHO VAY",
+            AppColors.grey600,
+            enabled: _hasSecondBank, // Cho phép sửa nếu có 2 NH
+          ),
+          const SizedBox(height: 10),
+          ValidatedTextField(
+            controller: bankCtrl,
+            label: "TÊN CÔNG TY TÀI CHÍNH",
+            icon: Icons.account_balance,
+            uppercase: true,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: ["FE", "HOME", "MIRAE", "HD", "F83", "T86"]
                 .map(
-                  (e) => ChoiceChip(
-                    label: Text(e, style: AppTextStyles.caption),
-                    selected: _paymentMethod == e,
-                    onSelected: (v) => setState(() {
-                      _paymentMethod = e;
-                      _isInstallment = (e == "TRẢ GÓP (NH)");
-                      if (!_isInstallment) {
-                        _hasSecondBank = false;
-                      }
-                    }),
+                  (b) => ActionChip(
+                    label: Text(b, style: AppTextStyles.caption),
+                    onPressed: () => setState(() => bankCtrl.text = b),
                   ),
                 )
                 .toList(),
           ),
-          const Divider(height: 30),
-          _moneyInput(
-            downPaymentCtrl,
-            _isInstallment ? "KHÁCH TRẢ TRƯỚC" : "SỐ TIỀN THU THỰC TẾ",
-            AppColors.secondary,
+
+          // THÊM NGÂN HÀNG THỨ 2
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Checkbox(
+                value: _hasSecondBank,
+                onChanged: (v) => setState(() {
+                  _hasSecondBank = v ?? false;
+                  if (_hasSecondBank) {
+                    _calculateBank2Loan();
+                  } else {
+                    bankCtrl2.clear();
+                    loanAmountCtrl2.text = "0";
+                    _calculateInstallment();
+                  }
+                }),
+              ),
+              const Text("Trả góp 2 ngân hàng"),
+            ],
           ),
-          // Phương thức thanh toán cho tiền trả trước
-          if (_isInstallment) ...[
+
+          if (_hasSecondBank) ...[
+            const Divider(),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  "TRẢ TRƯỚC:",
-                  style: AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                ...["TIỀN MẶT", "C.KHOẢN"].map(
-                  (m) => ChoiceChip(
-                    label: Text(m, style: AppTextStyles.caption),
-                    selected:
-                        _downPaymentMethod ==
-                        (m == "C.KHOẢN" ? "CHUYỂN KHOẢN" : m),
-                    onSelected: (v) => setState(
-                      () => _downPaymentMethod = m == "C.KHOẢN"
-                          ? "CHUYỂN KHOẢN"
-                          : m,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              ],
+            Text(
+              "NGÂN HÀNG THỨ 2",
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ],
-          if (_isInstallment) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             _moneyInput(
-              loanAmountCtrl,
-              _hasSecondBank ? "NGÂN HÀNG 1 CHO VAY" : "NGÂN HÀNG CHO VAY",
+              loanAmountCtrl2,
+              "NGÂN HÀNG 2 CHO VAY",
               AppColors.grey600,
-              enabled: _hasSecondBank, // Cho phép sửa nếu có 2 NH
+              enabled: false,
             ),
             const SizedBox(height: 10),
             ValidatedTextField(
-              controller: bankCtrl,
-              label: "TÊN CÔNG TY TÀI CHÍNH",
+              controller: bankCtrl2,
+              label: "TÊN CÔNG TY TÀI CHÍNH 2",
               icon: Icons.account_balance,
               uppercase: true,
             ),
@@ -1696,100 +2059,42 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   .map(
                     (b) => ActionChip(
                       label: Text(b, style: AppTextStyles.caption),
-                      onPressed: () => setState(() => bankCtrl.text = b),
+                      onPressed: () => setState(() => bankCtrl2.text = b),
                     ),
                   )
                   .toList(),
             ),
-
-            // THÊM NGÂN HÀNG THỨ 2
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Checkbox(
-                  value: _hasSecondBank,
-                  onChanged: (v) => setState(() {
-                    _hasSecondBank = v ?? false;
-                    if (_hasSecondBank) {
-                      _calculateBank2Loan();
-                    } else {
-                      bankCtrl2.clear();
-                      loanAmountCtrl2.text = "0";
-                      _calculateInstallment();
-                    }
-                  }),
-                ),
-                const Text("Trả góp 2 ngân hàng"),
-              ],
-            ),
-
-            if (_hasSecondBank) ...[
-              const Divider(),
-              const SizedBox(height: 8),
-              Text(
-                "NGÂN HÀNG THỨ 2",
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _moneyInput(
-                loanAmountCtrl2,
-                "NGÂN HÀNG 2 CHO VAY",
-                AppColors.grey600,
-                enabled: false,
-              ),
-              const SizedBox(height: 10),
-              ValidatedTextField(
-                controller: bankCtrl2,
-                label: "TÊN CÔNG TY TÀI CHÍNH 2",
-                icon: Icons.account_balance,
-                uppercase: true,
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: ["FE", "HOME", "MIRAE", "HD", "F83", "T86"]
-                    .map(
-                      (b) => ActionChip(
-                        label: Text(b, style: AppTextStyles.caption),
-                        onPressed: () => setState(() => bankCtrl2.text = b),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
           ],
-          const Divider(height: 30),
-          // KHÔI PHỤC TAB BẢO HÀNH: Cho phép chọn bảo hành bất kể trạng thái nợ
-          DropdownButtonFormField<String>(
-            initialValue: _saleWarranty,
-            decoration: const InputDecoration(
-              labelText: "CHỌN THỜI GIAN BẢO HÀNH",
-              prefixIcon: Icon(Icons.verified_user),
-            ),
-            items: [
-              "KO BH",
-              "1 THÁNG",
-              "3 THÁNG",
-              "6 THÁNG",
-              "12 THÁNG",
-            ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-            onChanged: (v) => setState(() => _saleWarranty = v ?? "KO BH"),
-          ),
-          const SizedBox(height: 15),
-          TextFormField(
-            controller: noteCtrl,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: "GHI CHÚ ĐƠN HÀNG",
-              hintText: "Nhập ghi chú (nếu có)...",
-              prefixIcon: Icon(Icons.note_alt_outlined),
-            ),
-          ),
         ],
-      );
+        const Divider(height: 30),
+        // KHÔI PHỤC TAB BẢO HÀNH: Cho phép chọn bảo hành bất kể trạng thái nợ
+        DropdownButtonFormField<String>(
+          initialValue: _saleWarranty,
+          decoration: const InputDecoration(
+            labelText: "CHỌN THỜI GIAN BẢO HÀNH",
+            prefixIcon: Icon(Icons.verified_user),
+          ),
+          items: [
+            "KO BH",
+            "1 THÁNG",
+            "3 THÁNG",
+            "6 THÁNG",
+            "12 THÁNG",
+          ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          onChanged: (v) => setState(() => _saleWarranty = v ?? "KO BH"),
+        ),
+        const SizedBox(height: 15),
+        TextFormField(
+          controller: noteCtrl,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: "GHI CHÚ ĐƠN HÀNG",
+            hintText: "Nhập ghi chú (nếu có)...",
+            prefixIcon: Icon(Icons.note_alt_outlined),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _moneyInput(
@@ -2060,7 +2365,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const SmartStockInView()),
+                      MaterialPageRoute(
+                        builder: (_) => const SmartStockInView(),
+                      ),
                     );
                   },
                   icon: const Icon(Icons.add_box, size: 18),
@@ -2126,7 +2433,10 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                 const SizedBox(width: 8),
                 Text(
                   'Chọn khách hàng',
-                  style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: AppTextStyles.headline2.fontSize,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
