@@ -91,14 +91,24 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       // Hiện tại để trống, cần implement riêng nếu muốn thống kê từ repairs
       _partnerImportHistory = [];
 
-      // Load import history for suppliers
+      // Load import history for suppliers - dùng Set để tránh duplicate
+      final importIdSet = <int>{}; // Track IDs đã load
       for (var supplier in _suppliers) {
         // Truyền cả supplierName để tìm được cả các record lưu với supplierId = 0
         final history = await supplierService.getSupplierImportHistory(
           supplier.id.toString(),
           supplierName: supplier.name,
         );
-        _supplierImportHistory.addAll(history);
+        // Chỉ add nếu chưa có trong list (tránh duplicate khi 1 import khớp nhiều supplier)
+        for (var h in history) {
+          final historyId = h.id;
+          if (historyId != null && !importIdSet.contains(historyId)) {
+            importIdSet.add(historyId);
+            _supplierImportHistory.add(h);
+          } else if (historyId == null) {
+            _supplierImportHistory.add(h); // Nếu không có ID, add anyway
+          }
+        }
         final prices = await supplierService.getSupplierProductPrices(supplier.id.toString());
         _supplierProductPrices.addAll(prices);
       }

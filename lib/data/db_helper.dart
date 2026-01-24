@@ -4304,6 +4304,7 @@ class DBHelper {
     
     if (supplierName != null && supplierName.isNotEmpty) {
       // Tìm theo supplierId HOẶC supplierName (case-insensitive)
+      // Dùng DISTINCT để loại bỏ duplicate (khi 1 record khớp cả 2 điều kiện)
       whereClause = '(supplierId = ? OR UPPER(supplierName) = UPPER(?))';
       whereArgs = [supplierId, supplierName];
     } else {
@@ -4311,7 +4312,7 @@ class DBHelper {
       whereArgs = [supplierId];
     }
 
-    String query = 'SELECT * FROM supplier_import_history WHERE $whereClause ORDER BY importDate DESC';
+    String query = 'SELECT DISTINCT * FROM supplier_import_history WHERE $whereClause ORDER BY importDate DESC';
     
     if (limit != null) {
       query += ' LIMIT $limit';

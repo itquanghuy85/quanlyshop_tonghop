@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/user_service.dart';
 import '../theme/app_text_styles.dart';
 import '../services/sync_service.dart';
@@ -63,25 +65,48 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
     });
 
     try {
-      // 1. Set shop cho super admin
+      // 1. Set shop cho super admin (local)
       UserService.setAdminSelectedShop(shopId);
-      debugPrint('✅ Super admin đã chọn shop: $shopId ($shopName)');
+      debugPrint('✅ Super admin đã chọn shop (local): $shopId ($shopName)');
 
-      // 2. Xóa local data cũ
+      // 2. Update shopId trong Firestore user document để claims được sync đúng
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'shopId': shopId,
+          'email': user.email,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        debugPrint('✅ Đã update shopId trong Firestore user doc');
+        
+        // 2.1 Refresh claims để token có shopId mới
+        try {
+          await ClaimsService().refreshMyClaims();
+          debugPrint('✅ Đã refresh claims');
+          
+          // 2.2 Force refresh token
+          await user.getIdToken(true);
+          debugPrint('✅ Đã refresh token');
+        } catch (e) {
+          debugPrint('⚠️ Lỗi refresh claims (có thể tiếp tục): $e');
+        }
+      }
+
+      // 3. Xóa local data cũ
       await DBHelper().clearAllData();
       debugPrint('✅ Đã xóa local data cũ');
 
-      // 3. Download data của shop mới
+      // 4. Download data của shop mới
       await SyncService.downloadAllFromCloud();
       debugPrint('✅ Đã download data từ cloud');
 
-      // 4. Khởi động real-time sync
+      // 5. Khởi động real-time sync
       await SyncService.initRealTimeSync(() {
         if (mounted) setState(() {});
       });
       debugPrint('✅ Đã khởi động real-time sync');
 
-      // 5. Chuyển sang HomeView
+      // 6. Chuyển sang HomeView
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
