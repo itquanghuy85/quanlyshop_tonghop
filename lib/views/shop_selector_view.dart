@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/user_service.dart';
+import '../theme/app_text_styles.dart';
 import '../services/sync_service.dart';
 import '../services/claims_service.dart';
 import '../data/db_helper.dart';
@@ -186,7 +187,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
             Text(
               'Không có shop nào',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: AppTextStyles.headline2.fontSize,
                 color: Colors.grey.shade600,
               ),
             ),
@@ -213,7 +214,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
               Text(
                 'Super Admin',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: AppTextStyles.headline1.fontSize,
                   fontWeight: FontWeight.bold,
                   color: Colors.deepPurple.shade700,
                 ),
@@ -222,7 +223,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
               Text(
                 'Chọn một shop để xem dữ liệu',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: AppTextStyles.headline4.fontSize,
                   color: Colors.grey.shade600,
                 ),
               ),
@@ -230,7 +231,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
               Text(
                 '${_shops.length} shop có sẵn',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppTextStyles.subtitle1.fontSize,
                   color: Colors.grey.shade500,
                 ),
               ),
@@ -289,8 +290,8 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
                             children: [
                               Text(
                                 shopName,
-                                style: const TextStyle(
-                                  fontSize: 16,
+                                style: TextStyle(
+                                  fontSize: AppTextStyles.headline3.fontSize,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -299,7 +300,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
                                 Text(
                                   ownerEmail,
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    fontSize: AppTextStyles.headline5.fontSize,
                                     color: Colors.grey.shade600,
                                   ),
                                 ),
@@ -308,7 +309,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
                               Text(
                                 'ID: ${shopId.substring(0, 8)}...',
                                 style: TextStyle(
-                                  fontSize: 11,
+                                  fontSize: AppTextStyles.body1.fontSize,
                                   color: Colors.grey.shade400,
                                   fontFamily: 'monospace',
                                 ),
@@ -363,7 +364,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
                 child: Text(
                   'Đồng bộ Custom Claims',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: AppTextStyles.headline4.fontSize,
                     fontWeight: FontWeight.bold,
                     color: Colors.orange.shade800,
                   ),
@@ -374,7 +375,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
           const SizedBox(height: 8),
           Text(
             'Nếu các tài khoản không thể truy cập dữ liệu, hãy bấm nút bên dưới để đồng bộ quyền truy cập cho tất cả user.',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade700),
           ),
           const SizedBox(height: 12),
           SizedBox(

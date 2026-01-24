@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/user_service.dart';
 import '../services/claims_service.dart';
+import '../theme/app_text_styles.dart';
 
 String getRoleDisplayName(String role) {
   switch (role) {
@@ -44,9 +45,12 @@ class SuperAdminView extends StatelessWidget {
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
           elevation: 0,
-          title: const Text(
+          title: Text(
             'SUPER ADMIN CONTROL',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: AppTextStyles.headline3.fontSize,
+            ),
           ),
           bottom: const TabBar(
             labelColor: Colors.white,
@@ -58,12 +62,7 @@ class SuperAdminView extends StatelessWidget {
             ],
           ),
         ),
-        body: const TabBarView(
-          children: [
-            ShopsTab(),
-            UsersTab(),
-          ],
-        ),
+        body: const TabBarView(children: [ShopsTab(), UsersTab()]),
       ),
     );
   }
@@ -81,21 +80,23 @@ class _ShopsTabState extends State<ShopsTab> {
 
   Future<void> _syncAllClaims() async {
     setState(() => _isSyncingClaims = true);
-    
+
     try {
       final result = await ClaimsService().batchSyncAllClaims();
-      
+
       if (!mounted) return;
-      
+
       if (result['success'] == true) {
         // Safely cast stats map
         final statsRaw = result['stats'];
-        final stats = statsRaw is Map ? Map<String, dynamic>.from(statsRaw) : <String, dynamic>{};
+        final stats = statsRaw is Map
+            ? Map<String, dynamic>.from(statsRaw)
+            : <String, dynamic>{};
         final total = stats['total'] ?? 0;
         final success = stats['success'] ?? 0;
         final skipped = stats['skipped'] ?? 0;
         final failed = stats['failed'] ?? 0;
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -117,10 +118,7 @@ class _ShopsTabState extends State<ShopsTab> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Lỗi: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('❌ Lỗi: $e'), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -160,7 +158,8 @@ class _ShopsTabState extends State<ShopsTab> {
               final data = doc.data() as Map<String, dynamic>;
               final shopId = doc.id;
               final shopName = data['name'] ?? 'Shop chưa đặt tên';
-              final ownerEmail = data['ownerEmail'] ?? 'Không rõ email chủ shop';
+              final ownerEmail =
+                  data['ownerEmail'] ?? 'Không rõ email chủ shop';
               final ownerUid = data['ownerUid'] ?? 'Không rõ UID chủ shop';
               final createdAt = data['createdAt'];
               final appLocked = data['appLocked'] == true;
@@ -172,12 +171,15 @@ class _ShopsTabState extends State<ShopsTab> {
 
               String createdText = 'Chưa rõ ngày tạo';
               if (createdAt is Timestamp) {
-                createdText = 'Tạo: ${createdAt.toDate().toString().substring(0, 16)}';
+                createdText =
+                    'Tạo: ${createdAt.toDate().toString().substring(0, 16)}';
               }
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
                 child: ExpansionTile(
                   leading: Icon(
                     appLocked ? Icons.lock : Icons.store_mall_directory,
@@ -187,15 +189,27 @@ class _ShopsTabState extends State<ShopsTab> {
                     shopName,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontSize: AppTextStyles.headline4.fontSize,
                       color: appLocked ? Colors.red : Colors.black87,
                     ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('ID: $shopId', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                      Text(ownerEmail, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      Text(
+                        'ID: $shopId',
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        ownerEmail,
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                          color: Colors.grey,
+                        ),
+                      ),
                     ],
                   ),
                   children: [
@@ -204,59 +218,132 @@ class _ShopsTabState extends State<ShopsTab> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Owner UID: $ownerUid', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                          Text(createdText, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          Text(
+                            'Owner UID: $ownerUid',
+                            style: TextStyle(
+                              fontSize: AppTextStyles.body1.fontSize,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Text(
+                            createdText,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.body1.fontSize,
+                              color: Colors.grey,
+                            ),
+                          ),
                           const Divider(height: 20),
-                          const Text('🔐 ĐIỀU KHIỂN SUPER ADMIN', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                          Text(
+                            '🔐 ĐIỀU KHIỂN SUPER ADMIN',
+                            style: TextStyle(
+                              fontSize: AppTextStyles.headline5.fontSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.deepPurple,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           _buildLockSwitch(
                             context: context,
                             title: '🚫 KHÓA TOÀN BỘ APP',
-                            subtitle: 'Mọi tài khoản của shop không truy cập được app.',
+                            subtitle:
+                                'Mọi tài khoản của shop không truy cập được app.',
                             value: appLocked,
-                            onChanged: (v) => _updateFlag(context, shopId, 'appLocked', v, 'toàn bộ app'),
+                            onChanged: (v) => _updateFlag(
+                              context,
+                              shopId,
+                              'appLocked',
+                              v,
+                              'toàn bộ app',
+                            ),
                             isDestructive: true,
                           ),
                           _buildLockSwitch(
                             context: context,
                             title: '💰 KHÓA TÀI CHÍNH CHO QUẢN LÝ',
-                            subtitle: 'Quản lý không xem được doanh thu, chi phí, công nợ.',
+                            subtitle:
+                                'Quản lý không xem được doanh thu, chi phí, công nợ.',
                             value: adminFinanceLocked,
-                            onChanged: (v) => _updateFlag(context, shopId, 'adminFinanceLocked', v, 'tài chính quản lý'),
+                            onChanged: (v) => _updateFlag(
+                              context,
+                              shopId,
+                              'adminFinanceLocked',
+                              v,
+                              'tài chính quản lý',
+                            ),
                           ),
                           const Divider(height: 20),
-                          const Text('👷 KHÓA CHỨC NĂNG CHO NHÂN VIÊN', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange)),
+                          Text(
+                            '👷 KHÓA CHỨC NĂNG CHO NHÂN VIÊN',
+                            style: TextStyle(
+                              fontSize: AppTextStyles.headline5.fontSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           _buildLockSwitch(
                             context: context,
                             title: '🛒 KHÓA XEM BÁN HÀNG',
-                            subtitle: 'Nhân viên không xem được danh sách bán hàng.',
+                            subtitle:
+                                'Nhân viên không xem được danh sách bán hàng.',
                             value: staffSalesLocked,
-                            onChanged: (v) => _updateFlag(context, shopId, 'staffSalesLocked', v, 'bán hàng nhân viên'),
+                            onChanged: (v) => _updateFlag(
+                              context,
+                              shopId,
+                              'staffSalesLocked',
+                              v,
+                              'bán hàng nhân viên',
+                            ),
                           ),
                           _buildLockSwitch(
                             context: context,
                             title: '📦 KHÓA XEM KHO',
                             subtitle: 'Nhân viên không xem được kho hàng.',
                             value: staffInventoryLocked,
-                            onChanged: (v) => _updateFlag(context, shopId, 'staffInventoryLocked', v, 'kho nhân viên'),
+                            onChanged: (v) => _updateFlag(
+                              context,
+                              shopId,
+                              'staffInventoryLocked',
+                              v,
+                              'kho nhân viên',
+                            ),
                           ),
                           _buildLockSwitch(
                             context: context,
                             title: '📋 KHÓA XEM CÔNG NỢ',
                             subtitle: 'Nhân viên không xem được sổ công nợ.',
                             value: staffDebtLocked,
-                            onChanged: (v) => _updateFlag(context, shopId, 'staffDebtLocked', v, 'công nợ nhân viên'),
+                            onChanged: (v) => _updateFlag(
+                              context,
+                              shopId,
+                              'staffDebtLocked',
+                              v,
+                              'công nợ nhân viên',
+                            ),
                           ),
                           _buildLockSwitch(
                             context: context,
                             title: '⚙️ KHÓA CÀI ĐẶT',
-                            subtitle: 'Nhân viên & Quản lý không vào được trang Cài đặt.',
+                            subtitle:
+                                'Nhân viên & Quản lý không vào được trang Cài đặt.',
                             value: staffSettingsLocked,
-                            onChanged: (v) => _updateFlag(context, shopId, 'staffSettingsLocked', v, 'cài đặt'),
+                            onChanged: (v) => _updateFlag(
+                              context,
+                              shopId,
+                              'staffSettingsLocked',
+                              v,
+                              'cài đặt',
+                            ),
                           ),
                           const Divider(height: 20),
-                          const Text('👥 THÀNH VIÊN TRONG SHOP', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.teal)),
+                          Text(
+                            '👥 THÀNH VIÊN TRONG SHOP',
+                            style: TextStyle(
+                              fontSize: AppTextStyles.headline5.fontSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           _buildShopMembersList(shopId),
                         ],
@@ -286,9 +373,15 @@ class _ShopsTabState extends State<ShopsTab> {
           );
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(8),
-            child: Text('Không có thành viên', style: TextStyle(color: Colors.grey, fontSize: 12)),
+          return Padding(
+            padding: const EdgeInsets.all(8),
+            child: Text(
+              'Không có thành viên',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: AppTextStyles.subtitle1.fontSize,
+              ),
+            ),
           );
         }
 
@@ -300,7 +393,7 @@ class _ShopsTabState extends State<ShopsTab> {
             final displayName = userData['displayName'] ?? '';
             final role = userData['role'] ?? 'user';
             final phone = userData['phone'] ?? '';
-            
+
             // Map role to Vietnamese
             String roleText;
             Color roleColor;
@@ -362,25 +455,47 @@ class _ShopsTabState extends State<ShopsTab> {
                       children: [
                         Text(
                           displayName.isNotEmpty ? displayName : email,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: AppTextStyles.headline5.fontSize,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (displayName.isNotEmpty)
-                          Text(email, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          Text(
+                            email,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.body1.fontSize,
+                              color: Colors.grey,
+                            ),
+                          ),
                         if (phone.isNotEmpty)
-                          Text('📞 $phone', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          Text(
+                            '📞 $phone',
+                            style: TextStyle(
+                              fontSize: AppTextStyles.body1.fontSize,
+                              color: Colors.grey,
+                            ),
+                          ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: roleColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       roleText,
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: AppTextStyles.caption.fontSize,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -405,8 +520,21 @@ class _ShopsTabState extends State<ShopsTab> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Tổng số Shop', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                Text('$totalShops', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue)),
+                Text(
+                  'Tổng số Shop',
+                  style: TextStyle(
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                    color: Colors.grey,
+                  ),
+                ),
+                Text(
+                  '$totalShops',
+                  style: TextStyle(
+                    fontSize: AppTextStyles.headline1.fontSize,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
               ],
             ),
           ],
@@ -428,24 +556,44 @@ class _ShopsTabState extends State<ShopsTab> {
       title: Text(
         title,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: AppTextStyles.subtitle1.fontSize,
           fontWeight: FontWeight.bold,
           color: isDestructive && value ? Colors.red : Colors.black87,
         ),
       ),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontSize: AppTextStyles.body1.fontSize,
+          color: Colors.grey,
+        ),
+      ),
       value: value,
       activeThumbColor: isDestructive ? Colors.red : Colors.blue,
       onChanged: onChanged,
     );
   }
 
-  Future<void> _updateFlag(BuildContext context, String shopId, String flag, bool value, String featureName) async {
+  Future<void> _updateFlag(
+    BuildContext context,
+    String shopId,
+    String flag,
+    bool value,
+    String featureName,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
-    await UserService.updateShopControlFlags(shopId: shopId, flagName: flag, flagValue: value);
+    await UserService.updateShopControlFlags(
+      shopId: shopId,
+      flagName: flag,
+      flagValue: value,
+    );
     messenger.showSnackBar(
       SnackBar(
-        content: Text(value ? 'ĐÃ KHÓA $featureName cho shop $shopId' : 'ĐÃ MỞ KHÓA $featureName cho shop $shopId'),
+        content: Text(
+          value
+              ? 'ĐÃ KHÓA $featureName cho shop $shopId'
+              : 'ĐÃ MỞ KHÓA $featureName cho shop $shopId',
+        ),
         backgroundColor: value ? Colors.orange : Colors.green,
       ),
     );
@@ -455,7 +603,7 @@ class _ShopsTabState extends State<ShopsTab> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,7 +615,10 @@ class _ShopsTabState extends State<ShopsTab> {
                 Expanded(
                   child: Text(
                     'Giới thiệu ứng dụng',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.headline4.fontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -475,12 +626,18 @@ class _ShopsTabState extends State<ShopsTab> {
             SizedBox(height: 8),
             Text(
               'Ứng dụng quản lý sửa chữa điện thoại HULUCA giúp cửa hàng theo dõi đơn sửa chữa, khách hàng, thu chi và tồn kho một cách đơn giản, có hỗ trợ làm việc cả khi offline và đồng bộ dữ liệu với Firebase.',
-              style: TextStyle(fontSize: 12, color: Colors.black87),
+              style: TextStyle(
+                fontSize: AppTextStyles.subtitle1.fontSize,
+                color: Colors.black87,
+              ),
             ),
             SizedBox(height: 8),
             Text(
               'Ứng dụng được xây dựng và vận hành bởi HULUCA (admin@huluca.com) với mục tiêu hỗ trợ các cửa hàng sửa chữa điện thoại vừa và nhỏ quản lý công việc hiệu quả, minh bạch và chuyên nghiệp hơn.',
-              style: TextStyle(fontSize: 12, color: Colors.black87),
+              style: TextStyle(
+                fontSize: AppTextStyles.subtitle1.fontSize,
+                color: Colors.black87,
+              ),
             ),
           ],
         ),
@@ -498,36 +655,50 @@ class _ShopsTabState extends State<ShopsTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.sync, color: Colors.deepPurple),
-                SizedBox(width: 8),
+                const Icon(Icons.sync, color: Colors.deepPurple),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Đồng bộ Custom Claims',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.headline4.fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Sau khi thay đổi Firestore Rules để sử dụng Custom Claims, bạn cần đồng bộ claims cho TẤT CẢ user để họ có thể truy cập được dữ liệu.',
-              style: TextStyle(fontSize: 12, color: Colors.black87),
+              style: TextStyle(
+                fontSize: AppTextStyles.subtitle1.fontSize,
+                color: Colors.black87,
+              ),
             ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _isSyncingClaims ? null : _syncAllClaims,
-                icon: _isSyncingClaims 
+                icon: _isSyncingClaims
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.cloud_sync),
-                label: Text(_isSyncingClaims ? 'Đang đồng bộ...' : 'ĐỒNG BỘ TẤT CẢ CLAIMS'),
+                label: Text(
+                  _isSyncingClaims
+                      ? 'Đang đồng bộ...'
+                      : 'ĐỒNG BỘ TẤT CẢ CLAIMS',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
                   foregroundColor: Colors.white,
@@ -577,7 +748,9 @@ class UsersTab extends StatelessWidget {
 
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(15),
                 child: Column(
@@ -590,25 +763,56 @@ class UsersTab extends StatelessWidget {
                         Expanded(
                           child: Text(
                             email,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: AppTextStyles.headline4.fontSize,
+                            ),
                           ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.edit, color: Colors.orange),
-                          onPressed: () => _showEditUserDialog(context, uid, data),
+                          onPressed: () =>
+                              _showEditUserDialog(context, uid, data),
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _showDeleteUserDialog(context, uid, email),
+                          onPressed: () =>
+                              _showDeleteUserDialog(context, uid, email),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text('Tên: $displayName', style: const TextStyle(fontSize: 12)),
-                    Text('SĐT: $phone', style: const TextStyle(fontSize: 12)),
-                    Text('Địa chỉ: $address', style: const TextStyle(fontSize: 12)),
-                    Text('Vai trò: ${getRoleDisplayName(role)}', style: const TextStyle(fontSize: 12)),
-                    Text('Shop ID: $shopId', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text(
+                      'Tên: $displayName',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
+                    ),
+                    Text(
+                      'SĐT: $phone',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
+                    ),
+                    Text(
+                      'Địa chỉ: $address',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
+                    ),
+                    Text(
+                      'Vai trò: ${getRoleDisplayName(role)}',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
+                    ),
+                    Text(
+                      'Shop ID: $shopId',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                        color: Colors.grey,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -619,10 +823,18 @@ class UsersTab extends StatelessWidget {
     );
   }
 
-  void _showEditUserDialog(BuildContext context, String uid, Map<String, dynamic> data) {
-    final nameController = TextEditingController(text: data['displayName'] ?? '');
+  void _showEditUserDialog(
+    BuildContext context,
+    String uid,
+    Map<String, dynamic> data,
+  ) {
+    final nameController = TextEditingController(
+      text: data['displayName'] ?? '',
+    );
     final phoneController = TextEditingController(text: data['phone'] ?? '');
-    final addressController = TextEditingController(text: data['address'] ?? '');
+    final addressController = TextEditingController(
+      text: data['address'] ?? '',
+    );
     final roleController = TextEditingController(text: data['role'] ?? 'user');
     final shopIdController = TextEditingController(text: data['shopId'] ?? '');
 
@@ -673,16 +885,16 @@ class UsersTab extends StatelessWidget {
                   phone: phoneController.text,
                   address: addressController.text,
                   role: roleController.text,
-                  shopId: shopIdController.text.isEmpty ? null : shopIdController.text,
+                  shopId: shopIdController.text.isEmpty
+                      ? null
+                      : shopIdController.text,
                 );
                 navigator.pop();
                 messenger.showSnackBar(
                   const SnackBar(content: Text('Đã cập nhật thông tin user')),
                 );
               } catch (e) {
-                messenger.showSnackBar(
-                  SnackBar(content: Text('Lỗi: $e')),
-                );
+                messenger.showSnackBar(SnackBar(content: Text('Lỗi: $e')));
               }
             },
             child: const Text('Lưu'),
@@ -697,7 +909,9 @@ class UsersTab extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Xóa user'),
-        content: Text('Bạn có chắc muốn xóa user $email? Hành động này không thể hoàn tác.'),
+        content: Text(
+          'Bạn có chắc muốn xóa user $email? Hành động này không thể hoàn tác.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),

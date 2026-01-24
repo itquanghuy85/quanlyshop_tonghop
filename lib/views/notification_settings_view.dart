@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
+import '../theme/app_text_styles.dart';
 
 class NotificationSettingsView extends StatefulWidget {
   const NotificationSettingsView({super.key});
@@ -114,9 +115,9 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
             ),
           ),
         ),
-        title: const Text(
+        title: Text(
           "CÀI ĐẶT THÔNG BÁO",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize, color: Colors.white),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -232,7 +233,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                   ? 'Quyền thông báo bị từ chối vĩnh viễn. Vui lòng bật trong cài đặt hệ thống.'
                   : 'Cần cấp quyền thông báo để nhận thông báo push.',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 color: isGranted ? Colors.green.shade700 : Colors.orange.shade700,
               ),
             ),
@@ -287,7 +288,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
             Text(
               'Một số loại thông báo chỉ dành cho vai trò nhất định để đảm bảo bảo mật và tránh spam.',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 color: Colors.blue.shade700,
               ),
             ),
@@ -302,8 +303,8 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
       padding: const EdgeInsets.only(bottom: 16),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 12,
+        style: TextStyle(
+          fontSize: AppTextStyles.subtitle1.fontSize,
           fontWeight: FontWeight.bold,
           color: Colors.grey,
           letterSpacing: 1.2,
@@ -340,7 +341,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
           title,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: 16,
+            fontSize: AppTextStyles.headline3.fontSize,
             color: enabled ? null : Colors.grey,
           ),
         ),
@@ -350,7 +351,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 color: enabled ? Colors.grey : Colors.grey.shade600,
               ),
             ),
@@ -359,7 +360,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
               Text(
                 'Không khả dụng cho vai trò hiện tại',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: AppTextStyles.caption.fontSize,
                   color: Colors.red.shade600,
                   fontStyle: FontStyle.italic,
                 ),
@@ -568,7 +569,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
               '• Admin & Owner nhận tất cả thông báo\n'
               '• Manager & Technician nhận thông báo quan trọng\n'
               '• Employee chỉ nhận thông báo cá nhân',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade700),
             ),
           ],
         ),

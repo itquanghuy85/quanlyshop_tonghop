@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
+import '../theme/app_text_styles.dart';
 import '../models/purchase_order_model.dart';
 import '../services/user_service.dart';
 import 'create_purchase_order_view.dart';
@@ -90,7 +91,7 @@ class _PurchaseOrderListViewState extends State<PurchaseOrderListView> {
     }
 
     return Chip(
-      label: Text(text, style: const TextStyle(color: Colors.white, fontSize: 12)),
+      label: Text(text, style: TextStyle(color: Colors.white, fontSize: AppTextStyles.subtitle1.fontSize)),
       backgroundColor: color,
       padding: EdgeInsets.zero,
     );
@@ -134,14 +135,14 @@ class _PurchaseOrderListViewState extends State<PurchaseOrderListView> {
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: AppTextStyles.headline1.fontSize,
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
               ),
               Text(
                 title,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -176,7 +177,7 @@ class _PurchaseOrderListViewState extends State<PurchaseOrderListView> {
           elevation: 0,
           title: const Text("ĐƠN NHẬP HÀNG"),
         ),
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -184,7 +185,7 @@ class _PurchaseOrderListViewState extends State<PurchaseOrderListView> {
               SizedBox(height: 16),
               Text(
                 "Bạn không có quyền xem đơn nhập hàng",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
             ],

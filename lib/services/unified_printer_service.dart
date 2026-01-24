@@ -133,15 +133,21 @@ class UnifiedPrinterService {
 
       final prefs = await SharedPreferences.getInstance();
 
-      // Lấy cấu hình từ Design View
-      final showName = prefs.getBool('label_show_name') ?? true;
-      final showDetail = prefs.getBool('label_show_detail') ?? true;
-      final showKPK = prefs.getBool('label_show_price_kpk') ?? true;
-      final showCPK = prefs.getBool('label_show_price_cpk') ?? true;
-      final showIMEI = prefs.getBool('label_show_imei') ?? true;
-      final showQR = prefs.getBool('label_show_qr') ?? true;
+      // Kiểm tra chế độ tùy chỉnh từ PrintLabelDialog
+      final isCustomMode = product['_isCustomMode'] == true;
+
+      // Lấy cấu hình từ Design View hoặc tùy chỉnh
+      final showName = isCustomMode ? (product['_customShowName'] ?? true) : (prefs.getBool('label_show_name') ?? true);
+      final showDetail = isCustomMode ? (product['_customShowDetail'] ?? true) : (prefs.getBool('label_show_detail') ?? true);
+      final showKPK = isCustomMode ? (product['_customShowKPK'] ?? true) : (prefs.getBool('label_show_price_kpk') ?? true);
+      final showCPK = isCustomMode ? (product['_customShowCPK'] ?? true) : (prefs.getBool('label_show_price_cpk') ?? true);
+      final showIMEI = isCustomMode ? (product['_customShowIMEI'] ?? true) : (prefs.getBool('label_show_imei') ?? true);
+      final showQR = isCustomMode ? (product['_customShowQR'] ?? true) : (prefs.getBool('label_show_qr') ?? true);
       final customText = prefs.getString('label_custom_text') ?? "";
       final fontScale = prefs.getDouble('label_font_scale') ?? 1.0;
+      
+      // Lấy nội dung tùy biến từ dialog (nếu có)
+      final customLines = (product['_customLines'] as List<dynamic>?) ?? [];
 
       // 1. TÊN SẢN PHẨM (TO - SIZE 2 nếu fontScale >= 2.0, SIZE 1 nếu < 2.0)
       if (showName) {
@@ -162,12 +168,23 @@ class UnifiedPrinterService {
         }
       }
 
-      // 3. GIÁ BÁN
+      // 3. GIÁ BÁN KPK (Không phụ kiện) - lấy từ price
       final price = product['price'] ?? 0;
-      bytes.addAll(generator.text(
-        "GIA BAN: ${MoneyUtils.formatVND(price)}",
-        styles: const PosStyles(align: PosAlign.center, bold: true),
-      ));
+      if (showKPK) {
+        bytes.addAll(generator.text(
+          "GIA KPK: ${MoneyUtils.formatVND(price)}",
+          styles: const PosStyles(align: PosAlign.center, bold: true),
+        ));
+      }
+
+      // 4. GIÁ BÁN CPK (Có phụ kiện) - từ priceCPK hoặc mặc định = price + 500k
+      if (showCPK) {
+        final priceCPK = product['priceCPK'] ?? (price is int ? price + 500000 : price);
+        bytes.addAll(generator.text(
+          "GIA CPK: ${MoneyUtils.formatVND(priceCPK)}",
+          styles: const PosStyles(align: PosAlign.center, bold: true),
+        ));
+      }
 
       // 5. IMEI (VỪA)
       if (showIMEI) {
@@ -177,7 +194,20 @@ class UnifiedPrinterService {
         ));
       }
 
-      // 6. QR CODE (NẾU CÓ)
+      // 6. NỘI DUNG TÙY BIẾN TỪ DIALOG (cho giấy lớn)
+      if (customLines.isNotEmpty) {
+        bytes.addAll(generator.feed(1));
+        for (final line in customLines) {
+          if (line.toString().trim().isNotEmpty) {
+            bytes.addAll(generator.text(
+              _removeDiacritics(line.toString()).toUpperCase(),
+              styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
+            ));
+          }
+        }
+      }
+
+      // 7. QR CODE (NẾU CÓ)
       if (showQR) {
         bytes.addAll(generator.feed(1));
         // Dùng ID số đơn giản để QR code dễ scan hơn
@@ -185,7 +215,7 @@ class UnifiedPrinterService {
         bytes.addAll(generator.qrcode("check_inv:$simpleId", size: QRSize.size4));
       }
 
-      // 7. CHỮ TÙY BIẾN
+      // 8. CHỮ TÙY BIẾN TỪ CẤU HÌNH (Design View)
       if (customText.isNotEmpty) {
         bytes.addAll(generator.text(_removeDiacritics(customText).toUpperCase(), styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB)));
       }
@@ -440,6 +470,12 @@ class UnifiedPrinterService {
 
     if (prefs.getBool('receipt_show_qr') ?? true) {
       bytes.addAll(generator.qrcode("repair:${receiptData['repairId'] ?? ''}", align: PosAlign.center));
+    }
+
+    // Thêm lời chúc cuối hóa đơn
+    final receiptNote = prefs.getString('receipt_note') ?? "Cam on quy khach!";
+    if (receiptNote.isNotEmpty) {
+      bytes.addAll(generator.text(_removeDiacritics(receiptNote), styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB)));
     }
 
     bytes.addAll(generator.feed(2));

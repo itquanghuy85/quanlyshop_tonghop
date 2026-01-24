@@ -12,6 +12,7 @@ import '../services/chat_service.dart';
 import '../services/user_service.dart';
 import '../data/db_helper.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
 import '../widgets/custom_app_bar.dart';
@@ -226,9 +227,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Chọn biểu cảm',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -450,10 +451,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Gim đơn hàng vào chat',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: AppTextStyles.headline2.fontSize,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -514,7 +515,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                   _getStatusText(r.status),
                   style: TextStyle(
                     color: _getStatusColor(r.status),
-                    fontSize: 12,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
                   ),
                 ),
                 onTap: () {
@@ -755,9 +756,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               ),
               child: TextField(
                 autofocus: true,
-                style: const TextStyle(
+                style: TextStyle(
                   color: CustomAppBar.kTextPrimary,
-                  fontSize: 15,
+                  fontSize: AppTextStyles.headline3.fontSize,
                 ),
                 cursorColor: AppBarAccents.chat,
                 decoration: InputDecoration(
@@ -780,10 +781,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Chat nội bộ',
                   style: TextStyle(
-                    fontSize: 17,
+                    fontSize: AppTextStyles.headline3.fontSize,
                     fontWeight: FontWeight.w600,
                     color: CustomAppBar.kTextPrimary,
                   ),
@@ -792,7 +793,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                   Text(
                     '${_onlineUsers.length} người online',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppTextStyles.subtitle1.fontSize,
                       fontWeight: FontWeight.w400,
                       color: AppBarAccents.chat,
                     ),
@@ -891,7 +892,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                           Text(
                             '📌 ${_pinnedMessages.length} tin ghim',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: AppTextStyles.body1.fontSize,
                               fontWeight: FontWeight.bold,
                               color: Colors.amber.shade800,
                             ),
@@ -900,7 +901,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                           Text(
                             '• ${latestPin.senderName}',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: AppTextStyles.caption.fontSize,
                               color: Colors.amber.shade700,
                             ),
                           ),
@@ -912,7 +913,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                             ? '📷 Hình ảnh'
                             : latestPin.message,
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: AppTextStyles.headline5.fontSize,
                           color: Colors.grey.shade800,
                           fontWeight: FontWeight.w500,
                         ),
@@ -961,9 +962,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                 children: [
                   const Icon(Icons.push_pin, color: Colors.amber),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'Tin nhắn đã ghim',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
                   IconButton(
@@ -1005,7 +1006,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           Expanded(
             child: Text(
               _onlineUsers.map((u) => u.userName).join(', '),
-              style: const TextStyle(fontSize: 12, color: Colors.green),
+              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.green),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1034,7 +1035,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
             const SizedBox(height: 8),
             Text(
               'Hãy gửi tin nhắn đầu tiên!',
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+              style: TextStyle(color: Colors.grey.shade400, fontSize: AppTextStyles.headline5.fontSize),
             ),
           ],
         ),
@@ -1093,15 +1094,15 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                 children: [
                   Text(
                     message.replyToSender ?? '',
-                    style: const TextStyle(
-                      fontSize: 11,
+                    style: TextStyle(
+                      fontSize: AppTextStyles.body1.fontSize,
                       fontWeight: FontWeight.bold,
                       color: Colors.blue,
                     ),
                   ),
                   Text(
                     message.replyToMessage!,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1142,7 +1143,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                     Text(
                       message.senderName,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: AppTextStyles.body1.fontSize,
                         fontWeight: FontWeight.bold,
                         color: Colors.blue.shade700,
                       ),
@@ -1163,7 +1164,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                       child: Text(
                         message.priority == 2 ? '🔴 KHẨN' : '🟠 QUAN TRỌNG',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: AppTextStyles.caption.fontSize,
                           fontWeight: FontWeight.bold,
                           color: Color(message.priorityColor),
                         ),
@@ -1210,7 +1211,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                               child: Text(
                                 message.linkedSummary!,
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: AppTextStyles.subtitle1.fontSize,
                                   color: isMe ? Colors.white : Colors.black87,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -1284,7 +1285,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                       Text(
                         DateFormat('HH:mm').format(message.createdAt),
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: AppTextStyles.caption.fontSize,
                           color: isMe ? Colors.white60 : Colors.grey,
                         ),
                       ),
@@ -1293,7 +1294,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                         Text(
                           '(đã sửa)',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: AppTextStyles.caption.fontSize,
                             fontStyle: FontStyle.italic,
                             color: isMe ? Colors.white60 : Colors.grey,
                           ),
@@ -1353,7 +1354,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                           ),
                           child: Text(
                             '${e.key} ${e.value.length}',
-                            style: const TextStyle(fontSize: 12),
+                            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                           ),
                         ),
                       ),
@@ -1377,7 +1378,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
         ),
         child: Text(
           message.message,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
         ),
       ),
     );
@@ -1418,8 +1419,8 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           const SizedBox(width: 8),
           Text(
             '${_typingUsers.map((u) => u.userName).join(', ')} đang nhập...',
-            style: const TextStyle(
-              fontSize: 12,
+            style: TextStyle(
+              fontSize: AppTextStyles.subtitle1.fontSize,
               color: Colors.grey,
               fontStyle: FontStyle.italic,
             ),
@@ -1453,15 +1454,15 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               children: [
                 Text(
                   'Trả lời ${_replyingTo!.senderName}',
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: AppTextStyles.subtitle1.fontSize,
                     fontWeight: FontWeight.bold,
                     color: Colors.blue,
                   ),
                 ),
                 Text(
                   _replyingTo!.message,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1609,15 +1610,15 @@ class _ImageViewerDialogState extends State<_ImageViewerDialog> {
             if (widget.senderName != null)
               Text(
                 widget.senderName!,
-                style: const TextStyle(
-                  fontSize: 14,
+                style: TextStyle(
+                  fontSize: AppTextStyles.headline4.fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             if (widget.imageUrls.length > 1)
               Text(
                 '${_currentIndex + 1}/${widget.imageUrls.length}',
-                style: const TextStyle(fontSize: 12, color: Colors.white70),
+                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.white70),
               ),
           ],
         ),

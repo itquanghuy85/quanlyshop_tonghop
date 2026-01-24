@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/money_transaction_service.dart';
 import '../models/financial_activity_model.dart';
+import '../theme/app_text_styles.dart';
 
 class FinancialReconciliationView extends StatefulWidget {
   const FinancialReconciliationView({Key? key}) : super(key: key);
@@ -128,7 +129,7 @@ class _FinancialReconciliationViewState
               label,
               style: TextStyle(fontWeight: FontWeight.bold, color: color),
             ),
-            Text('$value đ', style: TextStyle(fontSize: 18, color: color)),
+            Text('$value đ', style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, color: color)),
           ],
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/notification_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/thermal_printer_service.dart';
+import '../theme/app_text_styles.dart';
 
 class ThermalPrinterDesignView extends StatefulWidget {
   const ThermalPrinterDesignView({super.key});
@@ -107,7 +108,7 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text("CẤU HÌNH IN SIÊU CẤP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        title: Text("CẤU HÌNH IN SIÊU CẤP", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize)),
         automaticallyImplyLeading: true,
         bottom: TabBar(
           controller: _tabController,
@@ -216,10 +217,36 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
           ]),
           const SizedBox(height: 15),
           _sectionCard("HIỂN THỊ NỘI DUNG", [
+            Container(
+              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "📌 KPK = Không Phụ Kiện (giá máy trần)",
+                    style: TextStyle(fontSize: 12, color: Colors.blue.shade700, fontWeight: FontWeight.w500),
+                  ),
+                  Text(
+                    "📌 CPK = Có Phụ Kiện (sạc, cáp, ốp, kính...)",
+                    style: TextStyle(fontSize: 12, color: Colors.red.shade700, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "💡 Mặc định CPK = Giá bán + 500,000đ",
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+            ),
             _checkItem("Hiện Tên máy (TO)", _showLabelName, (v) => setState(() => _showLabelName = v!)),
             _checkItem("Hiện Chi tiết gộp (Màu-DL-TT)", _showLabelDetail, (v) => setState(() => _showLabelDetail = v!)),
-            _checkItem("Hiện Giá KPK (TO)", _showLabelPriceKPK, (v) => setState(() => _showLabelPriceKPK = v!)),
-            _checkItem("Hiện Giá CPK (Vừa)", _showLabelPriceCPK, (v) => setState(() => _showLabelPriceCPK = v!)),
+            _checkItem("Hiện Giá KPK (Không phụ kiện)", _showLabelPriceKPK, (v) => setState(() => _showLabelPriceKPK = v!)),
+            _checkItem("Hiện Giá CPK (Có phụ kiện)", _showLabelPriceCPK, (v) => setState(() => _showLabelPriceCPK = v!)),
             _checkItem("Hiện IMEI", _showLabelIMEI, (v) => setState(() => _showLabelIMEI = v!)),
             _checkItem("Hiện Mã QR", _showLabelQR, (v) => setState(() => _showLabelQR = v!)),
             TextField(controller: _labelCustomCtrl, onChanged: (v)=>setState(() {}), decoration: const InputDecoration(labelText: "Chữ tùy biến cuối tem")),
@@ -253,15 +280,15 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
       width: 220, padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.shade300), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)]),
       child: Column(children: [
-        if (_showLabelName) Text("IPHONE 13 PRO MAX", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * scale)),
-        if (_showLabelDetail) Text("256GB XANH 99%", textAlign: TextAlign.center, style: TextStyle(fontSize: 10 * scale, fontWeight: FontWeight.bold)),
-        if (_showLabelPriceKPK) Text("GIÁ KPK: 15.590", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 12 * scale)),
-        if (_showLabelPriceCPK) Text("GIÁ CPK: 15.990", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 11 * scale)),
+        if (_showLabelName) Text("IPHONE 13 PRO MAX", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize! * scale)),
+        if (_showLabelDetail) Text("256GB XANH 99%", textAlign: TextAlign.center, style: TextStyle(fontSize: AppTextStyles.caption.fontSize! * scale, fontWeight: FontWeight.bold)),
+        if (_showLabelPriceKPK) Text("GIÁ KPK: 15.590", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: AppTextStyles.subtitle1.fontSize! * scale)),
+        if (_showLabelPriceCPK) Text("GIÁ CPK: 15.990", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: AppTextStyles.body1.fontSize! * scale)),
         if (_showLabelIMEI || _showLabelQR) Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          if (_showLabelIMEI) Expanded(child: Text("IMEI: 35890123...", style: TextStyle(fontSize: 8 * scale, fontWeight: FontWeight.bold))),
+          if (_showLabelIMEI) Expanded(child: Text("IMEI: 35890123...", style: TextStyle(fontSize: AppTextStyles.overlineSize * scale, fontWeight: FontWeight.bold))),
           if (_showLabelQR) Icon(Icons.qr_code_2, size: 30 * scale),
         ]),
-        if (_labelCustomCtrl.text.isNotEmpty) Text(_labelCustomCtrl.text.toUpperCase(), style: TextStyle(fontSize: 8 * scale, color: Colors.grey, fontWeight: FontWeight.bold))
+        if (_labelCustomCtrl.text.isNotEmpty) Text(_labelCustomCtrl.text.toUpperCase(), style: TextStyle(fontSize: AppTextStyles.overlineSize * scale, color: Colors.grey, fontWeight: FontWeight.bold))
       ]),
     );
   }
@@ -273,12 +300,12 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
       child: Column(children: [
         if (_showRcLogo) const Icon(Icons.store, color: Colors.blue),
         const Text("SHOP NEW", style: TextStyle(fontWeight: FontWeight.bold)),
-        if (_showRcPhone) const Text("0123.456.789", style: TextStyle(fontSize: 9)),
+        if (_showRcPhone) Text("0123.456.789", style: TextStyle(fontSize: AppTextStyles.overlineSize)),
         const Divider(),
-        const Text("HOA DON BAN HANG", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
-        const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text("Sản phẩm x1", style: TextStyle(fontSize: 8)), Text("15.500", style: TextStyle(fontSize: 8))]),
+        Text("HOA DON BAN HANG", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.caption.fontSize)),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text("Sản phẩm x1", style: TextStyle(fontSize: AppTextStyles.overlineSize)), Text("15.500", style: TextStyle(fontSize: AppTextStyles.overlineSize))]),
         if (_showRcQR) const Icon(Icons.qr_code_scanner, size: 40),
-        Text(_rcNoteCtrl.text, style: const TextStyle(fontSize: 8, fontStyle: FontStyle.italic))
+        Text(_rcNoteCtrl.text, style: TextStyle(fontSize: AppTextStyles.overlineSize, fontStyle: FontStyle.italic))
       ]),
     );
   }
@@ -288,14 +315,14 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 5)]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 11)),
+        Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: AppTextStyles.body1.fontSize)),
         const SizedBox(height: 12),
         ...children
       ]),
     );
   }
 
-  Widget _checkItem(String l, bool v, Function(bool?) o) => CheckboxListTile(title: Text(l, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)), value: v, onChanged: o, dense: true, contentPadding: EdgeInsets.zero);
+  Widget _checkItem(String l, bool v, Function(bool?) o) => CheckboxListTile(title: Text(l, style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, fontWeight: FontWeight.bold)), value: v, onChanged: o, dense: true, contentPadding: EdgeInsets.zero);
 
   Future<void> _pickLogo() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);

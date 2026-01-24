@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/stock_entry_model.dart';
+import '../theme/app_text_styles.dart';
 import '../services/stock_entry_service.dart';
 import '../services/notification_service.dart';
 import '../services/first_time_guide_service.dart';
@@ -22,6 +23,9 @@ class _PendingStockListViewState extends State<PendingStockListView> {
 
   // Filter
   String? _filterType;
+  
+  // Search
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -101,11 +105,33 @@ class _PendingStockListViewState extends State<PendingStockListView> {
   }
 
   List<StockEntry> get _filteredEntries {
-    if (_filterType == null) return _entries;
-    return _entries.where((e) {
-      if (e.items.isEmpty) return false;
-      return e.items.first.productType == _filterType;
-    }).toList();
+    var result = _entries;
+    
+    // Filter by type
+    if (_filterType != null) {
+      result = result.where((e) {
+        if (e.items.isEmpty) return false;
+        return e.items.first.productType == _filterType;
+      }).toList();
+    }
+    
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      result = result.where((e) {
+        if (e.items.isEmpty) return false;
+        final item = e.items.first;
+        // Search in name, brand, model, IMEI, SKU
+        return item.name.toLowerCase().contains(query) ||
+               (item.brand?.toLowerCase().contains(query) ?? false) ||
+               (item.model?.toLowerCase().contains(query) ?? false) ||
+               (item.imei?.toLowerCase().contains(query) ?? false) ||
+               (item.sku?.toLowerCase().contains(query) ?? false) ||
+               (e.supplierName?.toLowerCase().contains(query) ?? false);
+      }).toList();
+    }
+    
+    return result;
   }
 
   Future<void> _confirmEntry(StockEntry entry) async {
@@ -120,11 +146,11 @@ class _PendingStockListViewState extends State<PendingStockListView> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Xác nhận nhập kho?', style: TextStyle(fontSize: 14)),
+        title: Text('Xác nhận nhập kho?', style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
         content: Text(
           'Xác nhận nhập "${entry.items.first.name}" vào kho?\n\n'
           'Sau khi xác nhận, hàng sẽ được thêm vào kho và ghi sổ kế toán.',
-          style: const TextStyle(fontSize: 13),
+          style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
         ),
         actions: [
           TextButton(
@@ -165,10 +191,10 @@ class _PendingStockListViewState extends State<PendingStockListView> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hủy phiếu nhập?', style: TextStyle(fontSize: 14)),
+        title: Text('Hủy phiếu nhập?', style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
         content: Text(
           'Bạn có chắc muốn hủy phiếu nhập "${entry.items.first.name}"?',
-          style: const TextStyle(fontSize: 13),
+          style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
         ),
         actions: [
           TextButton(
@@ -201,10 +227,10 @@ class _PendingStockListViewState extends State<PendingStockListView> {
       appBar: AppBar(
         title: Row(
           children: [
-            const Text(
+            Text(
               'HÀNG CHỜ XÁC NHẬN',
               style: TextStyle(
-                fontSize: 15,
+                fontSize: AppTextStyles.headline3.fontSize,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
@@ -218,8 +244,8 @@ class _PendingStockListViewState extends State<PendingStockListView> {
               ),
               child: Text(
                 '${_filteredEntries.length}',
-                style: const TextStyle(
-                  fontSize: 12,
+                style: TextStyle(
+                  fontSize: AppTextStyles.subtitle1.fontSize,
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
@@ -245,6 +271,8 @@ class _PendingStockListViewState extends State<PendingStockListView> {
       ),
       body: Column(
         children: [
+          // Search field
+          _buildSearchField(),
           // Filter chips
           _buildFilterChips(),
           const Divider(height: 1),
@@ -274,13 +302,50 @@ class _PendingStockListViewState extends State<PendingStockListView> {
     );
   }
 
+  Widget _buildSearchField() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: TextField(
+        onChanged: (val) => setState(() => _searchQuery = val),
+        decoration: InputDecoration(
+          hintText: 'Tìm tên, IMEI, SKU, NCC...',
+          hintStyle: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade500),
+          prefixIcon: const Icon(Icons.search, size: 20),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () => setState(() => _searchQuery = ''),
+                )
+              : null,
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
+          ),
+          isDense: true,
+        ),
+        style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
+      ),
+    );
+  }
+
   Widget _buildFilterChips() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       color: Colors.grey.shade100,
       child: Row(
         children: [
-          const Text('Lọc: ', style: TextStyle(fontSize: 12)),
+          Text('Lọc: ', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
           const SizedBox(width: 8),
           _buildFilterChip(null, 'Tất cả'),
           const SizedBox(width: 6),
@@ -297,7 +362,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
   Widget _buildFilterChip(String? type, String label) {
     final isSelected = _filterType == type;
     return FilterChip(
-      label: Text(label, style: const TextStyle(fontSize: 11)),
+      label: Text(label, style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
       selected: isSelected,
       onSelected: (_) => setState(() => _filterType = type),
       selectedColor: Colors.orange.shade200,
@@ -320,12 +385,12 @@ class _PendingStockListViewState extends State<PendingStockListView> {
           const SizedBox(height: 16),
           Text(
             'Không có hàng chờ xác nhận',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
           Text(
             'Nhấn "NHẬP MỚI" để tạo phiếu nhập',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade500),
           ),
         ],
       ),
@@ -360,13 +425,13 @@ class _PendingStockListViewState extends State<PendingStockListView> {
         ),
         child: ListTile(
           leading: const Icon(Icons.error_outline, color: Colors.red),
-          title: const Text(
+          title: Text(
             'Phiếu nhập bị lỗi',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.red),
+            style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, fontWeight: FontWeight.bold, color: Colors.red),
           ),
           subtitle: Text(
             'ID: ${entry.firestoreId ?? "N/A"}\nKhông có sản phẩm trong phiếu',
-            style: const TextStyle(fontSize: 11),
+            style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
           ),
           trailing: IconButton(
             icon: const Icon(Icons.delete, color: Colors.red),
@@ -375,7 +440,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Xóa phiếu lỗi?', style: TextStyle(fontSize: 14)),
+                    title: Text('Xóa phiếu lỗi?', style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
                     content: const Text('Phiếu này không có sản phẩm và cần được xóa.'),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
@@ -443,7 +508,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
               // Header row
               Row(
                 children: [
-                  Text(typeIcon, style: const TextStyle(fontSize: 20)),
+                  Text(typeIcon, style: TextStyle(fontSize: AppTextStyles.headline1.fontSize)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -451,9 +516,9 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                       children: [
                         Text(
                           item.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontSize: AppTextStyles.headline4.fontSize,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -468,7 +533,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                                   .where((e) => e != null && e.isNotEmpty)
                                   .join(' • '),
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: AppTextStyles.body1.fontSize,
                                 color: Colors.grey.shade700,
                               ),
                               maxLines: 1,
@@ -478,7 +543,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                             Text(
                               'IMEI: ${item.imei}',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: AppTextStyles.caption.fontSize,
                                 color: Colors.grey.shade600,
                                 fontFamily: 'monospace',
                               ),
@@ -487,7 +552,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                           Text(
                             'SKU: ${item.sku}',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: AppTextStyles.caption.fontSize,
                               color: Colors.grey.shade600,
                             ),
                           ),
@@ -510,7 +575,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                           'x${item.quantity}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                            fontSize: AppTextStyles.subtitle1.fontSize,
                             color: Colors.blue.shade700,
                           ),
                         ),
@@ -519,7 +584,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                       Text(
                         dateStr,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: AppTextStyles.caption.fontSize,
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -585,7 +650,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                       Expanded(
                         child: Text(
                           'Thiếu: ${entry.missingInfo.join(", ")}',
-                          style: const TextStyle(fontSize: 11),
+                          style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -613,12 +678,12 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.close, size: 14),
                           SizedBox(width: 4),
-                          Text('Hủy', style: TextStyle(fontSize: 11)),
+                          Text('Hủy', style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                         ],
                       ),
                     ),
@@ -634,12 +699,12 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.edit, size: 14),
                           SizedBox(width: 4),
-                          Text('Sửa', style: TextStyle(fontSize: 11)),
+                          Text('Sửa', style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                         ],
                       ),
                     ),
@@ -661,12 +726,12 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.check, size: 14),
                           SizedBox(width: 4),
-                          Text('OK', style: TextStyle(fontSize: 11)),
+                          Text('OK', style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                         ],
                       ),
                     ),
@@ -687,7 +752,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
         color: color,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 11)),
+      child: Text(text, style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../theme/app_text_styles.dart';
 
 class AboutDeveloperView extends StatelessWidget {
   const AboutDeveloperView({super.key});
@@ -125,14 +126,14 @@ class AboutDeveloperView extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          const Text(
+          Text(
             'HULUCA STORE ĐỒNG NAI',
             style: TextStyle(
-              fontSize: 26,
+              fontSize: AppTextStyles.headline1.fontSize,
               fontWeight: FontWeight.bold,
               color: Colors.white,
               letterSpacing: 1.5,
-              shadows: [
+              shadows: const [
                 Shadow(
                   color: Colors.black26,
                   offset: Offset(0, 2),
@@ -145,14 +146,14 @@ class AboutDeveloperView extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          const Text(
+          Text(
             'Về Nhà Phát Triển',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: AppTextStyles.headline1.fontSize,
               fontWeight: FontWeight.w500,
               color: Colors.white,
               letterSpacing: 0.8,
-              shadows: [
+              shadows: const [
                 Shadow(
                   color: Colors.black26,
                   offset: Offset(0, 1),
@@ -168,7 +169,7 @@ class AboutDeveloperView extends StatelessWidget {
           Text(
             'Ứng dụng quản lý cửa hàng chuyên nghiệp',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: AppTextStyles.headline3.fontSize,
               color: Colors.white.withOpacity(0.95),
               fontWeight: FontWeight.w400,
               shadows: const [
@@ -239,12 +240,12 @@ class AboutDeveloperView extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            const Text(
+            Text(
               'Quang Huy',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: AppTextStyles.headline1.fontSize,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3748),
+                color: const Color(0xFF2D3748),
               ),
             ),
 
@@ -253,7 +254,7 @@ class AboutDeveloperView extends StatelessWidget {
             Text(
               'Nhà Phát Triển & Thiết Kế',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: AppTextStyles.headline3.fontSize,
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
               ),
@@ -270,12 +271,12 @@ class AboutDeveloperView extends StatelessWidget {
                   color: const Color(0xFF2962FF).withOpacity(0.2),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'HUY AKA',
                 style: TextStyle(
-                  color: Color(0xFF2962FF),
+                  color: const Color(0xFF2962FF),
                   fontWeight: FontWeight.w600,
-                  fontSize: 14,
+                  fontSize: AppTextStyles.headline4.fontSize,
                 ),
               ),
             ),
@@ -337,24 +338,24 @@ class AboutDeveloperView extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            const Text(
+            Text(
               'HULUCA STORE',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: AppTextStyles.headline1.fontSize,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3748),
+                color: const Color(0xFF2D3748),
                 letterSpacing: 1.5,
               ),
             ),
 
             const SizedBox(height: 8),
 
-            const Text(
+            Text(
               'ĐỒNG NAI',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: AppTextStyles.headline2.fontSize,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFFFF6B35),
+                color: const Color(0xFFFF6B35),
                 letterSpacing: 2,
               ),
             ),
@@ -364,7 +365,7 @@ class AboutDeveloperView extends StatelessWidget {
             Text(
               'Cửa hàng sửa chữa điện thoại chuyên nghiệp',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: AppTextStyles.headline4.fontSize,
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w400,
               ),
@@ -413,14 +414,14 @@ class AboutDeveloperView extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Liên Hệ',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: AppTextStyles.headline2.fontSize,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF2D3748),
                         ),
@@ -429,7 +430,7 @@ class AboutDeveloperView extends StatelessWidget {
                       Text(
                         'Hotline & Zalo',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: AppTextStyles.headline4.fontSize,
                           color: Colors.grey,
                         ),
                       ),
@@ -452,18 +453,18 @@ class AboutDeveloperView extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     '📱',
-                    style: TextStyle(fontSize: 20),
+                    style: TextStyle(fontSize: AppTextStyles.headline1.fontSize),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       '0964.09.59.79',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: AppTextStyles.headline2.fontSize,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D3748),
+                        color: const Color(0xFF2D3748),
                         letterSpacing: 1,
                       ),
                     ),
@@ -495,18 +496,18 @@ class AboutDeveloperView extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     '💬',
-                    style: TextStyle(fontSize: 20),
+                    style: TextStyle(fontSize: AppTextStyles.headline1.fontSize),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Zalo: 0964.09.59.79',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppTextStyles.headline3.fontSize,
                         fontWeight: FontWeight.w500,
-                        color: Color(0xFF2D3748),
+                        color: const Color(0xFF2D3748),
                       ),
                     ),
                   ),
@@ -581,12 +582,12 @@ class AboutDeveloperView extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            const Text(
+            Text(
               'Shop Manager App',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: AppTextStyles.headline1.fontSize,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3748),
+                color: const Color(0xFF2D3748),
               ),
             ),
 
@@ -595,7 +596,7 @@ class AboutDeveloperView extends StatelessWidget {
             Text(
               'Phiên bản 3.4.0',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: AppTextStyles.headline4.fontSize,
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
               ),
@@ -612,12 +613,12 @@ class AboutDeveloperView extends StatelessWidget {
                   color: const Color(0xFF4CAF50).withOpacity(0.2),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 '',
                 style: TextStyle(
-                  color: Color(0xFF4CAF50),
+                  color: const Color(0xFF4CAF50),
                   fontWeight: FontWeight.w600,
-                  fontSize: 14,
+                  fontSize: AppTextStyles.headline4.fontSize,
                 ),
               ),
             ),
@@ -627,7 +628,7 @@ class AboutDeveloperView extends StatelessWidget {
             Text(
               'Ứng dụng quản lý cửa hàng sửa chữa điện thoại toàn diện với tính năng đồng bộ thời gian thực.',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: AppTextStyles.headline4.fontSize,
                 color: Colors.grey[600],
                 height: 1.5,
               ),

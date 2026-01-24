@@ -406,7 +406,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
               MoneyUtils.formatCurrency(value),
               style: AppTextStyles.headline6.copyWith(
                 color: color,
-                fontSize: 14,
+                fontSize: AppTextStyles.headline4.fontSize,
               ),
             ),
           ],

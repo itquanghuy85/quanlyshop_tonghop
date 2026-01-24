@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../models/attendance_model.dart';
 import '../services/user_service.dart';
+import '../theme/app_text_styles.dart';
 
 class WorkScheduleSettingsView extends StatefulWidget {
   const WorkScheduleSettingsView({super.key});
@@ -718,21 +719,21 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               if (_refreshingStaff) ...[
                 const CircularProgressIndicator(),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Đang tải danh sách nhân viên...',
-                  style: TextStyle(fontSize: 14),
+                  style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
                 ),
               ] else ...[
                 const Icon(Icons.people_outline, size: 64, color: Colors.grey),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Chưa có dữ liệu nhân viên',
-                  style: TextStyle(fontSize: 18),
+                  style: TextStyle(fontSize: AppTextStyles.headline2.fontSize),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Bấm tải lại để cập nhật',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
@@ -765,8 +766,8 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                     const SizedBox(width: 12),
                     Text(
                       'Số nhân viên: ${staffList.length}',
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: AppTextStyles.headline3.fontSize,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -786,7 +787,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                   Text(
                     'Lịch làm việc từng nhân viên',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: AppTextStyles.headline3.fontSize,
                       fontWeight: FontWeight.bold,
                       color: Colors.blue.shade700,
                     ),
@@ -823,14 +824,14 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                   ? Text(
                       '${schedule['startTime'] ?? '08:00'} - ${schedule['endTime'] ?? '17:00'}',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: AppTextStyles.subtitle1.fontSize,
                         color: Colors.grey.shade700,
                       ),
                     )
                   : Text(
                       'Chưa cài đặt lịch',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: AppTextStyles.subtitle1.fontSize,
                         color: Colors.orange.shade700,
                       ),
                     ),
@@ -911,10 +912,10 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
           // Ngày nghỉ lễ
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Ngày nghỉ lễ:',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, fontWeight: FontWeight.w500),
                 ),
               ),
               TextButton.icon(
@@ -930,7 +931,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               runSpacing: 4,
               children: holidays.map((holiday) {
                 return Chip(
-                  label: Text(holiday, style: const TextStyle(fontSize: 12)),
+                  label: Text(holiday, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                   deleteIcon: const Icon(Icons.close, size: 14),
                   onDeleted: () => setState(() => holidays.remove(holiday)),
                   visualDensity: VisualDensity.compact,
@@ -955,7 +956,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
             child: ElevatedButton.icon(
               onPressed: _saveWorkSchedule,
               icon: const Icon(Icons.save),
-              label: const Text('LƯU CÀI ĐẶT', style: TextStyle(fontSize: 16)),
+              label: Text('LƯU CÀI ĐẶT', style: TextStyle(fontSize: AppTextStyles.headline3.fontSize)),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 backgroundColor: Colors.blue,
@@ -995,7 +996,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                     Text(
                       'Chưa có nhân viên nào',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: AppTextStyles.headline2.fontSize,
                         fontWeight: FontWeight.bold,
                         color: Colors.grey[600],
                       ),
@@ -1282,7 +1283,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                                         : record.status == 'rejected'
                                         ? 'Từ chối'
                                         : 'Chờ duyệt',
-                                    style: const TextStyle(fontSize: 12),
+                                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                   ),
                                   backgroundColor: record.status == 'approved'
                                       ? Colors.green.shade100
@@ -1327,7 +1328,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                   Text(
                     'Lỗi hiển thị',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: AppTextStyles.headline2.fontSize,
                       fontWeight: FontWeight.bold,
                       color: Colors.red[600],
                     ),
@@ -1369,7 +1370,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
         Text(
           title,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppTextStyles.headline3.fontSize,
             fontWeight: FontWeight.bold,
             color: Colors.blue.shade700,
           ),
@@ -1427,12 +1428,12 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
             subtitle: hasSchedule
                 ? Text(
                     '${schedule['startTime'] ?? '08:00'} - ${schedule['endTime'] ?? '17:00'} | Nghỉ: ${schedule['breakTime'] ?? 1}h | OT: ${schedule['maxOtHours'] ?? 4}h',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade700),
                   )
                 : Text(
                     'Chưa cài đặt lịch',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppTextStyles.subtitle1.fontSize,
                       color: Colors.orange.shade700,
                     ),
                   ),
@@ -1493,7 +1494,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               Expanded(
                 child: Text(
                   'Lịch làm việc: ${staff['name']}',
-                  style: const TextStyle(fontSize: 16),
+                  style: TextStyle(fontSize: AppTextStyles.headline3.fontSize),
                 ),
               ),
             ],
@@ -1600,7 +1601,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                     return FilterChip(
                       label: Text(
                         dayNames[index],
-                        style: const TextStyle(fontSize: 12),
+                        style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                       ),
                       selected: workDays[index],
                       onSelected: (selected) {
@@ -1717,9 +1718,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Cài đặt giờ làm việc',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
 
@@ -1740,9 +1741,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: Colors.blue,
               ),
-              child: const Text(
+              child: Text(
                 'Lưu cài đặt',
-                style: TextStyle(fontSize: 16, color: Colors.white),
+                style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, color: Colors.white),
               ),
             ),
           ),
@@ -1761,7 +1762,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
           children: [
             Text(
               label,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -1794,7 +1795,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
           children: [
             Text(
               label,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -1820,15 +1821,15 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Cài đặt ngày làm việc',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
 
-          const Text(
+          Text(
             'Ngày làm việc trong tuần:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -1847,9 +1848,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
           ),
 
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Ngày nghỉ lễ:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 12),
 
@@ -1867,9 +1868,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
 
           const SizedBox(height: 16),
           if (holidays.isNotEmpty) ...[
-            const Text(
+            Text(
               'Danh sách ngày nghỉ:',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -1897,9 +1898,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: Colors.blue,
               ),
-              child: const Text(
+              child: Text(
                 'Lưu cài đặt',
-                style: TextStyle(fontSize: 16, color: Colors.white),
+                style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, color: Colors.white),
               ),
             ),
           ),
@@ -1914,9 +1915,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Cài đặt tăng ca',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
 
@@ -1947,9 +1948,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: Colors.blue,
               ),
-              child: const Text(
+              child: Text(
                 'Lưu cài đặt',
-                style: TextStyle(fontSize: 16, color: Colors.white),
+                style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, color: Colors.white),
               ),
             ),
           ),
@@ -1964,9 +1965,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Cài đặt lương nhân viên',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
 
@@ -1977,9 +1978,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Thêm/Cập nhật lương',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 16),
 
@@ -2041,9 +2042,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
           const SizedBox(height: 24),
 
           if (staffSalaries.isNotEmpty) ...[
-            const Text(
+            Text(
               'Danh sách lương hiện tại:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 12),
             ...staffSalaries.entries.map((entry) {
@@ -2073,9 +2074,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Quản lý chấm công nhân viên',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
 
@@ -2087,9 +2088,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Chọn ngày',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
                   InkWell(
@@ -2142,9 +2143,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Chọn nhân viên',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
@@ -2177,9 +2178,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
 
           // Attendance records
           if (selectedStaffForAttendance != null) ...[
-            const Text(
+            Text(
               'Thông tin chấm công',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 12),
 

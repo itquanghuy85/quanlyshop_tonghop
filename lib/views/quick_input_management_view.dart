@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/quick_input_code_model.dart';
+import '../theme/app_text_styles.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../data/db_helper.dart';
-import 'stock_in_view.dart';
+import 'smart_stock_in_view.dart';
 
 enum QuickInputFilter { all, unsynced }
 
@@ -176,27 +177,11 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView> {
 
   Future<void> _importToInventory(QuickInputCode code) async {
     try {
-      final prefilledData = {
-        'name': code.name,
-        'type': code.type,
-        'brand': code.brand,
-        'model': code.model,
-        'capacity': code.capacity,
-        'color': code.color,
-        'condition': code.condition,
-        'cost': code.cost,
-        'price': code.price,
-        'supplier': code.supplier,
-        'paymentMethod': code.paymentMethod,
-        'notes': code.description,
-        'quantity': 1,
-      };
-
       if (mounted) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => StockInView(prefilledData: prefilledData),
+            builder: (_) => SmartStockInView(quickInputCode: code),
           ),
         );
       }
@@ -263,7 +248,7 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView> {
                       const SizedBox(height: 16),
                       Text(
                         'Chưa có mã nhập nhanh nào',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: AppTextStyles.headline3.fontSize),
                       ),
                     ],
                   ),
@@ -325,7 +310,7 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView> {
                         _searchQuery.isEmpty
                             ? 'Chưa có mã nhập nhanh nào'
                             : 'Không tìm thấy mã nhập nhanh phù hợp',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: AppTextStyles.headline3.fontSize),
                       ),
                     ],
                   ),
@@ -378,9 +363,9 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView> {
                 style: const TextStyle(fontWeight: FontWeight.w500),
               ),
             if (!code.isSynced)
-              const Text(
+              Text(
                 'Chưa đồng bộ',
-                style: TextStyle(color: Colors.orange, fontSize: 12),
+                style: TextStyle(color: Colors.orange, fontSize: AppTextStyles.subtitle1.fontSize),
               ),
           ],
         ),

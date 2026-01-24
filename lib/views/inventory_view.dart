@@ -9,6 +9,7 @@ import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../models/inventory_check_model.dart';
 import '../models/debt_model.dart';
+import '../models/payment_intent_model.dart';
 import 'create_sale_view.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/unified_printer_service.dart';
@@ -19,9 +20,11 @@ import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
 import '../services/firestore_service.dart';
 import '../services/first_time_guide_service.dart';
+import '../services/payment_intent_service.dart';
 import 'supplier_list_view.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/printer_selection_dialog.dart';
+import '../widgets/print_label_dialog.dart';
 import '../models/printer_types.dart';
 import 'smart_stock_in_view.dart';
 import 'global_search_view.dart';
@@ -325,18 +328,16 @@ class _InventoryViewState extends State<InventoryView>
                         children: [
                           Text(
                             'KHO TẠM - Chờ xác nhận giá',
-                            style: TextStyle(
+                            style: AppTextStyles.headline4.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Colors.orange.shade800,
-                              fontSize: 14,
                             ),
                           ),
                           if (displayProduct.pendingSupplier != null)
                             Text(
                               'NCC dự kiến: ${displayProduct.pendingSupplier}',
-                              style: TextStyle(
+                              style: AppTextStyles.subtitle1.copyWith(
                                 color: Colors.orange.shade600,
-                                fontSize: 12,
                               ),
                             ),
                         ],
@@ -348,8 +349,7 @@ class _InventoryViewState extends State<InventoryView>
             ],
             Text(
               displayProduct.name,
-              style: TextStyle(
-                fontSize: 20,
+              style: AppTextStyles.headline1.copyWith(
                 fontWeight: FontWeight.bold,
                 color: displayProduct.isPending
                     ? Colors.orange.shade800
@@ -394,12 +394,11 @@ class _InventoryViewState extends State<InventoryView>
             ),
             if (repairs.isNotEmpty) ...[
               const Divider(height: 30),
-              const Text(
+              Text(
                 "LỊCH SỬ SỬA CHỮA",
-                style: TextStyle(
-                  fontSize: 16,
+                style: AppTextStyles.headline3.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2962FF),
+                  color: const Color(0xFF2962FF),
                 ),
               ),
               const SizedBox(height: 10),
@@ -426,8 +425,7 @@ class _InventoryViewState extends State<InventoryView>
                       ),
                       Text(
                         "Ngày nhận: ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(r.createdAt))}",
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: AppTextStyles.subtitle1.copyWith(
                           color: Colors.grey,
                         ),
                       ),
@@ -447,12 +445,11 @@ class _InventoryViewState extends State<InventoryView>
                     _showConfirmCostDialog(p);
                   },
                   icon: const Icon(Icons.check_circle, color: Colors.white),
-                  label: const Text(
+                  label: Text(
                     "XÁC NHẬN GIÁ - CHUYỂN KHO CHÍNH",
-                    style: TextStyle(
+                    style: AppTextStyles.headline5.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -469,58 +466,15 @@ class _InventoryViewState extends State<InventoryView>
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       Navigator.pop(ctx);
-                      // Show printer selection dialog directly
-                      try {
-                        final printerConfig = await showPrinterSelectionDialog(
-                          context,
-                        );
-                        if (printerConfig != null) {
-                          final printerType =
-                              printerConfig['type'] as PrinterType?;
-                          final bluetoothPrinter =
-                              printerConfig['bluetoothPrinter']
-                                  as BluetoothPrinterConfig?;
-                          final wifiIp = printerConfig['wifiIp'] as String?;
-                          final success =
-                              await UnifiedPrinterService.printProductQRLabel(
-                                p.toMap(),
-                                customMac: bluetoothPrinter?.macAddress,
-                                printerType: printerType,
-                                wifiIp: wifiIp,
-                              );
-                          if (success) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Đã in tem thành công!'),
-                                ),
-                              );
-                            }
-                          } else {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('In tem thất bại!'),
-                                ),
-                              );
-                            }
-                          }
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-                        }
-                      }
+                      // Hiển thị dialog in tem với tùy chọn tự động/tùy chỉnh
+                      await PrintLabelDialog.show(context, p.toMap());
                     },
                     icon: const Icon(Icons.qr_code_2, color: Colors.white),
-                    label: const Text(
+                    label: Text(
                       "IN TEM QR",
-                      style: TextStyle(
+                      style: AppTextStyles.subtitle1.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -537,12 +491,11 @@ class _InventoryViewState extends State<InventoryView>
                       _editProduct(p);
                     },
                     icon: const Icon(Icons.edit, color: Colors.white),
-                    label: const Text(
+                    label: Text(
                       "CHỈNH SỬA",
-                      style: TextStyle(
+                      style: AppTextStyles.body1.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 11,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -559,12 +512,11 @@ class _InventoryViewState extends State<InventoryView>
                       _createSaleOrder(p);
                     },
                     icon: const Icon(Icons.shopping_cart, color: Colors.white),
-                    label: const Text(
+                    label: Text(
                       "TẠO ĐƠN HÀNG",
-                      style: TextStyle(
+                      style: AppTextStyles.body1.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 11,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -578,7 +530,7 @@ class _InventoryViewState extends State<InventoryView>
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.pop(ctx),
                     icon: const Icon(Icons.close),
-                    label: const Text("ĐÓNG", style: TextStyle(fontSize: 11)),
+                    label: Text("ĐÓNG", style: AppTextStyles.body1),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
@@ -654,7 +606,7 @@ class _InventoryViewState extends State<InventoryView>
                     filled: true,
                     fillColor: Color(0xFFF5F5F5),
                   ),
-                  child: Text(p.supplier ?? 'N/A', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  child: Text(p.supplier ?? 'N/A', style: AppTextStyles.headline4.copyWith(color: Colors.black54)),
                 ),
               const SizedBox(height: 12),
               // Giá nhập - KHÓA nếu đã nhập kho chính
@@ -668,7 +620,7 @@ class _InventoryViewState extends State<InventoryView>
                     filled: true,
                     fillColor: Color(0xFFF5F5F5),
                   ),
-                  child: Text(MoneyUtils.formatCurrency(p.cost), style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                  child: Text(MoneyUtils.formatCurrency(p.cost), style: AppTextStyles.headline4.copyWith(color: Colors.black54)),
                 ),
               const SizedBox(height: 12),
               CurrencyTextField(controller: priceCtrl, label: 'Giá bán (VNĐ)'),
@@ -835,12 +787,11 @@ class _InventoryViewState extends State<InventoryView>
                             ),
                           ),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                             'Để cập nhật chính xác, bạn cần sửa lại từng đơn hàng đã tạo.',
-                            style: TextStyle(
+                            style: AppTextStyles.headline5.copyWith(
                               color: AppColors.error,
                               fontWeight: FontWeight.w500,
-                              fontSize: 13,
                             ),
                           ),
                         ],
@@ -919,8 +870,8 @@ class _InventoryViewState extends State<InventoryView>
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
               const SizedBox(width: 8),
-              const Expanded(
-                child: Text('XÓA SẢN PHẨM', style: TextStyle(fontSize: 16)),
+              Expanded(
+                child: Text('XÓA SẢN PHẨM', style: AppTextStyles.headline3),
               ),
             ],
           ),
@@ -946,14 +897,13 @@ class _InventoryViewState extends State<InventoryView>
                       if (p.imei != null && p.imei!.isNotEmpty)
                         Text(
                           'IMEI: ${p.imei}',
-                          style: const TextStyle(
-                            fontSize: 12,
+                          style: AppTextStyles.subtitle1.copyWith(
                             color: Colors.grey,
                           ),
                         ),
                       Text(
                         'Giá vốn: ${MoneyUtils.formatCurrency(p.cost)}đ',
-                        style: const TextStyle(fontSize: 12),
+                        style: AppTextStyles.subtitle1,
                       ),
                     ],
                   ),
@@ -968,22 +918,21 @@ class _InventoryViewState extends State<InventoryView>
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.orange.shade200),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         '⚠️ LƯU Ý QUAN TRỌNG:',
-                        style: TextStyle(
+                        style: AppTextStyles.subtitle1.copyWith(
                           fontWeight: FontWeight.bold,
-                          fontSize: 12,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         '• Số liệu TÀI CHÍNH ĐÃ CHỐT sẽ KHÔNG thay đổi\n'
                         '• Chọn các mục bên dưới để xóa dữ liệu liên quan\n'
                         '• Dữ liệu CHƯA CHỐT sẽ bị ảnh hưởng',
-                        style: TextStyle(fontSize: 11),
+                        style: AppTextStyles.body1,
                       ),
                     ],
                   ),
@@ -991,21 +940,21 @@ class _InventoryViewState extends State<InventoryView>
                 const SizedBox(height: 16),
 
                 // Options xóa liên quan
-                const Text(
+                Text(
                   'Tùy chọn xóa dữ liệu liên quan:',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: AppTextStyles.headline5,
                 ),
                 const SizedBox(height: 8),
                 CheckboxListTile(
                   value: deleteRelatedDebt,
                   onChanged: (v) => setS(() => deleteRelatedDebt = v ?? false),
-                  title: const Text(
+                  title: Text(
                     'Xóa công nợ NCC liên quan',
-                    style: TextStyle(fontSize: 13),
+                    style: AppTextStyles.headline5,
                   ),
-                  subtitle: const Text(
+                  subtitle: Text(
                     'Công nợ nhập hàng với NCC',
-                    style: TextStyle(fontSize: 11),
+                    style: AppTextStyles.body1,
                   ),
                   dense: true,
                   contentPadding: EdgeInsets.zero,
@@ -1015,13 +964,13 @@ class _InventoryViewState extends State<InventoryView>
                   value: deleteImportHistory,
                   onChanged: (v) =>
                       setS(() => deleteImportHistory = v ?? false),
-                  title: const Text(
+                  title: Text(
                     'Xóa lịch sử nhập hàng',
-                    style: TextStyle(fontSize: 13),
+                    style: AppTextStyles.headline5,
                   ),
-                  subtitle: const Text(
+                  subtitle: Text(
                     'Xóa khỏi báo cáo NCC',
-                    style: TextStyle(fontSize: 11),
+                    style: AppTextStyles.body1,
                   ),
                   dense: true,
                   contentPadding: EdgeInsets.zero,
@@ -1031,13 +980,13 @@ class _InventoryViewState extends State<InventoryView>
                   value: deleteRelatedExpense,
                   onChanged: (v) =>
                       setS(() => deleteRelatedExpense = v ?? false),
-                  title: const Text(
+                  title: Text(
                     'Xóa chi phí liên quan',
-                    style: TextStyle(fontSize: 13),
+                    style: AppTextStyles.headline5,
                   ),
-                  subtitle: const Text(
+                  subtitle: Text(
                     'Chi phí nhập hàng, vận chuyển...',
-                    style: TextStyle(fontSize: 11),
+                    style: AppTextStyles.body1,
                   ),
                   dense: true,
                   contentPadding: EdgeInsets.zero,
@@ -1046,13 +995,13 @@ class _InventoryViewState extends State<InventoryView>
                 CheckboxListTile(
                   value: deleteRelatedSale,
                   onChanged: (v) => setS(() => deleteRelatedSale = v ?? false),
-                  title: const Text(
+                  title: Text(
                     'Xóa đơn bán chứa SP này',
-                    style: TextStyle(fontSize: 13),
+                    style: AppTextStyles.headline5,
                   ),
                   subtitle: Text(
                     'CẢNH BÁO: Xóa đơn bán sẽ ảnh hưởng doanh thu',
-                    style: TextStyle(fontSize: 11, color: Colors.red.shade700),
+                    style: AppTextStyles.body1.copyWith(color: Colors.red.shade700),
                   ),
                   dense: true,
                   contentPadding: EdgeInsets.zero,
@@ -1726,7 +1675,7 @@ class _InventoryViewState extends State<InventoryView>
           title: const Text("QUẢN LÝ KHO TỔNG"),
           automaticallyImplyLeading: true,
         ),
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -1735,7 +1684,7 @@ class _InventoryViewState extends State<InventoryView>
               Text(
                 "Bạn không có quyền truy cập\nmàn hình quản lý kho",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: AppTextStyles.headline3.copyWith(color: Colors.grey),
               ),
             ],
           ),
@@ -1833,7 +1782,7 @@ class _InventoryViewState extends State<InventoryView>
                       MaterialPageRoute(builder: (_) => const SmartStockInView()),
                     ).then((_) => _refresh()),
                     icon: Icon(Icons.add_box_rounded, size: _iconSize - 2),
-                    label: Text("NHẬP KHO", style: AppTextStyles.caption.copyWith(fontSize: 11)),
+                    label: Text("NHẬP KHO", style: AppTextStyles.body1),
                     style: AppButtonStyles.elevatedButtonStyle,
                   ),
                 ),
@@ -1848,7 +1797,7 @@ class _InventoryViewState extends State<InventoryView>
                       ),
                     ).then((_) => _refresh()),
                     icon: Icon(Icons.flash_on, size: _iconSize - 2),
-                    label: Text("NHANH", style: AppTextStyles.caption.copyWith(fontSize: 11)),
+                    label: Text("NHANH", style: AppTextStyles.body1),
                     style: AppButtonStyles.elevatedButtonStyle,
                   ),
                 ),
@@ -1861,7 +1810,7 @@ class _InventoryViewState extends State<InventoryView>
                       MaterialPageRoute(builder: (_) => const PartsInventoryView()),
                     ).then((_) => _refresh()),
                     icon: Icon(Icons.build_circle, size: _iconSize - 2),
-                    label: Text("LINH KIỆN", style: AppTextStyles.caption.copyWith(fontSize: 11)),
+                    label: Text("LINH KIỆN", style: AppTextStyles.body1),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF7B1FA2),
                       foregroundColor: Colors.white,
@@ -1940,10 +1889,9 @@ class _InventoryViewState extends State<InventoryView>
                     ),
                     Text(
                       "ĐÃ CHỌN ${_selectedIds.length}",
-                      style: AppTextStyles.body1.copyWith(
+                      style: AppTextStyles.headline3.copyWith(
                         color: AppColors.error,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
                       ),
                     ),
                     const Spacer(),
@@ -2061,7 +2009,7 @@ class _InventoryViewState extends State<InventoryView>
                       ),
                       label: Text(
                         _isScanning ? "DỪNG SCAN" : "BẮT ĐẦU SCAN",
-                        style: TextStyle(fontSize: _smallFontSize),
+                        style: AppTextStyles.body1,
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isScanning
@@ -2198,7 +2146,7 @@ class _InventoryViewState extends State<InventoryView>
                                     : _selectedType == 'LINH_KIEN'
                                         ? "Linh kiện (không IMEI)"
                                         : "Mã SP: ${item.itemId}",
-                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                style: AppTextStyles.subtitle1.copyWith(color: Colors.grey),
                               ),
                             Text(
                               "SL hiện tại: ${item.quantity}",
@@ -2236,8 +2184,7 @@ class _InventoryViewState extends State<InventoryView>
                               ),
                               child: Text(
                                 "${item.quantity}",
-                                style: TextStyle(
-                                  fontSize: 16,
+                                style: AppTextStyles.headline3.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: isComplete
                                       ? Colors.green
@@ -2331,9 +2278,8 @@ class _InventoryViewState extends State<InventoryView>
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(
+              style: AppTextStyles.overline.copyWith(
                 color: Colors.white70,
-                fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -2342,9 +2288,8 @@ class _InventoryViewState extends State<InventoryView>
         const SizedBox(height: 2),
         Text(
           val,
-          style: const TextStyle(
+          style: AppTextStyles.headline4.copyWith(
             color: Colors.white,
-            fontSize: 14,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -2364,15 +2309,14 @@ class _InventoryViewState extends State<InventoryView>
         const SizedBox(height: 4),
         Text(
           val,
-          style: TextStyle(
+          style: AppTextStyles.headline1.copyWith(
             color: color ?? const Color(0xFF2962FF),
-            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           label,
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+          style: AppTextStyles.subtitle1.copyWith(color: Colors.grey.shade600),
         ),
       ],
     );
@@ -2470,8 +2414,7 @@ class _InventoryViewState extends State<InventoryView>
                         const SizedBox(width: 4),
                         Text(
                           "$outOfStockCount",
-                          style: TextStyle(
-                            fontSize: 11,
+                          style: AppTextStyles.body1.copyWith(
                             fontWeight: FontWeight.bold,
                             color: _showOutOfStock
                                 ? Colors.orange
@@ -2529,8 +2472,7 @@ class _InventoryViewState extends State<InventoryView>
             const SizedBox(width: 4),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
+              style: AppTextStyles.subtitle1.copyWith(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected ? color : Colors.grey.shade700,
               ),
@@ -2545,8 +2487,7 @@ class _InventoryViewState extends State<InventoryView>
                 ),
                 child: Text(
                   '$count',
-                  style: const TextStyle(
-                    fontSize: 10,
+                  style: AppTextStyles.caption.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
@@ -2589,8 +2530,7 @@ class _InventoryViewState extends State<InventoryView>
             const SizedBox(width: 4),
             Text(
               'Kho tạm',
-              style: TextStyle(
-                fontSize: 12,
+              style: AppTextStyles.subtitle1.copyWith(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected
                     ? Colors.orange.shade700
@@ -2607,8 +2547,7 @@ class _InventoryViewState extends State<InventoryView>
                 ),
                 child: Text(
                   '$pendingCount',
-                  style: const TextStyle(
-                    fontSize: 10,
+                  style: AppTextStyles.caption.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
@@ -2682,9 +2621,8 @@ class _InventoryViewState extends State<InventoryView>
                       child: Center(
                         child: Text(
                           '$index',
-                          style: TextStyle(
+                          style: AppTextStyles.caption.copyWith(
                             fontWeight: FontWeight.bold,
-                            fontSize: 10,
                             color: isPending ? Colors.orange.shade700 : AppColors.primary,
                           ),
                         ),
@@ -2706,17 +2644,16 @@ class _InventoryViewState extends State<InventoryView>
                                   color: Colors.orange,
                                   borderRadius: BorderRadius.circular(3),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'TẠM',
-                                  style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                                  style: AppTextStyles.overline.copyWith(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             Expanded(
                               child: Text(
                                 p.name,
-                                style: TextStyle(
+                                style: AppTextStyles.subtitle1.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 12,
                                   color: isPending ? Colors.orange.shade800 : const Color(0xFF1A237E),
                                 ),
                                 maxLines: 1,
@@ -2731,7 +2668,7 @@ class _InventoryViewState extends State<InventoryView>
                             [p.capacity, if (p.imei != null && p.imei!.isNotEmpty) 'IMEI: ${p.imei}']
                                 .where((e) => e != null && e.isNotEmpty)
                                 .join(' • '),
-                            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                            style: AppTextStyles.caption.copyWith(color: Colors.grey.shade600),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -2750,9 +2687,8 @@ class _InventoryViewState extends State<InventoryView>
                         ),
                         child: Text(
                           'x${p.quantity}',
-                          style: TextStyle(
+                          style: AppTextStyles.body1.copyWith(
                             fontWeight: FontWeight.bold,
-                            fontSize: 11,
                             color: p.quantity > 0 ? Colors.blue.shade700 : Colors.red,
                           ),
                         ),
@@ -2760,7 +2696,7 @@ class _InventoryViewState extends State<InventoryView>
                       const SizedBox(height: 2),
                       Text(
                         DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(p.createdAt)),
-                        style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                        style: AppTextStyles.overline.copyWith(color: Colors.grey.shade500),
                       ),
                     ],
                   ),
@@ -2808,7 +2744,7 @@ class _InventoryViewState extends State<InventoryView>
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w500),
+        style: AppTextStyles.overline.copyWith(fontWeight: FontWeight.w500),
       ),
     );
   }
@@ -2931,9 +2867,6 @@ class _InventoryViewState extends State<InventoryView>
                 targetId: p.imei,
                 desc: "Đã nhập máy ${p.name}",
               );
-              // NOTE: Direct insertExpense/insertDebt for stock-in BLOCKED
-              // Payment must go through PaymentIntentService -> UnifiedPaymentPage
-              // Product is saved, but payment execution is separate flow
               
               await db.upsertProduct(p);
 
@@ -2941,6 +2874,99 @@ class _InventoryViewState extends State<InventoryView>
               final savedProduct = await db.getProductByFirestoreId(
                 p.firestoreId ?? 'prod_${p.createdAt}',
               );
+              
+              // === XỬ LÝ PAYMENT METHOD ===
+              final totalCost = p.cost * p.quantity;
+              if (totalCost > 0 && supplier != null && supplier!.isNotEmpty) {
+                final shopId = await UserService.getCurrentShopId() ?? '';
+                final nowTs = DateTime.now().millisecondsSinceEpoch;
+                
+                // Lấy supplier ID
+                final suppliers = await supplierService.getSuppliers();
+                final supplierData = suppliers.where((s) => s.name == supplier).firstOrNull;
+                final supplierId = supplierData?.id;
+                
+                if (payMethod == 'CÔNG NỢ') {
+                  // Tạo debt record - Shop nợ NCC
+                  final debtFId = 'debt_stockin_${nowTs}_${supplierId ?? 0}';
+                  final debtData = {
+                    'firestoreId': debtFId,
+                    'type': 'SHOP_OWES',
+                    'debtType': 'SHOP_OWES',
+                    'personName': supplier,
+                    'phone': '',
+                    'totalAmount': totalCost,
+                    'paidAmount': 0,
+                    'note': 'Nhập kho: ${p.name} x${p.quantity}',
+                    'status': 'ACTIVE',
+                    'createdAt': nowTs,
+                    'shopId': shopId,
+                    'linkedId': p.firestoreId ?? '',
+                    'relatedPartId': supplierId?.toString() ?? '',
+                    'deleted': 0,
+                    'isSynced': 0,
+                  };
+                  final debtId = await db.insertDebt(debtData);
+                  
+                  if (debtId > 0) {
+                    await SyncOrchestrator().enqueue(
+                      entityType: SyncEntityType.debt,
+                      entityId: debtId,
+                      firestoreId: debtFId,
+                      operation: SyncOperation.create,
+                      data: debtData,
+                    );
+                  }
+                  
+                  // Tạo PaymentIntent cho việc trả nợ sau
+                  final intent = PaymentIntent(
+                    id: 'pi_stockin_debt_${nowTs}_${supplierId ?? 0}',
+                    type: PaymentIntentType.inventoryPurchase,
+                    amount: totalCost,
+                    description: 'Trả nợ nhập kho: $supplier - ${p.name}',
+                    referenceId: debtFId,
+                    referenceType: 'inventory_debt',
+                    personName: supplier,
+                    createdBy: user?.uid ?? 'unknown',
+                    createdAt: nowTs,
+                    metadata: {
+                      'productId': savedProduct?.id,
+                      'productName': p.name,
+                      'quantity': p.quantity,
+                      'supplierId': supplierId,
+                      'debtId': debtId,
+                      'debtFirestoreId': debtFId,
+                      'debtType': 'SHOP_OWES',
+                    },
+                  );
+                  await PaymentIntentService.createIntent(intent);
+                  debugPrint('✅ Created inventory debt: $debtFId');
+                  EventBus().emit('debts_changed');
+                  
+                } else {
+                  // TIỀN MẶT / CHUYỂN KHOẢN - Tạo PaymentIntent để xác nhận chi
+                  final intent = PaymentIntent(
+                    id: 'pi_stockin_${nowTs}_${supplierId ?? 0}',
+                    type: PaymentIntentType.inventoryPurchase,
+                    amount: totalCost,
+                    description: 'Nhập kho: $supplier - ${p.name} x${p.quantity}',
+                    referenceId: p.firestoreId,
+                    referenceType: 'inventory_stockin',
+                    personName: supplier,
+                    createdBy: user?.uid ?? 'unknown',
+                    createdAt: nowTs,
+                    metadata: {
+                      'productId': savedProduct?.id,
+                      'productName': p.name,
+                      'quantity': p.quantity,
+                      'supplierId': supplierId,
+                      'paymentMethod': payMethod,
+                    },
+                  );
+                  await PaymentIntentService.createIntent(intent);
+                  debugPrint('💳 Created PaymentIntent for inventory $payMethod: ${intent.id}');
+                }
+              }
               if (savedProduct?.id != null) {
                 await SyncOrchestrator().enqueue(
                   entityType: SyncEntityType.product,
@@ -3170,12 +3196,11 @@ class _InventoryViewState extends State<InventoryView>
 
                   // SKU Section
                   const Divider(height: 30, thickness: 1),
-                  const Text(
+                  Text(
                     "MÃ HÀNG",
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: AppTextStyles.headline4.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2962FF),
+                      color: const Color(0xFF2962FF),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -3264,7 +3289,7 @@ class _InventoryViewState extends State<InventoryView>
                           (m) => ChoiceChip(
                             label: Text(
                               m,
-                              style: const TextStyle(fontSize: 11),
+                              style: AppTextStyles.body1,
                             ),
                             selected: payMethod == m,
                             onSelected: (v) => setS(() => payMethod = m),
@@ -3489,10 +3514,10 @@ class _InventoryViewState extends State<InventoryView>
               children: [
                 Icon(Icons.check_circle, color: Colors.orange.shade700),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Xác nhận giá - Chuyển Kho Chính',
-                    style: TextStyle(fontSize: 16),
+                    style: AppTextStyles.headline3,
                   ),
                 ),
               ],
@@ -3514,19 +3539,18 @@ class _InventoryViewState extends State<InventoryView>
                       children: [
                         Text(
                           p.name,
-                          style: const TextStyle(
+                          style: AppTextStyles.headline4.copyWith(
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'IMEI: ${p.imei ?? "N/A"}',
-                          style: const TextStyle(fontSize: 12),
+                          style: AppTextStyles.subtitle1,
                         ),
                         Text(
                           'SL: ${p.quantity}',
-                          style: const TextStyle(fontSize: 12),
+                          style: AppTextStyles.subtitle1,
                         ),
                       ],
                     ),
@@ -3748,8 +3772,7 @@ class _InventoryViewState extends State<InventoryView>
                     ),
                     child: Text(
                       type,
-                      style: const TextStyle(
-                        fontSize: 14,
+                      style: AppTextStyles.headline4.copyWith(
                         color: Colors.black54,
                       ),
                     ),
@@ -3792,8 +3815,7 @@ class _InventoryViewState extends State<InventoryView>
                       ),
                       child: Text(
                         CurrencyTextField.formatDisplay(p.cost),
-                        style: const TextStyle(
-                          fontSize: 14,
+                        style: AppTextStyles.headline4.copyWith(
                           color: Colors.black54,
                         ),
                       ),
@@ -3845,8 +3867,7 @@ class _InventoryViewState extends State<InventoryView>
                           ),
                           child: Text(
                             supplier ?? 'Không có',
-                            style: const TextStyle(
-                              fontSize: 14,
+                            style: AppTextStyles.headline4.copyWith(
                               color: Colors.black54,
                             ),
                           ),
@@ -3902,9 +3923,8 @@ class _InventoryViewState extends State<InventoryView>
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Text(
         text,
-        style: TextStyle(
+        style: AppTextStyles.subtitle1.copyWith(
           color: AppColors.onSurface.withOpacity(0.8),
-          fontSize: 12,
         ),
       ),
     );

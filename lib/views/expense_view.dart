@@ -414,7 +414,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                         (c) => ChoiceChip(
                           label: Text(
                             c,
-                            style: AppTextStyles.caption.copyWith(fontSize: 11),
+                            style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize),
                           ),
                           selected: category == c,
                           onSelected: (v) => setS(() => category = c),
@@ -665,10 +665,10 @@ class _ExpenseViewState extends State<ExpenseView> {
           // Filter type selector
           Row(
             children: [
-              const Text(
+              Text(
                 "LỌC THEO: ",
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppTextStyles.subtitle1.fontSize,
                   fontWeight: FontWeight.bold,
                   color: Colors.grey,
                 ),
@@ -684,7 +684,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                           label: Text(
                             type,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: AppTextStyles.body1.fontSize,
                               fontWeight: FontWeight.bold,
                               color: _filterType == type
                                   ? Colors.white
@@ -760,8 +760,8 @@ class _ExpenseViewState extends State<ExpenseView> {
                     ),
                     child: Text(
                       _getDateDisplayText(),
-                      style: const TextStyle(
-                        fontSize: 14,
+                      style: TextStyle(
+                        fontSize: AppTextStyles.headline4.fontSize,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -861,9 +861,9 @@ class _ExpenseViewState extends State<ExpenseView> {
               children: [
                 Text(
                   headerTitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 11,
+                    fontSize: AppTextStyles.body1.fontSize,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.1,
                   ),
@@ -871,9 +871,9 @@ class _ExpenseViewState extends State<ExpenseView> {
                 const SizedBox(height: 5),
                 Text(
                   MoneyUtils.formatCurrency(total),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 26,
+                    fontSize: AppTextStyles.headline1.fontSize,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -941,12 +941,12 @@ class _ExpenseViewState extends State<ExpenseView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 9)),
+        Text(label, style: TextStyle(color: Colors.white60, fontSize: AppTextStyles.overlineSize)),
         Text(
           MoneyUtils.formatCurrency(val),
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
-            fontSize: 11,
+            fontSize: AppTextStyles.body1.fontSize,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -1002,9 +1002,9 @@ class _ExpenseViewState extends State<ExpenseView> {
         ),
         title: Text(
           (e['title'] ?? 'Chi phí không tên').toString(),
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 14,
+            fontSize: AppTextStyles.headline4.fontSize,
             color: Color(0xFF1A237E),
           ),
         ),
@@ -1014,14 +1014,14 @@ class _ExpenseViewState extends State<ExpenseView> {
             Text(
               cat,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: AppTextStyles.caption.fontSize,
                 color: color,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               "${DateFormat('HH:mm - dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))} | ${e['isPurchaseDebt'] == true ? 'CÔNG NỢ' : (e['paymentMethod'] ?? 'TIỀN MẶT')}",
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
+              style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey),
             ),
           ],
         ),
@@ -1030,10 +1030,10 @@ class _ExpenseViewState extends State<ExpenseView> {
           children: [
             Text(
               "-${MoneyUtils.formatCurrency(e['amount'])}",
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.redAccent,
                 fontWeight: FontWeight.w900,
-                fontSize: 15,
+                fontSize: AppTextStyles.headline3.fontSize,
               ),
             ),
             const SizedBox(width: 8),

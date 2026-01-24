@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
+import '../theme/app_text_styles.dart';
 import '../models/sale_order_model.dart';
 import '../models/repair_model.dart';
 import '../models/expense_model.dart';
@@ -504,10 +505,10 @@ class _CashClosingViewState extends State<CashClosingView>
                   const SizedBox(width: 4),
                   Text(
                     DateFormat('dd/MM/yyyy', 'vi').format(_selectedDate),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w500,
-                      fontSize: 12,
+                      fontSize: AppTextStyles.subtitle1.fontSize,
                     ),
                   ),
                   const Icon(
@@ -553,7 +554,7 @@ class _CashClosingViewState extends State<CashClosingView>
       ),
       child: Row(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 14)),
+          Text(emoji, style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
           const SizedBox(width: 6),
           Expanded(
             child: Column(
@@ -564,14 +565,14 @@ class _CashClosingViewState extends State<CashClosingView>
                   label,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
-                    fontSize: 9,
+                    fontSize: AppTextStyles.overlineSize,
                   ),
                 ),
                 Text(
                   MoneyUtils.formatVND(amount),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 11,
+                    fontSize: AppTextStyles.body1.fontSize,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -672,12 +673,12 @@ class _CashClosingViewState extends State<CashClosingView>
                 size: 24,
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 "TỔNG QUỸ HIỆN TẠI",
                 style: TextStyle(
                   color: Colors.white70,
                   fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontSize: AppTextStyles.headline5.fontSize,
                 ),
               ),
               const Spacer(),
@@ -689,9 +690,9 @@ class _CashClosingViewState extends State<CashClosingView>
                 ),
                 child: Text(
                   "${diff >= 0 ? '↑' : '↓'} ${MoneyUtils.formatVND(diff.abs())}",
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 11,
+                    fontSize: AppTextStyles.body1.fontSize,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -701,9 +702,9 @@ class _CashClosingViewState extends State<CashClosingView>
           const SizedBox(height: 12),
           Text(
             MoneyUtils.formatVND(total),
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 28,
+              fontSize: AppTextStyles.headline1.fontSize,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -719,17 +720,17 @@ class _CashClosingViewState extends State<CashClosingView>
                   ),
                   child: Column(
                     children: [
-                      const Text(
+                      Text(
                         "💵 Tiền mặt",
-                        style: TextStyle(color: Colors.white70, fontSize: 11),
+                        style: TextStyle(color: Colors.white70, fontSize: AppTextStyles.body1.fontSize),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         MoneyUtils.formatVND(cash),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: AppTextStyles.headline4.fontSize,
                         ),
                       ),
                     ],
@@ -746,17 +747,17 @@ class _CashClosingViewState extends State<CashClosingView>
                   ),
                   child: Column(
                     children: [
-                      const Text(
+                      Text(
                         "🏦 Ngân hàng",
-                        style: TextStyle(color: Colors.white70, fontSize: 11),
+                        style: TextStyle(color: Colors.white70, fontSize: AppTextStyles.body1.fontSize),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         MoneyUtils.formatVND(bank),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: AppTextStyles.headline4.fontSize,
                         ),
                       ),
                     ],
@@ -808,7 +809,7 @@ class _CashClosingViewState extends State<CashClosingView>
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: color,
-                  fontSize: 14,
+                  fontSize: AppTextStyles.headline4.fontSize,
                 ),
               ),
             ],
@@ -833,12 +834,12 @@ class _CashClosingViewState extends State<CashClosingView>
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 13, color: Colors.black54),
+            style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.black54),
           ),
           Text(
             value,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: AppTextStyles.headline4.fontSize,
               fontWeight: bold ? FontWeight.bold : FontWeight.w500,
               color: color,
             ),
@@ -881,13 +882,13 @@ class _CashClosingViewState extends State<CashClosingView>
                 ),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
                   "SỐ DƯ ĐẦU NGÀY",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.blue,
-                    fontSize: 14,
+                    fontSize: AppTextStyles.headline4.fontSize,
                   ),
                 ),
               ),
@@ -895,7 +896,7 @@ class _CashClosingViewState extends State<CashClosingView>
                 TextButton.icon(
                   onPressed: _showSetOpeningBalanceDialog,
                   icon: const Icon(Icons.edit, size: 16),
-                  label: const Text("Nhập", style: TextStyle(fontSize: 12)),
+                  label: Text("Nhập", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: Size.zero,
@@ -935,7 +936,7 @@ class _CashClosingViewState extends State<CashClosingView>
                       child: Text(
                         "Chưa có số dư đầu kỳ. Bấm \"Nhập\" để thiết lập.",
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: AppTextStyles.body1.fontSize,
                           color: Colors.orange.shade700,
                         ),
                       ),
@@ -986,10 +987,10 @@ class _CashClosingViewState extends State<CashClosingView>
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 "NHẬP SỐ DƯ ĐẦU KỲ",
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: AppTextStyles.headline2.fontSize,
                   fontWeight: FontWeight.bold,
                   color: Colors.indigo,
                 ),
@@ -997,7 +998,7 @@ class _CashClosingViewState extends State<CashClosingView>
               const SizedBox(height: 8),
               Text(
                 "Số dư này sẽ được dùng làm điểm bắt đầu cho ${DateFormat('dd/MM/yyyy').format(_selectedDate)}",
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -1226,12 +1227,12 @@ class _CashClosingViewState extends State<CashClosingView>
                 ),
               ),
               const SizedBox(width: 10),
-              const Text(
+              Text(
                 "BIẾN ĐỘNG TRONG NGÀY",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.orange,
-                  fontSize: 14,
+                  fontSize: AppTextStyles.headline4.fontSize,
                 ),
               ),
             ],
@@ -1264,19 +1265,19 @@ class _CashClosingViewState extends State<CashClosingView>
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       "📥 THU",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: AppTextStyles.subtitle1.fontSize,
                       ),
                     ),
                     Text(
                       "+${MoneyUtils.formatVND(totalIncome)}",
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.green,
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: AppTextStyles.headline5.fontSize,
                       ),
                     ),
                   ],
@@ -1304,19 +1305,19 @@ class _CashClosingViewState extends State<CashClosingView>
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       "📤 CHI",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: AppTextStyles.subtitle1.fontSize,
                       ),
                     ),
                     Text(
                       "-${MoneyUtils.formatVND(totalExpense)}",
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.red,
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: AppTextStyles.headline5.fontSize,
                       ),
                     ),
                   ],
@@ -1334,11 +1335,11 @@ class _CashClosingViewState extends State<CashClosingView>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "📥 CHI TIẾT THU",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                        fontSize: AppTextStyles.body1.fontSize,
                         color: Colors.green,
                       ),
                     ),
@@ -1371,11 +1372,11 @@ class _CashClosingViewState extends State<CashClosingView>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "📤 CHI TIẾT CHI",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                        fontSize: AppTextStyles.body1.fontSize,
                         color: Colors.red,
                       ),
                     ),
@@ -1414,18 +1415,18 @@ class _CashClosingViewState extends State<CashClosingView>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       "💰 LỢI NHUẬN RÒNG",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: AppTextStyles.headline5.fontSize,
                       ),
                     ),
                     Text(
                       "${analysis.netProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(analysis.netProfit)}",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                        fontSize: AppTextStyles.headline3.fontSize,
                         color: analysis.netProfit >= 0
                             ? Colors.green
                             : Colors.red,
@@ -1456,7 +1457,7 @@ class _CashClosingViewState extends State<CashClosingView>
                 Text(
                   "= Doanh thu - Chi phí - Giá vốn",
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: AppTextStyles.caption.fontSize,
                     color: Colors.grey.shade600,
                     fontStyle: FontStyle.italic,
                   ),
@@ -1483,13 +1484,13 @@ class _CashClosingViewState extends State<CashClosingView>
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(fontSize: 11, color: Colors.black54),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.black54),
             ),
           ),
           Text(
             MoneyUtils.formatVND(amount),
             style: TextStyle(
-              fontSize: 11,
+              fontSize: AppTextStyles.body1.fontSize,
               color: color,
               fontWeight: FontWeight.w500,
             ),
@@ -1526,7 +1527,7 @@ class _CashClosingViewState extends State<CashClosingView>
           Text(
             isClosed ? "✅ ĐÃ CHỐT QUỸ" : "⏳ CHƯA CHỐT QUỸ",
             style: TextStyle(
-              fontSize: 16,
+              fontSize: AppTextStyles.headline3.fontSize,
               fontWeight: FontWeight.bold,
               color: isClosed ? Colors.green.shade700 : Colors.orange.shade700,
             ),
@@ -1535,12 +1536,12 @@ class _CashClosingViewState extends State<CashClosingView>
             const SizedBox(height: 8),
             Text(
               "Chốt lúc ${_formatTime(_todayClosing!['closedAt'])} bởi ${_todayClosing!['closedBy'] ?? 'N/A'}",
-              style: TextStyle(fontSize: 12, color: Colors.green.shade600),
+              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.green.shade600),
               textAlign: TextAlign.center,
             ),
             Text(
               "TM: ${MoneyUtils.formatVND(_todayClosing!['cashEnd'] ?? 0)} • CK: ${MoneyUtils.formatVND(_todayClosing!['bankEnd'] ?? 0)}",
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, fontWeight: FontWeight.w500),
             ),
           ],
           if (!isClosed && isToday) ...[
@@ -1601,8 +1602,8 @@ class _CashClosingViewState extends State<CashClosingView>
               ),
               Text(
                 "+${MoneyUtils.formatVND(totalIncome)}",
-                style: const TextStyle(
-                  fontSize: 18,
+                style: TextStyle(
+                  fontSize: AppTextStyles.headline2.fontSize,
                   fontWeight: FontWeight.bold,
                   color: Colors.green,
                 ),
@@ -1653,8 +1654,8 @@ class _CashClosingViewState extends State<CashClosingView>
               ),
               Text(
                 "-${MoneyUtils.formatVND(totalExpense)}",
-                style: const TextStyle(
-                  fontSize: 18,
+                style: TextStyle(
+                  fontSize: AppTextStyles.headline2.fontSize,
                   fontWeight: FontWeight.bold,
                   color: Colors.red,
                 ),
@@ -1705,7 +1706,7 @@ class _CashClosingViewState extends State<CashClosingView>
               children: [
                 Text(
                   t['icon'] as String? ?? '💰',
-                  style: const TextStyle(fontSize: 20),
+                  style: TextStyle(fontSize: AppTextStyles.headline1.fontSize),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -1714,9 +1715,9 @@ class _CashClosingViewState extends State<CashClosingView>
                     children: [
                       Text(
                         t['title'] as String? ?? '',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          fontSize: AppTextStyles.headline5.fontSize,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1724,7 +1725,7 @@ class _CashClosingViewState extends State<CashClosingView>
                       Text(
                         t['subtitle'] as String? ?? '',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: AppTextStyles.body1.fontSize,
                           color: Colors.grey.shade700,
                         ),
                         maxLines: 1,
@@ -1747,9 +1748,9 @@ class _CashClosingViewState extends State<CashClosingView>
                       ),
                       child: Text(
                         "${isIncome ? '+' : '-'}${MoneyUtils.formatVND(t['amount'] as int)}",
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 11,
+                          fontSize: AppTextStyles.body1.fontSize,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1758,7 +1759,7 @@ class _CashClosingViewState extends State<CashClosingView>
                     Text(
                       t['time'] as String? ?? '',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: AppTextStyles.caption.fontSize,
                         color: Colors.grey.shade600,
                       ),
                     ),
@@ -1800,7 +1801,7 @@ class _CashClosingViewState extends State<CashClosingView>
         color: color,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 10)),
+      child: Text(text, style: TextStyle(fontSize: AppTextStyles.caption.fontSize)),
     );
   }
 
@@ -1820,9 +1821,9 @@ class _CashClosingViewState extends State<CashClosingView>
           children: [
             _buildHistoryChart(closings.take(7).toList()),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               "LỊCH SỬ CHỐT QUỸ",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize),
             ),
             const SizedBox(height: 12),
             ...closings.map((c) => _historyCard(c)),
@@ -1849,9 +1850,9 @@ class _CashClosingViewState extends State<CashClosingView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "📊 XU HƯỚNG QUỸ 7 NGÀY",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -1891,8 +1892,8 @@ class _CashClosingViewState extends State<CashClosingView>
                         const SizedBox(height: 4),
                         Text(
                           day,
-                          style: const TextStyle(
-                            fontSize: 10,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.caption.fontSize,
                             color: Colors.grey,
                           ),
                         ),
@@ -1945,17 +1946,17 @@ class _CashClosingViewState extends State<CashClosingView>
                 ),
                 Text(
                   "TM: ${MoneyUtils.formatVND(cashEnd)} • CK: ${MoneyUtils.formatVND(bankEnd)}",
-                  style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.black54),
                 ),
               ],
             ),
           ),
           Text(
             MoneyUtils.formatVND(cashEnd + bankEnd),
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.green,
-              fontSize: 15,
+              fontSize: AppTextStyles.headline3.fontSize,
             ),
           ),
         ],
@@ -2002,9 +2003,9 @@ class _CashClosingViewState extends State<CashClosingView>
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     "XÁC NHẬN CHỐT QUỸ",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
                   ),
                   Text(
                     DateFormat('dd/MM/yyyy').format(_selectedDate),
@@ -2133,14 +2134,14 @@ class _CashClosingViewState extends State<CashClosingView>
           const SizedBox(height: 8),
           Row(
             children: [
-              const Text(
+              Text(
                 "Dự kiến: ",
-                style: TextStyle(fontSize: 12, color: Colors.black54),
+                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black54),
               ),
               Text(
                 MoneyUtils.formatVND(expected),
-                style: const TextStyle(
-                  fontSize: 12,
+                style: TextStyle(
+                  fontSize: AppTextStyles.subtitle1.fontSize,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -2167,7 +2168,7 @@ class _CashClosingViewState extends State<CashClosingView>
           const SizedBox(height: 8),
           Row(
             children: [
-              const Text("Chênh lệch: ", style: TextStyle(fontSize: 12)),
+              Text("Chênh lệch: ", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
               Text(
                 "${diff >= 0 ? '+' : ''}${MoneyUtils.formatVND(diff)}",
                 style: TextStyle(

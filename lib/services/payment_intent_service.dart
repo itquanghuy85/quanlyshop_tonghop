@@ -318,9 +318,15 @@ class PaymentIntentService {
 
   /// Cancel a payment intent
   static Future<bool> cancelIntent(String intentId, {String? reason}) async {
+    // Ensure service is initialized
+    if (!_isInitialized) {
+      debugPrint('⚠️ PaymentIntentService not initialized for cancel, initializing...');
+      await initialize();
+    }
+    
     final intent = _pendingIntents[intentId];
     if (intent == null) {
-      debugPrint('❌ PaymentIntent not found: $intentId');
+      debugPrint('❌ PaymentIntent not found for cancel: $intentId');
       return false;
     }
 
@@ -361,9 +367,17 @@ class PaymentIntentService {
     required PaymentMethod paymentMethod,
     required String executedBy,
   }) async {
+    // Ensure service is initialized (loads from DB if needed)
+    if (!_isInitialized) {
+      debugPrint('⚠️ PaymentIntentService not initialized, initializing now...');
+      await initialize();
+    }
+    
     // 1. Get the intent
     final intent = _pendingIntents[intentId];
     if (intent == null) {
+      debugPrint('❌ Intent not found in _pendingIntents: $intentId');
+      debugPrint('   Current pending IDs: ${_pendingIntents.keys.toList()}');
       return PaymentExecutionResult.failure(
         errorCode: 'INTENT_NOT_FOUND',
         errorMessage: 'Payment intent not found: $intentId',

@@ -8,6 +8,7 @@ import '../services/sync_health_check.dart';
 import '../services/notification_service.dart';
 import '../services/data_migration_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 /// Widget hiển thị nút sync thống nhất trên AppBar
 /// Gom tất cả chức năng sync vào một nơi
@@ -21,11 +22,11 @@ class UnifiedSyncButton extends StatefulWidget {
 class _UnifiedSyncButtonState extends State<UnifiedSyncButton>
     with SingleTickerProviderStateMixin {
   final SyncOrchestrator _orchestrator = SyncOrchestrator();
-  
+
   StreamSubscription<int>? _countSubscription;
   StreamSubscription<SyncStatus>? _statusSubscription;
   late AnimationController _animationController;
-  
+
   int _pendingCount = 0;
   SyncStatus _status = SyncStatus.synced;
 
@@ -36,12 +37,12 @@ class _UnifiedSyncButtonState extends State<UnifiedSyncButton>
       duration: const Duration(seconds: 1),
       vsync: this,
     );
-    
+
     _pendingCount = _orchestrator.pendingCount;
     _countSubscription = _orchestrator.pendingCountStream.listen((count) {
       if (mounted) setState(() => _pendingCount = count);
     });
-    
+
     _statusSubscription = _orchestrator.syncStatusStream.listen((status) {
       if (mounted) {
         setState(() => _status = status);
@@ -67,7 +68,7 @@ class _UnifiedSyncButtonState extends State<UnifiedSyncButton>
   Widget build(BuildContext context) {
     IconData icon;
     Color iconColor;
-    
+
     switch (_status) {
       case SyncStatus.synced:
         icon = Icons.cloud_done;
@@ -90,7 +91,7 @@ class _UnifiedSyncButtonState extends State<UnifiedSyncButton>
         iconColor = Colors.red;
         break;
     }
-    
+
     Widget iconWidget = AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
@@ -102,26 +103,29 @@ class _UnifiedSyncButtonState extends State<UnifiedSyncButton>
         );
       },
     );
-    
+
     // Badge khi có pending
     if (_pendingCount > 0 && _status != SyncStatus.syncing) {
       iconWidget = Badge(
         label: Text(
           _pendingCount > 99 ? '99+' : '$_pendingCount',
-          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: AppTextStyles.overlineSize,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.red,
         child: iconWidget,
       );
     }
-    
+
     return IconButton(
       onPressed: () => _showSyncCenter(context),
       icon: iconWidget,
       tooltip: 'Trung tâm đồng bộ',
     );
   }
-  
+
   void _showSyncCenter(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -142,7 +146,7 @@ class SyncCenterSheet extends StatefulWidget {
 
 class _SyncCenterSheetState extends State<SyncCenterSheet> {
   final SyncOrchestrator _orchestrator = SyncOrchestrator();
-  
+
   bool _isLoading = false;
   String _loadingMessage = '';
   SyncHealthReport? _healthReport;
@@ -161,7 +165,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
       _isLoading = true;
       _loadingMessage = 'Đang kiểm tra...';
     });
-    
+
     try {
       // Load local stats
       final db = DBHelper();
@@ -170,7 +174,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
       final products = await db.getAllProducts();
       final expenses = await db.getAllExpenses();
       final debts = await db.getAllDebts();
-      
+
       _localStats = {
         'repairs': repairs.length,
         'sales': sales.length,
@@ -178,13 +182,13 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
         'expenses': expenses.length,
         'debts': debts.length,
       };
-      
+
       // Load sync queue stats
       _syncQueueStats = await _orchestrator.getSyncStats();
-      
+
       // Check realtime sync status
       _isRealtimeSyncActive = SyncService.isRealTimeSyncActive;
-      
+
       // Load health check (quick)
       _healthReport = await SyncHealthCheck.runFullCheck();
     } catch (e) {
@@ -221,28 +225,35 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              
+
               // Title
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    const Icon(Icons.cloud_sync, color: AppColors.primary, size: 28),
+                    const Icon(
+                      Icons.cloud_sync,
+                      color: AppColors.primary,
+                      size: 28,
+                    ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'TRUNG TÂM ĐỒNG BỘ',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: AppTextStyles.headline2.fontSize,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Quản lý dữ liệu Local ↔ Cloud',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            style: TextStyle(
+                              fontSize: AppTextStyles.subtitle1.fontSize,
+                              color: Colors.grey,
+                            ),
                           ),
                         ],
                       ),
@@ -254,9 +265,9 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                   ],
                 ),
               ),
-              
+
               const Divider(),
-              
+
               // Content
               Expanded(
                 child: _isLoading
@@ -276,25 +287,25 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                         children: [
                           // Health status card
                           _buildHealthStatusCard(),
-                          
+
                           const SizedBox(height: 16),
-                          
+
                           // Local stats
                           _buildLocalStatsCard(),
-                          
+
                           const SizedBox(height: 16),
-                          
+
                           // Main actions
-                          const Text(
+                          Text(
                             'THAO TÁC ĐỒNG BỘ',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: AppTextStyles.subtitle1Size,
                               fontWeight: FontWeight.bold,
                               color: Colors.grey,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          
+
                           _buildActionTile(
                             icon: Icons.cloud_download,
                             iconColor: Colors.blue,
@@ -302,7 +313,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                             subtitle: 'Download dữ liệu từ đám mây về máy',
                             onTap: _handleDownload,
                           ),
-                          
+
                           _buildActionTile(
                             icon: Icons.cloud_upload,
                             iconColor: Colors.green,
@@ -310,7 +321,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                             subtitle: 'Upload dữ liệu chưa sync lên đám mây',
                             onTap: _handleUpload,
                           ),
-                          
+
                           _buildActionTile(
                             icon: Icons.sync,
                             iconColor: Colors.orange,
@@ -318,38 +329,41 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                             subtitle: 'Upload + Download để đồng nhất dữ liệu',
                             onTap: _handleFullSync,
                           ),
-                          
+
                           _buildActionTile(
                             icon: Icons.replay,
                             iconColor: Colors.purple,
                             title: 'Khởi động lại Realtime',
-                            subtitle: 'Kết nối lại listener khi không nhận data',
+                            subtitle:
+                                'Kết nối lại listener khi không nhận data',
                             onTap: _handleReinitializeSync,
                           ),
-                          
+
                           // Auto fix button - shown when there are mismatches
-                          if (_healthReport != null && !_healthReport!.isFullyHealthy)
+                          if (_healthReport != null &&
+                              !_healthReport!.isFullyHealthy)
                             _buildActionTile(
                               icon: Icons.auto_fix_high,
                               iconColor: Colors.red,
                               title: '🔧 SỬA TỰ ĐỘNG',
-                              subtitle: 'Tự động sửa ${_healthReport!.totalMismatches} bản ghi chưa khớp',
+                              subtitle:
+                                  'Tự động sửa ${_healthReport!.totalMismatches} bản ghi chưa khớp',
                               onTap: _handleAutoFix,
                             ),
-                          
+
                           const SizedBox(height: 16),
-                          
+
                           // Advanced actions
-                          const Text(
+                          Text(
                             'NÂNG CAO',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: AppTextStyles.subtitle1Size,
                               fontWeight: FontWeight.bold,
                               color: Colors.grey,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          
+
                           _buildActionTile(
                             icon: Icons.health_and_safety,
                             iconColor: Colors.teal,
@@ -357,7 +371,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                             subtitle: 'So sánh từng bảng Local vs Cloud',
                             onTap: _handleDetailedCheck,
                           ),
-                          
+
                           _buildActionTile(
                             icon: Icons.restore,
                             iconColor: Colors.purple,
@@ -365,13 +379,15 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                             subtitle: 'Tìm dữ liệu bị "lạc" do đổi shop',
                             onTap: _handleDataRecovery,
                           ),
-                          
+
                           // Show retry/clear failed when there are failed items
-                          if (_syncQueueStats != null && (_syncQueueStats!['failed'] ?? 0) > 0) ...[
+                          if (_syncQueueStats != null &&
+                              (_syncQueueStats!['failed'] ?? 0) > 0) ...[
                             _buildActionTile(
                               icon: Icons.refresh,
                               iconColor: Colors.orange,
-                              title: 'Thử lại ${_syncQueueStats!['failed']} items lỗi',
+                              title:
+                                  'Thử lại ${_syncQueueStats!['failed']} items lỗi',
                               subtitle: 'Reset và sync lại các items bị failed',
                               onTap: _handleRetryFailed,
                             ),
@@ -379,11 +395,12 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                               icon: Icons.delete_sweep,
                               iconColor: Colors.red,
                               title: 'Xóa items lỗi',
-                              subtitle: 'Xóa vĩnh viễn các items không thể sync',
+                              subtitle:
+                                  'Xóa vĩnh viễn các items không thể sync',
                               onTap: _handleClearFailed,
                             ),
                           ],
-                          
+
                           const SizedBox(height: 32),
                         ],
                       ),
@@ -398,7 +415,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   Widget _buildHealthStatusCard() {
     final isHealthy = _healthReport?.isFullyHealthy ?? true;
     final color = isHealthy ? Colors.green : Colors.orange;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -430,22 +447,32 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: color,
-                    fontSize: 16,
+                    fontSize: AppTextStyles.headline3.fontSize,
                   ),
                 ),
                 const SizedBox(height: 4),
                 if (_healthReport != null) ...[
                   Text(
                     'Local: ${_healthReport!.totalLocalRecords} | Cloud: ${_healthReport!.totalCloudRecords}',
-                    style: const TextStyle(fontSize: 12),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                    ),
                   ),
                   if (!isHealthy)
                     Text(
                       '${_healthReport!.totalMismatches} bản ghi chưa khớp',
-                      style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+                      style: TextStyle(
+                        fontSize: AppTextStyles.body1.fontSize,
+                        color: Colors.orange.shade700,
+                      ),
                     ),
                 ] else
-                  const Text('Đang kiểm tra...', style: TextStyle(fontSize: 12)),
+                  Text(
+                    'Đang kiểm tra...',
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                    ),
+                  ),
                 // Show realtime sync status
                 Row(
                   children: [
@@ -458,22 +485,32 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                     Text(
                       _isRealtimeSyncActive ? 'Realtime: ON' : 'Realtime: OFF',
                       style: TextStyle(
-                        fontSize: 11,
-                        color: _isRealtimeSyncActive ? Colors.green : Colors.red,
+                        fontSize: AppTextStyles.body1.fontSize,
+                        color: _isRealtimeSyncActive
+                            ? Colors.green
+                            : Colors.red,
                       ),
                     ),
-                    if (_syncQueueStats != null && (_syncQueueStats!['pending'] ?? 0) > 0) ...[
+                    if (_syncQueueStats != null &&
+                        (_syncQueueStats!['pending'] ?? 0) > 0) ...[
                       const SizedBox(width: 8),
                       Text(
                         '| Queue: ${_syncQueueStats!['pending']} pending',
-                        style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                          color: Colors.orange.shade700,
+                        ),
                       ),
                     ],
-                    if (_syncQueueStats != null && (_syncQueueStats!['failed'] ?? 0) > 0) ...[
+                    if (_syncQueueStats != null &&
+                        (_syncQueueStats!['failed'] ?? 0) > 0) ...[
                       const SizedBox(width: 4),
                       Text(
                         ', ${_syncQueueStats!['failed']} failed',
-                        style: const TextStyle(fontSize: 11, color: Colors.red),
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                          color: Colors.red,
+                        ),
                       ),
                     ],
                   ],
@@ -504,7 +541,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
               Text(
                 'DỮ LIỆU LOCAL',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppTextStyles.subtitle1Size,
                   fontWeight: FontWeight.bold,
                   color: Colors.grey,
                 ),
@@ -517,11 +554,31 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
               spacing: 16,
               runSpacing: 8,
               children: [
-                _buildStatChip('Sửa chữa', _localStats!['repairs'] ?? 0, Icons.build),
-                _buildStatChip('Bán hàng', _localStats!['sales'] ?? 0, Icons.shopping_cart),
-                _buildStatChip('Sản phẩm', _localStats!['products'] ?? 0, Icons.inventory),
-                _buildStatChip('Chi phí', _localStats!['expenses'] ?? 0, Icons.money_off),
-                _buildStatChip('Công nợ', _localStats!['debts'] ?? 0, Icons.account_balance),
+                _buildStatChip(
+                  'Sửa chữa',
+                  _localStats!['repairs'] ?? 0,
+                  Icons.build,
+                ),
+                _buildStatChip(
+                  'Bán hàng',
+                  _localStats!['sales'] ?? 0,
+                  Icons.shopping_cart,
+                ),
+                _buildStatChip(
+                  'Sản phẩm',
+                  _localStats!['products'] ?? 0,
+                  Icons.inventory,
+                ),
+                _buildStatChip(
+                  'Chi phí',
+                  _localStats!['expenses'] ?? 0,
+                  Icons.money_off,
+                ),
+                _buildStatChip(
+                  'Công nợ',
+                  _localStats!['debts'] ?? 0,
+                  Icons.account_balance,
+                ),
               ],
             )
           else
@@ -546,10 +603,19 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           const SizedBox(width: 6),
           Text(
             '$count',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: AppTextStyles.headline5.fontSize,
+            ),
           ),
           const SizedBox(width: 4),
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: AppTextStyles.body1.fontSize,
+              color: Colors.grey,
+            ),
+          ),
         ],
       ),
     );
@@ -574,7 +640,10 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           child: Icon(icon, color: iconColor, size: 24),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+        ),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
       ),
@@ -584,23 +653,27 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   Future<void> _handleDownload() async {
     final confirm = await _showConfirmDialog(
       title: '📥 TẢI TỪ CLOUD',
-      message: 'Tải toàn bộ dữ liệu shop từ đám mây về máy này.\n\nDữ liệu local sẽ được cập nhật theo cloud.',
+      message:
+          'Tải toàn bộ dữ liệu shop từ đám mây về máy này.\n\nDữ liệu local sẽ được cập nhật theo cloud.',
       confirmText: 'TẢI XUỐNG',
       confirmColor: Colors.blue,
     );
-    
+
     if (confirm != true) return;
-    
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Đang tải từ Cloud...';
     });
-    
+
     try {
       await SyncService.downloadAllFromCloud();
       if (mounted) {
         Navigator.pop(context);
-        NotificationService.showSnackBar('✅ Đã tải xong dữ liệu từ Cloud!', color: Colors.green);
+        NotificationService.showSnackBar(
+          '✅ Đã tải xong dữ liệu từ Cloud!',
+          color: Colors.green,
+        );
       }
     } catch (e) {
       NotificationService.showSnackBar('❌ Lỗi: $e', color: Colors.red);
@@ -611,25 +684,29 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   Future<void> _handleUpload() async {
     final confirm = await _showConfirmDialog(
       title: '📤 ĐẨY LÊN CLOUD',
-      message: 'Upload dữ liệu chưa đồng bộ từ máy này lên đám mây.\n\nDữ liệu trên cloud sẽ KHÔNG bị xóa.',
+      message:
+          'Upload dữ liệu chưa đồng bộ từ máy này lên đám mây.\n\nDữ liệu trên cloud sẽ KHÔNG bị xóa.',
       confirmText: 'UPLOAD',
       confirmColor: Colors.green,
     );
-    
+
     if (confirm != true) return;
-    
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Đang đẩy lên Cloud...';
     });
-    
+
     try {
       await SyncService.syncAllToCloud();
       // Also sync pending queue
       await _orchestrator.syncAll();
       if (mounted) {
         Navigator.pop(context);
-        NotificationService.showSnackBar('✅ Đã đồng bộ lên Cloud!', color: Colors.green);
+        NotificationService.showSnackBar(
+          '✅ Đã đồng bộ lên Cloud!',
+          color: Colors.green,
+        );
       }
     } catch (e) {
       NotificationService.showSnackBar('❌ Lỗi: $e', color: Colors.red);
@@ -640,7 +717,8 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   Future<void> _handleAutoFix() async {
     final confirm = await _showConfirmDialog(
       title: '🔧 SỬA TỰ ĐỘNG',
-      message: 'Tự động sửa các bản ghi không khớp giữa Local và Cloud:\n\n'
+      message:
+          'Tự động sửa các bản ghi không khớp giữa Local và Cloud:\n\n'
           '1. Upload dữ liệu local chưa sync\n'
           '2. Download TẤT CẢ dữ liệu từ Cloud\n'
           '3. Đánh dấu đã đồng bộ\n\n'
@@ -648,23 +726,23 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
       confirmText: 'SỬA NGAY',
       confirmColor: Colors.red,
     );
-    
+
     if (confirm != true) return;
-    
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Đang sửa tự động...';
     });
-    
+
     try {
       final fixedCount = await SyncHealthCheck.autoFix();
-      
+
       // Reload health report
       _healthReport = await SyncHealthCheck.runFullCheck();
-      
+
       if (mounted) {
         setState(() => _isLoading = false);
-        
+
         final isFixed = _healthReport?.isFullyHealthy ?? false;
         if (isFixed) {
           NotificationService.showSnackBar(
@@ -687,39 +765,42 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   Future<void> _handleReinitializeSync() async {
     final confirm = await _showConfirmDialog(
       title: '🔄 KHỞI ĐỘNG LẠI REALTIME SYNC',
-      message: 'Kết nối lại tất cả listeners để nhận dữ liệu mới từ máy khác.\n\nDùng khi:\n• Không nhận được đơn mới từ máy khác\n• Biểu tượng sync vàng không chuyển xanh\n• Sau khi mất mạng',
+      message:
+          'Kết nối lại tất cả listeners để nhận dữ liệu mới từ máy khác.\n\nDùng khi:\n• Không nhận được đơn mới từ máy khác\n• Biểu tượng sync vàng không chuyển xanh\n• Sau khi mất mạng',
       confirmText: 'KHỞI ĐỘNG LẠI',
       confirmColor: Colors.purple,
     );
-    
+
     if (confirm != true) return;
-    
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Đang khởi động lại listeners...';
     });
-    
+
     try {
       // Check current sync status before reinit
       final isActive = SyncService.isRealTimeSyncActive;
       final status = SyncService.subscriptionStatus;
-      debugPrint('📊 Current sync status: isActive=$isActive, subscriptions=$status');
-      
+      debugPrint(
+        '📊 Current sync status: isActive=$isActive, subscriptions=$status',
+      );
+
       // Force reinitialize
       await SyncService.forceReinitializeSync();
-      
+
       // Wait a moment for subscriptions to establish
       await Future.delayed(const Duration(seconds: 2));
-      
+
       // Download latest data after reinit
       setState(() => _loadingMessage = 'Đang tải dữ liệu mới...');
       await SyncService.downloadAllFromCloud();
-      
+
       if (mounted) {
         Navigator.pop(context);
         final newStatus = SyncService.subscriptionStatus;
         NotificationService.showSnackBar(
-          '✅ Đã khởi động lại ${newStatus.length} listeners!', 
+          '✅ Đã khởi động lại ${newStatus.length} listeners!',
           color: Colors.green,
         );
       }
@@ -732,28 +813,32 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   Future<void> _handleFullSync() async {
     final confirm = await _showConfirmDialog(
       title: '🔄 ĐỒNG BỘ 2 CHIỀU',
-      message: 'Upload local lên cloud, sau đó download cloud về local.\n\nĐảm bảo dữ liệu 2 bên giống nhau.',
+      message:
+          'Upload local lên cloud, sau đó download cloud về local.\n\nĐảm bảo dữ liệu 2 bên giống nhau.',
       confirmText: 'ĐỒNG BỘ',
       confirmColor: Colors.orange,
     );
-    
+
     if (confirm != true) return;
-    
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Bước 1: Upload...';
     });
-    
+
     try {
       await SyncService.syncAllToCloud();
       await _orchestrator.syncAll();
-      
+
       setState(() => _loadingMessage = 'Bước 2: Download...');
       await SyncService.downloadAllFromCloud();
-      
+
       if (mounted) {
         Navigator.pop(context);
-        NotificationService.showSnackBar('✅ Đồng bộ 2 chiều hoàn tất!', color: Colors.green);
+        NotificationService.showSnackBar(
+          '✅ Đồng bộ 2 chiều hoàn tất!',
+          color: Colors.green,
+        );
       }
     } catch (e) {
       NotificationService.showSnackBar('❌ Lỗi: $e', color: Colors.red);
@@ -764,32 +849,33 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   Future<void> _handleRetryFailed() async {
     final confirm = await _showConfirmDialog(
       title: '🔄 THỬ LẠI ITEMS LỖI',
-      message: 'Reset và sync lại tất cả items đã bị đánh dấu failed.\n\nCác items này sẽ được đưa trở lại hàng đợi sync.',
+      message:
+          'Reset và sync lại tất cả items đã bị đánh dấu failed.\n\nCác items này sẽ được đưa trở lại hàng đợi sync.',
       confirmText: 'THỬ LẠI',
       confirmColor: Colors.orange,
     );
-    
+
     if (confirm != true) return;
-    
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Đang reset...';
     });
-    
+
     try {
       await _orchestrator.retryFailedItems();
-      
+
       // Trigger sync after retry
       setState(() => _loadingMessage = 'Đang sync...');
       await _orchestrator.syncAll();
-      
+
       // Reload stats
       _syncQueueStats = await _orchestrator.getSyncStats();
-      
+
       if (mounted) {
         setState(() => _isLoading = false);
         NotificationService.showSnackBar(
-          '✅ Đã reset và thử sync lại!', 
+          '✅ Đã reset và thử sync lại!',
           color: Colors.green,
         );
       }
@@ -802,28 +888,29 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   Future<void> _handleClearFailed() async {
     final confirm = await _showConfirmDialog(
       title: '🗑️ XÓA ITEMS LỖI',
-      message: '⚠️ CẢNH BÁO: Xóa vĩnh viễn tất cả items bị failed.\n\nDữ liệu local KHÔNG bị xóa, chỉ xóa khỏi hàng đợi sync.\n\nDùng khi items không thể sync và bạn muốn làm sạch queue.',
+      message:
+          '⚠️ CẢNH BÁO: Xóa vĩnh viễn tất cả items bị failed.\n\nDữ liệu local KHÔNG bị xóa, chỉ xóa khỏi hàng đợi sync.\n\nDùng khi items không thể sync và bạn muốn làm sạch queue.',
       confirmText: 'XÓA',
       confirmColor: Colors.red,
     );
-    
+
     if (confirm != true) return;
-    
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Đang xóa...';
     });
-    
+
     try {
       final count = await _orchestrator.clearFailedItems();
-      
+
       // Reload stats
       _syncQueueStats = await _orchestrator.getSyncStats();
-      
+
       if (mounted) {
         setState(() => _isLoading = false);
         NotificationService.showSnackBar(
-          '✅ Đã xóa $count items lỗi!', 
+          '✅ Đã xóa $count items lỗi!',
           color: Colors.green,
         );
       }
@@ -838,7 +925,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
       _isLoading = true;
       _loadingMessage = 'Đang kiểm tra chi tiết...';
     });
-    
+
     try {
       final report = await SyncHealthCheck.runFullCheck();
       if (mounted) {
@@ -857,20 +944,23 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
       NotificationService.showSnackBar('Vui lòng đăng nhập', color: Colors.red);
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
       _loadingMessage = 'Đang tìm dữ liệu...';
     });
-    
+
     try {
       final orphanData = await DataMigrationService.findOrphanData();
-      
+
       if (mounted) {
         setState(() => _isLoading = false);
-        
+
         if (orphanData.isEmpty) {
-          NotificationService.showSnackBar('Không tìm thấy dữ liệu bị lạc', color: Colors.blue);
+          NotificationService.showSnackBar(
+            'Không tìm thấy dữ liệu bị lạc',
+            color: Colors.blue,
+          );
         } else {
           _showOrphanDataDialog(orphanData);
         }
@@ -896,7 +986,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
               report.isFullyHealthy ? 'ĐỒNG BỘ TỐT' : 'CẦN ĐỒNG BỘ',
               style: TextStyle(
                 color: report.isFullyHealthy ? Colors.green : Colors.orange,
-                fontSize: 16,
+                fontSize: AppTextStyles.headline3.fontSize,
               ),
             ),
           ],
@@ -907,7 +997,13 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Shop ID: ${report.shopId ?? 'N/A'}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(
+                  'Shop ID: ${report.shopId ?? 'N/A'}',
+                  style: TextStyle(
+                    fontSize: AppTextStyles.body1.fontSize,
+                    color: Colors.grey,
+                  ),
+                ),
                 const Divider(),
                 ...report.results.map((r) => _buildReportRow(r)),
               ],
@@ -948,8 +1044,20 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(r.collection, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                Text('Local: ${r.localCount} | Cloud: ${r.cloudCount}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(
+                  r.collection,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: AppTextStyles.headline5.fontSize,
+                  ),
+                ),
+                Text(
+                  'Local: ${r.localCount} | Cloud: ${r.cloudCount}',
+                  style: TextStyle(
+                    fontSize: AppTextStyles.body1.fontSize,
+                    color: Colors.grey,
+                  ),
+                ),
               ],
             ),
           ),
@@ -958,7 +1066,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: isOk ? Colors.green : Colors.orange,
-              fontSize: 12,
+              fontSize: AppTextStyles.subtitle1.fontSize,
             ),
           ),
         ],
@@ -970,11 +1078,12 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
     // Group by shopId
     final groupedByShop = <String, int>{};
     for (var info in orphanData) {
-      groupedByShop[info.shopId] = (groupedByShop[info.shopId] ?? 0) + info.count;
+      groupedByShop[info.shopId] =
+          (groupedByShop[info.shopId] ?? 0) + info.count;
     }
-    
+
     final totalCount = orphanData.fold<int>(0, (sum, item) => sum + item.count);
-    
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -991,11 +1100,18 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           children: [
             Text('Tìm thấy $totalCount bản ghi bị lạc:'),
             const SizedBox(height: 12),
-            ...orphanData.map((info) => Text('• ${info.collection}: ${info.count} (shop: ${info.shopId.substring(0, 8)}...)')),
+            ...orphanData.map(
+              (info) => Text(
+                '• ${info.collection}: ${info.count} (shop: ${info.shopId.substring(0, 8)}...)',
+              ),
+            ),
             const SizedBox(height: 12),
             const Text(
               'Để khôi phục, vui lòng vào Cài đặt > Thông tin cửa hàng > Khôi phục dữ liệu và chọn shopId nguồn.',
-              style: TextStyle(fontStyle: FontStyle.italic, fontSize: 11),
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                fontSize: AppTextStyles.body1Size,
+              ),
             ),
           ],
         ),
@@ -1018,7 +1134,10 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(title, style: TextStyle(color: confirmColor, fontWeight: FontWeight.bold)),
+        title: Text(
+          title,
+          style: TextStyle(color: confirmColor, fontWeight: FontWeight.bold),
+        ),
         content: Text(message),
         actions: [
           TextButton(
@@ -1028,7 +1147,10 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: confirmColor),
-            child: Text(confirmText, style: const TextStyle(color: Colors.white)),
+            child: Text(
+              confirmText,
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

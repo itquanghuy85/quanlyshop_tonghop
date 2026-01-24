@@ -14,45 +14,45 @@ class AppTextStyles {
   /// Font chữ số (cho price, quantity)
   static const String numberFontFamily = 'Roboto';
 
-  // ========== FONT SIZES ==========
-  /// Heading 1 - 32px
-  static const double h1 = 30.0;
+  // ========== FONT SIZES (COMPACT) ==========
+  /// Heading 1 - Page title
+  static const double h1 = 22.0;
 
-  /// Heading 2 - 28px
-  static const double h2 = 26.0;
+  /// Heading 2 - Section header
+  static const double h2 = 18.0;
 
-  /// Heading 3 - 24px
-  static const double h3 = 24.0;
+  /// Heading 3 - Card title
+  static const double h3 = 16.0;
 
-  /// Heading 4 - 20px
-  static const double h4 = 20.0;
+  /// Heading 4 - List item title
+  static const double h4 = 14.0;
 
-  /// Heading 5 - 18px
-  static const double h5 = 18.0;
+  /// Heading 5 - Subtitle
+  static const double h5 = 13.0;
 
-  /// Heading 6 - 16px
-  static const double h6 = 14.0;
+  /// Heading 6 - Small header
+  static const double h6 = 12.0;
 
-  /// Subtitle 1 - 16px
-  static const double subtitle1Size = 15.0;
+  /// Subtitle 1 - Primary subtitle
+  static const double subtitle1Size = 12.0;
 
-  /// Subtitle 2 - 14px
-  static const double subtitle2Size = 13.0;
+  /// Subtitle 2 - Secondary subtitle
+  static const double subtitle2Size = 11.0;
 
-  /// Body 1 - 16px
-  static const double body1Size = 15.0;
+  /// Body 1 - Main content
+  static const double body1Size = 11.0;
 
-  /// Body 2 - 14px
-  static const double body2Size = 13.0;
+  /// Body 2 - Secondary content
+  static const double body2Size = 10.0;
 
-  /// Button - 14px
-  static const double buttonSize = 13.0;
+  /// Button text
+  static const double buttonSize = 11.0;
 
-  /// Caption - 12px
-  static const double captionSize = 12.0;
+  /// Caption - Metadata, timestamps
+  static const double captionSize = 10.0;
 
-  /// Overline - 10px
-  static const double overlineSize = 10.0;
+  /// Overline - Smallest text
+  static const double overlineSize = 9.0;
 
   // ========== LINE HEIGHTS ==========
   /// Line height cho heading

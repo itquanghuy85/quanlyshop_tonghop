@@ -19,6 +19,7 @@ import '../models/payment_intent_model.dart';
 import '../services/payment_intent_service.dart';
 import '../services/user_service.dart';
 import '../constants/financial_constants.dart';
+import '../theme/app_text_styles.dart';
 
 /// Unified Payment Page - The ONLY place where payments are executed
 ///
@@ -166,7 +167,7 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
                       style: TextStyle(
                         color: directionColor,
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: AppTextStyles.subtitle1.fontSize,
                       ),
                     ),
                     Text(
@@ -221,13 +222,13 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(color: Colors.grey, fontSize: 14),
+              style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.headline4.fontSize),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+              style: TextStyle(fontWeight: FontWeight.w500, fontSize: AppTextStyles.headline4.fontSize),
             ),
           ),
         ],
@@ -344,7 +345,7 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
             )
           : Text(
               isIncome ? 'XÁC NHẬN THU TIỀN' : 'XÁC NHẬN THANH TOÁN',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
             ),
     );
   }

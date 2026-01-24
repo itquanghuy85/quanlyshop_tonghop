@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
+import '../theme/app_text_styles.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
 import '../services/user_service.dart';
@@ -140,11 +141,11 @@ class _WarrantyViewState extends State<WarrantyView> {
             ),
           ),
         ),
-        title: const Text(
+        title: Text(
           "SIÊU TRUNG TÂM BẢO HÀNH",
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 16,
+            fontSize: AppTextStyles.headline3.fontSize,
             color: Colors.white,
           ),
         ),
@@ -183,17 +184,17 @@ class _WarrantyViewState extends State<WarrantyView> {
             color: Colors.blue.withAlpha(51),
           ),
           const SizedBox(height: 15),
-          const Text(
+          Text(
             "KHÔNG CÓ MÁY NÀO TRONG HẠN BẢO HÀNH",
             style: TextStyle(
               color: Colors.blueGrey,
               fontWeight: FontWeight.bold,
-              fontSize: 13,
+              fontSize: AppTextStyles.headline5.fontSize,
             ),
           ),
-          const Text(
+          Text(
             "Mọi đơn hàng đã hết hạn hoặc chưa được giao.",
-            style: TextStyle(color: Colors.grey, fontSize: 11),
+            style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.body1.fontSize),
           ),
         ],
       ),
@@ -272,7 +273,7 @@ class _WarrantyViewState extends State<WarrantyView> {
                         '$index',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 10,
+                          fontSize: AppTextStyles.caption.fontSize,
                           color: isSale
                               ? Colors.pink.shade700
                               : Colors.orange.shade700,
@@ -282,7 +283,7 @@ class _WarrantyViewState extends State<WarrantyView> {
                   ),
                   Text(
                     isSale ? '📱' : '🔧',
-                    style: const TextStyle(fontSize: 16),
+                    style: TextStyle(fontSize: AppTextStyles.headline3.fontSize),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
@@ -303,9 +304,9 @@ class _WarrantyViewState extends State<WarrantyView> {
                               ),
                               child: Text(
                                 isSale ? 'BÁN' : 'SỬA',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 7,
+                                  fontSize: AppTextStyles.overlineSize,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -313,9 +314,9 @@ class _WarrantyViewState extends State<WarrantyView> {
                             Expanded(
                               child: Text(
                                 item['model'].toString().toUpperCase(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                                  fontSize: AppTextStyles.subtitle1.fontSize,
                                   color: Color(0xFF1A237E),
                                 ),
                                 maxLines: 1,
@@ -328,7 +329,7 @@ class _WarrantyViewState extends State<WarrantyView> {
                         Text(
                           '${item['customer']} • ${item['imei']}',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: AppTextStyles.caption.fontSize,
                             color: Colors.grey.shade600,
                           ),
                           maxLines: 1,
@@ -360,14 +361,14 @@ class _WarrantyViewState extends State<WarrantyView> {
                               '$daysLeft',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                                fontSize: AppTextStyles.subtitle1.fontSize,
                                 color: urgentColor,
                               ),
                             ),
                             const SizedBox(width: 2),
                             Text(
                               'ngày',
-                              style: TextStyle(fontSize: 8, color: urgentColor),
+                              style: TextStyle(fontSize: AppTextStyles.overlineSize, color: urgentColor),
                             ),
                           ],
                         ),
@@ -376,7 +377,7 @@ class _WarrantyViewState extends State<WarrantyView> {
                       Text(
                         DateFormat('dd/MM/yy').format(expDate),
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: AppTextStyles.overlineSize,
                           color: urgentColor,
                           fontWeight: FontWeight.w500,
                         ),
@@ -393,7 +394,7 @@ class _WarrantyViewState extends State<WarrantyView> {
                 children: [
                   Text(
                     '${DateFormat('dd/MM').format(startDate)}',
-                    style: TextStyle(fontSize: 8, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: AppTextStyles.overlineSize, color: Colors.grey.shade500),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
@@ -411,7 +412,7 @@ class _WarrantyViewState extends State<WarrantyView> {
                   Text(
                     '${DateFormat('dd/MM').format(expDate)}',
                     style: TextStyle(
-                      fontSize: 8,
+                      fontSize: AppTextStyles.overlineSize,
                       color: urgentColor,
                       fontWeight: FontWeight.w500,
                     ),

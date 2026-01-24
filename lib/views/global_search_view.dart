@@ -4,11 +4,12 @@ import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
 import '../models/product_model.dart';
 import '../models/quick_input_code_model.dart';
+import '../theme/app_text_styles.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
 import 'inventory_view.dart';
 import 'customer_history_view.dart';
-import 'quick_input_library_view.dart';
+import 'quick_input_codes_view.dart';
 
 class GlobalSearchView extends StatefulWidget {
   final String role;
@@ -145,8 +146,8 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
         // Optionally, scroll to the product or something
       });
     } else if (item is QuickInputCode) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputLibraryView()));
-    } else if (item is Map && item.containsKey('customerName')) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputCodesView()));
+    } else if (item.containsKey('customerName')) {
       // Customer from repair
       Navigator.push(context, MaterialPageRoute(builder: (_) => CustomerHistoryView(phone: item['phone'], name: item['customerName'])));
     }
@@ -205,11 +206,11 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('TÌM KIẾM TOÀN APP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            Text('Tìm đơn sửa, đơn bán, sản phẩm...', style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text('TÌM KIẾM TOÀN APP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline2.fontSize)),
+            Text('Tìm đơn sửa, đơn bán, sản phẩm...', style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.white70)),
           ],
         ),
         automaticallyImplyLeading: true,

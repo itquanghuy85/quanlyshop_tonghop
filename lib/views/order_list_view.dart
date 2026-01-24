@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
+import '../theme/app_text_styles.dart';
 import '../models/repair_model.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
@@ -282,9 +283,9 @@ class OrderListViewState extends State<OrderListView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'BỘ LỌC',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: AppTextStyles.headline3.copyWith(fontWeight: FontWeight.bold),
                   ),
                   TextButton(
                     onPressed: () {
@@ -302,11 +303,10 @@ class OrderListViewState extends State<OrderListView> {
               const SizedBox(height: 16),
 
               // STATUS FILTER - CHO PHÉP CHỌN NHIỀU
-              const Text(
+              Text(
                 'TRẠNG THÁI (chọn nhiều)',
-                style: TextStyle(
+                style: AppTextStyles.subtitle1.copyWith(
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
                   color: Colors.grey,
                 ),
               ),
@@ -328,8 +328,7 @@ class OrderListViewState extends State<OrderListView> {
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
                     'Đã chọn: ${_statusFilters.length} trạng thái',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppTextStyles.caption.copyWith(
                       color: Colors.blue.shade700,
                       fontWeight: FontWeight.w500,
                     ),
@@ -338,11 +337,10 @@ class OrderListViewState extends State<OrderListView> {
               const SizedBox(height: 20),
 
               // TIME FILTER
-              const Text(
+              Text(
                 'THỜI GIAN',
-                style: TextStyle(
+                style: AppTextStyles.subtitle1.copyWith(
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
                   color: Colors.grey,
                 ),
               ),
@@ -704,14 +702,13 @@ class OrderListViewState extends State<OrderListView> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               "DANH SÁCH MÁY SỬA",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: AppTextStyles.headline2.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
             ),
             Text(
               '$count máy • $pendingCount đang xử lý',
-              style: const TextStyle(
-                fontSize: 11,
+              style: AppTextStyles.caption.copyWith(
                 color: Colors.white70,
               ),
             ),
@@ -755,9 +752,8 @@ class OrderListViewState extends State<OrderListView> {
                       ),
                       child: Text(
                         '$_activeFilterCount',
-                        style: const TextStyle(
+                        style: AppTextStyles.caption.copyWith(
                           color: Colors.white,
-                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -789,10 +785,9 @@ class OrderListViewState extends State<OrderListView> {
                   const SizedBox(width: 8),
                   Text(
                     'Lọc: ${_getTimeFilterLabel()}',
-                    style: const TextStyle(
-                      color: Color(0xFF2962FF),
+                    style: AppTextStyles.subtitle1.copyWith(
+                      color: const Color(0xFF2962FF),
                       fontWeight: FontWeight.bold,
-                      fontSize: 12,
                     ),
                   ),
                   const Spacer(),
@@ -855,7 +850,7 @@ class OrderListViewState extends State<OrderListView> {
                           child: Center(
                             child: Text(
                               'Đã hiển thị ${_displayedRepairs.length} đơn sửa',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                              style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
                             ),
                           ),
                         );
@@ -950,7 +945,7 @@ class OrderListViewState extends State<OrderListView> {
           },
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -968,9 +963,8 @@ class OrderListViewState extends State<OrderListView> {
                       child: Center(
                         child: Text(
                           '$index',
-                          style: TextStyle(
+                          style: AppTextStyles.body1.copyWith(
                             fontWeight: FontWeight.bold,
-                            fontSize: 11,
                             color: borderColor,
                           ),
                         ),
@@ -1022,9 +1016,8 @@ class OrderListViewState extends State<OrderListView> {
                                 ),
                                 child: Text(
                                   "+${images.length - 1}",
-                                  style: const TextStyle(
+                                  style: AppTextStyles.overline.copyWith(
                                     color: Colors.white,
-                                    fontSize: 8,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -1041,75 +1034,55 @@ class OrderListViewState extends State<OrderListView> {
                         children: [
                           Text(
                             r.model,
-                            style: const TextStyle(
+                            style: AppTextStyles.subtitle1.copyWith(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            '${r.customerName} • ${r.phone}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade700,
-                            ),
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
-                    // Status + Date
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(
-                              r.status,
-                              pendingApproval: r.pendingDeliveryApproval,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            _getStatusLabel(
-                              r.status,
-                              pendingApproval: r.pendingDeliveryApproval,
-                            ),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat('dd/MM HH:mm').format(
-                            DateTime.fromMillisecondsSinceEpoch(r.createdAt),
-                          ),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
                 
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 
                 // Info chips row
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
                   children: [
+                    // Trạng thái (đưa xuống chip để tiêu đề hiển thị được nhiều hơn)
+                    _repairInfoChip(
+                      _getStatusLabel(
+                        r.status,
+                        pendingApproval: r.pendingDeliveryApproval,
+                      ),
+                      _getStatusColor(
+                        r.status,
+                        pendingApproval: r.pendingDeliveryApproval,
+                      ),
+                      textColor: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                    // Khách hàng + SĐT (gom xuống chip)
+                    _repairInfoChip(
+                      '👤 ${r.customerName} • ${r.phone}',
+                      Colors.grey.shade200,
+                      textColor: Colors.grey.shade800,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 10,
+                    ),
+                    // Ngày tạo
+                    _repairInfoChip(
+                      '⏱ ${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.createdAt))}',
+                      Colors.grey.shade200,
+                      textColor: Colors.grey.shade800,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 10,
+                    ),
                     // Lỗi / Vấn đề
                     _repairInfoChip(
                       '🔧 ${r.issue.split('|').first}',
@@ -1137,7 +1110,13 @@ class OrderListViewState extends State<OrderListView> {
     );
   }
   
-  Widget _repairInfoChip(String text, Color color) {
+  Widget _repairInfoChip(
+    String text,
+    Color color, {
+    Color textColor = Colors.black,
+    FontWeight fontWeight = FontWeight.w500,
+    double fontSize = 10,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -1146,7 +1125,10 @@ class OrderListViewState extends State<OrderListView> {
       ),
       child: Text(
         text, 
-        style: const TextStyle(fontSize: 11),
+        style: AppTextStyles.caption.copyWith(
+          color: textColor,
+          fontWeight: fontWeight,
+        ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),

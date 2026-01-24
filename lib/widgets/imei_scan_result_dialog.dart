@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../utils/imei_extractor.dart';
+import '../theme/app_text_styles.dart';
 
 /// Dialog hiển thị kết quả quét QR IMEI cho user chọn
 class IMEIScanResultDialog extends StatelessWidget {
@@ -48,7 +49,7 @@ class IMEIScanResultDialog extends StatelessWidget {
           Expanded(
             child: Text(
               hasMultiple ? 'Phát hiện nhiều IMEI' : 'Kết quả quét QR',
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: AppTextStyles.headline3.fontSize),
             ),
           ),
         ],
@@ -79,7 +80,7 @@ class IMEIScanResultDialog extends StatelessWidget {
                       child: Text(
                         'QR chứa ${result.allLines.length} dòng dữ liệu',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AppTextStyles.subtitle1.fontSize,
                           color: Colors.blue.shade700,
                         ),
                       ),
@@ -90,9 +91,12 @@ class IMEIScanResultDialog extends StatelessWidget {
 
             // Danh sách IMEI candidates
             if (result.candidates.isNotEmpty) ...[
-              const Text(
+              Text(
                 'IMEI phát hiện:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: AppTextStyles.h4,
+                ),
               ),
               const SizedBox(height: 8),
               ...result.candidates.asMap().entries.map((entry) {
@@ -132,9 +136,12 @@ class IMEIScanResultDialog extends StatelessWidget {
             if (result.allLines.length > 1) ...[
               const Divider(height: 24),
               ExpansionTile(
-                title: const Text(
+                title: Text(
                   'Dữ liệu gốc',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                    color: Colors.grey,
+                  ),
                 ),
                 tilePadding: EdgeInsets.zero,
                 childrenPadding: const EdgeInsets.all(8),
@@ -148,8 +155,8 @@ class IMEIScanResultDialog extends StatelessWidget {
                     ),
                     child: SelectableText(
                       result.rawData,
-                      style: const TextStyle(
-                        fontSize: 10,
+                      style: TextStyle(
+                        fontSize: AppTextStyles.caption.fontSize,
                         fontFamily: 'monospace',
                       ),
                     ),
@@ -184,7 +191,9 @@ class IMEIScanResultDialog extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'Dữ liệu quét được:\n${result.rawData}',
-                      style: const TextStyle(fontSize: 12),
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -259,7 +268,7 @@ class _IMEIOptionTile extends StatelessWidget {
                     child: const Text(
                       'Đề xuất',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: AppTextStyles.captionSize,
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
@@ -271,16 +280,16 @@ class _IMEIOptionTile extends StatelessWidget {
                     children: [
                       SelectableText(
                         formatted,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'monospace',
-                          fontSize: 14,
+                          fontSize: AppTextStyles.headline4.fontSize,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         '5 số cuối: $last5',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AppTextStyles.subtitle1.fontSize,
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -360,12 +369,18 @@ class _InfoRow extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           '$label: ',
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(
+            fontSize: AppTextStyles.subtitle1.fontSize,
+            color: Colors.grey,
+          ),
         ),
         Expanded(
           child: SelectableText(
             value,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: AppTextStyles.subtitle1.fontSize,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ],

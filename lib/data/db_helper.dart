@@ -4296,8 +4296,16 @@ class DBHelper {
     );
   }
 
-  Future<Map<String, dynamic>?> getSupplierImportStats(int supplierId) async {
+  Future<Map<String, dynamic>?> getSupplierImportStats(int supplierId, {String? shopId}) async {
     final db = await database;
+    String whereClause = 'supplierId = ?';
+    List<dynamic> whereArgs = [supplierId];
+    
+    if (shopId != null) {
+      whereClause += ' AND shopId = ?';
+      whereArgs.add(shopId);
+    }
+    
     final result = await db.rawQuery(
       '''
       SELECT
@@ -4311,9 +4319,9 @@ class DBHelper {
         MIN(importDate) as firstImportDate,
         COUNT(DISTINCT productName) as uniqueProducts
       FROM supplier_import_history
-      WHERE supplierId = ?
+      WHERE $whereClause
     ''',
-      [supplierId],
+      whereArgs,
     );
     return result.isNotEmpty ? result.first : null;
   }
@@ -4541,8 +4549,16 @@ class DBHelper {
     );
   }
 
-  Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId) async {
+  Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId, {String? shopId}) async {
     final db = await database;
+    String whereClause = 'partnerId = ?';
+    List<dynamic> whereArgs = [partnerId];
+    
+    if (shopId != null) {
+      whereClause += ' AND shopId = ?';
+      whereArgs.add(shopId);
+    }
+    
     final result = await db.rawQuery(
       '''
       SELECT
@@ -4551,9 +4567,9 @@ class DBHelper {
         COALESCE(AVG(partnerCost), 0) as avgCost,
         MAX(sentAt) as lastRepairDate
       FROM partner_repair_history
-      WHERE partnerId = ?
+      WHERE $whereClause
     ''',
-      [partnerId],
+      whereArgs,
     );
     return result.isNotEmpty ? result.first : null;
   }

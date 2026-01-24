@@ -365,13 +365,13 @@ class _SupplierListViewState extends State<SupplierListView>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'QUẢN LÝ ĐỐI TÁC',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline2.fontSize),
             ),
             Text(
               '${_items.length} NCC • ${_partners.length} đối tác',
-              style: const TextStyle(fontSize: 11, color: Colors.white70),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.white70),
             ),
           ],
         ),
@@ -693,7 +693,6 @@ class _SupplierListViewState extends State<SupplierListView>
                         style: AppTextStyles.caption.copyWith(
                           color: color,
                           fontWeight: FontWeight.bold,
-                          fontSize: 10,
                         ),
                       ),
                     ),
@@ -715,7 +714,6 @@ class _SupplierListViewState extends State<SupplierListView>
                       'GD: $date',
                       style: AppTextStyles.caption.copyWith(
                         color: AppColors.onSurface.withOpacity(0.6),
-                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -1143,7 +1141,6 @@ class _SupplierListViewState extends State<SupplierListView>
                         style: AppTextStyles.caption.copyWith(
                           color: color,
                           fontWeight: FontWeight.bold,
-                          fontSize: 10,
                         ),
                       ),
                     ),
@@ -1165,7 +1162,6 @@ class _SupplierListViewState extends State<SupplierListView>
                       'Đơn: ${d.totalOrders}',
                       style: AppTextStyles.caption.copyWith(
                         color: AppColors.onSurface.withOpacity(0.6),
-                        fontSize: 11,
                       ),
                     ),
                   ],

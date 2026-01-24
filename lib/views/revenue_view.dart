@@ -589,9 +589,9 @@ class _RevenueViewState extends State<RevenueView>
                   ),
                   child: Text(
                     _getFilterLabel(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 8,
+                      fontSize: AppTextStyles.overlineSize,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -847,7 +847,7 @@ class _RevenueViewState extends State<RevenueView>
                       ? 'Đã chốt'
                       : 'Chưa chốt',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: AppTextStyles.body1.fontSize,
                     fontWeight: FontWeight.bold,
                     color:
                         _todayClosing != null &&
@@ -922,7 +922,7 @@ class _RevenueViewState extends State<RevenueView>
                   ),
                   child: Text(
                     'Ngày đầu tiên',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey.shade600),
                   ),
                 ),
             ],
@@ -957,7 +957,7 @@ class _RevenueViewState extends State<RevenueView>
               const SizedBox(width: 6),
               Text(
                 'TỔNG: ',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade600),
               ),
               Text(
                 '${NumberFormat('#,###').format(cashStart + bankStart)} đ',
@@ -1016,7 +1016,7 @@ class _RevenueViewState extends State<RevenueView>
               const Spacer(),
               Text(
                 '${analysis.transactions.length} giao dịch',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
               ),
             ],
           ),
@@ -1123,13 +1123,13 @@ class _RevenueViewState extends State<RevenueView>
         Expanded(
           child: Text(
             label,
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+            style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade700),
           ),
         ),
         Text(
           '${isIncome && !isDebt ? '+' : (isDebt ? '' : '-')}${NumberFormat('#,###').format(amount)} đ',
           style: TextStyle(
-            fontSize: 13,
+            fontSize: AppTextStyles.headline5.fontSize,
             fontWeight: FontWeight.bold,
             color: isDebt
                 ? Colors.purple
@@ -1159,14 +1159,14 @@ class _RevenueViewState extends State<RevenueView>
                 color: delta >= 0 ? Colors.green : Colors.red,
               ),
               const SizedBox(width: 4),
-              Text(label, style: TextStyle(fontSize: 11, color: color)),
+              Text(label, style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: color)),
             ],
           ),
           const SizedBox(height: 4),
           Text(
             '${delta >= 0 ? '+' : ''}${NumberFormat('#,###').format(delta)} đ',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: AppTextStyles.headline4.fontSize,
               fontWeight: FontWeight.bold,
               color: delta >= 0 ? Colors.green.shade700 : Colors.red.shade700,
             ),
@@ -1256,7 +1256,7 @@ class _RevenueViewState extends State<RevenueView>
               const SizedBox(width: 8),
               Text(
                 'TỔNG DỰ KIẾN: ',
-                style: TextStyle(fontSize: 13, color: Colors.indigo.shade600),
+                style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.indigo.shade600),
               ),
               Text(
                 '${NumberFormat('#,###').format(expectedCash + expectedBank)} đ',
@@ -1288,7 +1288,7 @@ class _RevenueViewState extends State<RevenueView>
             const SizedBox(width: 4),
             Text(
               label,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -1296,7 +1296,7 @@ class _RevenueViewState extends State<RevenueView>
         Text(
           '${showPrefix && amount >= 0 ? '+' : ''}${NumberFormat('#,###').format(amount)} đ',
           style: TextStyle(
-            fontSize: 15,
+            fontSize: AppTextStyles.headline3.fontSize,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -1375,7 +1375,7 @@ class _RevenueViewState extends State<RevenueView>
                           'Dự kiến',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: AppTextStyles.caption.fontSize,
                             color: Colors.grey.shade600,
                           ),
                         ),
@@ -1385,7 +1385,7 @@ class _RevenueViewState extends State<RevenueView>
                           'Thực tế',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: AppTextStyles.caption.fontSize,
                             color: Colors.grey.shade600,
                           ),
                         ),
@@ -1395,7 +1395,7 @@ class _RevenueViewState extends State<RevenueView>
                           'Lệch',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: AppTextStyles.caption.fontSize,
                             color: Colors.grey.shade600,
                           ),
                         ),
@@ -1442,7 +1442,7 @@ class _RevenueViewState extends State<RevenueView>
             // Thông tin người chốt
             Text(
               'Chốt bởi: $lockedBy ${lockedAt != null ? '• ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(lockedAt))}' : ''}',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
             ),
 
             const SizedBox(height: 16),
@@ -1514,7 +1514,7 @@ class _RevenueViewState extends State<RevenueView>
           const SizedBox(height: 8),
           Text(
             'Kiểm tra và nhập số tiền thực tế cuối ngày',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 20),
           CurrencyTextField(
@@ -1541,12 +1541,12 @@ class _RevenueViewState extends State<RevenueView>
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              label: const Text(
+              label: Text(
                 'XÁC NHẬN CHỐT QUỸ',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                  fontSize: AppTextStyles.headline3.fontSize,
                 ),
               ),
             ),
@@ -1587,7 +1587,7 @@ class _RevenueViewState extends State<RevenueView>
           child: Text(
             NumberFormat('#,###').format(expected),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey.shade600),
           ),
         ),
         Expanded(
@@ -1595,7 +1595,7 @@ class _RevenueViewState extends State<RevenueView>
             NumberFormat('#,###').format(actual),
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: isBold ? 11 : 10,
+              fontSize: isBold ? AppTextStyles.body1.fontSize : AppTextStyles.caption.fontSize,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
               color: color,
             ),
@@ -1616,7 +1616,7 @@ class _RevenueViewState extends State<RevenueView>
                   : '${diff > 0 ? '+' : ''}${NumberFormat('#,###').format(diff)}',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 9,
+                fontSize: AppTextStyles.overlineSize,
                 fontWeight: FontWeight.bold,
                 color: diff == 0
                     ? Colors.grey
@@ -1665,8 +1665,8 @@ class _RevenueViewState extends State<RevenueView>
               ),
               child: Text(
                 '${transactions.length}',
-                style: const TextStyle(
-                  fontSize: 12,
+                style: TextStyle(
+                  fontSize: AppTextStyles.subtitle1.fontSize,
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary,
                 ),
@@ -1745,7 +1745,7 @@ class _RevenueViewState extends State<RevenueView>
         ),
         title: Text(
           t.title,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: AppTextStyles.headline5.fontSize),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -1757,7 +1757,7 @@ class _RevenueViewState extends State<RevenueView>
               DateFormat(
                 'HH:mm',
               ).format(DateTime.fromMillisecondsSinceEpoch(t.time)),
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
             ),
             const SizedBox(width: 8),
             Container(
@@ -1769,7 +1769,7 @@ class _RevenueViewState extends State<RevenueView>
               child: Text(
                 t.method == "CHUYỂN KHOẢN" ? "CK" : (t.isDebt ? "NỢ" : "TM"),
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: AppTextStyles.overlineSize,
                   fontWeight: FontWeight.bold,
                   color: methodColor,
                 ),
@@ -1781,7 +1781,7 @@ class _RevenueViewState extends State<RevenueView>
           "${t.type == "IN" ? "+" : "-"}${NumberFormat('#,###').format(t.amount)}",
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 14,
+            fontSize: AppTextStyles.headline4.fontSize,
             color: t.type == "IN" ? Colors.green.shade700 : Colors.red.shade700,
           ),
         ),
@@ -2026,7 +2026,7 @@ class _RevenueViewState extends State<RevenueView>
             const Text("XÁC NHẬN MỞ KHÓA"),
           ],
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2039,7 +2039,7 @@ class _RevenueViewState extends State<RevenueView>
               "• Các giao dịch sẽ được phép thêm/sửa/xóa\n"
               "• Bạn cần chốt quỹ lại sau khi hoàn tất\n"
               "• Hành động này sẽ được ghi nhật ký",
-              style: TextStyle(fontSize: 13, color: Colors.grey),
+              style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey),
             ),
           ],
         ),
@@ -2141,9 +2141,9 @@ class _RevenueViewState extends State<RevenueView>
             const SizedBox(height: 4),
             Text('Ngân hàng: ${NumberFormat('#,###').format(bank)} đ'),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Sau khi chốt, bạn sẽ không thể sửa/xóa các phiếu trong ngày.',
-              style: TextStyle(fontSize: 12, color: Colors.orange),
+              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.orange),
             ),
           ],
         ),
@@ -2231,7 +2231,7 @@ class _RevenueViewState extends State<RevenueView>
           Text(
             l,
             style: TextStyle(
-              fontSize: 9,
+              fontSize: AppTextStyles.overlineSize,
               color: c,
               fontWeight: FontWeight.bold,
             ),
@@ -2239,7 +2239,7 @@ class _RevenueViewState extends State<RevenueView>
           Text(
             NumberFormat('#,###').format(v),
             style: TextStyle(
-              fontSize: 15,
+              fontSize: AppTextStyles.headline3.fontSize,
               fontWeight: FontWeight.bold,
               color: c,
             ),
@@ -2358,10 +2358,10 @@ class _RevenueViewState extends State<RevenueView>
                     const SizedBox(width: 8),
                     Text(
                       _getFilterLabel(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: AppTextStyles.headline3.fontSize,
                       ),
                     ),
                   ],
@@ -2371,7 +2371,7 @@ class _RevenueViewState extends State<RevenueView>
                   'Báo cáo tổng quan tài chính',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
-                    fontSize: 12,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
                   ),
                 ),
               ],
@@ -2462,10 +2462,10 @@ class _RevenueViewState extends State<RevenueView>
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
+                    Text(
                       "THỐNG KÊ CHI TIẾT",
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: AppTextStyles.headline5.fontSize,
                         fontWeight: FontWeight.bold,
                         color: Colors.indigo,
                       ),
@@ -2587,11 +2587,11 @@ class _RevenueViewState extends State<RevenueView>
                 ),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
                   "CÔNG NỢ PHẢI THU",
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppTextStyles.headline5.fontSize,
                     fontWeight: FontWeight.bold,
                     color: Colors.purple,
                   ),
@@ -2608,8 +2608,8 @@ class _RevenueViewState extends State<RevenueView>
                 ),
                 child: Text(
                   "${NumberFormat('#,###').format(totalReceivables)} đ",
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: TextStyle(
+                    fontSize: AppTextStyles.headline4.fontSize,
                     fontWeight: FontWeight.bold,
                     color: Colors.purple,
                   ),
@@ -2665,13 +2665,13 @@ class _RevenueViewState extends State<RevenueView>
           Expanded(
             child: Text(
               "$label ($count đơn)",
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade700),
             ),
           ),
           Text(
             "${NumberFormat('#,###').format(amount)} đ",
             style: TextStyle(
-              fontSize: 13,
+              fontSize: AppTextStyles.headline5.fontSize,
               fontWeight: FontWeight.w600,
               color: color,
             ),
@@ -2738,10 +2738,10 @@ class _RevenueViewState extends State<RevenueView>
                 ),
               ),
               const SizedBox(width: 10),
-              const Text(
+              Text(
                 "PHÂN BỔ TÀI CHÍNH",
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: AppTextStyles.headline5.fontSize,
                   fontWeight: FontWeight.bold,
                   color: Colors.purple,
                 ),
@@ -2828,7 +2828,7 @@ class _RevenueViewState extends State<RevenueView>
         const SizedBox(width: 6),
         Text(
           "$label: $pct",
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade700),
         ),
       ],
     );
@@ -2872,13 +2872,13 @@ class _RevenueViewState extends State<RevenueView>
         Expanded(
           child: Text(
             label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade700),
           ),
         ),
         Text(
           "+${NumberFormat('#,###').format(amount)} đ",
           style: TextStyle(
-            fontSize: 13,
+            fontSize: AppTextStyles.headline5.fontSize,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -2928,7 +2928,7 @@ class _RevenueViewState extends State<RevenueView>
             Text(
               label,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: AppTextStyles.caption.fontSize,
                 color: Colors.grey.shade600,
                 fontWeight: FontWeight.w500,
               ),
@@ -2937,7 +2937,7 @@ class _RevenueViewState extends State<RevenueView>
             Text(
               '${NumberFormat('#,###').format(amount)}đ',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: AppTextStyles.headline4.fontSize,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -2967,14 +2967,14 @@ class _RevenueViewState extends State<RevenueView>
           Text(
             value,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: AppTextStyles.headline2.fontSize,
               fontWeight: FontWeight.bold,
               color: color,
             ),
           ),
           Text(
             title,
-            style: TextStyle(fontSize: 10, color: color.withOpacity(0.8)),
+            style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: color.withOpacity(0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -3003,7 +3003,7 @@ class _RevenueViewState extends State<RevenueView>
           Text(
             l,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: AppTextStyles.caption.fontSize,
               color: c.withOpacity(0.8),
               fontWeight: FontWeight.w500,
             ),
@@ -3012,7 +3012,7 @@ class _RevenueViewState extends State<RevenueView>
           Text(
             '${NumberFormat('#,###').format(v)}đ',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: AppTextStyles.headline4.fontSize,
               fontWeight: FontWeight.bold,
               color: c,
             ),
@@ -3045,16 +3045,16 @@ class _RevenueViewState extends State<RevenueView>
           "LỢI NHUẬN RÒNG ($periodLabel)",
           style: TextStyle(
             color: Colors.white.withOpacity(0.9),
-            fontSize: 11,
+            fontSize: AppTextStyles.body1.fontSize,
             fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           "${NumberFormat('#,###').format(p)} đ",
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
-            fontSize: 22,
+            fontSize: AppTextStyles.headline1.fontSize,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -3129,10 +3129,10 @@ class _RevenueViewState extends State<RevenueView>
                           child: Center(
                             child: Text(
                               '$index',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green,
-                                fontSize: 12,
+                                fontSize: AppTextStyles.subtitle1.fontSize,
                               ),
                             ),
                           ),
@@ -3226,10 +3226,10 @@ class _RevenueViewState extends State<RevenueView>
                           child: Center(
                             child: Text(
                               '$index',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blueAccent,
-                                fontSize: 12,
+                                fontSize: AppTextStyles.subtitle1.fontSize,
                               ),
                             ),
                           ),
@@ -3326,10 +3326,10 @@ class _RevenueViewState extends State<RevenueView>
                           child: Center(
                             child: Text(
                               '$index',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.redAccent,
-                                fontSize: 12,
+                                fontSize: AppTextStyles.subtitle1.fontSize,
                               ),
                             ),
                           ),
@@ -3501,10 +3501,10 @@ class _RevenueViewState extends State<RevenueView>
                   child: Center(
                     child: Text(
                       '$index',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary,
-                        fontSize: 10,
+                        fontSize: AppTextStyles.caption.fontSize,
                       ),
                     ),
                   ),
@@ -3534,9 +3534,9 @@ class _RevenueViewState extends State<RevenueView>
               children: [
                 Text("${item.method} • $date"),
                 if (item.isDebt)
-                  const Text(
+                  Text(
                     "Công nợ",
-                    style: TextStyle(color: Colors.orange, fontSize: 12),
+                    style: TextStyle(color: Colors.orange, fontSize: AppTextStyles.subtitle1.fontSize),
                   ),
               ],
             ),
@@ -3545,7 +3545,7 @@ class _RevenueViewState extends State<RevenueView>
               style: TextStyle(
                 color: isIncome ? Colors.green : Colors.red,
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontSize: AppTextStyles.headline4.fontSize,
               ),
             ),
           ),
@@ -3569,14 +3569,14 @@ class _RevenueViewState extends State<RevenueView>
             Text(
               value,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
             Text(
               title,
-              style: TextStyle(fontSize: 9, color: color.withOpacity(0.7)),
+              style: TextStyle(fontSize: AppTextStyles.overlineSize, color: color.withOpacity(0.7)),
               textAlign: TextAlign.center,
             ),
           ],

@@ -665,14 +665,14 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
+                Row(
                   children: [
                     Icon(Icons.qr_code_scanner, color: Colors.green),
                     SizedBox(width: 8),
                     Text(
                       'QUÉT QR/BARCODE IMEI',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppTextStyles.headline3.fontSize,
                         fontWeight: FontWeight.bold,
                         color: Colors.green,
                       ),
@@ -691,7 +691,7 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             color: Colors.blue.shade50,
-            child: const Row(
+            child: Row(
               children: [
                 Icon(Icons.info_outline, size: 20, color: Colors.blue),
                 SizedBox(width: 8),
@@ -699,7 +699,7 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
                   child: Text(
                     'Hỗ trợ QR nhiều dòng (Apple, Samsung...).\n'
                     'Tự động trích xuất IMEI và cho phép chọn nếu có nhiều số.',
-                    style: TextStyle(fontSize: 12, color: Colors.blue),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.blue),
                   ),
                 ),
               ],
@@ -738,8 +738,8 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
                                 ? 'Chuẩn bị...\n$_countdownSeconds'
                                 : 'Sẵn sàng!',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 24,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.headline1.fontSize,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
@@ -763,7 +763,7 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
                       border: Border.all(color: Colors.green, width: 3),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Column(
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
@@ -776,7 +776,7 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
                           'Đưa mã QR/Barcode vào khung',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
+                            fontSize: AppTextStyles.subtitle1.fontSize,
                             shadows: [
                               Shadow(color: Colors.black, blurRadius: 4),
                             ],
@@ -791,7 +791,7 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
                 if (_isProcessing)
                   Container(
                     color: Colors.black54,
-                    child: const Center(
+                    child: Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -799,7 +799,7 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
                           SizedBox(height: 16),
                           Text(
                             'Đang xử lý...',
-                            style: TextStyle(color: Colors.white, fontSize: 14),
+                            style: TextStyle(color: Colors.white, fontSize: AppTextStyles.headline4.fontSize),
                           ),
                         ],
                       ),

@@ -673,6 +673,49 @@ CREATE TABLE sales (
 └─────────────────────────────────────────────────┘
 ```
 
+### 6.1.1 “Sương sống” Đồng bộ (Backbone Sync)
+
+Mục tiêu của backbone đồng bộ là: **không lẫn dữ liệu giữa shop**, **không ghi đè nhầm dữ liệu mới**, và **fail gracefully khi mất mạng**.
+
+```mermaid
+flowchart TD
+  A[Login/AuthGate] --> B[UserService.ensureShopId()
+  + syncUserInfo()]
+  B --> C{Shop/User thay đổi?}
+  C -- Có --> D[DBHelper.clearAllData()
+  tránh lẫn dữ liệu/permission]
+  C -- Không --> E[Giữ local DB]
+  D --> F[SyncService.downloadAllFromCloud()
+  seed local]
+  E --> F
+
+  F --> G[SyncService.initRealTimeSync()
+  subscribe Firestore by shopId]
+  G --> H[Realtime listener: onChanged]
+  H --> I{deleted == true?}
+  I -- Có --> J[Local delete]
+  I -- Không --> K[Conflict check
+  _shouldAcceptCloudData()]
+  K -->|Accept cloud| L[Upsert local
+  isSynced=1]
+  K -->|Local mới hơn & chưa sync| M[Enqueue local
+  push lên cloud]
+
+  N[Local changes] --> O[SyncOrchestrator.enqueue()
+  sync_queue]
+  O --> P[SyncOrchestrator.syncAll()
+  retry max 3]
+  P --> Q[Push to Firestore
+  SetOptions(merge:true)]
+  Q --> G
+```
+
+**Quy tắc then chốt**
+- **shopId là “hàng rào dữ liệu”**: listener/query đều filter theo shopId; super admin phải chọn shop trước.
+- **Xung đột ưu tiên local pending**: local chưa sync mà “mới hơn” cloud thì **không ghi đè local**, mà **enqueue** để đẩy lên cloud.
+- **Soft delete**: Firestore `deleted: true` → local xoá/đánh dấu xoá tương ứng.
+- **SQLite không nhận Timestamp**: tất cả `Timestamp` phải convert sang milliseconds trước khi upsert.
+
 ### 6.2 Luồng Tạo đơn sửa chữa
 ```
 User tạo đơn sửa
@@ -744,6 +787,48 @@ User tạo đơn bán
 │ In hóa đơn      │──▶ Bluetooth/WiFi printer
 └─────────────────┘
 ```
+
+### 6.4 “Sương sống” Dòng tiền (Backbone Money)
+
+Mục tiêu của backbone dòng tiền là: **mọi giao dịch tiền đều có validation chuẩn**, **thực thi qua một cổng duy nhất**, và **ghi sổ append-only để đối soát**.
+
+```mermaid
+flowchart TD
+  A[Business Module
+  sale/expense/debt/repair/purchase] --> B[Create PaymentIntent
+  (PENDING)]
+  B --> C[PaymentIntentService.createIntent()
+  persist local]
+  C --> D[UnifiedPaymentPage
+  chọn phương thức]
+  D --> E[PaymentIntentService.execute()
+  ONLY executor]
+  E --> F[MoneyValidationService
+  validateAmount + rules
+  (throw typed errors)]
+  F -->|OK| G[MoneyTransactionService.appendLedger()
+  append-only ledger]
+  G --> H[FinancialActivityService.*()
+  tạo log nghiệp vụ]
+  H --> I[Local DB tables
+  payment_intents / financial_activity_log]
+  I --> J[SyncOrchestrator.enqueue()
+  local -> cloud]
+  J --> K[Firestore
+  financial_activities/payment_intents/...]
+
+  L[CashClosingNotifier
+  realtime cash_closings] --> M{Ngày đã chốt?}
+  M -- Có --> N[Block giao dịch
+  canPerformTransaction=false]
+  M -- Không --> D
+```
+
+**Quy tắc then chốt**
+- **Không “tính/validate rải rác”**: validation phải tập trung ở `MoneyValidationService`.
+- **Không “thu/chi trực tiếp” từ module**: thực thi thanh toán phải đi qua `PaymentIntentService` (intent chỉ execute 1 lần).
+- **Sổ cái append-only**: `MoneyTransactionService` chỉ ghi thêm, không update/delete (tạo điều kiện audit/reconciliation).
+- **Chốt quỹ là “cổng chặn”**: nếu ngày bị khoá thì app không crash, nhưng **chặn giao dịch** và thông báo rõ.
 
 ---
 

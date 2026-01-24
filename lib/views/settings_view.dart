@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_service.dart';
+import '../theme/app_text_styles.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../services/encryption_service.dart';
@@ -275,9 +276,9 @@ class _SettingsViewState extends State<SettingsView> {
                     ),
                     child: Text(
                       _getRoleDisplayName(_role),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 10,
+                        fontSize: AppTextStyles.caption.fontSize,
                         color: Colors.blue,
                       ),
                     ),
@@ -304,7 +305,7 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                       subtitle: Text(
                         "Shop hiện tại: ${UserService.getAdminSelectedShop()?.substring(0, 8) ?? 'N/A'}...",
-                        style: const TextStyle(fontSize: 11),
+                        style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                       ),
                       onTap: () async {
                         await SyncService.cancelAllSubscriptions();
@@ -339,9 +340,9 @@ class _SettingsViewState extends State<SettingsView> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    subtitle: const Text(
+                    subtitle: Text(
                       "Đăng xuất khỏi ứng dụng",
-                      style: TextStyle(fontSize: 11),
+                      style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                     ),
                     onTap: () async {
                       final confirm = await showDialog<bool>(
@@ -422,9 +423,9 @@ class _SettingsViewState extends State<SettingsView> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    subtitle: const Text(
+                    subtitle: Text(
                       "Tải về, đẩy lên, kiểm tra và khôi phục dữ liệu",
-                      style: TextStyle(fontSize: 11),
+                      style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                     ),
                     trailing: const Icon(
                       Icons.arrow_forward_ios,
@@ -468,15 +469,15 @@ class _SettingsViewState extends State<SettingsView> {
                                 style: TextStyle(
                                   color: Colors.blue.shade700,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                                  fontSize: AppTextStyles.headline3.fontSize,
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 10),
-                          const Text(
+                          Text(
                             "Super Admin có thể chọn shop để xem dữ liệu",
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
                           ),
                           const SizedBox(height: 15),
                           if (_loadingShops)
@@ -517,8 +518,8 @@ class _SettingsViewState extends State<SettingsView> {
                                       ),
                                       Text(
                                         ownerEmail,
-                                        style: const TextStyle(
-                                          fontSize: 11,
+                                        style: TextStyle(
+                                          fontSize: AppTextStyles.body1.fontSize,
                                           color: Colors.grey,
                                         ),
                                       ),
@@ -592,9 +593,9 @@ class _SettingsViewState extends State<SettingsView> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      subtitle: const Text(
+                      subtitle: Text(
                         "Xem và chỉnh sửa quyền truy cập của từng nhân viên",
-                        style: TextStyle(fontSize: 11),
+                        style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                       ),
                       onTap: () => Navigator.push(
                         context,
@@ -623,9 +624,9 @@ class _SettingsViewState extends State<SettingsView> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      subtitle: const Text(
+                      subtitle: Text(
                         "Dùng khi muốn khởi tạo lại toàn bộ dữ liệu cửa hàng (CHỈ SUPER ADMIN)",
-                        style: TextStyle(fontSize: 11),
+                        style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                       ),
                       onTap: _handleResetShop,
                     ),
@@ -636,7 +637,7 @@ class _SettingsViewState extends State<SettingsView> {
                 Center(
                   child: Text(
                     "Phiên bản 3.4.0",
-                    style: TextStyle(color: Colors.grey.shade400, fontSize: 10),
+                    style: TextStyle(color: Colors.grey.shade400, fontSize: AppTextStyles.caption.fontSize),
                   ),
                 ),
               ],
@@ -648,9 +649,9 @@ class _SettingsViewState extends State<SettingsView> {
     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
     child: Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontWeight: FontWeight.bold,
-        fontSize: 12,
+        fontSize: AppTextStyles.subtitle1.fontSize,
         color: Colors.blueGrey,
       ),
     ),

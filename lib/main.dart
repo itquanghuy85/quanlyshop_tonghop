@@ -14,7 +14,6 @@ import 'firebase_options.dart';
 import 'views/home_view.dart';
 import 'views/login_view.dart';
 import 'views/splash_view.dart'; // Import màn hình Splash mới
-import 'views/currency_input_demo.dart'; // Import demo currency input
 import 'views/shop_selector_view.dart'; // Màn hình chọn shop cho super admin
 import 'theme/app_theme.dart'; // Import theme thống nhất
 import 'services/user_service.dart';
@@ -182,7 +181,6 @@ class _MyAppState extends State<MyApp> {
         }
         return supportedLocales.first;
       },
-      routes: {'/currency-demo': (context) => const CurrencyInputDemo()},
       home: SplashView(
         setLocale: setLocale,
       ), // Luôn bắt đầu từ SplashView để khởi tạo mượt mà

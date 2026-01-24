@@ -289,9 +289,9 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
             _viewMode == 'day' 
                 ? 'CHẤM CÔNG NGÀY ${DateFormat('dd/MM/yyyy').format(_selectedDate)}'
                 : 'THÁNG ${DateFormat('MM/yyyy').format(_selectedMonth)}',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white70,
-              fontSize: 12,
+              fontSize: AppTextStyles.subtitle1.fontSize,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -326,7 +326,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
           '$value',
           style: TextStyle(
             color: color,
-            fontSize: 24,
+            fontSize: AppTextStyles.headline1.fontSize,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -334,7 +334,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
           label,
           style: TextStyle(
             color: Colors.white.withOpacity(0.8),
-            fontSize: 11,
+            fontSize: AppTextStyles.body1.fontSize,
           ),
         ),
       ],
@@ -370,9 +370,9 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                   _viewMode == 'day'
                       ? DateFormat('EEEE, dd/MM/yyyy', 'vi').format(_selectedDate)
                       : DateFormat('MMMM yyyy', 'vi').format(_selectedMonth),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 16,
+                    fontSize: AppTextStyles.headline3.fontSize,
                   ),
                 ),
               ),
@@ -513,7 +513,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                       style: TextStyle(
                         color: _getRoleColor(staff['role']),
                         fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        fontSize: AppTextStyles.headline2.fontSize,
                       ),
                     ),
                   ),
@@ -542,7 +542,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                       children: [
                         Text(
                           staff['name'],
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
                         ),
                         const SizedBox(width: 8),
                         _buildRoleBadge(staff['role']),
@@ -555,7 +555,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                         const SizedBox(width: 4),
                         Text(
                           statusText,
-                          style: TextStyle(color: statusColor, fontSize: 12),
+                          style: TextStyle(color: statusColor, fontSize: AppTextStyles.subtitle1.fontSize),
                         ),
                         if (isLate) ...[
                           const SizedBox(width: 8),
@@ -565,9 +565,9 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                               color: Colors.orange.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Đi muộn',
-                              style: TextStyle(color: Colors.orange, fontSize: 10),
+                              style: TextStyle(color: Colors.orange, fontSize: AppTextStyles.caption.fontSize),
                             ),
                           ),
                         ],
@@ -583,15 +583,15 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                   if (hasCheckedIn)
                     Text(
                       'Vào: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkInAt!))}',
-                      style: const TextStyle(fontSize: 12, color: Colors.green),
+                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.green),
                     ),
                   if (hasCheckedOut)
                     Text(
                       'Ra: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkOutAt!))}',
-                      style: const TextStyle(fontSize: 12, color: Colors.red),
+                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.red),
                     ),
                   if (!hasCheckedIn)
-                    const Text('--:--', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text('--:--', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey)),
                 ],
               ),
             ],
@@ -642,7 +642,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                             _buildRoleBadge(staff['role']),
                           ],
                         ),
-                        Text(staff['email'], style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        Text(staff['email'], style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey)),
                       ],
                     ),
                   ),
@@ -671,13 +671,13 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
           value,
           style: TextStyle(
             color: color,
-            fontSize: 20,
+            fontSize: AppTextStyles.headline1.fontSize,
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
+          style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey),
         ),
       ],
     );
@@ -713,7 +713,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
       ),
       child: Text(
         label,
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+        style: TextStyle(color: color, fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -773,8 +773,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(staff['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text(staff['email'], style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text(staff['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize)),
+                      Text(staff['email'], style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize)),
                     ],
                   ),
                 ),
@@ -825,7 +825,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text('Vào', style: TextStyle(fontSize: 11)),
+                          Text('Vào', style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                         ],
                       ),
                     ),
@@ -849,7 +849,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text('Ra', style: TextStyle(fontSize: 11)),
+                          Text('Ra', style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                         ],
                       ),
                     ),
@@ -894,8 +894,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(staff['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('Tháng ${DateFormat('MM/yyyy').format(_selectedMonth)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text(staff['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize)),
+                      Text('Tháng ${DateFormat('MM/yyyy').format(_selectedMonth)}', style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize)),
                     ],
                   ),
                 ),
@@ -935,11 +935,11 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                           ),
                           title: Text(
                             DateFormat('EEEE', 'vi').format(DateTime.parse(r.dateKey)),
-                            style: const TextStyle(fontSize: 13),
+                            style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
                           ),
                           subtitle: Text(
                             'Vào: ${r.checkInAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.checkInAt!)) : '--'} | Ra: ${r.checkOutAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.checkOutAt!)) : '--'}',
-                            style: const TextStyle(fontSize: 11),
+                            style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                           ),
                           trailing: r.isLate == 1
                               ? const Icon(Icons.warning, color: Colors.orange, size: 16)

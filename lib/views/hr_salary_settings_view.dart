@@ -1027,7 +1027,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.green.shade700,
-                    fontSize: 16,
+                    fontSize: AppTextStyles.headline3.fontSize,
                   ),
                   textAlign: TextAlign.right,
                   overflow: TextOverflow.ellipsis,
@@ -1083,7 +1083,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
           Expanded(
             child: Text(
               text,
-              style: TextStyle(color: color.withOpacity(0.8), fontSize: 13),
+              style: TextStyle(color: color.withOpacity(0.8), fontSize: AppTextStyles.headline5.fontSize),
             ),
           ),
         ],
@@ -1129,7 +1129,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                   title,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: AppTextStyles.headline4.fontSize,
                     color: color,
                   ),
                   overflow: TextOverflow.ellipsis,

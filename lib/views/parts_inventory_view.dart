@@ -14,6 +14,7 @@ import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/gradient_fab.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 import '../core/utils/money_utils.dart';
 
 /// Widget content để embed vào InventoryView tab - Phiên bản chuyên nghiệp
@@ -215,15 +216,15 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
             children: [
               Icon(icon, color: iconColor ?? Colors.white70, size: 14),
               const SizedBox(width: 4),
-              Text(value, style: const TextStyle(
+              Text(value, style: TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: AppTextStyles.headline3.fontSize,
                 fontWeight: FontWeight.bold,
               )),
             ],
           ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+          Text(label, style: TextStyle(color: Colors.white70, fontSize: AppTextStyles.caption.fontSize)),
         ],
       ),
     );
@@ -256,10 +257,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                   _applyFilter();
                   setState(() {});
                 },
-                style: const TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
                 decoration: InputDecoration(
                   hintText: 'Tìm linh kiện, model...',
-                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: AppTextStyles.headline5.fontSize),
                   prefixIcon: const Icon(Icons.search, color: _primaryColor, size: 20),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
@@ -358,7 +359,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
             Icon(icon, size: 14, color: selected ? _primaryColor : Colors.grey),
             const SizedBox(width: 4),
             Text(label, style: TextStyle(
-              fontSize: 11,
+              fontSize: AppTextStyles.body1.fontSize,
               color: selected ? _primaryColor : Colors.grey,
               fontWeight: selected ? FontWeight.bold : FontWeight.normal,
             )),
@@ -467,7 +468,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                             p['partName'] ?? 'N/A',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: AppTextStyles.headline4.fontSize,
                               color: isOut ? Colors.grey : Colors.black87,
                             ),
                             maxLines: 1,
@@ -481,8 +482,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                               color: Colors.orange.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text('SẮP HẾT', style: TextStyle(
-                              fontSize: 9,
+                            child: Text('SẮP HẾT', style: TextStyle(
+                              fontSize: AppTextStyles.overlineSize,
                               color: Colors.orange,
                               fontWeight: FontWeight.bold,
                             )),
@@ -494,8 +495,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                               color: Colors.grey.shade200,
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text('HẾT HÀNG', style: TextStyle(
-                              fontSize: 9,
+                            child: Text('HẾT HÀNG', style: TextStyle(
+                              fontSize: AppTextStyles.overlineSize,
                               color: Colors.grey,
                               fontWeight: FontWeight.bold,
                             )),
@@ -505,7 +506,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     const SizedBox(height: 4),
                     Text(
                       p['compatibleModels'] ?? 'Tương thích: N/A',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -525,7 +526,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                         children: [
                           Icon(Icons.store, size: 12, color: Colors.grey.shade500),
                           const SizedBox(width: 4),
-                          Text(supplierName, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                          Text(supplierName, style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade500)),
                         ],
                       ),
                     ],
@@ -539,14 +540,14 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                   Text(
                     '${NumberFormat('#,###').format(price)}đ',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: AppTextStyles.headline3.fontSize,
                       fontWeight: FontWeight.bold,
                       color: isOut ? Colors.grey : Colors.red.shade700,
                     ),
                   ),
                   Text(
                     'Giá bán',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey.shade500),
                   ),
                 ],
               ),
@@ -569,7 +570,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         children: [
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 3),
-          Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
+          Text(label, style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: color, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -584,14 +585,14 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           const SizedBox(height: 16),
           Text(
             _searchQuery.isNotEmpty ? 'Không tìm thấy linh kiện' : 'Chưa có linh kiện trong kho',
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
           Text(
             _searchQuery.isNotEmpty 
                 ? 'Thử từ khóa khác' 
                 : 'Nhấn "THÊM LINH KIỆN" để bắt đầu',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+            style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade400),
           ),
         ],
       ),
@@ -654,7 +655,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                       children: [
                         Text(
                           p['partName'] ?? 'N/A',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
                         ),
                         Text(
                           p['compatibleModels'] ?? 'N/A',
@@ -1799,14 +1800,14 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
         title: _isSelectionMode
             ? Text(
                 '${_selectedIds.length} đã chọn',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: AppTextStyles.headline3.fontSize,
                 ),
               )
-            : const Text(
+            : Text(
                 "KHO LINH KIỆN SỬA CHỮA",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
               ),
         backgroundColor: _isSelectionMode ? Colors.red.shade700 : Colors.transparent,
         foregroundColor: Colors.white,
@@ -1905,9 +1906,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                                 ),
                           title: Text(
                             p['partName'] ?? '',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: AppTextStyles.headline4.fontSize,
                             ),
                           ),
                           subtitle: Text(

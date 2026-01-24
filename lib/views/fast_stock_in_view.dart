@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../constants/product_constants.dart';
 import '../data/db_helper.dart';
+import '../theme/app_text_styles.dart';
 import '../models/product_model.dart';
 import '../models/debt_model.dart';
 import '../models/quick_input_code_model.dart';
@@ -16,11 +17,13 @@ import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
 import '../services/stock_entry_service.dart';
+import '../services/payment_intent_service.dart';
+import '../models/payment_intent_model.dart';
 import '../utils/sku_generator.dart';
 import '../utils/imei_extractor.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/imei_scan_result_dialog.dart';
-import 'quick_input_library_view.dart';
+import 'quick_input_codes_view.dart';
 import 'pending_stock_list_view.dart';
 
 // Formatter to force uppercase input without triggering controller loops
@@ -263,9 +266,9 @@ class _FastStockInViewState extends State<FastStockInView> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
+        title: Text(
           'Thêm nhà cung cấp mới',
-          style: TextStyle(fontSize: 14),
+          style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -286,7 +289,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                     vertical: 8,
                   ),
                 ),
-                style: const TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -301,7 +304,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                     vertical: 8,
                   ),
                 ),
-                style: const TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -316,7 +319,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                     vertical: 8,
                   ),
                 ),
-                style: const TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -331,7 +334,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                     vertical: 8,
                   ),
                 ),
-                style: const TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -346,7 +349,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                     vertical: 8,
                   ),
                 ),
-                style: const TextStyle(fontSize: 12),
+                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
               ),
             ],
           ),
@@ -464,7 +467,7 @@ class _FastStockInViewState extends State<FastStockInView> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Xác nhận xóa', style: TextStyle(fontSize: 14)),
+        title: Text('Xác nhận xóa', style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
         content: Text(
           'Bạn có chắc muốn xóa nhà cung cấp "$supplierName"?\n\nLưu ý: Dữ liệu liên quan có thể bị ảnh hưởng.',
         ),
@@ -520,16 +523,16 @@ class _FastStockInViewState extends State<FastStockInView> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
+        title: Text(
           'Xác nhận xóa nhà cung cấp',
-          style: TextStyle(fontSize: 14),
+          style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Chỉ chủ shop/quản lý được phép xóa.\nNhập mật khẩu tài khoản để xác nhận:',
-              style: TextStyle(fontSize: 12),
+              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
             ),
             const SizedBox(height: 10),
             TextField(
@@ -543,7 +546,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                   vertical: 8,
                 ),
               ),
-              style: const TextStyle(fontSize: 12),
+              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
             ),
           ],
         ),
@@ -812,12 +815,85 @@ class _FastStockInViewState extends State<FastStockInView> {
         }
       }
 
-      // Xử lý công nợ nhà cung cấp - ĐƠN GIẢN VÀ TRỰC TIẾP - CHỈ KHI KHÔNG PENDING
-      // NOTE: Direct upsertDebt/insertExpense for stock-in BLOCKED
-      // Payment must go through PaymentIntentService -> UnifiedPaymentPage
-      // Product is saved, but payment execution is separate flow
+      // Xử lý thanh toán nhà cung cấp - CHỈ KHI KHÔNG PENDING
       if (!isPending) {
-        debugPrint('FastStockIn: Payment via PaymentIntent flow required for $selectedPaymentMethod');
+        final totalCost = cost * quantity;
+        
+        if (selectedPaymentMethod == 'CÔNG NỢ') {
+          // Tạo công nợ shop phải trả cho nhà cung cấp
+          final debtFirestoreId = 'debt_${DateTime.now().millisecondsSinceEpoch}_${product.imei}';
+          final debtData = Debt(
+            firestoreId: debtFirestoreId,
+            personName: selectedSupplier ?? 'NCC không xác định',
+            phone: '',
+            totalAmount: totalCost,
+            paidAmount: 0,
+            type: 'SHOP_OWES',
+            status: 'ACTIVE',
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            note: 'Nhập nhanh: ${product.name} (${product.imei}) x$quantity',
+            linkedId: product.imei,
+          );
+          final debtId = await db.insertDebt(debtData.toMap());
+          if (debtId > 0) {
+            await SyncOrchestrator().enqueueDebt(
+              debtId,
+              firestoreId: debtFirestoreId,
+              operation: SyncOperation.create,
+            );
+          }
+          EventBus().emit('debts_changed');
+          
+          // Tạo PaymentIntent cho công nợ nhập hàng
+          final intent = PaymentIntent(
+            id: 'pi_${DateTime.now().millisecondsSinceEpoch}',
+            type: PaymentIntentType.supplierDebt,
+            amount: totalCost,
+            description: 'Công nợ nhập nhanh: ${product.name} x$quantity',
+            referenceId: product.imei,
+            referenceType: 'STOCK_IN',
+            personName: selectedSupplier,
+            status: PaymentIntentStatus.completed,
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
+            metadata: {
+              'supplierName': selectedSupplier,
+              'productName': product.name,
+              'imei': product.imei,
+              'quantity': quantity,
+              'costPrice': cost,
+              'paymentMethod': 'CÔNG NỢ',
+              'autoCompleted': true,
+            },
+          );
+          await PaymentIntentService.createIntent(intent);
+          debugPrint('FastStockIn: Created debt + PaymentIntent for CÔNG NỢ: $totalCost');
+        } else {
+          // TIỀN MẶT hoặc CHUYỂN KHOẢN - Tạo PaymentIntent để tracking
+          final intent = PaymentIntent(
+            id: 'pi_${DateTime.now().millisecondsSinceEpoch}',
+            type: PaymentIntentType.inventoryPurchase,
+            amount: totalCost,
+            description: 'Nhập nhanh: ${product.name} x$quantity',
+            referenceId: product.imei,
+            referenceType: 'STOCK_IN',
+            personName: selectedSupplier,
+            status: PaymentIntentStatus.completed,
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
+            metadata: {
+              'supplierName': selectedSupplier,
+              'productName': product.name,
+              'imei': product.imei,
+              'quantity': quantity,
+              'costPrice': cost,
+              'paymentMethod': selectedPaymentMethod,
+              'autoCompleted': true,
+            },
+          );
+          await PaymentIntentService.createIntent(intent);
+          debugPrint('FastStockIn: Created PaymentIntent for $selectedPaymentMethod: $totalCost');
+        }
       }
 
       // Log action
@@ -1086,11 +1162,11 @@ class _FastStockInViewState extends State<FastStockInView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Nhà cung cấp',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 11,
+            fontSize: AppTextStyles.body1.fontSize,
             color: Colors.black87,
           ),
         ),
@@ -1106,8 +1182,8 @@ class _FastStockInViewState extends State<FastStockInView> {
                         value: sup['name'] as String,
                         child: Text(
                           sup['name'] as String,
-                          style: const TextStyle(
-                            fontSize: 11,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.body1.fontSize,
                             color: Colors.black87,
                           ),
                         ),
@@ -1117,8 +1193,8 @@ class _FastStockInViewState extends State<FastStockInView> {
                 onChanged: (val) => setState(() => selectedSupplier = val),
                 decoration: InputDecoration(
                   hintText: 'Chọn nhà cung cấp',
-                  hintStyle: const TextStyle(
-                    fontSize: 11,
+                  hintStyle: TextStyle(
+                    fontSize: AppTextStyles.body1.fontSize,
                     color: Colors.black54,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
@@ -1130,7 +1206,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                   ),
                   filled: false,
                 ),
-                style: const TextStyle(fontSize: 11, color: Colors.black87),
+                style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.black87),
                 dropdownColor: Colors.white,
               ),
             ),
@@ -1171,9 +1247,9 @@ class _FastStockInViewState extends State<FastStockInView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Model',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize),
         ),
         const SizedBox(height: 4),
         TextField(
@@ -1182,7 +1258,7 @@ class _FastStockInViewState extends State<FastStockInView> {
             UpperCaseTextFormatter(),
             LengthLimitingTextInputFormatter(64),
           ],
-          style: const TextStyle(fontSize: 11),
+          style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
           decoration: InputDecoration(
             hintText: 'Nhập model',
             contentPadding: const EdgeInsets.symmetric(
@@ -1204,7 +1280,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                     child: Chip(
                       label: Text(
                         model.toUpperCase(),
-                        style: const TextStyle(fontSize: 10),
+                        style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 4,
@@ -1232,7 +1308,7 @@ class _FastStockInViewState extends State<FastStockInView> {
       children: [
         Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.subtitle1.fontSize),
         ),
         const SizedBox(height: 4),
         Wrap(
@@ -1242,7 +1318,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                 (option) => ChoiceChip(
                   label: Text(
                     option,
-                    style: const TextStyle(fontSize: 10, color: Colors.black),
+                    style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.black),
                   ),
                   selected: selected == option,
                   selectedColor: Colors.blue[100],
@@ -1328,7 +1404,7 @@ class _FastStockInViewState extends State<FastStockInView> {
           ElevatedButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const QuickInputLibraryView()),
+              MaterialPageRoute(builder: (_) => const QuickInputCodesView()),
             ),
             child: const Text('Quản lý mã nhập'),
           ),
@@ -1494,9 +1570,9 @@ class _FastStockInViewState extends State<FastStockInView> {
                     (v) => setState(() => selectedPaymentMethod = v),
                   ),
 
-                  const Text(
+                  Text(
                     'IMEI/Serial *',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize),
                   ),
                   Row(
                     children: [
@@ -1508,7 +1584,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                             FilteringTextInputFormatter.digitsOnly,
                             LengthLimitingTextInputFormatter(5),
                           ],
-                          style: const TextStyle(fontSize: 11),
+                          style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                           decoration: InputDecoration(
                             hintText: 'Nhập 5 số cuối IMEI (bắt buộc)',
                             contentPadding: const EdgeInsets.symmetric(
@@ -1540,16 +1616,16 @@ class _FastStockInViewState extends State<FastStockInView> {
                   ),
                   const SizedBox(height: 8),
 
-                  const Text(
+                  Text(
                     'Số lượng',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize),
                   ),
                   TextField(
                     controller: quantityCtrl,
                     keyboardType: TextInputType.number,
                     enabled: imeiCtrl.text.isEmpty,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    style: const TextStyle(fontSize: 12),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                     decoration: InputDecoration(
                       hintText: 'Số lượng',
                       contentPadding: const EdgeInsets.symmetric(
@@ -1590,10 +1666,10 @@ class _FastStockInViewState extends State<FastStockInView> {
                               ? const CircularProgressIndicator(
                                   color: Colors.white,
                                 )
-                              : const Text(
+                              : Text(
                                   'LƯU VÀO HÀNG CHỜ XÁC NHẬN',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: AppTextStyles.headline4.fontSize,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
@@ -1610,9 +1686,9 @@ class _FastStockInViewState extends State<FastStockInView> {
                             );
                           },
                           icon: const Icon(Icons.list_alt, size: 16),
-                          label: const Text(
+                          label: Text(
                             'Xem hàng chờ xác nhận',
-                            style: TextStyle(fontSize: 12),
+                            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                           ),
                         ),
                       ],
@@ -1794,14 +1870,14 @@ class _SmartIMEIScannerSheetState extends State<_SmartIMEIScannerSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
+                Row(
                   children: [
                     Icon(Icons.qr_code_scanner, color: Colors.green),
                     SizedBox(width: 8),
                     Text(
                       'QUÉT QR/BARCODE IMEI',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppTextStyles.headline3.fontSize,
                         fontWeight: FontWeight.bold,
                         color: Colors.green,
                       ),
@@ -1820,7 +1896,7 @@ class _SmartIMEIScannerSheetState extends State<_SmartIMEIScannerSheet> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             color: Colors.blue.shade50,
-            child: const Row(
+            child: Row(
               children: [
                 Icon(Icons.info_outline, size: 20, color: Colors.blue),
                 SizedBox(width: 8),
@@ -1828,7 +1904,7 @@ class _SmartIMEIScannerSheetState extends State<_SmartIMEIScannerSheet> {
                   child: Text(
                     'Hỗ trợ QR nhiều dòng (Apple, Samsung...).\n'
                     'Tự động trích xuất IMEI và cho phép chọn nếu có nhiều số.',
-                    style: TextStyle(fontSize: 12, color: Colors.blue),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.blue),
                   ),
                 ),
               ],

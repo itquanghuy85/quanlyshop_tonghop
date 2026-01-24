@@ -69,9 +69,9 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
             ),
           ),
         ),
-        title: const Text(
+        title: Text(
           "LỊCH SỬ ĐIỀU CHỈNH",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize, color: Colors.white),
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
@@ -190,7 +190,7 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: typeColor,
-                          fontSize: 13,
+                          fontSize: AppTextStyles.headline5.fontSize,
                         ),
                       ),
                       Text(
@@ -306,10 +306,10 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
                         color: Colors.green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text(
+                      child: Text(
                         "ĐÃ DUYỆT",
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: AppTextStyles.caption.fontSize,
                           fontWeight: FontWeight.bold,
                           color: Colors.green,
                         ),
@@ -337,7 +337,7 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
       child: Text(
         "$label: $sign${NumberFormat('#,###').format(delta)}đ",
         style: TextStyle(
-          fontSize: 11,
+          fontSize: AppTextStyles.body1.fontSize,
           fontWeight: FontWeight.bold,
           color: color,
         ),
@@ -360,9 +360,9 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Chi tiết thay đổi:",
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: AppTextStyles.body1.fontSize, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           ...allKeys.map((key) {
@@ -379,21 +379,21 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
                 children: [
                   Text(
                     "${_translateKey(key)}: ",
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey),
                   ),
                   Text(
                     oldStr,
-                    style: const TextStyle(
-                      fontSize: 11,
+                    style: TextStyle(
+                      fontSize: AppTextStyles.body1.fontSize,
                       decoration: TextDecoration.lineThrough,
                       color: Colors.red,
                     ),
                   ),
-                  const Text(" → ", style: TextStyle(fontSize: 11)),
+                  Text(" → ", style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                   Text(
                     newStr,
-                    style: const TextStyle(
-                      fontSize: 11,
+                    style: TextStyle(
+                      fontSize: AppTextStyles.body1.fontSize,
                       fontWeight: FontWeight.bold,
                       color: Colors.green,
                     ),

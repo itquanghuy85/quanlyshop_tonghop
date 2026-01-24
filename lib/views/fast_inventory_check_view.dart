@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
+import '../theme/app_text_styles.dart';
 import '../models/inventory_zone_model.dart';
 import '../services/notification_service.dart';
 import '../services/first_time_guide_service.dart';
@@ -618,9 +619,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     '⚡ Mẹo: Giữ khoảng cách 20-30cm với QR code\n⏱️ Thời gian chờ giữa các lần scan: 1.5 giây\n🚫 Tránh scan cùng mã quá nhanh',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
                   ),
                 ],
               ),
@@ -809,7 +810,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             ),
             label: Text(
               _currentZone?.name ?? 'Chọn Zone',
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: TextStyle(color: Colors.white, fontSize: AppTextStyles.headline4.fontSize),
             ),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -913,10 +914,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                                     color: Colors.grey,
                                   ),
                                   const SizedBox(height: 16),
-                                  const Text(
+                                  Text(
                                     'Nhấn nút scan để bắt đầu kiểm kho',
                                     style: TextStyle(
-                                      fontSize: 18,
+                                      fontSize: AppTextStyles.headline2.fontSize,
                                       color: Colors.grey,
                                     ),
                                     textAlign: TextAlign.center,
@@ -935,7 +936,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                       if (_isProcessingScan)
                         Container(
                           color: Colors.black.withOpacity(0.3),
-                          child: const Center(
+                          child: Center(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -949,7 +950,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                                   'Đang xử lý...',
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 16,
+                                    fontSize: AppTextStyles.headline3.fontSize,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -989,9 +990,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                             children: [
                               Text(
                                 'Đã scan (${_scannedItems.length})',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                                  fontSize: AppTextStyles.subtitle1.fontSize,
                                 ),
                               ),
                               IconButton(
@@ -1027,7 +1028,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                                   children: [
                                     Text(
                                       item['status'],
-                                      style: const TextStyle(fontSize: 10),
+                                      style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
                                     ),
                                     const SizedBox(width: 4),
                                     Expanded(
@@ -1037,8 +1038,8 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                                         children: [
                                           Text(
                                             '${item['type']} ${item['name']}',
-                                            style: const TextStyle(
-                                              fontSize: 11,
+                                            style: TextStyle(
+                                              fontSize: AppTextStyles.body1.fontSize,
                                               fontWeight: FontWeight.w500,
                                             ),
                                             maxLines: 1,
@@ -1047,7 +1048,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                                           Text(
                                             item['identifier'],
                                             style: TextStyle(
-                                              fontSize: 9,
+                                              fontSize: AppTextStyles.overlineSize,
                                               color: Colors.grey[600],
                                             ),
                                             maxLines: 1,
@@ -1079,11 +1080,11 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                 children: [
                   Text(
                     'Đã scan: $_totalScanned',
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    style: TextStyle(color: Colors.white, fontSize: AppTextStyles.headline3.fontSize),
                   ),
-                  const Text(
+                  Text(
                     'Giữ yên QR trước camera',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                    style: TextStyle(color: Colors.white70, fontSize: AppTextStyles.subtitle1.fontSize),
                   ),
                 ],
               ),
@@ -1099,14 +1100,14 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         Text(
           count.toString(),
           style: TextStyle(
-            fontSize: 20,
+            fontSize: AppTextStyles.headline1.fontSize,
             fontWeight: FontWeight.bold,
             color: color,
           ),
         ),
         Text(
           label,
-          style: TextStyle(fontSize: 10, color: color),
+          style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: color),
           textAlign: TextAlign.center,
         ),
       ],
@@ -1199,7 +1200,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                               zone.name,
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                                fontSize: AppTextStyles.headline4.fontSize,
                                 color: isSelected
                                     ? const Color(0xFF2962FF)
                                     : Colors.black87,
@@ -1209,7 +1210,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                             Text(
                               '${zone.totalScanned}/${zone.totalExpected} items',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: AppTextStyles.subtitle1.fontSize,
                                 color: Colors.grey[600],
                               ),
                             ),
@@ -1253,14 +1254,14 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                   children: [
                     Text(
                       zone.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: AppTextStyles.headline4.fontSize,
                       ),
                     ),
                     Text(
                       zone.description,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -1273,9 +1274,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                 ),
                 child: Text(
                   '${zone.totalScanned}/${zone.totalExpected}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1304,7 +1305,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                   'Hoàn thành!',
                   style: TextStyle(
                     color: Colors.green[700],
-                    fontSize: 12,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

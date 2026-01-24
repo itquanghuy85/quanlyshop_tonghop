@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../core/utils/money_utils.dart';
+import '../theme/app_text_styles.dart';
 import '../data/db_helper.dart';
 import '../models/purchase_order_model.dart';
 import '../models/debt_model.dart';
@@ -309,7 +310,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("THÊM SẢN PHẨM", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text("THÊM SẢN PHẨM", style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             ValidatedTextField(
               controller: itemNameCtrl,
@@ -423,9 +424,9 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text("DANH SÁCH SẢN PHẨM", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text("DANH SÁCH SẢN PHẨM", style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold)),
           ),
           ..._items.asMap().entries.map((entry) {
             final index = entry.key;
@@ -537,7 +538,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
             padding: const EdgeInsets.all(16),
             child: Text(
               "Tổng: ${_items.fold(0, (sum, item) => sum + item.quantity)} sản phẩm - ${MoneyUtils.formatVND(_items.fold(0, (sum, item) => sum + (item.unitCost * item.quantity)))}đ",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
             ),
           ),
         ],
@@ -580,7 +581,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("THÔNG TIN NHÀ CUNG CẤP", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text("THÔNG TIN NHÀ CUNG CẤP", style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
                     ValidatedTextField(
                       controller: supplierNameCtrl,
@@ -642,7 +643,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
           ),
           child: _isSaving
             ? const CircularProgressIndicator(color: Colors.white)
-            : const Text("LƯU ĐƠN NHẬP", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            : Text("LƯU ĐƠN NHẬP", style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold)),
         ),
       ),
     );

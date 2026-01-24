@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/payment_intent_service.dart';
 import '../views/pending_payments_list_view.dart';
+import '../theme/app_text_styles.dart';
 
 /// Widget hiển thị số lượng thanh toán chờ xử lý trên Dashboard
 class PendingPaymentsWidget extends StatefulWidget {
@@ -125,9 +126,9 @@ class _PendingPaymentsWidgetState extends State<PendingPaymentsWidget> {
                               ),
                               child: Text(
                                 '$pendingCount',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 10,
+                                  fontSize: AppTextStyles.caption.fontSize,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 textAlign: TextAlign.center,
@@ -146,7 +147,7 @@ class _PendingPaymentsWidgetState extends State<PendingPaymentsWidget> {
                             'Thanh toán chờ xử lý',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: AppTextStyles.headline4.fontSize,
                               color: Colors.green.shade800,
                             ),
                           ),
@@ -163,7 +164,7 @@ class _PendingPaymentsWidgetState extends State<PendingPaymentsWidget> {
                                 Text(
                                   'Thu: ${NumberFormat.compact(locale: 'vi').format(_totalPendingIncome)}đ',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.blue.shade600,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -180,7 +181,7 @@ class _PendingPaymentsWidgetState extends State<PendingPaymentsWidget> {
                                 Text(
                                   'Chi: ${NumberFormat.compact(locale: 'vi').format(_totalPendingExpense)}đ',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.orange.shade600,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -192,10 +193,7 @@ class _PendingPaymentsWidgetState extends State<PendingPaymentsWidget> {
                       ),
                     ),
                     // Arrow
-                    Icon(
-                      Icons.chevron_right,
-                      color: Colors.green.shade400,
-                    ),
+                    Icon(Icons.chevron_right, color: Colors.green.shade400),
                   ],
                 ),
         ),

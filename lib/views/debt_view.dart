@@ -825,7 +825,6 @@ class _DebtViewState extends State<DebtView>
               "Quản lý đối tác tại: Cài đặt > Quản lý đối tác",
               style: AppTextStyles.body2.copyWith(
                 color: AppColors.onSurface.withOpacity(0.4),
-                fontSize: 12,
               ),
             ),
           ],
@@ -896,7 +895,7 @@ class _DebtViewState extends State<DebtView>
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.orange.shade800,
-                          fontSize: 12,
+                          fontSize: AppTextStyles.subtitle1.fontSize,
                         ),
                       ),
                     ),
@@ -922,9 +921,9 @@ class _DebtViewState extends State<DebtView>
                       children: [
                         Text(
                           name.toUpperCase(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontSize: AppTextStyles.headline4.fontSize,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -933,7 +932,7 @@ class _DebtViewState extends State<DebtView>
                           Text(
                             '📞 $phone',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: AppTextStyles.body1.fontSize,
                               color: Colors.grey.shade700,
                             ),
                           ),
@@ -952,7 +951,7 @@ class _DebtViewState extends State<DebtView>
                       style: TextStyle(
                         color: Colors.blue.shade700,
                         fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                        fontSize: AppTextStyles.body1.fontSize,
                       ),
                     ),
                   ),
@@ -1004,15 +1003,15 @@ class _DebtViewState extends State<DebtView>
                         const Text(
                           'CÒN NỢ',
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: AppTextStyles.overlineSize,
                             fontWeight: FontWeight.bold,
                             color: Colors.white70,
                           ),
                         ),
                         Text(
                           MoneyUtils.formatCurrency(remainingDebt),
-                          style: const TextStyle(
-                            fontSize: 13,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.headline5.fontSize,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -1032,9 +1031,9 @@ class _DebtViewState extends State<DebtView>
                     ElevatedButton.icon(
                       onPressed: () => _navigateToPartnerDetail(partner),
                       icon: const Icon(Icons.visibility, size: 16),
-                      label: const Text(
+                      label: Text(
                         'Xem & Thanh toán',
-                        style: TextStyle(fontSize: 12),
+                        style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange,
@@ -1061,7 +1060,6 @@ class _DebtViewState extends State<DebtView>
           label,
           style: AppTextStyles.body2.copyWith(
             color: AppColors.onSurface.withOpacity(0.6),
-            fontSize: 12,
           ),
         ),
         const SizedBox(height: 4),
@@ -1207,7 +1205,7 @@ class _DebtViewState extends State<DebtView>
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: mainColor,
-                            fontSize: 12,
+                            fontSize: AppTextStyles.subtitle1.fontSize,
                           ),
                         ),
                       ),
@@ -1233,9 +1231,9 @@ class _DebtViewState extends State<DebtView>
                       children: [
                         Text(
                           personName.toUpperCase(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontSize: AppTextStyles.headline4.fontSize,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1244,7 +1242,7 @@ class _DebtViewState extends State<DebtView>
                           Text(
                             '📞 $phone',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: AppTextStyles.body1.fontSize,
                               color: Colors.grey.shade700,
                             ),
                           ),
@@ -1258,7 +1256,7 @@ class _DebtViewState extends State<DebtView>
                       Text(
                         date,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: AppTextStyles.body1.fontSize,
                           fontWeight: FontWeight.w500,
                           color: Colors.grey.shade700,
                         ),
@@ -1266,7 +1264,7 @@ class _DebtViewState extends State<DebtView>
                       Text(
                         time,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: AppTextStyles.caption.fontSize,
                           color: Colors.grey.shade500,
                         ),
                       ),
@@ -1327,15 +1325,15 @@ class _DebtViewState extends State<DebtView>
                         const Text(
                           'CÒN NỢ',
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: AppTextStyles.overlineSize,
                             fontWeight: FontWeight.bold,
                             color: Colors.white70,
                           ),
                         ),
                         Text(
                           MoneyUtils.formatCurrency(remain),
-                          style: const TextStyle(
-                            fontSize: 13,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.headline5.fontSize,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -1354,7 +1352,7 @@ class _DebtViewState extends State<DebtView>
                   TextButton.icon(
                     onPressed: () => _showDebtHistory(d),
                     icon: const Icon(Icons.history, size: 16),
-                    label: const Text('Lịch sử', style: TextStyle(fontSize: 12)),
+                    label: Text('Lịch sử', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       minimumSize: Size.zero,
@@ -1367,7 +1365,7 @@ class _DebtViewState extends State<DebtView>
                     icon: Icon(isCustomerDebt ? Icons.call_received : Icons.call_made, size: 16),
                     label: Text(
                       isCustomerDebt ? 'Thu nợ' : 'Trả nợ',
-                      style: const TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: mainColor,
@@ -1396,7 +1394,7 @@ class _DebtViewState extends State<DebtView>
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: AppTextStyles.caption.fontSize,
           color: textColor,
           fontWeight: FontWeight.w500,
         ),
@@ -1411,7 +1409,7 @@ class _DebtViewState extends State<DebtView>
         Text(
           label,
           style: TextStyle(
-            fontSize: 9,
+            fontSize: AppTextStyles.overlineSize,
             fontWeight: FontWeight.bold,
             color: Colors.grey.shade500,
           ),
@@ -1419,7 +1417,7 @@ class _DebtViewState extends State<DebtView>
         Text(
           MoneyUtils.formatCurrency(amount),
           style: TextStyle(
-            fontSize: 12,
+            fontSize: AppTextStyles.subtitle1.fontSize,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -1433,15 +1431,15 @@ class _DebtViewState extends State<DebtView>
     children: [
       Text(
         l,
-        style: const TextStyle(
-          fontSize: 8,
+        style: TextStyle(
+          fontSize: AppTextStyles.overlineSize,
           fontWeight: FontWeight.bold,
           color: Colors.grey,
         ),
       ),
       Text(
         MoneyUtils.formatCurrency(v),
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: c),
+        style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, fontWeight: FontWeight.bold, color: c),
       ),
     ],
   );
@@ -1555,7 +1553,7 @@ class _DebtViewState extends State<DebtView>
                                 Text(
                                   "NỢ PHẢI THU",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     fontWeight: FontWeight.bold,
                                     color: debtType == "CUSTOMER_OWES"
                                         ? Colors.red
@@ -1563,10 +1561,10 @@ class _DebtViewState extends State<DebtView>
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                const Text(
+                                Text(
                                   "(Khách nợ shop)",
                                   style: TextStyle(
-                                    fontSize: 9,
+                                    fontSize: AppTextStyles.overlineSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -1608,7 +1606,7 @@ class _DebtViewState extends State<DebtView>
                                 Text(
                                   "NỢ PHẢI TRẢ",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     fontWeight: FontWeight.bold,
                                     color: debtType == "SHOP_OWES"
                                         ? Colors.blue
@@ -1616,10 +1614,10 @@ class _DebtViewState extends State<DebtView>
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                const Text(
+                                Text(
                                   "(Shop nợ người khác)",
                                   style: TextStyle(
-                                    fontSize: 9,
+                                    fontSize: AppTextStyles.overlineSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -2025,7 +2023,7 @@ class _DebtViewState extends State<DebtView>
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: iconColor,
-                      fontSize: 10,
+                      fontSize: AppTextStyles.caption.fontSize,
                     ),
                   ),
                 ),
@@ -2043,15 +2041,15 @@ class _DebtViewState extends State<DebtView>
             Expanded(
               child: Text(
                 (d['personName'] ?? 'N/A').toString().toUpperCase(),
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: AppTextStyles.headline4.fontSize,
                 ),
               ),
             ),
             Text(
               date,
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
+              style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey),
             ),
           ],
         ),
@@ -2061,11 +2059,11 @@ class _DebtViewState extends State<DebtView>
             if (d['phone'] != null)
               Text(
                 "SĐT: ${d['phone']}",
-                style: const TextStyle(fontSize: 11, color: Colors.blueGrey),
+                style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.blueGrey),
               ),
             Text(
               "Nội dung: ${d['note'] ?? ''}",
-              style: const TextStyle(fontSize: 11),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
             ),
             const SizedBox(height: 10),
             Row(

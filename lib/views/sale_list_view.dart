@@ -460,9 +460,9 @@ class _SaleListViewState extends State<SaleListView> {
                     ),
                     child: Text(
                       '$_activeFilterCount',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 10,
+                        fontSize: AppTextStyles.caption.fontSize,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -482,10 +482,10 @@ class _SaleListViewState extends State<SaleListView> {
             color: Colors.white,
             child: TextField(
               onChanged: (v) => setState(() => _search = v),
-              style: const TextStyle(fontSize: 13),
+              style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
               decoration: InputDecoration(
                 hintText: "Tìm theo tên khách, máy hoặc IMEI...",
-                hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                hintStyle: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade500),
                 prefixIcon: Icon(
                   Icons.search_rounded,
                   color: AppBarAccents.sales,
@@ -622,7 +622,7 @@ class _SaleListViewState extends State<SaleListView> {
                                 child: Center(
                                   child: Text(
                                     'Đã hiển thị ${list.length} đơn bán',
-                                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                    style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.subtitle1.fontSize),
                                   ),
                                 ),
                               );
@@ -683,7 +683,7 @@ class _SaleListViewState extends State<SaleListView> {
                                               child: Text(
                                                 '$index',
                                                 style: TextStyle(
-                                                  fontSize: 11,
+                                                  fontSize: AppTextStyles.body1.fontSize,
                                                   fontWeight: FontWeight.bold,
                                                   color: borderColor,
                                                 ),
@@ -698,9 +698,9 @@ class _SaleListViewState extends State<SaleListView> {
                                               children: [
                                                 Text(
                                                   s.productNames,
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
+                                                    fontSize: AppTextStyles.headline5.fontSize,
                                                   ),
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
@@ -708,7 +708,7 @@ class _SaleListViewState extends State<SaleListView> {
                                                 Text(
                                                   '${s.customerName} • ${s.phone}',
                                                   style: TextStyle(
-                                                    fontSize: 11,
+                                                    fontSize: AppTextStyles.body1.fontSize,
                                                     color: Colors.grey.shade700,
                                                   ),
                                                   maxLines: 1,
@@ -732,9 +732,9 @@ class _SaleListViewState extends State<SaleListView> {
                                                 ),
                                                 child: Text(
                                                   isPaid ? 'ĐÃ THU' : 'CÒN NỢ',
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                     color: Colors.white,
-                                                    fontSize: 9,
+                                                    fontSize: AppTextStyles.overlineSize,
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
@@ -743,7 +743,7 @@ class _SaleListViewState extends State<SaleListView> {
                                               Text(
                                                 date,
                                                 style: TextStyle(
-                                                  fontSize: 10,
+                                                  fontSize: AppTextStyles.caption.fontSize,
                                                   color: Colors.grey.shade600,
                                                 ),
                                               ),
@@ -884,7 +884,7 @@ class _SaleListViewState extends State<SaleListView> {
         Text(
           label,
           style: TextStyle(
-            fontSize: 8,
+            fontSize: AppTextStyles.overlineSize,
             color: AppColors.onSurface.withOpacity(0.6),
             fontWeight: FontWeight.bold,
           ),
@@ -892,7 +892,7 @@ class _SaleListViewState extends State<SaleListView> {
         Text(
           "$value đ",
           style: TextStyle(
-            fontSize: 10,
+            fontSize: AppTextStyles.caption.fontSize,
             fontWeight: FontWeight.w900,
             color: color,
           ),
@@ -917,7 +917,7 @@ class _SaleListViewState extends State<SaleListView> {
       ),
       child: Text(
         text, 
-        style: const TextStyle(fontSize: 10),
+        style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),

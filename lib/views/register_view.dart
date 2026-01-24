@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
+import '../theme/app_text_styles.dart';
 
 class RegisterView extends StatefulWidget {
   final Function(Locale)? setLocale;
@@ -141,7 +142,7 @@ class _RegisterViewState extends State<RegisterView> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text("ĐĂNG KÝ TÀI KHOẢN", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text("ĐĂNG KÝ TÀI KHOẢN", style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold)),
         centerTitle: true,
         automaticallyImplyLeading: true,
       ),
@@ -174,10 +175,10 @@ class _RegisterViewState extends State<RegisterView> {
         CircleAvatar(
           radius: 15,
           backgroundColor: active ? Colors.blueAccent : Colors.grey.shade300,
-          child: Text("${step + 1}", style: TextStyle(color: active ? Colors.white : Colors.grey, fontSize: 12)),
+          child: Text("${step + 1}", style: TextStyle(color: active ? Colors.white : Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize)),
         ),
         const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: active ? Colors.blueAccent : Colors.grey)),
+        Text(label, style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: active ? Colors.blueAccent : Colors.grey)),
       ],
     );
   }
@@ -215,7 +216,7 @@ class _RegisterViewState extends State<RegisterView> {
           children: [
             Icon(icon, color: selected ? Colors.blueAccent : Colors.grey, size: 30),
             const SizedBox(width: 16),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.bold)), Text(desc, style: TextStyle(fontSize: 12, color: Colors.grey.shade600))])),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.bold)), Text(desc, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade600))])),
             Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? Colors.blueAccent : Colors.grey),
           ],
         ),
@@ -255,7 +256,7 @@ class _RegisterViewState extends State<RegisterView> {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.blue.shade700,
-                        fontSize: 14,
+                        fontSize: AppTextStyles.headline4.fontSize,
                       ),
                     ),
                   ],
@@ -264,7 +265,7 @@ class _RegisterViewState extends State<RegisterView> {
                 Text(
                   "Để tham gia shop, vui lòng yêu cầu chủ shop thực hiện các bước sau:",
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppTextStyles.headline5.fontSize,
                     color: Colors.grey.shade700,
                     height: 1.4,
                   ),
@@ -279,7 +280,7 @@ class _RegisterViewState extends State<RegisterView> {
                 Text(
                   "Sau khi có tài khoản và mật khẩu  bạn có thể đăng nhập và tham gia shop.",
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
                     color: Colors.grey.shade600,
                     fontStyle: FontStyle.italic,
                   ),
@@ -289,7 +290,7 @@ class _RegisterViewState extends State<RegisterView> {
           ),
         ],
         
-        if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+        if (_error != null) Text(_error!, style: TextStyle(color: Colors.red, fontSize: AppTextStyles.headline5.fontSize)),
         const SizedBox(height: 24),
         Row(
           children: [
@@ -309,7 +310,7 @@ class _RegisterViewState extends State<RegisterView> {
         controller: c, obscureText: obscure, keyboardType: type, readOnly: readOnly,
         decoration: InputDecoration(
           labelText: l, prefixIcon: Icon(i, size: 20), suffixIcon: suffix,
-          helperText: helperText, helperStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+          helperText: helperText, helperStyle: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           filled: true, fillColor: Colors.white,
         ),
@@ -333,9 +334,9 @@ class _RegisterViewState extends State<RegisterView> {
             child: Center(
               child: Text(
                 step.toString(),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 12,
+                  fontSize: AppTextStyles.subtitle1.fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -346,7 +347,7 @@ class _RegisterViewState extends State<RegisterView> {
             child: Text(
               instruction,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: AppTextStyles.headline5.fontSize,
                 color: Colors.grey.shade700,
                 height: 1.3,
               ),

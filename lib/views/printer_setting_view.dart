@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/notification_service.dart';
+import '../theme/app_text_styles.dart';
 
 class PrinterSettingView extends StatefulWidget {
   const PrinterSettingView({super.key});
@@ -61,7 +62,7 @@ class _PrinterSettingViewState extends State<PrinterSettingView> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text("CẤU HÌNH MÁY IN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        title: Text("CẤU HÌNH MÁY IN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize)),
         automaticallyImplyLeading: true,
       ),
       body: SingleChildScrollView(
@@ -115,17 +116,17 @@ class _PrinterSettingViewState extends State<PrinterSettingView> {
             children: [
               CircleAvatar(backgroundColor: color.withAlpha(25), child: Icon(icon, color: color)),
               const SizedBox(width: 15),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)), Text(desc, style: const TextStyle(fontSize: 11, color: Colors.grey))])),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize)), Text(desc, style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey))])),
               if (onToggle != null) Switch(value: isEnable, onChanged: onToggle, activeThumbColor: color),
             ],
           ),
           if (isEnable) ...[
             const SizedBox(height: 20),
-            const Text("ĐỊA CHỈ IP (WIFI/LAN)", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+            Text("ĐỊA CHỈ IP (WIFI/LAN)", style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
             const SizedBox(height: 8),
             TextField(
               controller: controller,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+              style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold, letterSpacing: 1.5),
               decoration: InputDecoration(
                 hintText: "192.168.1.XXX",
                 prefixIcon: const Icon(Icons.lan_rounded, size: 18),
@@ -151,7 +152,7 @@ class _PrinterSettingViewState extends State<PrinterSettingView> {
             child: _logoPath.isEmpty ? const Icon(Icons.image_outlined, color: Colors.grey) : ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(File(_logoPath), fit: BoxFit.cover)),
           ),
           const SizedBox(width: 15),
-          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text("LOGO CỬA HÀNG", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)), Text("Sẽ hiển thị trên đầu phiếu in", style: TextStyle(fontSize: 11, color: Colors.grey))])),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text("LOGO CỬA HÀNG", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize)), Text("Sẽ hiển thị trên đầu phiếu in", style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey))])),
           TextButton(
             onPressed: () async {
               final picked = await ImagePicker().pickImage(source: ImageSource.gallery);

@@ -245,6 +245,10 @@ class SyncService {
     } catch (e) {
       debugPrint('⚠️ Failed to enqueue local $collection/$firestoreId: $e');
     }
+
+    // Best-effort: nếu đã enqueue thì cố gắng đẩy ngay lên cloud (tránh tình trạng "lúc được lúc không")
+    // ignore: unawaited_futures
+    orchestrator.syncAll();
   }
 
   /// Khởi tạo đồng bộ thời gian thực

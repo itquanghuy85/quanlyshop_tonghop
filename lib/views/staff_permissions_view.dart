@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../theme/app_text_styles.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_service.dart';
 import '../data/db_helper.dart';
@@ -176,7 +177,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
               Text(
                 "Bạn không có quyền truy cập\nmàn hình quản lý phân quyền",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, color: Colors.grey),
               ),
             ],
           ),
@@ -202,9 +203,9 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("QUẢN LÝ PHÂN QUYỀN NHÂN VIÊN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text("QUẢN LÝ PHÂN QUYỀN NHÂN VIÊN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize)),
             if (_currentRole != null)
-              Text("Role: $_currentRole", style: const TextStyle(fontSize: 10, color: Colors.white70)),
+              Text("Role: $_currentRole", style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.white70)),
           ],
         ),
       ),
@@ -251,22 +252,22 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
                     backgroundColor: role == 'owner' ? Colors.purple.withAlpha(25) : role == 'manager' ? Colors.orange.withAlpha(25) : role == 'employee' ? Colors.blue.withAlpha(25) : role == 'technician' ? Colors.green.withAlpha(25) : role == 'admin' ? Colors.red.withAlpha(25) : Colors.grey.withAlpha(25),
                     child: photoUrl == null ? Icon(role == 'owner' ? Icons.business : role == 'manager' ? Icons.supervisor_account : role == 'employee' ? Icons.work : role == 'technician' ? Icons.build : role == 'admin' ? Icons.admin_panel_settings : Icons.person, color: role == 'owner' ? Colors.purple : role == 'manager' ? Colors.orange : role == 'employee' ? Colors.blue : role == 'technician' ? Colors.green : role == 'admin' ? Colors.red : Colors.grey, size: 20) : null,
                   ),
-                  title: Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  title: Text(displayName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize)),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(email, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                      Text("SĐT: $phone", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      Text(email, style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey)),
+                      Text("SĐT: $phone", style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey)),
                       Row(
                         children: [
-                          const Text("Vai trò: ", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                          Text("Vai trò: ", style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey)),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: role == 'owner' ? Colors.purple : role == 'manager' ? Colors.orange : role == 'employee' ? Colors.blue : role == 'technician' ? Colors.green : role == 'admin' ? Colors.red : Colors.grey,
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: Text(role == 'owner' ? 'CHỦ SHOP' : role == 'manager' ? 'QUẢN LÝ' : role == 'employee' ? 'NHÂN VIÊN' : role == 'technician' ? 'KỸ THUẬT' : role == 'admin' ? 'ADMIN' : role, style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                            child: Text(role == 'owner' ? 'CHỦ SHOP' : role == 'manager' ? 'QUẢN LÝ' : role == 'employee' ? 'NHÂN VIÊN' : role == 'technician' ? 'KỸ THUẬT' : role == 'admin' ? 'ADMIN' : role, style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -279,7 +280,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Đổi vai trò
-                          const Text("VAI TRÒ HỆ THỐNG", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                          Text("VAI TRÒ HỆ THỐNG", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
@@ -294,7 +295,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
 
                           // Phân quyền nghiệp vụ
                           if (role != 'owner' && role != 'manager') ...[
-                            const Text("QUYỀN XEM NỘI DUNG NGHIỆP VỤ", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                            Text("QUYỀN XEM NỘI DUNG NGHIỆP VỤ", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                             const SizedBox(height: 8),
                             _buildPermissionRow("BÁN HÀNG", userData['allowViewSales'] ?? false, uid, 'allowViewSales'),
                             _buildPermissionRow("SỬA CHỮA", userData['allowViewRepairs'] ?? false, uid, 'allowViewRepairs'),
@@ -309,7 +310,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
                             const SizedBox(height: 15),
 
                             // Phân quyền tài chính nhạy cảm
-                            const Text("QUYỀN XEM NỘI DUNG TÀI CHÍNH", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orange)),
+                            Text("QUYỀN XEM NỘI DUNG TÀI CHÍNH", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, fontWeight: FontWeight.bold, color: Colors.orange)),
                             const SizedBox(height: 8),
                             _buildPermissionRow("DOANH THU & LỜI LỖ", userData['allowViewRevenue'] ?? false, uid, 'allowViewRevenue'),
                             _buildPermissionRow("CHI PHÍ CỬA HÀNG", userData['allowViewExpenses'] ?? false, uid, 'allowViewExpenses'),
@@ -329,7 +330,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
                                   Expanded(
                                     child: Text(
                                       role == 'owner' ? "CHỦ SHOP có toàn quyền truy cập mọi chức năng trong hệ thống" : "QUẢN LÝ có toàn quyền truy cập mọi chức năng trong hệ thống",
-                                      style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w500),
+                                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.green, fontWeight: FontWeight.w500),
                                     ),
                                   ),
                                 ],
@@ -352,7 +353,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
   Widget _buildRoleChip(String roleValue, String roleLabel, String currentRole, String uid) {
     final isSelected = currentRole == roleValue;
     return FilterChip(
-      label: Text(roleLabel, style: TextStyle(fontSize: 11, color: isSelected ? Colors.white : Colors.black87)),
+      label: Text(roleLabel, style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: isSelected ? Colors.white : Colors.black87)),
       selected: isSelected,
       onSelected: (selected) {
         if (selected && currentRole != roleValue) {
@@ -371,7 +372,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
       child: Row(
         children: [
           Expanded(
-            child: Text(label, style: const TextStyle(fontSize: 12)),
+            child: Text(label, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
           ),
           Switch(
             value: value,

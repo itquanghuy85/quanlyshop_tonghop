@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/stock_entry_service.dart';
 import '../views/pending_stock_list_view.dart';
+import '../theme/app_text_styles.dart';
 
 /// Widget hiển thị số lượng hàng chờ xác nhận trên Dashboard
 class PendingStockWidget extends StatefulWidget {
@@ -43,7 +44,9 @@ class _PendingStockWidgetState extends State<PendingStockWidget> {
   }
 
   void _openPendingList() {
-    debugPrint('🚀 PendingStockWidget._openPendingList: navigating to PendingStockListView');
+    debugPrint(
+      '🚀 PendingStockWidget._openPendingList: navigating to PendingStockListView',
+    );
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const PendingStockListView()),
@@ -106,9 +109,9 @@ class _PendingStockWidgetState extends State<PendingStockWidget> {
                             ),
                             child: Text(
                               '$_pendingCount',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 10,
+                                fontSize: AppTextStyles.caption.fontSize,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -128,7 +131,7 @@ class _PendingStockWidgetState extends State<PendingStockWidget> {
                                 'Hàng chờ xác nhận',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                                  fontSize: AppTextStyles.headline4.fontSize,
                                   color: Colors.orange.shade800,
                                 ),
                               ),
@@ -145,20 +148,23 @@ class _PendingStockWidgetState extends State<PendingStockWidget> {
                           Wrap(
                             spacing: 8,
                             children: [
-                              if (_stats['phone'] != null && _stats['phone'] > 0)
+                              if (_stats['phone'] != null &&
+                                  _stats['phone'] > 0)
                                 _buildStatChip('📱', _stats['phone']),
-                              if (_stats['accessory'] != null && _stats['accessory'] > 0)
+                              if (_stats['accessory'] != null &&
+                                  _stats['accessory'] > 0)
                                 _buildStatChip('🎧', _stats['accessory']),
                               if (_stats['part'] != null && _stats['part'] > 0)
                                 _buildStatChip('🔧', _stats['part']),
                             ],
                           ),
-                          if (_stats['oldestDays'] != null && _stats['oldestDays'] > 3) ...[
+                          if (_stats['oldestDays'] != null &&
+                              _stats['oldestDays'] > 3) ...[
                             const SizedBox(height: 4),
                             Text(
                               '⚠️ Có phiếu quá ${_stats['oldestDays']} ngày!',
-                              style: const TextStyle(
-                                fontSize: 11,
+                              style: TextStyle(
+                                fontSize: AppTextStyles.body1.fontSize,
                                 color: Colors.red,
                               ),
                             ),
@@ -182,7 +188,7 @@ class _PendingStockWidgetState extends State<PendingStockWidget> {
       ),
       child: Text(
         '$icon $count',
-        style: const TextStyle(fontSize: 12),
+        style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
       ),
     );
   }
@@ -215,12 +221,16 @@ class PendingStockCompactWidget extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.pending_actions, size: 18, color: Colors.orange.shade700),
+            Icon(
+              Icons.pending_actions,
+              size: 18,
+              color: Colors.orange.shade700,
+            ),
             const SizedBox(width: 6),
             Text(
               'Chờ XN',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 color: Colors.orange.shade700,
                 fontWeight: FontWeight.w500,
               ),
@@ -234,9 +244,9 @@ class PendingStockCompactWidget extends StatelessWidget {
               ),
               child: Text(
                 '$pendingCount',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 10,
+                  fontSize: AppTextStyles.caption.fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -311,9 +321,9 @@ class PendingStockStreamWidget extends StatelessWidget {
                           ),
                           child: Text(
                             count > 99 ? '99+' : '$count',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
+                              fontSize: AppTextStyles.caption.fontSize,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -332,14 +342,14 @@ class PendingStockStreamWidget extends StatelessWidget {
                           'Hàng chờ xác nhận',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontSize: AppTextStyles.headline4.fontSize,
                             color: Colors.orange.shade800,
                           ),
                         ),
                         Text(
                           'Nhấn để xem và xác nhận',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: AppTextStyles.body1.fontSize,
                             color: Colors.grey.shade600,
                           ),
                         ),

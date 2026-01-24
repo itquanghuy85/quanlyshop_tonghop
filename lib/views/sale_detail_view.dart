@@ -822,16 +822,16 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 children: [
                   Text(
                     _shopName,
-                    style: const TextStyle(
-                      fontSize: 18,
+                    style: TextStyle(
+                      fontSize: AppTextStyles.headline2.fontSize,
                       fontWeight: FontWeight.bold,
                       color: Colors.pink,
                     ),
                   ),
-                  Text("ĐC: $_shopAddr", style: const TextStyle(fontSize: 12)),
+                  Text("ĐC: $_shopAddr", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                   Text(
                     "SĐT: $_shopPhone",
-                    style: const TextStyle(fontSize: 12),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                   ),
                 ],
               ),
@@ -839,10 +839,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           ),
           const SizedBox(height: 12),
           const Divider(thickness: 2),
-          const Center(
+          Center(
             child: Text(
               "HÓA ĐƠN BÁN LẺ",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              style: TextStyle(fontSize: AppTextStyles.headline1.fontSize, fontWeight: FontWeight.w900),
             ),
           ),
           const SizedBox(height: 14),
@@ -866,8 +866,8 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               ),
               Text(
                 "${MoneyUtils.formatCurrency(s.finalPrice)} Đ",
-                style: const TextStyle(
-                  fontSize: 22,
+                style: TextStyle(
+                  fontSize: AppTextStyles.headline1.fontSize,
                   fontWeight: FontWeight.bold,
                   color: Colors.red,
                 ),
@@ -927,13 +927,13 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               "CHI TIẾT ĐƠN BÁN",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline2.fontSize),
             ),
             Text(
               s.customerName,
-              style: const TextStyle(fontSize: 11, color: Colors.white70),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.white70),
             ),
           ],
         ),
@@ -1123,10 +1123,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(l, style: const TextStyle(fontSize: 12)),
+        Text(l, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
         Text(
           v,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
         ),
       ],
     ),

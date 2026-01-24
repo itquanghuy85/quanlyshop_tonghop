@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
+import '../theme/app_text_styles.dart';
 
 class AuditLogView extends StatefulWidget {
   const AuditLogView({super.key});
@@ -40,7 +41,7 @@ class _AuditLogViewState extends State<AuditLogView> {
             ),
           ),
         ),
-        title: const Text("NHẬT KÝ HỆ THỐNG", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+        title: Text("NHẬT KÝ HỆ THỐNG", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize, color: Colors.white)),
         backgroundColor: Colors.transparent, foregroundColor: Colors.white, elevation: 0,
         automaticallyImplyLeading: true,
         actions: [IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh, color: Colors.white))],
@@ -83,8 +84,8 @@ class _AuditLogViewState extends State<AuditLogView> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(log['userName'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
-            Text(DateFormat('HH:mm - dd/MM').format(date), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            Text(log['userName'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize, color: Colors.blueGrey)),
+            Text(DateFormat('HH:mm - dd/MM').format(date), style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey)),
           ],
         ),
         subtitle: Padding(
@@ -92,9 +93,9 @@ class _AuditLogViewState extends State<AuditLogView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(log['action'], style: TextStyle(color: actionColor, fontWeight: FontWeight.bold, fontSize: 11)),
+              Text(log['action'], style: TextStyle(color: actionColor, fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize)),
               const SizedBox(height: 2),
-              Text(log['description'] ?? "", style: const TextStyle(fontSize: 12, color: Colors.black87)),
+              Text(log['description'] ?? "", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87)),
             ],
           ),
         ),

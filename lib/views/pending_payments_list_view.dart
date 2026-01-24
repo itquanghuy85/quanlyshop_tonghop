@@ -17,6 +17,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/payment_intent_model.dart';
+import '../theme/app_text_styles.dart';
 import '../services/payment_intent_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../widgets/gradient_fab.dart';
@@ -177,15 +178,15 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
           children: [
             Text(
               intent.description,
-              style: const TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
                   .format(intent.amount),
-              style: const TextStyle(
-                fontSize: 20,
+              style: TextStyle(
+                fontSize: AppTextStyles.headline1.fontSize,
                 fontWeight: FontWeight.bold,
                 color: Colors.green,
               ),
@@ -203,16 +204,20 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
   }
 
   /// Cancel a payment intent
+  /// 
+  /// NOTE: Hủy payment intent chỉ xóa khỏi hàng đợi thanh toán.
+  /// KHÔNG tự động hoàn trả tiền hay thay đổi trạng thái liên quan (đơn sửa, công nợ, etc.)
+  /// Nếu cần hoàn tiền, người dùng phải làm thủ công thông qua các chức năng khác.
   Future<void> _cancelIntent(PaymentIntent intent) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hủy thanh toán?', style: TextStyle(fontSize: 16)),
+        title: Text('Hủy thanh toán?', style: TextStyle(fontSize: AppTextStyles.headline3.fontSize)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(intent.description, style: const TextStyle(fontSize: 14)),
+            Text(intent.description, style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
             const SizedBox(height: 8),
             Text(
               NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
@@ -220,6 +225,31 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.red,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 18, color: Colors.amber.shade800),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Lưu ý: Hủy chỉ xóa yêu cầu thanh toán này khỏi danh sách. '
+                      'Tiền và trạng thái giao dịch liên quan (công nợ, đơn sửa) KHÔNG bị ảnh hưởng.',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.body1.fontSize,
+                        color: Colors.amber.shade900,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -252,10 +282,10 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
       appBar: AppBar(
         title: Row(
           children: [
-            const Text(
+            Text(
               'THANH TOÁN',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: AppTextStyles.headline3.fontSize,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
@@ -270,8 +300,8 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 ),
                 child: Text(
                   '${stats['pending']}',
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: AppTextStyles.subtitle1.fontSize,
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
@@ -315,7 +345,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 children: [
                   const Icon(Icons.arrow_downward, size: 16),
                   const SizedBox(width: 4),
-                  const Text('CHỜ THU', style: TextStyle(fontSize: 12)),
+                  Text('CHỜ THU', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                   if (_pendingIncome.isNotEmpty) ...[
                     const SizedBox(width: 4),
                     _buildBadge(_pendingIncome.length, Colors.blue),
@@ -329,7 +359,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 children: [
                   const Icon(Icons.arrow_upward, size: 16),
                   const SizedBox(width: 4),
-                  const Text('CHỜ CHI', style: TextStyle(fontSize: 12)),
+                  Text('CHỜ CHI', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                   if (_pendingExpense.isNotEmpty) ...[
                     const SizedBox(width: 4),
                     _buildBadge(_pendingExpense.length, Colors.orange),
@@ -343,7 +373,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 children: [
                   const Icon(Icons.history, size: 16),
                   const SizedBox(width: 4),
-                  const Text('LỊCH SỬ', style: TextStyle(fontSize: 12)),
+                  Text('LỊCH SỬ', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                 ],
               ),
             ),
@@ -375,8 +405,8 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
       ),
       child: Text(
         '$count',
-        style: const TextStyle(
-          fontSize: 10,
+        style: TextStyle(
+          fontSize: AppTextStyles.caption.fontSize,
           fontWeight: FontWeight.bold,
           color: Colors.white,
         ),
@@ -434,7 +464,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
             const SizedBox(height: 16),
             Text(
               'Chưa có lịch sử thanh toán',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -483,7 +513,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
                     color: Colors.grey.shade600,
                   ),
                 ),
@@ -492,7 +522,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                   NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
                       .format(total),
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: AppTextStyles.headline1.fontSize,
                     fontWeight: FontWeight.bold,
                     color: isIncome ? Colors.blue.shade700 : Colors.orange.shade700,
                   ),
@@ -509,7 +539,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
             child: Text(
               '$count giao dịch',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 fontWeight: FontWeight.bold,
                 color: isIncome ? Colors.blue.shade700 : Colors.orange.shade700,
               ),
@@ -538,12 +568,12 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
           const SizedBox(height: 16),
           Text(
             text,
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
           Text(
             subtext,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade500),
             textAlign: TextAlign.center,
           ),
         ],
@@ -594,7 +624,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                       color: accentColor.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(typeIcon, style: const TextStyle(fontSize: 20)),
+                    child: Text(typeIcon, style: TextStyle(fontSize: AppTextStyles.headline1.fontSize)),
                   ),
                   const SizedBox(width: 12),
                   // Description and person
@@ -604,9 +634,9 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                       children: [
                         Text(
                           intent.description,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontSize: AppTextStyles.headline4.fontSize,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -625,7 +655,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                                 child: Text(
                                   intent.personName!,
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
                                     color: Colors.grey.shade700,
                                   ),
                                   overflow: TextOverflow.ellipsis,
@@ -642,7 +672,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                                 Text(
                                   intent.personPhone!,
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey.shade600,
                                   ),
                                 ),
@@ -662,7 +692,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                             .format(intent.amount),
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: AppTextStyles.headline3.fontSize,
                           color: isIncome ? Colors.blue.shade700 : Colors.orange.shade700,
                         ),
                       ),
@@ -670,7 +700,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                       Text(
                         dateStr,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: AppTextStyles.caption.fontSize,
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -719,12 +749,12 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       minimumSize: const Size(0, 32),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.close, size: 14),
                         SizedBox(width: 4),
-                        Text('Hủy', style: TextStyle(fontSize: 12)),
+                        Text('Hủy', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                       ],
                     ),
                   ),
@@ -748,7 +778,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                         const SizedBox(width: 4),
                         Text(
                           isIncome ? 'Thu tiền' : 'Thanh toán',
-                          style: const TextStyle(fontSize: 12),
+                          style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                         ),
                       ],
                     ),
@@ -798,9 +828,9 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 children: [
                   Text(
                     intent.description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                      fontSize: AppTextStyles.headline5.fontSize,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -812,7 +842,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                         child: Text(
                           intent.type.displayName,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: AppTextStyles.body1.fontSize,
                             color: Colors.grey.shade600,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -823,7 +853,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                         Text(
                           '• ${intent.paymentMethod!.displayName}',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: AppTextStyles.body1.fontSize,
                             color: Colors.grey.shade600,
                           ),
                         ),
@@ -833,7 +863,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                   Text(
                     dateStr,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: AppTextStyles.caption.fontSize,
                       color: Colors.grey.shade500,
                     ),
                   ),
@@ -849,7 +879,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                       .format(intent.amount),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: AppTextStyles.headline4.fontSize,
                     color: statusColor,
                   ),
                 ),
@@ -864,7 +894,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                   child: Text(
                     statusText,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: AppTextStyles.caption.fontSize,
                       fontWeight: FontWeight.bold,
                       color: statusColor,
                     ),
@@ -885,7 +915,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
         color: color,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 11)),
+      child: Text(text, style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
     );
   }
 
@@ -941,9 +971,9 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Thống kê thanh toán',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             // Stats grid
@@ -1006,13 +1036,13 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 children: [
                   Text(
                     netPending >= 0 ? 'Sẽ thu thêm:' : 'Sẽ chi thêm:',
-                    style: const TextStyle(fontSize: 14),
+                    style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
                   ),
                   Text(
                     NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
                         .format(netPending.abs()),
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: AppTextStyles.headline2.fontSize,
                       fontWeight: FontWeight.bold,
                       color: netPending >= 0 ? Colors.green : Colors.red,
                     ),
@@ -1045,13 +1075,13 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
           children: [
             Text(
               label,
-              style: TextStyle(fontSize: 12, color: color),
+              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: color),
             ),
             const SizedBox(height: 4),
             Text(
               count,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: AppTextStyles.headline1.fontSize,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -1060,7 +1090,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
               const SizedBox(height: 2),
               Text(
                 '${amount}đ',
-                style: TextStyle(fontSize: 11, color: color),
+                style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: color),
               ),
             ],
           ],

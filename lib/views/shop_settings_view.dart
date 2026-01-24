@@ -11,6 +11,7 @@ import '../services/storage_service.dart';
 import '../services/data_migration_service.dart';
 import '../services/sync_service.dart';
 import '../widgets/validated_text_field.dart';
+import '../theme/app_text_styles.dart';
 import 'adjustment_history_view.dart';
 import 'hr_salary_settings_view.dart';
 
@@ -73,17 +74,20 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
     // 2. Firestore users doc
     // 3. Fallback to uid (owner case)
     String? shopId;
-    
+
     try {
       shopId = await UserService.getCurrentShopId();
     } catch (e) {
       debugPrint('UserService.getCurrentShopId failed: $e');
     }
-    
+
     // If no shopId from claims, try reading from users doc directly
     if (shopId == null || shopId.isEmpty) {
       try {
-        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
         if (userDoc.exists) {
           shopId = userDoc.data()?['shopId'] as String?;
           debugPrint('Got shopId from users doc: $shopId');
@@ -92,7 +96,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         debugPrint('Failed to read users doc: $e');
       }
     }
-    
+
     // Final fallback: use uid as shopId (owner case)
     if (shopId == null || shopId.isEmpty) {
       shopId = user.uid;
@@ -102,7 +106,10 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
     // Now try to load shop data with retry
     for (int retry = 0; retry < 3; retry++) {
       try {
-        final shopDoc = await FirebaseFirestore.instance.collection('shops').doc(shopId).get();
+        final shopDoc = await FirebaseFirestore.instance
+            .collection('shops')
+            .doc(shopId)
+            .get();
         if (shopDoc.exists) {
           final data = shopDoc.data()!;
           setState(() {
@@ -152,7 +159,11 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   }
 
   /// Đồng bộ thông tin shop vào SharedPreferences để các màn hình in hóa đơn đọc được
-  Future<void> _syncToSharedPreferences(String name, String address, String phone) async {
+  Future<void> _syncToSharedPreferences(
+    String name,
+    String address,
+    String phone,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('shop_name', name);
     await prefs.setString('shop_address', address);
@@ -173,7 +184,10 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   Future<void> _saveShopData() async {
     // Manual validation
     if (_nameController.text.trim().isEmpty) {
-      NotificationService.showSnackBar("Vui lòng nhập tên cửa hàng", color: Colors.red);
+      NotificationService.showSnackBar(
+        "Vui lòng nhập tên cửa hàng",
+        color: Colors.red,
+      );
       return;
     }
 
@@ -188,9 +202,12 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           shopId = user.uid;
         }
       }
-      
+
       if (shopId == null || shopId.isEmpty) {
-        NotificationService.showSnackBar("Không tìm thấy thông tin shop", color: Colors.red);
+        NotificationService.showSnackBar(
+          "Không tìm thấy thông tin shop",
+          color: Colors.red,
+        );
         return;
       }
 
@@ -198,7 +215,9 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
 
       // Upload logo if selected
       if (_selectedLogo != null) {
-        final urls = await StorageService.uploadMultipleImages([_selectedLogo!.path], 'shop_logos');
+        final urls = await StorageService.uploadMultipleImages([
+          _selectedLogo!.path,
+        ], 'shop_logos');
         if (urls.isNotEmpty) {
           logoUrl = urls.first;
         }
@@ -218,7 +237,10 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         'updatedBy': FirebaseAuth.instance.currentUser?.uid,
       };
 
-      await FirebaseFirestore.instance.collection('shops').doc(shopId).update(shopData);
+      await FirebaseFirestore.instance
+          .collection('shops')
+          .doc(shopId)
+          .update(shopData);
 
       // Đồng bộ thông tin shop vào SharedPreferences để các màn hình in hóa đơn đọc được
       await _syncToSharedPreferences(
@@ -237,8 +259,10 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         _selectedLogo = null;
       });
 
-      NotificationService.showSnackBar("✅ Đã cập nhật thông tin shop!", color: Colors.green);
-
+      NotificationService.showSnackBar(
+        "✅ Đã cập nhật thông tin shop!",
+        color: Colors.green,
+      );
     } catch (e) {
       NotificationService.showSnackBar("❌ Lỗi cập nhật: $e", color: Colors.red);
     } finally {
@@ -259,7 +283,10 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
             ),
           ),
         ),
-        title: const Text("CÀI ĐẶT SHOP", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: const Text(
+          "CÀI ĐẶT SHOP",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -284,136 +311,114 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Logo Section
-                    _buildSection("LOGO CỬA HÀNG"),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.grey.shade300),
+                    // === LOGO + THÔNG TIN CƠ BẢN ===
+                    Card(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          children: [
+                            // Logo Row
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: _pickLogo,
+                                  child: Container(
+                                    width: 70,
+                                    height: 70,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.grey.shade300),
+                                    ),
+                                    child: _selectedLogo != null
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Image.file(_selectedLogo!, fit: BoxFit.cover),
+                                          )
+                                        : _shopLogoUrl.isNotEmpty
+                                            ? ClipRRect(
+                                                borderRadius: BorderRadius.circular(12),
+                                                child: Image.network(_shopLogoUrl, fit: BoxFit.cover),
+                                              )
+                                            : const Icon(Icons.add_a_photo, size: 28, color: Colors.grey),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ValidatedTextField(
+                                    controller: _nameController,
+                                    label: "Tên cửa hàng *",
+                                    icon: Icons.store,
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: _selectedLogo != null
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Image.file(_selectedLogo!, fit: BoxFit.cover),
-                                  )
-                                : _shopLogoUrl.isNotEmpty
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(16),
-                                        child: Image.network(_shopLogoUrl, fit: BoxFit.cover),
-                                      )
-                                    : const Icon(Icons.store, size: 60, color: Colors.grey),
-                          ),
-                          Positioned(
-                            bottom: 8,
-                            right: 8,
-                            child: FloatingActionButton.small(
-                              onPressed: _pickLogo,
-                              child: const Icon(Icons.camera_alt, size: 16),
+                            const SizedBox(height: 10),
+                            ValidatedTextField(
+                              controller: _addressController,
+                              label: "Địa chỉ",
+                              icon: Icons.location_on,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ValidatedTextField(
+                                    controller: _phoneController,
+                                    label: "SĐT",
+                                    icon: Icons.phone,
+                                    keyboardType: TextInputType.phone,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: ValidatedTextField(
+                                    controller: _emailController,
+                                    label: "Email",
+                                    icon: Icons.email,
+                                    keyboardType: TextInputType.emailAddress,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            ValidatedTextField(
+                              controller: _descriptionController,
+                              label: "Mô tả cửa hàng",
+                              icon: Icons.description,
+                              maxLines: 2,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 12),
 
-                    // Shop Information
-                    _buildSection("THÔNG TIN CỬA HÀNG"),
-                    const SizedBox(height: 16),
+                    // === VỊ TRÍ CHẤM CÔNG ===
+                    _buildCompactLocationSection(),
+                    const SizedBox(height: 12),
 
-                    ValidatedTextField(
-                      controller: _nameController,
-                      label: "Tên cửa hàng *",
-                      icon: Icons.store,
-                    ),
-                    const SizedBox(height: 16),
+                    // === QUICK ACTIONS ===
+                    _buildQuickActionsSection(),
+                    const SizedBox(height: 12),
 
-                    ValidatedTextField(
-                      controller: _addressController,
-                      label: "Địa chỉ",
-                      icon: Icons.location_on,
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 16),
+                    // === ADVANCED SETTINGS (Collapsible) ===
+                    _buildAdvancedSettingsSection(),
+                    const SizedBox(height: 12),
 
-                    ValidatedTextField(
-                      controller: _phoneController,
-                      label: "Số điện thoại",
-                      icon: Icons.phone,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 16),
-
-                    ValidatedTextField(
-                      controller: _emailController,
-                      label: "Email",
-                      icon: Icons.email,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 16),
-
-                    ValidatedTextField(
-                      controller: _descriptionController,
-                      label: "Mô tả cửa hàng",
-                      icon: Icons.description,
-                      maxLines: 3,
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Location Section for Attendance
-                    _buildSection("VỊ TRÍ CỬA HÀNG (CHO CHẤM CÔNG)"),
-                    const SizedBox(height: 16),
-                    _buildLocationSection(),
-
-                    const SizedBox(height: 32),
-
-                    // Salary Settings Section
-                    _buildSection("CÀI ĐẶT LƯƠNG & HOA HỒNG"),
-                    const SizedBox(height: 16),
-                    _buildSalarySettingsSection(),
-
-                    const SizedBox(height: 32),
-
-                    // Financial Management Section
-                    _buildSection("QUẢN LÝ TÀI CHÍNH"),
-                    const SizedBox(height: 16),
-                    _buildFinancialManagementSection(),
-
-                    const SizedBox(height: 32),
-
-                    // Data Migration Section
-                    _buildSection("KHÔI PHỤC DỮ LIỆU"),
-                    const SizedBox(height: 16),
-                    _buildDataMigrationSection(),
-
-                    const SizedBox(height: 32),
-
-                    // Download Shop Data Section
-                    _buildSection("TẢI DỮ LIỆU SHOP"),
-                    const SizedBox(height: 16),
-                    _buildDownloadShopDataSection(),
-
-                    const SizedBox(height: 32),
-
-                    // Members Section
-                    _buildSection("DANH SÁCH THÀNH VIÊN"),
-                    const SizedBox(height: 16),
+                    // === THÀNH VIÊN ===
+                    _buildSection("THÀNH VIÊN"),
+                    const SizedBox(height: 8),
                     _buildMembersList(),
 
-                    const SizedBox(height: 50),
+                    const SizedBox(height: 30),
                   ],
                 ),
               ),
@@ -424,192 +429,127 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   Widget _buildSection(String title) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 14,
+      style: TextStyle(
+        fontSize: AppTextStyles.body1.fontSize,
         fontWeight: FontWeight.bold,
-        color: Color(0xFF2962FF),
+        color: const Color(0xFF2962FF),
       ),
     );
   }
 
-  Widget _buildSalarySettingsSection() {
-    return Column(
-      children: [
-        Card(
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            leading: Container(
+  /// Compact location section - chỉ 1 row
+  Widget _buildCompactLocationSection() {
+    final hasLocation = _shopLatitude != null && _shopLongitude != null;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          hasLocation ? Icons.location_on : Icons.location_off,
+          color: hasLocation ? Colors.green : Colors.orange,
+        ),
+        title: Text(
+          hasLocation ? 'Vị trí chấm công đã cài' : 'Chưa cài vị trí chấm công',
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        ),
+        subtitle: hasLocation
+            ? Text(
+                '${_shopLatitude!.toStringAsFixed(4)}, ${_shopLongitude!.toStringAsFixed(4)}',
+                style: const TextStyle(fontSize: 11),
+              )
+            : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (hasLocation)
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                onPressed: _clearLocation,
+                tooltip: 'Xóa vị trí',
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(8),
+              ),
+            IconButton(
+              icon: Icon(
+                Icons.my_location,
+                size: 20,
+                color: hasLocation ? Colors.blue : Colors.green,
+              ),
+              onPressed: _setCurrentLocation,
+              tooltip: hasLocation ? 'Cập nhật vị trí' : 'Cài vị trí',
+              constraints: const BoxConstraints(),
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.account_balance_wallet, color: Colors.green.shade700),
             ),
-            title: const Text(
-              'Cài đặt lương & hoa hồng',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text(
-              'Lương cơ bản, phụ cấp, % hoa hồng bán/sửa',
-              style: TextStyle(fontSize: 12),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const HRSalarySettingsView(),
-                ),
-              );
-            },
-          ),
+          ],
         ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.green.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.green.shade200),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.green.shade700, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Cấu hình lương cơ bản, các loại phụ cấp và công thức tính hoa hồng cho nhân viên. Có thể chọn % doanh số hoặc tiền cố định/đơn.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.green.shade800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildFinancialManagementSection() {
-    return Column(
-      children: [
-        // Lịch sử điều chỉnh
-        Card(
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.history, color: Colors.orange.shade700),
+  /// Quick Actions - các shortcut hay dùng
+  Widget _buildQuickActionsSection() {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Column(
+        children: [
+          ListTile(
+            dense: true,
+            leading: Icon(Icons.account_balance_wallet, color: Colors.green.shade700, size: 22),
+            title: const Text('Cài đặt lương & hoa hồng', style: TextStyle(fontSize: 13)),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HRSalarySettingsView()),
             ),
-            title: const Text(
-              'Lịch sử điều chỉnh',
-              style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            dense: true,
+            leading: Icon(Icons.history, color: Colors.orange.shade700, size: 22),
+            title: const Text('Lịch sử điều chỉnh tài chính', style: TextStyle(fontSize: 13)),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdjustmentHistoryView()),
             ),
-            subtitle: const Text(
-              'Xem các bút toán điều chỉnh sau chốt quỹ',
-              style: TextStyle(fontSize: 12),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const AdjustmentHistoryView(),
-                ),
-              );
-            },
           ),
-        ),
-        const SizedBox(height: 8),
-        // Thông tin thêm về quy tắc tài chính
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.blue.shade200),
+          const Divider(height: 1),
+          ListTile(
+            dense: true,
+            leading: Icon(Icons.cloud_download, color: Colors.blue.shade700, size: 22),
+            title: const Text('Tải dữ liệu shop từ cloud', style: TextStyle(fontSize: 13)),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: _showDownloadDataDialog,
           ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Sau khi chốt quỹ, mọi thay đổi sẽ được ghi nhận bằng bút toán điều chỉnh để bảo toàn lịch sử tài chính.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue.shade800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildDataMigrationSection() {
-    return Column(
-      children: [
-        // Tìm và khôi phục dữ liệu cũ
-        Card(
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.cloud_download, color: Colors.green.shade700),
-            ),
-            title: const Text(
-              'Khôi phục dữ liệu cũ',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text(
-              'Tìm và migrate dữ liệu từ tài khoản/shop khác',
-              style: TextStyle(fontSize: 12),
-            ),
-            trailing: const Icon(Icons.chevron_right),
+  /// Advanced Settings - gom các cài đặt ít dùng vào ExpansionTile
+  Widget _buildAdvancedSettingsSection() {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ExpansionTile(
+        dense: true,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        leading: Icon(Icons.settings_suggest, color: Colors.grey.shade600, size: 22),
+        title: const Text('Cài đặt nâng cao', style: TextStyle(fontSize: 13)),
+        children: [
+          ListTile(
+            dense: true,
+            leading: Icon(Icons.restore, color: Colors.amber.shade700, size: 20),
+            title: const Text('Khôi phục dữ liệu cũ', style: TextStyle(fontSize: 12)),
+            subtitle: const Text('Migrate từ shop/tài khoản khác', style: TextStyle(fontSize: 10)),
+            trailing: const Icon(Icons.chevron_right, size: 18),
             onTap: _showDataMigrationDialog,
           ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.amber.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.amber.shade200),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.lightbulb_outline, color: Colors.amber.shade700, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Nếu bạn đã từng sử dụng app với tài khoản khác hoặc bị mất dữ liệu sau khi đăng nhập lại, tính năng này sẽ giúp khôi phục.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.amber.shade800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
+
+  // Old methods removed - functionality moved to _buildQuickActionsSection() and _buildAdvancedSettingsSection()
 
   Future<void> _showDataMigrationDialog() async {
     showDialog(
@@ -630,7 +570,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
     try {
       final currentShopId = await UserService.getCurrentShopId();
       final orphanData = await DataMigrationService.findOrphanData();
-      
+
       if (!mounted) return;
       Navigator.pop(context); // Đóng loading
 
@@ -675,7 +615,12 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
             children: [
               Icon(Icons.cloud_queue, color: Colors.blue),
               SizedBox(width: 10),
-              Expanded(child: Text("TÌM THẤY DỮ LIỆU CŨ", style: TextStyle(fontSize: 16))),
+              Expanded(
+                child: Text(
+                  "TÌM THẤY DỮ LIỆU CŨ",
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
             ],
           ),
           content: SingleChildScrollView(
@@ -691,20 +636,29 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                   ),
                   child: Text(
                     "Shop hiện tại: ${currentShopId ?? 'N/A'}",
-                    style: TextStyle(fontSize: 11, color: Colors.blue.shade800),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.body1.fontSize,
+                      color: Colors.blue.shade800,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   "Dữ liệu từ các nguồn khác:",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: AppTextStyles.headline5.fontSize,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 ...groupedByShopId.entries.map((entry) {
                   final shopId = entry.key;
                   final items = entry.value;
-                  final totalCount = items.fold<int>(0, (sum, item) => sum + item.count);
-                  
+                  final totalCount = items.fold<int>(
+                    0,
+                    (sum, item) => sum + item.count,
+                  );
+
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(12),
@@ -719,17 +673,24 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                         Row(
                           children: [
                             Icon(
-                              shopId == 'null' ? Icons.help_outline : Icons.store,
+                              shopId == 'null'
+                                  ? Icons.help_outline
+                                  : Icons.store,
                               size: 16,
-                              color: shopId == 'null' ? Colors.orange : Colors.grey,
+                              color: shopId == 'null'
+                                  ? Colors.orange
+                                  : Colors.grey,
                             ),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                shopId == 'null' 
-                                    ? "Dữ liệu chưa gán shop" 
+                                shopId == 'null'
+                                    ? "Dữ liệu chưa gán shop"
                                     : "Shop: ${shopId.substring(0, 8)}...",
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: AppTextStyles.subtitle1.fontSize,
+                                ),
                               ),
                             ),
                             Text(
@@ -737,7 +698,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                               style: TextStyle(
                                 color: Colors.green.shade700,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                                fontSize: AppTextStyles.subtitle1.fontSize,
                               ),
                             ),
                           ],
@@ -746,15 +707,24 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                         Wrap(
                           spacing: 4,
                           runSpacing: 4,
-                          children: items.map((item) => Chip(
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            padding: EdgeInsets.zero,
-                            labelPadding: const EdgeInsets.symmetric(horizontal: 6),
-                            label: Text(
-                              "${item.collection}: ${item.count}",
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          )).toList(),
+                          children: items
+                              .map(
+                                (item) => Chip(
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  padding: EdgeInsets.zero,
+                                  labelPadding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                  ),
+                                  label: Text(
+                                    "${item.collection}: ${item.count}",
+                                    style: TextStyle(
+                                      fontSize: AppTextStyles.caption.fontSize,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
                         ),
                         const SizedBox(height: 8),
                         SizedBox(
@@ -797,7 +767,10 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   Future<void> _confirmMigration(String fromShopId, int totalCount) async {
     final currentShopId = await UserService.getCurrentShopId();
     if (currentShopId == null) {
-      NotificationService.showSnackBar("❌ Không xác định được shop hiện tại", color: Colors.red);
+      NotificationService.showSnackBar(
+        "❌ Không xác định được shop hiện tại",
+        color: Colors.red,
+      );
       return;
     }
 
@@ -808,7 +781,9 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           children: [
             Icon(Icons.warning_amber, color: Colors.orange),
             SizedBox(width: 10),
-            Expanded(child: Text("XÁC NHẬN MIGRATE", style: TextStyle(fontSize: 16))),
+            Expanded(
+              child: Text("XÁC NHẬN MIGRATE", style: TextStyle(fontSize: 16)),
+            ),
           ],
         ),
         content: Column(
@@ -824,8 +799,13 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
-                fromShopId == 'null' ? "Dữ liệu chưa gán shop" : "Shop: $fromShopId",
-                style: TextStyle(fontSize: 11, color: Colors.red.shade800),
+                fromShopId == 'null'
+                    ? "Dữ liệu chưa gán shop"
+                    : "Shop: $fromShopId",
+                style: TextStyle(
+                  fontSize: AppTextStyles.body1.fontSize,
+                  color: Colors.red.shade800,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -839,13 +819,20 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
               ),
               child: Text(
                 "Shop: $currentShopId",
-                style: TextStyle(fontSize: 11, color: Colors.green.shade800),
+                style: TextStyle(
+                  fontSize: AppTextStyles.body1.fontSize,
+                  color: Colors.green.shade800,
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               "⚠️ Hành động này không thể hoàn tác!",
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+                fontSize: AppTextStyles.subtitle1.fontSize,
+              ),
             ),
           ],
         ),
@@ -881,7 +868,10 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                 const SizedBox(height: 8),
                 Text(
                   _migrationProgress,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: AppTextStyles.body1.fontSize,
+                    color: Colors.grey,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -903,8 +893,11 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       if (!mounted) return;
       Navigator.pop(context); // Đóng loading
 
-      final totalMigrated = results.values.fold<int>(0, (sum, count) => sum + count);
-      
+      final totalMigrated = results.values.fold<int>(
+        0,
+        (sum, count) => sum + count,
+      );
+
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -921,20 +914,31 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
             children: [
               Text("Đã migrate $totalMigrated bản ghi:"),
               const SizedBox(height: 10),
-              ...results.entries.map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check, color: Colors.green, size: 16),
-                    const SizedBox(width: 8),
-                    Text("${e.key}: ${e.value}", style: const TextStyle(fontSize: 12)),
-                  ],
+              ...results.entries.map(
+                (e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check, color: Colors.green, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        "${e.key}: ${e.value}",
+                        style: TextStyle(
+                          fontSize: AppTextStyles.subtitle1.fontSize,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              )),
+              ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 "Vui lòng khởi động lại app để dữ liệu được cập nhật đầy đủ.",
-                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: AppTextStyles.body1.fontSize,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.grey,
+                ),
               ),
             ],
           ),
@@ -981,24 +985,33 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         }
 
         return Column(
-          children: members.map((member) => Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: _getRoleColor(member['role']),
-                child: Text(
-                  member['name']?.substring(0, 1).toUpperCase() ?? '?',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          children: members
+              .map(
+                (member) => Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: _getRoleColor(member['role']),
+                      child: Text(
+                        member['name']?.substring(0, 1).toUpperCase() ?? '?',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    title: Text(member['name'] ?? 'Chưa cập nhật'),
+                    subtitle: Text(
+                      "${member['email'] ?? ''} • ${_getRoleDisplayName(member['role'])}",
+                    ),
+                    trailing: Icon(
+                      _getRoleIcon(member['role']),
+                      color: _getRoleColor(member['role']),
+                    ),
+                  ),
                 ),
-              ),
-              title: Text(member['name'] ?? 'Chưa cập nhật'),
-              subtitle: Text("${member['email'] ?? ''} • ${_getRoleDisplayName(member['role'])}"),
-              trailing: Icon(
-                _getRoleIcon(member['role']),
-                color: _getRoleColor(member['role']),
-              ),
-            ),
-          )).toList(),
+              )
+              .toList(),
         );
       },
     );
@@ -1030,87 +1043,50 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
 
   Color _getRoleColor(String? role) {
     switch (role) {
-      case 'owner': return Colors.purple;
-      case 'manager': return Colors.blue;
-      case 'technician': return Colors.orange;
-      case 'employee': return Colors.green;
-      default: return Colors.grey;
+      case 'owner':
+        return Colors.purple;
+      case 'manager':
+        return Colors.blue;
+      case 'technician':
+        return Colors.orange;
+      case 'employee':
+        return Colors.green;
+      default:
+        return Colors.grey;
     }
   }
 
   IconData _getRoleIcon(String? role) {
     switch (role) {
-      case 'owner': return Icons.admin_panel_settings;
-      case 'manager': return Icons.manage_accounts;
-      case 'technician': return Icons.build;
-      case 'employee': return Icons.work;
-      default: return Icons.person;
+      case 'owner':
+        return Icons.admin_panel_settings;
+      case 'manager':
+        return Icons.manage_accounts;
+      case 'technician':
+        return Icons.build;
+      case 'employee':
+        return Icons.work;
+      default:
+        return Icons.person;
     }
   }
 
   String _getRoleDisplayName(String? role) {
     switch (role) {
-      case 'owner': return 'Chủ shop';
-      case 'manager': return 'Quản lý';
-      case 'technician': return 'Kỹ thuật';
-      case 'employee': return 'Nhân viên';
-      default: return 'Thành viên';
+      case 'owner':
+        return 'Chủ shop';
+      case 'manager':
+        return 'Quản lý';
+      case 'technician':
+        return 'Kỹ thuật';
+      case 'employee':
+        return 'Nhân viên';
+      default:
+        return 'Thành viên';
     }
   }
 
-  Widget _buildDownloadShopDataSection() {
-    return Column(
-      children: [
-        Card(
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.cloud_download, color: Colors.blue.shade700),
-            ),
-            title: const Text(
-              'Tải dữ liệu từ cloud',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text(
-              'Đồng bộ dữ liệu shop về máy này',
-              style: TextStyle(fontSize: 12),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _showDownloadDataDialog,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.blue.shade200),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Dành cho nhân viên mới hoặc khi cần đồng bộ lại dữ liệu từ cloud. Quá trình có thể mất vài phút.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue.shade800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  // _buildDownloadShopDataSection removed - moved to _buildQuickActionsSection()
 
   Future<void> _showDownloadDataDialog() async {
     final bool? result = await showDialog<bool>(
@@ -1176,21 +1152,32 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Colors.orange.shade700,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Chỉ tải dữ liệu của shop này, không ảnh hưởng shop khác.',
-                      style: TextStyle(fontSize: 11, color: Colors.orange.shade800),
+                      style: TextStyle(
+                        fontSize: AppTextStyles.body1.fontSize,
+                        color: Colors.orange.shade800,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               "Quá trình có thể mất vài phút tùy lượng dữ liệu.",
-              style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey),
+              style: TextStyle(
+                fontSize: AppTextStyles.body1.fontSize,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey,
+              ),
             ),
           ],
         ),
@@ -1229,7 +1216,10 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                 const SizedBox(height: 8),
                 Text(
                   'Vui lòng đợi trong giây lát',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                    color: Colors.grey.shade600,
+                  ),
                 ),
               ],
             ),
@@ -1258,111 +1248,16 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         children: [
           Icon(icon, size: 16, color: Colors.blue.shade600),
           const SizedBox(width: 8),
-          Text(text, style: const TextStyle(fontSize: 13)),
+          Text(
+            text,
+            style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildLocationSection() {
-    final hasLocation = _shopLatitude != null && _shopLongitude != null;
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: hasLocation ? Colors.green.shade50 : Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    hasLocation ? Icons.location_on : Icons.location_off,
-                    color: hasLocation ? Colors.green.shade700 : Colors.orange.shade700,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        hasLocation ? 'Đã cài đặt vị trí' : 'Chưa cài đặt vị trí',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: hasLocation ? Colors.green.shade700 : Colors.orange.shade700,
-                        ),
-                      ),
-                      if (hasLocation)
-                        Text(
-                          'Lat: ${_shopLatitude!.toStringAsFixed(6)}, Lng: ${_shopLongitude!.toStringAsFixed(6)}',
-                          style: const TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.blue.shade700, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Vị trí này dùng để xác thực khi nhân viên chấm công (trong phạm vi 100m)',
-                      style: TextStyle(fontSize: 11, color: Colors.blue.shade800),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _setCurrentLocation,
-                icon: const Icon(Icons.my_location),
-                label: Text(hasLocation ? 'Cập nhật vị trí hiện tại' : 'Cài đặt vị trí hiện tại'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: hasLocation ? Colors.blue : Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-            if (hasLocation) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _clearLocation,
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Xóa vị trí'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+  // _buildLocationSection removed - moved to _buildCompactLocationSection()
 
   Future<void> _setCurrentLocation() async {
     try {
@@ -1371,16 +1266,25 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          NotificationService.showSnackBar('Cần quyền truy cập vị trí', color: Colors.red);
+          NotificationService.showSnackBar(
+            'Cần quyền truy cập vị trí',
+            color: Colors.red,
+          );
           return;
         }
       }
       if (permission == LocationPermission.deniedForever) {
-        NotificationService.showSnackBar('Vui lòng bật quyền vị trí trong cài đặt', color: Colors.red);
+        NotificationService.showSnackBar(
+          'Vui lòng bật quyền vị trí trong cài đặt',
+          color: Colors.red,
+        );
         return;
       }
 
-      NotificationService.showSnackBar('Đang lấy vị trí...', color: Colors.blue);
+      NotificationService.showSnackBar(
+        'Đang lấy vị trí...',
+        color: Colors.blue,
+      );
 
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -1405,6 +1309,9 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       _shopLatitude = null;
       _shopLongitude = null;
     });
-    NotificationService.showSnackBar('Đã xóa vị trí. Nhấn Lưu để hoàn tất.', color: Colors.orange);
+    NotificationService.showSnackBar(
+      'Đã xóa vị trí. Nhấn Lưu để hoàn tất.',
+      color: Colors.orange,
+    );
   }
 }

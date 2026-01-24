@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/user_service.dart';
+import '../theme/app_text_styles.dart';
 
 class ValidatedTextField extends StatefulWidget {
   final TextEditingController controller;
@@ -77,24 +78,22 @@ class _ValidatedTextFieldState extends State<ValidatedTextField> {
     // Built-in validations
     else if (widget.keyboardType == TextInputType.phone) {
       error = UserService.validatePhone(value);
-    }
-    else if (widget.label.toLowerCase().contains('email')) {
+    } else if (widget.label.toLowerCase().contains('email')) {
       // Simple email validation
       final emailReg = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
       if (value.isNotEmpty && !emailReg.hasMatch(value)) {
         error = 'Email không hợp lệ';
       }
-    }
-    else if (widget.label.toLowerCase().contains('tên') || widget.label.toLowerCase().contains('name')) {
+    } else if (widget.label.toLowerCase().contains('tên') ||
+        widget.label.toLowerCase().contains('name')) {
       error = UserService.validateName(value);
-    }
-    else if (widget.label.toLowerCase().contains('imei') || widget.label.toLowerCase().contains('serial')) {
+    } else if (widget.label.toLowerCase().contains('imei') ||
+        widget.label.toLowerCase().contains('serial')) {
       error = UserService.validateIMEI(value);
-    }
-    else if (widget.label.toLowerCase().contains('model')) {
+    } else if (widget.label.toLowerCase().contains('model')) {
       error = UserService.validateModel(value);
-    }
-    else if (widget.label.toLowerCase().contains('địa chỉ') || widget.label.toLowerCase().contains('address')) {
+    } else if (widget.label.toLowerCase().contains('địa chỉ') ||
+        widget.label.toLowerCase().contains('address')) {
       error = UserService.validateAddress(value);
     }
 
@@ -136,22 +135,32 @@ class _ValidatedTextFieldState extends State<ValidatedTextField> {
             _validate();
           }
         },
-        onSubmitted: widget.onSubmitted != null ? (_) => widget.onSubmitted!() : null,
+        onSubmitted: widget.onSubmitted != null
+            ? (_) => widget.onSubmitted!()
+            : null,
         decoration: InputDecoration(
           labelText: widget.required ? '${widget.label} *' : widget.label,
           hintText: widget.hint,
           prefixIcon: widget.icon != null ? Icon(widget.icon) : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: _errorText != null ? Colors.red : Colors.grey.shade300),
+            borderSide: BorderSide(
+              color: _errorText != null ? Colors.red : Colors.grey.shade300,
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: _errorText != null ? Colors.red : Colors.grey.shade300),
+            borderSide: BorderSide(
+              color: _errorText != null ? Colors.red : Colors.grey.shade300,
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: _errorText != null ? Colors.red : Theme.of(context).primaryColor),
+            borderSide: BorderSide(
+              color: _errorText != null
+                  ? Colors.red
+                  : Theme.of(context).primaryColor,
+            ),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -162,13 +171,16 @@ class _ValidatedTextFieldState extends State<ValidatedTextField> {
             borderSide: const BorderSide(color: Colors.red, width: 2),
           ),
           errorText: _errorText,
-          errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
+          errorStyle: TextStyle(
+            color: Colors.red,
+            fontSize: AppTextStyles.subtitle1.fontSize,
+          ),
           counterText: widget.maxLength != null ? null : '',
           filled: true,
           fillColor: widget.enabled ? Colors.white : Colors.grey.shade100,
         ),
         style: TextStyle(
-          fontSize: 16,
+          fontSize: AppTextStyles.headline3.fontSize,
           color: widget.enabled ? Colors.black87 : Colors.grey,
         ),
       ),

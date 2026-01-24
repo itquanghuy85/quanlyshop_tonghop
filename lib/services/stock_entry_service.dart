@@ -483,16 +483,36 @@ class StockEntryService {
           final db = DBHelper();
           
           // Ghi supplier_import_history vào local DB
-          // Lookup supplier local ID từ name hoặc firestoreId
+          // Lookup supplier local ID từ name hoặc firestoreId với fuzzy matching
           int? supplierLocalId;
-          if (entry.supplierName != null) {
+          if (entry.supplierName != null || entry.supplierId != null) {
             final suppliers = await db.getSuppliers();
+            final supplierNameUpper = entry.supplierName?.toUpperCase().trim();
+            
+            // Thử match theo nhiều cách
             final matchedSupplier = suppliers.firstWhere(
-              (s) => s['name']?.toString().toUpperCase() == entry.supplierName?.toUpperCase()
-                  || s['firestoreId'] == entry.supplierId,
+              (s) {
+                // Match by firestoreId first (most reliable)
+                if (entry.supplierId != null && s['firestoreId'] == entry.supplierId) {
+                  return true;
+                }
+                // Match by exact name (uppercase)
+                if (supplierNameUpper != null && 
+                    s['name']?.toString().toUpperCase().trim() == supplierNameUpper) {
+                  return true;
+                }
+                // Match by name contains (fuzzy)
+                if (supplierNameUpper != null && 
+                    s['name']?.toString().toUpperCase().contains(supplierNameUpper) == true) {
+                  return true;
+                }
+                return false;
+              },
               orElse: () => {},
             );
             supplierLocalId = matchedSupplier['id'] as int?;
+            
+            debugPrint('📦 confirmEntry: Supplier lookup - name="${entry.supplierName}", fsId="${entry.supplierId}", localId=$supplierLocalId');
           }
           
           for (final item in entry.items) {

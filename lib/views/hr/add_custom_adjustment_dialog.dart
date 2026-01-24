@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/shop_deduction_settings.dart';
+import '../../theme/app_text_styles.dart';
 import '../../services/salary_calculation_service.dart';
 import '../../services/user_service.dart';
 
@@ -156,17 +157,17 @@ class _AddCustomAdjustmentDialogState extends State<AddCustomAdjustmentDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Thêm khoản thưởng/trừ',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: AppTextStyles.headline2.fontSize,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Cho ${widget.staffName} - T${widget.month}/${widget.year}',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: AppTextStyles.subtitle1.fontSize,
                               color: Colors.grey[600],
                             ),
                           ),
@@ -215,7 +216,7 @@ class _AddCustomAdjustmentDialogState extends State<AddCustomAdjustmentDialog> {
                             (preset) => ActionChip(
                               label: Text(
                                 preset,
-                                style: const TextStyle(fontSize: 12),
+                                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                               ),
                               onPressed: () {
                                 _nameController.text = preset;

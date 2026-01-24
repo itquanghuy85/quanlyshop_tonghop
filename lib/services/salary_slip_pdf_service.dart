@@ -1202,12 +1202,24 @@ class SalarySlipPdfService {
   }
 
   /// In phiếu lương
-  static Future<void> printSalarySlip(SalaryBreakdown data) async {
-    final pdfData = await generateSalarySlipPdf(data);
-    await Printing.layoutPdf(
-      onLayout: (format) async => pdfData,
-      name: 'Phieu_luong_${data.staffName}_T${data.month}_${data.year}',
-    );
+  static Future<bool> printSalarySlip(SalaryBreakdown data) async {
+    try {
+      debugPrint('🖨️ Bắt đầu tạo PDF phiếu lương cho ${data.staffName}');
+      final pdfData = await generateSalarySlipPdf(data);
+      debugPrint('✅ Tạo PDF thành công, size: ${pdfData.length} bytes');
+      
+      final result = await Printing.layoutPdf(
+        onLayout: (format) async => pdfData,
+        name: 'Phieu_luong_${data.staffName}_T${data.month}_${data.year}',
+      );
+      
+      debugPrint('🖨️ Kết quả in PDF: $result');
+      return result;
+    } catch (e, stack) {
+      debugPrint('❌ Lỗi in PDF phiếu lương: $e');
+      debugPrint('Stack: $stack');
+      return false;
+    }
   }
 
   /// Chia sẻ PDF

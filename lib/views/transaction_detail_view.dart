@@ -7,6 +7,7 @@ import '../models/repair_model.dart';
 import '../services/sync_service.dart';
 import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 import '../utils/money_utils.dart';
 import 'sale_detail_view.dart';
 import 'repair_detail_view.dart';
@@ -165,7 +166,7 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
                 Text(
                   _getFilterLabel(),
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
                     color: Colors.grey.shade700,
                     fontWeight: FontWeight.w500,
                   ),
@@ -174,7 +175,7 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
                 if (_filterPeriod != 'all')
                   TextButton(
                     onPressed: () => setState(() => _filterPeriod = 'all'),
-                    child: const Text("Xem tất cả", style: TextStyle(fontSize: 12)),
+                    child: Text("Xem tất cả", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                   ),
               ],
             ),
@@ -227,9 +228,9 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               "LỌC THEO THỜI GIAN",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -538,11 +539,11 @@ class _TransactionDetailViewState extends State<TransactionDetailView>
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize),
         ),
         Text(
           label,
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
         ),
       ],
     );

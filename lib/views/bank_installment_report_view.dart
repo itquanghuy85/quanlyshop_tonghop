@@ -261,9 +261,9 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
             ),
           ),
         ),
-        title: const Text(
+        title: Text(
           'THỐNG KÊ TRẢ GÓP NH',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize, color: Colors.white),
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
@@ -333,7 +333,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
                         : 'Tùy chọn',
                     style: TextStyle(
                       color: _timeFilter == 'custom' ? Colors.white : Colors.indigo,
-                      fontSize: 12,
+                      fontSize: AppTextStyles.subtitle1.fontSize,
                     ),
                   ),
                   backgroundColor: _timeFilter == 'custom' ? Colors.indigo : Colors.indigo.shade50,
@@ -400,7 +400,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
           label,
           style: TextStyle(
             color: isSelected ? Colors.white : Colors.indigo,
-            fontSize: 12,
+            fontSize: AppTextStyles.subtitle1.fontSize,
           ),
         ),
         selected: isSelected,
@@ -508,14 +508,14 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
                     color: Colors.grey.shade700,
                   ),
                 ),
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: AppTextStyles.headline4.fontSize,
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),
@@ -524,7 +524,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: AppTextStyles.caption.fontSize,
                       color: Colors.grey.shade600,
                     ),
                   ),
@@ -599,16 +599,16 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
                           children: [
                             Text(
                               bank,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                fontSize: AppTextStyles.headline3.fontSize,
                               ),
                             ),
                             Text(
                               '${data['count']} đơn',
                               style: TextStyle(
                                 color: Colors.grey.shade600,
-                                fontSize: 12,
+                                fontSize: AppTextStyles.subtitle1.fontSize,
                               ),
                             ),
                           ],
@@ -658,7 +658,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
         Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: AppTextStyles.body1.fontSize,
             color: Colors.grey.shade600,
           ),
         ),
@@ -666,7 +666,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
         Text(
           value,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: AppTextStyles.subtitle1.fontSize,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -754,16 +754,16 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
                                 children: [
                                   Text(
                                     s.customerName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 14,
+                                      fontSize: AppTextStyles.headline4.fontSize,
                                     ),
                                   ),
                                   Text(
                                     s.productNames,
                                     style: TextStyle(
                                       color: Colors.grey.shade600,
-                                      fontSize: 12,
+                                      fontSize: AppTextStyles.subtitle1.fontSize,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -781,7 +781,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
                                 isReceived ? 'Đã TT' : 'Chờ TT',
                                 style: TextStyle(
                                   color: isReceived ? Colors.green.shade700 : Colors.orange.shade700,
-                                  fontSize: 11,
+                                  fontSize: AppTextStyles.body1.fontSize,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -841,7 +841,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
           Text(
             text,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: AppTextStyles.body1.fontSize,
               color: color,
             ),
           ),

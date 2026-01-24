@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 /// Widget AppBar và TabBar - Thiết kế Compact & Modern với Gradient
 class CustomAppBar {
@@ -12,28 +13,28 @@ class CustomAppBar {
   static const double kTabBarHeight = 36.0; // Giảm từ 44 xuống 36
   static const double kTitleFontSize = 15.0; // Giảm từ 17 xuống 15
   static const double kSubtitleFontSize = 11.0; // Giảm từ 12 xuống 11
-  
+
   // ========== COLOR SCHEME ==========
   static const Color kPrimaryColor = Color(0xFF1976D2); // Blue 700
   static const Color kPrimaryLight = Color(0xFF42A5F5);
   static const Color kPrimaryDark = Color(0xFF1565C0);
-  
+
   // ========== GRADIENT COLORS ==========
   static const Color kGradientStart = Color(0xFF6A1B9A); // Purple 800
-  static const Color kGradientEnd = Color(0xFF9C27B0);   // Purple 500
-  
+  static const Color kGradientEnd = Color(0xFF9C27B0); // Purple 500
+
   /// Default gradient for AppBar
   static const LinearGradient kDefaultGradient = LinearGradient(
     colors: [kGradientStart, kGradientEnd],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
-  
+
   static const Color kAccentGreen = Color(0xFF43A047);
   static const Color kAccentOrange = Color(0xFFFB8C00);
   static const Color kAccentRed = Color(0xFFE53935);
   static const Color kAccentPurple = Color(0xFF8E24AA);
-  
+
   static const Color kSurfaceWhite = Colors.white;
   static const Color kSurfaceLight = Color(0xFFF5F5F5);
   static const Color kTextPrimary = Color(0xFF212121);
@@ -57,7 +58,7 @@ class CustomAppBar {
     bool useGradient = true, // Mặc định dùng gradient
   }) {
     final accent = accentColor ?? kPrimaryColor;
-    
+
     // Nếu dùng gradient
     if (useGradient) {
       return AppBar(
@@ -73,56 +74,74 @@ class CustomAppBar {
         flexibleSpace: Container(
           decoration: const BoxDecoration(gradient: kDefaultGradient),
         ),
-        leading: leading ?? (showBackButton && onBackPressed != null
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_rounded, size: 20, color: Colors.white),
-                onPressed: onBackPressed,
-              )
-            : null),
+        leading:
+            leading ??
+            (showBackButton && onBackPressed != null
+                ? IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_rounded,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                    onPressed: onBackPressed,
+                  )
+                : null),
         title: _buildTitleWhite(title, subtitle),
         actions: actions != null
             ? [
-                ...actions.map((a) => Theme(
-                  data: ThemeData(iconTheme: const IconThemeData(color: Colors.white)),
-                  child: a,
-                )),
+                ...actions.map(
+                  (a) => Theme(
+                    data: ThemeData(
+                      iconTheme: const IconThemeData(color: Colors.white),
+                    ),
+                    child: a,
+                  ),
+                ),
                 const SizedBox(width: 4),
               ]
             : null,
         bottom: bottom,
       );
     }
-    
+
     // Nền sáng - chữ tối (legacy style)
     final bgColor = backgroundColor ?? kSurfaceWhite;
     final isLight = bgColor.computeLuminance() > 0.5;
     final fgColor = isLight ? kTextPrimary : Colors.white;
-    
+
     return AppBar(
       toolbarHeight: kAppBarHeight,
       elevation: elevation ?? kAppBarElevation,
       scrolledUnderElevation: 0.5,
       surfaceTintColor: Colors.transparent,
-      systemOverlayStyle: isLight 
-          ? SystemUiOverlayStyle.dark 
+      systemOverlayStyle: isLight
+          ? SystemUiOverlayStyle.dark
           : SystemUiOverlayStyle.light,
       backgroundColor: bgColor,
       foregroundColor: fgColor,
       centerTitle: centerTitle,
       automaticallyImplyLeading: showBackButton,
-      leading: leading ?? (showBackButton && onBackPressed != null
-          ? IconButton(
-              icon: Icon(Icons.arrow_back_ios_rounded, size: 20, color: accent),
-              onPressed: onBackPressed,
-            )
-          : null),
+      leading:
+          leading ??
+          (showBackButton && onBackPressed != null
+              ? IconButton(
+                  icon: Icon(
+                    Icons.arrow_back_ios_rounded,
+                    size: 20,
+                    color: accent,
+                  ),
+                  onPressed: onBackPressed,
+                )
+              : null),
       title: _buildTitle(title, subtitle, fgColor, accent),
       actions: actions != null
           ? [
-              ...actions.map((a) => Theme(
-                data: ThemeData(iconTheme: IconThemeData(color: accent)),
-                child: a,
-              )),
+              ...actions.map(
+                (a) => Theme(
+                  data: ThemeData(iconTheme: IconThemeData(color: accent)),
+                  child: a,
+                ),
+              ),
               const SizedBox(width: 4),
             ]
           : null,
@@ -157,7 +176,7 @@ class CustomAppBar {
     PreferredSizeWidget? bottom,
   }) {
     final accent = accentColor ?? kPrimaryColor;
-    
+
     return AppBar(
       toolbarHeight: kAppBarHeight,
       elevation: kAppBarElevation,
@@ -168,7 +187,12 @@ class CustomAppBar {
       foregroundColor: kTextPrimary,
       automaticallyImplyLeading: showBackButton,
       title: isSearching
-          ? _buildSearchFieldClean(searchController, onSearchChanged, searchHint, accent)
+          ? _buildSearchFieldClean(
+              searchController,
+              onSearchChanged,
+              searchHint,
+              accent,
+            )
           : Text(
               title,
               style: TextStyle(
@@ -219,7 +243,7 @@ class CustomAppBar {
     bool useGradient = true,
   }) {
     final accent = accentColor ?? kPrimaryColor;
-    
+
     // Gradient style
     if (useGradient) {
       return AppBar(
@@ -236,17 +260,25 @@ class CustomAppBar {
         ),
         leading: showBackButton && onBackPressed != null
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_rounded, size: 20, color: Colors.white),
+                icon: const Icon(
+                  Icons.arrow_back_ios_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
                 onPressed: onBackPressed,
               )
             : null,
         title: _buildTitleWhite(title, subtitle),
         actions: actions != null
             ? [
-                ...actions.map((a) => Theme(
-                  data: ThemeData(iconTheme: const IconThemeData(color: Colors.white)),
-                  child: a,
-                )),
+                ...actions.map(
+                  (a) => Theme(
+                    data: ThemeData(
+                      iconTheme: const IconThemeData(color: Colors.white),
+                    ),
+                    child: a,
+                  ),
+                ),
                 const SizedBox(width: 8),
               ]
             : null,
@@ -257,7 +289,7 @@ class CustomAppBar {
         ),
       );
     }
-    
+
     // Legacy white style
     return AppBar(
       toolbarHeight: kAppBarHeight,
@@ -275,12 +307,7 @@ class CustomAppBar {
             )
           : null,
       title: _buildTitle(title, subtitle, kTextPrimary, accent),
-      actions: actions != null
-          ? [
-              ...actions,
-              const SizedBox(width: 8),
-            ]
-          : null,
+      actions: actions != null ? [...actions, const SizedBox(width: 8)] : null,
       bottom: CustomTabBar.build(
         controller: tabController,
         tabs: tabs,
@@ -303,7 +330,7 @@ class CustomAppBar {
     PreferredSizeWidget? bottom,
   }) {
     final accent = accentColor ?? kPrimaryColor;
-    
+
     return SliverAppBar(
       pinned: pinned,
       floating: floating,
@@ -328,7 +355,7 @@ class CustomAppBar {
           title,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: 16,
+            fontSize: AppTextStyles.headline3.fontSize,
             color: kTextPrimary,
           ),
         ),
@@ -343,7 +370,7 @@ class CustomAppBar {
   }
 
   // ========== PRIVATE HELPERS ==========
-  
+
   /// Build title for gradient (white text)
   static Widget _buildTitleWhite(String title, String? subtitle) {
     if (subtitle == null) {
@@ -357,7 +384,7 @@ class CustomAppBar {
         ),
       );
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -383,8 +410,13 @@ class CustomAppBar {
       ],
     );
   }
-  
-  static Widget _buildTitle(String title, String? subtitle, Color titleColor, Color accentColor) {
+
+  static Widget _buildTitle(
+    String title,
+    String? subtitle,
+    Color titleColor,
+    Color accentColor,
+  ) {
     if (subtitle == null) {
       return Text(
         title,
@@ -396,7 +428,7 @@ class CustomAppBar {
         ),
       );
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -439,15 +471,28 @@ class CustomAppBar {
         controller: controller,
         onChanged: onChanged,
         autofocus: true,
-        style: TextStyle(color: kTextPrimary, fontSize: 13),
+        style: TextStyle(
+          color: kTextPrimary,
+          fontSize: AppTextStyles.headline5.fontSize,
+        ),
         cursorColor: accentColor,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: kTextSecondary, fontSize: 13),
-          prefixIcon: Icon(Icons.search_rounded, color: kTextSecondary, size: 18),
+          hintStyle: TextStyle(
+            color: kTextSecondary,
+            fontSize: AppTextStyles.headline5.fontSize,
+          ),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: kTextSecondary,
+            size: 18,
+          ),
           prefixIconConstraints: BoxConstraints(minWidth: 36),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
         ),
       ),
     );
@@ -467,7 +512,7 @@ class CustomTabBar {
     EdgeInsetsGeometry? padding,
   }) {
     final accent = accentColor ?? CustomAppBar.kPrimaryColor;
-    
+
     return PreferredSize(
       preferredSize: const Size.fromHeight(CustomAppBar.kTabBarHeight),
       child: Container(
@@ -477,13 +522,13 @@ class CustomTabBar {
           isScrollable: isScrollable,
           labelColor: accent,
           unselectedLabelColor: CustomAppBar.kTextSecondary,
-          labelStyle: const TextStyle(
+          labelStyle: TextStyle(
             fontWeight: FontWeight.w600,
-            fontSize: 12,
+            fontSize: AppTextStyles.subtitle1.fontSize,
           ),
-          unselectedLabelStyle: const TextStyle(
+          unselectedLabelStyle: TextStyle(
             fontWeight: FontWeight.w400,
-            fontSize: 12,
+            fontSize: AppTextStyles.subtitle1.fontSize,
           ),
           indicatorSize: TabBarIndicatorSize.label,
           indicatorWeight: 2,
@@ -511,13 +556,13 @@ class CustomTabBar {
         isScrollable: isScrollable,
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white70,
-        labelStyle: const TextStyle(
+        labelStyle: TextStyle(
           fontWeight: FontWeight.w600,
-          fontSize: 12,
+          fontSize: AppTextStyles.subtitle1.fontSize,
         ),
-        unselectedLabelStyle: const TextStyle(
+        unselectedLabelStyle: TextStyle(
           fontWeight: FontWeight.w400,
-          fontSize: 12,
+          fontSize: AppTextStyles.subtitle1.fontSize,
         ),
         indicatorSize: TabBarIndicatorSize.label,
         indicatorWeight: 2,
@@ -538,7 +583,7 @@ class CustomTabBar {
     Color? accentColor,
   }) {
     final accent = accentColor ?? CustomAppBar.kPrimaryColor;
-    
+
     return Container(
       decoration: BoxDecoration(
         color: CustomAppBar.kSurfaceWhite,
@@ -551,13 +596,13 @@ class CustomTabBar {
         isScrollable: isScrollable,
         labelColor: accent,
         unselectedLabelColor: CustomAppBar.kTextSecondary,
-        labelStyle: const TextStyle(
+        labelStyle: TextStyle(
           fontWeight: FontWeight.w600,
-          fontSize: 12,
+          fontSize: AppTextStyles.subtitle1.fontSize,
         ),
-        unselectedLabelStyle: const TextStyle(
+        unselectedLabelStyle: TextStyle(
           fontWeight: FontWeight.w400,
-          fontSize: 12,
+          fontSize: AppTextStyles.subtitle1.fontSize,
         ),
         indicatorSize: TabBarIndicatorSize.label,
         indicatorWeight: 2,
@@ -567,41 +612,36 @@ class CustomTabBar {
       ),
     );
   }
-  
+
   /// Tạo Tab item với icon và label
   static Tab iconTab(IconData icon, String label) {
     return Tab(
       height: CustomAppBar.kTabBarHeight,
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16),
-          const SizedBox(width: 6),
-          Text(label),
-        ],
+        children: [Icon(icon, size: 16), const SizedBox(width: 6), Text(label)],
       ),
     );
   }
-  
+
   /// Tạo Tab item chỉ có label
   static Tab textTab(String label) {
-    return Tab(
-      height: CustomAppBar.kTabBarHeight,
-      text: label,
-    );
+    return Tab(height: CustomAppBar.kTabBarHeight, text: label);
   }
-  
+
   /// Tạo Tab item với badge count
-  static Tab badgeTab(String label, int count, {IconData? icon, Color? badgeColor}) {
+  static Tab badgeTab(
+    String label,
+    int count, {
+    IconData? icon,
+    Color? badgeColor,
+  }) {
     return Tab(
       height: CustomAppBar.kTabBarHeight,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 18),
-            const SizedBox(width: 4),
-          ],
+          if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 4)],
           Text(label),
           if (count > 0) ...[
             const SizedBox(width: 6),
@@ -613,9 +653,9 @@ class CustomTabBar {
               ),
               child: Text(
                 count > 99 ? '99+' : count.toString(),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 10,
+                  fontSize: AppTextStyles.caption.fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -630,7 +670,7 @@ class CustomTabBar {
 /// Extension để tạo AppBar action buttons đẹp
 class AppBarActions {
   AppBarActions._();
-  
+
   /// Icon button
   static Widget icon({
     required IconData icon,
@@ -647,7 +687,7 @@ class AppBarActions {
       splashRadius: 20,
     );
   }
-  
+
   /// Badge icon button
   static Widget badge({
     required IconData icon,
@@ -679,9 +719,9 @@ class AppBarActions {
               constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
               child: Text(
                 badgeCount > 99 ? '99+' : badgeCount.toString(),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 10,
+                  fontSize: AppTextStyles.caption.fontSize,
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
@@ -691,7 +731,7 @@ class AppBarActions {
       ],
     );
   }
-  
+
   /// Text button
   static Widget text({
     required String label,
@@ -707,7 +747,7 @@ class AppBarActions {
       child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
     );
   }
-  
+
   /// Popup menu
   static Widget menu<T>({
     required List<PopupMenuEntry<T>> items,
@@ -729,31 +769,31 @@ class AppBarActions {
 /// Accent colors theo context - Sử dụng khi cần phân biệt chức năng
 class AppBarAccents {
   AppBarAccents._();
-  
+
   /// Default - Xanh dương
   static const Color primary = CustomAppBar.kPrimaryColor;
-  
+
   /// Sales - Xanh dương đậm
   static const Color sales = Color(0xFF0D47A1);
-  
+
   /// Repairs - Cam
   static const Color repairs = CustomAppBar.kAccentOrange;
-  
+
   /// Inventory - Xanh lá
   static const Color inventory = CustomAppBar.kAccentGreen;
-  
+
   /// Finance - Tím
   static const Color finance = CustomAppBar.kAccentPurple;
-  
+
   /// Staff - Đỏ
   static const Color staff = CustomAppBar.kAccentRed;
-  
+
   /// Settings - Xám đậm
   static const Color settings = Color(0xFF455A64);
-  
+
   /// Chat - Teal
   static const Color chat = Color(0xFF00796B);
-  
+
   /// Customer/Debt - Primary
   static const Color customer = CustomAppBar.kPrimaryColor;
 }

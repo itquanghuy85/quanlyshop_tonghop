@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import '../core/utils/money_utils.dart';
+import '../theme/app_text_styles.dart';
 
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
@@ -157,13 +158,13 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
                         ),
                         title: m.Text(
                           item['title'],
-                          style: const m.TextStyle(fontWeight: m.FontWeight.bold, fontSize: 15),
+                          style: m.TextStyle(fontWeight: m.FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
                         ),
                         subtitle: m.Column(
                           crossAxisAlignment: m.CrossAxisAlignment.start,
                           children: [
-                            m.Text("${item['subtitle']} - ${MoneyUtils.formatVND(item['amount'])}đ", style: const m.TextStyle(fontSize: 13)),
-                            m.Text(_fmtDate(item['time']), style: const m.TextStyle(fontSize: 11, color: m.Colors.grey)),
+                            m.Text("${item['subtitle']} - ${MoneyUtils.formatVND(item['amount'])}đ", style: m.TextStyle(fontSize: AppTextStyles.headline5.fontSize)),
+                            m.Text(_fmtDate(item['time']), style: m.TextStyle(fontSize: AppTextStyles.body1.fontSize, color: m.Colors.grey)),
                           ],
                         ),
                         trailing: const m.Icon(m.Icons.chevron_right, size: 18),

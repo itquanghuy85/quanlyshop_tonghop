@@ -155,17 +155,21 @@ class BluetoothPrinterService {
       final showIMEI = prefs.getBool('label_show_imei') ?? true;
       final showQR = prefs.getBool('label_show_qr') ?? true;
       final customText = prefs.getString('label_custom_text') ?? "";
+      final fontScale = prefs.getDouble('label_font_scale') ?? 1.0;
 
       final profile = await CapabilityProfile.load();
       final generator = Generator(PaperSize.mm80, profile);
       List<int> bytes = [];
       bytes.addAll(generator.reset());
 
-      // 1. TÊN SẢN PHẨM (TO - SIZE 2)
+      // 1. TÊN SẢN PHẨM (TO - SIZE 2 nếu fontScale >= 2.0)
       if (showName) {
+        final nameStyle = fontScale >= 2.0
+            ? const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2)
+            : const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size1, width: PosTextSize.size1);
         bytes.addAll(generator.text(
           (labelData['name'] ?? 'N/A').toString().toUpperCase(),
-          styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2),
+          styles: nameStyle,
         ));
       }
 
@@ -177,11 +181,22 @@ class BluetoothPrinterService {
         }
       }
 
-      // 3. GIÁ BÁN
-      bytes.addAll(generator.text(
-        "GIA BAN: ${labelData['price'] ?? '0'}",
-        styles: const PosStyles(align: PosAlign.center, bold: true),
-      ));
+      // 3. GIÁ BÁN KPK (Không phụ kiện)
+      if (showKPK) {
+        bytes.addAll(generator.text(
+          "GIA KPK: ${labelData['price'] ?? '0'}",
+          styles: const PosStyles(align: PosAlign.center, bold: true),
+        ));
+      }
+
+      // 4. GIÁ BÁN CPK (Có phụ kiện)
+      if (showCPK) {
+        final priceCPK = labelData['priceCPK'] ?? labelData['price'] ?? '0';
+        bytes.addAll(generator.text(
+          "GIA CPK: $priceCPK",
+          styles: const PosStyles(align: PosAlign.center, bold: true),
+        ));
+      }
 
       // 5. IMEI (VỪA)
       if (showIMEI) {

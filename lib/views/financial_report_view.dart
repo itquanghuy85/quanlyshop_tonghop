@@ -399,9 +399,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
               const SizedBox(width: 8),
               Text(
                 'Lợi nhuận: ${MoneyUtils.formatCurrency(net)}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: AppTextStyles.headline2.fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -419,13 +419,13 @@ class _FinancialReportViewState extends State<FinancialReportView>
           children: [
             Icon(icon, color: Colors.white, size: 16),
             const SizedBox(width: 4),
-            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            Text(label, style: TextStyle(color: Colors.white70, fontSize: AppTextStyles.subtitle1.fontSize)),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           MoneyUtils.formatCurrency(amount),
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
         ),
       ],
     );
@@ -607,15 +607,15 @@ class _FinancialReportViewState extends State<FinancialReportView>
                       children: [
                         Text(
                           date,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                            fontSize: AppTextStyles.headline4.fontSize,
                           ),
                         ),
                         Text(
                           '${items.length} giao dịch',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: AppTextStyles.body1.fontSize,
                             color: Colors.grey.shade600,
                           ),
                         ),
@@ -635,12 +635,12 @@ class _FinancialReportViewState extends State<FinancialReportView>
                               style: TextStyle(
                                 color: Colors.green.shade700,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 11,
+                                fontSize: AppTextStyles.body1.fontSize,
                               ),
                             ),
                           ],
                           if (dayIncome > 0 && dayExpense > 0)
-                            const Text(' • ', style: TextStyle(fontSize: 10)),
+                            Text(' • ', style: TextStyle(fontSize: AppTextStyles.caption.fontSize)),
                           if (dayExpense > 0) ...[
                             Icon(Icons.arrow_upward, size: 12, color: Colors.red.shade700),
                             Text(
@@ -648,7 +648,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
                               style: TextStyle(
                                 color: Colors.red.shade700,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 11,
+                                fontSize: AppTextStyles.body1.fontSize,
                               ),
                             ),
                           ],
@@ -663,10 +663,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
                         ),
                         child: Text(
                           '${dayNet >= 0 ? "+" : ""}${core_money.MoneyUtils.formatCompact(dayNet)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 10,
+                            fontSize: AppTextStyles.caption.fontSize,
                           ),
                         ),
                       ),
@@ -728,9 +728,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
                       children: [
                         Text(
                           t.description,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                            fontSize: AppTextStyles.headline5.fontSize,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -739,7 +739,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
                           Text(
                             t.personName!,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: AppTextStyles.body1.fontSize,
                               color: Colors.grey.shade700,
                             ),
                             maxLines: 1,
@@ -760,10 +760,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
                         ),
                         child: Text(
                           '${t.isIncome ? "+" : "-"}${MoneyUtils.formatCurrency(t.amount)}đ',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                            fontSize: AppTextStyles.subtitle1.fontSize,
                           ),
                         ),
                       ),
@@ -771,7 +771,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
                       Text(
                         time,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: AppTextStyles.caption.fontSize,
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -817,7 +817,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: AppTextStyles.caption.fontSize,
           color: textColor,
           fontWeight: FontWeight.w500,
         ),

@@ -210,7 +210,7 @@ class _LoginViewState extends State<LoginView> {
                           value: const Locale('vi'),
                           child: Row(
                             children: [
-                              const Text('🇻🇳 ', style: TextStyle(fontSize: 16)),
+                              Text('🇻🇳 ', style: TextStyle(fontSize: AppTextStyles.headline3.fontSize)),
                               Text(localizations.vietnamese),
                             ],
                           ),
@@ -219,7 +219,7 @@ class _LoginViewState extends State<LoginView> {
                           value: const Locale('en'),
                           child: Row(
                             children: [
-                              const Text('🇺🇸 ', style: TextStyle(fontSize: 16)),
+                              Text('🇺🇸 ', style: TextStyle(fontSize: AppTextStyles.headline3.fontSize)),
                               Text(localizations.english),
                             ],
                           ),

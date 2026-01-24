@@ -4,11 +4,12 @@ import '../models/quick_input_code_model.dart';
 import '../services/sync_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_orchestrator.dart';
+import '../theme/app_text_styles.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/gradient_fab.dart';
 import 'quick_input_sync_check_view.dart';
-import 'stock_in_view.dart';
+import 'smart_stock_in_view.dart';
 
 enum QuickInputFilter { all, unsynced }
 
@@ -135,29 +136,12 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
   }
 
   Future<void> _importToInventory(QuickInputCode code) async {
-    // Create prefilled data from QuickInputCode
-    final prefilledData = {
-      'name': code.name,
-      'type': code.type,
-      'brand': code.brand,
-      'model': code.model,
-      'capacity': code.capacity,
-      'color': code.color,
-      'condition': code.condition,
-      'cost': code.cost,
-      'price': code.price,
-      'supplier': code.supplier,
-      'paymentMethod': code.paymentMethod,
-      'notes': code.description,
-      'quantity': 1, // Default quantity
-    };
-
-    // Navigate to StockInView with prefilled data instead of FastStockInView
+    // Navigate to SmartStockInView with quickInputCode
     if (mounted) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => StockInView(prefilledData: prefilledData),
+          builder: (_) => SmartStockInView(quickInputCode: code),
         ),
       );
     }
@@ -204,9 +188,9 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
             ),
           ),
         ),
-        title: const Text(
+        title: Text(
           "THƯ VIỆN MÃ NHẬP NHANH",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize, color: Colors.white),
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
@@ -301,12 +285,12 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
             const SizedBox(height: 16),
             Text(
               "Chưa có mã nhập nhanh nào",
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+              style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.headline3.fontSize),
             ),
             const SizedBox(height: 8),
             Text(
               "Tạo mã nhập nhanh để tăng tốc độ nhập kho",
-              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+              style: TextStyle(color: Colors.grey[400], fontSize: AppTextStyles.subtitle1.fontSize),
               textAlign: TextAlign.center,
             ),
           ],
@@ -327,14 +311,14 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
               _currentFilter == QuickInputFilter.unsynced 
                 ? "Tất cả mã đã được đồng bộ!" 
                 : "Không có mã nào phù hợp với bộ lọc",
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+              style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.headline3.fontSize),
             ),
             const SizedBox(height: 8),
             Text(
               _currentFilter == QuickInputFilter.unsynced 
                 ? "Không có mã nhập nhanh nào chưa đồng bộ" 
                 : "Thử thay đổi bộ lọc để xem các mã khác",
-              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+              style: TextStyle(color: Colors.grey[400], fontSize: AppTextStyles.subtitle1.fontSize),
               textAlign: TextAlign.center,
             ),
           ],
@@ -381,13 +365,13 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
                         code.name,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: AppTextStyles.headline4.fontSize,
                           color: code.isActive ? const Color(0xFF1A237E) : Colors.grey,
                         ),
                       ),
                       Text(
                         isPhone ? "${code.brand ?? ''} ${code.model ?? ''}".trim() : code.description ?? '',
-                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                        style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -400,14 +384,14 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
                       color: Colors.orange[100],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.sync_problem, size: 10, color: Colors.orange),
                         SizedBox(width: 2),
                         Text(
                           'CHƯA ĐỒNG BỘ',
-                          style: TextStyle(fontSize: 8, color: Colors.orange, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: AppTextStyles.overlineSize, color: Colors.orange, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -419,9 +403,9 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
+                    child: Text(
                       'TẮT',
-                      style: TextStyle(fontSize: 8, color: Colors.grey),
+                      style: TextStyle(fontSize: AppTextStyles.overlineSize, color: Colors.grey),
                     ),
                   ),
               ],
@@ -430,9 +414,9 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
 
           // Chi tiết có thể mở rộng
           ExpansionTile(
-            title: const Text(
+            title: Text(
               'Xem chi tiết',
-              style: TextStyle(fontSize: 12, color: Colors.blue),
+              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.blue),
             ),
             children: [
               Padding(
@@ -548,11 +532,11 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
         children: [
           Text(
             '$label: ',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, fontWeight: FontWeight.bold, color: Colors.grey),
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
           ),
         ],
       ),
@@ -570,7 +554,7 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
       ),
       child: Text(
         '$label: ${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-        style: const TextStyle(fontSize: 10, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
+        style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
       ),
     );
   }

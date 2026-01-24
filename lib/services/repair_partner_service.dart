@@ -143,9 +143,9 @@ class RepairPartnerService {
   }
 
   Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId) async {
-    final dbStats = await db.getPartnerRepairStats(partnerId);
-    // Also get total paid from payments table
     final shopId = await UserService.getCurrentShopId();
+    final dbStats = await db.getPartnerRepairStats(partnerId, shopId: shopId);
+    // Also get total paid from payments table
     final dbInstance = await db.database;
     final payments = await dbInstance.rawQuery(
       'SELECT COALESCE(SUM(amount), 0) as totalPaid FROM repair_partner_payments WHERE partnerId = ? AND shopId = ? AND deleted = 0',

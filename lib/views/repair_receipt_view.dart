@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../utils/money_utils.dart';
+import '../theme/app_text_styles.dart';
 import '../services/event_bus.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import '../services/bluetooth_printer_service.dart';
@@ -191,18 +192,18 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'MÃ PHIẾU TIẾP NHẬN',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: AppTextStyles.subtitle1.fontSize,
                               fontWeight: FontWeight.bold,
                               color: Colors.blue,
                             ),
                           ),
                           Text(
                             _receiptCode,
-                            style: const TextStyle(
-                              fontSize: 18,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.headline2.fontSize,
                               fontWeight: FontWeight.bold,
                               color: Colors.blue,
                             ),
@@ -222,9 +223,9 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
               const SizedBox(height: 24),
 
               // Thông tin khách hàng
-              const Text(
+              Text(
                 'THÔNG TIN KHÁCH HÀNG',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
 
@@ -253,9 +254,9 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
               const SizedBox(height: 24),
 
               // Thông tin thiết bị
-              const Text(
+              Text(
                 'THÔNG TIN THIẾT BỊ',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
 

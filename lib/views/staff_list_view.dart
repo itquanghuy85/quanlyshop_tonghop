@@ -1081,13 +1081,13 @@ class _StaffListViewState extends State<StaffListView> {
                             Text(
                               email,
                               style: AppTextStyles.caption.copyWith(
-                                fontSize: 11,
+                                fontSize: AppTextStyles.body1.fontSize,
                               ),
                             ),
                             Text(
                               "SĐT: $phone",
                               style: AppTextStyles.caption.copyWith(
-                                fontSize: 11,
+                                fontSize: AppTextStyles.body1.fontSize,
                               ),
                             ),
                             role == 'admin'
@@ -1103,7 +1103,7 @@ class _StaffListViewState extends State<StaffListView> {
                                     child: Text(
                                       "Vai trò: Admin",
                                       style: AppTextStyles.caption.copyWith(
-                                        fontSize: 11,
+                                        fontSize: AppTextStyles.body1.fontSize,
                                         color: AppColors.warning,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -1124,7 +1124,7 @@ class _StaffListViewState extends State<StaffListView> {
                                         ? 'Người dùng'
                                         : role}",
                                     style: AppTextStyles.caption.copyWith(
-                                      fontSize: 11,
+                                      fontSize: AppTextStyles.body1.fontSize,
                                     ),
                                   ),
                             if (shopId != null)
@@ -1139,7 +1139,7 @@ class _StaffListViewState extends State<StaffListView> {
                                     return Text(
                                       "Shop: Đang tải...",
                                       style: AppTextStyles.caption.copyWith(
-                                        fontSize: 11,
+                                        fontSize: AppTextStyles.body1.fontSize,
                                         color: AppColors.secondary,
                                       ),
                                     );
@@ -1154,7 +1154,7 @@ class _StaffListViewState extends State<StaffListView> {
                                     return Text(
                                       "Shop: $shopName",
                                       style: AppTextStyles.caption.copyWith(
-                                        fontSize: 11,
+                                        fontSize: AppTextStyles.body1.fontSize,
                                         color: AppColors.primary,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -1167,7 +1167,7 @@ class _StaffListViewState extends State<StaffListView> {
                                     return Text(
                                       "Shop: $shortId",
                                       style: AppTextStyles.caption.copyWith(
-                                        fontSize: 11,
+                                        fontSize: AppTextStyles.body1.fontSize,
                                         color: AppColors.secondary,
                                       ),
                                     );
@@ -1178,7 +1178,7 @@ class _StaffListViewState extends State<StaffListView> {
                                     return Text(
                                       "Shop: $shortId",
                                       style: AppTextStyles.caption.copyWith(
-                                        fontSize: 11,
+                                        fontSize: AppTextStyles.body1.fontSize,
                                         color: AppColors.primary,
                                       ),
                                     );
@@ -1189,7 +1189,7 @@ class _StaffListViewState extends State<StaffListView> {
                               Text(
                                 "Shop: Chưa gán",
                                 style: AppTextStyles.caption.copyWith(
-                                  fontSize: 11,
+                                  fontSize: AppTextStyles.body1.fontSize,
                                   color: AppColors.secondary,
                                 ),
                               ),
@@ -1659,23 +1659,23 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                     children: [
                       Text(
                         widget.name,
-                        style: const TextStyle(
-                          fontSize: 18,
+                        style: TextStyle(
+                          fontSize: AppTextStyles.headline2.fontSize,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         widget.email,
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: TextStyle(
+                          fontSize: AppTextStyles.subtitle1.fontSize,
                           color: Colors.grey,
                         ),
                       ),
                       if (widget.isSuperAdmin)
                         Text(
                           "UID: ${widget.uid}",
-                          style: const TextStyle(
-                            fontSize: 11,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.body1.fontSize,
                             color: Colors.grey,
                           ),
                         ),
@@ -1727,10 +1727,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             "Quyền hệ thống:",
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: AppTextStyles.headline5.fontSize,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1770,8 +1770,8 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                           Expanded(
                             child: Text(
                               "Cửa hàng của nhân viên: ${_staffShopId ?? 'Chưa gán'}",
-                              style: const TextStyle(
-                                fontSize: 12,
+                              style: TextStyle(
+                                fontSize: AppTextStyles.subtitle1.fontSize,
                                 color: Colors.grey,
                               ),
                             ),
@@ -1793,9 +1793,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                       Icons.store_mall_directory,
                                       size: 18,
                                     ),
-                              label: const Text(
+                              label: Text(
                                 "GÁN VÀO SHOP CỦA TÔI",
-                                style: TextStyle(fontSize: 11),
+                                style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                               ),
                             ),
                         ],
@@ -1807,7 +1807,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                         child: Text(
                           "PHÂN QUYỀN NỘI DUNG CHO NHÂN VIÊN",
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: AppTextStyles.subtitle1.fontSize,
                             fontWeight: FontWeight.bold,
                             color: Colors.blueGrey[700],
                           ),
@@ -1824,43 +1824,37 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                           children: [
                             if (_selectedRole == 'owner' ||
                                 _selectedRole == 'manager')
-                              const Padding(
+                              Padding(
                                 padding: EdgeInsets.all(10),
                                 child: Text(
                                   "Tài khoản CHỦ SHOP/QUẢN LÝ luôn được xem đầy đủ mọi nội dung trong hệ thống.",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
                               )
                             else ...[
-                              const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                child: Align(
+                              Align(
                                   alignment: Alignment.centerLeft,
                                   child: Text(
                                     "MÀN HÌNH NGHIỆP VỤ",
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: AppTextStyles.body1.fontSize,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.blueGrey,
                                     ),
                                   ),
-                                ),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "BÁN HÀNG",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Xem và tạo đơn bán máy / phụ kiện",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -1869,14 +1863,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewSales = v),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "SỬA CHỮA",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Xem danh sách đơn sửa, tạo đơn mới",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -1885,14 +1879,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewRepairs = v),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "KHO",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Xem hàng tồn kho và phụ kiện",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -1901,14 +1895,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewInventory = v),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "KHO LINH KIỆN SỬA CHỮA",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Quản lý linh kiện dùng cho sửa chữa",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -1917,14 +1911,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewParts = v),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "NHÀ CUNG CẤP",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Xem sổ nhà phân phối, lịch sử nhập hàng",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -1933,14 +1927,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewSuppliers = v),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "KHÁCH HÀNG",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Xem danh sách khách và lịch sử mua/sửa",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -1949,14 +1943,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewCustomers = v),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "BẢO HÀNH",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Truy cập sổ bảo hành của cửa hàng",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -1965,14 +1959,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewWarranty = v),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "CHAT NỘI BỘ",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Cho phép sử dụng phòng chat trong cửa hàng",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -1981,14 +1975,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewChat = v),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "CHẤM CÔNG",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Cho phép chấm công và xem báo cáo chấm công",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -1997,14 +1991,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewAttendance = v),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "CẤU HÌNH MÁY IN",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Kết nối và in hóa đơn qua Bluetooth",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -2013,8 +2007,8 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewPrinter = v),
                               ),
 
-                              const Padding(
-                                padding: EdgeInsets.symmetric(
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
                                   vertical: 4,
                                 ),
@@ -2023,7 +2017,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                   child: Text(
                                     "MÀN HÌNH TÀI CHÍNH NHẠY CẢM",
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: AppTextStyles.body1.fontSize,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.blueGrey,
                                     ),
@@ -2031,14 +2025,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                 ),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "Cho phép xem màn DOANH THU",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Bao gồm báo cáo lời/lỗ, doanh số bán và sửa",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -2047,14 +2041,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewRevenue = v),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "Cho phép xem màn CHI PHÍ",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Xem và quản lý các khoản chi ra của cửa hàng",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -2063,14 +2057,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewExpenses = v),
                               ),
                               SwitchListTile(
-                                title: const Text(
+                                title: Text(
                                   "Cho phép xem SỔ CÔNG NỢ",
-                                  style: TextStyle(fontSize: 12),
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                 ),
-                                subtitle: const Text(
+                                subtitle: Text(
                                   "Bao gồm khách nợ shop và shop nợ nhà cung cấp",
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: AppTextStyles.body1.fontSize,
                                     color: Colors.grey,
                                   ),
                                 ),
@@ -2094,8 +2088,8 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
             controller: _tabController,
             labelColor: Colors.blueAccent,
             unselectedLabelColor: Colors.grey,
-            labelStyle: const TextStyle(
-              fontSize: 11,
+            labelStyle: TextStyle(
+              fontSize: AppTextStyles.body1.fontSize,
               fontWeight: FontWeight.bold,
             ),
             tabs: const [
@@ -2139,7 +2133,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       child: TextField(
         controller: ctrl,
         keyboardType: type,
-        style: const TextStyle(fontSize: 14, color: Colors.black),
+        style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, color: Colors.black),
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, size: 18, color: Colors.blueAccent),
@@ -2168,10 +2162,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
 
   Widget _buildRepairList(List<Repair> list) {
     if (list.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           "Không có dữ liệu",
-          style: TextStyle(color: Colors.grey, fontSize: 12),
+          style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
         ),
       );
     }
@@ -2181,7 +2175,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       itemBuilder: (ctx, i) => ListTile(
         title: Text(
           list[i].model,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
         ),
         subtitle: Text(
           "KH: ${list[i].customerName} | ${DateFormat('dd/MM').format(DateTime.fromMillisecondsSinceEpoch(list[i].createdAt))}",
@@ -2196,10 +2190,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
 
   Widget _buildSaleList(List<SaleOrder> list) {
     if (list.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           "Không có dữ liệu",
-          style: TextStyle(color: Colors.grey, fontSize: 12),
+          style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
         ),
       );
     }
@@ -2209,7 +2203,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       itemBuilder: (ctx, i) => ListTile(
         title: Text(
           list[i].productNames,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
         ),
         subtitle: Text(
           "KH: ${list[i].customerName} | ${NumberFormat('#,###').format(list[i].totalPrice)} đ",
@@ -2231,9 +2225,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 "Lịch làm việc hiện tại",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
               ),
               ElevatedButton.icon(
                 onPressed: _editWorkScheduleForStaff,
@@ -2260,8 +2254,8 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                         const SizedBox(width: 8),
                         Text(
                           "Giờ làm việc: ${_workSchedule!['startTime']} - ${_workSchedule!['endTime']}",
-                          style: const TextStyle(
-                            fontSize: 16,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.headline3.fontSize,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -2274,7 +2268,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                         const SizedBox(width: 8),
                         Text(
                           "Giờ nghỉ: ${_workSchedule!['breakTime']} giờ",
-                          style: const TextStyle(fontSize: 14),
+                          style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
                         ),
                       ],
                     ),
@@ -2285,18 +2279,18 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                         const SizedBox(width: 8),
                         Text(
                           "OT tối đa: ${_workSchedule!['maxOtHours']} giờ/ngày",
-                          style: const TextStyle(fontSize: 14),
+                          style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Row(
+                    Row(
                       children: [
                         Icon(Icons.calendar_today, color: Colors.purple),
                         SizedBox(width: 8),
                         Text(
                           "Ngày làm việc: Thứ 2 - Thứ 7",
-                          style: TextStyle(fontSize: 14),
+                          style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
                         ),
                       ],
                     ),
@@ -2305,21 +2299,21 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
               ),
             ),
           ] else ...[
-            const Card(
+            Card(
               child: Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    Icon(Icons.schedule, size: 48, color: Colors.grey),
-                    SizedBox(height: 8),
+                    const Icon(Icons.schedule, size: 48, color: Colors.grey),
+                    const SizedBox(height: 8),
                     Text(
                       "Chưa có lịch làm việc",
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                      style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.headline3.fontSize),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       "Nhấn 'Chỉnh sửa' để thiết lập lịch làm việc cho nhân viên này",
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                      style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
                       textAlign: TextAlign.center,
                     ),
                   ],

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../main.dart';
 import 'intro_view.dart';
+import '../theme/app_text_styles.dart';
 
 class SplashView extends StatefulWidget {
   final void Function(Locale)? setLocale;
@@ -76,9 +77,9 @@ class _SplashViewState extends State<SplashView> {
               child: const Icon(Icons.store_rounded, size: 80, color: Color(0xFF2962FF)),
             ),
             const SizedBox(height: 30),
-            const Text(
+            Text(
               "QUẢN LÝ SHOP",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1A237E), letterSpacing: 2),
+              style: TextStyle(fontSize: AppTextStyles.headline1.fontSize, fontWeight: FontWeight.w900, color: const Color(0xFF1A237E), letterSpacing: 2),
             ),
             const SizedBox(height: 50),
             const SizedBox(
@@ -88,7 +89,7 @@ class _SplashViewState extends State<SplashView> {
             const SizedBox(height: 20),
             Text(
               _status,
-              style: const TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic),
+              style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.headline5.fontSize, fontStyle: FontStyle.italic),
             ),
           ],
         ),

@@ -16,11 +16,14 @@ import '../services/first_time_guide_service.dart';
 import '../utils/money_utils.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
+import '../widgets/section_card.dart';
 import '../models/repair_partner_model.dart';
 import '../models/repair_service_model.dart';
 import '../services/repair_partner_service.dart';
 import '../services/user_service.dart';
+import '../services/payment_intent_service.dart';
 import '../models/customer_model.dart';
+import '../models/payment_intent_model.dart';
 import '../services/customer_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -450,6 +453,103 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
             'Warning: Partner history creation failed for service ${s.serviceName}',
           );
         }
+        
+        // === XỬ LÝ PAYMENT METHOD CHO DỊCH VỤ ĐỐI TÁC ===
+        if (s.paymentMethod != null) {
+          final shopId = await UserService.getCurrentShopId() ?? '';
+          final nowTs = DateTime.now().millisecondsSinceEpoch;
+          
+          if (s.paymentMethod == 'CÔNG NỢ') {
+            // CÔNG NỢ → tạo debt record vào bảng debts
+            try {
+              final debtFId = 'debt_partner_${nowTs}_${s.partnerId}';
+              final debtData = {
+                'firestoreId': debtFId,
+                'type': 'SHOP_OWES', // Shop nợ đối tác
+                'debtType': 'SHOP_OWES',
+                'personName': s.partnerName ?? 'Đối tác sửa chữa',
+                'phone': '',
+                'totalAmount': s.cost,
+                'paidAmount': 0,
+                'note': 'Công nợ đối tác: ${s.serviceName} - Đơn sửa ${r.model} (${r.customerName})',
+                'status': 'ACTIVE',
+                'createdAt': nowTs,
+                'shopId': shopId,
+                'linkedId': rWithCloudId.firestoreId ?? '',
+                'relatedPartId': s.partnerId?.toString() ?? '',
+                'deleted': 0,
+                'isSynced': 0,
+              };
+              final debtId = await db.insertDebt(debtData);
+              
+              // Sync debt to cloud
+              if (debtId > 0) {
+                await SyncOrchestrator().enqueue(
+                  entityType: SyncEntityType.debt,
+                  entityId: debtId,
+                  firestoreId: debtFId,
+                  operation: SyncOperation.create,
+                  data: debtData,
+                );
+              }
+              
+              // Tạo PaymentIntent cho việc trả nợ sau này
+              final intent = PaymentIntent(
+                id: 'pi_partner_debt_${nowTs}_${s.partnerId}',
+                type: PaymentIntentType.repairPartnerDebt,
+                amount: s.cost,
+                description: 'Trả nợ đối tác: ${s.partnerName ?? "N/A"} - ${s.serviceName}',
+                referenceId: debtFId,
+                referenceType: 'partner_debt',
+                personName: s.partnerName,
+                createdBy: FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
+                createdAt: nowTs,
+                metadata: {
+                  'repairId': rWithCloudId.id,
+                  'repairFirestoreId': rWithCloudId.firestoreId,
+                  'partnerId': s.partnerId,
+                  'partnerName': s.partnerName,
+                  'serviceName': s.serviceName,
+                  'debtId': debtId,
+                  'debtFirestoreId': debtFId,
+                  'debtType': 'SHOP_OWES',
+                },
+              );
+              await PaymentIntentService.createIntent(intent);
+              debugPrint('✅ Created partner debt record: $debtFId for ${s.partnerName}');
+              
+            } catch (e) {
+              debugPrint('⚠️ Failed to create partner debt: $e');
+            }
+          } else {
+            // TIỀN MẶT / CHUYỂN KHOẢN → tạo PaymentIntent để xác nhận chi
+            try {
+              final intent = PaymentIntent(
+                id: 'pi_partner_service_${nowTs}_${s.partnerId}',
+                type: PaymentIntentType.repairPartnerDebt,
+                amount: s.cost,
+                description: 'Trả đối tác: ${s.partnerName ?? "N/A"} - ${s.serviceName}',
+                referenceId: rWithCloudId.firestoreId,
+                referenceType: 'repair_partner_service',
+                personName: s.partnerName,
+                createdBy: FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
+                createdAt: nowTs,
+                metadata: {
+                  'repairId': rWithCloudId.id,
+                  'repairFirestoreId': rWithCloudId.firestoreId,
+                  'partnerId': s.partnerId,
+                  'partnerName': s.partnerName,
+                  'serviceName': s.serviceName,
+                  'paymentMethod': s.paymentMethod,
+                },
+              );
+              await PaymentIntentService.createIntent(intent);
+              debugPrint('💳 Created PaymentIntent for partner ${s.paymentMethod}: ${intent.id}');
+            } catch (e) {
+              debugPrint('⚠️ Failed to create partner PaymentIntent: $e');
+            }
+          }
+        }
       }
 
       // Trigger new order notification
@@ -734,203 +834,274 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const CircularProgressIndicator(),
-                  const SizedBox(height: 20),
-                  Text(
-                    _uploadStatus,
-                    style: AppTextStyles.body1.copyWith(
-                      color: AppColors.onSurface.withOpacity(0.7),
-                    ),
-                  ),
+                  const SizedBox(height: 16),
+                  Text(_uploadStatus, style: AppTextStyles.caption),
                 ],
               ),
             )
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _sectionTitle("THÔNG TIN KHÁCH HÀNG"),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _input(
-                          nameCtrl,
-                          "TÊN KHÁCH HÀNG",
-                          Icons.person,
-                          caps: true,
-                          f: nameF,
-                          next: modelF,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: _selectCustomer,
-                        icon: const Icon(Icons.search, color: Colors.blue),
-                        tooltip: 'Chọn khách hàng',
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _input(
-                          phoneCtrl,
-                          "SỐ DIEN_THOAI *",
-                          Icons.phone,
-                          type: TextInputType.phone,
-                          f: phoneF,
-                          next: nameF,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Tooltip(
-                        message: 'Thêm nhanh khách hàng vào danh sách',
-                        child: IconButton(
-                          onPressed:
-                              (nameCtrl.text.trim().isNotEmpty &&
-                                  phoneCtrl.text.trim().isNotEmpty)
-                              ? _addCustomerQuick
-                              : null,
-                          icon: Icon(
-                            Icons.person_add,
-                            color:
-                                (nameCtrl.text.trim().isNotEmpty &&
-                                    phoneCtrl.text.trim().isNotEmpty)
-                                ? Colors.green
-                                : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 15),
-                  _sectionTitle("THÔNG TIN MÁY"),
-                  _quick(brands, modelCtrl, issueF),
-                  _input(
-                    modelCtrl,
-                    "MODEL MÁY *",
-                    Icons.phone_android,
-                    caps: true,
-                    f: modelF,
-                    next: issueF,
-                  ),
-                  const SizedBox(height: 15),
-                  _sectionTitle("TÌNH TRẠNG LỖI"),
-                  _quick(commonIssues, issueCtrl, priceF),
-                  _input(
-                    issueCtrl,
-                    "LỖI MÁY *",
-                    Icons.build,
-                    caps: true,
-                    f: issueF,
-                    next: priceF,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: CurrencyTextField(
-                      controller: priceCtrl,
-                      label: "GIÁ DỰ KIẾN (VNĐ)",
-                      icon: Icons.monetization_on,
-                      onSubmitted: () =>
-                          FocusScope.of(context).requestFocus(passF),
-                    ),
-                  ),
+                  // === COMPACT: KHÁCH + MÁY + LỖI trong 1 Card ===
+                  _buildCompactMainSection(),
+                  const SizedBox(height: 8),
 
-                  const SizedBox(height: 15),
-                  _sectionTitle("DỊCH VỤ SỬA CHỮA"),
-                  ..._buildServicesSection(),
+                  // === DỊCH VỤ (ExpansionTile nếu chưa có) ===
+                  _buildCompactServicesSection(),
+                  const SizedBox(height: 8),
 
-                  _input(passCtrl, "MẬT KHẨU MÀN HÌNH", Icons.lock, f: passF),
+                  // === COMPACT: BẢO MẬT + PHỤ KIỆN trong 1 Card ===
+                  _buildCompactSecurityAccessoriesSection(),
+                  const SizedBox(height: 8),
 
-                  const SizedBox(height: 15),
-                  _sectionTitle("PHỤ KIỆN ĐI KÈM"),
-                  // HÀNG NÚT CHỌN NHANH ƯU TIÊN THEO YÊU CẦU
-                  Row(
-                    children: [
-                      _priorityChip("CHỈ SIM", () {
-                        setState(() {
-                          _selectedAccs.clear();
-                          _selectedAccs.add("SIM");
-                        });
-                      }),
-                      const SizedBox(width: 8),
-                      _priorityChip("CHỈ ỐP", () {
-                        setState(() {
-                          _selectedAccs.clear();
-                          _selectedAccs.add("ỐP LƯNG");
-                        });
-                      }),
-                      const SizedBox(width: 8),
-                      _priorityChip("CẢ SIM & ỐP", () {
-                        setState(() {
-                          _selectedAccs.clear();
-                          _selectedAccs.add("SIM");
-                          _selectedAccs.add("ỐP LƯNG");
-                        });
-                      }),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _buildQuickAccs(),
-                  _input(
-                    accCtrl,
-                    "PHỤ KIỆN KHÁC",
-                    Icons.add_box_outlined,
-                    caps: true,
-                  ),
+                  // === GHI CHÚ + HÌNH ẢNH (ExpansionTile) ===
+                  _buildCompactNotesImagesSection(),
 
-                  const SizedBox(height: 20),
-                  Text(
-                    "GHI CHÚ",
-                    style: AppTextStyles.caption.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.onSurface.withOpacity(0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: notesCtrl,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: "Nhập ghi chú cho đơn sửa (nếu có)...",
-                      prefixIcon: const Icon(Icons.note_alt_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-                  Text(
-                    "HÌNH ẢNH HIỆN TRẠNG",
-                    style: AppTextStyles.caption.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.onSurface.withOpacity(0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _imageRow(),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 16),
+                  // === NÚT LƯU ===
                   SizedBox(
                     width: double.infinity,
+                    height: 48,
                     child: ElevatedButton.icon(
                       onPressed: _saving ? null : _onlySave,
-                      icon: const Icon(Icons.save_rounded),
-                      label: const Text("LƯU ĐƠN"),
+                      icon: const Icon(Icons.save_rounded, size: 20),
+                      label: const Text("LƯU ĐƠN", style: TextStyle(fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
-                        elevation: 4,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
                 ],
               ),
             ),
     );
   }
+
+  /// COMPACT: Khách hàng + Máy + Lỗi + Giá trong 1 Card
+  Widget _buildCompactMainSection() {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header với icon tìm khách
+            Row(
+              children: [
+                Icon(Icons.person_outline, color: Colors.blue, size: 18),
+                const SizedBox(width: 6),
+                Text("KHÁCH HÀNG & MÁY", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue)),
+                const Spacer(),
+                IconButton(
+                  onPressed: _selectCustomer,
+                  icon: const Icon(Icons.search, size: 18),
+                  tooltip: 'Chọn khách',
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
+                  color: Colors.blue,
+                ),
+                if (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty)
+                  IconButton(
+                    onPressed: _addCustomerQuick,
+                    icon: const Icon(Icons.person_add, size: 18, color: Colors.green),
+                    tooltip: 'Thêm khách',
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.only(left: 8),
+                  ),
+              ],
+            ),
+            const Divider(height: 12),
+            // Row 1: SĐT + Tên
+            Row(
+              children: [
+                Expanded(child: _compactInput(phoneCtrl, "SĐT *", Icons.phone, type: TextInputType.phone)),
+                const SizedBox(width: 8),
+                Expanded(child: _compactInput(nameCtrl, "Tên KH", Icons.person, caps: true)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Row 2: Quick brands + Model
+            _quick(brands, modelCtrl, issueF),
+            _compactInput(modelCtrl, "MODEL MÁY *", Icons.phone_android, caps: true),
+            const SizedBox(height: 8),
+            // Row 3: Quick issues + Lỗi
+            _quick(commonIssues, issueCtrl, priceF),
+            _compactInput(issueCtrl, "LỖI MÁY *", Icons.build, caps: true),
+            const SizedBox(height: 8),
+            // Row 4: Giá
+            CurrencyTextField(
+              controller: priceCtrl,
+              label: "GIÁ DỰ KIẾN",
+              icon: Icons.monetization_on,
+              onSubmitted: () => FocusScope.of(context).requestFocus(passF),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// COMPACT: Dịch vụ sửa chữa (ExpansionTile nếu chưa có dịch vụ)
+  Widget _buildCompactServicesSection() {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+        dense: true,
+        leading: Icon(Icons.handyman, color: Colors.teal, size: 20),
+        title: Row(
+          children: [
+            Text("DỊCH VỤ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            if (_services.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: Colors.teal, borderRadius: BorderRadius.circular(10)),
+                child: Text("${_services.length}", style: const TextStyle(color: Colors.white, fontSize: 11)),
+              ),
+            ],
+          ],
+        ),
+        initiallyExpanded: _services.isNotEmpty,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(children: _buildServicesSection()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// COMPACT: Bảo mật + Phụ kiện trong 1 Card
+  Widget _buildCompactSecurityAccessoriesSection() {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row: Mật khẩu
+            Row(
+              children: [
+                Icon(Icons.lock_outline, color: Colors.red.shade400, size: 18),
+                const SizedBox(width: 6),
+                Text("BẢO MẬT & PHỤ KIỆN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red.shade400)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _compactInput(passCtrl, "Mật khẩu màn hình", Icons.lock),
+            const SizedBox(height: 8),
+            // Quick accs chips
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                _compactChip("SIM", _selectedAccs.contains("SIM"), () => _toggleAcc("SIM")),
+                _compactChip("ỐP LƯNG", _selectedAccs.contains("ỐP LƯNG"), () => _toggleAcc("ỐP LƯNG")),
+                _compactChip("KO PHỤ KIỆN", _selectedAccs.contains("KO PHỤ KIỆN"), () => _toggleAcc("KO PHỤ KIỆN")),
+              ],
+            ),
+            const SizedBox(height: 6),
+            _compactInput(accCtrl, "Phụ kiện khác", Icons.add_box_outlined, caps: true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _toggleAcc(String acc) {
+    setState(() {
+      if (_selectedAccs.contains(acc)) {
+        _selectedAccs.remove(acc);
+      } else {
+        _selectedAccs.add(acc);
+      }
+    });
+  }
+
+  Widget _compactChip(String label, bool selected, VoidCallback onTap) {
+    return FilterChip(
+      label: Text(label, style: TextStyle(fontSize: 11, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      selectedColor: Colors.blue.shade100,
+      padding: EdgeInsets.zero,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  /// COMPACT: Ghi chú + Hình ảnh (ExpansionTile)
+  Widget _buildCompactNotesImagesSection() {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+        dense: true,
+        leading: Icon(Icons.note_alt_outlined, color: Colors.blueGrey, size: 20),
+        title: Row(
+          children: [
+            Text("GHI CHÚ & HÌNH ẢNH", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            if (_images.isNotEmpty || notesCtrl.text.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Icon(Icons.check_circle, color: Colors.green, size: 16),
+            ],
+          ],
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: notesCtrl,
+                  maxLines: 2,
+                  style: const TextStyle(fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: "Ghi chú...",
+                    isDense: true,
+                    contentPadding: const EdgeInsets.all(10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _imageRow(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Compact input field
+  Widget _compactInput(TextEditingController c, String label, IconData icon, {bool caps = false, TextInputType type = TextInputType.text}) {
+    return TextField(
+      controller: c,
+      keyboardType: type,
+      textCapitalization: caps ? TextCapitalization.characters : TextCapitalization.none,
+      style: const TextStyle(fontSize: 13),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontSize: 12),
+        prefixIcon: Icon(icon, size: 18),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  // OLD BUILD METHOD CONTENT REMOVED - replaced with compact version above
+  // Keeping old helper methods below...
 
   Widget _priorityChip(String label, VoidCallback onTap) {
     return Expanded(
@@ -985,17 +1156,6 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       ),
     );
   }
-
-  Widget _sectionTitle(String title) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(
-      title,
-      style: AppTextStyles.overline.copyWith(
-        fontWeight: FontWeight.bold,
-        color: AppColors.onSurface.withOpacity(0.7),
-      ),
-    ),
-  );
 
   Widget _input(
     TextEditingController c,
@@ -1174,8 +1334,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                                   customer.address!.isNotEmpty)
                                 Text(
                                   'Địa chỉ: ${customer.address}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
+                                  style: AppTextStyles.caption.copyWith(
                                     color: Colors.grey,
                                   ),
                                   maxLines: 1,
@@ -1185,8 +1344,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                                   customer.notes!.isNotEmpty)
                                 Text(
                                   'Ghi chú: ${customer.notes}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
+                                  style: AppTextStyles.caption.copyWith(
                                     color: Colors.blue,
                                     fontStyle: FontStyle.italic,
                                   ),

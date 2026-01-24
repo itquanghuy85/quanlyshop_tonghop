@@ -317,11 +317,11 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("CHẤM CÔNG NHÂN VIÊN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            Text("Quản lý giờ làm việc", style: TextStyle(fontSize: 11, color: Colors.white70)),
+            Text("CHẤM CÔNG NHÂN VIÊN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline2.fontSize)),
+            Text("Quản lý giờ làm việc", style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.white70)),
           ],
         ),
         automaticallyImplyLeading: true,
@@ -439,7 +439,7 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
                         Text(item.dateKey, style: AppTextStyles.headline6),
                         Text(
                           "Vào: ${item.checkInAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(item.checkInAt!)) : '--'} | Ra: ${item.checkOutAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(item.checkOutAt!)) : '--'}",
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
                         ),
                       ],
                     ),
@@ -499,7 +499,7 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('CHI TIẾT CHẤM CÔNG', style: AppTextStyles.headline6.copyWith(fontWeight: FontWeight.bold)),
-                      Text(item.dateKey, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text(item.dateKey, style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize)),
                     ],
                   ),
                 ),
@@ -528,7 +528,7 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
             
             // Photos section
             if (item.photoIn != null || item.photoOut != null) ...[
-              const Text('ẢNH CHẤM CÔNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text('ẢNH CHẤM CÔNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize)),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -558,12 +558,12 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
         children: [
           Icon(icon, size: 18, color: Colors.grey),
           const SizedBox(width: 10),
-          Text('$label:', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          Text('$label:', style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.headline5.fontSize)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: valueColor),
+              style: TextStyle(fontWeight: FontWeight.w500, fontSize: AppTextStyles.headline5.fontSize, color: valueColor),
               textAlign: TextAlign.end,
             ),
           ),
@@ -598,11 +598,11 @@ class _AttendanceViewState extends State<AttendanceView> with TickerProviderStat
             ),
           ),
           const SizedBox(height: 6),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+          Text(label, style: TextStyle(fontSize: AppTextStyles.body1.fontSize, fontWeight: FontWeight.bold)),
           if (time != null)
             Text(
               DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(time)),
-              style: const TextStyle(fontSize: 10, color: Colors.grey),
+              style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey),
             ),
         ],
       ),

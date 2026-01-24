@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
 import '../models/financial_activity_model.dart';
 import '../widgets/custom_app_bar.dart';
+import '../theme/app_text_styles.dart';
 
 /// Trang theo dõi nhật ký hoạt động tài chính + hệ thống
 /// Chỉ xem, không sửa - có bộ lọc
@@ -225,9 +226,9 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Bộ lọc',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
                 ),
                 TextButton(
                   onPressed: () {
@@ -296,7 +297,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
               children: _activityTypes.map((t) {
                 final isSelected = (tempType ?? '') == t['value'];
                 return ChoiceChip(
-                  label: Text(t['label']!, style: const TextStyle(fontSize: 12)),
+                  label: Text(t['label']!, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                   selected: isSelected,
                   onSelected: (_) => setSheetState(() => tempType = t['value']),
                   selectedColor: Colors.blue.shade100,
@@ -317,7 +318,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
               children: _directions.map((d) {
                 final isSelected = (tempDirection ?? '') == d['value'];
                 return ChoiceChip(
-                  label: Text(d['label']!, style: const TextStyle(fontSize: 12)),
+                  label: Text(d['label']!, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                   selected: isSelected,
                   onSelected: (_) =>
                       setSheetState(() => tempDirection = d['value']),
@@ -435,8 +436,8 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: AppBarAccents.finance,
                   indicatorWeight: 3,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
+                  labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
+                  unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal, fontSize: AppTextStyles.headline5.fontSize),
                   tabs: const [
                     Tab(icon: Icon(Icons.account_balance_wallet, size: 18), text: 'Tài chính'),
                     Tab(icon: Icon(Icons.history, size: 18), text: 'Hệ thống'),
@@ -461,11 +462,11 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                         _searchQuery = v.trim();
                         _loadData();
                       },
-                      style: const TextStyle(color: CustomAppBar.kTextPrimary, fontSize: 14),
+                      style: TextStyle(color: CustomAppBar.kTextPrimary, fontSize: AppTextStyles.headline4.fontSize),
                       cursorColor: AppBarAccents.finance,
                       decoration: InputDecoration(
                         hintText: 'Tìm theo tên, SĐT, mô tả...',
-                        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: AppTextStyles.headline5.fontSize),
                         prefixIcon: Icon(Icons.search_rounded, color: AppBarAccents.finance, size: 18),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
@@ -514,12 +515,12 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
               const SizedBox(width: 6),
               Text(
                 '${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.subtitle1.fontSize),
               ),
               const Spacer(),
               Text(
                 '${_activities.length} hoạt động',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.subtitle1.fontSize),
               ),
             ],
           ),
@@ -596,8 +597,8 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(log['userName'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
-            Text(DateFormat('HH:mm - dd/MM').format(date), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            Text(log['userName'] ?? 'Unknown', style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize, color: Colors.blueGrey)),
+            Text(DateFormat('HH:mm - dd/MM').format(date), style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey)),
           ],
         ),
         subtitle: Padding(
@@ -605,9 +606,9 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(log['action'] ?? '', style: TextStyle(color: actionColor, fontWeight: FontWeight.bold, fontSize: 11)),
+              Text(log['action'] ?? '', style: TextStyle(color: actionColor, fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize)),
               const SizedBox(height: 2),
-              Text(log['description'] ?? "", style: const TextStyle(fontSize: 12, color: Colors.black87)),
+              Text(log['description'] ?? "", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87)),
             ],
           ),
         ),
@@ -701,20 +702,20 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
               children: [
                 Text(
                   '💵 Lãi thực: ',
-                  style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12),
+                  style: TextStyle(color: Colors.white.withAlpha(200), fontSize: AppTextStyles.subtitle1.fontSize),
                 ),
                 Text(
                   _formatMoney(totalIn - totalOut),
                   style: TextStyle(
                     color: (totalIn - totalOut) >= 0 ? Colors.greenAccent : Colors.redAccent,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: AppTextStyles.headline4.fontSize,
                   ),
                 ),
                 const SizedBox(width: 20),
                 Text(
                   '📊 $totalCount giao dịch',
-                  style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12),
+                  style: TextStyle(color: Colors.white.withAlpha(200), fontSize: AppTextStyles.subtitle1.fontSize),
                 ),
               ],
             ),
@@ -736,15 +737,15 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 14,
+            fontSize: AppTextStyles.headline4.fontSize,
           ),
         ),
         Text(
           label,
-          style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 11),
+          style: TextStyle(color: Colors.white.withAlpha(200), fontSize: AppTextStyles.body1.fontSize),
         ),
       ],
     );
@@ -759,12 +760,12 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
           const SizedBox(height: 16),
           Text(
             'Chưa có hoạt động tài chính',
-            style: TextStyle(color: Colors.grey[500], fontSize: 16),
+            style: TextStyle(color: Colors.grey[500], fontSize: AppTextStyles.headline3.fontSize),
           ),
           const SizedBox(height: 8),
           Text(
             'Các giao dịch sẽ được ghi lại tự động',
-            style: TextStyle(color: Colors.grey[400], fontSize: 13),
+            style: TextStyle(color: Colors.grey[400], fontSize: AppTextStyles.headline5.fontSize),
           ),
         ],
       ),
@@ -805,7 +806,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                 ),
                 child: Text(
                   activity.icon,
-                  style: const TextStyle(fontSize: 20),
+                  style: TextStyle(fontSize: AppTextStyles.headline1.fontSize),
                 ),
               ),
               const SizedBox(width: 12),
@@ -822,9 +823,9 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                         Expanded(
                           child: Text(
                             activity.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              fontSize: 13,
+                              fontSize: AppTextStyles.headline5.fontSize,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -834,7 +835,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                           DateFormat('HH:mm').format(date),
                           style: TextStyle(
                             color: Colors.grey[500],
-                            fontSize: 11,
+                            fontSize: AppTextStyles.body1.fontSize,
                           ),
                         ),
                       ],
@@ -856,7 +857,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                             activity.customerName!,
                             style: TextStyle(
                               color: Colors.grey[600],
-                              fontSize: 11,
+                              fontSize: AppTextStyles.body1.fontSize,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -871,7 +872,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                           DateFormat('dd/MM/yyyy').format(date),
                           style: TextStyle(
                             color: Colors.grey[500],
-                            fontSize: 11,
+                            fontSize: AppTextStyles.body1.fontSize,
                           ),
                         ),
                       ],
@@ -910,7 +911,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                                 style: TextStyle(
                                   color: directionColor,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                                  fontSize: AppTextStyles.subtitle1.fontSize,
                                 ),
                               ),
                             ],
@@ -933,7 +934,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                                 activity.paymentMethod,
                                 style: TextStyle(
                                   color: Colors.grey[700],
-                                  fontSize: 10,
+                                  fontSize: AppTextStyles.caption.fontSize,
                                 ),
                               ),
                             ),
@@ -953,7 +954,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                                 activity.activityTypeName,
                                 style: TextStyle(
                                   color: _getTypeColor(activity.activityType),
-                                  fontSize: 10,
+                                  fontSize: AppTextStyles.caption.fontSize,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -1000,7 +1001,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                   ),
                   child: Text(
                     activity.icon,
-                    style: const TextStyle(fontSize: 28),
+                    style: TextStyle(fontSize: AppTextStyles.headline1.fontSize),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1010,14 +1011,14 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                     children: [
                       Text(
                         activity.activityTypeName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                          fontSize: AppTextStyles.headline2.fontSize,
                         ),
                       ),
                       Text(
                         DateFormat('HH:mm - dd/MM/yyyy').format(date),
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                        style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.headline5.fontSize),
                       ),
                     ],
                   ),
@@ -1040,7 +1041,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                     style: TextStyle(
                       color: _getDirectionColor(activity.direction),
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: AppTextStyles.headline3.fontSize,
                     ),
                   ),
                 ),
@@ -1094,13 +1095,13 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
             width: 120,
             child: Text(
               label,
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.headline5.fontSize),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              style: TextStyle(fontWeight: FontWeight.w500, fontSize: AppTextStyles.headline5.fontSize),
             ),
           ),
         ],

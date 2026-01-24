@@ -20,7 +20,6 @@ import 'expense_view.dart';
 import 'debt_view.dart';
 import 'warranty_view.dart';
 import 'shop_settings_view.dart';
-import 'chat_view.dart';
 import 'advanced_chat_view.dart';
 import 'thermal_printer_design_view.dart';
 import 'super_admin_view.dart' as admin_view;
@@ -34,7 +33,6 @@ import 'notifications_view.dart';
 import 'notification_settings_view.dart';
 import 'global_search_view.dart';
 import 'work_schedule_settings_view.dart';
-import 'debt_analysis_view.dart';
 import 'create_sale_view.dart';
 import 'customer_management_view.dart';
 import 'create_repair_order_view.dart';
@@ -48,8 +46,6 @@ import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
 import 'pending_payments_list_view.dart';
-import 'payment_intent_test_view.dart';
-import 'attendance_salary_test_view.dart';
 import '../data/db_helper.dart';
 import '../widgets/pending_stock_widget.dart';
 import '../widgets/pending_payments_widget.dart';
@@ -321,8 +317,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     const SizedBox(width: 6),
                     Text(
                       isLockedByAdmin ? 'ADMIN KHÓA' : 'CHỦ SHOP PHÂN QUYỀN',
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: AppTextStyles.body1.copyWith(
                         fontWeight: FontWeight.bold,
                         color: isLockedByAdmin ? Colors.red : Colors.orange,
                       ),
@@ -613,10 +608,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           child: Center(
             child: Text(
               step,
-              style: const TextStyle(
+              style: AppTextStyles.subtitle1.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
               ),
             ),
           ),
@@ -625,9 +619,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
+            style: AppTextStyles.headline5.copyWith(
               color: Colors.white,
-              fontSize: 13,
               height: 1.4,
             ),
           ),
@@ -1655,7 +1648,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       ? color
                       : AppColors.onSurface.withOpacity(0.5),
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  fontSize: isSelected ? 10 : 9,
+                  fontSize: isSelected
+                      ? AppTextStyles.captionSize
+                      : AppTextStyles.overlineSize,
                 ),
                 child: Text(
                   item.label ?? '',
@@ -1687,7 +1682,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 borderRadius: BorderRadius.circular(15),
                 side: BorderSide(color: Colors.red.shade200),
               ),
-              child: const ListTile(
+              child: ListTile(
                 leading: Icon(Icons.lock, color: Colors.red),
                 title: Text(
                   "CỬA HÀNG BỊ KHÓA",
@@ -1698,7 +1693,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
                 subtitle: Text(
                   "Liên hệ Admin để mở khóa",
-                  style: TextStyle(fontSize: 11),
+                  style: AppTextStyles.body1,
                 ),
               ),
             ),
@@ -1807,18 +1802,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               const SizedBox(width: 8),
               Text(
                 greeting,
-                style: TextStyle(
+                style: AppTextStyles.headline5.copyWith(
                   color: Colors.white.withOpacity(0.9),
-                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const Spacer(),
               Text(
                 DateFormat('EEEE, dd/MM', 'vi').format(DateTime.now()),
-                style: TextStyle(
+                style: AppTextStyles.subtitle1.copyWith(
                   color: Colors.white.withOpacity(0.8),
-                  fontSize: 12,
                 ),
               ),
             ],
@@ -1849,9 +1842,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   children: [
                     Text(
                       _userName.isNotEmpty ? _userName : 'Người dùng',
-                      style: const TextStyle(
+                      style: AppTextStyles.headline1.copyWith(
                         color: Colors.white,
-                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                       maxLines: 1,
@@ -1876,9 +1868,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                               const SizedBox(width: 4),
                               Text(
                                 roleText,
-                                style: const TextStyle(
+                                style: AppTextStyles.body1.copyWith(
                                   color: Colors.white,
-                                  fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -1890,9 +1881,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           Flexible(
                             child: Text(
                               '• $_shopName',
-                              style: TextStyle(
+                              style: AppTextStyles.subtitle1.copyWith(
                                 color: Colors.white.withOpacity(0.85),
-                                fontSize: 12,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1941,22 +1931,23 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             child: const Icon(Icons.waving_hand, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Chào mừng nhân viên mới!',
-                  style: TextStyle(
+                  style: AppTextStyles.headline3.copyWith(
                     color: Colors.white,
-                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 SizedBox(height: 4),
                 Text(
                   'Vào Cài đặt Shop → Tải dữ liệu shop để đồng bộ dữ liệu',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  style: AppTextStyles.subtitle1.copyWith(
+                    color: Colors.white70,
+                  ),
                 ),
               ],
             ),
@@ -2005,22 +1996,23 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Chào mừng nhân viên mới!',
-                      style: TextStyle(
+                      style: AppTextStyles.headline3.copyWith(
                         color: Colors.white,
-                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     SizedBox(height: 4),
                     Text(
                       'Tải dữ liệu shop về máy để bắt đầu làm việc',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: AppTextStyles.subtitle1.copyWith(
+                        color: Colors.white70,
+                      ),
                     ),
                   ],
                 ),
@@ -2089,7 +2081,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           children: [
             RichText(
               text: TextSpan(
-                style: const TextStyle(color: Colors.black87, fontSize: 14),
+                style: AppTextStyles.headline4.copyWith(color: Colors.black87),
                 children: [
                   const TextSpan(text: 'Tải dữ liệu của '),
                   TextSpan(
@@ -2140,8 +2132,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   Expanded(
                     child: Text(
                       'Chỉ tải dữ liệu của shop này, không ảnh hưởng shop khác.',
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: AppTextStyles.body1.copyWith(
                         color: Colors.orange.shade800,
                       ),
                     ),
@@ -2150,10 +2141,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               "Quá trình có thể mất vài phút tùy lượng dữ liệu.",
-              style: TextStyle(
-                fontSize: 11,
+              style: AppTextStyles.body1.copyWith(
                 fontStyle: FontStyle.italic,
                 color: Colors.grey,
               ),
@@ -2195,7 +2185,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 const SizedBox(height: 8),
                 Text(
                   'Vui lòng đợi trong giây lát',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: AppTextStyles.subtitle1.copyWith(
+                    color: Colors.grey.shade600,
+                  ),
                 ),
               ],
             ),
@@ -2229,7 +2221,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         children: [
           Icon(icon, size: 16, color: Colors.blue.shade600),
           const SizedBox(width: 8),
-          Text(text, style: const TextStyle(fontSize: 13)),
+          Text(text, style: AppTextStyles.headline5),
         ],
       ),
     );
@@ -2301,9 +2293,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                           child: Text(
                             unreadChatCount > 99 ? '99+' : '$unreadChatCount',
-                            style: const TextStyle(
+                            style: AppTextStyles.body1.copyWith(
                               color: Colors.white,
-                              fontSize: 11,
                               fontWeight: FontWeight.bold,
                             ),
                             textAlign: TextAlign.center,
@@ -2320,11 +2311,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     children: [
                       Row(
                         children: [
-                          const Text(
+                          Text(
                             "CHAT NHÓM",
-                            style: TextStyle(
+                            style: AppTextStyles.headline3.copyWith(
                               color: Colors.cyan,
-                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -2341,9 +2331,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                               ),
                               child: Text(
                                 '$unreadChatCount tin mới',
-                                style: const TextStyle(
+                                style: AppTextStyles.body1.copyWith(
                                   color: Colors.white,
-                                  fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -2356,8 +2345,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         _latestChatMessage.isNotEmpty
                             ? "${_latestChatSender.isNotEmpty ? '$_latestChatSender: ' : ''}${_latestChatMessage.length > 35 ? '${_latestChatMessage.substring(0, 35)}...' : _latestChatMessage}"
                             : "Chưa có tin nhắn nào",
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: AppTextStyles.subtitle1.copyWith(
                           color: unreadChatCount > 0
                               ? Colors.cyan.shade700
                               : Colors.grey.shade600,
@@ -2401,8 +2389,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 const SizedBox(width: 6),
                 Text(
                   'TRUY CẬP NHANH',
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: AppTextStyles.body1.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade600,
                     letterSpacing: 0.5,
@@ -2423,7 +2410,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   color: Colors.orange,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const PendingStockListView()),
+                    MaterialPageRoute(
+                      builder: (_) => const PendingStockListView(),
+                    ),
                   ),
                 ),
               ),
@@ -2437,7 +2426,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   color: Colors.green,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const PendingPaymentsListView()),
+                    MaterialPageRoute(
+                      builder: (_) => const PendingPaymentsListView(),
+                    ),
                   ),
                 ),
               ),
@@ -2469,7 +2460,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [color.withValues(alpha: 0.05), color.withValues(alpha: 0.1)],
+              colors: [
+                color.withValues(alpha: 0.05),
+                color.withValues(alpha: 0.1),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -2492,23 +2486,25 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: AppTextStyles.headline5.copyWith(
                         fontWeight: FontWeight.bold,
                         color: color.withValues(alpha: 0.9),
                       ),
                     ),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 10,
+                      style: AppTextStyles.caption.copyWith(
                         color: Colors.grey.shade600,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, size: 14, color: color.withValues(alpha: 0.5)),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 14,
+                color: color.withValues(alpha: 0.5),
+              ),
             ],
           ),
         ),
@@ -2522,9 +2518,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
       child: Text(
         title,
-        style: const TextStyle(
+        style: AppTextStyles.subtitle1.copyWith(
           fontWeight: FontWeight.bold,
-          fontSize: 12,
           color: Colors.blueGrey,
           letterSpacing: 0.5,
         ),
@@ -2556,17 +2551,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             const SizedBox(width: 12),
             Text(
               title,
-              style: TextStyle(
+              style: AppTextStyles.headline2.copyWith(
                 color: color,
                 fontWeight: FontWeight.bold,
-                fontSize: 18,
               ),
             ),
           ],
         ),
         content: Text(
           description,
-          style: const TextStyle(fontSize: 14, height: 1.5),
+          style: AppTextStyles.headline4.copyWith(height: 1.5),
         ),
         actions: [
           TextButton(
@@ -2612,9 +2606,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               "Bán sản phẩm nhanh chóng",
-              style: TextStyle(fontSize: 11),
+              style: AppTextStyles.body1,
             ),
             trailing: const Icon(
               Icons.arrow_forward_ios,
@@ -2653,9 +2647,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               "TẠO ĐƠN SỬA CHỮA",
               style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               "Tiếp nhận máy sửa chữa",
-              style: TextStyle(fontSize: 11),
+              style: AppTextStyles.body1,
             ),
             trailing: const Icon(
               Icons.arrow_forward_ios,
@@ -2705,17 +2699,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        const Text(
+                        Text(
                           "+ NHẬP KHO",
-                          style: TextStyle(
+                          style: AppTextStyles.subtitle1.copyWith(
                             color: Colors.green,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
                           ),
                         ),
-                        const Text(
+                        Text(
                           "Nhập kho mới",
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ),
@@ -2756,17 +2751,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        const Text(
+                        Text(
                           "KIỂM KHO",
-                          style: TextStyle(
+                          style: AppTextStyles.subtitle1.copyWith(
                             color: Colors.purple,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
                           ),
                         ),
-                        const Text(
+                        Text(
                           "Quét mã kiểm tra",
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ),
@@ -2811,17 +2807,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        const Text(
+                        Text(
                           "BÁO CÁO",
-                          style: TextStyle(
+                          style: AppTextStyles.subtitle1.copyWith(
                             color: Colors.indigo,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
                           ),
                         ),
-                        const Text(
+                        Text(
                           "Doanh thu",
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ),
@@ -2860,17 +2857,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        const Text(
+                        Text(
                           "CHẤM CÔNG",
-                          style: TextStyle(
+                          style: AppTextStyles.subtitle1.copyWith(
                             color: Colors.teal,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
                           ),
                         ),
-                        const Text(
+                        Text(
                           "Check in/out",
-                          style: TextStyle(fontSize: 10, color: Colors.grey),
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ),
@@ -2905,9 +2903,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               "Tra cứu bảo hành nhanh",
-              style: TextStyle(fontSize: 11),
+              style: AppTextStyles.body1,
             ),
             trailing: const Icon(
               Icons.arrow_forward_ios,
@@ -3151,9 +3149,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 "Tạo đơn bán hàng nhanh chóng",
-                style: TextStyle(fontSize: 11),
+                style: AppTextStyles.body1,
               ),
               trailing: const Icon(
                 Icons.arrow_forward_ios,
@@ -3242,9 +3240,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 "Tiếp nhận máy sửa chữa",
-                style: TextStyle(fontSize: 11),
+                style: AppTextStyles.body1,
               ),
               trailing: const Icon(
                 Icons.arrow_forward_ios,
@@ -3309,8 +3307,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 const SizedBox(width: 4),
                 Text(
                   'Nhấn giữ để xem hướng dẫn chi tiết',
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: AppTextStyles.body1.copyWith(
                     color: Colors.grey.shade600,
                     fontStyle: FontStyle.italic,
                   ),
@@ -3363,18 +3360,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          const Text(
+                          Text(
                             "NHẬP MỚI",
-                            style: TextStyle(
+                            style: AppTextStyles.subtitle1.copyWith(
                               color: Colors.green,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
                             ),
                           ),
                           Text(
                             "Đầy đủ thông tin",
-                            style: TextStyle(
-                              fontSize: 9,
+                            style: AppTextStyles.overline.copyWith(
                               color: Colors.grey.shade600,
                             ),
                           ),
@@ -3428,18 +3423,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          const Text(
+                          Text(
                             "NHẬP NHANH",
-                            style: TextStyle(
+                            style: AppTextStyles.subtitle1.copyWith(
                               color: Colors.orange,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
                             ),
                           ),
                           Text(
                             "Quét mã liên tục",
-                            style: TextStyle(
-                              fontSize: 9,
+                            style: AppTextStyles.overline.copyWith(
                               color: Colors.grey.shade600,
                             ),
                           ),
@@ -3492,18 +3485,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          const Text(
+                          Text(
                             "KIỂM KHO",
-                            style: TextStyle(
+                            style: AppTextStyles.subtitle1.copyWith(
                               color: Colors.purple,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
                             ),
                           ),
                           Text(
                             "Đối chiếu tồn kho",
-                            style: TextStyle(
-                              fontSize: 9,
+                            style: AppTextStyles.overline.copyWith(
                               color: Colors.grey.shade600,
                             ),
                           ),
@@ -3575,14 +3566,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             children: [
               Icon(Icons.lock_person, size: 64, color: Colors.orange.shade300),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 "Không có quyền truy cập",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: AppTextStyles.headline3.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 "Liên hệ chủ shop để được cấp quyền",
-                style: TextStyle(color: Colors.grey, fontSize: 12),
+                style: AppTextStyles.subtitle1.copyWith(color: Colors.grey),
               ),
             ],
           ),
@@ -3626,9 +3619,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 "Ghi nhận giờ làm việc",
-                style: TextStyle(fontSize: 11),
+                style: AppTextStyles.body1,
               ),
               trailing: const Icon(
                 Icons.arrow_forward_ios,
@@ -3770,8 +3763,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 child: Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: AppTextStyles.body1.copyWith(
                     fontWeight: FontWeight.bold,
                     color: color.withOpacity(0.9),
                   ),
@@ -3851,8 +3843,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     child: Text(
                       title,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: AppTextStyles.body1.copyWith(
                         fontWeight: FontWeight.bold,
                         color: color.withOpacity(0.9),
                       ),
@@ -3892,7 +3883,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               child: Text(
                 'HƯỚNG DẪN TÍNH LƯƠNG',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: AppTextStyles.h3,
                   fontWeight: FontWeight.bold,
                   color: Colors.orange,
                 ),
@@ -3992,9 +3983,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         children: [
           Text(
             title,
-            style: TextStyle(
+            style: AppTextStyles.headline5.copyWith(
               fontWeight: FontWeight.bold,
-              fontSize: 13,
               color: color,
             ),
           ),
@@ -4007,7 +3997,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
             child: Text(
               content,
-              style: const TextStyle(fontSize: 12, height: 1.4),
+              style: AppTextStyles.subtitle1.copyWith(height: 1.4),
             ),
           ),
         ],
@@ -4065,9 +4055,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   "Đối soát tiền mặt & ngân hàng",
-                  style: TextStyle(fontSize: 11),
+                  style: AppTextStyles.body1,
                 ),
                 trailing: const Icon(
                   Icons.arrow_forward_ios,
@@ -4166,7 +4156,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               Colors.green,
               () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const PendingPaymentsListView()),
+                MaterialPageRoute(
+                  builder: (_) => const PendingPaymentsListView(),
+                ),
               ),
               subtitle: "Quản lý tất cả các giao dịch thu/chi.",
             ),
@@ -4179,16 +4171,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 MaterialPageRoute(builder: (_) => const ExpenseView()),
               ),
               subtitle: "Thêm và theo dõi các khoản chi phí của cửa hàng.",
-            ),
-            _tabMenuItem(
-              "Phân tích nợ",
-              Icons.analytics,
-              Colors.deepPurple,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DebtAnalysisView()),
-              ),
-              subtitle: "Phân tích chi tiết các khoản nợ và thống kê.",
             ),
             _tabMenuItem(
               "Quản lý nợ (Thu/Chi)",
@@ -4269,8 +4251,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 child: Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: AppTextStyles.body1.copyWith(
                     fontWeight: FontWeight.bold,
                     color: color.withOpacity(0.9),
                   ),
@@ -4319,18 +4300,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: AppTextStyles.headline1.copyWith(
                     color: Colors.white,
-                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   DateFormat('EEEE, dd/MM/yyyy', 'vi').format(DateTime.now()),
-                  style: TextStyle(
+                  style: AppTextStyles.subtitle1.copyWith(
                     color: Colors.white.withOpacity(0.8),
-                    fontSize: 12,
                   ),
                 ),
               ],
@@ -4561,10 +4540,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             const SizedBox(height: 10),
             Text(
               "${MoneyUtils.formatVND(value)} đ",
-              style: AppTextStyles.body1.copyWith(
+              style: AppTextStyles.headline3.copyWith(
                 color: color,
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
               ),
             ),
             if (detail != null) ...[
@@ -4573,7 +4551,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 detail,
                 style: AppTextStyles.overline.copyWith(
                   color: AppColors.onSurface.withOpacity(0.5),
-                  fontSize: 9,
                 ),
               ),
             ],
@@ -4682,10 +4659,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           "ĐĂNG XUẤT",
           style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
         ),
-        subtitle: const Text(
-          "Đăng xuất khỏi tài khoản",
-          style: TextStyle(fontSize: 11),
-        ),
+        subtitle: Text("Đăng xuất khỏi tài khoản", style: AppTextStyles.body1),
         onTap: () async {
           final confirm = await showDialog<bool>(
             context: context,
@@ -4739,7 +4713,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(15),
                   side: BorderSide(color: Colors.grey.shade300),
                 ),
-                child: const ListTile(
+                child: ListTile(
                   leading: SizedBox(
                     width: 30,
                     height: 30,
@@ -4747,11 +4721,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                   title: Text(
                     "Đang kiểm tra đồng bộ...",
-                    style: TextStyle(fontSize: 13),
+                    style: AppTextStyles.headline5,
                   ),
                   subtitle: Text(
                     "Kiểm tra dữ liệu local vs cloud",
-                    style: TextStyle(fontSize: 10),
+                    style: AppTextStyles.caption,
                   ),
                 ),
               );
@@ -4778,17 +4752,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       size: 22,
                     ),
                   ),
-                  title: const Text(
+                  title: Text(
                     "✅ Dữ liệu đồng bộ hoàn toàn",
-                    style: TextStyle(
+                    style: AppTextStyles.headline5.copyWith(
                       color: Colors.green,
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
                     ),
                   ),
-                  subtitle: const Text(
+                  subtitle: Text(
                     "Local và Cloud đã khớp 100%",
-                    style: TextStyle(fontSize: 10),
+                    style: AppTextStyles.caption,
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.refresh, color: Colors.green),
@@ -4821,7 +4794,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   child: Badge(
                     label: Text(
                       '$mismatchCount',
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.white,
+                      ),
                     ),
                     backgroundColor: Colors.red,
                     child: const Icon(
@@ -4831,17 +4806,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-                title: const Text(
+                title: Text(
                   "⚠️ Cần đồng bộ dữ liệu",
-                  style: TextStyle(
+                  style: AppTextStyles.headline5.copyWith(
                     color: Colors.red,
                     fontWeight: FontWeight.bold,
-                    fontSize: 13,
                   ),
                 ),
                 subtitle: Text(
                   "$mismatchCount bản ghi chưa đồng bộ. Bấm để mở Trung tâm đồng bộ.",
-                  style: const TextStyle(fontSize: 10, color: Colors.red),
+                  style: AppTextStyles.caption.copyWith(color: Colors.red),
                 ),
                 trailing: IconButton(
                   icon: const Icon(
@@ -4900,16 +4874,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         ),
         title: Text(
           title,
-          style: TextStyle(
+          style: AppTextStyles.headline4.copyWith(
             color: color,
             fontWeight: FontWeight.bold,
-            fontSize: 14,
           ),
         ),
         subtitle: subtitle != null
             ? Text(
                 subtitle,
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: AppTextStyles.body1.copyWith(color: Colors.grey),
               )
             : null,
         trailing: Icon(
@@ -5209,7 +5182,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     style: AppTextStyles.caption.copyWith(
                       color: color.withOpacity(0.8),
                       fontWeight: FontWeight.w600,
-                      fontSize: 10,
                     ),
                   ),
                 ),
@@ -5224,10 +5196,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             const SizedBox(height: 10),
             Text(
               "${MoneyUtils.formatVND(value)} đ",
-              style: AppTextStyles.body1.copyWith(
+              style: AppTextStyles.headline3.copyWith(
                 color: color,
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
               ),
             ),
             if (subLabel != null) ...[
@@ -5236,7 +5207,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 subLabel,
                 style: AppTextStyles.overline.copyWith(
                   color: AppColors.onSurface.withOpacity(0.5),
-                  fontSize: 9,
                 ),
               ),
             ],
@@ -5303,10 +5273,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           const SizedBox(height: 4),
           Text(
             "= Thu - Chi - Giá vốn",
-            style: AppTextStyles.overline.copyWith(
-              color: Colors.white70,
-              fontSize: 10,
-            ),
+            style: AppTextStyles.overline.copyWith(color: Colors.white70),
           ),
         ],
       ),
@@ -5349,7 +5316,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               label,
               style: AppTextStyles.overline.copyWith(
                 color: AppColors.onSurface.withOpacity(0.6),
-                fontSize: 9,
               ),
               textAlign: TextAlign.center,
             ),

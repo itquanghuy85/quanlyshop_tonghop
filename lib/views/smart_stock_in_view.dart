@@ -11,6 +11,7 @@ import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../widgets/currency_text_field.dart';
+import '../theme/app_text_styles.dart';
 
 /// Form nhập kho thông minh - hỗ trợ cả Nhập nhanh và Nhập tạm
 class SmartStockInView extends StatefulWidget {
@@ -509,8 +510,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       appBar: AppBar(
         title: Text(
           widget.editEntry != null ? 'CHỈNH SỬA PHIẾU NHẬP' : 'NHẬP KHO MỚI',
-          style: const TextStyle(
-            fontSize: 16,
+          style: TextStyle(
+            fontSize: AppTextStyles.headline3.fontSize,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -570,7 +571,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                                 vertical: 8,
                               ),
                             ),
-                            style: const TextStyle(fontSize: 13),
+                            style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
                           ),
                         ],
                       ),
@@ -593,9 +594,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Loại sản phẩm',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
             ),
             const SizedBox(height: 8),
             Row(
@@ -634,7 +635,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppTextStyles.subtitle1.fontSize,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               color: isSelected ? Colors.blue.shade700 : Colors.black87,
             ),
@@ -665,7 +666,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                   vertical: 8,
                 ),
               ),
-              style: const TextStyle(fontSize: 13),
+              style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
@@ -691,7 +692,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                         vertical: 8,
                       ),
                     ),
-                    style: const TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
                     onChanged: (value) {
                       // Nếu có IMEI thì số lượng phải = 1
                       if (value.isNotEmpty) {
@@ -732,13 +733,13 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: b,
                             child: Text(
                               b,
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                             ),
                           ),
                         )
                         .toList(),
                     onChanged: (v) => setState(() => _selectedBrand = v),
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -755,7 +756,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                         vertical: 8,
                       ),
                     ),
-                    style: const TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
                   ),
                 ),
               ],
@@ -782,13 +783,13 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: c,
                             child: Text(
                               c,
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                             ),
                           ),
                         )
                         .toList(),
                     onChanged: (v) => setState(() => _selectedCapacity = v),
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -809,13 +810,13 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: c,
                             child: Text(
                               c,
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                             ),
                           ),
                         )
                         .toList(),
                     onChanged: (v) => setState(() => _selectedColor = v),
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
                   ),
                 ),
               ],
@@ -842,13 +843,13 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: c,
                             child: Text(
                               c,
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                             ),
                           ),
                         )
                         .toList(),
                     onChanged: (v) => setState(() => _selectedCondition = v),
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -873,7 +874,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                           filled: _imeiCtrl.text.trim().isNotEmpty,
                           fillColor: Colors.grey.shade200,
                         ),
-                        style: const TextStyle(fontSize: 13),
+                        style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
                         onChanged: (v) {
                           // Nếu có IMEI, ép số lượng = 1
                           if (_imeiCtrl.text.trim().isNotEmpty && v != '1') {
@@ -891,7 +892,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                           padding: EdgeInsets.only(top: 2),
                           child: Text(
                             '(có IMEI)',
-                            style: TextStyle(fontSize: 9, color: Colors.grey),
+                            style: TextStyle(fontSize: AppTextStyles.overlineSize, color: Colors.grey),
                           ),
                         ),
                       // Hiển thị ghi chú nhập lô
@@ -909,7 +910,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                           ),
                           child: const Text(
                             '📦 Nhập lô',
-                            style: TextStyle(fontSize: 9, color: Colors.blue),
+                            style: TextStyle(fontSize: AppTextStyles.overlineSize, color: Colors.blue),
                           ),
                         ),
                     ],
@@ -940,7 +941,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                       child: Text(
                         'Nhập ${_quantityCtrl.text} máy → Khi xác nhận sẽ tạo ${_quantityCtrl.text} sản phẩm riêng biệt, mỗi máy có IMEI tạm (cần cập nhật sau)',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: AppTextStyles.body1.fontSize,
                           color: Colors.blue.shade700,
                         ),
                       ),
@@ -980,7 +981,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                   vertical: 8,
                 ),
               ),
-              style: const TextStyle(fontSize: 13),
+              style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
@@ -1002,7 +1003,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                         vertical: 8,
                       ),
                     ),
-                    style: const TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1023,13 +1024,13 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: u,
                             child: Text(
                               u,
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                             ),
                           ),
                         )
                         .toList(),
                     onChanged: (v) => setState(() => _selectedUnit = v),
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
                   ),
                 ),
               ],
@@ -1049,7 +1050,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                   vertical: 8,
                 ),
               ),
-              style: const TextStyle(fontSize: 13),
+              style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
             ),
           ],
         ),
@@ -1078,14 +1079,14 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                   'Thông tin kế toán',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                    fontSize: AppTextStyles.headline5.fontSize,
                     color: Colors.orange.shade700,
                   ),
                 ),
                 const Spacer(),
                 Text(
                   '(Để trống nếu chưa biết)',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
                 ),
               ],
             ),
@@ -1147,7 +1148,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: s['name'] as String,
                             child: Text(
                               s['name'] ?? '',
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                             ),
                           ),
                         )
@@ -1163,7 +1164,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                         _selectedSupplierLocalId = supplier['id'] as int?;
                       });
                     },
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1181,9 +1182,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
             const SizedBox(height: 12),
 
             // Phương thức thanh toán
-            const Text(
+            Text(
               'Phương thức thanh toán',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 4),
             Wrap(
@@ -1191,7 +1192,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
               children: _paymentMethods.map((method) {
                 final isSelected = _selectedPaymentMethod == method;
                 return ChoiceChip(
-                  label: Text(method, style: const TextStyle(fontSize: 11)),
+                  label: Text(method, style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                   selected: isSelected,
                   onSelected: (selected) {
                     setState(
@@ -1253,7 +1254,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                       child: Text(
                         'Thiếu: ${missingInfo.join(", ")}',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: AppTextStyles.body1.fontSize,
                           color: Colors.orange.shade700,
                         ),
                         maxLines: 2,
@@ -1327,7 +1328,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Thêm NCC mới', style: TextStyle(fontSize: 14)),
+        title: Text('Thêm NCC mới', style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1415,7 +1416,7 @@ class _IMEIScannerDialogState extends State<_IMEIScannerDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Quét IMEI', style: TextStyle(fontSize: 14)),
+      title: Text('Quét IMEI', style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
       content: SizedBox(
         width: 300,
         height: 300,

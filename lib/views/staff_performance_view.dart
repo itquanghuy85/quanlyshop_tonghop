@@ -4,6 +4,7 @@ import '../models/salary_breakdown_model.dart';
 import '../services/salary_calculation_service.dart';
 import '../services/salary_slip_pdf_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 import 'hr_salary_settings_view.dart';
 import 'hr/shop_deduction_settings_view.dart';
 import 'hr/add_custom_adjustment_dialog.dart';
@@ -122,11 +123,11 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
           onPressed: () => Navigator.of(context).pop(),
           tooltip: 'Quay lại',
         ),
-        title: const Text(
+        title: Text(
           "BẢNG LƯƠNG NHÂN VIÊN",
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 15,
+            fontSize: AppTextStyles.headline3.fontSize,
             color: Colors.white,
           ),
         ),
@@ -239,10 +240,10 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
           ),
           Text(
             'THÁNG ${_selectedMonth.month.toString().padLeft(2, '0')} / ${_selectedMonth.year}',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 18,
+              fontSize: AppTextStyles.headline2.fontSize,
             ),
           ),
           IconButton(
@@ -294,9 +295,9 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
               const SizedBox(width: 8),
               Text(
                 '${_salaryReports.length} NHÂN VIÊN',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: AppTextStyles.headline4.fontSize,
                 ),
               ),
             ],
@@ -343,7 +344,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: AppTextStyles.caption.fontSize,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),
@@ -354,7 +355,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
               child: Text(
                 value,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: AppTextStyles.headline5.fontSize,
                   fontWeight: FontWeight.bold,
                   color: color.withOpacity(0.9),
                 ),
@@ -378,7 +379,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             style: TextStyle(
               color: Colors.grey.shade600,
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: AppTextStyles.headline3.fontSize,
             ),
           ),
           const SizedBox(height: 8),
@@ -389,7 +390,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
           const SizedBox(height: 16),
           Text(
             'Hãy thêm nhân viên vào shop trước',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+            style: TextStyle(color: Colors.grey.shade500, fontSize: AppTextStyles.subtitle1.fontSize),
           ),
         ],
       ),
@@ -423,7 +424,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
           ),
           title: Text(
             data.staffName.toUpperCase(),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize),
           ),
           subtitle: Row(
             mainAxisSize: MainAxisSize.min,
@@ -467,20 +468,20 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Text(
+              Text(
                 'THỰC NHẬN',
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: AppTextStyles.overlineSize,
                   color: Colors.grey,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Text(
                 '${_currencyFormat.format(data.totalSalary)}đ',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.green,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: AppTextStyles.headline3.fontSize,
                 ),
               ),
             ],
@@ -501,7 +502,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: AppTextStyles.caption.fontSize,
           color: color,
           fontWeight: FontWeight.w600,
         ),
@@ -532,20 +533,20 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
                 top: Radius.circular(8),
               ),
             ),
-            child: const Row(
+            child: Row(
               children: [
                 Expanded(
                   flex: 3,
                   child: Text(
                     'KHOẢN MỤC',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize),
                   ),
                 ),
                 Expanded(
                   flex: 2,
                   child: Text(
                     'CÔNG THỨC',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -553,7 +554,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
                   flex: 2,
                   child: Text(
                     'THÀNH TIỀN',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize),
                     textAlign: TextAlign.right,
                   ),
                 ),
@@ -742,13 +743,13 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
                   ),
                   child: Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         flex: 3,
                         child: Text(
                           '💵 THỰC NHẬN (NET)',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                            fontSize: AppTextStyles.headline5.fontSize,
                           ),
                         ),
                       ),
@@ -759,7 +760,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
                           '${_currencyFormat.format(data.totalSalary)}đ',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                            fontSize: AppTextStyles.headline3.fontSize,
                             color: Colors.green.shade700,
                           ),
                           textAlign: TextAlign.right,
@@ -908,7 +909,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
                         child: Text(
                           note,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: AppTextStyles.body1.fontSize,
                             color: Colors.amber.shade900,
                             fontFamily: 'monospace',
                           ),
@@ -1019,7 +1020,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
 
       bool success = true;
       if (printType == 'pdf') {
-        await SalarySlipPdfService.printSalarySlip(data);
+        success = await SalarySlipPdfService.printSalarySlip(data);
       } else {
         final is80mm = printType == 'thermal_80';
         success = await SalarySlipPdfService.printSalarySlipThermal(
@@ -1030,12 +1031,14 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
 
       if (mounted) Navigator.of(context).pop();
 
-      if (!success && printType != 'pdf') {
+      if (!success) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'Không thể kết nối máy in. Kiểm tra IP trong Cài đặt máy in.',
+                printType == 'pdf'
+                    ? 'Không thể in PDF. Vui lòng kiểm tra quyền truy cập hoặc thử lại.'
+                    : 'Không thể kết nối máy in. Kiểm tra IP trong Cài đặt máy in.',
               ),
               backgroundColor: Colors.orange,
             ),
@@ -1091,9 +1094,9 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontWeight: FontWeight.bold,
-        fontSize: 12,
+        fontSize: AppTextStyles.subtitle1.fontSize,
         color: Colors.black87,
       ),
     );
@@ -1111,7 +1114,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
         title,
         style: TextStyle(
           fontWeight: FontWeight.bold,
-          fontSize: 10,
+          fontSize: AppTextStyles.caption.fontSize,
           color: color,
         ),
       ),
@@ -1136,7 +1139,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
               label,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 color: color,
               ),
             ),
@@ -1147,7 +1150,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
               '${amount < 0 ? "" : ""}${_currencyFormat.format(amount.abs())}đ',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 color: color,
               ),
               textAlign: TextAlign.right,
@@ -1187,15 +1190,15 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: AppTextStyles.subtitle1.fontSize,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 if (subText != null)
                   Text(
                     subText,
-                    style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: AppTextStyles.overlineSize, color: Colors.grey.shade600),
                   ),
               ],
             ),
@@ -1204,7 +1207,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             flex: 2,
             child: Text(
               formula,
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey.shade700),
               textAlign: TextAlign.center,
             ),
           ),
@@ -1213,7 +1216,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             child: Text(
               '${isNegative ? "-" : ""}${_currencyFormat.format(amount.abs())}đ',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 fontWeight: FontWeight.w600,
                 color: isNegative
                     ? Colors.red
@@ -1235,13 +1238,13 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             value,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: AppTextStyles.headline3.fontSize,
               color: color,
             ),
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -1269,21 +1272,21 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             title,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 11,
+              fontSize: AppTextStyles.body1.fontSize,
               color: color,
             ),
           ),
           const SizedBox(height: 8),
-          Text('$count đơn', style: const TextStyle(fontSize: 11)),
+          Text('$count đơn', style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
           const Divider(height: 12),
           Text(
             'DS: ${_currencyFormat.format(revenue)}đ',
-            style: const TextStyle(fontSize: 10),
+            style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
           ),
           Text(
             'LN: ${_currencyFormat.format(profit)}đ',
             style: TextStyle(
-              fontSize: 10,
+              fontSize: AppTextStyles.caption.fontSize,
               fontWeight: FontWeight.w600,
               color: profit > 0 ? Colors.green.shade700 : Colors.red,
             ),
@@ -1300,11 +1303,11 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
         children: [
           Text(
             '• $label: ',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade700),
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: AppTextStyles.body1.fontSize, fontWeight: FontWeight.w500),
           ),
         ],
       ),

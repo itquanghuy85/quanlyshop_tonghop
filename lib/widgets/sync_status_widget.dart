@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/connectivity_service.dart';
+import '../theme/app_text_styles.dart';
 
 class SyncStatusWidget extends StatefulWidget {
   const SyncStatusWidget({super.key});
@@ -42,10 +43,7 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text('Lỗi đồng bộ: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Lỗi đồng bộ: $e'), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -100,9 +98,14 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green.shade600,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 0,
+                  ),
                   minimumSize: const Size(0, 24),
-                  textStyle: const TextStyle(fontSize: 12),
+                  textStyle: TextStyle(
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                  ),
                 ),
               ),
             ),

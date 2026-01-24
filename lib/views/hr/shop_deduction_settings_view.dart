@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/shop_deduction_settings.dart';
 import '../../services/salary_calculation_service.dart';
+import '../../theme/app_text_styles.dart';
 
 /// Màn hình cài đặt Khấu trừ, Thuế, Bảo hiểm của shop
 class ShopDeductionSettingsView extends StatefulWidget {
@@ -172,7 +173,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             Text(
               'Ví dụ: Miễn 2 lần → Đi muộn 5 lần → Trừ 3 lần',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 fontStyle: FontStyle.italic,
                 color: Colors.grey[600],
               ),
@@ -253,7 +254,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             Text(
               'Ví dụ: Phép 2 ngày → Nghỉ 5 ngày → Trừ 3 ngày',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 fontStyle: FontStyle.italic,
                 color: Colors.grey[600],
               ),
@@ -327,7 +328,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             Text(
               'Nếu để 0, hệ thống sẽ dùng lương cơ bản làm mức đóng BH',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppTextStyles.subtitle1.fontSize,
                 fontStyle: FontStyle.italic,
                 color: Colors.grey[600],
               ),
@@ -429,7 +430,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                 Text(
                   '${_settings.totalInsuranceRate.toStringAsFixed(1)}%',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: AppTextStyles.headline1.fontSize,
                     fontWeight: FontWeight.bold,
                     color: Colors.green.shade700,
                   ),
@@ -479,7 +480,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                   '• 32-52 triệu: 25%\n'
                   '• 52-80 triệu: 30%\n'
                   '• Trên 80 triệu: 35%',
-                  style: TextStyle(color: Colors.amber.shade800, fontSize: 13),
+                  style: TextStyle(color: Colors.amber.shade800, fontSize: AppTextStyles.headline5.fontSize),
                 ),
               ],
             ),
@@ -535,12 +536,12 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                   const SizedBox(height: 4),
                   Text(
                     'Thu nhập chịu thuế = GROSS - BH - Giảm trừ bản thân - Giảm trừ người phụ thuộc',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Thuế TNCN = Áp dụng biểu thuế lũy tiến',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey[700]),
                   ),
                 ],
               ),
@@ -557,9 +558,9 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     '📊 Ví dụ tính thuế:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
                   ),
                   const Divider(),
                   _buildDemoRow('Thu nhập GROSS', 20000000),
@@ -665,8 +666,8 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: AppTextStyles.headline3.fontSize,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
