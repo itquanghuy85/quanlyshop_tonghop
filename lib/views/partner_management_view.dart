@@ -93,7 +93,11 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
 
       // Load import history for suppliers
       for (var supplier in _suppliers) {
-        final history = await supplierService.getSupplierImportHistory(supplier.id.toString());
+        // Truyền cả supplierName để tìm được cả các record lưu với supplierId = 0
+        final history = await supplierService.getSupplierImportHistory(
+          supplier.id.toString(),
+          supplierName: supplier.name,
+        );
         _supplierImportHistory.addAll(history);
         final prices = await supplierService.getSupplierProductPrices(supplier.id.toString());
         _supplierProductPrices.addAll(prices);

@@ -166,9 +166,15 @@ class SupplierService {
   }
 
   // Supplier Import History
-  Future<List<SupplierImportHistory>> getSupplierImportHistory(String supplierId) async {
+  Future<List<SupplierImportHistory>> getSupplierImportHistory(
+    String supplierId, {
+    String? supplierName,
+  }) async {
     final shopId = await UserService.getCurrentShopId();
-    final data = await db.getSupplierImportHistory(int.parse(supplierId));
+    final data = await db.getSupplierImportHistory(
+      int.parse(supplierId),
+      supplierName: supplierName,
+    );
     return data
         .where((h) => h['shopId'] == shopId)
         .map((h) => SupplierImportHistory.fromMap(h))
@@ -220,9 +226,11 @@ class SupplierService {
   }
 
   // Statistics
-  Future<Map<String, dynamic>> getSupplierStatistics(String supplierId) async {
+  Future<Map<String, dynamic>> getSupplierStatistics(
+    String supplierId, {
+    String? supplierName,
+  }) async {
     final shopId = await UserService.getCurrentShopId();
-    final data = await db.getSupplierStatistics(supplierId, shopId!);
 
     double totalPaid = 0;
     double totalOwed = 0;
@@ -235,8 +243,11 @@ class SupplierService {
       totalPaid += payment['amount'] ?? 0;
     }
 
-    // Calculate from import history
-    final imports = await db.getSupplierImportHistory(int.parse(supplierId));
+    // Calculate from import history - truyền cả supplierName để tìm theo tên nếu supplierId không khớp
+    final imports = await db.getSupplierImportHistory(
+      int.parse(supplierId),
+      supplierName: supplierName,
+    );
     for (var import in imports.where((i) => i['shopId'] == shopId)) {
       totalImports++;
       // FIX: Field name is 'totalAmount', not 'totalCost'

@@ -48,8 +48,14 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
     setState(() => _isLoading = true);
     try {
       final supplierId = widget.supplier['id'];
+      final supplierName = widget.supplier['name'] as String?;
       if (supplierId != null) {
-        final history = await db.getSupplierImportHistory(supplierId, limit: 50);
+        // Truyền cả supplierName để tìm theo tên nếu supplierId không khớp
+        final history = await db.getSupplierImportHistory(
+          supplierId,
+          limit: 50,
+          supplierName: supplierName,
+        );
         final prices = await db.getSupplierProductPrices(supplierId);
         final stats = await db.getSupplierImportStats(supplierId);
 

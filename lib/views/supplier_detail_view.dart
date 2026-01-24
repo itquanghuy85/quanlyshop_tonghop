@@ -45,7 +45,11 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final imports = await _db.getSupplierImportHistory(widget.supplier.id!);
+      // Truyền cả supplierId và supplierName để tìm được cả các record lưu với supplierId = 0
+      final imports = await _db.getSupplierImportHistory(
+        widget.supplier.id!,
+        supplierName: widget.supplier.name,
+      );
       final debts = (await _db.getAllDebts())
           .where((d) => d['type'] == 'SHOP_OWES' && (d['personName'] ?? '').toString().toUpperCase() == widget.supplier.name.toUpperCase() && (d['deleted'] ?? 0) != 1)
           .toList();
@@ -54,7 +58,10 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
         final p = await _db.getDebtPayments(d['id'] as int);
         payments.addAll(p);
       }
-      final stats = await _service.getSupplierStatistics(widget.supplier.id!.toString());
+      final stats = await _service.getSupplierStatistics(
+        widget.supplier.id!.toString(),
+        supplierName: widget.supplier.name,
+      );
       setState(() {
         _imports = imports;
         _debts = debts;

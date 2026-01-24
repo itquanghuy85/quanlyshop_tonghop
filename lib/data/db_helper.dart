@@ -4294,26 +4294,33 @@ class DBHelper {
     int supplierId, {
     int? limit,
     int? offset,
+    String? supplierName,
   }) async {
     final db = await database;
-    String query = 'supplierId = ?';
-    List<dynamic> args = [supplierId];
+    
+    // Query theo cả supplierId và supplierName (fallback nếu supplierId = 0 hoặc không tìm thấy)
+    String whereClause;
+    List<dynamic> whereArgs;
+    
+    if (supplierName != null && supplierName.isNotEmpty) {
+      // Tìm theo supplierId HOẶC supplierName (case-insensitive)
+      whereClause = '(supplierId = ? OR UPPER(supplierName) = UPPER(?))';
+      whereArgs = [supplierId, supplierName];
+    } else {
+      whereClause = 'supplierId = ?';
+      whereArgs = [supplierId];
+    }
 
+    String query = 'SELECT * FROM supplier_import_history WHERE $whereClause ORDER BY importDate DESC';
+    
     if (limit != null) {
-      query += ' LIMIT ?';
-      args.add(limit);
+      query += ' LIMIT $limit';
       if (offset != null) {
-        query += ' OFFSET ?';
-        args.add(offset);
+        query += ' OFFSET $offset';
       }
     }
 
-    return await db.query(
-      'supplier_import_history',
-      where: query,
-      whereArgs: args,
-      orderBy: 'importDate DESC',
-    );
+    return await db.rawQuery(query, whereArgs);
   }
 
   Future<List<Map<String, dynamic>>> getSupplierImportHistoryByDateRange(
@@ -4661,9 +4668,23 @@ class DBHelper {
 
   Future<Map<String, dynamic>> getSupplierStatistics(
     String supplierId,
-    String shopId,
-  ) async {
+    String shopId, {
+    String? supplierName,
+  }) async {
     final db = await database;
+    
+    // Query theo cả supplierId và supplierName để bắt được các record lưu với supplierId = 0
+    String whereClause;
+    List<dynamic> whereArgs;
+    
+    if (supplierName != null && supplierName.isNotEmpty) {
+      whereClause = '(sih.supplierId = ? OR UPPER(sih.supplierName) = UPPER(?)) AND sih.shopId = ?';
+      whereArgs = [supplierId, supplierName, shopId];
+    } else {
+      whereClause = 'sih.supplierId = ? AND sih.shopId = ?';
+      whereArgs = [supplierId, shopId];
+    }
+    
     final result = await db.rawQuery(
       '''
       SELECT
@@ -4672,9 +4693,9 @@ class DBHelper {
         COALESCE(SUM(sp.amount), 0) as totalPaid
       FROM supplier_import_history sih
       LEFT JOIN supplier_payments sp ON sih.supplierId = sp.supplierId
-      WHERE sih.supplierId = ? AND sih.shopId = ?
+      WHERE $whereClause
     ''',
-      [supplierId, shopId],
+      whereArgs,
     );
     return result.isNotEmpty ? result.first : {};
   }
