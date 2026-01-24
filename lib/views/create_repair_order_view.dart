@@ -979,40 +979,48 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     );
   }
 
-  /// COMPACT: Bảo mật + Phụ kiện trong 1 Card
+  /// COMPACT: Bảo mật + Phụ kiện trong ExpansionTile (thu gọn được)
   Widget _buildCompactSecurityAccessoriesSection() {
+    final hasContent = passCtrl.text.isNotEmpty || _selectedAccs.isNotEmpty || accCtrl.text.isNotEmpty;
     return Card(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+        dense: true,
+        leading: Icon(Icons.lock_outline, color: Colors.red.shade400, size: 20),
+        title: Row(
           children: [
-            // Row: Mật khẩu
-            Row(
-              children: [
-                Icon(Icons.lock_outline, color: Colors.red.shade400, size: 18),
-                const SizedBox(width: 6),
-                Text("BẢO MẬT & PHỤ KIỆN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red.shade400)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _compactInput(passCtrl, "Mật khẩu màn hình", Icons.lock),
-            const SizedBox(height: 8),
-            // Quick accs chips
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                _compactChip("SIM", _selectedAccs.contains("SIM"), () => _toggleAcc("SIM")),
-                _compactChip("ỐP LƯNG", _selectedAccs.contains("ỐP LƯNG"), () => _toggleAcc("ỐP LƯNG")),
-                _compactChip("KO PHỤ KIỆN", _selectedAccs.contains("KO PHỤ KIỆN"), () => _toggleAcc("KO PHỤ KIỆN")),
-              ],
-            ),
-            const SizedBox(height: 6),
-            _compactInput(accCtrl, "Phụ kiện khác", Icons.add_box_outlined, caps: true),
+            Text("BẢO MẬT & PHỤ KIỆN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            if (hasContent) ...[
+              const SizedBox(width: 8),
+              Icon(Icons.check_circle, color: Colors.green, size: 16),
+            ],
           ],
         ),
+        initiallyExpanded: false, // Mặc định thu gọn để tiết kiệm không gian
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(
+              children: [
+                _compactInput(passCtrl, "Mật khẩu màn hình", Icons.lock),
+                const SizedBox(height: 8),
+                // Quick accs chips
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    _compactChip("SIM", _selectedAccs.contains("SIM"), () => _toggleAcc("SIM")),
+                    _compactChip("ỐP LƯNG", _selectedAccs.contains("ỐP LƯNG"), () => _toggleAcc("ỐP LƯNG")),
+                    _compactChip("KO PHỤ KIỆN", _selectedAccs.contains("KO PHỤ KIỆN"), () => _toggleAcc("KO PHỤ KIỆN")),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                _compactInput(accCtrl, "Phụ kiện khác", Icons.add_box_outlined, caps: true),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

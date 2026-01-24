@@ -23,7 +23,7 @@ class LabelSettingsService {
     if (_cachedTemplates != null) return _cachedTemplates!;
 
     final prefs = await SharedPreferences.getInstance();
-    final shopId = UserService().getCurrentShopId();
+    final shopId = await UserService.getCurrentShopId() ?? 'default';
     final key = '${_templatesKey}_$shopId';
 
     final jsonStr = prefs.getString(key);
@@ -46,7 +46,7 @@ class LabelSettingsService {
   /// Lưu templates
   Future<void> _saveTemplates(List<LabelTemplate> templates) async {
     final prefs = await SharedPreferences.getInstance();
-    final shopId = UserService().getCurrentShopId();
+    final shopId = await UserService.getCurrentShopId() ?? 'default';
     final key = '${_templatesKey}_$shopId';
 
     final jsonList = templates.map((e) => e.toMap()).toList();
@@ -81,7 +81,7 @@ class LabelSettingsService {
   /// Lấy template mặc định đang được chọn
   Future<LabelTemplate> getDefaultTemplate() async {
     final prefs = await SharedPreferences.getInstance();
-    final shopId = UserService().getCurrentShopId();
+    final shopId = await UserService.getCurrentShopId() ?? 'default';
     final key = '${_defaultTemplateKey}_$shopId';
 
     final defaultId = prefs.getString(key) ?? 'sales';
@@ -100,7 +100,7 @@ class LabelSettingsService {
   /// Đặt template mặc định
   Future<void> setDefaultTemplate(String templateId) async {
     final prefs = await SharedPreferences.getInstance();
-    final shopId = UserService().getCurrentShopId();
+    final shopId = await UserService.getCurrentShopId() ?? 'default';
     final key = '${_defaultTemplateKey}_$shopId';
     await prefs.setString(key, templateId);
   }
@@ -152,7 +152,7 @@ class LabelSettingsService {
     if (_cachedShopSettings != null) return _cachedShopSettings!;
 
     final prefs = await SharedPreferences.getInstance();
-    final shopId = UserService().getCurrentShopId();
+    final shopId = await UserService.getCurrentShopId() ?? 'default';
     final key = '${_shopLabelSettingsKey}_$shopId';
 
     final jsonStr = prefs.getString(key);
@@ -173,7 +173,7 @@ class LabelSettingsService {
   /// Lưu cài đặt tem của shop
   Future<void> saveShopLabelSettings(ShopLabelSettings settings) async {
     final prefs = await SharedPreferences.getInstance();
-    final shopId = UserService().getCurrentShopId();
+    final shopId = await UserService.getCurrentShopId() ?? 'default';
     final key = '${_shopLabelSettingsKey}_$shopId';
 
     await prefs.setString(key, json.encode(settings.toMap()));
@@ -183,7 +183,7 @@ class LabelSettingsService {
   /// Reset về mặc định
   Future<void> resetToDefaults() async {
     final prefs = await SharedPreferences.getInstance();
-    final shopId = UserService().getCurrentShopId();
+    final shopId = await UserService.getCurrentShopId() ?? 'default';
 
     await prefs.remove('${_templatesKey}_$shopId');
     await prefs.remove('${_defaultTemplateKey}_$shopId');

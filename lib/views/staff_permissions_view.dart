@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_text_styles.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_service.dart';
+import '../services/audit_service.dart';
 import '../data/db_helper.dart';
 
 ImageProvider? _safeImageProvider(String? path) {
@@ -81,6 +82,15 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
         allowViewDebts: permissionKey == 'allowViewDebts' ? value : (userData['allowViewDebts'] ?? false),
       );
       if (mounted) {
+        // Ghi log thay đổi quyền
+        await AuditService.logAction(
+          action: 'CẬP NHẬT QUYỀN',
+          entityType: 'PERMISSION',
+          entityId: uid,
+          summary: 'Đã ${value ? 'bật' : 'tắt'} quyền ${permissionKey.replaceAll('allowView', '').toLowerCase()}',
+          payload: {'permissionKey': permissionKey, 'value': value},
+        );
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Đã cập nhật quyền ${permissionKey.replaceAll('allowView', '').toLowerCase()}"), backgroundColor: Colors.green),
         );

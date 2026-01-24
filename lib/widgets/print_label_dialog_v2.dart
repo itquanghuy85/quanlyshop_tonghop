@@ -964,9 +964,9 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
 
     try {
       // Kiểm tra kết nối máy in
-      final btService = BluetoothPrinterService();
-      if (!btService.isConnected) {
-        final result = await showDialog<PrinterDevice?>(
+      final isConnected = await BluetoothPrinterService.isConnected();
+      if (!isConnected) {
+        final result = await showDialog<BluetoothPrinterConfig?>(
           context: context,
           builder: (ctx) => const PrinterSelectionDialog(),
         );

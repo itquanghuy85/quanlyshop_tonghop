@@ -127,7 +127,9 @@ class _LabelSettingsViewState extends State<LabelSettingsView> with SingleTicker
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Cài đặt Tem sản phẩm'),
+      appBar: CustomAppBar.build(
+        title: 'Cài đặt Tem sản phẩm',
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(

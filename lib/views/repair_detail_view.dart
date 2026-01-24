@@ -1628,71 +1628,75 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             // === COMPACT: Khách hàng + Hình ảnh ===
             Card(
               margin: const EdgeInsets.only(bottom: 8),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              child: ExpansionTile(
+                tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+                dense: true,
+                initiallyExpanded: false, // Thu gọn mặc định để giảm scroll
+                leading: Icon(Icons.person, size: 18, color: Colors.blue.shade700),
+                title: Row(
                   children: [
-                    // Header khách hàng
-                    Row(
-                      children: [
-                        Icon(Icons.person, size: 18, color: Colors.blue.shade700),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(r.customerName.toUpperCase(), style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold)),
-                        ),
-                        TextButton.icon(
-                          onPressed: _callCustomer,
-                          icon: const Icon(Icons.call, size: 14),
-                          label: Text(r.phone, style: AppTextStyles.caption),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                      ],
+                    Expanded(
+                      child: Text(r.customerName.toUpperCase(), style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold)),
                     ),
-                    const SizedBox(height: 4),
-                    // Info rows compact
-                    _compactInfoRow("Lỗi", r.issue),
-                    if (r.accessories.isNotEmpty) _compactInfoRow("PK", r.accessories),
-                    if (r.warranty.isNotEmpty) _compactInfoRow("BH", r.warranty),
-                    if (r.notes != null && r.notes!.isNotEmpty) _compactInfoRow("Ghi chú", r.notes!),
-                    if (r.deliveredAt != null) _compactInfoRow("Giao", DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!))),
-                    
-                    // Hình ảnh
-                    if (r.receiveImages.isNotEmpty) ...[
-                      const Divider(height: 12),
-                      Row(
-                        children: [
-                          Icon(Icons.photo_library, size: 16, color: Colors.pink.shade700),
-                          const SizedBox(width: 4),
-                          Text("HÌNH ẢNH (${r.receiveImages.length})", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.pink.shade700)),
-                        ],
+                    TextButton.icon(
+                      onPressed: _callCustomer,
+                      icon: const Icon(Icons.call, size: 14),
+                      label: Text(r.phone, style: AppTextStyles.caption),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        visualDensity: VisualDensity.compact,
                       ),
-                      const SizedBox(height: 6),
-                      SizedBox(
-                        height: 60,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: r.receiveImages.length,
-                          itemBuilder: (ctx, i) => GestureDetector(
-                            onTap: () => _showFullImage(r.receiveImages, i),
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              width: 60,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.shade200),
-                              ),
-                              child: ClipRRect(borderRadius: BorderRadius.circular(8), child: _buildSmartImage(r.receiveImages[i])),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ],
                 ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Info rows compact
+                        _compactInfoRow("Lỗi", r.issue),
+                        if (r.accessories.isNotEmpty) _compactInfoRow("PK", r.accessories),
+                        if (r.warranty.isNotEmpty) _compactInfoRow("BH", r.warranty),
+                        if (r.notes != null && r.notes!.isNotEmpty) _compactInfoRow("Ghi chú", r.notes!),
+                        if (r.deliveredAt != null) _compactInfoRow("Giao", DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!))),
+                        
+                        // Hình ảnh
+                        if (r.receiveImages.isNotEmpty) ...[
+                          const Divider(height: 12),
+                          Row(
+                            children: [
+                              Icon(Icons.photo_library, size: 16, color: Colors.pink.shade700),
+                              const SizedBox(width: 4),
+                              Text("HÌNH ẢNH (${r.receiveImages.length})", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.pink.shade700)),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          SizedBox(
+                            height: 60,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: r.receiveImages.length,
+                              itemBuilder: (ctx, i) => GestureDetector(
+                                onTap: () => _showFullImage(r.receiveImages, i),
+                                child: Container(
+                                  margin: const EdgeInsets.only(right: 6),
+                                  width: 60,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey.shade200),
+                                  ),
+                                  child: ClipRRect(borderRadius: BorderRadius.circular(8), child: _buildSmartImage(r.receiveImages[i])),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             

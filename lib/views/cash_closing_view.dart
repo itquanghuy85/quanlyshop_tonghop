@@ -10,6 +10,7 @@ import '../models/sale_order_model.dart';
 import '../models/repair_model.dart';
 import '../models/expense_model.dart';
 import '../services/user_service.dart';
+import '../services/audit_service.dart';
 import '../services/notification_service.dart';
 import '../utils/money_utils.dart';
 
@@ -2229,6 +2230,20 @@ class _CashClosingViewState extends State<CashClosingView>
       }
 
       if (mounted) {
+        // Ghi log hoạt động chốt quỹ
+        await AuditService.logAction(
+          action: 'CHỐT QUỸ',
+          entityType: 'CASH_CLOSING',
+          entityId: 'closing_${shopId ?? 'local'}_$dateKey',
+          summary: 'Chốt quỹ ngày $dateKey - Tồn quỹ: ${MoneyUtils.formatCurrency(int.tryParse(cashEndCtrl.text) ?? 0)}đ',
+          payload: {
+            'dateKey': dateKey,
+            'cashEnd': int.tryParse(cashEndCtrl.text) ?? 0,
+            'bankEnd': int.tryParse(bankEndCtrl.text) ?? 0,
+            'note': noteCtrl.text.trim(),
+          },
+        );
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("✅ ĐÃ CHỐT QUỸ THÀNH CÔNG"),

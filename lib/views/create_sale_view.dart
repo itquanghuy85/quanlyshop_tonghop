@@ -14,6 +14,7 @@ import '../services/sync_orchestrator.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
 import '../services/adjustment_service.dart';
+import '../services/audit_service.dart';
 import '../services/claims_service.dart';
 import '../services/financial_activity_service.dart';
 import '../services/first_time_guide_service.dart';
@@ -1002,6 +1003,21 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       debugPrint('CreateSaleView: Emitting sales_changed event');
       EventBus().emit('sales_changed');
 
+      // Ghi log hoạt động
+      await AuditService.logAction(
+        action: 'TẠO ĐƠN BÁN',
+        entityType: 'SALE',
+        entityId: sale.firestoreId ?? 'sale_${sale.soldAt}',
+        summary: 'Đã bán ${_selectedItems.length} sp cho ${sale.customerName} - ${MoneyUtils.formatCurrency(finalPrice)}đ',
+        payload: {
+          'customerName': sale.customerName,
+          'phone': sale.phone,
+          'totalPrice': finalPrice,
+          'paymentMethod': _paymentMethod,
+          'itemCount': _selectedItems.length,
+        },
+      );
+
       NotificationService.showSnackBar(
         "ĐÃ BÁN HÀNG THÀNH CÔNG!",
         color: Colors.green,
@@ -1327,109 +1343,128 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         // Số tiền thu thực tế
         _moneyInput(downPaymentCtrl, _isInstallment ? "KHÁCH TRẢ TRƯỚC" : "SỐ TIỀN THU", AppColors.secondary),
         
-        // Phương thức trả trước (trả góp)
-        if (_isInstallment) ...[
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text("TRẢ TRƯỚC:", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, fontSize: 11)),
-              ...["T.MẶT", "C.KHOẢN"].map((m) => ChoiceChip(
-                label: Text(m, style: AppTextStyles.caption.copyWith(fontSize: 10)),
-                selected: _downPaymentMethod == (m == "C.KHOẢN" ? "CHUYỂN KHOẢN" : (m == "T.MẶT" ? "TIỀN MẶT" : m)),
-                onSelected: (v) => setState(() => _downPaymentMethod = m == "C.KHOẢN" ? "CHUYỂN KHOẢN" : (m == "T.MẮT" ? "TIỀN MẶT" : m)),
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-              )),
-            ],
-          ),
-          const SizedBox(height: 6),
-          _moneyInput(loanAmountCtrl, _hasSecondBank ? "NH 1 VAY" : "NH VAY", AppColors.grey600, enabled: _hasSecondBank),
-          const SizedBox(height: 6),
-          // Tên NH + Quick chips
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: bankCtrl,
-                  decoration: const InputDecoration(
-                    labelText: "TÊN NH/TCTT",
-                    prefixIcon: Icon(Icons.account_balance, size: 18),
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  ),
-                  textCapitalization: TextCapitalization.characters,
-                  style: AppTextStyles.body2,
-                ),
-              ),
-              const SizedBox(width: 4),
-              ...["FE", "HOME", "HD"].map((b) => Padding(
-                padding: const EdgeInsets.only(left: 2),
-                child: ActionChip(
-                  label: Text(b, style: AppTextStyles.caption.copyWith(fontSize: 10)),
-                  onPressed: () => setState(() => bankCtrl.text = b),
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                ),
-              )),
-            ],
-          ),
-          
-          // Ngân hàng thứ 2
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              SizedBox(
-                height: 24,
-                width: 24,
-                child: Checkbox(
-                  value: _hasSecondBank,
-                  onChanged: (v) => setState(() {
-                    _hasSecondBank = v ?? false;
-                    if (_hasSecondBank) _calculateBank2Loan();
-                    else { bankCtrl2.clear(); loanAmountCtrl2.text = "0"; _calculateInstallment(); }
-                  }),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-              Text("2 ngân hàng", style: AppTextStyles.caption),
-            ],
-          ),
-          
-          if (_hasSecondBank) ...[
-            const SizedBox(height: 6),
-            _moneyInput(loanAmountCtrl2, "NH 2 VAY", AppColors.grey600, enabled: false),
-            const SizedBox(height: 6),
-            Row(
+        // Phương thức trả trước (trả góp) - Gộp trong ExpansionTile
+        if (_isInstallment)
+          Card(
+            margin: const EdgeInsets.only(top: 6),
+            color: Colors.blue.shade50,
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+              dense: true,
+              initiallyExpanded: true,
+              leading: Icon(Icons.account_balance, color: Colors.blue.shade700, size: 18),
+              title: Text("CHI TIẾT TRẢ GÓP", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.blue.shade700, fontSize: 12)),
               children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: bankCtrl2,
-                    decoration: const InputDecoration(
-                      labelText: "TÊN NH 2",
-                      prefixIcon: Icon(Icons.account_balance, size: 18),
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    ),
-                    textCapitalization: TextCapitalization.characters,
-                    style: AppTextStyles.body2,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  child: Column(
+                    children: [
+                      // Phương thức trả trước
+                      Wrap(
+                        spacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text("TRẢ TRƯỚC:", style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, fontSize: 11)),
+                          ...["T.MẶT", "C.KHOẢN"].map((m) => ChoiceChip(
+                            label: Text(m, style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                            selected: _downPaymentMethod == (m == "C.KHOẢN" ? "CHUYỂN KHOẢN" : (m == "T.MẶT" ? "TIỀN MẶT" : m)),
+                            onSelected: (v) => setState(() => _downPaymentMethod = m == "C.KHOẢN" ? "CHUYỂN KHOẢN" : (m == "T.MẮT" ? "TIỀN MẶT" : m)),
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                          )),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      _moneyInput(loanAmountCtrl, _hasSecondBank ? "NH 1 VAY" : "NH VAY", AppColors.grey600, enabled: _hasSecondBank),
+                      const SizedBox(height: 6),
+                      // Tên NH + Quick chips
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: bankCtrl,
+                              decoration: const InputDecoration(
+                                labelText: "TÊN NH/TCTT",
+                                prefixIcon: Icon(Icons.account_balance, size: 18),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              ),
+                              textCapitalization: TextCapitalization.characters,
+                              style: AppTextStyles.body2,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          ...["FE", "HOME", "HD"].map((b) => Padding(
+                            padding: const EdgeInsets.only(left: 2),
+                            child: ActionChip(
+                              label: Text(b, style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                              onPressed: () => setState(() => bankCtrl.text = b),
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                            ),
+                          )),
+                        ],
+                      ),
+                      
+                      // Ngân hàng thứ 2
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: Checkbox(
+                              value: _hasSecondBank,
+                              onChanged: (v) => setState(() {
+                                _hasSecondBank = v ?? false;
+                                if (_hasSecondBank) _calculateBank2Loan();
+                                else { bankCtrl2.clear(); loanAmountCtrl2.text = "0"; _calculateInstallment(); }
+                              }),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                          Text("2 ngân hàng", style: AppTextStyles.caption),
+                        ],
+                      ),
+                      
+                      if (_hasSecondBank) ...[
+                        const SizedBox(height: 6),
+                        _moneyInput(loanAmountCtrl2, "NH 2 VAY", AppColors.grey600, enabled: false),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: bankCtrl2,
+                                decoration: const InputDecoration(
+                                  labelText: "TÊN NH 2",
+                                  prefixIcon: Icon(Icons.account_balance, size: 18),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                ),
+                                textCapitalization: TextCapitalization.characters,
+                                style: AppTextStyles.body2,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            ...["MIRAE", "F83", "T86"].map((b) => Padding(
+                              padding: const EdgeInsets.only(left: 2),
+                              child: ActionChip(
+                                label: Text(b, style: AppTextStyles.caption.copyWith(fontSize: 10)),
+                                onPressed: () => setState(() => bankCtrl2.text = b),
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                              ),
+                            )),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                const SizedBox(width: 4),
-                ...["MIRAE", "F83", "T86"].map((b) => Padding(
-                  padding: const EdgeInsets.only(left: 2),
-                  child: ActionChip(
-                    label: Text(b, style: AppTextStyles.caption.copyWith(fontSize: 10)),
-                    onPressed: () => setState(() => bankCtrl2.text = b),
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                  ),
-                )),
               ],
             ),
-          ],
-        ],
+          ),
         
         const Divider(height: 12),
         
