@@ -335,12 +335,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       personPhone: '',
       description:
           'Ngân hàng ${s.bankName ?? ""} tất toán - KH: ${s.customerName}',
-      linkedEntityType: 'sale',
-      linkedEntityId: s.firestoreId ?? 'sale_${s.soldAt}',
+      referenceType: 'sale',
+      referenceId: s.firestoreId ?? 'sale_${s.soldAt}',
       createdBy: user?.uid ?? 'unknown',
       createdAt: nowMs,
       paymentMethod: PaymentMethod.bank,
-      completedAt: nowMs,
+      paidAt: nowMs,
     );
     await PaymentIntentService.createIntent(settlementIntent);
     debugPrint('💳 Created PaymentIntent for bank settlement: $intentId');
@@ -356,12 +356,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         personName: s.bankName ?? 'NGÂN HÀNG',
         personPhone: '',
         description: 'Phí NH ${s.bankName ?? ""} - KH: ${s.customerName}',
-        linkedEntityType: 'sale',
-        linkedEntityId: s.firestoreId ?? 'sale_${s.soldAt}',
+        referenceType: 'sale',
+        referenceId: s.firestoreId ?? 'sale_${s.soldAt}',
         createdBy: user?.uid ?? 'unknown',
         createdAt: nowMs,
         paymentMethod: PaymentMethod.bank,
-        completedAt: nowMs,
+        paidAt: nowMs,
       );
       await PaymentIntentService.createIntent(feeIntent);
       debugPrint('💳 Created PaymentIntent for bank fee: $feeIntentId');
