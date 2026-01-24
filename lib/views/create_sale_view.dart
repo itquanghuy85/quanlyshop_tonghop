@@ -20,6 +20,7 @@ import '../services/financial_activity_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../services/payment_intent_service.dart';
 import '../models/payment_intent_model.dart';
+import '../constants/financial_constants.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -928,22 +929,33 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       // === TẠO PAYMENTINTENT ĐỂ HIỂN THỊ TRÊN TRANG "THANH TOÁN" ===
       try {
         final saleRef = sale.firestoreId ?? 'sale_${sale.soldAt}';
-        final now = DateTime.now();
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final userName =
+            FirebaseAuth.instance.currentUser?.email
+                ?.split('@')
+                .first
+                .toUpperCase() ??
+            'NV';
+        final downPaymentAmount = _parseCurrency(downPaymentCtrl.text);
 
         if (_paymentMethod == "CÔNG NỢ") {
           // Công nợ khách hàng - chưa nhận tiền, ghi nhận debt
+          // Dùng otherDebt để ghi nhận, không dùng salePayment vì chưa nhận tiền
           final intent = PaymentIntent(
-            id: 'pi_sale_debt_${saleRef}_${now.millisecondsSinceEpoch}',
-            type: PaymentIntentType.customerDebt,
+            id: 'pi_sale_debt_${saleRef}_$now',
+            type: PaymentIntentType.otherDebt,
             amount: finalPrice,
             description:
                 'Công nợ bán hàng: ${sale.customerName} - ${_selectedItems.length} SP',
             referenceId: saleRef,
             referenceType: 'sale',
             status: PaymentIntentStatus.completed, // Đã ghi nhận công nợ
+            createdBy: userName,
             createdAt: now,
             paidAt: now,
-            paymentMethod: 'CÔNG NỢ',
+            paymentMethod: PaymentMethod.debt,
+            personName: sale.customerName,
+            personPhone: sale.phone,
             metadata: {
               'customerName': sale.customerName,
               'phone': sale.phone,
@@ -955,25 +967,28 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           debugPrint('✅ Created PaymentIntent for sale CÔNG NỢ: ${intent.id}');
         } else if (_isInstallment) {
           // Trả góp - ghi nhận tiền trả trước nếu có
-          if (_downPayment > 0) {
+          if (downPaymentAmount > 0) {
             final intent = PaymentIntent(
-              id: 'pi_sale_down_${saleRef}_${now.millisecondsSinceEpoch}',
+              id: 'pi_sale_down_${saleRef}_$now',
               type: PaymentIntentType.salePayment,
-              amount: _downPayment,
+              amount: downPaymentAmount,
               description:
                   'Trả trước trả góp: ${sale.customerName} - ${_selectedItems.length} SP',
               referenceId: saleRef,
               referenceType: 'sale',
               status: PaymentIntentStatus.completed,
+              createdBy: userName,
               createdAt: now,
               paidAt: now,
-              paymentMethod: _downPaymentMethod ?? 'TIỀN MẶT',
+              paymentMethod: PaymentMethod.fromCode(_downPaymentMethod),
+              personName: sale.customerName,
+              personPhone: sale.phone,
               metadata: {
                 'customerName': sale.customerName,
                 'phone': sale.phone,
                 'productNames': sale.productNames,
                 'isInstallment': true,
-                'bankName': _selectedBank,
+                'bankName': bankCtrl.text.toUpperCase(),
               },
             );
             await PaymentIntentService.createIntent(intent);
@@ -984,7 +999,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         } else {
           // Tiền mặt / Chuyển khoản - đã nhận đủ tiền
           final intent = PaymentIntent(
-            id: 'pi_sale_${saleRef}_${now.millisecondsSinceEpoch}',
+            id: 'pi_sale_${saleRef}_$now',
             type: PaymentIntentType.salePayment,
             amount: finalPrice,
             description:
@@ -992,9 +1007,12 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             referenceId: saleRef,
             referenceType: 'sale',
             status: PaymentIntentStatus.completed,
+            createdBy: userName,
             createdAt: now,
             paidAt: now,
-            paymentMethod: _paymentMethod,
+            paymentMethod: PaymentMethod.fromCode(_paymentMethod),
+            personName: sale.customerName,
+            personPhone: sale.phone,
             metadata: {
               'customerName': sale.customerName,
               'phone': sale.phone,

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/stock_entry_model.dart';
 import '../models/payment_intent_model.dart';
+import '../constants/financial_constants.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/payment_intent_service.dart';
@@ -547,9 +548,11 @@ class StockEntryService {
               referenceId: entryId,
               referenceType: 'stock_entry',
               status: PaymentIntentStatus.completed,
-              createdAt: DateTime.now(),
-              paidAt: DateTime.now(),
-              paymentMethod: 'CÔNG NỢ',
+              createdBy: userName,
+              createdAt: now,
+              paidAt: now,
+              paymentMethod: PaymentMethod.debt,
+              personName: entry.supplierName,
               metadata: {
                 'supplierId': entry.supplierId,
                 'supplierName': entry.supplierName,
@@ -587,9 +590,11 @@ class StockEntryService {
               referenceId: entryId,
               referenceType: 'stock_entry',
               status: PaymentIntentStatus.completed,
-              createdAt: DateTime.now(),
-              paidAt: DateTime.now(),
-              paymentMethod: entry.paymentMethod,
+              createdBy: userName,
+              createdAt: now,
+              paidAt: now,
+              paymentMethod: PaymentMethod.fromCode(entry.paymentMethod),
+              personName: entry.supplierName,
               metadata: {
                 'supplierId': entry.supplierId,
                 'supplierName': entry.supplierName,
