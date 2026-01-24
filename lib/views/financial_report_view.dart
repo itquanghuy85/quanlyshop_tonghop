@@ -266,32 +266,15 @@ class _FinancialReportViewState extends State<FinancialReportView>
       // 4. Công nợ và thanh toán nợ
       final debts = await _db.getAllDebts();
       for (final d in debts) {
-        final createdAt = (d['createdAt'] as int?) ?? 0;
         final debtType = d['type'] as String? ?? '';
         final personName = d['personName'] as String?;
-        final totalAmount = (d['totalAmount'] as int?) ?? 0;
 
-        // Shop nợ NCC/Đối tác (SHOP_OWES)
-        if (debtType == 'SHOP_OWES' &&
-            createdAt >= startMs &&
-            createdAt <= endMs &&
-            (d['deleted'] ?? 0) != 1) {
-          allTransactions.add(
-            TransactionItem(
-              id: 'debt_out_${d['id']}',
-              timestamp: createdAt,
-              type: 'DEBT_OUT',
-              category: 'Nợ NCC/Đối tác',
-              description: 'Nợ: ${personName ?? "N/A"}',
-              amount: totalAmount,
-              isIncome: false, // Nợ phải trả
-              personName: personName,
-              note: d['note'] as String?,
-            ),
-          );
-        }
+        // NOTE: DEBT_OUT (Shop nợ NCC) - KHÔNG tính vào CHI vì chưa chi tiền thực!
+        // Chỉ khi TRẢ NỢ mới tính là CHI (tránh double counting)
+        // Tương tự CUSTOMER_OWES (Khách nợ shop) - KHÔNG tính vào THU
+        // Chỉ khi THU NỢ mới tính là THU
 
-        // Lấy các lần thanh toán nợ
+        // Lấy các lần thanh toán nợ - ĐÂY MỚI LÀ GIAO DỊCH TIỀN THỰC
         final debtId = d['id'] as int?;
         if (debtId != null) {
           final payments = await _db.getDebtPayments(debtId);
@@ -299,7 +282,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
             final paidAt = (p['paidAt'] as int?) ?? 0;
             if (paidAt >= startMs && paidAt <= endMs) {
               if (debtType == 'CUSTOMER_OWES') {
-                // Thu nợ từ khách
+                // Thu nợ từ khách - ĐÂY LÀ THU TIỀN THỰC
                 allTransactions.add(
                   TransactionItem(
                     id: 'payment_in_${p['id']}',
@@ -314,7 +297,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
                   ),
                 );
               } else if (debtType == 'SHOP_OWES') {
-                // Trả nợ NCC/Đối tác
+                // Trả nợ NCC/Đối tác - ĐÂY LÀ CHI TIỀN THỰC
                 allTransactions.add(
                   TransactionItem(
                     id: 'payment_out_${p['id']}',
