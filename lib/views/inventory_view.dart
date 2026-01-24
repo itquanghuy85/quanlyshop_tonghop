@@ -50,8 +50,13 @@ class _InventoryViewState extends State<InventoryView>
   final db = DBHelper();
   final supplierService = SupplierService();
   List<Product> _products = [];
+  List<Product> _allLoadedProducts = []; // Cache for filtering
   List<Map<String, dynamic>> _suppliers = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _currentOffset = 0;
+  static const int _pageSize = 50;
   int _unsyncedCount = 0;
   bool _isAdmin = false;
   bool _hasInventoryAccess = false;
@@ -60,6 +65,16 @@ class _InventoryViewState extends State<InventoryView>
   String _filterType =
       'TẤT CẢ'; // Filter theo loại: TẤT CẢ, DIEN_THOAI, PHỤ KIỆN, LINH KIỆN
   bool _showOnlyPending = false; // Filter chỉ hiện kho tạm
+  
+  // ScrollController for lazy loading
+  final ScrollController _scrollController = ScrollController();
+  
+  /// Check if we need full data (for filtering)
+  bool get _needsFullData => 
+      _searchQuery.isNotEmpty || 
+      _filterType != 'TẤT CẢ' || 
+      _showOnlyPending ||
+      _showOutOfStock;
 
   final Set<int> _selectedIds = {};
   bool _isSelectionMode = false;
@@ -91,6 +106,8 @@ class _InventoryViewState extends State<InventoryView>
     _init();
     // Re-enable inventory check initialization for QR check
     _initCheckData();
+    // Setup scroll listener for lazy loading
+    _scrollController.addListener(_onScroll);
     // Hiển thị hướng dẫn cho người dùng mới
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showFirstTimeGuide();
@@ -136,9 +153,40 @@ class _InventoryViewState extends State<InventoryView>
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _tabController.dispose();
     _scannerController.dispose();
     super.dispose();
+  }
+  
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 300) {
+      _loadMoreIfNeeded();
+    }
+  }
+  
+  Future<void> _loadMoreIfNeeded() async {
+    if (_isLoadingMore || !_hasMore || _needsFullData) return;
+    
+    setState(() => _isLoadingMore = true);
+    
+    try {
+      final newData = await db.getProductsPaged(_pageSize, _currentOffset);
+      if (mounted) {
+        setState(() {
+          _allLoadedProducts.addAll(newData);
+          _products = _allLoadedProducts;
+          _currentOffset += _pageSize;
+          _isLoadingMore = false;
+          _hasMore = newData.length >= _pageSize;
+        });
+      }
+    } catch (e) {
+      debugPrint('InventoryView: Error loading more: $e');
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
   }
 
   Widget _input(
@@ -1341,24 +1389,44 @@ class _InventoryViewState extends State<InventoryView>
       _isLoading = true;
       _selectedIds.clear();
       _isSelectionMode = false;
+      _currentOffset = 0;
+      _allLoadedProducts = [];
+      _hasMore = true;
     });
     
     // Force sync products từ Firestore để đảm bảo local DB có dữ liệu mới nhất
     await _forceSyncProductsFromFirestore();
     
-    // Lấy TẤT CẢ sản phẩm thay vì chỉ còn hàng
-    final data = await db.getAllProducts();
-    // Sắp xếp theo thời gian cập nhật mới nhất lên đầu
-    data.sort((a, b) => (b.updatedAt ?? 0).compareTo(a.updatedAt ?? 0));
     final suppliers = await supplierService.getSuppliers();
     final unsyncedCount = await db.getUnsyncedQuickInputCodesCount();
-    if (!mounted) return;
-    setState(() {
-      _products = data;
-      _suppliers = suppliers.map((s) => s.toMap()).toList();
-      _unsyncedCount = unsyncedCount;
-      _isLoading = false;
-    });
+    
+    if (_needsFullData) {
+      // Load all data for filtering
+      final data = await db.getAllProducts();
+      data.sort((a, b) => (b.updatedAt ?? 0).compareTo(a.updatedAt ?? 0));
+      if (!mounted) return;
+      setState(() {
+        _allLoadedProducts = data;
+        _products = data;
+        _suppliers = suppliers.map((s) => s.toMap()).toList();
+        _unsyncedCount = unsyncedCount;
+        _isLoading = false;
+        _hasMore = false;
+      });
+    } else {
+      // Lazy load first page for better performance
+      final firstPage = await db.getProductsPaged(_pageSize, 0);
+      if (!mounted) return;
+      setState(() {
+        _allLoadedProducts = firstPage;
+        _products = firstPage;
+        _suppliers = suppliers.map((s) => s.toMap()).toList();
+        _unsyncedCount = unsyncedCount;
+        _currentOffset = _pageSize;
+        _isLoading = false;
+        _hasMore = firstPage.length >= _pageSize;
+      });
+    }
   }
 
   Future<void> _deleteSelected() async {
@@ -1928,10 +1996,19 @@ class _InventoryViewState extends State<InventoryView>
                   : RefreshIndicator(
                       onRefresh: _refresh,
                       child: ListView.builder(
+                        controller: _scrollController,
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                        itemCount: filteredList.length,
-                        itemBuilder: (ctx, i) =>
-                            _buildProfessionalCard(filteredList[i], i + 1),
+                        itemCount: filteredList.length + (_isLoadingMore ? 1 : 0),
+                        itemBuilder: (ctx, i) {
+                          if (i >= filteredList.length) {
+                            // Loading indicator at bottom
+                            return const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          return _buildProfessionalCard(filteredList[i], i + 1);
+                        },
                       ),
                     ),
             ),
@@ -2363,7 +2440,14 @@ class _InventoryViewState extends State<InventoryView>
             children: [
               Expanded(
                 child: TextField(
-                  onChanged: (v) => setState(() => _searchQuery = v),
+                  onChanged: (v) {
+                    setState(() => _searchQuery = v);
+                    // Reload data when search changes to/from empty
+                    if ((v.isEmpty && _allLoadedProducts.isNotEmpty && _hasMore) ||
+                        (v.isNotEmpty && _hasMore)) {
+                      _refresh();
+                    }
+                  },
                   decoration: InputDecoration(
                     hintText: "Tìm máy, phụ kiện hoặc IMEI...",
                     prefixIcon: const Icon(
