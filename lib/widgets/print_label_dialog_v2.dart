@@ -962,11 +962,16 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
   Future<void> _handlePrint() async {
     setState(() => _isPrinting = true);
 
+    // Lưu printer config để sử dụng
+    PrinterType? printerType;
+    dynamic bluetoothPrinter;
+    String? wifiIp;
+
     try {
       // Kiểm tra kết nối máy in
       final isConnected = await BluetoothPrinterService.isConnected();
       if (!isConnected) {
-        final result = await showDialog<BluetoothPrinterConfig?>(
+        final result = await showDialog<Map<String, dynamic>?>(
           context: context,
           builder: (ctx) => const PrinterSelectionDialog(),
         );
@@ -974,6 +979,10 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
           setState(() => _isPrinting = false);
           return;
         }
+        // Lấy cấu hình từ dialog
+        printerType = result['type'] as PrinterType?;
+        bluetoothPrinter = result['bluetoothPrinter'];
+        wifiIp = result['wifiIp'] as String?;
       }
 
       // Chuẩn bị dữ liệu in
@@ -984,7 +993,12 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
       bool success = true;
 
       for (int i = 0; i < _quantity; i++) {
-        final ok = await printerService.printProductLabelAdvanced(printData);
+        final ok = await printerService.printProductLabelAdvanced(
+          printData,
+          printerType: printerType,
+          bluetoothPrinter: bluetoothPrinter,
+          wifiIp: wifiIp,
+        );
         if (!ok) {
           success = false;
           break;

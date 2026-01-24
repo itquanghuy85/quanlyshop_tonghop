@@ -505,7 +505,12 @@ class UnifiedPrinterService {
   }
 
   /// In tem sản phẩm nâng cao với LabelPrintData
-  Future<bool> printProductLabelAdvanced(dynamic printData) async {
+  Future<bool> printProductLabelAdvanced(
+    dynamic printData, {
+    PrinterType? printerType,
+    dynamic bluetoothPrinter,
+    String? wifiIp,
+  }) async {
     try {
       final profile = await CapabilityProfile.load();
       final generator = Generator(PaperSize.mm80, profile);
@@ -515,7 +520,7 @@ class UnifiedPrinterService {
       // Kiểm tra loại dữ liệu
       if (printData is Map<String, dynamic>) {
         // Fallback về cách cũ
-        return printProductQRLabel(printData);
+        return printProductQRLabel(printData, printerType: printerType, customMac: bluetoothPrinter is Map ? bluetoothPrinter['macAddress'] : null, wifiIp: wifiIp);
       }
 
       // LabelPrintData từ model mới
@@ -678,7 +683,12 @@ class UnifiedPrinterService {
       bytes.addAll(generator.feed(2));
       bytes.addAll(generator.cut());
 
-      return _sendToPrinter(bytes);
+      return _sendToPrinter(
+        bytes,
+        printerType: printerType,
+        bluetoothPrinter: bluetoothPrinter,
+        wifiIp: wifiIp,
+      );
     } catch (e) {
       print("Lỗi in tem nâng cao: $e");
       return false;
