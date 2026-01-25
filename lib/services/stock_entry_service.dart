@@ -565,31 +565,13 @@ class StockEntryService {
             // Notify các view khác để refresh
             EventBus().emit('debts_changed');
 
-            // Tạo PaymentIntent với status COMPLETED (đã ghi nhận công nợ)
-            final intent = PaymentIntent(
-              id: 'pi_debt_${entryId}_$now',
-              type: PaymentIntentType.supplierDebt,
-              amount: totalCost,
-              description:
-                  'Công nợ nhập kho: ${entry.totalQuantity} SP từ $normalizedSupplierName',
-              referenceId: entryId,
-              referenceType: 'stock_entry',
-              status: PaymentIntentStatus.completed,
-              createdBy: userName,
-              createdAt: now,
-              paidAt: now,
-              paymentMethod: PaymentMethod.debt,
-              personName: normalizedSupplierName,
-              metadata: {
-                'supplierId': entry.supplierId,
-                'supplierName': normalizedSupplierName,
-                'debtFirestoreId': debtFirestoreId,
-              },
-            );
-            await PaymentIntentService.createIntent(intent);
-            debugPrint('✅ confirmEntry: Created PaymentIntent for CÔNG NỢ');
+            // KHÔNG tạo PaymentIntent cho CÔNG NỢ vì:
+            // 1. Debt record đã được tạo (đây là financial record chính)
+            // 2. PaymentIntentService.createIntent() chỉ chấp nhận status=pending
+            // 3. Khi thanh toán công nợ, user sẽ tạo PaymentIntent mới từ trang NCC
+            debugPrint('✅ confirmEntry: CÔNG NỢ debt created, no PaymentIntent needed');
           } else {
-            // === TIỀN MẶT / CHUYỂN KHOẢN - Tạo EXPENSE và PaymentIntent ===
+            // === TIỀN MẶT / CHUYỂN KHOẢN - Tạo EXPENSE ===
             // Ghi expense vào local DB
             await db.insertExpense({
               'firestoreId': 'exp_stock_${entryId}_$now',
@@ -601,36 +583,16 @@ class StockEntryService {
               'date': now,
               'createdBy': userName,
               'shopId': entry.shopId,
-              'isSynced': 1,
+              'isSynced': 0, // Đổi thành 0 để sync lên Firestore
             });
             debugPrint(
               '✅ confirmEntry: Created local EXPENSE for ${entry.paymentMethod}: $totalCost',
             );
-
-            // Tạo PaymentIntent với status COMPLETED
-            final intent = PaymentIntent(
-              id: 'pi_stock_${entryId}_$now',
-              type: PaymentIntentType.inventoryPurchase,
-              amount: totalCost,
-              description:
-                  'Nhập kho: ${entry.totalQuantity} SP từ ${entry.supplierName}',
-              referenceId: entryId,
-              referenceType: 'stock_entry',
-              status: PaymentIntentStatus.completed,
-              createdBy: userName,
-              createdAt: now,
-              paidAt: now,
-              paymentMethod: PaymentMethod.fromCode(entry.paymentMethod),
-              personName: entry.supplierName,
-              metadata: {
-                'supplierId': entry.supplierId,
-                'supplierName': entry.supplierName,
-              },
-            );
-            await PaymentIntentService.createIntent(intent);
-            debugPrint(
-              '✅ confirmEntry: Created PaymentIntent for ${entry.paymentMethod}',
-            );
+            
+            // KHÔNG tạo PaymentIntent cho TIỀN MẶT/CK vì:
+            // 1. Expense record đã được ghi (đây là financial record chính)
+            // 2. PaymentIntentService.createIntent() chỉ chấp nhận status=pending
+            debugPrint('✅ confirmEntry: Expense created, no PaymentIntent needed');
           }
         } catch (e) {
           debugPrint(

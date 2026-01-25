@@ -66,7 +66,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 67,
+      version: 68,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
@@ -87,7 +87,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, description TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, createdAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, relatedPartId TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, personName TEXT, phone TEXT, totalAmount INTEGER, paidAmount INTEGER DEFAULT 0, type TEXT, status TEXT, createdAt INTEGER, note TEXT, isSynced INTEGER DEFAULT 0, linkedId TEXT, createdBy TEXT, shopId TEXT, relatedPartId TEXT)',
+          'CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, personName TEXT, phone TEXT, totalAmount INTEGER, paidAmount INTEGER DEFAULT 0, type TEXT, debtType TEXT, status TEXT, createdAt INTEGER, note TEXT, isSynced INTEGER DEFAULT 0, linkedId TEXT, linkedType TEXT, createdBy TEXT, shopId TEXT, relatedPartId TEXT, deleted INTEGER DEFAULT 0, updatedAt INTEGER)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS attendance(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, dateKey TEXT, checkInAt INTEGER, checkOutAt INTEGER, overtimeOn INTEGER DEFAULT 0, photoIn TEXT, photoOut TEXT, note TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, locked INTEGER DEFAULT 0, createdAt INTEGER, location TEXT, isLate INTEGER DEFAULT 0, isEarlyLeave INTEGER DEFAULT 0, workSchedule TEXT, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0)',
@@ -1636,6 +1636,29 @@ class DBHelper {
             debugPrint('v67 error (payment_intents): $e');
           }
           debugPrint('DB upgrade v67: completed');
+        }
+        if (oldV < 68) {
+          // v68: Add deleted and debtType columns to debts table for proper filtering
+          debugPrint('DB upgrade v68: Adding deleted and debtType to debts table...');
+          try {
+            await db.execute('ALTER TABLE debts ADD COLUMN deleted INTEGER DEFAULT 0');
+            debugPrint('v68: added deleted column to debts');
+          } catch (e) {
+            debugPrint('v68 error (deleted): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE debts ADD COLUMN debtType TEXT');
+            debugPrint('v68: added debtType column to debts');
+          } catch (e) {
+            debugPrint('v68 error (debtType): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE debts ADD COLUMN linkedType TEXT');
+            debugPrint('v68: added linkedType column to debts');
+          } catch (e) {
+            debugPrint('v68 error (linkedType): $e');
+          }
+          debugPrint('DB upgrade v68: completed');
         }
         debugPrint('DB upgrade completed');
       },
