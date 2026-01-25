@@ -1172,21 +1172,20 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           }
         }
 
-        // Cập nhật partsUsed và partsCost cho repair
+        // Cập nhật partsUsed và cost cho repair
         final currentParts = r.partsUsed.isEmpty ? [] : r.partsUsed.split(', ');
         final newPartsList = [...currentParts, ...usedParts];
 
-        await db.updateRepairField(r.id, 'partsUsed', newPartsList.join(', '));
-        await db.updateRepairField(
-          r.id,
-          'partsCost',
-          (r.partsCost ?? 0) + totalCost,
-        );
+        // Update repair object và save
+        r.partsUsed = newPartsList.join(', ');
+        r.cost = r.cost + totalCost;
+        r.isSynced = false;
+        await db.updateRepair(r);
 
-        if (r.firestoreId != null) {
+        if (r.firestoreId != null && r.id != null) {
           SyncOrchestrator().enqueue(
             entityType: SyncEntityType.repair,
-            entityId: r.id,
+            entityId: r.id!,
             firestoreId: r.firestoreId,
             operation: SyncOperation.update,
           );
