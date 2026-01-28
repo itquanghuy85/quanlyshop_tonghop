@@ -6,6 +6,9 @@ class Repair {
   String? firestoreId;
   String customerName;
   String phone;
+  bool isWalkIn;
+  String? walkInName;
+  String? walkInPhone;
   String model;
   String issue;
   String accessories;
@@ -58,6 +61,9 @@ class Repair {
     this.firestoreId,
     required this.customerName,
     required this.phone,
+    this.isWalkIn = false,
+    this.walkInName,
+    this.walkInPhone,
     required this.model,
     required this.issue,
     this.accessories = "Không có",
@@ -98,6 +104,9 @@ class Repair {
       'firestoreId': firestoreId,
       'customerName': customerName,
       'phone': phone,
+      'isWalkIn': isWalkIn ? 1 : 0,
+      'walkInName': walkInName,
+      'walkInPhone': walkInPhone,
       'model': model,
       'issue': issue,
       'accessories': accessories,
@@ -135,6 +144,9 @@ class Repair {
       firestoreId: map['firestoreId'],
       customerName: map['customerName'] ?? "",
       phone: map['phone'] ?? "",
+      isWalkIn: map['isWalkIn'] == 1 || map['isWalkIn'] == true,
+      walkInName: map['walkInName'],
+      walkInPhone: map['walkInPhone'],
       model: map['model'] ?? "",
       issue: map['issue'] ?? "",
       accessories: map['accessories'] ?? "Không có",
@@ -177,6 +189,9 @@ class Repair {
     String? firestoreId,
     String? customerName,
     String? phone,
+    bool? isWalkIn,
+    String? walkInName,
+    String? walkInPhone,
     String? model,
     String? issue,
     String? accessories,
@@ -211,6 +226,9 @@ class Repair {
       firestoreId: firestoreId ?? this.firestoreId,
       customerName: customerName ?? this.customerName,
       phone: phone ?? this.phone,
+      isWalkIn: isWalkIn ?? this.isWalkIn,
+      walkInName: walkInName ?? this.walkInName,
+      walkInPhone: walkInPhone ?? this.walkInPhone,
       model: model ?? this.model,
       issue: issue ?? this.issue,
       accessories: accessories ?? this.accessories,

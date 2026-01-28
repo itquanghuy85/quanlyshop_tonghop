@@ -2269,11 +2269,13 @@ class _RevenueViewState extends State<RevenueView>
     int salesCost = 0;
     int salesDebt = 0; // Track công nợ riêng
     for (var s in fSales) {
+      final saleRevenue = s.finalPrice; // Giá sau giảm giá
+
       if (s.paymentMethod == 'CÔNG NỢ') {
         // K3: Công nợ - VẪN TÍNH vào doanh thu và giá vốn (accrual basis)
-        salesIncome += s.totalPrice;
+        salesIncome += saleRevenue;
         salesCost += s.totalCost;
-        salesDebt += s.totalPrice;
+        salesDebt += saleRevenue;
         continue;
       }
       if (s.isInstallment) {
@@ -2287,11 +2289,11 @@ class _RevenueViewState extends State<RevenueView>
         final totalPaid = downPaid + settlementPaid;
         
         salesIncome += totalPaid;
-        final ratio = s.totalPrice > 0 ? totalPaid / s.totalPrice : 0.0;
+        final ratio = saleRevenue > 0 ? totalPaid / saleRevenue : 0.0;
         salesCost += (s.totalCost * ratio).round();
       } else {
         // Bán thường
-        salesIncome += s.totalPrice;
+        salesIncome += saleRevenue;
         salesCost += s.totalCost;
       }
     }

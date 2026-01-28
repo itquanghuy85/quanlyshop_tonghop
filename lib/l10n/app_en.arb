@@ -129,7 +129,7 @@
   "appName": "Shop Manager",
   "appDescription": "Phone repair shop management",
   "version": "Version",
-  "versionNumber": "2.1.0",
+  "versionNumber": "2.6.0",
   "contactSupport": "Contact support",
   "developer": "Developer",
   "developerName": "Quang Huy",
@@ -214,8 +214,8 @@
   "receivedDevice": "RECEIVE",
   "addProductToInventory": "ADD PRODUCT TO INVENTORY",
   "productType": "Product type",
-  "phone": "DIEN_THOAI",
-  "accessory": "PHỤ KIỆN",
+  "phone": "PHONE",
+  "accessory": "ACCESSORY",
   "productName": "Product/Part name",
   "imeiNumber": "IMEI number (if any)",
   "costPrice": "Cost price",
@@ -420,5 +420,602 @@
   "bluetoothPrinterTest": "BLUETOOTH PRINTER TEST",
   "checkBluetoothPermission": "Check detailed Bluetooth permissions...",
   "checkBluetoothOn": "Check if Bluetooth is on...",
-  "appVersion": "Version 3.4.0"
+  "appVersion": "Version 2.6.0+100",
+  "saving": "Saving...",
+  "saveSettings": "SAVE SETTINGS",
+  "deleteTemplate": "Delete template?",
+  "saveTemplate": "SAVE TEMPLATE",
+  "saveChanges": "SAVE CHANGES",
+  "addCode": "ADD CODE",
+  "deletePartner": "Delete partner",
+  "qrScanSettings": "QR SCAN SETTINGS",
+  "scanSettings": "Scan settings",
+  "labelSettings": "Product Label Settings",
+  "cpkPriceSettings": "CPK Price Settings",
+  "confirm": "Confirm",
+  "confirmAction": "Confirm action",
+  "loading": "Loading...",
+  "error": "Error",
+  "success": "Success",
+  "warning": "Warning",
+  "info": "Info",
+  "search": "Search",
+  "noData": "No data",
+  "retry": "Retry",
+  "done": "Done",
+  "next": "Next",
+  "previous": "Previous",
+  "select": "Select",
+  "selected": "Selected",
+  "edit": "Edit",
+  "details": "Details",
+  "total": "Total",
+  "amount": "Amount",
+  "date": "Date",
+  "time": "Time",
+  "status": "Status",
+  "description": "Description",
+  "required": "Required",
+  "optional": "Optional",
+  "pleaseEnter": "Please enter",
+  "pleaseSelect": "Please select",
+  "invalidInput": "Invalid input",
+  "connectionError": "Connection error",
+  "tryAgain": "Try again",
+  "ok": "OK",
+  "notFound": "Not found",
+  "noResults": "No results",
+  "copy": "Copy",
+  "copied": "Copied",
+  "share": "Share",
+  "print": "Print",
+  "export": "Export",
+  "import": "Import",
+  "create": "Create",
+  "createNew": "Create new",
+  "view": "View",
+  "viewAll": "View all",
+  "viewMore": "View more",
+  "viewLess": "View less",
+  "showAll": "Show all",
+  "hideAll": "Hide all",
+  "enable": "Enable",
+  "disable": "Disable",
+  "enabled": "Enabled",
+  "disabled": "Disabled",
+  "active": "Active",
+  "inactive": "Inactive",
+  "pending": "Pending",
+  "completed": "Completed",
+  "cancelled": "Cancelled",
+  "inProgress": "In progress",
+  "failed": "Failed",
+  "unknown": "Unknown",
+  "other": "Other",
+  "none": "None",
+  "clear": "Clear",
+  "clearAll": "Clear all",
+  "reset": "Reset",
+  "apply": "Apply",
+  "from": "From",
+  "to": "To",
+  "by": "By",
+  "at": "At",
+  "on": "On",
+  "or": "Or",
+  "and": "And",
+  "withLabel": "With",
+  "without": "Without",
+  "newLabel": "New",
+  "old": "Old",
+  "more": "More",
+  "less": "Less",
+  "start": "Start",
+  "end": "End",
+  "open": "Open",
+  "close2": "Close",
+  "send": "Send",
+  "receive": "Receive",
+  "download": "Download",
+  "upload": "Upload",
+  "attach": "Attach",
+  "remove": "Remove",
+  "change": "Change",
+  "modified": "Modified",
+  "created": "Created",
+  "updated": "Updated",
+  "deleted": "Deleted",
+  "forgotPasswordTitle": "Forgot password",
+  "forgotPasswordDesc": "Enter your registered email, we will send a password reset link.",
+  "pleaseEnterValidEmail": "Please enter a valid email",
+  "passwordResetEmailSent": "Password reset email sent to {email}",
+  "@passwordResetEmailSent": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "errorSendingEmail": "Error sending email",
+  "emailNotRegistered": "Email not registered",
+  "invalidEmailFormat": "Invalid email",
+  "sendEmail": "SEND EMAIL",
+  "noAccountRegisterNow": "No account? Register now",
+  "registerSuccess": "Registration successful! Please login.",
+  "emailExample": "E.g.: name@domain.com or name@gmail.com",
+  "perpetualCalendarTitle": "Perpetual Calendar",
+  "todayDateFormat": "Today: {date}",
+  "@todayDateFormat": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "monday": "Mon",
+  "tuesday": "Tue",
+  "wednesday": "Wed",
+  "thursday": "Thu",
+  "friday": "Fri",
+  "saturday": "Sat",
+  "sunday": "Sun",
+  "languageAndInterface": "LANGUAGE & INTERFACE",
+  "accountAndSecurity": "ACCOUNT & SECURITY",
+  "selectOtherShop": "SELECT OTHER SHOP",
+  "currentShop": "Current shop",
+  "logoutFromApp": "Logout from app",
+  "logoutQuestion": "Logout?",
+  "logoutError": "Logout error: {error}",
+  "@logoutError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "syncCenter": "SYNC CENTER",
+  "syncCenterDesc": "Download, upload, check and restore data",
+  "loadingShopData": "Loading shop data...",
+  "switchedToShop": "Switched to shop: {shopName}",
+  "@switchedToShop": {
+    "placeholders": {
+      "shopName": {
+        "type": "String"
+      }
+    }
+  },
+  "errorSwitchingShop": "Error switching shop: {error}",
+  "@errorSwitchingShop": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "viewShopAsAdmin": "Super Admin can select shop to view data",
+  "noShops": "No shops available",
+  "selectShopLabel": "Select shop",
+  "selectShopPlaceholder": "-- Select shop to view --",
+  "currentlyViewing": "Viewing: {shopName}",
+  "@currentlyViewing": {
+    "placeholders": {
+      "shopName": {
+        "type": "String"
+      }
+    }
+  },
+  "ownerRole": "SHOP OWNER",
+  "managerRole": "MANAGER",
+  "employeeRole": "EMPLOYEE",
+  "technicianRole": "TECHNICIAN",
+  "adminRole": "ADMIN",
+  "userRole": "USER",
+  "dangerWarningTitle": "⚠️ DANGER WARNING",
+  "resetShopWarning": "This action will permanently delete 100% of Orders, Inventory, Debts and Logs from both Cloud and this Device. CANNOT BE UNDONE!",
+  "typeToConfirm": "Type 'XOA HET' to confirm:",
+  "resetCloudError": "ERROR DELETING CLOUD DATA: {error}",
+  "@resetCloudError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "viewAndEditStaffPermissions": "View and edit staff access permissions",
+  "resetShopAdminOnly": "Use to reset all shop data (SUPER ADMIN ONLY)",
+  "syncErrorTitle": "Sync error",
+  "noTransactionHistory": "No transaction history",
+  "noActivityLogs": "No activity logs yet",
+  "noRepairOrders": "No repair orders",
+  "noSaleOrders": "No sale orders",
+  "noPaymentData": "No payment data",
+  "noNotifications": "No notifications yet",
+  "notSyncedCount": "Not synced ({count})",
+  "@notSyncedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notSelected": "Not selected",
+  "confirmDelete": "Confirm delete",
+  "confirmActionWithName": "Confirm {action}",
+  "@confirmActionWithName": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteOrder": "CONFIRM DELETE ORDER",
+  "enterPasswordToDelete": "Enter account password to delete:",
+  "deletedSuccessfully": "DELETED SUCCESSFULLY",
+  "addToStock": "ADD TO STOCK",
+  "continueAdding": "CONTINUE ADDING",
+  "quickStockIn": "Quick Stock In",
+  "manualEntry": "Manual entry",
+  "confirmStagingStock": "Confirm add to staging stock",
+  "addToStagingStock": "Add to Staging Stock",
+  "purchaseOrderCreated": "Purchase order created",
+  "addMore": "Add more",
+  "understood": "UNDERSTOOD",
+  "confirmStockIn": "Confirm stock in?",
+  "pleaseEnterPartnerName": "Please enter partner name",
+  "pleaseEnterSupplierName": "Please enter supplier name",
+  "supplierAddedSuccess": "Supplier added successfully",
+  "supplierAddError": "Error: Cannot add supplier",
+  "partnerDeletedSuccess": "Partner deleted successfully",
+  "partnerDeleteError": "Error: Cannot delete partner",
+  "supplierDeletedSuccess": "Supplier deleted successfully",
+  "supplierDeleteError": "Error: Cannot delete supplier",
+  "partnerAddedSuccess": "Partner added successfully",
+  "partnerUpdatedSuccess": "Partner updated",
+  "partnerNotFound": "Partner not found!",
+  "partnerInfoNotFound": "Partner info not found!",
+  "noPartner": "No partner",
+  "loadingList": "Loading list...",
+  "pleaseLoginAgain": "Please login again",
+  "searchError": "Search error: {error}",
+  "@searchError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "qrProcessError": "QR processing error: {error}",
+  "@qrProcessError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errorWithMessage": "Error: {error}",
+  "@errorWithMessage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "loadCustomerListError": "Error loading customer list: {error}",
+  "@loadCustomerListError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteError": "Delete error: {error}",
+  "@deleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "labelSettingsSaved": "✅ Label settings saved!",
+  "pleaseEnterTemplateName": "Please enter template name",
+  "shopTab": "Shop",
+  "templateTab": "Templates",
+  "versionFormat": "Version {version}",
+  "@versionFormat": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "onlySuperAdminCanDelete": "ONLY SUPER ADMIN CAN DELETE SHOP DATA!",
+  "shopDataDeleted": "SHOP DATA DELETED!",
+  "displayInfoOnLabel": "Info displayed on label",
+  "shopNameField": "Shop Name",
+  "shopNameHint": "E.g.: HULUCA MOBILE",
+  "hotline": "Hotline",
+  "hotlineHint": "E.g.: 0909 123 456",
+  "zalo": "Zalo",
+  "slogan": "Slogan",
+  "sloganHint": "E.g.: Best prices guaranteed",
+  "addressOptional": "Address (optional)",
+  "addressHint": "E.g.: 123 ABC, District 1, HCM",
+  "invoiceSaved": "Invoice template saved",
+  "profileSaved": "PROFILE SAVED",
+  "partDeleted": "Part deleted",
+  "partsDeletedCount": "{count} parts deleted",
+  "@partsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "csvCopied": "CSV copied to clipboard",
+  "confirmDeliveryAndPayment": "CONFIRM DELIVERY & PAYMENT",
+  "statusRepairing": "REPAIRING",
+  "statusDone": "DONE",
+  "issueLabel": "Issue: {issue}",
+  "@issueLabel": {
+    "placeholders": {
+      "issue": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptSavedAndPrinted": "Receipt saved and printed successfully!",
+  "partnerDeleted": "PARTNER DELETED",
+  "refreshingFcmToken": "Refreshing FCM token...",
+  "isActive": "Active",
+  "confirmDeleteTitle": "CONFIRM DELETE",
+  "confirmButton": "CONFIRM",
+  "shopField": "Shop",
+  "selectShopToViewData": "SELECT SHOP TO VIEW",
+  "homeTab": "Home",
+  "salesTab": "Sales",
+  "repairsTab": "Repairs",
+  "inventoryTab": "Inventory",
+  "staffTab": "Staff",
+  "financeTab": "Finance",
+  "settingsTab": "Settings",
+  "goodMorning": "Good morning",
+  "goodAfternoon": "Good afternoon",
+  "goodEvening": "Good evening",
+  "exitAppTitle": "Exit app?",
+  "exit": "EXIT",
+  "groupChat": "GROUP CHAT",
+  "newMessagesCount": "{count} new messages",
+  "@newMessagesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noMessages": "No messages yet",
+  "financialOverview": "FINANCIAL OVERVIEW",
+  "todayOverview": "TODAY OVERVIEW",
+  "todayIncome": "TODAY INCOME",
+  "todayExpenseLabel": "TODAY EXPENSE",
+  "expenseItems": "expense items",
+  "totalDebt": "TOTAL DEBT",
+  "todayActivities": "TODAY ACTIVITIES",
+  "delivered": "Delivered",
+  "todayNetProfit": "TODAY NET PROFIT",
+  "profitFormula": "= Income - Expense - Cost",
+  "featureLockedByAdmin": "This feature has been locked by Administrator.\nPlease contact developer for support.",
+  "featureLockedByOwner": "You don't have permission to access this feature.\nPlease contact Shop Owner for access.",
+  "technicalSupport": "TECHNICAL SUPPORT",
+  "contactShopOwner": "CONTACT SHOP OWNER",
+  "hulucaTech": "Huluca Tech",
+  "shopOwnerLabel": "Shop Owner",
+  "adminLocked": "ADMIN LOCKED",
+  "ownerPermissionLocked": "OWNER PERMISSION LOCKED",
+  "featureLocked": "Feature locked",
+  "supportAvailability": "24/7 Support • Response within 30 minutes",
+  "requestPermission": "Request permission",
+  "contactShopOwnerOrManager": "Contact Shop Owner or Manager",
+  "requestFeatureAccess": "Request access to this feature",
+  "loginAgainAfterPermission": "After permission granted, login again to apply",
+  "cannotMakeCall": "Cannot make call: {phoneNumber}",
+  "@cannotMakeCall": {
+    "placeholders": {
+      "phoneNumber": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotOpenZalo": "Cannot open Zalo. Please contact: {phoneNumber}",
+  "@cannotOpenZalo": {
+    "placeholders": {
+      "phoneNumber": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationActive": "Notifications (active)",
+  "notificationInactive": "Notifications (inactive)",
+  "searchWholeApp": "Search whole app",
+  "contactAdminToUnlock": "Contact Admin to unlock",
+  "systemAdminLabel": "System Administrator",
+  "shopOwnerLabelFull": "Shop Owner",
+  "managerLabel": "Manager",
+  "staffLabel": "Staff",
+  "userLabel": "User",
+  "welcomeNewStaff": "Welcome new staff!",
+  "newStaffSyncGuide": "Go to Shop Settings → Download shop data to sync",
+  "downloadShopDataToStart": "Download shop data to start working",
+  "downloadShopDataTitle": "DOWNLOAD SHOP DATA",
+  "downloadDataOf": "Download data of",
+  "fromCloudToDevice": "from cloud to this device.",
+  "debtsAndExpenses": "Debts & Expenses",
+  "customersAndSuppliers": "Customers & Suppliers",
+  "downloadOnlyThisShop": "Only download this shop's data, won't affect other shops.",
+  "downloadMayTakeFewMinutes": "Process may take a few minutes depending on data size.",
+  "startDownload": "START DOWNLOAD",
+  "downloadingShopData": "Downloading shop data...",
+  "pleaseWait": "Please wait",
+  "shopDataDownloaded": "Shop data downloaded!",
+  "pendingStockShort": "Pending Stock",
+  "temporaryImport": "Temp Import",
+  "payment": "Payment",
+  "incomeExpense": "Income/Expense",
+  "createSaleOrder": "CREATE SALE ORDER",
+  "sellProductsQuickly": "Sell products quickly",
+  "createRepairOrder": "CREATE REPAIR ORDER",
+  "receiveDeviceForRepair": "Receive device for repair",
+  "addStock": "+ ADD STOCK",
+  "newStockIn": "New stock in",
+  "scanToCheck": "Scan to check",
+  "report": "REPORT",
+  "checkInOut": "Check in/out",
+  "quickWarrantyLookup": "Quick warranty lookup",
+  "createSale": "Create sale",
+  "createRepair": "Create repair",
+  "stockIn": "Stock in",
+  "revenueReport": "Revenue report",
+  "createNewSaleOrder": "CREATE NEW SALE ORDER",
+  "createSaleOrderQuickly": "Create sale order quickly",
+  "management": "MANAGEMENT",
+  "saleOrderList": "Sale order list",
+  "viewSearchTrackSales": "View, search and track all sale orders.",
+  "customerManagement": "Customer Management",
+  "addEditViewCustomers": "Add, edit and view customer information.",
+  "viewProcessWarrantyRequests": "View and process warranty requests.",
+  "repairs": "REPAIRS",
+  "createNewRepairOrder": "CREATE NEW REPAIR ORDER",
+  "repairOrderList": "Repair order list",
+  "viewSearchTrackRepairs": "View, search and track all repair orders.",
+  "inventoryManagement": "INVENTORY MANAGEMENT",
+  "holdForDetailedGuide": "Hold for detailed guide",
+  "stockInNew": "STOCK IN NEW",
+  "fullInformation": "Full information",
+  "quickStockIn": "QUICK STOCK IN",
+  "continuousScan": "Continuous scan",
+  "compareInventory": "Compare inventory",
+  "pendingConfirmation": "Pending confirmation",
+  "viewPendingStockList": "View pending stock confirmation list.",
+  "productList": "Product list",
+  "viewManageProducts": "View and manage products in stock.",
+  "suppliersPartners": "Suppliers - Partners",
+  "manageSupplierPartnerDebt": "Manage suppliers, repair partners and debts.",
+  "quickInputCodeList": "Quick input code list",
+  "viewManageQuickInputCodes": "View and manage quick input codes.",
+  "understood": "UNDERSTOOD",
+  "noAccessPermission": "No access permission",
+  "contactOwnerForPermission": "Contact shop owner for permission",
+  "staffManagement": "STAFF MANAGEMENT",
+  "recordWorkingHours": "Record working hours",
+  "employeeManagement": "EMPLOYEE MANAGEMENT",
+  "salaryCalculation": "SALARY\nCalculation",
+  "workSchedule": "Work\nSchedule",
+  "salaryCommissionSettings": "Salary &\nCommission Settings",
+  "reports": "REPORTS",
+  "attendanceTracking": "Attendance tracking",
+  "viewAllStaffAttendance": "View all staff attendance by day/month.",
+  "personalAttendance": "Personal attendance",
+  "checkInOutAndHistory": "Check-in/out and view personal attendance history.",
+  "salaryGuideTitle": "SALARY CALCULATION GUIDE",
+  "goToPayroll": "GO TO PAYROLL",
+  "financialManagement": "FINANCIAL MANAGEMENT",
+  "closeCashToday": "CLOSE CASH TODAY",
+  "reconcileCashAndBank": "Reconcile cash & bank",
+  "reportsAndAnalysis": "REPORTS & ANALYSIS",
+  "revenueOverview": "Revenue\nOverview",
+  "financialReport": "Financial\nReport",
+  "debtManagement": "Debt\nManagement",
+  "bankInstallmentStats": "Bank\nInstallment Stats",
+  "warrantyTracking": "Warranty\nTracking",
+  "manageAllTransactions": "Manage all income/expense transactions.",
+  "expenseManagement": "Expense Management",
+  "addTrackShopExpenses": "Add and track shop expenses.",
+  "debtManagementIncomeExpense": "Debt Management (Income/Expense)",
+  "recordPayDebts": "Record and pay debts.",
+  "summaryAllTransactions": "Summary of all income/expense transactions.",
+  "financialLog": "Financial Log",
+  "trackAllFinancialActivities": "Track all financial activities.",
+  "shopSettings": "Shop Settings",
+  "shopInfoLogoLocationMembers": "Shop info, logo, location and member management.",
+  "notifications": "Notifications",
+  "configureNotificationSettings": "Configure notification and alert settings.",
+  "designPrintTemplates": "Design print templates for thermal printer.",
+  "adminCenter": "Admin Center",
+  "manageSystemForSuperAdmin": "Manage entire system for super admin.",
+  "aboutDeveloper": "About Developer",
+  "developerAndAppInfo": "Developer and app information.",
+  "logoutFromAccount": "Logout from account",
+  "logoutConfirmTitle": "Logout?",
+  "logoutConfirmMessage": "Are you sure you want to logout?",
+  "checkingSync": "Checking sync...",
+  "checkingLocalVsCloud": "Checking local vs cloud data",
+  "dataSyncComplete": "Data sync complete",
+  "localCloudMatch100": "Local and Cloud match 100%",
+  "recheckingSync": "Rechecking sync...",
+  "needsDataSync": "Needs data sync",
+  "recordsNotSynced": "{count} records not synced. Tap to open Sync Center.",
+  "@recordsNotSynced": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todayFinancialReport": "TODAY FINANCIAL REPORT",
+  "details": "Details",
+  "salesAndRepairOrders": "sales + repair orders",
+  "warrantyReminder": "WARRANTY REMINDER",
+  "expiringWarrantiesMessage": "{count} devices expiring warranty. View now!",
+  "@expiringWarrantiesMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "productsInStock": "Products in stock",
+  "dataFullySynced": "Data fully synced",
+  "localAndCloudMatched": "Local and cloud data matched",
+  "syncNeeded": "Sync needed",
+  "todayExpense": "TODAY EXPENSE",
+  "todayActivity": "TODAY ACTIVITY",
+  "comparingLocalVsCloud": "Comparing local and cloud data...",
+  "totalDebt": "TOTAL DEBT",
+  "saleAndRepairCount": "{saleCount} sales + {repairCount} repairs",
+  "@saleAndRepairCount": {
+    "placeholders": {
+      "saleCount": {
+        "type": "int"
+      },
+      "repairCount": {
+        "type": "int"
+      }
+    }
+  },
+  "saleAndRepairOrders": "{saleCount} sales + {repairCount} repairs",
+  "@saleAndRepairOrders": {
+    "placeholders": {
+      "saleCount": {
+        "type": "int"
+      },
+      "repairCount": {
+        "type": "int"
+      }
+    }
+  },
+  "expenseItemsCount": "{count} expense items",
+  "@expenseItemsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "expiringWarrantiesCount": "{count} devices expiring warranty. View now!",
+  "@expiringWarrantiesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

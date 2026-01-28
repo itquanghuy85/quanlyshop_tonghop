@@ -3,6 +3,9 @@ class SaleOrder {
   String? firestoreId;
   String customerName;
   String phone;
+  bool isWalkIn;
+  String? walkInName;
+  String? walkInPhone;
   String address;
   String productNames;
   String productImeis;
@@ -38,6 +41,9 @@ class SaleOrder {
     this.firestoreId,
     required this.customerName,
     required this.phone,
+    this.isWalkIn = false,
+    this.walkInName,
+    this.walkInPhone,
     this.address = "",
     required this.productNames,
     required this.productImeis,
@@ -86,6 +92,9 @@ class SaleOrder {
       'firestoreId': firestoreId,
       'customerName': customerName.toUpperCase(),
       'phone': phone,
+      'isWalkIn': isWalkIn ? 1 : 0,
+      'walkInName': walkInName?.toUpperCase(),
+      'walkInPhone': walkInPhone,
       'address': address.toUpperCase(),
       'productNames': productNames.toUpperCase(),
       'productImeis': productImeis.toUpperCase(),
@@ -146,6 +155,9 @@ class SaleOrder {
       firestoreId: map['firestoreId'],
       customerName: map['customerName'] ?? "",
       phone: map['phone'] ?? "",
+      isWalkIn: map['isWalkIn'] == 1 || map['isWalkIn'] == true,
+      walkInName: map['walkInName'],
+      walkInPhone: map['walkInPhone'],
       address: map['address'] ?? "",
       productNames: map['productNames'] ?? "",
       productImeis: map['productImeis'] ?? "",

@@ -649,27 +649,11 @@ class StockEntryService {
             );
           }
 
-          for (final item in entry.items) {
-            await db.insertSupplierImportHistory({
-              'firestoreId':
-                  'import_${now}_${entry.supplierId ?? "sup"}_${item.name}',
-              'supplierId': supplierLocalId ?? 0,
-              'supplierName': entry.supplierName ?? 'NCC',
-              'productName': item.name,
-              'productBrand': item.brand ?? '',
-              'productModel': item.model ?? '',
-              'imei': item.imei ?? '',
-              'quantity': item.quantity,
-              'costPrice': (item.cost ?? 0).toInt(),
-              'totalAmount': item.totalCost.toInt(),
-              'paymentMethod': entry.paymentMethod,
-              'importDate': now,
-              'importedBy': userName,
-              'notes': entry.notes ?? '',
-              'shopId': entry.shopId,
-              'isSynced': 1,
-            });
+          // NOTE: Không ghi supplier_import_history vào local DB ở đây
+          // Để sync_service tự đồng bộ từ Firestore để tránh duplicate records
+          // (trước đây firestoreId local != firestoreId từ Firestore => duplicate)
 
+          for (final item in entry.items) {
             // === NẾU LÀ LINH KIỆN, GHI VÀO LOCAL repair_parts ===
             if (item.productType == 'LINH_KIEN') {
               await db.upsertRepairPart({
@@ -693,7 +677,7 @@ class StockEntryService {
               );
             }
           }
-          debugPrint('✅ confirmEntry: Local supplier_import_history saved');
+          debugPrint('✅ confirmEntry: Local repair_parts saved (supplier_import_history synced from Firestore)');
         } catch (e) {
           debugPrint('⚠️ confirmEntry: Failed to save local data: $e');
           // Không fail cả flow, chỉ log warning

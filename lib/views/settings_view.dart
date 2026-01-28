@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../services/user_service.dart';
 import '../theme/app_text_styles.dart';
 import '../services/firestore_service.dart';
@@ -8,6 +9,7 @@ import '../services/encryption_service.dart';
 import '../data/db_helper.dart';
 import '../services/sync_service.dart';
 import '../widgets/unified_sync_button.dart';
+import '../utils/app_info.dart';
 import 'staff_permissions_view.dart';
 import 'shop_selector_view.dart'; // Màn hình chọn shop cho super admin
 
@@ -22,6 +24,7 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   String _role = 'user';
   bool _loading = true;
+  late final Future<String> _versionFuture;
 
   // Super admin shop selection
   List<Map<String, dynamic>> _allShops = [];
@@ -31,6 +34,7 @@ class _SettingsViewState extends State<SettingsView> {
   @override
   void initState() {
     super.initState();
+    _versionFuture = AppInfo.getVersion();
     _loadRole();
     _loadShopsForAdmin();
   }
@@ -83,10 +87,12 @@ class _SettingsViewState extends State<SettingsView> {
         if (mounted) setState(() {});
       });
 
-      final shopName = _allShops.firstWhere(
-        (s) => s['id'] == shopId,
-        orElse: () => {'name': shopId},
-      )['name'] ?? shopId;
+      final shopName =
+          _allShops.firstWhere(
+            (s) => s['id'] == shopId,
+            orElse: () => {'name': shopId},
+          )['name'] ??
+          shopId;
 
       NotificationService.showSnackBar(
         "Đã chuyển sang shop: $shopName",
@@ -101,20 +107,20 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  String _getRoleDisplayName(String role) {
+  String _getRoleDisplayName(String role, AppLocalizations localizations) {
     switch (role) {
       case 'owner':
-        return 'CHỦ SHOP';
+        return localizations.ownerRole;
       case 'manager':
-        return 'QUẢN LÝ';
+        return localizations.managerRole;
       case 'employee':
-        return 'NHÂN VIÊN';
+        return localizations.employeeRole;
       case 'technician':
-        return 'KỸ THUẬT';
+        return localizations.technicianRole;
       case 'admin':
-        return 'ADMIN';
+        return localizations.adminRole;
       case 'user':
-        return 'NGƯỜI DÙNG';
+        return localizations.userRole;
       default:
         return role.toUpperCase();
     }
@@ -227,6 +233,7 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
         flexibleSpace: Container(
@@ -238,7 +245,13 @@ class _SettingsViewState extends State<SettingsView> {
             ),
           ),
         ),
-        title: const Text("CÀI ĐẶT HỆ THỐNG", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(
+          localizations.systemSettings,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -249,11 +262,11 @@ class _SettingsViewState extends State<SettingsView> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _buildSection("NGÔN NGỮ & GIAO DIỆN"),
+                _buildSection(localizations.languageAndInterface),
                 ListTile(
                   leading: const Icon(Icons.language, color: Colors.blue),
-                  title: const Text("Ngôn ngữ ứng dụng"),
-                  trailing: const Text("Tiếng Việt"),
+                  title: Text(localizations.languageApp),
+                  trailing: Text(localizations.vietnamese),
                   onTap: () {
                     if (widget.setLocale != null) {
                       widget.setLocale!(const Locale('vi'));
@@ -261,10 +274,10 @@ class _SettingsViewState extends State<SettingsView> {
                   },
                 ),
                 const Divider(),
-                _buildSection("TÀI KHOẢN & BẢO MẬT"),
+                _buildSection(localizations.accountAndSecurity),
                 ListTile(
                   leading: const Icon(Icons.person_pin, color: Colors.teal),
-                  title: const Text("Vai trò của bạn"),
+                  title: Text(localizations.yourRole),
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -275,7 +288,7 @@ class _SettingsViewState extends State<SettingsView> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      _getRoleDisplayName(_role),
+                      _getRoleDisplayName(_role, localizations),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: AppTextStyles.caption.fontSize,
@@ -295,17 +308,22 @@ class _SettingsViewState extends State<SettingsView> {
                       side: BorderSide(color: Colors.deepPurple.shade200),
                     ),
                     child: ListTile(
-                      leading: const Icon(Icons.swap_horiz, color: Colors.deepPurple),
-                      title: const Text(
-                        "CHỌN SHOP KHÁC",
-                        style: TextStyle(
+                      leading: const Icon(
+                        Icons.swap_horiz,
+                        color: Colors.deepPurple,
+                      ),
+                      title: Text(
+                        localizations.selectOtherShop,
+                        style: const TextStyle(
                           color: Colors.deepPurple,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
-                        "Shop hiện tại: ${UserService.getAdminSelectedShop()?.substring(0, 8) ?? 'N/A'}...",
-                        style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                        "${localizations.currentShop}: ${UserService.getAdminSelectedShop()?.substring(0, 8) ?? 'N/A'}...",
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                        ),
                       ),
                       onTap: () async {
                         await SyncService.cancelAllSubscriptions();
@@ -314,7 +332,8 @@ class _SettingsViewState extends State<SettingsView> {
                         if (mounted) {
                           Navigator.of(context).pushAndRemoveUntil(
                             MaterialPageRoute(
-                              builder: (context) => ShopSelectorView(setLocale: widget.setLocale),
+                              builder: (context) =>
+                                  ShopSelectorView(setLocale: widget.setLocale),
                             ),
                             (route) => false,
                           );
@@ -333,38 +352,36 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   child: ListTile(
                     leading: const Icon(Icons.logout, color: Colors.red),
-                    title: const Text(
-                      "ĐĂNG XUẤT TÀI KHOẢN",
-                      style: TextStyle(
+                    title: Text(
+                      localizations.logoutAccount,
+                      style: const TextStyle(
                         color: Colors.red,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     subtitle: Text(
-                      "Đăng xuất khỏi ứng dụng",
+                      localizations.logoutFromApp,
                       style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                     ),
                     onTap: () async {
                       final confirm = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
-                          title: const Text("Đăng xuất?"),
-                          content: const Text(
-                            "Bạn có chắc muốn đăng xuất khỏi tài khoản?",
-                          ),
+                          title: Text(localizations.logoutQuestion),
+                          content: Text(localizations.confirmLogout),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text("HỦY"),
+                              child: Text(localizations.cancel.toUpperCase()),
                             ),
                             ElevatedButton(
                               onPressed: () => Navigator.pop(ctx, true),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
                               ),
-                              child: const Text(
-                                "ĐĂNG XUẤT",
-                                style: TextStyle(color: Colors.white),
+                              child: Text(
+                                localizations.logout.toUpperCase(),
+                                style: const TextStyle(color: Colors.white),
                               ),
                             ),
                           ],
@@ -384,7 +401,11 @@ class _SettingsViewState extends State<SettingsView> {
                           debugPrint('Logout error: $e');
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Lỗi đăng xuất: $e')),
+                              SnackBar(
+                                content: Text(
+                                  localizations.logoutError(e.toString()),
+                                ),
+                              ),
                             );
                           }
                         }
@@ -395,7 +416,7 @@ class _SettingsViewState extends State<SettingsView> {
 
                 // ĐỒNG BỘ DỮ LIỆU - Chỉ còn 1 entry point duy nhất
                 const SizedBox(height: 30),
-                _buildSection("ĐỒNG BỘ DỮ LIỆU"),
+                _buildSection(localizations.syncManagement),
                 // Card đơn giản mở Trung tâm đồng bộ
                 Card(
                   color: Colors.teal.shade50,
@@ -416,15 +437,15 @@ class _SettingsViewState extends State<SettingsView> {
                         size: 28,
                       ),
                     ),
-                    title: const Text(
-                      "TRUNG TÂM ĐỒNG BỘ",
-                      style: TextStyle(
+                    title: Text(
+                      localizations.syncCenter,
+                      style: const TextStyle(
                         color: Colors.teal,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     subtitle: Text(
-                      "Tải về, đẩy lên, kiểm tra và khôi phục dữ liệu",
+                      localizations.syncCenterDesc,
                       style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                     ),
                     trailing: const Icon(
@@ -446,7 +467,7 @@ class _SettingsViewState extends State<SettingsView> {
                 // NÚT XÓA TRẮNG CHỈ HIỆN CHO SUPER ADMIN
                 if (UserService.isCurrentUserSuperAdmin()) ...[
                   const SizedBox(height: 30),
-                  _buildSection("QUẢN TRỊ NÂNG CAO"),
+                  _buildSection(localizations.advancedAdmin),
 
                   // DROPDOWN CHỌN SHOP
                   Card(
@@ -465,7 +486,7 @@ class _SettingsViewState extends State<SettingsView> {
                               Icon(Icons.store, color: Colors.blue.shade700),
                               const SizedBox(width: 10),
                               Text(
-                                "CHỌN SHOP ĐỂ XEM",
+                                localizations.selectShopToViewData,
                                 style: TextStyle(
                                   color: Colors.blue.shade700,
                                   fontWeight: FontWeight.bold,
@@ -476,29 +497,32 @@ class _SettingsViewState extends State<SettingsView> {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            "Super Admin có thể chọn shop để xem dữ liệu",
-                            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
+                            localizations.viewShopAsAdmin,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.subtitle1.fontSize,
+                              color: Colors.grey,
+                            ),
                           ),
                           const SizedBox(height: 15),
                           if (_loadingShops)
                             const Center(child: CircularProgressIndicator())
                           else if (_allShops.isEmpty)
-                            const Text(
-                              "Không có shop nào",
-                              style: TextStyle(color: Colors.grey),
+                            Text(
+                              localizations.noShops,
+                              style: const TextStyle(color: Colors.grey),
                             )
                           else
                             DropdownButtonFormField<String>(
                               initialValue: _selectedShopId,
                               decoration: InputDecoration(
-                                labelText: "Chọn shop",
+                                labelText: localizations.selectShopLabel,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 filled: true,
                                 fillColor: Colors.white,
                               ),
-                              hint: const Text("-- Chọn shop để xem --"),
+                              hint: Text(localizations.selectShopPlaceholder),
                               items: _allShops.map((shop) {
                                 final shopName =
                                     shop['name'] ?? 'Shop ${shop['id']}';
@@ -519,7 +543,8 @@ class _SettingsViewState extends State<SettingsView> {
                                       Text(
                                         ownerEmail,
                                         style: TextStyle(
-                                          fontSize: AppTextStyles.body1.fontSize,
+                                          fontSize:
+                                              AppTextStyles.body1.fontSize,
                                           color: Colors.grey,
                                         ),
                                       ),
@@ -558,7 +583,15 @@ class _SettingsViewState extends State<SettingsView> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      "Đang xem: ${_allShops.firstWhere((s) => s['id'] == _selectedShopId, orElse: () => {'name': _selectedShopId})['name'] ?? _selectedShopId}",
+                                      localizations.currentlyViewing(
+                                        _allShops.firstWhere(
+                                              (s) => s['id'] == _selectedShopId,
+                                              orElse: () => {
+                                                'name': _selectedShopId,
+                                              },
+                                            )['name'] ??
+                                            _selectedShopId,
+                                      ),
                                       style: const TextStyle(
                                         color: Colors.green,
                                         fontWeight: FontWeight.w500,
@@ -586,16 +619,18 @@ class _SettingsViewState extends State<SettingsView> {
                         Icons.admin_panel_settings,
                         color: Colors.orange,
                       ),
-                      title: const Text(
-                        "QUẢN LÝ PHÂN QUYỀN NHÂN VIÊN",
-                        style: TextStyle(
+                      title: Text(
+                        localizations.staffPermissions,
+                        style: const TextStyle(
                           color: Colors.orange,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
-                        "Xem và chỉnh sửa quyền truy cập của từng nhân viên",
-                        style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                        localizations.viewAndEditStaffPermissions,
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                        ),
                       ),
                       onTap: () => Navigator.push(
                         context,
@@ -617,16 +652,18 @@ class _SettingsViewState extends State<SettingsView> {
                         Icons.delete_forever,
                         color: Colors.red,
                       ),
-                      title: const Text(
-                        "XÓA TRẮNG DỮ LIỆU SHOP",
-                        style: TextStyle(
+                      title: Text(
+                        localizations.resetShopData,
+                        style: const TextStyle(
                           color: Colors.red,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
-                        "Dùng khi muốn khởi tạo lại toàn bộ dữ liệu cửa hàng (CHỈ SUPER ADMIN)",
-                        style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                        localizations.resetShopAdminOnly,
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                        ),
                       ),
                       onTap: _handleResetShop,
                     ),
@@ -635,9 +672,20 @@ class _SettingsViewState extends State<SettingsView> {
 
                 const SizedBox(height: 50),
                 Center(
-                  child: Text(
-                    "Phiên bản 3.4.0",
-                    style: TextStyle(color: Colors.grey.shade400, fontSize: AppTextStyles.caption.fontSize),
+                  child: FutureBuilder<String>(
+                    future: _versionFuture,
+                    builder: (context, snapshot) {
+                      final versionText = snapshot.data != null
+                          ? localizations.versionFormat(snapshot.data!)
+                          : '${localizations.versionFormat('...')}';
+                      return Text(
+                        versionText,
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: AppTextStyles.caption.fontSize,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

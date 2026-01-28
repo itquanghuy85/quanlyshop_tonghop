@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_text_styles.dart';
+import '../utils/app_info.dart';
 
 class AboutDeveloperView extends StatelessWidget {
   const AboutDeveloperView({super.key});
@@ -593,13 +594,19 @@ class AboutDeveloperView extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            Text(
-              'Phiên bản 3.4.0',
-              style: TextStyle(
-                fontSize: AppTextStyles.headline4.fontSize,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
+            FutureBuilder<String>(
+              future: AppInfo.getVersion(),
+              builder: (context, snapshot) {
+                final versionText = snapshot.data != null ? 'Phiên bản ${snapshot.data}' : 'Phiên bản ...';
+                return Text(
+                  versionText,
+                  style: TextStyle(
+                    fontSize: AppTextStyles.headline4.fontSize,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 16),

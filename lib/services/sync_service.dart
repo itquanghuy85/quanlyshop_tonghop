@@ -355,6 +355,7 @@ class SyncService {
             );
 
             if (shouldAccept) {
+              _convertTimestampFields(data);
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
               await db.upsertRepair(Repair.fromMap(data));

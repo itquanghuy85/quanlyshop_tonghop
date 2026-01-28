@@ -69,7 +69,8 @@ class _LoginViewState extends State<LoginView> {
       }
       await _saveAccount();
     } on FirebaseAuthException {
-      if (mounted) setState(() => _error = AppLocalizations.of(context)!.loginError);
+      if (mounted)
+        setState(() => _error = AppLocalizations.of(context)!.loginError);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -82,29 +83,31 @@ class _LoginViewState extends State<LoginView> {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.lock_reset, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('Quên mật khẩu'),
+            const Icon(Icons.lock_reset, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text(AppLocalizations.of(context)!.forgotPassword),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Nhập email đã đăng ký, chúng tôi sẽ gửi link đặt lại mật khẩu.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+            Text(
+              AppLocalizations.of(context)!.forgotPasswordDesc,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
-                labelText: 'Email',
+                labelText: AppLocalizations.of(context)!.email,
                 prefixIcon: const Icon(Icons.email),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ],
@@ -112,41 +115,60 @@ class _LoginViewState extends State<LoginView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('HỦY'),
+            child: Text(AppLocalizations.of(context)!.cancel.toUpperCase()),
           ),
           ElevatedButton(
             onPressed: () async {
               final email = emailController.text.trim();
               if (email.isEmpty || !email.contains('@')) {
                 messenger.showSnackBar(
-                  const SnackBar(content: Text('Vui lòng nhập email hợp lệ'), backgroundColor: Colors.orange),
+                  SnackBar(
+                    content: Text(
+                      AppLocalizations.of(context)!.pleaseEnterValidEmail,
+                    ),
+                    backgroundColor: Colors.orange,
+                  ),
                 );
                 return;
               }
               Navigator.pop(ctx);
               try {
-                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                await FirebaseAuth.instance.sendPasswordResetEmail(
+                  email: email,
+                );
                 messenger.showSnackBar(
                   SnackBar(
-                    content: Text('Đã gửi email đặt lại mật khẩu tới $email'),
+                    content: Text(
+                      AppLocalizations.of(
+                        context,
+                      )!.passwordResetEmailSent(email),
+                    ),
                     backgroundColor: Colors.green,
                     duration: const Duration(seconds: 5),
                   ),
                 );
               } on FirebaseAuthException catch (e) {
-                String errorMsg = 'Lỗi gửi email';
+                String errorMsg = AppLocalizations.of(
+                  context,
+                )!.errorSendingEmail;
                 if (e.code == 'user-not-found') {
-                  errorMsg = 'Email chưa được đăng ký';
+                  errorMsg = AppLocalizations.of(context)!.emailNotRegistered;
                 } else if (e.code == 'invalid-email') {
-                  errorMsg = 'Email không hợp lệ';
+                  errorMsg = AppLocalizations.of(context)!.invalidEmailFormat;
                 }
                 messenger.showSnackBar(
-                  SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+                  SnackBar(
+                    content: Text(errorMsg),
+                    backgroundColor: Colors.red,
+                  ),
                 );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('GỬI EMAIL', style: TextStyle(color: Colors.white)),
+            child: Text(
+              AppLocalizations.of(context)!.sendEmail,
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -166,22 +188,41 @@ class _LoginViewState extends State<LoginView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.storefront_rounded, size: 80, color: AppColors.primary),
+              const Icon(
+                Icons.storefront_rounded,
+                size: 80,
+                color: AppColors.primary,
+              ),
               const SizedBox(height: 10),
-              Text(localizations.shopManagement, style: AppTextStyles.headline4.copyWith(color: AppColors.primary)),
+              Text(
+                localizations.shopManagement,
+                style: AppTextStyles.headline4.copyWith(
+                  color: AppColors.primary,
+                ),
+              ),
               const SizedBox(height: 20),
               // Language switcher
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1.5),
+                  border: Border.all(
+                    color: AppColors.primary.withOpacity(0.3),
+                    width: 1.5,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.language, color: AppColors.primary, size: 20),
+                    const Icon(
+                      Icons.language,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       localizations.selectLanguage,
@@ -200,7 +241,10 @@ class _LoginViewState extends State<LoginView> {
                     DropdownButton<Locale>(
                       value: _selectedLocale,
                       underline: const SizedBox(),
-                      icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
+                      icon: const Icon(
+                        Icons.arrow_drop_down,
+                        color: AppColors.primary,
+                      ),
                       style: AppTextStyles.body2.copyWith(
                         fontWeight: FontWeight.w500,
                         color: AppColors.primary,
@@ -210,7 +254,12 @@ class _LoginViewState extends State<LoginView> {
                           value: const Locale('vi'),
                           child: Row(
                             children: [
-                              Text('🇻🇳 ', style: TextStyle(fontSize: AppTextStyles.headline3.fontSize)),
+                              Text(
+                                '🇻🇳 ',
+                                style: TextStyle(
+                                  fontSize: AppTextStyles.headline3.fontSize,
+                                ),
+                              ),
                               Text(localizations.vietnamese),
                             ],
                           ),
@@ -219,7 +268,12 @@ class _LoginViewState extends State<LoginView> {
                           value: const Locale('en'),
                           child: Row(
                             children: [
-                              Text('🇺🇸 ', style: TextStyle(fontSize: AppTextStyles.headline3.fontSize)),
+                              Text(
+                                '🇺🇸 ',
+                                style: TextStyle(
+                                  fontSize: AppTextStyles.headline3.fontSize,
+                                ),
+                              ),
                               Text(localizations.english),
                             ],
                           ),
@@ -241,9 +295,13 @@ class _LoginViewState extends State<LoginView> {
                 decoration: InputDecoration(
                   labelText: localizations.email,
                   prefixIcon: const Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  helperText: 'Ví dụ: ten@domain.com hoặc ten@gmail.com',
-                  helperStyle: AppTextStyles.caption.copyWith(color: AppColors.onSurface.withOpacity(0.6)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  helperText: localizations.emailExample,
+                  helperStyle: AppTextStyles.caption.copyWith(
+                    color: AppColors.onSurface.withOpacity(0.6),
+                  ),
                 ),
               ),
               const SizedBox(height: 15),
@@ -253,7 +311,9 @@ class _LoginViewState extends State<LoginView> {
                 decoration: InputDecoration(
                   labelText: localizations.password,
                   prefixIcon: const Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               Row(
@@ -268,7 +328,10 @@ class _LoginViewState extends State<LoginView> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
-                  child: Text(_error!, style: AppTextStyles.body2.copyWith(color: AppColors.error)),
+                  child: Text(
+                    _error!,
+                    style: AppTextStyles.body2.copyWith(color: AppColors.error),
+                  ),
                 ),
               const SizedBox(height: 20),
               SizedBox(
@@ -278,28 +341,42 @@ class _LoginViewState extends State<LoginView> {
                   onPressed: _loading ? null : _login,
                   style: AppButtonStyles.elevatedButtonStyle,
                   child: _loading
-                      ? const CircularProgressIndicator(color: AppColors.onPrimary)
-                      : Text(localizations.signIn.toUpperCase(), style: AppTextStyles.button),
+                      ? const CircularProgressIndicator(
+                          color: AppColors.onPrimary,
+                        )
+                      : Text(
+                          localizations.signIn.toUpperCase(),
+                          style: AppTextStyles.button,
+                        ),
                 ),
-              ),              const SizedBox(height: 15),
+              ),
+              const SizedBox(height: 15),
               TextButton(
                 onPressed: () async {
                   final messenger = ScaffoldMessenger.of(context);
-                  final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterView()));
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RegisterView()),
+                  );
                   if (result == true) {
                     messenger.showSnackBar(
-                      const SnackBar(content: Text('Đăng ký thành công! Vui lòng đăng nhập.')),
+                      SnackBar(content: Text(localizations.registerSuccess)),
                     );
                   }
                 },
 
-
-                child: Text('Chưa có tài khoản? Đăng ký ngay', style: AppTextStyles.body2.copyWith(color: AppColors.primary)),
+                child: Text(
+                  localizations.noAccountRegisterNow,
+                  style: AppTextStyles.body2.copyWith(color: AppColors.primary),
+                ),
               ),
               // Quên mật khẩu
               TextButton(
                 onPressed: _showForgotPasswordDialog,
-                child: Text('Quên mật khẩu?', style: AppTextStyles.body2.copyWith(color: Colors.grey[600])),
+                child: Text(
+                  AppLocalizations.of(context)!.forgotPassword,
+                  style: AppTextStyles.body2.copyWith(color: Colors.grey[600]),
+                ),
               ),
               const SizedBox(height: 30),
               _buildCalendarCard(),
@@ -318,8 +395,16 @@ class _LoginViewState extends State<LoginView> {
 
   Widget _buildCalendarCard() {
     final now = DateTime.now();
-    final firstDayOfMonth = DateTime(_currentMonth.year, _currentMonth.month, 1);
-    final daysInMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
+    final firstDayOfMonth = DateTime(
+      _currentMonth.year,
+      _currentMonth.month,
+      1,
+    );
+    final daysInMonth = DateTime(
+      _currentMonth.year,
+      _currentMonth.month + 1,
+      0,
+    ).day;
     final startWeekday = firstDayOfMonth.weekday; // Monday = 1, Sunday = 7
 
     final List<Widget> dayCells = [];
@@ -331,24 +416,28 @@ class _LoginViewState extends State<LoginView> {
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_currentMonth.year, _currentMonth.month, day);
       final bool isToday =
-          date.year == now.year && date.month == now.month && date.day == now.day;
+          date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day;
 
-      dayCells.add(Container(
-        margin: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          color: isToday ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(
-          child: Text(
-            '$day',
-            style: AppTextStyles.caption.copyWith(
-              fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-              color: isToday ? AppColors.onPrimary : AppColors.onSurface,
+      dayCells.add(
+        Container(
+          margin: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: isToday ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: Text(
+              '$day',
+              style: AppTextStyles.caption.copyWith(
+                fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                color: isToday ? AppColors.onPrimary : AppColors.onSurface,
+              ),
             ),
           ),
         ),
-      ));
+      );
     }
 
     while (dayCells.length % 7 != 0) {
@@ -357,15 +446,18 @@ class _LoginViewState extends State<LoginView> {
 
     final List<Row> weekRows = [];
     for (int i = 0; i < dayCells.length; i += 7) {
-      weekRows.add(Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: dayCells.sublist(i, i + 7).map((w) {
-          return Expanded(child: w);
-        }).toList(),
-      ));
+      weekRows.add(
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: dayCells.sublist(i, i + 7).map((w) {
+            return Expanded(child: w);
+          }).toList(),
+        ),
+      );
     }
 
-    final monthYearText = '${_currentMonth.month.toString().padLeft(2, '0')}/${_currentMonth.year}';
+    final monthYearText =
+        '${_currentMonth.month.toString().padLeft(2, '0')}/${_currentMonth.year}';
 
     return Card(
       elevation: 3,
@@ -390,7 +482,7 @@ class _LoginViewState extends State<LoginView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Lịch vạn niên',
+                        AppLocalizations.of(context)!.perpetualCalendarTitle,
                         style: AppTextStyles.body1.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppColors.onPrimary,
@@ -398,8 +490,12 @@ class _LoginViewState extends State<LoginView> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Hôm nay: ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}',
-                        style: AppTextStyles.caption.copyWith(color: AppColors.onPrimary.withOpacity(0.7)),
+                        AppLocalizations.of(context)!.todayDateFormat(
+                          '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}',
+                        ),
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.onPrimary.withOpacity(0.7),
+                        ),
                       ),
                     ],
                   ),
@@ -409,7 +505,10 @@ class _LoginViewState extends State<LoginView> {
                   children: [
                     IconButton(
                       onPressed: () => _changeMonth(-1),
-                      icon: const Icon(Icons.chevron_left, color: AppColors.onPrimary),
+                      icon: const Icon(
+                        Icons.chevron_left,
+                        color: AppColors.onPrimary,
+                      ),
                     ),
                     Text(
                       monthYearText,
@@ -420,7 +519,10 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     IconButton(
                       onPressed: () => _changeMonth(1),
-                      icon: const Icon(Icons.chevron_right, color: AppColors.onPrimary),
+                      icon: const Icon(
+                        Icons.chevron_right,
+                        color: AppColors.onPrimary,
+                      ),
                     ),
                   ],
                 ),
@@ -432,37 +534,72 @@ class _LoginViewState extends State<LoginView> {
               children: [
                 Expanded(
                   child: Center(
-                    child: Text('T2', style: AppTextStyles.overline.copyWith(color: AppColors.onPrimary)),
+                    child: Text(
+                      AppLocalizations.of(context)!.monday,
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onPrimary,
+                      ),
+                    ),
                   ),
                 ),
                 Expanded(
                   child: Center(
-                    child: Text('T3', style: AppTextStyles.overline.copyWith(color: AppColors.onPrimary)),
+                    child: Text(
+                      AppLocalizations.of(context)!.tuesday,
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onPrimary,
+                      ),
+                    ),
                   ),
                 ),
                 Expanded(
                   child: Center(
-                    child: Text('T4', style: AppTextStyles.overline.copyWith(color: AppColors.onPrimary)),
+                    child: Text(
+                      AppLocalizations.of(context)!.wednesday,
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onPrimary,
+                      ),
+                    ),
                   ),
                 ),
                 Expanded(
                   child: Center(
-                    child: Text('T5', style: AppTextStyles.overline.copyWith(color: AppColors.onPrimary)),
+                    child: Text(
+                      AppLocalizations.of(context)!.thursday,
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onPrimary,
+                      ),
+                    ),
                   ),
                 ),
                 Expanded(
                   child: Center(
-                    child: Text('T6', style: AppTextStyles.overline.copyWith(color: AppColors.onPrimary)),
+                    child: Text(
+                      AppLocalizations.of(context)!.friday,
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onPrimary,
+                      ),
+                    ),
                   ),
                 ),
                 Expanded(
                   child: Center(
-                    child: Text('T7', style: AppTextStyles.overline.copyWith(color: AppColors.onPrimary)),
+                    child: Text(
+                      AppLocalizations.of(context)!.saturday,
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onPrimary,
+                      ),
+                    ),
                   ),
                 ),
                 Expanded(
                   child: Center(
-                    child: Text('CN', style: AppTextStyles.overline.copyWith(color: AppColors.onPrimary)),
+                    child: Text(
+                      AppLocalizations.of(context)!.sunday,
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onPrimary,
+                      ),
+                    ),
                   ),
                 ),
               ],

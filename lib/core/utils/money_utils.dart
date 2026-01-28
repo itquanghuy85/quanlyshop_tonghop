@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import '../../utils/money_input_formatter.dart';
 
 /// Utility class for handling Vietnamese Dong (VNĐ) currency operations.
 /// This is the ONLY place allowed to handle currency formatting, parsing, and conversions.
@@ -43,22 +44,20 @@ class MoneyUtils {
     return '$sign$abs';
   }
 
-  /// Converts user input to VNĐ.
-  /// If input < 100,000 → multiplies by 1000 (auto-append 000)
-  /// If input >= 100,000 → keeps as-is
+  /// DEPRECATED: Logic nhân 1000 đã bị loại bỏ vì gây bug.
+  /// Khi user nhập "50.000" qua formatter, giá trị đã là 50000.
+  /// Nếu nhân thêm 1000 sẽ thành 50.000.000 (sai).
+  /// Giữ lại method này cho backward compatibility nhưng KHÔNG nhân 1000.
   static int inputToVND(int input) {
-    if (input > 0 && input < 100000) {
-      return input * 1000;
-    }
+    // KHÔNG nhân 1000 - giữ nguyên giá trị đầu vào
     return input;
   }
 
   /// Parses currency string to VNĐ.
-  /// Removes separators and converts to int, then applies inputToVND logic.
+  /// Removes separators and converts to int.
+  /// NOTE: KHÔNG nhân 1000 vì user đã nhập số đầy đủ qua formatter.
   static int parseInputToVND(String input) {
-    final clean = input.replaceAll(RegExp(r'[^0-9]'), '');
-    final amount = int.tryParse(clean) ?? 0;
-    return inputToVND(amount);
+    return MoneyInputFormatter.parseRaw(input);
   }
 
   /// Converts VNĐ to thousand VNĐ for display purposes.
@@ -67,18 +66,15 @@ class MoneyUtils {
     return vnd ~/ 1000;
   }
 
-  /// Parses currency string to VNĐ with input conversion logic.
-  /// Cleans the string, parses to int, then applies inputToVND logic.
-  /// This maintains backward compatibility with existing code.
+  /// Parses currency string to VNĐ.
+  /// NOTE: KHÔNG nhân 1000 vì user đã nhập số đầy đủ qua formatter.
+  /// Đây là cách parse CHUẨN - chỉ loại bỏ ký tự không phải số.
   static int parseMoney(String text) {
-    final clean = text.replaceAll(RegExp(r'[^0-9]'), '');
-    final amount = int.tryParse(clean) ?? 0;
-    return inputToVND(amount);
+    return MoneyInputFormatter.parseRaw(text);
   }
   
   /// Parse raw value from formatted text (no conversion)
   static int parseRaw(String text) {
-    final clean = text.replaceAll(RegExp(r'[^0-9]'), '');
-    return int.tryParse(clean) ?? 0;
+    return MoneyInputFormatter.parseRaw(text);
   }
 }

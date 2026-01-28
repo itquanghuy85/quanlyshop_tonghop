@@ -872,7 +872,7 @@ abstract class AppLocalizations {
   /// No description provided for @versionNumber.
   ///
   /// In en, this message translates to:
-  /// **'2.1.0'**
+  /// **'2.6.0'**
   String get versionNumber;
 
   /// No description provided for @contactSupport.
@@ -908,7 +908,7 @@ abstract class AppLocalizations {
   /// No description provided for @technicalSupport.
   ///
   /// In en, this message translates to:
-  /// **'Technical support & app development'**
+  /// **'TECHNICAL SUPPORT'**
   String get technicalSupport;
 
   /// No description provided for @businessSolutions.
@@ -1010,7 +1010,7 @@ abstract class AppLocalizations {
   /// No description provided for @createRepairOrder.
   ///
   /// In en, this message translates to:
-  /// **'Create repair order'**
+  /// **'CREATE REPAIR ORDER'**
   String get createRepairOrder;
 
   /// No description provided for @noPermissionRepair.
@@ -1382,13 +1382,13 @@ abstract class AppLocalizations {
   /// No description provided for @phone.
   ///
   /// In en, this message translates to:
-  /// **'DIEN_THOAI'**
+  /// **'PHONE'**
   String get phone;
 
   /// No description provided for @accessory.
   ///
   /// In en, this message translates to:
-  /// **'PHỤ KIỆN'**
+  /// **'ACCESSORY'**
   String get accessory;
 
   /// No description provided for @productName.
@@ -2144,7 +2144,7 @@ abstract class AppLocalizations {
   /// No description provided for @createSaleOrder.
   ///
   /// In en, this message translates to:
-  /// **'Create new sale order'**
+  /// **'CREATE SALE ORDER'**
   String get createSaleOrder;
 
   /// No description provided for @searchByNameImei.
@@ -2324,8 +2324,2408 @@ abstract class AppLocalizations {
   /// No description provided for @appVersion.
   ///
   /// In en, this message translates to:
-  /// **'Version 1.0.1+9'**
+  /// **'Version 2.6.0+100'**
   String get appVersion;
+
+  /// No description provided for @saving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving...'**
+  String get saving;
+
+  /// No description provided for @saveSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'SAVE SETTINGS'**
+  String get saveSettings;
+
+  /// No description provided for @deleteTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete template?'**
+  String get deleteTemplate;
+
+  /// No description provided for @saveTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'SAVE TEMPLATE'**
+  String get saveTemplate;
+
+  /// No description provided for @saveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'SAVE CHANGES'**
+  String get saveChanges;
+
+  /// No description provided for @addCode.
+  ///
+  /// In en, this message translates to:
+  /// **'ADD CODE'**
+  String get addCode;
+
+  /// No description provided for @deletePartner.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete partner'**
+  String get deletePartner;
+
+  /// No description provided for @qrScanSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'QR SCAN SETTINGS'**
+  String get qrScanSettings;
+
+  /// No description provided for @scanSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan settings'**
+  String get scanSettings;
+
+  /// No description provided for @labelSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Product Label Settings'**
+  String get labelSettings;
+
+  /// No description provided for @cpkPriceSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'CPK Price Settings'**
+  String get cpkPriceSettings;
+
+  /// No description provided for @confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get confirm;
+
+  /// No description provided for @confirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm action'**
+  String get confirmAction;
+
+  /// No description provided for @loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get loading;
+
+  /// No description provided for @error.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get error;
+
+  /// No description provided for @success.
+  ///
+  /// In en, this message translates to:
+  /// **'Success'**
+  String get success;
+
+  /// No description provided for @warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning'**
+  String get warning;
+
+  /// No description provided for @info.
+  ///
+  /// In en, this message translates to:
+  /// **'Info'**
+  String get info;
+
+  /// No description provided for @search.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get search;
+
+  /// No description provided for @noData.
+  ///
+  /// In en, this message translates to:
+  /// **'No data'**
+  String get noData;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get done;
+
+  /// No description provided for @next.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get next;
+
+  /// No description provided for @previous.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get previous;
+
+  /// No description provided for @select.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get select;
+
+  /// No description provided for @selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get selected;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @details.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get details;
+
+  /// No description provided for @total.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get total;
+
+  /// No description provided for @amount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get amount;
+
+  /// No description provided for @date.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get date;
+
+  /// No description provided for @time.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get time;
+
+  /// No description provided for @status.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get status;
+
+  /// No description provided for @description.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get description;
+
+  /// No description provided for @required.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get required;
+
+  /// No description provided for @optional.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional'**
+  String get optional;
+
+  /// No description provided for @pleaseEnter.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter'**
+  String get pleaseEnter;
+
+  /// No description provided for @pleaseSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select'**
+  String get pleaseSelect;
+
+  /// No description provided for @invalidInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid input'**
+  String get invalidInput;
+
+  /// No description provided for @connectionError.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection error'**
+  String get connectionError;
+
+  /// No description provided for @tryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get tryAgain;
+
+  /// No description provided for @ok.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get ok;
+
+  /// No description provided for @notFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Not found'**
+  String get notFound;
+
+  /// No description provided for @noResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results'**
+  String get noResults;
+
+  /// No description provided for @copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copy;
+
+  /// No description provided for @copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get copied;
+
+  /// No description provided for @share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get share;
+
+  /// No description provided for @print.
+  ///
+  /// In en, this message translates to:
+  /// **'Print'**
+  String get print;
+
+  /// No description provided for @export.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get export;
+
+  /// No description provided for @import.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get import;
+
+  /// No description provided for @create.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get create;
+
+  /// No description provided for @createNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Create new'**
+  String get createNew;
+
+  /// No description provided for @view.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get view;
+
+  /// No description provided for @viewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View all'**
+  String get viewAll;
+
+  /// No description provided for @viewMore.
+  ///
+  /// In en, this message translates to:
+  /// **'View more'**
+  String get viewMore;
+
+  /// No description provided for @viewLess.
+  ///
+  /// In en, this message translates to:
+  /// **'View less'**
+  String get viewLess;
+
+  /// No description provided for @showAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all'**
+  String get showAll;
+
+  /// No description provided for @hideAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide all'**
+  String get hideAll;
+
+  /// No description provided for @enable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get enable;
+
+  /// No description provided for @disable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable'**
+  String get disable;
+
+  /// No description provided for @enabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get enabled;
+
+  /// No description provided for @disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get disabled;
+
+  /// No description provided for @active.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get active;
+
+  /// No description provided for @inactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get inactive;
+
+  /// No description provided for @pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get pending;
+
+  /// No description provided for @completed.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get completed;
+
+  /// No description provided for @cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get cancelled;
+
+  /// No description provided for @inProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get inProgress;
+
+  /// No description provided for @failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get failed;
+
+  /// No description provided for @unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
+
+  /// No description provided for @other.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get other;
+
+  /// No description provided for @none.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get none;
+
+  /// No description provided for @clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
+  /// No description provided for @clearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get clearAll;
+
+  /// No description provided for @reset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get reset;
+
+  /// No description provided for @apply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get apply;
+
+  /// No description provided for @from.
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get from;
+
+  /// No description provided for @to.
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get to;
+
+  /// No description provided for @by.
+  ///
+  /// In en, this message translates to:
+  /// **'By'**
+  String get by;
+
+  /// No description provided for @at.
+  ///
+  /// In en, this message translates to:
+  /// **'At'**
+  String get at;
+
+  /// No description provided for @on.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get on;
+
+  /// No description provided for @or.
+  ///
+  /// In en, this message translates to:
+  /// **'Or'**
+  String get or;
+
+  /// No description provided for @and.
+  ///
+  /// In en, this message translates to:
+  /// **'And'**
+  String get and;
+
+  /// No description provided for @withLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'With'**
+  String get withLabel;
+
+  /// No description provided for @without.
+  ///
+  /// In en, this message translates to:
+  /// **'Without'**
+  String get without;
+
+  /// No description provided for @newLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get newLabel;
+
+  /// No description provided for @old.
+  ///
+  /// In en, this message translates to:
+  /// **'Old'**
+  String get old;
+
+  /// No description provided for @more.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get more;
+
+  /// No description provided for @less.
+  ///
+  /// In en, this message translates to:
+  /// **'Less'**
+  String get less;
+
+  /// No description provided for @start.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get start;
+
+  /// No description provided for @end.
+  ///
+  /// In en, this message translates to:
+  /// **'End'**
+  String get end;
+
+  /// No description provided for @open.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get open;
+
+  /// No description provided for @close2.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close2;
+
+  /// No description provided for @send.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get send;
+
+  /// No description provided for @receive.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive'**
+  String get receive;
+
+  /// No description provided for @download.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get download;
+
+  /// No description provided for @upload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload'**
+  String get upload;
+
+  /// No description provided for @attach.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach'**
+  String get attach;
+
+  /// No description provided for @remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get remove;
+
+  /// No description provided for @change.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get change;
+
+  /// No description provided for @modified.
+  ///
+  /// In en, this message translates to:
+  /// **'Modified'**
+  String get modified;
+
+  /// No description provided for @created.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get created;
+
+  /// No description provided for @updated.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated'**
+  String get updated;
+
+  /// No description provided for @deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get deleted;
+
+  /// No description provided for @forgotPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password'**
+  String get forgotPasswordTitle;
+
+  /// No description provided for @forgotPasswordDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your registered email, we will send a password reset link.'**
+  String get forgotPasswordDesc;
+
+  /// No description provided for @pleaseEnterValidEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid email'**
+  String get pleaseEnterValidEmail;
+
+  /// No description provided for @passwordResetEmailSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Password reset email sent to {email}'**
+  String passwordResetEmailSent(String email);
+
+  /// No description provided for @errorSendingEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Error sending email'**
+  String get errorSendingEmail;
+
+  /// No description provided for @emailNotRegistered.
+  ///
+  /// In en, this message translates to:
+  /// **'Email not registered'**
+  String get emailNotRegistered;
+
+  /// No description provided for @invalidEmailFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid email'**
+  String get invalidEmailFormat;
+
+  /// No description provided for @sendEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'SEND EMAIL'**
+  String get sendEmail;
+
+  /// No description provided for @noAccountRegisterNow.
+  ///
+  /// In en, this message translates to:
+  /// **'No account? Register now'**
+  String get noAccountRegisterNow;
+
+  /// No description provided for @registerSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Registration successful! Please login.'**
+  String get registerSuccess;
+
+  /// No description provided for @emailExample.
+  ///
+  /// In en, this message translates to:
+  /// **'E.g.: name@domain.com or name@gmail.com'**
+  String get emailExample;
+
+  /// No description provided for @perpetualCalendarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Perpetual Calendar'**
+  String get perpetualCalendarTitle;
+
+  /// No description provided for @todayDateFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Today: {date}'**
+  String todayDateFormat(String date);
+
+  /// No description provided for @monday.
+  ///
+  /// In en, this message translates to:
+  /// **'Mon'**
+  String get monday;
+
+  /// No description provided for @tuesday.
+  ///
+  /// In en, this message translates to:
+  /// **'Tue'**
+  String get tuesday;
+
+  /// No description provided for @wednesday.
+  ///
+  /// In en, this message translates to:
+  /// **'Wed'**
+  String get wednesday;
+
+  /// No description provided for @thursday.
+  ///
+  /// In en, this message translates to:
+  /// **'Thu'**
+  String get thursday;
+
+  /// No description provided for @friday.
+  ///
+  /// In en, this message translates to:
+  /// **'Fri'**
+  String get friday;
+
+  /// No description provided for @saturday.
+  ///
+  /// In en, this message translates to:
+  /// **'Sat'**
+  String get saturday;
+
+  /// No description provided for @sunday.
+  ///
+  /// In en, this message translates to:
+  /// **'Sun'**
+  String get sunday;
+
+  /// No description provided for @languageAndInterface.
+  ///
+  /// In en, this message translates to:
+  /// **'LANGUAGE & INTERFACE'**
+  String get languageAndInterface;
+
+  /// No description provided for @accountAndSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'ACCOUNT & SECURITY'**
+  String get accountAndSecurity;
+
+  /// No description provided for @selectOtherShop.
+  ///
+  /// In en, this message translates to:
+  /// **'SELECT OTHER SHOP'**
+  String get selectOtherShop;
+
+  /// No description provided for @currentShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Current shop'**
+  String get currentShop;
+
+  /// No description provided for @logoutFromApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout from app'**
+  String get logoutFromApp;
+
+  /// No description provided for @logoutQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout?'**
+  String get logoutQuestion;
+
+  /// No description provided for @logoutError.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout error: {error}'**
+  String logoutError(String error);
+
+  /// No description provided for @syncCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'SYNC CENTER'**
+  String get syncCenter;
+
+  /// No description provided for @syncCenterDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Download, upload, check and restore data'**
+  String get syncCenterDesc;
+
+  /// No description provided for @loadingShopData.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading shop data...'**
+  String get loadingShopData;
+
+  /// No description provided for @switchedToShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched to shop: {shopName}'**
+  String switchedToShop(String shopName);
+
+  /// No description provided for @errorSwitchingShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Error switching shop: {error}'**
+  String errorSwitchingShop(String error);
+
+  /// No description provided for @viewShopAsAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Super Admin can select shop to view data'**
+  String get viewShopAsAdmin;
+
+  /// No description provided for @noShops.
+  ///
+  /// In en, this message translates to:
+  /// **'No shops available'**
+  String get noShops;
+
+  /// No description provided for @selectShopLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Select shop'**
+  String get selectShopLabel;
+
+  /// No description provided for @selectShopPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'-- Select shop to view --'**
+  String get selectShopPlaceholder;
+
+  /// No description provided for @currentlyViewing.
+  ///
+  /// In en, this message translates to:
+  /// **'Viewing: {shopName}'**
+  String currentlyViewing(String shopName);
+
+  /// No description provided for @ownerRole.
+  ///
+  /// In en, this message translates to:
+  /// **'SHOP OWNER'**
+  String get ownerRole;
+
+  /// No description provided for @managerRole.
+  ///
+  /// In en, this message translates to:
+  /// **'MANAGER'**
+  String get managerRole;
+
+  /// No description provided for @employeeRole.
+  ///
+  /// In en, this message translates to:
+  /// **'EMPLOYEE'**
+  String get employeeRole;
+
+  /// No description provided for @technicianRole.
+  ///
+  /// In en, this message translates to:
+  /// **'TECHNICIAN'**
+  String get technicianRole;
+
+  /// No description provided for @adminRole.
+  ///
+  /// In en, this message translates to:
+  /// **'ADMIN'**
+  String get adminRole;
+
+  /// No description provided for @userRole.
+  ///
+  /// In en, this message translates to:
+  /// **'USER'**
+  String get userRole;
+
+  /// No description provided for @dangerWarningTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ DANGER WARNING'**
+  String get dangerWarningTitle;
+
+  /// No description provided for @resetShopWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This action will permanently delete 100% of Orders, Inventory, Debts and Logs from both Cloud and this Device. CANNOT BE UNDONE!'**
+  String get resetShopWarning;
+
+  /// No description provided for @typeToConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Type \'XOA HET\' to confirm:'**
+  String get typeToConfirm;
+
+  /// No description provided for @resetCloudError.
+  ///
+  /// In en, this message translates to:
+  /// **'ERROR DELETING CLOUD DATA: {error}'**
+  String resetCloudError(String error);
+
+  /// No description provided for @viewAndEditStaffPermissions.
+  ///
+  /// In en, this message translates to:
+  /// **'View and edit staff access permissions'**
+  String get viewAndEditStaffPermissions;
+
+  /// No description provided for @resetShopAdminOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Use to reset all shop data (SUPER ADMIN ONLY)'**
+  String get resetShopAdminOnly;
+
+  /// No description provided for @syncErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync error'**
+  String get syncErrorTitle;
+
+  /// No description provided for @noTransactionHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'No transaction history'**
+  String get noTransactionHistory;
+
+  /// No description provided for @noActivityLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'No activity logs yet'**
+  String get noActivityLogs;
+
+  /// No description provided for @noRepairOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'No repair orders'**
+  String get noRepairOrders;
+
+  /// No description provided for @noSaleOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'No sale orders'**
+  String get noSaleOrders;
+
+  /// No description provided for @noPaymentData.
+  ///
+  /// In en, this message translates to:
+  /// **'No payment data'**
+  String get noPaymentData;
+
+  /// No description provided for @noNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications yet'**
+  String get noNotifications;
+
+  /// No description provided for @notSyncedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Not synced ({count})'**
+  String notSyncedCount(int count);
+
+  /// No description provided for @notSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not selected'**
+  String get notSelected;
+
+  /// No description provided for @confirmDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm delete'**
+  String get confirmDelete;
+
+  /// No description provided for @confirmActionWithName.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm {action}'**
+  String confirmActionWithName(String action);
+
+  /// No description provided for @confirmDeleteOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'CONFIRM DELETE ORDER'**
+  String get confirmDeleteOrder;
+
+  /// No description provided for @enterPasswordToDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter account password to delete:'**
+  String get enterPasswordToDelete;
+
+  /// No description provided for @deletedSuccessfully.
+  ///
+  /// In en, this message translates to:
+  /// **'DELETED SUCCESSFULLY'**
+  String get deletedSuccessfully;
+
+  /// No description provided for @addToStock.
+  ///
+  /// In en, this message translates to:
+  /// **'ADD TO STOCK'**
+  String get addToStock;
+
+  /// No description provided for @continueAdding.
+  ///
+  /// In en, this message translates to:
+  /// **'CONTINUE ADDING'**
+  String get continueAdding;
+
+  /// No description provided for @quickStockIn.
+  ///
+  /// In en, this message translates to:
+  /// **'QUICK STOCK IN'**
+  String get quickStockIn;
+
+  /// No description provided for @manualEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual entry'**
+  String get manualEntry;
+
+  /// No description provided for @confirmStagingStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm add to staging stock'**
+  String get confirmStagingStock;
+
+  /// No description provided for @addToStagingStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Staging Stock'**
+  String get addToStagingStock;
+
+  /// No description provided for @purchaseOrderCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase order created'**
+  String get purchaseOrderCreated;
+
+  /// No description provided for @addMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Add more'**
+  String get addMore;
+
+  /// No description provided for @understood.
+  ///
+  /// In en, this message translates to:
+  /// **'UNDERSTOOD'**
+  String get understood;
+
+  /// No description provided for @confirmStockIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm stock in?'**
+  String get confirmStockIn;
+
+  /// No description provided for @pleaseEnterPartnerName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter partner name'**
+  String get pleaseEnterPartnerName;
+
+  /// No description provided for @pleaseEnterSupplierName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter supplier name'**
+  String get pleaseEnterSupplierName;
+
+  /// No description provided for @supplierAddedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Supplier added successfully'**
+  String get supplierAddedSuccess;
+
+  /// No description provided for @supplierAddError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: Cannot add supplier'**
+  String get supplierAddError;
+
+  /// No description provided for @partnerDeletedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner deleted successfully'**
+  String get partnerDeletedSuccess;
+
+  /// No description provided for @partnerDeleteError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: Cannot delete partner'**
+  String get partnerDeleteError;
+
+  /// No description provided for @supplierDeletedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Supplier deleted successfully'**
+  String get supplierDeletedSuccess;
+
+  /// No description provided for @supplierDeleteError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: Cannot delete supplier'**
+  String get supplierDeleteError;
+
+  /// No description provided for @partnerAddedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner added successfully'**
+  String get partnerAddedSuccess;
+
+  /// No description provided for @partnerUpdatedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner updated'**
+  String get partnerUpdatedSuccess;
+
+  /// No description provided for @partnerNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner not found!'**
+  String get partnerNotFound;
+
+  /// No description provided for @partnerInfoNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner info not found!'**
+  String get partnerInfoNotFound;
+
+  /// No description provided for @noPartner.
+  ///
+  /// In en, this message translates to:
+  /// **'No partner'**
+  String get noPartner;
+
+  /// No description provided for @loadingList.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading list...'**
+  String get loadingList;
+
+  /// No description provided for @pleaseLoginAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Please login again'**
+  String get pleaseLoginAgain;
+
+  /// No description provided for @searchError.
+  ///
+  /// In en, this message translates to:
+  /// **'Search error: {error}'**
+  String searchError(String error);
+
+  /// No description provided for @qrProcessError.
+  ///
+  /// In en, this message translates to:
+  /// **'QR processing error: {error}'**
+  String qrProcessError(String error);
+
+  /// No description provided for @errorWithMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {error}'**
+  String errorWithMessage(String error);
+
+  /// No description provided for @loadCustomerListError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading customer list: {error}'**
+  String loadCustomerListError(String error);
+
+  /// No description provided for @deleteError.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete error: {error}'**
+  String deleteError(String error);
+
+  /// No description provided for @labelSettingsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Label settings saved!'**
+  String get labelSettingsSaved;
+
+  /// No description provided for @pleaseEnterTemplateName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter template name'**
+  String get pleaseEnterTemplateName;
+
+  /// No description provided for @shopTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop'**
+  String get shopTab;
+
+  /// No description provided for @templateTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Templates'**
+  String get templateTab;
+
+  /// No description provided for @versionFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version}'**
+  String versionFormat(String version);
+
+  /// No description provided for @onlySuperAdminCanDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'ONLY SUPER ADMIN CAN DELETE SHOP DATA!'**
+  String get onlySuperAdminCanDelete;
+
+  /// No description provided for @shopDataDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'SHOP DATA DELETED!'**
+  String get shopDataDeleted;
+
+  /// No description provided for @displayInfoOnLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Info displayed on label'**
+  String get displayInfoOnLabel;
+
+  /// No description provided for @shopNameField.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop Name'**
+  String get shopNameField;
+
+  /// No description provided for @shopNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'E.g.: HULUCA MOBILE'**
+  String get shopNameHint;
+
+  /// No description provided for @hotline.
+  ///
+  /// In en, this message translates to:
+  /// **'Hotline'**
+  String get hotline;
+
+  /// No description provided for @hotlineHint.
+  ///
+  /// In en, this message translates to:
+  /// **'E.g.: 0909 123 456'**
+  String get hotlineHint;
+
+  /// No description provided for @zalo.
+  ///
+  /// In en, this message translates to:
+  /// **'Zalo'**
+  String get zalo;
+
+  /// No description provided for @slogan.
+  ///
+  /// In en, this message translates to:
+  /// **'Slogan'**
+  String get slogan;
+
+  /// No description provided for @sloganHint.
+  ///
+  /// In en, this message translates to:
+  /// **'E.g.: Best prices guaranteed'**
+  String get sloganHint;
+
+  /// No description provided for @addressOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Address (optional)'**
+  String get addressOptional;
+
+  /// No description provided for @addressHint.
+  ///
+  /// In en, this message translates to:
+  /// **'E.g.: 123 ABC, District 1, HCM'**
+  String get addressHint;
+
+  /// No description provided for @invoiceSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice template saved'**
+  String get invoiceSaved;
+
+  /// No description provided for @profileSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'PROFILE SAVED'**
+  String get profileSaved;
+
+  /// No description provided for @partDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Part deleted'**
+  String get partDeleted;
+
+  /// No description provided for @partsDeletedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} parts deleted'**
+  String partsDeletedCount(int count);
+
+  /// No description provided for @csvCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'CSV copied to clipboard'**
+  String get csvCopied;
+
+  /// No description provided for @confirmDeliveryAndPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'CONFIRM DELIVERY & PAYMENT'**
+  String get confirmDeliveryAndPayment;
+
+  /// No description provided for @statusRepairing.
+  ///
+  /// In en, this message translates to:
+  /// **'REPAIRING'**
+  String get statusRepairing;
+
+  /// No description provided for @statusDone.
+  ///
+  /// In en, this message translates to:
+  /// **'DONE'**
+  String get statusDone;
+
+  /// No description provided for @issueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Issue: {issue}'**
+  String issueLabel(String issue);
+
+  /// No description provided for @receiptSavedAndPrinted.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt saved and printed successfully!'**
+  String get receiptSavedAndPrinted;
+
+  /// No description provided for @partnerDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'PARTNER DELETED'**
+  String get partnerDeleted;
+
+  /// No description provided for @refreshingFcmToken.
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing FCM token...'**
+  String get refreshingFcmToken;
+
+  /// No description provided for @isActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get isActive;
+
+  /// No description provided for @confirmDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'CONFIRM DELETE'**
+  String get confirmDeleteTitle;
+
+  /// No description provided for @confirmButton.
+  ///
+  /// In en, this message translates to:
+  /// **'CONFIRM'**
+  String get confirmButton;
+
+  /// No description provided for @shopField.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop'**
+  String get shopField;
+
+  /// No description provided for @selectShopToViewData.
+  ///
+  /// In en, this message translates to:
+  /// **'SELECT SHOP TO VIEW'**
+  String get selectShopToViewData;
+
+  /// No description provided for @homeTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get homeTab;
+
+  /// No description provided for @salesTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales'**
+  String get salesTab;
+
+  /// No description provided for @repairsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Repairs'**
+  String get repairsTab;
+
+  /// No description provided for @inventoryTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Inventory'**
+  String get inventoryTab;
+
+  /// No description provided for @staffTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Staff'**
+  String get staffTab;
+
+  /// No description provided for @financeTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Finance'**
+  String get financeTab;
+
+  /// No description provided for @settingsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsTab;
+
+  /// No description provided for @goodMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Good morning'**
+  String get goodMorning;
+
+  /// No description provided for @goodAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Good afternoon'**
+  String get goodAfternoon;
+
+  /// No description provided for @goodEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Good evening'**
+  String get goodEvening;
+
+  /// No description provided for @exitAppTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit app?'**
+  String get exitAppTitle;
+
+  /// No description provided for @exit.
+  ///
+  /// In en, this message translates to:
+  /// **'EXIT'**
+  String get exit;
+
+  /// No description provided for @groupChat.
+  ///
+  /// In en, this message translates to:
+  /// **'GROUP CHAT'**
+  String get groupChat;
+
+  /// No description provided for @newMessagesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} new messages'**
+  String newMessagesCount(int count);
+
+  /// No description provided for @noMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet'**
+  String get noMessages;
+
+  /// No description provided for @financialOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'FINANCIAL OVERVIEW'**
+  String get financialOverview;
+
+  /// No description provided for @todayOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY OVERVIEW'**
+  String get todayOverview;
+
+  /// No description provided for @todayIncome.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY INCOME'**
+  String get todayIncome;
+
+  /// No description provided for @todayExpenseLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY EXPENSE'**
+  String get todayExpenseLabel;
+
+  /// No description provided for @expenseItems.
+  ///
+  /// In en, this message translates to:
+  /// **'expense items'**
+  String get expenseItems;
+
+  /// No description provided for @totalDebt.
+  ///
+  /// In en, this message translates to:
+  /// **'TOTAL DEBT'**
+  String get totalDebt;
+
+  /// No description provided for @todayActivities.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY ACTIVITIES'**
+  String get todayActivities;
+
+  /// No description provided for @delivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get delivered;
+
+  /// No description provided for @todayNetProfit.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY NET PROFIT'**
+  String get todayNetProfit;
+
+  /// No description provided for @profitFormula.
+  ///
+  /// In en, this message translates to:
+  /// **'= Income - Expense - Cost'**
+  String get profitFormula;
+
+  /// No description provided for @featureLockedByAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'This feature has been locked by Administrator.\nPlease contact developer for support.'**
+  String get featureLockedByAdmin;
+
+  /// No description provided for @featureLockedByOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to access this feature.\nPlease contact Shop Owner for access.'**
+  String get featureLockedByOwner;
+
+  /// No description provided for @contactShopOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'CONTACT SHOP OWNER'**
+  String get contactShopOwner;
+
+  /// No description provided for @hulucaTech.
+  ///
+  /// In en, this message translates to:
+  /// **'Huluca Tech'**
+  String get hulucaTech;
+
+  /// No description provided for @shopOwnerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop Owner'**
+  String get shopOwnerLabel;
+
+  /// No description provided for @adminLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'ADMIN LOCKED'**
+  String get adminLocked;
+
+  /// No description provided for @ownerPermissionLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'OWNER PERMISSION LOCKED'**
+  String get ownerPermissionLocked;
+
+  /// No description provided for @featureLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Feature locked'**
+  String get featureLocked;
+
+  /// No description provided for @supportAvailability.
+  ///
+  /// In en, this message translates to:
+  /// **'24/7 Support • Response within 30 minutes'**
+  String get supportAvailability;
+
+  /// No description provided for @requestPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Request permission'**
+  String get requestPermission;
+
+  /// No description provided for @contactShopOwnerOrManager.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Shop Owner or Manager'**
+  String get contactShopOwnerOrManager;
+
+  /// No description provided for @requestFeatureAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Request access to this feature'**
+  String get requestFeatureAccess;
+
+  /// No description provided for @loginAgainAfterPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'After permission granted, login again to apply'**
+  String get loginAgainAfterPermission;
+
+  /// No description provided for @cannotMakeCall.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot make call: {phoneNumber}'**
+  String cannotMakeCall(String phoneNumber);
+
+  /// No description provided for @cannotOpenZalo.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot open Zalo. Please contact: {phoneNumber}'**
+  String cannotOpenZalo(String phoneNumber);
+
+  /// No description provided for @notificationActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications (active)'**
+  String get notificationActive;
+
+  /// No description provided for @notificationInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications (inactive)'**
+  String get notificationInactive;
+
+  /// No description provided for @searchWholeApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Search whole app'**
+  String get searchWholeApp;
+
+  /// No description provided for @contactAdminToUnlock.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Admin to unlock'**
+  String get contactAdminToUnlock;
+
+  /// No description provided for @systemAdminLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'System Administrator'**
+  String get systemAdminLabel;
+
+  /// No description provided for @shopOwnerLabelFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop Owner'**
+  String get shopOwnerLabelFull;
+
+  /// No description provided for @managerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Manager'**
+  String get managerLabel;
+
+  /// No description provided for @staffLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Staff'**
+  String get staffLabel;
+
+  /// No description provided for @userLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'User'**
+  String get userLabel;
+
+  /// No description provided for @welcomeNewStaff.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome new staff!'**
+  String get welcomeNewStaff;
+
+  /// No description provided for @newStaffSyncGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Shop Settings → Download shop data to sync'**
+  String get newStaffSyncGuide;
+
+  /// No description provided for @downloadShopDataToStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Download shop data to start working'**
+  String get downloadShopDataToStart;
+
+  /// No description provided for @downloadShopDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'DOWNLOAD SHOP DATA'**
+  String get downloadShopDataTitle;
+
+  /// No description provided for @downloadDataOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Download data of'**
+  String get downloadDataOf;
+
+  /// No description provided for @fromCloudToDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'from cloud to this device.'**
+  String get fromCloudToDevice;
+
+  /// No description provided for @debtsAndExpenses.
+  ///
+  /// In en, this message translates to:
+  /// **'Debts & Expenses'**
+  String get debtsAndExpenses;
+
+  /// No description provided for @customersAndSuppliers.
+  ///
+  /// In en, this message translates to:
+  /// **'Customers & Suppliers'**
+  String get customersAndSuppliers;
+
+  /// No description provided for @downloadOnlyThisShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Only download this shop\'s data, won\'t affect other shops.'**
+  String get downloadOnlyThisShop;
+
+  /// No description provided for @downloadMayTakeFewMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Process may take a few minutes depending on data size.'**
+  String get downloadMayTakeFewMinutes;
+
+  /// No description provided for @startDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'START DOWNLOAD'**
+  String get startDownload;
+
+  /// No description provided for @downloadingShopData.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading shop data...'**
+  String get downloadingShopData;
+
+  /// No description provided for @pleaseWait.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait'**
+  String get pleaseWait;
+
+  /// No description provided for @shopDataDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop data downloaded!'**
+  String get shopDataDownloaded;
+
+  /// No description provided for @pendingStockShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Stock'**
+  String get pendingStockShort;
+
+  /// No description provided for @temporaryImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Temp Import'**
+  String get temporaryImport;
+
+  /// No description provided for @payment.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment'**
+  String get payment;
+
+  /// No description provided for @incomeExpense.
+  ///
+  /// In en, this message translates to:
+  /// **'Income/Expense'**
+  String get incomeExpense;
+
+  /// No description provided for @sellProductsQuickly.
+  ///
+  /// In en, this message translates to:
+  /// **'Sell products quickly'**
+  String get sellProductsQuickly;
+
+  /// No description provided for @receiveDeviceForRepair.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive device for repair'**
+  String get receiveDeviceForRepair;
+
+  /// No description provided for @addStock.
+  ///
+  /// In en, this message translates to:
+  /// **'+ ADD STOCK'**
+  String get addStock;
+
+  /// No description provided for @newStockIn.
+  ///
+  /// In en, this message translates to:
+  /// **'New stock in'**
+  String get newStockIn;
+
+  /// No description provided for @scanToCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan to check'**
+  String get scanToCheck;
+
+  /// No description provided for @report.
+  ///
+  /// In en, this message translates to:
+  /// **'REPORT'**
+  String get report;
+
+  /// No description provided for @checkInOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Check in/out'**
+  String get checkInOut;
+
+  /// No description provided for @quickWarrantyLookup.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick warranty lookup'**
+  String get quickWarrantyLookup;
+
+  /// No description provided for @createSale.
+  ///
+  /// In en, this message translates to:
+  /// **'Create sale'**
+  String get createSale;
+
+  /// No description provided for @createRepair.
+  ///
+  /// In en, this message translates to:
+  /// **'Create repair'**
+  String get createRepair;
+
+  /// No description provided for @stockIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock in'**
+  String get stockIn;
+
+  /// No description provided for @revenueReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue report'**
+  String get revenueReport;
+
+  /// No description provided for @createNewSaleOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'CREATE NEW SALE ORDER'**
+  String get createNewSaleOrder;
+
+  /// No description provided for @createSaleOrderQuickly.
+  ///
+  /// In en, this message translates to:
+  /// **'Create sale order quickly'**
+  String get createSaleOrderQuickly;
+
+  /// No description provided for @management.
+  ///
+  /// In en, this message translates to:
+  /// **'MANAGEMENT'**
+  String get management;
+
+  /// No description provided for @saleOrderList.
+  ///
+  /// In en, this message translates to:
+  /// **'Sale order list'**
+  String get saleOrderList;
+
+  /// No description provided for @viewSearchTrackSales.
+  ///
+  /// In en, this message translates to:
+  /// **'View, search and track all sale orders.'**
+  String get viewSearchTrackSales;
+
+  /// No description provided for @customerManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer Management'**
+  String get customerManagement;
+
+  /// No description provided for @addEditViewCustomers.
+  ///
+  /// In en, this message translates to:
+  /// **'Add, edit and view customer information.'**
+  String get addEditViewCustomers;
+
+  /// No description provided for @viewProcessWarrantyRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'View and process warranty requests.'**
+  String get viewProcessWarrantyRequests;
+
+  /// No description provided for @createNewRepairOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'CREATE NEW REPAIR ORDER'**
+  String get createNewRepairOrder;
+
+  /// No description provided for @repairOrderList.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair order list'**
+  String get repairOrderList;
+
+  /// No description provided for @viewSearchTrackRepairs.
+  ///
+  /// In en, this message translates to:
+  /// **'View, search and track all repair orders.'**
+  String get viewSearchTrackRepairs;
+
+  /// No description provided for @inventoryManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'INVENTORY MANAGEMENT'**
+  String get inventoryManagement;
+
+  /// No description provided for @holdForDetailedGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold for detailed guide'**
+  String get holdForDetailedGuide;
+
+  /// No description provided for @stockInNew.
+  ///
+  /// In en, this message translates to:
+  /// **'STOCK IN NEW'**
+  String get stockInNew;
+
+  /// No description provided for @fullInformation.
+  ///
+  /// In en, this message translates to:
+  /// **'Full information'**
+  String get fullInformation;
+
+  /// No description provided for @continuousScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Continuous scan'**
+  String get continuousScan;
+
+  /// No description provided for @compareInventory.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare inventory'**
+  String get compareInventory;
+
+  /// No description provided for @pendingConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending confirmation'**
+  String get pendingConfirmation;
+
+  /// No description provided for @viewPendingStockList.
+  ///
+  /// In en, this message translates to:
+  /// **'View pending stock confirmation list.'**
+  String get viewPendingStockList;
+
+  /// No description provided for @productList.
+  ///
+  /// In en, this message translates to:
+  /// **'Product list'**
+  String get productList;
+
+  /// No description provided for @viewManageProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'View and manage products in stock.'**
+  String get viewManageProducts;
+
+  /// No description provided for @suppliersPartners.
+  ///
+  /// In en, this message translates to:
+  /// **'Suppliers - Partners'**
+  String get suppliersPartners;
+
+  /// No description provided for @manageSupplierPartnerDebt.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage suppliers, repair partners and debts.'**
+  String get manageSupplierPartnerDebt;
+
+  /// No description provided for @quickInputCodeList.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick input code list'**
+  String get quickInputCodeList;
+
+  /// No description provided for @viewManageQuickInputCodes.
+  ///
+  /// In en, this message translates to:
+  /// **'View and manage quick input codes.'**
+  String get viewManageQuickInputCodes;
+
+  /// No description provided for @noAccessPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'No access permission'**
+  String get noAccessPermission;
+
+  /// No description provided for @contactOwnerForPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact shop owner for permission'**
+  String get contactOwnerForPermission;
+
+  /// No description provided for @recordWorkingHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Record working hours'**
+  String get recordWorkingHours;
+
+  /// No description provided for @employeeManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'EMPLOYEE MANAGEMENT'**
+  String get employeeManagement;
+
+  /// No description provided for @salaryCalculation.
+  ///
+  /// In en, this message translates to:
+  /// **'SALARY\nCalculation'**
+  String get salaryCalculation;
+
+  /// No description provided for @workSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Work\nSchedule'**
+  String get workSchedule;
+
+  /// No description provided for @salaryCommissionSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Salary &\nCommission Settings'**
+  String get salaryCommissionSettings;
+
+  /// No description provided for @reports.
+  ///
+  /// In en, this message translates to:
+  /// **'REPORTS'**
+  String get reports;
+
+  /// No description provided for @attendanceTracking.
+  ///
+  /// In en, this message translates to:
+  /// **'Attendance tracking'**
+  String get attendanceTracking;
+
+  /// No description provided for @viewAllStaffAttendance.
+  ///
+  /// In en, this message translates to:
+  /// **'View all staff attendance by day/month.'**
+  String get viewAllStaffAttendance;
+
+  /// No description provided for @personalAttendance.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal attendance'**
+  String get personalAttendance;
+
+  /// No description provided for @checkInOutAndHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Check-in/out and view personal attendance history.'**
+  String get checkInOutAndHistory;
+
+  /// No description provided for @salaryGuideTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SALARY CALCULATION GUIDE'**
+  String get salaryGuideTitle;
+
+  /// No description provided for @goToPayroll.
+  ///
+  /// In en, this message translates to:
+  /// **'GO TO PAYROLL'**
+  String get goToPayroll;
+
+  /// No description provided for @financialManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'FINANCIAL MANAGEMENT'**
+  String get financialManagement;
+
+  /// No description provided for @closeCashToday.
+  ///
+  /// In en, this message translates to:
+  /// **'CLOSE CASH TODAY'**
+  String get closeCashToday;
+
+  /// No description provided for @reconcileCashAndBank.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconcile cash & bank'**
+  String get reconcileCashAndBank;
+
+  /// No description provided for @reportsAndAnalysis.
+  ///
+  /// In en, this message translates to:
+  /// **'REPORTS & ANALYSIS'**
+  String get reportsAndAnalysis;
+
+  /// No description provided for @revenueOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue\nOverview'**
+  String get revenueOverview;
+
+  /// No description provided for @financialReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial\nReport'**
+  String get financialReport;
+
+  /// No description provided for @debtManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Debt\nManagement'**
+  String get debtManagement;
+
+  /// No description provided for @bankInstallmentStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank\nInstallment Stats'**
+  String get bankInstallmentStats;
+
+  /// No description provided for @warrantyTracking.
+  ///
+  /// In en, this message translates to:
+  /// **'Warranty\nTracking'**
+  String get warrantyTracking;
+
+  /// No description provided for @manageAllTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage all income/expense transactions.'**
+  String get manageAllTransactions;
+
+  /// No description provided for @expenseManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense Management'**
+  String get expenseManagement;
+
+  /// No description provided for @addTrackShopExpenses.
+  ///
+  /// In en, this message translates to:
+  /// **'Add and track shop expenses.'**
+  String get addTrackShopExpenses;
+
+  /// No description provided for @debtManagementIncomeExpense.
+  ///
+  /// In en, this message translates to:
+  /// **'Debt Management (Income/Expense)'**
+  String get debtManagementIncomeExpense;
+
+  /// No description provided for @recordPayDebts.
+  ///
+  /// In en, this message translates to:
+  /// **'Record and pay debts.'**
+  String get recordPayDebts;
+
+  /// No description provided for @summaryAllTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary of all income/expense transactions.'**
+  String get summaryAllTransactions;
+
+  /// No description provided for @financialLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial Log'**
+  String get financialLog;
+
+  /// No description provided for @trackAllFinancialActivities.
+  ///
+  /// In en, this message translates to:
+  /// **'Track all financial activities.'**
+  String get trackAllFinancialActivities;
+
+  /// No description provided for @shopSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop Settings'**
+  String get shopSettings;
+
+  /// No description provided for @shopInfoLogoLocationMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop info, logo, location and member management.'**
+  String get shopInfoLogoLocationMembers;
+
+  /// No description provided for @notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifications;
+
+  /// No description provided for @configureNotificationSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure notification and alert settings.'**
+  String get configureNotificationSettings;
+
+  /// No description provided for @designPrintTemplates.
+  ///
+  /// In en, this message translates to:
+  /// **'Design print templates for thermal printer.'**
+  String get designPrintTemplates;
+
+  /// No description provided for @adminCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Center'**
+  String get adminCenter;
+
+  /// No description provided for @manageSystemForSuperAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage entire system for super admin.'**
+  String get manageSystemForSuperAdmin;
+
+  /// No description provided for @aboutDeveloper.
+  ///
+  /// In en, this message translates to:
+  /// **'About Developer'**
+  String get aboutDeveloper;
+
+  /// No description provided for @developerAndAppInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer and app information.'**
+  String get developerAndAppInfo;
+
+  /// No description provided for @logoutFromAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout from account'**
+  String get logoutFromAccount;
+
+  /// No description provided for @logoutConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout?'**
+  String get logoutConfirmTitle;
+
+  /// No description provided for @logoutConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to logout?'**
+  String get logoutConfirmMessage;
+
+  /// No description provided for @checkingSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking sync...'**
+  String get checkingSync;
+
+  /// No description provided for @checkingLocalVsCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking local vs cloud data'**
+  String get checkingLocalVsCloud;
+
+  /// No description provided for @dataSyncComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Data sync complete'**
+  String get dataSyncComplete;
+
+  /// No description provided for @localCloudMatch100.
+  ///
+  /// In en, this message translates to:
+  /// **'Local and Cloud match 100%'**
+  String get localCloudMatch100;
+
+  /// No description provided for @recheckingSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Rechecking sync...'**
+  String get recheckingSync;
+
+  /// No description provided for @needsDataSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs data sync'**
+  String get needsDataSync;
+
+  /// No description provided for @recordsNotSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} records not synced. Tap to open Sync Center.'**
+  String recordsNotSynced(int count);
+
+  /// No description provided for @todayFinancialReport.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY FINANCIAL REPORT'**
+  String get todayFinancialReport;
+
+  /// No description provided for @salesAndRepairOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'sales + repair orders'**
+  String get salesAndRepairOrders;
+
+  /// No description provided for @warrantyReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'WARRANTY REMINDER'**
+  String get warrantyReminder;
+
+  /// No description provided for @expiringWarrantiesMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} devices expiring warranty. View now!'**
+  String expiringWarrantiesMessage(int count);
+
+  /// No description provided for @productsInStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Products in stock'**
+  String get productsInStock;
+
+  /// No description provided for @dataFullySynced.
+  ///
+  /// In en, this message translates to:
+  /// **'Data fully synced'**
+  String get dataFullySynced;
+
+  /// No description provided for @localAndCloudMatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Local and cloud data matched'**
+  String get localAndCloudMatched;
+
+  /// No description provided for @syncNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync needed'**
+  String get syncNeeded;
+
+  /// No description provided for @todayExpense.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY EXPENSE'**
+  String get todayExpense;
+
+  /// No description provided for @todayActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY ACTIVITY'**
+  String get todayActivity;
+
+  /// No description provided for @comparingLocalVsCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Comparing local and cloud data...'**
+  String get comparingLocalVsCloud;
+
+  /// No description provided for @saleAndRepairCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{saleCount} sales + {repairCount} repairs'**
+  String saleAndRepairCount(int saleCount, int repairCount);
+
+  /// No description provided for @saleAndRepairOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'{saleCount} sales + {repairCount} repairs'**
+  String saleAndRepairOrders(int saleCount, int repairCount);
+
+  /// No description provided for @expenseItemsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} expense items'**
+  String expenseItemsCount(int count);
+
+  /// No description provided for @expiringWarrantiesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} devices expiring warranty. View now!'**
+  String expiringWarrantiesCount(int count);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -11,6 +11,7 @@ import '../services/user_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../data/db_helper.dart';
 import '../utils/money_utils.dart';
+import '../widgets/currency_text_field.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import '../services/audit_service.dart';
@@ -141,7 +142,23 @@ class _SupplierListViewState extends State<SupplierListView>
       final suppliers = await _supplierService.getSuppliers();
       final debts = await _db.getAllDebts();
       final dbInstance = await _db.database;
-      final supplierImport = await dbInstance.query('supplier_import_history');
+      final rawImports = await dbInstance.query('supplier_import_history');
+      // Deduplicate imports by natural key to avoid double counting
+      final Map<String, Map<String, dynamic>> importMap = {};
+      for (final h in rawImports) {
+        final key = [
+          h['referenceId'] ?? '',
+          h['productName'] ?? '',
+          h['imei'] ?? '',
+          h['importDate'] ?? '',
+          h['totalAmount'] ?? '',
+          h['quantity'] ?? '',
+          h['costPrice'] ?? '',
+          h['supplierName'] ?? '',
+        ].join('|');
+        importMap[key] = h;
+      }
+      final supplierImport = importMap.values.toList();
       final monthStart = DateTime(
         DateTime.now().year,
         DateTime.now().month,
@@ -854,14 +871,10 @@ class _SupplierListViewState extends State<SupplierListView>
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                CurrencyTextField(
                   controller: payCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: InputDecoration(
-                    labelText: 'Số tiền (VNĐ)',
-                    hintText: 'VD: 500 = ${MoneyUtils.formatCurrency(500000)}',
-                  ),
+                  label: 'Số tiền (VNĐ)',
+                  hint: 'VD: 500000',
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 1,
@@ -900,10 +913,8 @@ class _SupplierListViewState extends State<SupplierListView>
             ElevatedButton(
               onPressed: () async {
                 if (!(formKey.currentState?.validate() ?? false)) return;
-                final parsed = MoneyUtils.parseCurrency(payCtrl.text);
-                final amount = parsed >= 1000 && parsed < 100000
-                    ? parsed * 1000
-                    : parsed;
+                // Không nhân 1000 - user đã nhập số đầy đủ với formatter
+                final amount = MoneyUtils.parseCurrency(payCtrl.text);
                 await _payDebt(d, amount, method, note);
                 if (mounted) Navigator.pop(ctx);
               },
@@ -1290,14 +1301,10 @@ class _SupplierListViewState extends State<SupplierListView>
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                CurrencyTextField(
                   controller: payCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: InputDecoration(
-                    labelText: 'Số tiền (VNĐ)',
-                    hintText: 'VD: 500 = ${MoneyUtils.formatCurrency(500000)}',
-                  ),
+                  label: 'Số tiền (VNĐ)',
+                  hint: 'VD: 500000',
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 1,

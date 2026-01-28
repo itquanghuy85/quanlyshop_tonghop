@@ -6,6 +6,7 @@ import '../models/payment_intent_model.dart';
 import '../services/supplier_service.dart';
 import '../data/db_helper.dart';
 import '../utils/money_utils.dart';
+import '../widgets/currency_text_field.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
@@ -291,11 +292,9 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(
+              CurrencyTextField(
                 controller: payCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                decoration: const InputDecoration(labelText: 'Số tiền'),
+                label: 'Số tiền',
                 validator: (v) => MoneyUtils.validateAmount(
                   v ?? '',
                   min: 1,

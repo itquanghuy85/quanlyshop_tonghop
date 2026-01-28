@@ -129,7 +129,7 @@
   "appName": "Shop Manager",
   "appDescription": "Quản lý cửa hàng sửa chữa điện thoại",
   "version": "Phiên bản",
-  "versionNumber": "2.1.0",
+  "versionNumber": "2.6.0",
   "contactSupport": "Liên hệ hỗ trợ",
   "developer": "Người phát triển",
   "developerName": "Quang Huy",
@@ -188,7 +188,7 @@
   "printLabelsDesc": "In tem thông tin máy",
   "quickMenu": "Menu nhanh",
   "customerName": "TÊN KHÁCH HÀNG",
-  "phoneNumber": "SỐ DIEN_THOAI",
+  "phoneNumber": "SỐ ĐIỆN THOẠI",
   "customerAddress": "ĐỊA CHỈ KHÁCH HÀNG",
   "addToContacts": "THÊM VÀO DANH BẠ",
   "viewCustomerHistory": "XEM LỊCH SỬ KHÁCH NÀY",
@@ -207,14 +207,14 @@
   "installment": "TRẢ GÓP (NH)",
   "t86": "T86",
   "bankT86": "NGÂN HÀNG T86",
-  "enterPhoneFirst": "VUI LÒNG NHẬP SỐ DIEN_THOAI TRƯỚC",
+  "enterPhoneFirst": "VUI LÒNG NHẬP SỐ ĐIỆN THOẠI TRƯỚC",
   "priceMustBePositive": "GIÁ TIẾP NHẬN PHẢI LỚN HƠN HOẶC BẰNG 0!",
   "customerAddedToContacts": "ĐÃ THÊM KHÁCH HÀNG VÀO DANH BẠ",
   "newOrder": "ĐƠN MỚI",
   "receivedDevice": "NHẬN",
   "addProductToInventory": "NHẬP HÀNG VÀO KHO",
   "productType": "Loại hàng",
-  "phone": "DIEN_THOAI",
+  "phone": "ĐIỆN THOẠI",
   "accessory": "PHỤ KIỆN",
   "productName": "Tên máy/Linh kiện",
   "imeiNumber": "Số IMEI (Nếu có)",
@@ -420,5 +420,602 @@
   "bluetoothPrinterTest": "KIỂM TRA MÁY IN BLUETOOTH",
   "checkBluetoothPermission": "Kiểm tra quyền Bluetooth chi tiết...",
   "checkBluetoothOn": "Kiểm tra Bluetooth có bật...",
-  "appVersion": "Phiên bản 3.4.0",
+  "appVersion": "Phiên bản 2.6.0+100",
+  "saving": "Đang lưu...",
+  "saveSettings": "LƯU CÀI ĐẶT",
+  "deleteTemplate": "Xóa mẫu tem?",
+  "saveTemplate": "LƯU MẪU TEM",
+  "saveChanges": "LƯU THAY ĐỔI",
+  "addCode": "THÊM MÃ",
+  "deletePartner": "Xóa đối tác",
+  "qrScanSettings": "CÀI ĐẶT QUÉT QR",
+  "scanSettings": "Cài đặt scan",
+  "labelSettings": "Cài đặt Tem sản phẩm",
+  "cpkPriceSettings": "Cài đặt giá CPK",
+  "confirm": "Xác nhận",
+  "confirmAction": "Xác nhận hành động",
+  "loading": "Đang tải...",
+  "error": "Lỗi",
+  "success": "Thành công",
+  "warning": "Cảnh báo",
+  "info": "Thông tin",
+  "search": "Tìm kiếm",
+  "noData": "Không có dữ liệu",
+  "retry": "Thử lại",
+  "done": "Xong",
+  "next": "Tiếp theo",
+  "previous": "Trước đó",
+  "select": "Chọn",
+  "selected": "Đã chọn",
+  "edit": "Sửa",
+  "details": "Chi tiết",
+  "total": "Tổng cộng",
+  "amount": "Số tiền",
+  "date": "Ngày",
+  "time": "Giờ",
+  "status": "Trạng thái",
+  "description": "Mô tả",
+  "required": "Bắt buộc",
+  "optional": "Tùy chọn",
+  "pleaseEnter": "Vui lòng nhập",
+  "pleaseSelect": "Vui lòng chọn",
+  "invalidInput": "Dữ liệu không hợp lệ",
+  "connectionError": "Lỗi kết nối",
+  "tryAgain": "Thử lại",
+  "ok": "OK",
+  "notFound": "Không tìm thấy",
+  "noResults": "Không có kết quả",
+  "copy": "Sao chép",
+  "copied": "Đã sao chép",
+  "share": "Chia sẻ",
+  "print": "In",
+  "export": "Xuất",
+  "import": "Nhập",
+  "create": "Tạo",
+  "createNew": "Tạo mới",
+  "view": "Xem",
+  "viewAll": "Xem tất cả",
+  "viewMore": "Xem thêm",
+  "viewLess": "Thu gọn",
+  "showAll": "Hiện tất cả",
+  "hideAll": "Ẩn tất cả",
+  "enable": "Bật",
+  "disable": "Tắt",
+  "enabled": "Đã bật",
+  "disabled": "Đã tắt",
+  "active": "Đang hoạt động",
+  "inactive": "Không hoạt động",
+  "pending": "Đang chờ",
+  "completed": "Hoàn thành",
+  "cancelled": "Đã hủy",
+  "inProgress": "Đang xử lý",
+  "failed": "Thất bại",
+  "unknown": "Không xác định",
+  "other": "Khác",
+  "none": "Không có",
+  "clear": "Xóa",
+  "clearAll": "Xóa tất cả",
+  "reset": "Đặt lại",
+  "apply": "Áp dụng",
+  "from": "Từ",
+  "to": "Đến",
+  "by": "Bởi",
+  "at": "Lúc",
+  "on": "Vào",
+  "or": "Hoặc",
+  "and": "Và",
+  "withLabel": "Với",
+  "without": "Không có",
+  "newLabel": "Mới",
+  "old": "Cũ",
+  "more": "Thêm",
+  "less": "Ít hơn",
+  "start": "Bắt đầu",
+  "end": "Kết thúc",
+  "open": "Mở",
+  "close2": "Đóng",
+  "send": "Gửi",
+  "receive": "Nhận",
+  "download": "Tải xuống",
+  "upload": "Tải lên",
+  "attach": "Đính kèm",
+  "remove": "Xóa bỏ",
+  "change": "Thay đổi",
+  "modified": "Đã sửa đổi",
+  "created": "Đã tạo",
+  "updated": "Đã cập nhật",
+  "deleted": "Đã xóa",
+  "forgotPasswordTitle": "Quên mật khẩu",
+  "forgotPasswordDesc": "Nhập email đã đăng ký, chúng tôi sẽ gửi link đặt lại mật khẩu.",
+  "pleaseEnterValidEmail": "Vui lòng nhập email hợp lệ",
+  "passwordResetEmailSent": "Đã gửi email đặt lại mật khẩu tới {email}",
+  "@passwordResetEmailSent": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "errorSendingEmail": "Lỗi gửi email",
+  "emailNotRegistered": "Email chưa được đăng ký",
+  "invalidEmailFormat": "Email không hợp lệ",
+  "sendEmail": "GỬI EMAIL",
+  "noAccountRegisterNow": "Chưa có tài khoản? Đăng ký ngay",
+  "registerSuccess": "Đăng ký thành công! Vui lòng đăng nhập.",
+  "emailExample": "Ví dụ: ten@domain.com hoặc ten@gmail.com",
+  "perpetualCalendarTitle": "Lịch vạn niên",
+  "todayDateFormat": "Hôm nay: {date}",
+  "@todayDateFormat": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "monday": "T2",
+  "tuesday": "T3",
+  "wednesday": "T4",
+  "thursday": "T5",
+  "friday": "T6",
+  "saturday": "T7",
+  "sunday": "CN",
+  "languageAndInterface": "NGÔN NGỮ & GIAO DIỆN",
+  "accountAndSecurity": "TÀI KHOẢN & BẢO MẬT",
+  "selectOtherShop": "CHỌN SHOP KHÁC",
+  "currentShop": "Shop hiện tại",
+  "logoutFromApp": "Đăng xuất khỏi ứng dụng",
+  "logoutQuestion": "Đăng xuất?",
+  "logoutError": "Lỗi đăng xuất: {error}",
+  "@logoutError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "syncCenter": "TRUNG TÂM ĐỒNG BỘ",
+  "syncCenterDesc": "Tải về, đẩy lên, kiểm tra và khôi phục dữ liệu",
+  "loadingShopData": "Đang tải dữ liệu shop...",
+  "switchedToShop": "Đã chuyển sang shop: {shopName}",
+  "@switchedToShop": {
+    "placeholders": {
+      "shopName": {
+        "type": "String"
+      }
+    }
+  },
+  "errorSwitchingShop": "Lỗi khi chuyển shop: {error}",
+  "@errorSwitchingShop": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "viewShopAsAdmin": "Super Admin có thể chọn shop để xem dữ liệu",
+  "noShops": "Không có shop nào",
+  "selectShopLabel": "Chọn shop",
+  "selectShopPlaceholder": "-- Chọn shop để xem --",
+  "currentlyViewing": "Đang xem: {shopName}",
+  "@currentlyViewing": {
+    "placeholders": {
+      "shopName": {
+        "type": "String"
+      }
+    }
+  },
+  "ownerRole": "CHỦ SHOP",
+  "managerRole": "QUẢN LÝ",
+  "employeeRole": "NHÂN VIÊN",
+  "technicianRole": "KỸ THUẬT",
+  "adminRole": "ADMIN",
+  "userRole": "NGƯỜI DÙNG",
+  "dangerWarningTitle": "⚠️ CẢNH BÁO NGUY HIỂM",
+  "resetShopWarning": "Hành động này sẽ xóa sạch 100% dữ liệu Đơn hàng, Kho, Nợ và Nhật ký của Shop trên cả Đám mây và Máy này. KHÔNG THỂ KHÔI PHỤC!",
+  "typeToConfirm": "Nhập chữ 'XOA HET' để xác nhận:",
+  "resetCloudError": "LỖI KHI XÓA DỮ LIỆU ĐÁM MÂY: {error}",
+  "@resetCloudError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "viewAndEditStaffPermissions": "Xem và chỉnh sửa quyền truy cập của từng nhân viên",
+  "resetShopAdminOnly": "Dùng khi muốn khởi tạo lại toàn bộ dữ liệu cửa hàng (CHỈ SUPER ADMIN)",
+  "syncErrorTitle": "Lỗi đồng bộ",
+  "noTransactionHistory": "Chưa có lịch sử giao dịch",
+  "noActivityLogs": "Chưa có ghi chép hoạt động nào",
+  "noRepairOrders": "Chưa có đơn sửa chữa",
+  "noSaleOrders": "Chưa có đơn bán hàng",
+  "noPaymentData": "Chưa có dữ liệu thanh toán",
+  "noNotifications": "Chưa có thông báo nào",
+  "notSyncedCount": "Chưa đồng bộ ({count})",
+  "@notSyncedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notSelected": "Chưa chọn",
+  "confirmDelete": "Xác nhận xóa",
+  "confirmActionWithName": "Xác nhận {action}",
+  "@confirmActionWithName": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "confirmDeleteOrder": "XÁC NHẬN XÓA ĐƠN",
+  "enterPasswordToDelete": "Nhập mật khẩu tài khoản để xóa:",
+  "deletedSuccessfully": "ĐÃ XÓA THÀNH CÔNG",
+  "addToStock": "NHẬP KHO",
+  "continueAdding": "NHẬP TIẾP",
+  "quickStockIn": "Nhập Kho Nhanh",
+  "manualEntry": "Nhập thủ công",
+  "confirmStagingStock": "Xác nhận nhập Kho Tạm",
+  "addToStagingStock": "Nhập Kho Tạm",
+  "purchaseOrderCreated": "Đã tạo phiếu nhập",
+  "addMore": "Nhập thêm",
+  "understood": "ĐÃ HIỂU",
+  "confirmStockIn": "Xác nhận nhập kho?",
+  "pleaseEnterPartnerName": "Vui lòng nhập tên đối tác",
+  "pleaseEnterSupplierName": "Vui lòng nhập tên nhà cung cấp",
+  "supplierAddedSuccess": "Đã thêm nhà cung cấp thành công",
+  "supplierAddError": "Lỗi: Không thể thêm nhà cung cấp",
+  "partnerDeletedSuccess": "Đã xóa đối tác thành công",
+  "partnerDeleteError": "Lỗi: Không thể xóa đối tác",
+  "supplierDeletedSuccess": "Đã xóa nhà cung cấp thành công",
+  "supplierDeleteError": "Lỗi: Không thể xóa nhà cung cấp",
+  "partnerAddedSuccess": "Đã thêm đối tác thành công",
+  "partnerUpdatedSuccess": "Đã cập nhật đối tác",
+  "partnerNotFound": "Không tìm thấy đối tác!",
+  "partnerInfoNotFound": "Không tìm thấy thông tin đối tác!",
+  "noPartner": "Không có đối tác",
+  "loadingList": "Đang tải danh sách...",
+  "pleaseLoginAgain": "Vui lòng đăng nhập lại",
+  "searchError": "Lỗi tìm kiếm: {error}",
+  "@searchError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "qrProcessError": "Lỗi xử lý QR: {error}",
+  "@qrProcessError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "errorWithMessage": "Lỗi: {error}",
+  "@errorWithMessage": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "loadCustomerListError": "Lỗi tải danh sách khách hàng: {error}",
+  "@loadCustomerListError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteError": "Lỗi khi xóa: {error}",
+  "@deleteError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "labelSettingsSaved": "✅ Đã lưu cài đặt tem!",
+  "pleaseEnterTemplateName": "Vui lòng nhập tên mẫu tem",
+  "shopTab": "Shop",
+  "templateTab": "Mẫu Tem",
+  "versionFormat": "Phiên bản {version}",
+  "@versionFormat": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "onlySuperAdminCanDelete": "CHỈ SUPER ADMIN MỚI ĐƯỢC XÓA DỮ LIỆU SHOP!",
+  "shopDataDeleted": "ĐÃ XÓA SẠCH DỮ LIỆU SHOP!",
+  "displayInfoOnLabel": "Thông tin hiển thị trên tem",
+  "shopNameField": "Tên Shop",
+  "shopNameHint": "VD: HULUCA MOBILE",
+  "hotline": "Hotline",
+  "hotlineHint": "VD: 0909 123 456",
+  "zalo": "Zalo",
+  "slogan": "Slogan",
+  "sloganHint": "VD: Cam kết giá tốt nhất thị trường",
+  "addressOptional": "Địa chỉ (tùy chọn)",
+  "addressHint": "VD: 123 ABC, Q1, HCM",
+  "invoiceSaved": "Đã lưu mẫu hóa đơn",
+  "profileSaved": "ĐÃ LƯU HỒ SƠ CÁ NHÂN",
+  "partDeleted": "Đã xóa linh kiện",
+  "partsDeletedCount": "Đã xóa {count} linh kiện",
+  "@partsDeletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "csvCopied": "Đã copy CSV vào clipboard",
+  "confirmDeliveryAndPayment": "XÁC NHẬN GIAO MÁY & THANH TOÁN",
+  "statusRepairing": "ĐANG SỬA",
+  "statusDone": "ĐÃ XONG",
+  "issueLabel": "Lỗi: {issue}",
+  "@issueLabel": {
+    "placeholders": {
+      "issue": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptSavedAndPrinted": "Đã lưu và in phiếu tiếp nhận thành công!",
+  "partnerDeleted": "ĐÃ XÓA ĐỐI TÁC",
+  "refreshingFcmToken": "Đang làm mới FCM token...",
+  "isActive": "Đang hoạt động",
+  "confirmDeleteTitle": "XÁC NHẬN XÓA",
+  "confirmButton": "XÁC NHẬN",
+  "shopField": "Shop",
+  "selectShopToViewData": "CHỌN SHOP ĐỂ XEM",
+  "homeTab": "Trang chủ",
+  "salesTab": "Bán hàng",
+  "repairsTab": "Sửa chữa",
+  "inventoryTab": "Kho",
+  "staffTab": "Nhân sự",
+  "financeTab": "Tài chính",
+  "settingsTab": "Cài đặt",
+  "goodMorning": "Chào buổi sáng",
+  "goodAfternoon": "Chào buổi chiều",
+  "goodEvening": "Chào buổi tối",
+  "exitAppTitle": "Thoát ứng dụng?",
+  "exit": "THOÁT",
+  "groupChat": "CHAT NHÓM",
+  "newMessagesCount": "{count} tin mới",
+  "@newMessagesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noMessages": "Chưa có tin nhắn nào",
+  "financialOverview": "TỔNG QUAN TÀI CHÍNH",
+  "todayOverview": "TỔNG QUAN HÔM NAY",
+  "todayIncome": "THU HÔM NAY",
+  "todayExpenseLabel": "CHI HÔM NAY",
+  "expenseItems": "khoản chi",
+  "totalDebt": "TỔNG CÔNG NỢ",
+  "todayActivities": "HOẠT ĐỘNG HÔM NAY",
+  "delivered": "Đã giao",
+  "todayNetProfit": "LỢI NHUẬN RÒNG HÔM NAY",
+  "profitFormula": "= Thu - Chi - Giá vốn",
+  "featureLockedByAdmin": "Tính năng này đã bị khóa bởi Quản trị viên (Admin).\nVui lòng liên hệ nhà phát triển để được hỗ trợ mở khóa.",
+  "featureLockedByOwner": "Bạn không có quyền truy cập tính năng này.\nVui lòng liên hệ Chủ shop để được cấp quyền.",
+  "technicalSupport": "HỖ TRỢ KỸ THUẬT",
+  "contactShopOwner": "LIÊN HỆ CHỦ SHOP",
+  "hulucaTech": "Huluca Tech",
+  "shopOwnerLabel": "Chủ cửa hàng",
+  "adminLocked": "ADMIN KHÓA",
+  "ownerPermissionLocked": "CHỦ SHOP PHÂN QUYỀN",
+  "featureLocked": "Chức năng bị khóa",
+  "supportAvailability": "Hỗ trợ 24/7 • Phản hồi trong vòng 30 phút",
+  "requestPermission": "Yêu cầu cấp quyền",
+  "contactShopOwnerOrManager": "Liên hệ Chủ shop hoặc Quản lý của bạn",
+  "requestFeatureAccess": "Yêu cầu cấp quyền truy cập tính năng này",
+  "loginAgainAfterPermission": "Sau khi được cấp quyền, đăng nhập lại để áp dụng",
+  "cannotMakeCall": "Không thể thực hiện cuộc gọi: {phoneNumber}",
+  "@cannotMakeCall": {
+    "placeholders": {
+      "phoneNumber": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotOpenZalo": "Không thể mở Zalo. Vui lòng liên hệ: {phoneNumber}",
+  "@cannotOpenZalo": {
+    "placeholders": {
+      "phoneNumber": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationActive": "Thông báo (đang hoạt động)",
+  "notificationInactive": "Thông báo (chưa kích hoạt)",
+  "searchWholeApp": "Tìm kiếm toàn app",
+  "contactAdminToUnlock": "Liên hệ Admin để mở khóa",
+  "systemAdminLabel": "Quản trị viên hệ thống",
+  "shopOwnerLabelFull": "Chủ cửa hàng",
+  "managerLabel": "Quản lý",
+  "staffLabel": "Nhân viên",
+  "userLabel": "Người dùng",
+  "welcomeNewStaff": "Chào mừng nhân viên mới!",
+  "newStaffSyncGuide": "Vào Cài đặt Shop → Tải dữ liệu shop để đồng bộ dữ liệu",
+  "downloadShopDataToStart": "Tải dữ liệu shop về máy để bắt đầu làm việc",
+  "downloadShopDataTitle": "TẢI DỮ LIỆU SHOP",
+  "downloadDataOf": "Tải dữ liệu của",
+  "fromCloudToDevice": "từ đám mây về máy này.",
+  "debtsAndExpenses": "Công nợ & Chi phí",
+  "customersAndSuppliers": "Khách hàng & NCC",
+  "downloadOnlyThisShop": "Chỉ tải dữ liệu của shop này, không ảnh hưởng shop khác.",
+  "downloadMayTakeFewMinutes": "Quá trình có thể mất vài phút tùy lượng dữ liệu.",
+  "startDownload": "BẮT ĐẦU TẢI",
+  "downloadingShopData": "Đang tải dữ liệu shop...",
+  "pleaseWait": "Vui lòng đợi trong giây lát",
+  "shopDataDownloaded": "Đã tải xong dữ liệu shop!",
+  "pendingStockShort": "Hàng chờ XN",
+  "temporaryImport": "Nhập tạm",
+  "payment": "Thanh toán",
+  "incomeExpense": "Thu/Chi",
+  "createSaleOrder": "TẠO ĐƠN BÁN HÀNG",
+  "sellProductsQuickly": "Bán sản phẩm nhanh chóng",
+  "createRepairOrder": "TẠO ĐƠN SỬA CHỮA",
+  "receiveDeviceForRepair": "Tiếp nhận máy sửa chữa",
+  "addStock": "+ NHẬP KHO",
+  "newStockIn": "Nhập kho mới",
+  "scanToCheck": "Quét mã kiểm tra",
+  "report": "BÁO CÁO",
+  "checkInOut": "Check in/out",
+  "quickWarrantyLookup": "Tra cứu bảo hành nhanh",
+  "createSale": "Tạo đơn bán",
+  "createRepair": "Tạo đơn sửa",
+  "stockIn": "Nhập kho",
+  "revenueReport": "Báo cáo DT",
+  "createNewSaleOrder": "TẠO ĐƠN BÁN MỚI",
+  "createSaleOrderQuickly": "Tạo đơn bán hàng nhanh chóng",
+  "management": "QUẢN LÝ",
+  "saleOrderList": "Danh sách đơn bán",
+  "viewSearchTrackSales": "Xem, tìm kiếm và theo dõi tất cả đơn bán hàng.",
+  "customerManagement": "Quản lý khách hàng",
+  "addEditViewCustomers": "Thêm, sửa và xem thông tin khách hàng.",
+  "viewProcessWarrantyRequests": "Xem và xử lý các yêu cầu bảo hành sản phẩm.",
+  "repairs": "SỬA CHỮA",
+  "createNewRepairOrder": "TẠO ĐƠN SỬA MỚI",
+  "repairOrderList": "Danh sách đơn sửa",
+  "viewSearchTrackRepairs": "Xem, tìm kiếm và theo dõi tất cả đơn sửa chữa.",
+  "inventoryManagement": "QUẢN LÝ KHO",
+  "holdForDetailedGuide": "Nhấn giữ để xem hướng dẫn chi tiết",
+  "stockInNew": "NHẬP MỚI",
+  "fullInformation": "Đầy đủ thông tin",
+  "quickStockIn": "NHẬP NHANH",
+  "continuousScan": "Quét mã liên tục",
+  "compareInventory": "Đối chiếu tồn kho",
+  "pendingConfirmation": "Hàng chờ xác nhận",
+  "viewPendingStockList": "Xem danh sách hàng nhập tạm chưa xác nhận.",
+  "productList": "Danh sách sản phẩm",
+  "viewManageProducts": "Xem và quản lý danh sách sản phẩm trong kho.",
+  "suppliersPartners": "Nhà cung cấp - Đối tác",
+  "manageSupplierPartnerDebt": "Quản lý NCC, đối tác sửa chữa và công nợ.",
+  "quickInputCodeList": "Danh sách mã nhập nhanh",
+  "viewManageQuickInputCodes": "Xem và quản lý danh sách mã nhập nhanh đã tạo.",
+  "understood": "ĐÃ HIỂU",
+  "noAccessPermission": "Không có quyền truy cập",
+  "contactOwnerForPermission": "Liên hệ chủ shop để được cấp quyền",
+  "staffManagement": "QUẢN LÝ NHÂN SỰ",
+  "recordWorkingHours": "Ghi nhận giờ làm việc",
+  "employeeManagement": "QUẢN LÝ NHÂN VIÊN",
+  "salaryCalculation": "LƯƠNG\nTính lương",
+  "workSchedule": "Lịch làm\nViệc",
+  "salaryCommissionSettings": "Cài đặt\nLương & Hoa hồng",
+  "reports": "BÁO CÁO",
+  "attendanceTracking": "Theo dõi chấm công",
+  "viewAllStaffAttendance": "Xem chấm công tất cả nhân viên theo ngày/tháng.",
+  "personalAttendance": "Chấm công cá nhân",
+  "checkInOutAndHistory": "Check-in/out và xem lịch sử chấm công cá nhân.",
+  "salaryGuideTitle": "HƯỚNG DẪN TÍNH LƯƠNG",
+  "goToPayroll": "ĐI ĐẾN BẢNG LƯƠNG",
+  "financialManagement": "QUẢN LÝ TÀI CHÍNH",
+  "closeCashToday": "CHỐT QUỸ HÔM NAY",
+  "reconcileCashAndBank": "Đối soát tiền mặt & ngân hàng",
+  "reportsAndAnalysis": "BÁO CÁO & PHÂN TÍCH",
+  "revenueOverview": "Tổng quan\nDoanh thu",
+  "financialReport": "Báo cáo\nTài chính",
+  "debtManagement": "Quản lý\nCông nợ",
+  "bankInstallmentStats": "Thống kê\nTrả góp NH",
+  "warrantyTracking": "Theo dõi\nBảo hành",
+  "manageAllTransactions": "Quản lý tất cả các giao dịch thu/chi.",
+  "expenseManagement": "Quản lý chi phí",
+  "addTrackShopExpenses": "Thêm và theo dõi các khoản chi phí của cửa hàng.",
+  "debtManagementIncomeExpense": "Quản lý nợ (Thu/Chi)",
+  "recordPayDebts": "Ghi nhận và thanh toán các khoản nợ.",
+  "summaryAllTransactions": "Tổng hợp tất cả giao dịch thu chi.",
+  "financialLog": "Nhật ký tài chính",
+  "trackAllFinancialActivities": "Theo dõi mọi hoạt động thu chi.",
+  "shopSettings": "Cài đặt cửa hàng",
+  "shopInfoLogoLocationMembers": "Thông tin, logo, vị trí và quản lý thành viên shop.",
+  "notifications": "Thông báo",
+  "configureNotificationSettings": "Cấu hình cài đặt thông báo và cảnh báo.",
+  "designPrintTemplates": "Thiết kế mẫu in cho máy in nhiệt.",
+  "adminCenter": "Trung tâm Admin",
+  "manageSystemForSuperAdmin": "Quản lý toàn bộ hệ thống cho admin cấp cao.",
+  "aboutDeveloper": "Về nhà phát triển",
+  "developerAndAppInfo": "Thông tin về nhà phát triển và ứng dụng.",
+  "logoutFromAccount": "Đăng xuất khỏi tài khoản",
+  "logoutConfirmTitle": "Đăng xuất?",
+  "logoutConfirmMessage": "Bạn có chắc muốn đăng xuất khỏi tài khoản?",
+  "checkingSync": "Đang kiểm tra đồng bộ...",
+  "checkingLocalVsCloud": "Kiểm tra dữ liệu local vs cloud",
+  "dataSyncComplete": "Dữ liệu đồng bộ hoàn toàn",
+  "localCloudMatch100": "Local và Cloud đã khớp 100%",
+  "recheckingSync": "Đang kiểm tra lại...",
+  "needsDataSync": "Cần đồng bộ dữ liệu",
+  "recordsNotSynced": "{count} bản ghi chưa đồng bộ. Bấm để mở Trung tâm đồng bộ.",
+  "@recordsNotSynced": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todayFinancialReport": "BÁO CÁO TÀI CHÍNH HÔM NAY",
+  "details": "Chi tiết",
+  "salesAndRepairOrders": "đơn bán + đơn sửa",
+  "warrantyReminder": "NHẮC LỊCH BẢO HÀNH",
+  "expiringWarrantiesMessage": "Có {count} máy sắp hết hạn bảo hành. Xem ngay!",
+  "@expiringWarrantiesMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "productsInStock": "Sản phẩm trong kho",
+  "dataFullySynced": "Dữ liệu đã đồng bộ hoàn toàn",
+  "localAndCloudMatched": "Dữ liệu thiết bị và cloud khớp nhau",
+  "syncNeeded": "Cần đồng bộ dữ liệu",
+  "todayExpense": "CHI HÔM NAY",
+  "todayActivity": "HOẠT ĐỘNG HÔM NAY",
+  "comparingLocalVsCloud": "Đang so sánh dữ liệu local và cloud...",
+  "totalDebt": "TỔNG CÔNG NỢ",
+  "saleAndRepairCount": "{saleCount} đơn bán + {repairCount} đơn sửa",
+  "@saleAndRepairCount": {
+    "placeholders": {
+      "saleCount": {
+        "type": "int"
+      },
+      "repairCount": {
+        "type": "int"
+      }
+    }
+  },
+  "saleAndRepairOrders": "{saleCount} đơn bán + {repairCount} đơn sửa",
+  "@saleAndRepairOrders": {
+    "placeholders": {
+      "saleCount": {
+        "type": "int"
+      },
+      "repairCount": {
+        "type": "int"
+      }
+    }
+  },
+  "expenseItemsCount": "{count} khoản chi",
+  "@expenseItemsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "expiringWarrantiesCount": "{count} máy sắp hết hạn BH. Xem ngay!",
+  "@expiringWarrantiesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

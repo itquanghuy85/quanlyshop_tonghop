@@ -11,6 +11,7 @@ import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/money_utils.dart';
+import '../widgets/currency_text_field.dart';
 import '../models/sale_order_model.dart';
 import '../data/db_helper.dart';
 import '../services/firestore_service.dart';
@@ -219,12 +220,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   Future<void> _openSettlementDialog() async {
     final formKey = GlobalKey<FormState>();
     final amountCtrl = TextEditingController(
-      text: MoneyUtils.formatCurrency(
+      text: CurrencyTextField.formatDisplay(
         s.settlementAmount > 0 ? s.settlementAmount : s.loanAmount,
       ),
     );
     final feeCtrl = TextEditingController(
-      text: MoneyUtils.formatCurrency(s.settlementFee),
+      text: CurrencyTextField.formatDisplay(s.settlementFee),
     );
     final noteCtrl = TextEditingController(text: s.settlementNote ?? "");
 
@@ -237,13 +238,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(
+              CurrencyTextField(
                 controller: amountCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                decoration: const InputDecoration(
-                  labelText: "Số tiền nhận (VNĐ)",
-                ),
+                label: "Số tiền nhận (VNĐ)",
                 validator: (v) => MoneyUtils.validateAmount(
                   v ?? '',
                   min: 1,
@@ -251,13 +248,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 ),
               ),
               const SizedBox(height: 8),
-              TextFormField(
+              CurrencyTextField(
                 controller: feeCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                decoration: const InputDecoration(
-                  labelText: "Phí NH giữ lại (VNĐ)",
-                ),
+                label: "Phí NH giữ lại (VNĐ)",
                 validator: (v) => MoneyUtils.validateAmount(
                   v ?? '',
                   min: 0,
@@ -290,14 +283,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
 
     if (ok != true) return;
 
-    final parsedReceived = MoneyUtils.parseCurrency(amountCtrl.text);
-    final parsedFee = MoneyUtils.parseCurrency(feeCtrl.text);
-    final received = parsedReceived > 0 && parsedReceived < 100000
-        ? parsedReceived * 1000
-        : parsedReceived;
-    final fee = parsedFee > 0 && parsedFee < 100000
-        ? parsedFee * 1000
-        : parsedFee;
+    // Không nhân 1000 - user đã nhập số đầy đủ với formatter
+    final received = MoneyUtils.parseCurrency(amountCtrl.text);
+    final fee = MoneyUtils.parseCurrency(feeCtrl.text);
     final nowMs = DateTime.now().millisecondsSinceEpoch;
 
     setState(() {
@@ -435,37 +423,27 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                   controller: imeis,
                   decoration: const InputDecoration(labelText: "IMEI/Serial"),
                 ),
-                TextFormField(
+                CurrencyTextField(
                   controller: totalPrice,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(
-                    labelText: "Tổng tiền (VNĐ)",
-                  ),
+                  label: "Tổng tiền (VNĐ)",
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 1,
                     fieldName: 'Tổng tiền',
                   ),
                 ),
-                TextFormField(
+                CurrencyTextField(
                   controller: totalCost,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(labelText: "Giá vốn (VNĐ)"),
+                  label: "Giá vốn (VNĐ)",
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 0,
                     fieldName: 'Giá vốn',
                   ),
                 ),
-                TextFormField(
+                CurrencyTextField(
                   controller: discount,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(
-                    labelText: "Giảm giá (VNĐ)",
-                  ),
+                  label: "Giảm giá (VNĐ)",
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: warranty,

@@ -63,6 +63,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   String _paymentMethod = "TIỀN MẶT";
   String _saleWarranty = "12 THÁNG";
   bool _autoCalcTotal = true;
+  bool _isWalkIn = false;
 
   final List<Map<String, dynamic>> _selectedItems = [];
   List<Map<String, dynamic>> _suggestCustomers = [];
@@ -237,6 +238,13 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   }
 
   Future<void> _addCustomerQuick() async {
+    if (_isWalkIn) {
+      NotificationService.showSnackBar(
+        "Khách vãng lai không lưu danh bạ",
+        color: Colors.blue,
+      );
+      return;
+    }
     final name = nameCtrl.text.trim().toUpperCase();
     final phone = phoneCtrl.text.trim();
     final address = addressCtrl.text.trim().toUpperCase();
@@ -312,8 +320,13 @@ class _CreateSaleViewState extends State<CreateSaleView> {
 
   void _loadEditData() {
     final sale = widget.editSale!;
-    nameCtrl.text = sale.customerName;
-    phoneCtrl.text = sale.phone;
+    _isWalkIn = sale.isWalkIn;
+    nameCtrl.text = sale.isWalkIn
+      ? (sale.walkInName ?? sale.customerName)
+      : sale.customerName;
+    phoneCtrl.text = sale.isWalkIn
+      ? (sale.walkInPhone ?? sale.phone)
+      : sale.phone;
     addressCtrl.text = sale.address;
     priceCtrl.text = _formatCurrency(sale.totalPrice);
     discountCtrl.text = _formatCurrency(sale.discount); // FIX: Load discount
@@ -602,21 +615,33 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       );
       return;
     }
-    if (nameCtrl.text.isEmpty || phoneCtrl.text.isEmpty) {
-      debugPrint('🛒 _processSale: Name or phone empty');
+    final isNameEmpty = nameCtrl.text.isEmpty;
+    final isPhoneEmpty = phoneCtrl.text.isEmpty;
+    if (!_isWalkIn && (isNameEmpty || isPhoneEmpty)) {
+      debugPrint('🛒 _processSale: Name or phone empty (non walk-in)');
       NotificationService.showSnackBar(
         "NHẬP ĐỦ THÔNG TIN KHÁCH",
         color: Colors.red,
       );
       return;
     }
-
-    // Validate phone format
-    final phoneError = UserService.validatePhone(phoneCtrl.text.trim());
-    if (phoneError != null) {
-      debugPrint('🛒 _processSale: Phone validation failed: $phoneError');
-      NotificationService.showSnackBar(phoneError, color: Colors.red);
+    if (_isWalkIn && isNameEmpty && isPhoneEmpty) {
+      debugPrint('🛒 _processSale: Walk-in missing both name and phone');
+      NotificationService.showSnackBar(
+        "Nhập tên hoặc SĐT cho khách vãng lai",
+        color: Colors.red,
+      );
       return;
+    }
+
+    // Validate phone format (only when provided)
+    if (!isPhoneEmpty) {
+      final phoneError = UserService.validatePhone(phoneCtrl.text.trim());
+      if (phoneError != null) {
+        debugPrint('🛒 _processSale: Phone validation failed: $phoneError');
+        NotificationService.showSnackBar(phoneError, color: Colors.red);
+        return;
+      }
     }
 
     debugPrint('🛒 _processSale: Validation passed, starting save...');
@@ -629,8 +654,11 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       }
 
       final now = DateTime.now().millisecondsSinceEpoch;
-      final String uniqueId =
-          widget.editSale?.firestoreId ?? "sale_${now}_${phoneCtrl.text}";
+        final safeTail = phoneCtrl.text.isNotEmpty
+          ? phoneCtrl.text
+          : (nameCtrl.text.isNotEmpty ? nameCtrl.text.trim().toUpperCase() : 'walkin');
+        final String uniqueId =
+          widget.editSale?.firestoreId ?? "sale_${now}_${safeTail}";
       String seller =
           FirebaseAuth.instance.currentUser?.email
               ?.split('@')
@@ -682,10 +710,19 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         return;
       }
 
+      final fallbackName = nameCtrl.text.trim().isNotEmpty
+          ? nameCtrl.text.trim().toUpperCase()
+          : 'KHÁCH VÃNG LAI';
+      final normalizedPhone = phoneCtrl.text.trim();
       final sale = SaleOrder(
         firestoreId: uniqueId,
-        customerName: nameCtrl.text.trim().toUpperCase(),
-        phone: phoneCtrl.text.trim(),
+        customerName: fallbackName,
+        phone: normalizedPhone,
+        isWalkIn: _isWalkIn,
+        walkInName: _isWalkIn ? fallbackName : null,
+        walkInPhone: _isWalkIn && normalizedPhone.isNotEmpty
+            ? normalizedPhone
+            : null,
         address: addressCtrl.text.trim().toUpperCase(),
         productNames: _selectedItems
             .map((e) => "${(e['product'] as Product).name} x${e['quantity']}")
@@ -937,6 +974,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 .toUpperCase() ??
             'NV';
         final downPaymentAmount = _parseCurrency(downPaymentCtrl.text);
+        final payerName = sale.walkInName ?? sale.customerName;
+        final payerPhone = sale.walkInPhone ?? sale.phone;
 
         if (_paymentMethod == "CÔNG NỢ") {
           // Công nợ khách hàng - chưa nhận tiền, ghi nhận debt
@@ -946,7 +985,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             type: PaymentIntentType.otherDebt,
             amount: finalPrice,
             description:
-                'Công nợ bán hàng: ${sale.customerName} - ${_selectedItems.length} SP',
+                'Công nợ bán hàng: $payerName - ${_selectedItems.length} SP',
             referenceId: saleRef,
             referenceType: 'sale',
             status: PaymentIntentStatus.completed, // Đã ghi nhận công nợ
@@ -954,11 +993,11 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             createdAt: now,
             paidAt: now,
             paymentMethod: PaymentMethod.debt,
-            personName: sale.customerName,
-            personPhone: sale.phone,
+            personName: payerName,
+            personPhone: payerPhone,
             metadata: {
-              'customerName': sale.customerName,
-              'phone': sale.phone,
+              'customerName': payerName,
+              'phone': payerPhone,
               'productNames': sale.productNames,
               'debtFirestoreId': debtDataForTransaction?['firestoreId'],
             },
@@ -973,7 +1012,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               type: PaymentIntentType.salePayment,
               amount: downPaymentAmount,
               description:
-                  'Trả trước trả góp: ${sale.customerName} - ${_selectedItems.length} SP',
+                  'Trả trước trả góp: $payerName - ${_selectedItems.length} SP',
               referenceId: saleRef,
               referenceType: 'sale',
               status: PaymentIntentStatus.completed,
@@ -981,11 +1020,11 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               createdAt: now,
               paidAt: now,
               paymentMethod: PaymentMethod.fromCode(_downPaymentMethod),
-              personName: sale.customerName,
-              personPhone: sale.phone,
+              personName: payerName,
+              personPhone: payerPhone,
               metadata: {
-                'customerName': sale.customerName,
-                'phone': sale.phone,
+                'customerName': payerName,
+                'phone': payerPhone,
                 'productNames': sale.productNames,
                 'isInstallment': true,
                 'bankName': bankCtrl.text.toUpperCase(),
@@ -1003,7 +1042,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             type: PaymentIntentType.salePayment,
             amount: finalPrice,
             description:
-                'Bán hàng: ${sale.customerName} - ${_selectedItems.length} SP',
+                'Bán hàng: $payerName - ${_selectedItems.length} SP',
             referenceId: saleRef,
             referenceType: 'sale',
             status: PaymentIntentStatus.completed,
@@ -1011,11 +1050,11 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             createdAt: now,
             paidAt: now,
             paymentMethod: PaymentMethod.fromCode(_paymentMethod),
-            personName: sale.customerName,
-            personPhone: sale.phone,
+            personName: payerName,
+            personPhone: payerPhone,
             metadata: {
-              'customerName': sale.customerName,
-              'phone': sale.phone,
+              'customerName': payerName,
+              'phone': payerPhone,
               'productNames': sale.productNames,
             },
           );
@@ -1323,6 +1362,26 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               ),
                             ],
                           ),
+                          SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            title: const Text('Khách vãng lai (không lưu danh bạ)'),
+                            subtitle: Text(
+                              _isWalkIn
+                                  ? 'Tên/SĐT chỉ lưu trên đơn, SĐT không bắt buộc'
+                                  : 'Nhập SĐT để lưu khách vào danh bạ',
+                              style: AppTextStyles.caption,
+                            ),
+                            value: _isWalkIn,
+                            onChanged: (v) {
+                              setState(() {
+                                _isWalkIn = v;
+                                if (_isWalkIn && nameCtrl.text.trim().isEmpty) {
+                                  nameCtrl.text = 'KHÁCH VÃNG LAI';
+                                }
+                              });
+                            },
+                          ),
                           const SizedBox(height: 6),
                           // 2 fields trên 1 hàng
                           Row(
@@ -1330,14 +1389,15 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               Expanded(
                                 child: TextFormField(
                                   controller: nameCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: "TÊN",
-                                    prefixIcon: Icon(
+                                  decoration: InputDecoration(
+                                    labelText:
+                                        _isWalkIn ? "TÊN (tùy chọn)" : "TÊN",
+                                    prefixIcon: const Icon(
                                       Icons.person_outline,
                                       size: 18,
                                     ),
                                     isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(
+                                    contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 12,
                                       vertical: 10,
                                     ),
@@ -1352,11 +1412,14 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                 width: 130,
                                 child: TextFormField(
                                   controller: phoneCtrl,
-                                  decoration: const InputDecoration(
-                                    labelText: "SĐT",
-                                    prefixIcon: Icon(Icons.phone, size: 18),
+                                  decoration: InputDecoration(
+                                    labelText: _isWalkIn
+                                        ? "SĐT (không bắt buộc)"
+                                        : "SĐT",
+                                    prefixIcon:
+                                        const Icon(Icons.phone, size: 18),
                                     isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(
+                                    contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 12,
                                       vertical: 10,
                                     ),
@@ -1365,7 +1428,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                   style: AppTextStyles.body2,
                                 ),
                               ),
-                              if (nameCtrl.text.trim().isNotEmpty &&
+                              if (!_isWalkIn &&
+                                  nameCtrl.text.trim().isNotEmpty &&
                                   phoneCtrl.text.trim().isNotEmpty)
                                 IconButton(
                                   onPressed: _addCustomerQuick,
@@ -1447,72 +1511,87 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         ),
         const SizedBox(height: 8),
 
-        // Tổng tiền + Giảm giá trên 1 hàng
-        Row(
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  Text(
-                    "TỔNG:",
-                    style: AppTextStyles.caption.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+        // Tổng tiền + Giảm giá (responsive để tránh overflow)
+        LayoutBuilder(
+          builder: (ctx, constraints) {
+            final isNarrow = constraints.maxWidth < 360;
+            final itemWidth = isNarrow
+                ? constraints.maxWidth
+                : (constraints.maxWidth / 2) - 6;
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                SizedBox(
+                  width: itemWidth,
+                  child: Row(
+                    children: [
+                      Text(
+                        "TỔNG:",
+                        style: AppTextStyles.caption.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          _autoCalcTotal ? Icons.lock_outline : Icons.edit,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+                        onPressed: () =>
+                            setState(() => _autoCalcTotal = !_autoCalcTotal),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: CurrencyTextField(
+                          controller: priceCtrl,
+                          label: "",
+                          enabled: !_autoCalcTotal,
+                          autoMultiply1000: false,
+                          onChanged: (_) => _calculateInstallment(),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    constraints: const BoxConstraints(),
-                    padding: EdgeInsets.zero,
-                    icon: Icon(
-                      _autoCalcTotal ? Icons.lock_outline : Icons.edit,
-                      size: 16,
-                      color: AppColors.primary,
-                    ),
-                    onPressed: () =>
-                        setState(() => _autoCalcTotal = !_autoCalcTotal),
+                ),
+                SizedBox(
+                  width: itemWidth,
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.discount,
+                        size: 16,
+                        color: Colors.orange,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        "Giảm:",
+                        style: AppTextStyles.caption.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: CurrencyTextField(
+                          controller: discountCtrl,
+                          label: "",
+                          autoMultiply1000: false,
+                          onChanged: (_) {
+                            _calculateInstallment();
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(
-                    width: 90,
-                    child: CurrencyTextField(
-                      controller: priceCtrl,
-                      label: "",
-                      enabled: !_autoCalcTotal,
-                      autoMultiply1000: false,
-                      onChanged: (_) => _calculateInstallment(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Row(
-                children: [
-                  const Icon(Icons.discount, size: 16, color: Colors.orange),
-                  const SizedBox(width: 4),
-                  Text(
-                    "Giảm:",
-                    style: AppTextStyles.caption.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
-                  ),
-                  SizedBox(
-                    width: 80,
-                    child: CurrencyTextField(
-                      controller: discountCtrl,
-                      label: "",
-                      autoMultiply1000: false,
-                      onChanged: (_) {
-                        _calculateInstallment();
-                        setState(() {});
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
 
         // Thành tiền
@@ -1785,13 +1864,14 @@ class _CreateSaleViewState extends State<CreateSaleView> {
 
         const Divider(height: 12),
 
-        // Bảo hành + Ghi chú trên 1 row
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // Bảo hành + Ghi chú: dùng Wrap để tránh tràn ngang
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.start,
           children: [
-            // Bảo hành dropdown compact
-            SizedBox(
-              width: 120,
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 140),
               child: DropdownButtonFormField<String>(
                 value: _saleWarranty,
                 decoration: const InputDecoration(
@@ -1814,8 +1894,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 onChanged: (v) => setState(() => _saleWarranty = v ?? "KO BH"),
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
+            SizedBox(
+              width: MediaQuery.of(context).size.width - 172, // phần còn lại
               child: TextFormField(
                 controller: noteCtrl,
                 maxLines: 1,

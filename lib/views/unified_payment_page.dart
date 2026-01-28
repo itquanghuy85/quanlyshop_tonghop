@@ -62,6 +62,22 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
   bool _isProcessing = false;
   String? _errorMessage;
   bool _isCompleted = false; // Track if payment was completed
+  bool _methodLocked = false; // Prevent changing when preset by intent
+  final List<PaymentMethod> _availableMethods = const [
+    PaymentMethod.cash,
+    PaymentMethod.transfer,
+    PaymentMethod.debt,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final presetMethod = widget.intent.paymentMethod;
+    final fallbackMethod = PaymentMethod.cash;
+    final hasPreset = presetMethod != null && _availableMethods.contains(presetMethod);
+    _selectedMethod = hasPreset ? presetMethod! : fallbackMethod;
+    _methodLocked = hasPreset;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -269,6 +285,29 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            if (_methodLocked) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade100),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.lock, color: Colors.blue.shade700, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Phương thức đã được chọn sẵn: ${_selectedMethod.displayName}',
+                        style: TextStyle(color: Colors.blue.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             ..._buildPaymentMethodOptions(),
           ],
@@ -278,14 +317,13 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
   }
 
   List<Widget> _buildPaymentMethodOptions() {
-    final methods = [PaymentMethod.cash, PaymentMethod.transfer];
-
-    return methods.map((method) {
+    return _availableMethods.map((method) {
       final isSelected = _selectedMethod == method;
+      final isLockedOption = _methodLocked && isSelected;
       return RadioListTile<PaymentMethod>(
         value: method,
         groupValue: _selectedMethod,
-        onChanged: _isProcessing
+        onChanged: _isProcessing || _methodLocked
             ? null
             : (value) {
                 if (value != null) {
@@ -293,7 +331,11 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
                 }
               },
         title: Text(method.displayName),
-        subtitle: Text(_getMethodDescription(method)),
+        subtitle: Text(
+          isLockedOption
+              ? '${_getMethodDescription(method)} (khóa trước)'
+              : _getMethodDescription(method),
+        ),
         secondary: Icon(
           _getMethodIcon(method),
           color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
@@ -344,6 +386,12 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
   Widget _buildConfirmButton(PaymentIntent intent, ThemeData theme) {
     final isIncome = intent.isIncome;
     final buttonColor = isIncome ? Colors.green : theme.primaryColor;
+    final lockedLabel = _methodLocked
+        ? ' (${_selectedMethod.displayName})'
+        : '';
+    final buttonLabel = _methodLocked
+        ? 'XÁC NHẬN$lockedLabel'
+        : (isIncome ? 'XÁC NHẬN THU TIỀN' : 'XÁC NHẬN THANH TOÁN');
 
     return ElevatedButton(
       onPressed: _isProcessing ? null : () => _handleConfirm(context),
@@ -363,7 +411,7 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
               ),
             )
           : Text(
-              isIncome ? 'XÁC NHẬN THU TIỀN' : 'XÁC NHẬN THANH TOÁN',
+              buttonLabel,
               style: TextStyle(
                 fontSize: AppTextStyles.headline3.fontSize,
                 fontWeight: FontWeight.bold,

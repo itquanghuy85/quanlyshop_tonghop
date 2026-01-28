@@ -14,6 +14,7 @@ import '../services/unified_printer_service.dart';
 import '../services/adjustment_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../utils/money_utils.dart';
+import '../widgets/currency_text_field.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/section_card.dart';
@@ -69,6 +70,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   // Services with partners
   final List<RepairService> _services = [];
   List<RepairPartner> _partners = [];
+  bool _isWalkIn = false;
 
   final List<String> brands = ["IPHONE", "SAMSUNG", "OPPO", "REDMI", "VIVO"];
   final List<String> commonIssues = [
@@ -234,6 +236,13 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   }
 
   Future<void> _addCustomerQuick() async {
+    if (_isWalkIn) {
+      NotificationService.showSnackBar(
+        "Khách vãng lai không lưu danh bạ",
+        color: Colors.blue,
+      );
+      return;
+    }
     final name = nameCtrl.text.trim().toUpperCase();
     final phone = phoneCtrl.text.trim();
     final address = addressCtrl.text.trim().toUpperCase();
@@ -315,12 +324,15 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       return null;
     }
 
-    if (phoneCtrl.text.isEmpty || modelCtrl.text.isEmpty) {
+    final isPhoneMissing = phoneCtrl.text.isEmpty;
+    if (modelCtrl.text.isEmpty || (!_isWalkIn && isPhoneMissing)) {
       debugPrint(
         '🔧 _saveOrderProcess: Validation failed - phone or model empty',
       );
       NotificationService.showSnackBar(
-        "Vui lòng nhập SĐT và Model máy",
+        _isWalkIn
+            ? "Vui lòng nhập Model máy"
+            : "Vui lòng nhập SĐT và Model máy",
         color: Colors.red,
       );
       return null;
@@ -351,10 +363,20 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
       final now = DateTime.now().millisecondsSinceEpoch;
       final totalCost = _services.fold(0, (sum, s) => sum + s.cost);
+      final fallbackName = nameCtrl.text.trim().isEmpty
+          ? 'KHÁCH VÃNG LAI'
+          : nameCtrl.text.trim().toUpperCase();
+      final normalizedPhone = phoneCtrl.text.trim();
+      final docIdTail = normalizedPhone.isNotEmpty ? normalizedPhone : 'walkin';
       final r = Repair(
-        firestoreId: "rep_${now}_${phoneCtrl.text}",
-        customerName: nameCtrl.text.trim().toUpperCase(),
-        phone: phoneCtrl.text.trim(),
+        firestoreId: "rep_${now}_${docIdTail}",
+        customerName: fallbackName,
+        phone: normalizedPhone,
+        isWalkIn: _isWalkIn,
+        walkInName: _isWalkIn ? fallbackName : null,
+        walkInPhone: _isWalkIn && normalizedPhone.isNotEmpty
+            ? normalizedPhone
+            : null,
         model: modelCtrl.text.trim().toUpperCase(),
         issue: issueCtrl.text.trim().toUpperCase(),
         accessories: "$finalAccs | MK: ${passCtrl.text}".trim().toUpperCase(),
@@ -720,11 +742,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                         : null,
                   ),
                   const SizedBox(height: 10),
-                  TextFormField(
+                  CurrencyTextField(
                     controller: costCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                    decoration: const InputDecoration(labelText: "Chi phí (VNĐ)"),
+                    label: "Chi phí (VNĐ)",
                     validator: (v) => MoneyUtils.validateAmount(
                       v ?? '',
                       min: 1,
@@ -781,10 +801,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
             ElevatedButton(
               onPressed: () {
                 if (!(formKey.currentState?.validate() ?? false)) return;
-                final parsed = MoneyUtils.parseCurrency(costCtrl.text);
-                final cost = parsed >= 1000 && parsed < 100000
-                    ? parsed * 1000
-                    : parsed;
+                // Không nhân 1000 - user đã nhập số đầy đủ với formatter
+                final cost = MoneyUtils.parseCurrency(costCtrl.text);
                 final service = RepairService(
                   serviceName: serviceCtrl.text.trim().toUpperCase(),
                   cost: cost,
@@ -906,7 +924,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   padding: EdgeInsets.zero,
                   color: Colors.blue,
                 ),
-                if (nameCtrl.text.trim().isNotEmpty && phoneCtrl.text.trim().isNotEmpty)
+                if (!_isWalkIn &&
+                    nameCtrl.text.trim().isNotEmpty &&
+                    phoneCtrl.text.trim().isNotEmpty)
                   IconButton(
                     onPressed: _addCustomerQuick,
                     icon: const Icon(Icons.person_add, size: 18, color: Colors.green),
@@ -917,12 +937,46 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
               ],
             ),
             const Divider(height: 12),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('Khách vãng lai (không lưu danh bạ)'),
+              subtitle: Text(
+                _isWalkIn
+                    ? 'Tên/SĐT chỉ lưu trên phiếu, không bắt buộc SĐT'
+                    : 'Nhập SĐT để lưu khách vào danh bạ',
+                style: const TextStyle(fontSize: 12),
+              ),
+              value: _isWalkIn,
+              onChanged: (v) {
+                setState(() {
+                  _isWalkIn = v;
+                  if (_isWalkIn && nameCtrl.text.trim().isEmpty) {
+                    nameCtrl.text = 'KHÁCH VÃNG LAI';
+                  }
+                });
+              },
+            ),
             // Row 1: SĐT + Tên
             Row(
               children: [
-                Expanded(child: _compactInput(phoneCtrl, "SĐT *", Icons.phone, type: TextInputType.phone)),
+                Expanded(
+                  child: _compactInput(
+                    phoneCtrl,
+                    _isWalkIn ? "SĐT (không bắt buộc)" : "SĐT *",
+                    Icons.phone,
+                    type: TextInputType.phone,
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Expanded(child: _compactInput(nameCtrl, "Tên KH", Icons.person, caps: true)),
+                Expanded(
+                  child: _compactInput(
+                    nameCtrl,
+                    _isWalkIn ? "Tên KH (tùy chọn)" : "Tên KH",
+                    Icons.person,
+                    caps: true,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),

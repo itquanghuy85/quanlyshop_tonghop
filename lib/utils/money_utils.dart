@@ -1,33 +1,20 @@
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
+import 'money_input_formatter.dart';
 
 class MoneyUtils {
   /// Format int VNĐ -> "1.234.567"
   static String formatCurrency(int value) {
-    final formatter = NumberFormat('#,###', 'vi_VN');
-    return formatter.format(value);
+    return MoneyInputFormatter.formatValue(value);
   }
 
-  /// Parse chuỗi tiền có . hoặc , -> int VNĐ (mặc định 0 nếu lỗi)
+  /// Parse chuỗi tiền có dấu chấm -> int VNĐ (mặc định 0 nếu lỗi)
   static int parseCurrency(String input) {
-    final clean = input.replaceAll(RegExp(r'[^0-9]'), '');
-    return int.tryParse(clean) ?? 0;
+    return MoneyInputFormatter.parseRaw(input);
   }
 
-  /// Input formatter giữ caret, chấp nhận số và dấu phân tách.
+  /// Input formatter riêng cho money input (realtime format + giữ cursor)
   static TextInputFormatter currencyInputFormatter() {
-    return TextInputFormatter.withFunction((oldValue, newValue) {
-      final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-      final formatted = digits.isEmpty
-          ? ''
-          : NumberFormat('#,###', 'vi_VN').format(int.parse(digits));
-      // Giữ vị trí caret gần cuối (phổ biến cho nhập tiền)
-      final selectionIndex = formatted.length;
-      return TextEditingValue(
-        text: formatted,
-        selection: TextSelection.collapsed(offset: selectionIndex),
-      );
-    });
+    return MoneyInputFormatter();
   }
 
   /// Validator cho trường tiền/số lượng.

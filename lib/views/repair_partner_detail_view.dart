@@ -9,6 +9,7 @@ import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import '../data/db_helper.dart';
 import '../utils/money_utils.dart';
+import '../widgets/currency_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/gradient_fab.dart';
@@ -466,17 +467,10 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
                   style: AppTextStyles.body2.copyWith(color: AppColors.error),
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
+                CurrencyTextField(
                   controller: payCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: InputDecoration(
-                    labelText: 'Số tiền thanh toán',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.attach_money),
-                  ),
+                  label: 'Số tiền thanh toán',
+                  icon: Icons.attach_money,
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 1,

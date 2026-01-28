@@ -156,13 +156,13 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
       ),
     );
 
-    if (result != null) {
-      await _loadData();
-      if (mounted) {
-        if (result.success) {
-          _showSuccessDialog(intent);
-        }
-      }
+    // Luôn reload sau khi thoát trang thanh toán để đồng bộ UI với trạng thái intent
+    await _loadData();
+
+    if (!mounted) return;
+
+    if (result != null && result.success) {
+      _showSuccessDialog(intent);
     }
   }
 

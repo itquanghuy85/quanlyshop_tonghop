@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 // BỔ SUNG THƯ VIỆN BỊ THIẾU
 import 'package:fl_chart/fl_chart.dart';
 import '../utils/money_utils.dart';
+import '../widgets/currency_text_field.dart';
 import '../data/db_helper.dart';
 import '../services/notification_service.dart';
 import '../services/sync_service.dart';
@@ -429,11 +430,10 @@ class _ExpenseViewState extends State<ExpenseView> {
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập nội dung chi' : null,
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
+                    CurrencyTextField(
                       controller: amountC,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                      decoration: const InputDecoration(labelText: "Số tiền (VNĐ) *", prefixIcon: Icon(Icons.payments)),
+                      label: "Số tiền (VNĐ) *",
+                      icon: Icons.payments,
                       validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền'),
                     ),
                     const SizedBox(height: 12),
@@ -487,8 +487,8 @@ class _ExpenseViewState extends State<ExpenseView> {
                         if (!(formKey.currentState?.validate() ?? false)) return;
                         setS(() => _isSaving = true);
 
-                        final parsed = MoneyUtils.parseCurrency(amountC.text);
-                        final amount = parsed >= 1000 && parsed < 100000 ? parsed * 1000 : parsed;
+                        // Không nhân 1000 - user đã nhập số đầy đủ với formatter
+                        final amount = MoneyUtils.parseCurrency(amountC.text);
 
                         final user = FirebaseAuth.instance.currentUser;
                         final navigator = Navigator.of(ctx);

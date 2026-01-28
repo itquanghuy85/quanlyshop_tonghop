@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/money_utils.dart';
+import '../widgets/currency_text_field.dart';
 import '../data/db_helper.dart';
 import '../services/notification_service.dart';
 import '../widgets/custom_app_bar.dart';
@@ -395,13 +396,9 @@ class _DebtViewState extends State<DebtView>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextFormField(
+                CurrencyTextField(
                   controller: payC,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(
-                    labelText: "SỐ TIỀN THU (VNĐ)",
-                  ),
+                  label: "SỐ TIỀN THU (VNĐ)",
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 1,
@@ -1495,13 +1492,9 @@ class _DebtViewState extends State<DebtView>
                     keyboardType: TextInputType.phone,
                   ),
                   const SizedBox(height: 10),
-                  TextFormField(
+                  CurrencyTextField(
                     controller: amountC,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                    decoration: const InputDecoration(
-                      labelText: "Số tiền nợ (VNĐ)",
-                    ),
+                    label: "Số tiền nợ (VNĐ)",
                     validator: (v) => MoneyUtils.validateAmount(
                       v ?? '',
                       min: 1,
@@ -1641,10 +1634,8 @@ class _DebtViewState extends State<DebtView>
               onPressed: () async {
                 if (!(formKey.currentState?.validate() ?? false)) return;
 
-                final parsed = MoneyUtils.parseCurrency(amountC.text);
-                final debtAmount = parsed >= 1000 && parsed < 100000
-                    ? parsed * 1000
-                    : parsed;
+                // Không nhân 1000 - user đã nhập số đầy đủ với formatter
+                final debtAmount = MoneyUtils.parseCurrency(amountC.text);
                 if (debtAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
@@ -1737,13 +1728,9 @@ class _DebtViewState extends State<DebtView>
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 10),
-              TextFormField(
+              CurrencyTextField(
                 controller: amountC,
-                keyboardType: TextInputType.number,
-                inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                decoration: const InputDecoration(
-                  labelText: "Số tiền nợ (VNĐ)",
-                ),
+                label: "Số tiền nợ (VNĐ)",
                 validator: (v) => MoneyUtils.validateAmount(
                   v ?? '',
                   min: 1,
@@ -1768,10 +1755,8 @@ class _DebtViewState extends State<DebtView>
               if (!(formKey.currentState?.validate() ?? false)) return;
 
               try {
-                final parsed = MoneyUtils.parseCurrency(amountC.text);
-                final debtAmount = parsed >= 1000 && parsed < 100000
-                    ? parsed * 1000
-                    : parsed;
+                // Không nhân 1000 - user đã nhập số đầy đủ với formatter
+                final debtAmount = MoneyUtils.parseCurrency(amountC.text);
                 if (debtAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
@@ -1881,13 +1866,9 @@ class _DebtViewState extends State<DebtView>
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 10),
-              TextFormField(
+              CurrencyTextField(
                 controller: amountC,
-                keyboardType: TextInputType.number,
-                inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                decoration: const InputDecoration(
-                  labelText: "Số tiền nợ (VNĐ)",
-                ),
+                label: "Số tiền nợ (VNĐ)",
                 validator: (v) => MoneyUtils.validateAmount(
                   v ?? '',
                   min: 1,
@@ -1912,10 +1893,8 @@ class _DebtViewState extends State<DebtView>
               if (!(formKey.currentState?.validate() ?? false)) return;
 
               try {
-                final parsed = MoneyUtils.parseCurrency(amountC.text);
-                final debtAmount = parsed >= 1000 && parsed < 100000
-                    ? parsed * 1000
-                    : parsed;
+                // Không nhân 1000 - user đã nhập số đầy đủ với formatter
+                final debtAmount = MoneyUtils.parseCurrency(amountC.text);
                 if (debtAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;

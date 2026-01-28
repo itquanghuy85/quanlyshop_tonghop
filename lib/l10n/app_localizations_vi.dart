@@ -396,7 +396,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get version => 'Phiên bản';
 
   @override
-  String get versionNumber => '2.1.0';
+  String get versionNumber => '2.6.0';
 
   @override
   String get contactSupport => 'Liên hệ hỗ trợ';
@@ -414,7 +414,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get contactPhone => 'SĐT/Zalo: 0964 095 979';
 
   @override
-  String get technicalSupport => 'Hỗ trợ kỹ thuật & phát triển app';
+  String get technicalSupport => 'HỖ TRỢ KỸ THUẬT';
 
   @override
   String get businessSolutions => 'Phát triển giải pháp quản lý kinh doanh';
@@ -465,7 +465,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get scanQRCode => 'Quét mã QR';
 
   @override
-  String get createRepairOrder => 'Tạo phiếu nhận máy sửa chữa';
+  String get createRepairOrder => 'TẠO ĐƠN SỬA CHỮA';
 
   @override
   String get noPermissionRepair => 'Tài khoản này không được phép vào mục SỬA CHỮA. Liên hệ chủ shop để phân quyền.';
@@ -573,7 +573,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get customerName => 'TÊN KHÁCH HÀNG';
 
   @override
-  String get phoneNumber => 'SỐ DIEN_THOAI';
+  String get phoneNumber => 'SỐ ĐIỆN THOẠI';
 
   @override
   String get customerAddress => 'ĐỊA CHỈ KHÁCH HÀNG';
@@ -630,7 +630,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get bankT86 => 'NGÂN HÀNG T86';
 
   @override
-  String get enterPhoneFirst => 'VUI LÒNG NHẬP SỐ DIEN_THOAI TRƯỚC';
+  String get enterPhoneFirst => 'VUI LÒNG NHẬP SỐ ĐIỆN THOẠI TRƯỚC';
 
   @override
   String get priceMustBePositive => 'GIÁ TIẾP NHẬN PHẢI LỚN HƠN HOẶC BẰNG 0!';
@@ -651,7 +651,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get productType => 'Loại hàng';
 
   @override
-  String get phone => 'DIEN_THOAI';
+  String get phone => 'ĐIỆN THOẠI';
 
   @override
   String get accessory => 'PHỤ KIỆN';
@@ -1046,7 +1046,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get filter => 'Bộ lọc';
 
   @override
-  String get createSaleOrder => 'Tạo đơn bán hàng mới';
+  String get createSaleOrder => 'TẠO ĐƠN BÁN HÀNG';
 
   @override
   String get searchByNameImei => 'Tìm theo tên khách, máy hoặc IMEI...';
@@ -1076,7 +1076,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get repairPartnerTab => 'ĐỐI TÁC SỬA CHỮA';
 
   @override
-  String get staffManagement => 'QUẢN LÝ NHÂN VIÊN';
+  String get staffManagement => 'QUẢN LÝ NHÂN SỰ';
 
   @override
   String get roleLabel => 'Vai trò';
@@ -1136,5 +1136,1257 @@ class AppLocalizationsVi extends AppLocalizations {
   String get checkBluetoothOn => 'Kiểm tra Bluetooth có bật...';
 
   @override
-  String get appVersion => 'Phiên bản 3.4.0';
+  String get appVersion => 'Phiên bản 2.6.0+100';
+
+  @override
+  String get saving => 'Đang lưu...';
+
+  @override
+  String get saveSettings => 'LƯU CÀI ĐẶT';
+
+  @override
+  String get deleteTemplate => 'Xóa mẫu tem?';
+
+  @override
+  String get saveTemplate => 'LƯU MẪU TEM';
+
+  @override
+  String get saveChanges => 'LƯU THAY ĐỔI';
+
+  @override
+  String get addCode => 'THÊM MÃ';
+
+  @override
+  String get deletePartner => 'Xóa đối tác';
+
+  @override
+  String get qrScanSettings => 'CÀI ĐẶT QUÉT QR';
+
+  @override
+  String get scanSettings => 'Cài đặt scan';
+
+  @override
+  String get labelSettings => 'Cài đặt Tem sản phẩm';
+
+  @override
+  String get cpkPriceSettings => 'Cài đặt giá CPK';
+
+  @override
+  String get confirm => 'Xác nhận';
+
+  @override
+  String get confirmAction => 'Xác nhận hành động';
+
+  @override
+  String get loading => 'Đang tải...';
+
+  @override
+  String get error => 'Lỗi';
+
+  @override
+  String get success => 'Thành công';
+
+  @override
+  String get warning => 'Cảnh báo';
+
+  @override
+  String get info => 'Thông tin';
+
+  @override
+  String get search => 'Tìm kiếm';
+
+  @override
+  String get noData => 'Không có dữ liệu';
+
+  @override
+  String get retry => 'Thử lại';
+
+  @override
+  String get done => 'Xong';
+
+  @override
+  String get next => 'Tiếp theo';
+
+  @override
+  String get previous => 'Trước đó';
+
+  @override
+  String get select => 'Chọn';
+
+  @override
+  String get selected => 'Đã chọn';
+
+  @override
+  String get edit => 'Sửa';
+
+  @override
+  String get details => 'Chi tiết';
+
+  @override
+  String get total => 'Tổng cộng';
+
+  @override
+  String get amount => 'Số tiền';
+
+  @override
+  String get date => 'Ngày';
+
+  @override
+  String get time => 'Giờ';
+
+  @override
+  String get status => 'Trạng thái';
+
+  @override
+  String get description => 'Mô tả';
+
+  @override
+  String get required => 'Bắt buộc';
+
+  @override
+  String get optional => 'Tùy chọn';
+
+  @override
+  String get pleaseEnter => 'Vui lòng nhập';
+
+  @override
+  String get pleaseSelect => 'Vui lòng chọn';
+
+  @override
+  String get invalidInput => 'Dữ liệu không hợp lệ';
+
+  @override
+  String get connectionError => 'Lỗi kết nối';
+
+  @override
+  String get tryAgain => 'Thử lại';
+
+  @override
+  String get ok => 'OK';
+
+  @override
+  String get notFound => 'Không tìm thấy';
+
+  @override
+  String get noResults => 'Không có kết quả';
+
+  @override
+  String get copy => 'Sao chép';
+
+  @override
+  String get copied => 'Đã sao chép';
+
+  @override
+  String get share => 'Chia sẻ';
+
+  @override
+  String get print => 'In';
+
+  @override
+  String get export => 'Xuất';
+
+  @override
+  String get import => 'Nhập';
+
+  @override
+  String get create => 'Tạo';
+
+  @override
+  String get createNew => 'Tạo mới';
+
+  @override
+  String get view => 'Xem';
+
+  @override
+  String get viewAll => 'Xem tất cả';
+
+  @override
+  String get viewMore => 'Xem thêm';
+
+  @override
+  String get viewLess => 'Thu gọn';
+
+  @override
+  String get showAll => 'Hiện tất cả';
+
+  @override
+  String get hideAll => 'Ẩn tất cả';
+
+  @override
+  String get enable => 'Bật';
+
+  @override
+  String get disable => 'Tắt';
+
+  @override
+  String get enabled => 'Đã bật';
+
+  @override
+  String get disabled => 'Đã tắt';
+
+  @override
+  String get active => 'Đang hoạt động';
+
+  @override
+  String get inactive => 'Không hoạt động';
+
+  @override
+  String get pending => 'Đang chờ';
+
+  @override
+  String get completed => 'Hoàn thành';
+
+  @override
+  String get cancelled => 'Đã hủy';
+
+  @override
+  String get inProgress => 'Đang xử lý';
+
+  @override
+  String get failed => 'Thất bại';
+
+  @override
+  String get unknown => 'Không xác định';
+
+  @override
+  String get other => 'Khác';
+
+  @override
+  String get none => 'Không có';
+
+  @override
+  String get clear => 'Xóa';
+
+  @override
+  String get clearAll => 'Xóa tất cả';
+
+  @override
+  String get reset => 'Đặt lại';
+
+  @override
+  String get apply => 'Áp dụng';
+
+  @override
+  String get from => 'Từ';
+
+  @override
+  String get to => 'Đến';
+
+  @override
+  String get by => 'Bởi';
+
+  @override
+  String get at => 'Lúc';
+
+  @override
+  String get on => 'Vào';
+
+  @override
+  String get or => 'Hoặc';
+
+  @override
+  String get and => 'Và';
+
+  @override
+  String get withLabel => 'Với';
+
+  @override
+  String get without => 'Không có';
+
+  @override
+  String get newLabel => 'Mới';
+
+  @override
+  String get old => 'Cũ';
+
+  @override
+  String get more => 'Thêm';
+
+  @override
+  String get less => 'Ít hơn';
+
+  @override
+  String get start => 'Bắt đầu';
+
+  @override
+  String get end => 'Kết thúc';
+
+  @override
+  String get open => 'Mở';
+
+  @override
+  String get close2 => 'Đóng';
+
+  @override
+  String get send => 'Gửi';
+
+  @override
+  String get receive => 'Nhận';
+
+  @override
+  String get download => 'Tải xuống';
+
+  @override
+  String get upload => 'Tải lên';
+
+  @override
+  String get attach => 'Đính kèm';
+
+  @override
+  String get remove => 'Xóa bỏ';
+
+  @override
+  String get change => 'Thay đổi';
+
+  @override
+  String get modified => 'Đã sửa đổi';
+
+  @override
+  String get created => 'Đã tạo';
+
+  @override
+  String get updated => 'Đã cập nhật';
+
+  @override
+  String get deleted => 'Đã xóa';
+
+  @override
+  String get forgotPasswordTitle => 'Quên mật khẩu';
+
+  @override
+  String get forgotPasswordDesc => 'Nhập email đã đăng ký, chúng tôi sẽ gửi link đặt lại mật khẩu.';
+
+  @override
+  String get pleaseEnterValidEmail => 'Vui lòng nhập email hợp lệ';
+
+  @override
+  String passwordResetEmailSent(String email) {
+    return 'Đã gửi email đặt lại mật khẩu tới $email';
+  }
+
+  @override
+  String get errorSendingEmail => 'Lỗi gửi email';
+
+  @override
+  String get emailNotRegistered => 'Email chưa được đăng ký';
+
+  @override
+  String get invalidEmailFormat => 'Email không hợp lệ';
+
+  @override
+  String get sendEmail => 'GỬI EMAIL';
+
+  @override
+  String get noAccountRegisterNow => 'Chưa có tài khoản? Đăng ký ngay';
+
+  @override
+  String get registerSuccess => 'Đăng ký thành công! Vui lòng đăng nhập.';
+
+  @override
+  String get emailExample => 'Ví dụ: ten@domain.com hoặc ten@gmail.com';
+
+  @override
+  String get perpetualCalendarTitle => 'Lịch vạn niên';
+
+  @override
+  String todayDateFormat(String date) {
+    return 'Hôm nay: $date';
+  }
+
+  @override
+  String get monday => 'T2';
+
+  @override
+  String get tuesday => 'T3';
+
+  @override
+  String get wednesday => 'T4';
+
+  @override
+  String get thursday => 'T5';
+
+  @override
+  String get friday => 'T6';
+
+  @override
+  String get saturday => 'T7';
+
+  @override
+  String get sunday => 'CN';
+
+  @override
+  String get languageAndInterface => 'NGÔN NGỮ & GIAO DIỆN';
+
+  @override
+  String get accountAndSecurity => 'TÀI KHOẢN & BẢO MẬT';
+
+  @override
+  String get selectOtherShop => 'CHỌN SHOP KHÁC';
+
+  @override
+  String get currentShop => 'Shop hiện tại';
+
+  @override
+  String get logoutFromApp => 'Đăng xuất khỏi ứng dụng';
+
+  @override
+  String get logoutQuestion => 'Đăng xuất?';
+
+  @override
+  String logoutError(String error) {
+    return 'Lỗi đăng xuất: $error';
+  }
+
+  @override
+  String get syncCenter => 'TRUNG TÂM ĐỒNG BỘ';
+
+  @override
+  String get syncCenterDesc => 'Tải về, đẩy lên, kiểm tra và khôi phục dữ liệu';
+
+  @override
+  String get loadingShopData => 'Đang tải dữ liệu shop...';
+
+  @override
+  String switchedToShop(String shopName) {
+    return 'Đã chuyển sang shop: $shopName';
+  }
+
+  @override
+  String errorSwitchingShop(String error) {
+    return 'Lỗi khi chuyển shop: $error';
+  }
+
+  @override
+  String get viewShopAsAdmin => 'Super Admin có thể chọn shop để xem dữ liệu';
+
+  @override
+  String get noShops => 'Không có shop nào';
+
+  @override
+  String get selectShopLabel => 'Chọn shop';
+
+  @override
+  String get selectShopPlaceholder => '-- Chọn shop để xem --';
+
+  @override
+  String currentlyViewing(String shopName) {
+    return 'Đang xem: $shopName';
+  }
+
+  @override
+  String get ownerRole => 'CHỦ SHOP';
+
+  @override
+  String get managerRole => 'QUẢN LÝ';
+
+  @override
+  String get employeeRole => 'NHÂN VIÊN';
+
+  @override
+  String get technicianRole => 'KỸ THUẬT';
+
+  @override
+  String get adminRole => 'ADMIN';
+
+  @override
+  String get userRole => 'NGƯỜI DÙNG';
+
+  @override
+  String get dangerWarningTitle => '⚠️ CẢNH BÁO NGUY HIỂM';
+
+  @override
+  String get resetShopWarning => 'Hành động này sẽ xóa sạch 100% dữ liệu Đơn hàng, Kho, Nợ và Nhật ký của Shop trên cả Đám mây và Máy này. KHÔNG THỂ KHÔI PHỤC!';
+
+  @override
+  String get typeToConfirm => 'Nhập chữ \'XOA HET\' để xác nhận:';
+
+  @override
+  String resetCloudError(String error) {
+    return 'LỖI KHI XÓA DỮ LIỆU ĐÁM MÂY: $error';
+  }
+
+  @override
+  String get viewAndEditStaffPermissions => 'Xem và chỉnh sửa quyền truy cập của từng nhân viên';
+
+  @override
+  String get resetShopAdminOnly => 'Dùng khi muốn khởi tạo lại toàn bộ dữ liệu cửa hàng (CHỈ SUPER ADMIN)';
+
+  @override
+  String get syncErrorTitle => 'Lỗi đồng bộ';
+
+  @override
+  String get noTransactionHistory => 'Chưa có lịch sử giao dịch';
+
+  @override
+  String get noActivityLogs => 'Chưa có ghi chép hoạt động nào';
+
+  @override
+  String get noRepairOrders => 'Chưa có đơn sửa chữa';
+
+  @override
+  String get noSaleOrders => 'Chưa có đơn bán hàng';
+
+  @override
+  String get noPaymentData => 'Chưa có dữ liệu thanh toán';
+
+  @override
+  String get noNotifications => 'Chưa có thông báo nào';
+
+  @override
+  String notSyncedCount(int count) {
+    return 'Chưa đồng bộ ($count)';
+  }
+
+  @override
+  String get notSelected => 'Chưa chọn';
+
+  @override
+  String get confirmDelete => 'Xác nhận xóa';
+
+  @override
+  String confirmActionWithName(String action) {
+    return 'Xác nhận $action';
+  }
+
+  @override
+  String get confirmDeleteOrder => 'XÁC NHẬN XÓA ĐƠN';
+
+  @override
+  String get enterPasswordToDelete => 'Nhập mật khẩu tài khoản để xóa:';
+
+  @override
+  String get deletedSuccessfully => 'ĐÃ XÓA THÀNH CÔNG';
+
+  @override
+  String get addToStock => 'NHẬP KHO';
+
+  @override
+  String get continueAdding => 'NHẬP TIẾP';
+
+  @override
+  String get quickStockIn => 'NHẬP NHANH';
+
+  @override
+  String get manualEntry => 'Nhập thủ công';
+
+  @override
+  String get confirmStagingStock => 'Xác nhận nhập Kho Tạm';
+
+  @override
+  String get addToStagingStock => 'Nhập Kho Tạm';
+
+  @override
+  String get purchaseOrderCreated => 'Đã tạo phiếu nhập';
+
+  @override
+  String get addMore => 'Nhập thêm';
+
+  @override
+  String get understood => 'ĐÃ HIỂU';
+
+  @override
+  String get confirmStockIn => 'Xác nhận nhập kho?';
+
+  @override
+  String get pleaseEnterPartnerName => 'Vui lòng nhập tên đối tác';
+
+  @override
+  String get pleaseEnterSupplierName => 'Vui lòng nhập tên nhà cung cấp';
+
+  @override
+  String get supplierAddedSuccess => 'Đã thêm nhà cung cấp thành công';
+
+  @override
+  String get supplierAddError => 'Lỗi: Không thể thêm nhà cung cấp';
+
+  @override
+  String get partnerDeletedSuccess => 'Đã xóa đối tác thành công';
+
+  @override
+  String get partnerDeleteError => 'Lỗi: Không thể xóa đối tác';
+
+  @override
+  String get supplierDeletedSuccess => 'Đã xóa nhà cung cấp thành công';
+
+  @override
+  String get supplierDeleteError => 'Lỗi: Không thể xóa nhà cung cấp';
+
+  @override
+  String get partnerAddedSuccess => 'Đã thêm đối tác thành công';
+
+  @override
+  String get partnerUpdatedSuccess => 'Đã cập nhật đối tác';
+
+  @override
+  String get partnerNotFound => 'Không tìm thấy đối tác!';
+
+  @override
+  String get partnerInfoNotFound => 'Không tìm thấy thông tin đối tác!';
+
+  @override
+  String get noPartner => 'Không có đối tác';
+
+  @override
+  String get loadingList => 'Đang tải danh sách...';
+
+  @override
+  String get pleaseLoginAgain => 'Vui lòng đăng nhập lại';
+
+  @override
+  String searchError(String error) {
+    return 'Lỗi tìm kiếm: $error';
+  }
+
+  @override
+  String qrProcessError(String error) {
+    return 'Lỗi xử lý QR: $error';
+  }
+
+  @override
+  String errorWithMessage(String error) {
+    return 'Lỗi: $error';
+  }
+
+  @override
+  String loadCustomerListError(String error) {
+    return 'Lỗi tải danh sách khách hàng: $error';
+  }
+
+  @override
+  String deleteError(String error) {
+    return 'Lỗi khi xóa: $error';
+  }
+
+  @override
+  String get labelSettingsSaved => '✅ Đã lưu cài đặt tem!';
+
+  @override
+  String get pleaseEnterTemplateName => 'Vui lòng nhập tên mẫu tem';
+
+  @override
+  String get shopTab => 'Shop';
+
+  @override
+  String get templateTab => 'Mẫu Tem';
+
+  @override
+  String versionFormat(String version) {
+    return 'Phiên bản $version';
+  }
+
+  @override
+  String get onlySuperAdminCanDelete => 'CHỈ SUPER ADMIN MỚI ĐƯỢC XÓA DỮ LIỆU SHOP!';
+
+  @override
+  String get shopDataDeleted => 'ĐÃ XÓA SẠCH DỮ LIỆU SHOP!';
+
+  @override
+  String get displayInfoOnLabel => 'Thông tin hiển thị trên tem';
+
+  @override
+  String get shopNameField => 'Tên Shop';
+
+  @override
+  String get shopNameHint => 'VD: HULUCA MOBILE';
+
+  @override
+  String get hotline => 'Hotline';
+
+  @override
+  String get hotlineHint => 'VD: 0909 123 456';
+
+  @override
+  String get zalo => 'Zalo';
+
+  @override
+  String get slogan => 'Slogan';
+
+  @override
+  String get sloganHint => 'VD: Cam kết giá tốt nhất thị trường';
+
+  @override
+  String get addressOptional => 'Địa chỉ (tùy chọn)';
+
+  @override
+  String get addressHint => 'VD: 123 ABC, Q1, HCM';
+
+  @override
+  String get invoiceSaved => 'Đã lưu mẫu hóa đơn';
+
+  @override
+  String get profileSaved => 'ĐÃ LƯU HỒ SƠ CÁ NHÂN';
+
+  @override
+  String get partDeleted => 'Đã xóa linh kiện';
+
+  @override
+  String partsDeletedCount(int count) {
+    return 'Đã xóa $count linh kiện';
+  }
+
+  @override
+  String get csvCopied => 'Đã copy CSV vào clipboard';
+
+  @override
+  String get confirmDeliveryAndPayment => 'XÁC NHẬN GIAO MÁY & THANH TOÁN';
+
+  @override
+  String get statusRepairing => 'ĐANG SỬA';
+
+  @override
+  String get statusDone => 'ĐÃ XONG';
+
+  @override
+  String issueLabel(String issue) {
+    return 'Lỗi: $issue';
+  }
+
+  @override
+  String get receiptSavedAndPrinted => 'Đã lưu và in phiếu tiếp nhận thành công!';
+
+  @override
+  String get partnerDeleted => 'ĐÃ XÓA ĐỐI TÁC';
+
+  @override
+  String get refreshingFcmToken => 'Đang làm mới FCM token...';
+
+  @override
+  String get isActive => 'Đang hoạt động';
+
+  @override
+  String get confirmDeleteTitle => 'XÁC NHẬN XÓA';
+
+  @override
+  String get confirmButton => 'XÁC NHẬN';
+
+  @override
+  String get shopField => 'Shop';
+
+  @override
+  String get selectShopToViewData => 'CHỌN SHOP ĐỂ XEM';
+
+  @override
+  String get homeTab => 'Trang chủ';
+
+  @override
+  String get salesTab => 'Bán hàng';
+
+  @override
+  String get repairsTab => 'Sửa chữa';
+
+  @override
+  String get inventoryTab => 'Kho';
+
+  @override
+  String get staffTab => 'Nhân sự';
+
+  @override
+  String get financeTab => 'Tài chính';
+
+  @override
+  String get settingsTab => 'Cài đặt';
+
+  @override
+  String get goodMorning => 'Chào buổi sáng';
+
+  @override
+  String get goodAfternoon => 'Chào buổi chiều';
+
+  @override
+  String get goodEvening => 'Chào buổi tối';
+
+  @override
+  String get exitAppTitle => 'Thoát ứng dụng?';
+
+  @override
+  String get exit => 'THOÁT';
+
+  @override
+  String get groupChat => 'CHAT NHÓM';
+
+  @override
+  String newMessagesCount(int count) {
+    return '$count tin mới';
+  }
+
+  @override
+  String get noMessages => 'Chưa có tin nhắn nào';
+
+  @override
+  String get financialOverview => 'TỔNG QUAN TÀI CHÍNH';
+
+  @override
+  String get todayOverview => 'TỔNG QUAN HÔM NAY';
+
+  @override
+  String get todayIncome => 'THU HÔM NAY';
+
+  @override
+  String get todayExpenseLabel => 'CHI HÔM NAY';
+
+  @override
+  String get expenseItems => 'khoản chi';
+
+  @override
+  String get totalDebt => 'TỔNG CÔNG NỢ';
+
+  @override
+  String get todayActivities => 'HOẠT ĐỘNG HÔM NAY';
+
+  @override
+  String get delivered => 'Đã giao';
+
+  @override
+  String get todayNetProfit => 'LỢI NHUẬN RÒNG HÔM NAY';
+
+  @override
+  String get profitFormula => '= Thu - Chi - Giá vốn';
+
+  @override
+  String get featureLockedByAdmin => 'Tính năng này đã bị khóa bởi Quản trị viên (Admin).\nVui lòng liên hệ nhà phát triển để được hỗ trợ mở khóa.';
+
+  @override
+  String get featureLockedByOwner => 'Bạn không có quyền truy cập tính năng này.\nVui lòng liên hệ Chủ shop để được cấp quyền.';
+
+  @override
+  String get contactShopOwner => 'LIÊN HỆ CHỦ SHOP';
+
+  @override
+  String get hulucaTech => 'Huluca Tech';
+
+  @override
+  String get shopOwnerLabel => 'Chủ cửa hàng';
+
+  @override
+  String get adminLocked => 'ADMIN KHÓA';
+
+  @override
+  String get ownerPermissionLocked => 'CHỦ SHOP PHÂN QUYỀN';
+
+  @override
+  String get featureLocked => 'Chức năng bị khóa';
+
+  @override
+  String get supportAvailability => 'Hỗ trợ 24/7 • Phản hồi trong vòng 30 phút';
+
+  @override
+  String get requestPermission => 'Yêu cầu cấp quyền';
+
+  @override
+  String get contactShopOwnerOrManager => 'Liên hệ Chủ shop hoặc Quản lý của bạn';
+
+  @override
+  String get requestFeatureAccess => 'Yêu cầu cấp quyền truy cập tính năng này';
+
+  @override
+  String get loginAgainAfterPermission => 'Sau khi được cấp quyền, đăng nhập lại để áp dụng';
+
+  @override
+  String cannotMakeCall(String phoneNumber) {
+    return 'Không thể thực hiện cuộc gọi: $phoneNumber';
+  }
+
+  @override
+  String cannotOpenZalo(String phoneNumber) {
+    return 'Không thể mở Zalo. Vui lòng liên hệ: $phoneNumber';
+  }
+
+  @override
+  String get notificationActive => 'Thông báo (đang hoạt động)';
+
+  @override
+  String get notificationInactive => 'Thông báo (chưa kích hoạt)';
+
+  @override
+  String get searchWholeApp => 'Tìm kiếm toàn app';
+
+  @override
+  String get contactAdminToUnlock => 'Liên hệ Admin để mở khóa';
+
+  @override
+  String get systemAdminLabel => 'Quản trị viên hệ thống';
+
+  @override
+  String get shopOwnerLabelFull => 'Chủ cửa hàng';
+
+  @override
+  String get managerLabel => 'Quản lý';
+
+  @override
+  String get staffLabel => 'Nhân viên';
+
+  @override
+  String get userLabel => 'Người dùng';
+
+  @override
+  String get welcomeNewStaff => 'Chào mừng nhân viên mới!';
+
+  @override
+  String get newStaffSyncGuide => 'Vào Cài đặt Shop → Tải dữ liệu shop để đồng bộ dữ liệu';
+
+  @override
+  String get downloadShopDataToStart => 'Tải dữ liệu shop về máy để bắt đầu làm việc';
+
+  @override
+  String get downloadShopDataTitle => 'TẢI DỮ LIỆU SHOP';
+
+  @override
+  String get downloadDataOf => 'Tải dữ liệu của';
+
+  @override
+  String get fromCloudToDevice => 'từ đám mây về máy này.';
+
+  @override
+  String get debtsAndExpenses => 'Công nợ & Chi phí';
+
+  @override
+  String get customersAndSuppliers => 'Khách hàng & NCC';
+
+  @override
+  String get downloadOnlyThisShop => 'Chỉ tải dữ liệu của shop này, không ảnh hưởng shop khác.';
+
+  @override
+  String get downloadMayTakeFewMinutes => 'Quá trình có thể mất vài phút tùy lượng dữ liệu.';
+
+  @override
+  String get startDownload => 'BẮT ĐẦU TẢI';
+
+  @override
+  String get downloadingShopData => 'Đang tải dữ liệu shop...';
+
+  @override
+  String get pleaseWait => 'Vui lòng đợi trong giây lát';
+
+  @override
+  String get shopDataDownloaded => 'Đã tải xong dữ liệu shop!';
+
+  @override
+  String get pendingStockShort => 'Hàng chờ XN';
+
+  @override
+  String get temporaryImport => 'Nhập tạm';
+
+  @override
+  String get payment => 'Thanh toán';
+
+  @override
+  String get incomeExpense => 'Thu/Chi';
+
+  @override
+  String get sellProductsQuickly => 'Bán sản phẩm nhanh chóng';
+
+  @override
+  String get receiveDeviceForRepair => 'Tiếp nhận máy sửa chữa';
+
+  @override
+  String get addStock => '+ NHẬP KHO';
+
+  @override
+  String get newStockIn => 'Nhập kho mới';
+
+  @override
+  String get scanToCheck => 'Quét mã kiểm tra';
+
+  @override
+  String get report => 'BÁO CÁO';
+
+  @override
+  String get checkInOut => 'Check in/out';
+
+  @override
+  String get quickWarrantyLookup => 'Tra cứu bảo hành nhanh';
+
+  @override
+  String get createSale => 'Tạo đơn bán';
+
+  @override
+  String get createRepair => 'Tạo đơn sửa';
+
+  @override
+  String get stockIn => 'Nhập kho';
+
+  @override
+  String get revenueReport => 'Báo cáo DT';
+
+  @override
+  String get createNewSaleOrder => 'TẠO ĐƠN BÁN MỚI';
+
+  @override
+  String get createSaleOrderQuickly => 'Tạo đơn bán hàng nhanh chóng';
+
+  @override
+  String get management => 'QUẢN LÝ';
+
+  @override
+  String get saleOrderList => 'Danh sách đơn bán';
+
+  @override
+  String get viewSearchTrackSales => 'Xem, tìm kiếm và theo dõi tất cả đơn bán hàng.';
+
+  @override
+  String get customerManagement => 'Quản lý khách hàng';
+
+  @override
+  String get addEditViewCustomers => 'Thêm, sửa và xem thông tin khách hàng.';
+
+  @override
+  String get viewProcessWarrantyRequests => 'Xem và xử lý các yêu cầu bảo hành sản phẩm.';
+
+  @override
+  String get createNewRepairOrder => 'TẠO ĐƠN SỬA MỚI';
+
+  @override
+  String get repairOrderList => 'Danh sách đơn sửa';
+
+  @override
+  String get viewSearchTrackRepairs => 'Xem, tìm kiếm và theo dõi tất cả đơn sửa chữa.';
+
+  @override
+  String get inventoryManagement => 'QUẢN LÝ KHO';
+
+  @override
+  String get holdForDetailedGuide => 'Nhấn giữ để xem hướng dẫn chi tiết';
+
+  @override
+  String get stockInNew => 'NHẬP MỚI';
+
+  @override
+  String get fullInformation => 'Đầy đủ thông tin';
+
+  @override
+  String get continuousScan => 'Quét mã liên tục';
+
+  @override
+  String get compareInventory => 'Đối chiếu tồn kho';
+
+  @override
+  String get pendingConfirmation => 'Hàng chờ xác nhận';
+
+  @override
+  String get viewPendingStockList => 'Xem danh sách hàng nhập tạm chưa xác nhận.';
+
+  @override
+  String get productList => 'Danh sách sản phẩm';
+
+  @override
+  String get viewManageProducts => 'Xem và quản lý danh sách sản phẩm trong kho.';
+
+  @override
+  String get suppliersPartners => 'Nhà cung cấp - Đối tác';
+
+  @override
+  String get manageSupplierPartnerDebt => 'Quản lý NCC, đối tác sửa chữa và công nợ.';
+
+  @override
+  String get quickInputCodeList => 'Danh sách mã nhập nhanh';
+
+  @override
+  String get viewManageQuickInputCodes => 'Xem và quản lý danh sách mã nhập nhanh đã tạo.';
+
+  @override
+  String get noAccessPermission => 'Không có quyền truy cập';
+
+  @override
+  String get contactOwnerForPermission => 'Liên hệ chủ shop để được cấp quyền';
+
+  @override
+  String get recordWorkingHours => 'Ghi nhận giờ làm việc';
+
+  @override
+  String get employeeManagement => 'QUẢN LÝ NHÂN VIÊN';
+
+  @override
+  String get salaryCalculation => 'LƯƠNG\nTính lương';
+
+  @override
+  String get workSchedule => 'Lịch làm\nViệc';
+
+  @override
+  String get salaryCommissionSettings => 'Cài đặt\nLương & Hoa hồng';
+
+  @override
+  String get reports => 'BÁO CÁO';
+
+  @override
+  String get attendanceTracking => 'Theo dõi chấm công';
+
+  @override
+  String get viewAllStaffAttendance => 'Xem chấm công tất cả nhân viên theo ngày/tháng.';
+
+  @override
+  String get personalAttendance => 'Chấm công cá nhân';
+
+  @override
+  String get checkInOutAndHistory => 'Check-in/out và xem lịch sử chấm công cá nhân.';
+
+  @override
+  String get salaryGuideTitle => 'HƯỚNG DẪN TÍNH LƯƠNG';
+
+  @override
+  String get goToPayroll => 'ĐI ĐẾN BẢNG LƯƠNG';
+
+  @override
+  String get financialManagement => 'QUẢN LÝ TÀI CHÍNH';
+
+  @override
+  String get closeCashToday => 'CHỐT QUỸ HÔM NAY';
+
+  @override
+  String get reconcileCashAndBank => 'Đối soát tiền mặt & ngân hàng';
+
+  @override
+  String get reportsAndAnalysis => 'BÁO CÁO & PHÂN TÍCH';
+
+  @override
+  String get revenueOverview => 'Tổng quan\nDoanh thu';
+
+  @override
+  String get financialReport => 'Báo cáo\nTài chính';
+
+  @override
+  String get debtManagement => 'Quản lý\nCông nợ';
+
+  @override
+  String get bankInstallmentStats => 'Thống kê\nTrả góp NH';
+
+  @override
+  String get warrantyTracking => 'Theo dõi\nBảo hành';
+
+  @override
+  String get manageAllTransactions => 'Quản lý tất cả các giao dịch thu/chi.';
+
+  @override
+  String get expenseManagement => 'Quản lý chi phí';
+
+  @override
+  String get addTrackShopExpenses => 'Thêm và theo dõi các khoản chi phí của cửa hàng.';
+
+  @override
+  String get debtManagementIncomeExpense => 'Quản lý nợ (Thu/Chi)';
+
+  @override
+  String get recordPayDebts => 'Ghi nhận và thanh toán các khoản nợ.';
+
+  @override
+  String get summaryAllTransactions => 'Tổng hợp tất cả giao dịch thu chi.';
+
+  @override
+  String get financialLog => 'Nhật ký tài chính';
+
+  @override
+  String get trackAllFinancialActivities => 'Theo dõi mọi hoạt động thu chi.';
+
+  @override
+  String get shopSettings => 'Cài đặt cửa hàng';
+
+  @override
+  String get shopInfoLogoLocationMembers => 'Thông tin, logo, vị trí và quản lý thành viên shop.';
+
+  @override
+  String get notifications => 'Thông báo';
+
+  @override
+  String get configureNotificationSettings => 'Cấu hình cài đặt thông báo và cảnh báo.';
+
+  @override
+  String get designPrintTemplates => 'Thiết kế mẫu in cho máy in nhiệt.';
+
+  @override
+  String get adminCenter => 'Trung tâm Admin';
+
+  @override
+  String get manageSystemForSuperAdmin => 'Quản lý toàn bộ hệ thống cho admin cấp cao.';
+
+  @override
+  String get aboutDeveloper => 'Về nhà phát triển';
+
+  @override
+  String get developerAndAppInfo => 'Thông tin về nhà phát triển và ứng dụng.';
+
+  @override
+  String get logoutFromAccount => 'Đăng xuất khỏi tài khoản';
+
+  @override
+  String get logoutConfirmTitle => 'Đăng xuất?';
+
+  @override
+  String get logoutConfirmMessage => 'Bạn có chắc muốn đăng xuất khỏi tài khoản?';
+
+  @override
+  String get checkingSync => 'Đang kiểm tra đồng bộ...';
+
+  @override
+  String get checkingLocalVsCloud => 'Kiểm tra dữ liệu local vs cloud';
+
+  @override
+  String get dataSyncComplete => 'Dữ liệu đồng bộ hoàn toàn';
+
+  @override
+  String get localCloudMatch100 => 'Local và Cloud đã khớp 100%';
+
+  @override
+  String get recheckingSync => 'Đang kiểm tra lại...';
+
+  @override
+  String get needsDataSync => 'Cần đồng bộ dữ liệu';
+
+  @override
+  String recordsNotSynced(int count) {
+    return '$count bản ghi chưa đồng bộ. Bấm để mở Trung tâm đồng bộ.';
+  }
+
+  @override
+  String get todayFinancialReport => 'BÁO CÁO TÀI CHÍNH HÔM NAY';
+
+  @override
+  String get salesAndRepairOrders => 'đơn bán + đơn sửa';
+
+  @override
+  String get warrantyReminder => 'NHẮC LỊCH BẢO HÀNH';
+
+  @override
+  String expiringWarrantiesMessage(int count) {
+    return 'Có $count máy sắp hết hạn bảo hành. Xem ngay!';
+  }
+
+  @override
+  String get productsInStock => 'Sản phẩm trong kho';
+
+  @override
+  String get dataFullySynced => 'Dữ liệu đã đồng bộ hoàn toàn';
+
+  @override
+  String get localAndCloudMatched => 'Dữ liệu thiết bị và cloud khớp nhau';
+
+  @override
+  String get syncNeeded => 'Cần đồng bộ dữ liệu';
+
+  @override
+  String get todayExpense => 'CHI HÔM NAY';
+
+  @override
+  String get todayActivity => 'HOẠT ĐỘNG HÔM NAY';
+
+  @override
+  String get comparingLocalVsCloud => 'Đang so sánh dữ liệu local và cloud...';
+
+  @override
+  String saleAndRepairCount(int saleCount, int repairCount) {
+    return '$saleCount đơn bán + $repairCount đơn sửa';
+  }
+
+  @override
+  String saleAndRepairOrders(int saleCount, int repairCount) {
+    return '$saleCount đơn bán + $repairCount đơn sửa';
+  }
+
+  @override
+  String expenseItemsCount(int count) {
+    return '$count khoản chi';
+  }
+
+  @override
+  String expiringWarrantiesCount(int count) {
+    return '$count máy sắp hết hạn BH. Xem ngay!';
+  }
 }

@@ -66,16 +66,16 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 68,
+      version: 70,
       onCreate: (db, version) async {
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, brand TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT)',
+          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, brand TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, isSynced INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, isSynced INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT UNIQUE, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
@@ -362,6 +362,59 @@ class DBHelper {
             await db.execute('ALTER TABLE products ADD COLUMN model TEXT');
           } catch (e) {
             debugPrint('DB upgrade error (products model): $e');
+          }
+        }
+        if (oldV < 69) {
+          try {
+            await db.execute(
+              'ALTER TABLE products ADD COLUMN deleted INTEGER DEFAULT 0',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (products deleted): $e');
+          }
+        }
+        if (oldV < 70) {
+          try {
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN isWalkIn INTEGER DEFAULT 0',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (repairs isWalkIn): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN walkInName TEXT',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (repairs walkInName): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN walkInPhone TEXT',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (repairs walkInPhone): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE sales ADD COLUMN isWalkIn INTEGER DEFAULT 0',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (sales isWalkIn): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE sales ADD COLUMN walkInName TEXT',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (sales walkInName): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE sales ADD COLUMN walkInPhone TEXT',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (sales walkInPhone): $e');
           }
         }
         if (oldV < 26) {
@@ -2378,6 +2431,17 @@ class DBHelper {
   Future<int> deleteProductByFirestoreId(String fId) async => (await database)
       .delete('products', where: 'firestoreId = ?', whereArgs: [fId]);
 
+  /// Soft delete product (hide from inventory list only)
+  Future<int> softDeleteProduct(int id) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return updateProductMap(id, {
+      'deleted': 1,
+      'status': 0,
+      'isSynced': 0,
+      'updatedAt': now,
+    });
+  }
+
   /// Cập nhật sản phẩm bằng map (dùng cho soft delete với các trường tùy chỉnh)
   Future<int> updateProductMap(int id, Map<String, dynamic> data) async {
     return (await database).update(
@@ -2481,13 +2545,15 @@ class DBHelper {
     List<dynamic>? whereArgs;
     
     if (type != null && inStockOnly) {
-      where = 'type = ? AND quantity > 0 AND (status = 1 OR status IS NULL)';
+      where = 'type = ? AND quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)';
       whereArgs = [type];
     } else if (type != null) {
-      where = 'type = ?';
+      where = 'type = ? AND (deleted = 0 OR deleted IS NULL)';
       whereArgs = [type];
     } else if (inStockOnly) {
-      where = 'quantity > 0 AND (status = 1 OR status IS NULL)';
+      where = 'quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)';
+    } else {
+      where = 'deleted = 0 OR deleted IS NULL';
     }
     
     final maps = await (await database).query(
@@ -2507,13 +2573,15 @@ class DBHelper {
     List<dynamic> args = [];
     
     if (type != null && inStockOnly) {
-      query += ' WHERE type = ? AND quantity > 0 AND (status = 1 OR status IS NULL)';
+      query += ' WHERE type = ? AND quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)';
       args.add(type);
     } else if (type != null) {
-      query += ' WHERE type = ?';
+      query += ' WHERE type = ? AND (deleted = 0 OR deleted IS NULL)';
       args.add(type);
     } else if (inStockOnly) {
-      query += ' WHERE quantity > 0 AND (status = 1 OR status IS NULL)';
+      query += ' WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)';
+    } else {
+      query += ' WHERE deleted = 0 OR deleted IS NULL';
     }
     
     final result = await (await database).rawQuery(query, args);
@@ -2528,7 +2596,7 @@ class DBHelper {
         COALESCE(SUM(quantity), 0) as totalQty,
         COALESCE(SUM(cost * quantity), 0) as totalCapital
       FROM products 
-      WHERE quantity > 0 AND (status = 1 OR status IS NULL)
+      WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)
     ''';
     List<dynamic> args = [];
     
@@ -2538,7 +2606,7 @@ class DBHelper {
           COALESCE(SUM(quantity), 0) as totalQty,
           COALESCE(SUM(cost * quantity), 0) as totalCapital
         FROM products 
-        WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND type = ?
+        WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL) AND type = ?
       ''';
       args.add(type);
     }
@@ -2555,7 +2623,10 @@ class DBHelper {
   }
 
   Future<List<Product>> getAllProducts() async {
-    final maps = await (await database).query('products');
+    final maps = await (await database).query(
+      'products',
+      where: 'deleted = 0 OR deleted IS NULL',
+    );
     return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
   }
 
@@ -2567,8 +2638,8 @@ class DBHelper {
     final maps = await (await database).query(
       'products',
       where: inStockOnly
-          ? 'type = ? AND quantity > 0 AND (status = 1 OR status IS NULL)'
-          : 'type = ?',
+          ? 'type = ? AND quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)'
+          : 'type = ? AND (deleted = 0 OR deleted IS NULL)',
       whereArgs: [type],
       orderBy: 'createdAt DESC',
     );
@@ -2633,7 +2704,7 @@ class DBHelper {
   Future<Product?> getProductByFirestoreId(String firestoreId) async {
     final res = await (await database).query(
       'products',
-      where: 'firestoreId = ?',
+      where: 'firestoreId = ? AND (deleted = 0 OR deleted IS NULL)',
       whereArgs: [firestoreId],
       limit: 1,
     );
@@ -2643,7 +2714,7 @@ class DBHelper {
   Future<Product?> getProductById(int id) async {
     final res = await (await database).query(
       'products',
-      where: 'id = ?',
+      where: 'id = ? AND (deleted = 0 OR deleted IS NULL)',
       whereArgs: [id],
       limit: 1,
     );
@@ -4287,11 +4358,20 @@ class DBHelper {
   // Supplier Import History methods
   Future<int> insertSupplierImportHistory(Map<String, dynamic> history) async {
     final db = await database;
+    final ts = history['importDate'] ?? DateTime.now().millisecondsSinceEpoch;
+    final supplierId = history['supplierId'] ?? 'unknown';
+    final imei = (history['imei'] ?? 'no_imei').toString();
+    final productName = (history['productName'] ?? 'no_product').toString();
+    final productHash = productName.hashCode;
     final firestoreId =
         history['firestoreId'] ??
-        "import_${DateTime.now().millisecondsSinceEpoch}_${history['supplierId'] ?? 'unknown'}_${history['imei'] ?? 'no_imei'}";
+        "import_${ts}_${supplierId}_${productHash}_${imei}";
     history['firestoreId'] = firestoreId;
-    return await db.insert('supplier_import_history', history);
+    return await db.insert(
+      'supplier_import_history',
+      history,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   /// Lấy tất cả lịch sử nhập hàng để hiển thị trong chốt quỹ
@@ -4335,14 +4415,45 @@ class DBHelper {
       whereArgs = [supplierId];
     }
 
-    // Dùng subquery với GROUP BY id để đảm bảo không duplicate
+    // Cleanup duplicates for this supplier to avoid future double-counting
+    await db.rawDelete(
+      '''
+      DELETE FROM supplier_import_history
+      WHERE id NOT IN (
+        SELECT MIN(id) FROM supplier_import_history
+        WHERE $whereClause
+        GROUP BY
+          COALESCE(referenceId, ''),
+          productName,
+          IFNULL(imei, ''),
+          importDate,
+          totalAmount,
+          quantity,
+          costPrice,
+          supplierName
+      )
+      AND $whereClause
+      ''',
+      [...whereArgs, ...whereArgs],
+    );
+
+    // Dùng subquery với GROUP BY khóa tự nhiên để loại duplicate thực sự
+    // Ưu tiên referenceId khi có (nhập kho chuẩn), fallback theo fingerprint dữ liệu
     String query = '''
-      SELECT * FROM supplier_import_history 
+      SELECT * FROM supplier_import_history
       WHERE id IN (
-        SELECT id FROM supplier_import_history 
-        WHERE $whereClause 
-        GROUP BY id
-      ) 
+        SELECT MIN(id) FROM supplier_import_history
+        WHERE $whereClause
+        GROUP BY
+          COALESCE(referenceId, ''),
+          productName,
+          IFNULL(imei, ''),
+          importDate,
+          totalAmount,
+          quantity,
+          costPrice,
+          supplierName
+      )
       ORDER BY importDate DESC
     ''';
     
@@ -4392,8 +4503,26 @@ class DBHelper {
         MAX(importDate) as lastImportDate,
         MIN(importDate) as firstImportDate,
         COUNT(DISTINCT productName) as uniqueProducts
-      FROM supplier_import_history
-      WHERE $whereClause
+      FROM (
+        SELECT
+          MIN(id) as id,
+          totalAmount,
+          quantity,
+          costPrice,
+          importDate,
+          productName
+        FROM supplier_import_history
+        WHERE $whereClause
+        GROUP BY
+          COALESCE(referenceId, ''),
+          productName,
+          IFNULL(imei, ''),
+          importDate,
+          totalAmount,
+          quantity,
+          costPrice,
+          supplierName
+      ) t
     ''',
       whereArgs,
     );
@@ -4431,25 +4560,95 @@ class DBHelper {
       );
       return;
     }
+
+    // 1) Update by firestoreId if exists
     final existing = await db.query(
       'supplier_import_history',
       where: 'firestoreId = ?',
       whereArgs: [firestoreId],
+      limit: 1,
     );
-    if (existing.isEmpty) {
-      await db.insert(
-        'supplier_import_history',
-        cleanData,
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-    } else {
+    if (existing.isNotEmpty) {
+      // Preserve local supplierId if Firestore supplierId is string
+      final existingSupplierId = existing.first['supplierId'];
+      final newSupplierId = cleanData['supplierId'];
+      if (existingSupplierId is int && newSupplierId is String) {
+        cleanData['supplierId'] = existingSupplierId;
+      }
+
       await db.update(
         'supplier_import_history',
         cleanData,
         where: 'firestoreId = ?',
         whereArgs: [firestoreId],
       );
+      return;
     }
+
+    // 2) De-dup by natural keys (referenceId if available, else import fingerprint)
+    final referenceId = cleanData['referenceId'];
+    final productName = cleanData['productName'];
+    final imei = cleanData['imei'] ?? '';
+    final importDate = cleanData['importDate'];
+    final totalAmount = cleanData['totalAmount'];
+    final quantity = cleanData['quantity'];
+    final costPrice = cleanData['costPrice'];
+    final supplierName = cleanData['supplierName'];
+
+    String whereClause;
+    List<dynamic> whereArgs;
+
+    if (referenceId != null && referenceId.toString().isNotEmpty) {
+      whereClause =
+          'referenceId = ? AND productName = ? AND IFNULL(imei, "") = ? AND importDate = ?';
+      whereArgs = [referenceId, productName, imei, importDate];
+    } else {
+      whereClause =
+          'productName = ? AND IFNULL(imei, "") = ? AND importDate = ? AND totalAmount = ? AND quantity = ? AND costPrice = ? AND supplierName = ?';
+      whereArgs = [
+        productName,
+        imei,
+        importDate,
+        totalAmount,
+        quantity,
+        costPrice,
+        supplierName,
+      ];
+    }
+
+    final dup = await db.query(
+      'supplier_import_history',
+      where: whereClause,
+      whereArgs: whereArgs,
+      limit: 1,
+    );
+
+    if (dup.isNotEmpty) {
+      // Merge duplicate: update existing row with firestoreId and latest data
+      final existingId = dup.first['id'] as int?;
+      final existingSupplierId = dup.first['supplierId'];
+      final newSupplierId = cleanData['supplierId'];
+      if (existingSupplierId is int && newSupplierId is String) {
+        cleanData['supplierId'] = existingSupplierId;
+      }
+
+      if (existingId != null) {
+        await db.update(
+          'supplier_import_history',
+          cleanData,
+          where: 'id = ?',
+          whereArgs: [existingId],
+        );
+        return;
+      }
+    }
+
+    // 3) Insert new
+    await db.insert(
+      'supplier_import_history',
+      cleanData,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   /// FIX BUG-001: Delete supplier_import_history bằng firestoreId (cho soft delete sync)

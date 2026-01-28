@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../utils/money_utils.dart';
+import '../widgets/currency_text_field.dart';
 import '../utils/repair_status_validator.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1153,13 +1154,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
 
       // === KIỂM TRA NGUỒN LINH KIỆN ===
-      // Nếu tất cả đều từ 'products' (đã nhập kho) → KHÔNG cần hỏi thanh toán
-      // vì chi phí đã ghi nhận khi nhập kho (công nợ/tiền mặt/CK)
-      final allFromProducts = selectedPartsInfo.every(
-        (p) => p['source'] == 'products',
+      // Linh kiện từ 'products' hoặc 'repair_parts' đều đã được thanh toán khi nhập kho
+      // → KHÔNG cần hỏi thanh toán lại (chi phí đã ghi nhận khi nhập kho: công nợ/tiền mặt/CK)
+      final allFromStock = selectedPartsInfo.every(
+        (p) => p['source'] == 'products' || p['source'] == 'repair_parts',
       );
 
-      if (allFromProducts) {
+      // Tất cả linh kiện đều từ kho → không cần dialog thanh toán
+      if (allFromStock) {
         // Chỉ trừ kho và cập nhật partsUsed, không tạo debt/PaymentIntent
         for (var partInfo in selectedPartsInfo) {
           final success = await db.deductPartQuantityUnified(
@@ -1346,10 +1348,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   Future<void> _editFinancials() async {
     final formKey = GlobalKey<FormState>();
     final priceC = TextEditingController(
-      text: MoneyUtils.formatCurrency(r.price),
+      text: CurrencyTextField.formatDisplay(r.price),
     );
     final costC = TextEditingController(
-      text: MoneyUtils.formatCurrency(r.cost),
+      text: CurrencyTextField.formatDisplay(r.cost),
     );
     final result = await showDialog<bool>(
       context: context,
@@ -1361,13 +1363,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextFormField(
+                CurrencyTextField(
                   controller: priceC,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(
-                    labelText: "Giá thu khách (VNĐ)",
-                  ),
+                  label: "Giá thu khách (VNĐ)",
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 0,
@@ -1375,13 +1373,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                CurrencyTextField(
                   controller: costC,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                  decoration: const InputDecoration(
-                    labelText: "Giá vốn linh kiện (VNĐ)",
-                  ),
+                  label: "Giá vốn linh kiện (VNĐ)",
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 0,
@@ -1478,6 +1472,116 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         "Đã lưu ghi chú KTV",
         color: Colors.green,
       );
+    }
+  }
+
+  Future<void> _editBasicInfo() async {
+    if (r.status == 4) return; // Đã giao thì khóa chỉnh sửa
+
+    final formKey = GlobalKey<FormState>();
+    final nameC = TextEditingController(text: r.customerName);
+    final phoneC = TextEditingController(text: r.phone);
+    final modelC = TextEditingController(text: r.model);
+    final issueC = TextEditingController(text: r.issue);
+    final accC = TextEditingController(text: r.accessories);
+    final warrantyC = TextEditingController(text: r.warranty);
+    final addressC = TextEditingController(text: r.address);
+    final notesC = TextEditingController(text: r.notes ?? '');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Chỉnh sửa thông tin đơn sửa'),
+        content: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameC,
+                  decoration: const InputDecoration(labelText: 'Tên khách'),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+                TextFormField(
+                  controller: phoneC,
+                  decoration: const InputDecoration(labelText: 'SĐT'),
+                  keyboardType: TextInputType.phone,
+                  validator: (v) {
+                    final text = v?.trim() ?? '';
+                    if (text.isEmpty) return 'SĐT không được trống';
+                    final err = UserService.validatePhone(text);
+                    return err;
+                  },
+                ),
+                TextFormField(
+                  controller: modelC,
+                  decoration: const InputDecoration(labelText: 'Model máy'),
+                  textCapitalization: TextCapitalization.characters,
+                  validator: (v) => (v?.trim().isEmpty ?? true)
+                      ? 'Nhập model máy'
+                      : null,
+                ),
+                TextFormField(
+                  controller: issueC,
+                  decoration: const InputDecoration(labelText: 'Lỗi máy'),
+                  textCapitalization: TextCapitalization.characters,
+                  validator: (v) => (v?.trim().isEmpty ?? true)
+                      ? 'Nhập tình trạng lỗi'
+                      : null,
+                ),
+                TextFormField(
+                  controller: accC,
+                  decoration: const InputDecoration(labelText: 'Phụ kiện kèm'),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+                TextFormField(
+                  controller: warrantyC,
+                  decoration: const InputDecoration(labelText: 'Bảo hành'),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+                TextFormField(
+                  controller: addressC,
+                  decoration: const InputDecoration(labelText: 'Địa chỉ'),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+                TextFormField(
+                  controller: notesC,
+                  decoration: const InputDecoration(labelText: 'Ghi chú'),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('HỦY'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+              Navigator.pop(ctx, true);
+            },
+            child: const Text('LƯU'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        r.customerName = nameC.text.trim().toUpperCase();
+        r.phone = phoneC.text.trim();
+        r.model = modelC.text.trim().toUpperCase();
+        r.issue = issueC.text.trim().toUpperCase();
+        r.accessories = accC.text.trim().toUpperCase();
+        r.warranty = warrantyC.text.trim().toUpperCase();
+        r.address = addressC.text.trim().toUpperCase();
+        r.notes = notesC.text.trim().isNotEmpty ? notesC.text.trim() : null;
+      });
+      await _saveData();
     }
   }
 
@@ -1784,6 +1888,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         ),
                       ),
                     ),
+                    if (r.status < 4)
+                      IconButton(
+                        onPressed: _editBasicInfo,
+                        icon: const Icon(Icons.edit, size: 16),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Chỉnh sửa thông tin',
+                      ),
                     TextButton.icon(
                       onPressed: _callCustomer,
                       icon: const Icon(Icons.call, size: 14),
@@ -2912,13 +3024,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         : null,
                   ),
                   const SizedBox(height: 10),
-                  TextFormField(
+                  CurrencyTextField(
                     controller: costCtrl,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                    decoration: const InputDecoration(
-                      labelText: "Chi phí (VNĐ)",
-                    ),
+                    label: "Chi phí (VNĐ)",
                     validator: (v) => MoneyUtils.validateAmount(
                       v ?? '',
                       min: 1,
@@ -2985,10 +3093,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             ElevatedButton(
               onPressed: () async {
                 if (!(formKey.currentState?.validate() ?? false)) return;
-                final parsed = MoneyUtils.parseCurrency(costCtrl.text);
-                final cost = parsed >= 1000 && parsed < 100000
-                    ? parsed * 1000
-                    : parsed;
+                // Không cần nhân 1000 - user đã nhập số đầy đủ với formatter
+                // Ví dụ: nhập "50.000" → parse ra 50000 VNĐ (đúng)
+                final cost = MoneyUtils.parseCurrency(costCtrl.text);
                 final service = RepairService(
                   serviceName: serviceCtrl.text.trim().toUpperCase(),
                   cost: cost,
@@ -3515,12 +3622,29 @@ class _PartsSelectionDialog extends StatefulWidget {
 }
 
 class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
+  final TextEditingController _searchCtrl = TextEditingController();
   final Map<String, int> selectedQuantities = {};
 
   int get totalSelected => selectedQuantities.values.fold(0, (a, b) => a + b);
 
   @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final keyword = _searchCtrl.text.trim().toLowerCase();
+    final filteredParts = widget.parts.where((p) {
+      if (keyword.isEmpty) return true;
+      final name = (p['partName'] ?? '').toString().toLowerCase();
+      final supplier = (p['supplier'] ?? p['supplierName'] ?? '')
+          .toString()
+          .toLowerCase();
+      return name.contains(keyword) || supplier.contains(keyword);
+    }).toList();
+
     return AlertDialog(
       title: Row(
         children: [
@@ -3536,11 +3660,32 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
       ),
       content: SizedBox(
         width: double.maxFinite,
-        height: 400,
-        child: ListView.builder(
-          itemCount: widget.parts.length,
-          itemBuilder: (context, index) {
-            final part = widget.parts[index];
+        height: 460,
+        child: Column(
+          children: [
+            TextField(
+              controller: _searchCtrl,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Tìm theo tên hoặc nhà cung cấp',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: filteredParts.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Không tìm thấy phụ tùng phù hợp',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: filteredParts.length,
+                      itemBuilder: (context, index) {
+                        final part = filteredParts[index];
             final partId = part['id'] as int;
             final source = part['source'] as String;
             final uniqueKey = "${source}_$partId";
@@ -3548,6 +3693,9 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
             final partQty = part['quantity'] as int? ?? 0;
             final partCost = part['cost'] as int? ?? 0;
             final partPrice = part['price'] as int? ?? 0;
+                        final supplier =
+                            (part['supplier'] ?? part['supplierName'] ?? '')
+                                .toString();
             final isFromProducts = source == 'products';
             final currentQty = selectedQuantities[uniqueKey] ?? 0;
 
@@ -3600,27 +3748,51 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // Dòng 2: Tồn + Giá
-                    Text(
-                      "Tồn: $partQty | Vốn: ${MoneyUtils.formatCurrency(partCost)} | Bán: ${MoneyUtils.formatCurrency(partPrice)}",
-                      style: AppTextStyles.body1.copyWith(
-                        color: Colors.grey.shade700,
-                      ),
+                    // Dòng 2: Supplier + tồn + giá
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (supplier.isNotEmpty)
+                          Chip(
+                            label: Text(
+                              supplier,
+                              style: AppTextStyles.caption,
+                            ),
+                            padding: EdgeInsets.zero,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        Text(
+                          "Tồn: $partQty",
+                          style: AppTextStyles.body2
+                              .copyWith(color: Colors.grey.shade700),
+                        ),
+                        Text(
+                          "Vốn: ${MoneyUtils.formatCurrency(partCost)}",
+                          style: AppTextStyles.caption,
+                        ),
+                        Text(
+                          "Bán: ${MoneyUtils.formatCurrency(partPrice)}",
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    // Dòng 3: Nút +/-
+                    const SizedBox(height: 6),
+                    // Dòng 3: Nút +/- (compact hơn)
                     if (partQty > 0)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Nút trừ
+                          // Nút trừ (nhỏ gọn hơn)
                           Material(
                             color: currentQty > 0
                                 ? Colors.red
                                 : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(5),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(5),
                               onTap: currentQty > 0
                                   ? () {
                                       setState(() {
@@ -3634,39 +3806,39 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                                     }
                                   : null,
                               child: Container(
-                                width: 48,
-                                height: 40,
+                                width: 26,
+                                height: 22,
                                 alignment: Alignment.center,
                                 child: const Icon(
                                   Icons.remove,
                                   color: Colors.white,
-                                  size: 24,
+                                  size: 14,
                                 ),
                               ),
                             ),
                           ),
                           // Số lượng
                           Container(
-                            width: 60,
+                            width: 38,
                             alignment: Alignment.center,
                             child: Text(
                               '$currentQty',
-                              style: AppTextStyles.headline1.copyWith(
-                                fontWeight: FontWeight.bold,
+                              style: AppTextStyles.caption.copyWith(
+                                fontWeight: FontWeight.w600,
                                 color: currentQty > 0
                                     ? Colors.green.shade700
                                     : Colors.grey,
                               ),
                             ),
                           ),
-                          // Nút cộng
+                          // Nút cộng (nhỏ gọn hơn)
                           Material(
                             color: currentQty < partQty
                                 ? Colors.green
                                 : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(5),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(5),
                               onTap: currentQty < partQty
                                   ? () {
                                       setState(() {
@@ -3676,13 +3848,13 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                                     }
                                   : null,
                               child: Container(
-                                width: 48,
-                                height: 40,
+                                width: 26,
+                                height: 22,
                                 alignment: Alignment.center,
                                 child: const Icon(
                                   Icons.add,
                                   color: Colors.white,
-                                  size: 24,
+                                  size: 14,
                                 ),
                               ),
                             ),
@@ -3706,7 +3878,10 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                 ),
               ),
             );
-          },
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
       actions: [

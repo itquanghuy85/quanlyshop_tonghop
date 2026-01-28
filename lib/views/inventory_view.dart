@@ -895,7 +895,7 @@ class _InventoryViewState extends State<InventoryView>
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: AppColors.error),
-              title: const Text('Xóa hàng trong kho'),
+              title: const Text('Ẩn khỏi kho'),
               onTap: () {
                 Navigator.pop(ctx);
                 _showDeleteConfirmation(p);
@@ -910,10 +910,6 @@ class _InventoryViewState extends State<InventoryView>
   void _showDeleteConfirmation(Product p) {
     final passwordCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
-    bool deleteRelatedDebt = false;
-    bool deleteImportHistory = false;
-    bool deleteRelatedExpense = false;
-    bool deleteRelatedSale = false;
 
     showDialog(
       context: context,
@@ -924,7 +920,7 @@ class _InventoryViewState extends State<InventoryView>
               Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('XÓA SẢN PHẨM', style: AppTextStyles.headline3),
+                child: Text('ẨN SẢN PHẨM (KHO)', style: AppTextStyles.headline3),
               ),
             ],
           ),
@@ -982,84 +978,15 @@ class _InventoryViewState extends State<InventoryView>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '• Số liệu TÀI CHÍNH ĐÃ CHỐT sẽ KHÔNG thay đổi\n'
-                        '• Chọn các mục bên dưới để xóa dữ liệu liên quan\n'
-                        '• Dữ liệu CHƯA CHỐT sẽ bị ảnh hưởng',
+                        '• Đây là XÓA MỀM – chỉ ẩn khỏi danh sách kho\n'
+                        '• KHÔNG ảnh hưởng doanh thu, công nợ, lịch sử nhập\n'
+                        '• Mọi số liệu tài chính khác GIỮ NGUYÊN',
                         style: AppTextStyles.body1,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
 
-                // Options xóa liên quan
-                Text(
-                  'Tùy chọn xóa dữ liệu liên quan:',
-                  style: AppTextStyles.headline5,
-                ),
-                const SizedBox(height: 8),
-                CheckboxListTile(
-                  value: deleteRelatedDebt,
-                  onChanged: (v) => setS(() => deleteRelatedDebt = v ?? false),
-                  title: Text(
-                    'Xóa công nợ NCC liên quan',
-                    style: AppTextStyles.headline5,
-                  ),
-                  subtitle: Text(
-                    'Công nợ nhập hàng với NCC',
-                    style: AppTextStyles.body1,
-                  ),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-                CheckboxListTile(
-                  value: deleteImportHistory,
-                  onChanged: (v) =>
-                      setS(() => deleteImportHistory = v ?? false),
-                  title: Text(
-                    'Xóa lịch sử nhập hàng',
-                    style: AppTextStyles.headline5,
-                  ),
-                  subtitle: Text(
-                    'Xóa khỏi báo cáo NCC',
-                    style: AppTextStyles.body1,
-                  ),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-                CheckboxListTile(
-                  value: deleteRelatedExpense,
-                  onChanged: (v) =>
-                      setS(() => deleteRelatedExpense = v ?? false),
-                  title: Text(
-                    'Xóa chi phí liên quan',
-                    style: AppTextStyles.headline5,
-                  ),
-                  subtitle: Text(
-                    'Chi phí nhập hàng, vận chuyển...',
-                    style: AppTextStyles.body1,
-                  ),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-                CheckboxListTile(
-                  value: deleteRelatedSale,
-                  onChanged: (v) => setS(() => deleteRelatedSale = v ?? false),
-                  title: Text(
-                    'Xóa đơn bán chứa SP này',
-                    style: AppTextStyles.headline5,
-                  ),
-                  subtitle: Text(
-                    'CẢNH BÁO: Xóa đơn bán sẽ ảnh hưởng doanh thu',
-                    style: AppTextStyles.body1.copyWith(color: Colors.red.shade700),
-                  ),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
                 const SizedBox(height: 16),
 
                 // Lý do xóa
@@ -1121,10 +1048,6 @@ class _InventoryViewState extends State<InventoryView>
                     Navigator.pop(ctx);
                     await _deleteProductWithOptions(
                       p,
-                      deleteRelatedDebt: deleteRelatedDebt,
-                      deleteImportHistory: deleteImportHistory,
-                      deleteRelatedExpense: deleteRelatedExpense,
-                      deleteRelatedSale: deleteRelatedSale,
                       reason: reasonCtrl.text.trim(),
                     );
                   }
@@ -1139,7 +1062,7 @@ class _InventoryViewState extends State<InventoryView>
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('XÓA SẢN PHẨM'),
+              child: const Text('ẨN KHỎI KHO'),
             ),
           ],
         ),
@@ -1150,10 +1073,6 @@ class _InventoryViewState extends State<InventoryView>
   /// Xóa sản phẩm với các options liên quan
   Future<void> _deleteProductWithOptions(
     Product p, {
-    bool deleteRelatedDebt = false,
-    bool deleteImportHistory = false,
-    bool deleteRelatedExpense = false,
-    bool deleteRelatedSale = false,
     String? reason,
   }) async {
     try {
@@ -1166,114 +1085,29 @@ class _InventoryViewState extends State<InventoryView>
       await db.logAction(
         userId: user?.uid ?? '0',
         userName: userName,
-        action: 'XÓA SẢN PHẨM',
+        action: 'ẨN SẢN PHẨM (KHO)',
         type: 'PRODUCT',
         targetId: productId,
         desc:
-            'Xóa SP: ${p.name} | IMEI: $imei | Giá vốn: ${p.cost} | Lý do: ${reason ?? "Không ghi"}',
+        'Ẩn SP khỏi kho: ${p.name} | IMEI: $imei | Giá vốn: ${p.cost} | Lý do: ${reason ?? "Không ghi"}',
       );
 
-      // 2. Xóa công nợ NCC liên quan (nếu chọn)
-      if (deleteRelatedDebt && productId.isNotEmpty) {
-        final debts = await db.getDebtsByProductId(productId);
-        for (var debt in debts) {
-          final debtId = debt['id'] as int?;
-          if (debtId != null) {
-            await db.softDeleteDebt(
-              debtId,
-              reason: 'Xóa theo sản phẩm ${p.name}',
-            );
-
-            // Log xóa công nợ
-            await db.logAction(
-              userId: user?.uid ?? '0',
-              userName: userName,
-              action: 'XÓA CÔNG NỢ (THEO SP)',
-              type: 'DEBT',
-              targetId: debt['firestoreId']?.toString(),
-              desc: 'Xóa công nợ NCC theo SP: ${p.name}',
-            );
-          }
-        }
-      }
-
-      // 3. Xóa lịch sử nhập hàng (nếu chọn) - xóa thật vì bảng không có cột deleted
-      if (deleteImportHistory && productId.isNotEmpty) {
-        await db.deleteImportHistoryByProduct(productId);
-
-        await db.logAction(
-          userId: user?.uid ?? '0',
-          userName: userName,
-          action: 'XÓA LỊCH SỬ NHẬP (THEO SP)',
-          type: 'IMPORT_HISTORY',
-          targetId: productId,
-          desc: 'Xóa lịch sử nhập theo SP: ${p.name}',
-        );
-      }
-
-      // 4. Xóa chi phí liên quan (nếu chọn)
-      if (deleteRelatedExpense && productId.isNotEmpty) {
-        final expenses = await db.getExpensesByProductId(productId, imei: imei);
-        for (var expense in expenses) {
-          final expenseId = expense['id'] as int?;
-          if (expenseId != null) {
-            await db.deleteExpense(expenseId);
-
-            await db.logAction(
-              userId: user?.uid ?? '0',
-              userName: userName,
-              action: 'XÓA CHI PHÍ (THEO SP)',
-              type: 'EXPENSE',
-              targetId: expense['firestoreId']?.toString(),
-              desc:
-                  'Xóa chi phí: ${expense['title']} | ${expense['amount']}đ | theo SP: ${p.name}',
-            );
-          }
-        }
-      }
-
-      // 5. Xóa đơn bán chứa sản phẩm này (nếu chọn) - CẢNH BÁO: ảnh hưởng doanh thu
-      if (deleteRelatedSale && imei.isNotEmpty) {
-        final sales = await db.getSalesByProductImei(imei);
-        for (var sale in sales) {
-          final saleId = sale['id'] as int?;
-          if (saleId != null) {
-            await db.deleteSale(saleId);
-
-            await db.logAction(
-              userId: user?.uid ?? '0',
-              userName: userName,
-              action: 'XÓA ĐƠN BÁN (THEO SP)',
-              type: 'SALE',
-              targetId: sale['firestoreId']?.toString(),
-              desc:
-                  'Xóa đơn bán: ${sale['customerName']} | ${sale['totalPrice']}đ | theo SP: ${p.name}',
-            );
-          }
-        }
-      }
-
-      // 6. XÓA sản phẩm (xóa thật vì bảng không có cột deleted)
+      // 2. XÓA MỀM sản phẩm (chỉ ẩn khỏi danh sách kho)
       if (p.id != null) {
-        // Queue delete sync via SyncOrchestrator trước khi xóa local
+        await db.softDeleteProduct(p.id!);
+
+        // Sync update (soft delete) lên cloud
         await SyncOrchestrator().enqueue(
           entityType: SyncEntityType.product,
           entityId: p.id!,
           firestoreId: p.firestoreId,
-          operation: SyncOperation.delete,
-          data: null,
+          operation: SyncOperation.update,
         );
-
-        // Xóa sản phẩm khỏi local DB
-        await db.deleteProduct(p.id!);
-
-        // SYNC NGAY LẬP TỨC
-        await SyncOrchestrator().syncAll();
       }
 
       await _refresh();
       NotificationService.showSnackBar(
-        'Đã xóa sản phẩm: ${p.name}',
+        'Đã ẩn sản phẩm khỏi kho: ${p.name}',
         color: Colors.green,
       );
     } catch (e) {

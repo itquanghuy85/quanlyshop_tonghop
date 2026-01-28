@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../utils/money_utils.dart';
+import '../widgets/currency_text_field.dart';
 import '../theme/app_text_styles.dart';
 import '../services/event_bus.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
@@ -47,9 +48,8 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
   }
 
   int _parseAmount(String value) {
-    final parsed = MoneyUtils.parseCurrency(value);
-    if (parsed >= 1000 && parsed < 100000) return parsed * 1000;
-    return parsed;
+    // Không nhân 1000 - user đã nhập số đầy đủ với formatter
+    return MoneyUtils.parseCurrency(value);
   }
 
   Future<void> _saveAndPrintReceipt() async {
@@ -284,14 +284,10 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
 
               const SizedBox(height: 12),
 
-              TextFormField(
+              CurrencyTextField(
                 controller: _estimatedCostController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [MoneyUtils.currencyInputFormatter()],
-                decoration: const InputDecoration(
-                  labelText: 'Giá dự kiến (VNĐ)',
-                  hintText: 'Để trống nếu chưa xác định',
-                ),
+                label: 'Giá dự kiến (VNĐ)',
+                hint: 'Để trống nếu chưa xác định',
                 validator: (v) {
                   final text = v?.trim() ?? '';
                   if (text.isEmpty) return null; // optional
