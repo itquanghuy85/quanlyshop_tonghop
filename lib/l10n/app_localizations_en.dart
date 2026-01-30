@@ -778,9 +778,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addNewProduct => 'Add new product';
 
   @override
-  String get modelRequired => 'Please enter device model';
-
-  @override
   String get issueRequired => 'Please enter device issue';
 
   @override
@@ -2731,6 +2728,283 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inventoryManagementDesc => 'Import goods, export inventory, check parts';
 
   @override
+  String get printQrImeiInventory => 'PRINT QR IMEI INVENTORY';
+
+  @override
+  String get designQrLabel => 'Design QR label';
+
+  @override
+  String get searchImeiNameModel => 'Search IMEI, device name, model...';
+
+  @override
+  String get labelCustomization => 'Label customization';
+
+  @override
+  String get qrSize => 'QR size';
+
+  @override
+  String get columns => 'Columns';
+
+  @override
+  String get padding => 'Padding';
+
+  @override
+  String get modelDetail => 'Model/Detail';
+
+  @override
+  String get printAll => 'PRINT ALL';
+
+  @override
+  String get printSelected => 'PRINT SELECTED';
+
+  @override
+  String get openPrintPage => 'OPEN PRINT PAGE';
+
+  @override
+  String get printQrImeiSuccess => '✅ Printed QR IMEI successfully';
+
+  @override
+  String get printQrImeiFail => '❌ Failed to print QR IMEI';
+
+  @override
+  String imeiListLoadError(String error) {
+    return 'Failed to load IMEI list: $error';
+  }
+
+  @override
+  String get noImeiToPrint => 'No IMEI to print';
+
+  @override
+  String imeiTotalCount(int count) {
+    return 'Total: $count IMEI';
+  }
+
+  @override
+  String imeiWithValue(String value) {
+    return 'IMEI: $value';
+  }
+
+  @override
+  String get qrSizeXSmall => 'XS';
+
+  @override
+  String get qrSizeSmall => 'S';
+
+  @override
+  String get qrSizeMedium => 'M';
+
+  @override
+  String get qrSizeLarge => 'L';
+
+  @override
+  String get defaultProductName => 'PRODUCT';
+
+  @override
+  String get imeiPrefix => 'IMEI: ';
+
+  @override
+  String get printLabelTitle => 'PRINT LABEL';
+
+  @override
+  String get notAvailable => 'N/A';
+
+  @override
+  String get productInfoTitle => 'PRODUCT INFO';
+
+  @override
+  String get productNameLabel => 'Name:';
+
+  @override
+  String get productDetailLabel => 'Detail:';
+
+  @override
+  String get productDetailLabelPlain => 'Detail';
+
+  @override
+  String get imeiLabelWithColon => 'IMEI:';
+
+  @override
+  String get originalPriceLabel => 'Original price:';
+
+  @override
+  String get labelModeAutoTitle => 'AUTO';
+
+  @override
+  String get labelModeAutoSubtitle => 'Use label designer settings';
+
+  @override
+  String get labelModeCustomTitle => 'CUSTOM';
+
+  @override
+  String get labelModeCustomSubtitle => 'Enter price & custom content';
+
+  @override
+  String get labelCustomContentTitle => 'CUSTOM LABEL CONTENT';
+
+  @override
+  String get labelKpkExplain => '📌 KPK = No accessories (bare device price)';
+
+  @override
+  String get labelCpkExplain => '📌 CPK = With accessories (charger, cable, case, glass...)';
+
+  @override
+  String get labelElementName => 'Name';
+
+  @override
+  String get labelElementDetail => 'Detail';
+
+  @override
+  String get labelElementPriceKpk => 'KPK price';
+
+  @override
+  String get labelElementPriceCpk => 'CPK price';
+
+  @override
+  String get labelElementLabelNote => 'Label note';
+
+  @override
+  String get labelElementImei => 'IMEI';
+
+  @override
+  String get labelElementQr => 'QR code';
+
+  @override
+  String get labelElementShop => 'Shop info';
+
+  @override
+  String get priceKpkLabel => 'KPK price:';
+
+  @override
+  String get priceCpkLabel => 'CPK price:';
+
+  @override
+  String get priceKpkPrefix => 'KPK: ';
+
+  @override
+  String get priceCpkPrefix => 'CPK: ';
+
+  @override
+  String get currencySymbol => '₫';
+
+  @override
+  String get deviceNameLabel => 'Device name';
+
+  @override
+  String get qrCodeLabel => 'QR Code';
+
+  @override
+  String get addCustomLinesLabel => 'Add custom lines (for large paper)';
+
+  @override
+  String get customLine1Hint => 'Line 1: e.g. 12 MONTH WARRANTY';
+
+  @override
+  String get customLine2Hint => 'Line 2: e.g. 7-DAY RETURN';
+
+  @override
+  String get customLine3Hint => 'Line 3: e.g. HOTLINE: 0123.456.789';
+
+  @override
+  String get printQuantityLabel => 'Print quantity:';
+
+  @override
+  String get labelPreviewTitle => 'LABEL PREVIEW';
+
+  @override
+  String labelPreviewKpk(String price) {
+    return 'KPK PRICE: $price';
+  }
+
+  @override
+  String labelPreviewCpk(String price) {
+    return 'CPK PRICE: $price';
+  }
+
+  @override
+  String get printingLabel => 'PRINTING...';
+
+  @override
+  String printLabelQuantity(int count) {
+    return 'PRINT $count LABELS';
+  }
+
+  @override
+  String printLabelSuccess(int count) {
+    return '✅ Printed $count label(s) successfully!';
+  }
+
+  @override
+  String printLabelPartial(int count, int total) {
+    return '⚠️ Printed $count/$total labels';
+  }
+
+  @override
+  String printLabelError(String error) {
+    return 'Print label error: $error';
+  }
+
+  @override
+  String get printLabelFailed => '❌ Label print failed';
+
+  @override
+  String get confirmCostMoveToMainStock => 'CONFIRM PRICE - MOVE TO MAIN STOCK';
+
+  @override
+  String get createOrder => 'CREATE ORDER';
+
+  @override
+  String get nameRequired => 'Name is required';
+
+  @override
+  String get phoneLengthInvalid => 'Phone number must be 9-12 digits';
+
+  @override
+  String get imeiMinLength => 'IMEI must be at least 4 digits';
+
+  @override
+  String get imeiLengthInvalid => 'IMEI must be 4-5 digits (short code) or 15 digits (standard IMEI)';
+
+  @override
+  String get imeiDigitsOnly => 'IMEI must contain digits only';
+
+  @override
+  String get modelRequired => 'Model is required';
+
+  @override
+  String get modelMinLength => 'Model must be at least 2 characters';
+
+  @override
+  String get modelMaxLength => 'Model must be at most 50 characters';
+
+  @override
+  String fieldRequired(String field) {
+    return '$field is required';
+  }
+
+  @override
+  String get noNetworkMessage => 'No network connection. Please check internet.';
+
+  @override
+  String get syncSuccessMessage => 'Data synced successfully!';
+
+  @override
+  String syncErrorMessage(String error) {
+    return 'Sync error: $error';
+  }
+
+  @override
+  String get onlineStatus => 'Online';
+
+  @override
+  String get offlineStatus => 'Offline';
+
+  @override
+  String get syncingLabel => 'Syncing...';
+
+  @override
+  String get syncLabel => 'Sync';
+
+  @override
   String get salesAndDebt => 'Sales & Debt';
 
   @override
@@ -2792,6 +3066,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get taxAndInsuranceDesc => '💳 \"Deduction/Tax Settings\" icon:\n• Personal deduction: 11 million\n• SI 8%, HI 1.5%, UI 1%';
+
+  @override
+  String get labelNoteFieldLabel => 'Label note';
+
+  @override
+  String get labelNoteFieldHint => 'Shown on the label (optional)';
 
   @override
   String get goToSalaryTable => 'GO TO SALARY TABLE';

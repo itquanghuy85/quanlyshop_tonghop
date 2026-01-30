@@ -1,15 +1,19 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image/image.dart' as img;
 import '../core/utils/money_utils.dart';
 import 'bluetooth_printer_service.dart';
 import 'wifi_printer_service.dart';
 import 'label_settings_service.dart';
 import '../models/label_template_model.dart';
 import '../models/repair_model.dart';
+import '../models/product_model.dart';
 
 import '../models/printer_types.dart';
 
@@ -55,6 +59,34 @@ class _LabelElementConfig {
 }
 
 class UnifiedPrinterService {
+  static Future<img.Image?> _buildQrImage(String data, int sizePx) async {
+    final painter = QrPainter(
+      data: data,
+      version: QrVersions.auto,
+      gapless: true,
+      color: const ui.Color(0xFF000000),
+      emptyColor: const ui.Color(0xFFFFFFFF),
+    );
+    final byteData = await painter.toImageData(
+      sizePx.toDouble(),
+      format: ui.ImageByteFormat.png,
+    );
+    if (byteData == null) return null;
+    return img.decodeImage(byteData.buffer.asUint8List());
+  }
+
+  static Future<void> _appendQrRaster(
+    Generator generator,
+    List<int> bytes,
+    String data,
+    int sizePx, {
+    PosAlign align = PosAlign.center,
+  }) async {
+    final qrImage = await _buildQrImage(data, sizePx);
+    if (qrImage == null) return;
+    bytes.addAll(generator.imageRaster(qrImage, align: align));
+  }
+
   /// Đọc cài đặt từng element từ Label Designer
   static Future<Map<String, _LabelElementConfig>>
   _loadLabelDesignerConfig() async {
@@ -116,6 +148,37 @@ class UnifiedPrinterService {
     // Lấy loại mã (QR hoặc Barcode)
     final codeType = prefs.getString('label_code_type') ?? 'qr';
 
+    int _qrPxForLabel(double fontSize) {
+      if (paperSizeStr == '2x3') {
+        if (fontSize <= 0.7) return 56;
+        if (fontSize <= 1.0) return 72;
+        return 88;
+      }
+      if (paperSizeStr == '3x4') {
+        if (fontSize <= 0.7) return 64;
+        if (fontSize <= 1.0) return 88;
+        return 104;
+      }
+      if (paperSizeStr == '4x6') {
+        if (fontSize <= 0.7) return 80;
+        if (fontSize <= 1.0) return 104;
+        return 128;
+      }
+      if (paperSizeStr == '58') {
+        if (fontSize <= 0.7) return 64;
+        if (fontSize <= 1.0) return 80;
+        return 96;
+      }
+      if (paperSizeStr == '72') {
+        if (fontSize <= 0.7) return 80;
+        if (fontSize <= 1.0) return 96;
+        return 112;
+      }
+      if (fontSize <= 0.7) return 96;
+      if (fontSize <= 1.0) return 120;
+      return 144;
+    }
+
     // Lấy thông tin shop từ LabelSettingsService
     final labelService = LabelSettingsService();
     final shopSettings = await labelService.getShopLabelSettings();
@@ -135,10 +198,19 @@ class UnifiedPrinterService {
 
     // Lấy giá từ printData nếu có
     final priceKPK = printData?.customPriceKPK ?? product['price'] ?? 0;
+    final rawCpk = product['priceCPK'];
+    final parsedCpk =
+      rawCpk is int ? rawCpk : int.tryParse(rawCpk?.toString() ?? '') ?? 0;
     final priceCPK =
-        printData?.customPriceCPK ??
-        printData?.calculatedCPK ??
-        (priceKPK is int ? priceKPK + 500000 : priceKPK);
+      printData?.customPriceCPK ??
+      printData?.calculatedCPK ??
+      (shopSettings.autoCalculateCPK
+        ? (priceKPK is int
+          ? shopSettings.calculateCPK(priceKPK)
+          : priceKPK)
+        : (parsedCpk > 0
+          ? parsedCpk
+          : (priceKPK is int ? priceKPK : 0)));
 
     // In từng row
     for (final rowIndex in sortedRows) {
@@ -220,15 +292,13 @@ class UnifiedPrinterService {
             );
           } else {
             // In QR code
-            QRSize qrSize;
-            if (rightEl.fontSize <= 0.7) {
-              qrSize = QRSize.size2;
-            } else if (rightEl.fontSize <= 1.0) {
-              qrSize = QRSize.size3;
-            } else {
-              qrSize = QRSize.size4;
-            }
-            bytes.addAll(generator.qrcode("check_inv:$simpleId", size: qrSize));
+            final sizePx = _qrPxForLabel(rightEl.fontSize);
+            await _appendQrRaster(
+              generator,
+              bytes,
+              "check_inv:$simpleId",
+              sizePx,
+            );
           }
         } else if (leftEl.id == 'qr_code') {
           final simpleId =
@@ -256,15 +326,13 @@ class UnifiedPrinterService {
               ),
             );
           } else {
-            QRSize qrSize;
-            if (leftEl.fontSize <= 0.7) {
-              qrSize = QRSize.size2;
-            } else if (leftEl.fontSize <= 1.0) {
-              qrSize = QRSize.size3;
-            } else {
-              qrSize = QRSize.size4;
-            }
-            bytes.addAll(generator.qrcode("check_inv:$simpleId", size: qrSize));
+            final sizePx = _qrPxForLabel(leftEl.fontSize);
+            await _appendQrRaster(
+              generator,
+              bytes,
+              "check_inv:$simpleId",
+              sizePx,
+            );
           }
 
           // In text bên phải
@@ -357,15 +425,13 @@ class UnifiedPrinterService {
             );
           } else {
             // In QR code
-            QRSize qrSize;
-            if (el.fontSize <= 0.7) {
-              qrSize = QRSize.size2;
-            } else if (el.fontSize <= 1.0) {
-              qrSize = QRSize.size3;
-            } else {
-              qrSize = QRSize.size4;
-            }
-            bytes.addAll(generator.qrcode("check_inv:$simpleId", size: qrSize));
+            final sizePx = _qrPxForLabel(el.fontSize);
+            await _appendQrRaster(
+              generator,
+              bytes,
+              "check_inv:$simpleId",
+              sizePx,
+            );
           }
         } else {
           final text = _getElementText(
@@ -463,6 +529,9 @@ class UnifiedPrinterService {
       case 'imei':
         final imei = product['imei']?.toString() ?? '';
         return imei.isNotEmpty ? "${el.prefix}$imei" : '';
+      case 'label_note':
+        final note = product['labelNote']?.toString() ?? '';
+        return note.isNotEmpty ? "${el.prefix}$note" : '';
       case 'shop_info':
         final parts = <String>[];
         if (shopName.isNotEmpty) parts.add(shopName);
@@ -887,6 +956,17 @@ class UnifiedPrinterService {
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final labelTextsRaw = product['_labelTexts'] as Map<String, dynamic>?;
+      final labelTexts = <String, String>{};
+      if (labelTextsRaw != null) {
+        for (final entry in labelTextsRaw.entries) {
+          labelTexts[entry.key] = entry.value?.toString() ?? '';
+        }
+      }
+      final notAvailable = labelTexts['notAvailable'] ?? '';
+      final kpkPrefixText = labelTexts['kpkPrefix'] ?? '';
+      final cpkPrefixText = labelTexts['cpkPrefix'] ?? '';
+      final imeiPrefixText = labelTexts['imeiPrefix'] ?? '';
 
       // Đọc size giấy từ cài đặt THIẾT KẾ TEM
       final paperSizeStr = prefs.getString('label_paper_size') ?? '80';
@@ -975,9 +1055,9 @@ class UnifiedPrinterService {
 
         nameScale = detailScale = kpkScale = cpkScale = imeiScale =
             shopInfoScale = prefs.getDouble('label_font_scale') ?? 1.0;
-        kpkPrefix = 'Giá KPK: ';
-        cpkPrefix = 'Giá CPK: ';
-        imeiPrefix = 'IMEI: ';
+        kpkPrefix = kpkPrefixText;
+        cpkPrefix = cpkPrefixText;
+        imeiPrefix = imeiPrefixText;
       } else {
         // Fallback: Cấu hình cơ bản từ Design View (khi chưa có Label Designer)
         showName = prefs.getBool('label_show_name') ?? true;
@@ -996,9 +1076,9 @@ class UnifiedPrinterService {
         imeiScale = globalScale * 0.9;
         shopInfoScale = globalScale * 0.8;
 
-        kpkPrefix = 'GIA KPK: ';
-        cpkPrefix = 'GIA CPK: ';
-        imeiPrefix = 'IMEI: ';
+        kpkPrefix = kpkPrefixText;
+        cpkPrefix = cpkPrefixText;
+        imeiPrefix = imeiPrefixText;
       }
 
       final customText = prefs.getString('label_custom_text') ?? "";
@@ -1009,7 +1089,7 @@ class UnifiedPrinterService {
 
       // 1. TÊN SẢN PHẨM (SIZE theo nameScale) - Tự động xuống dòng
       if (showName) {
-        final rawName = product['name']?.toString() ?? 'N/A';
+        final rawName = product['name']?.toString() ?? notAvailable;
         final cleanName = _labelSingleLine(rawName, nameScale);
         // Tính maxChars theo khổ giấy và fontSize
         final adjustedMax = nameScale >= 1.5
@@ -1097,7 +1177,7 @@ class UnifiedPrinterService {
       // 5. IMEI (SIZE theo imeiScale)
       if (showIMEI) {
         final imeiLine = _labelSingleLine(
-          "$imeiPrefix${product['imei'] ?? 'N/A'}",
+          "$imeiPrefix${product['imei'] ?? notAvailable}",
           imeiScale,
           uppercaseWhenLarge: false,
         );
@@ -1136,8 +1216,22 @@ class UnifiedPrinterService {
             product['id']?.toString() ??
             product['firestoreId']?.split('_').last ??
             'unknown';
-        bytes.addAll(
-          generator.qrcode("check_inv:$simpleId", size: QRSize.size4),
+        final int sizePx;
+        switch (paperSizeStr) {
+          case '58':
+            sizePx = 96;
+            break;
+          case '72':
+            sizePx = 112;
+            break;
+          default:
+            sizePx = 128;
+        }
+        await _appendQrRaster(
+          generator,
+          bytes,
+          "check_inv:$simpleId",
+          sizePx,
         );
       }
 
@@ -1187,6 +1281,247 @@ class UnifiedPrinterService {
       print("Lỗi in tem sản phẩm: $e");
       return false;
     }
+  }
+
+  /// In QR IMEI theo danh sách (in 1 lần, nhiều tem liên tiếp)
+  static Future<bool> printImeiQrBatch(
+    List<Product> products, {
+    PrinterType? printerType,
+    dynamic bluetoothPrinter,
+    String? wifiIp,
+    bool showName = true,
+    bool showDetail = true,
+    bool showImei = true,
+    int paddingLines = 1,
+    String qrSize = 'medium',
+    int columns = 1,
+    required String defaultProductName,
+    required String imeiPrefix,
+    required String imeiLabel,
+  }) async {
+    if (products.isEmpty) return false;
+
+    final prefs = await SharedPreferences.getInstance();
+    final paperSizeStr = prefs.getString('label_paper_size') ?? '80';
+    PaperSize paperSize;
+    switch (paperSizeStr) {
+      case '58':
+      case '2x3':
+      case '3x4':
+        paperSize = PaperSize.mm58;
+        break;
+      case '72':
+      case '4x6':
+        paperSize = PaperSize.mm72;
+        break;
+      default:
+        paperSize = PaperSize.mm80;
+    }
+
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(paperSize, profile);
+    final List<int> bytes = [];
+    bytes.addAll(generator.reset());
+
+    columns = columns.clamp(1, 4);
+    final int qrPx;
+    if (paperSizeStr == '2x3') {
+      switch (qrSize) {
+        case 'xsmall':
+          qrPx = 40;
+          break;
+        case 'small':
+          qrPx = 56;
+          break;
+        case 'large':
+          qrPx = 88;
+          break;
+        default:
+          qrPx = 72;
+      }
+    } else if (paperSizeStr == '3x4') {
+      switch (qrSize) {
+        case 'xsmall':
+          qrPx = 48;
+          break;
+        case 'small':
+          qrPx = 64;
+          break;
+        case 'large':
+          qrPx = 96;
+          break;
+        default:
+          qrPx = 80;
+      }
+    } else if (paperSizeStr == '4x6') {
+      switch (qrSize) {
+        case 'xsmall':
+          qrPx = 64;
+          break;
+        case 'small':
+          qrPx = 80;
+          break;
+        case 'large':
+          qrPx = 120;
+          break;
+        default:
+          qrPx = 96;
+      }
+    } else if (paperSize == PaperSize.mm58) {
+      switch (qrSize) {
+        case 'xsmall':
+          qrPx = 48;
+          break;
+        case 'small':
+          qrPx = 64;
+          break;
+        case 'large':
+          qrPx = 96;
+          break;
+        default:
+          qrPx = 80;
+      }
+    } else {
+      switch (qrSize) {
+        case 'xsmall':
+          qrPx = 64;
+          break;
+        case 'small':
+          qrPx = 80;
+          break;
+        case 'large':
+          qrPx = 120;
+          break;
+        default:
+          qrPx = 96;
+      }
+    }
+
+    int colWidth = (12 / columns).floor();
+    colWidth = colWidth < 1 ? 1 : colWidth;
+
+    Future<img.Image> buildQrImage(String data) async {
+      final painter = QrPainter(
+        data: data,
+        version: QrVersions.auto,
+        gapless: true,
+        color: const ui.Color(0xFF000000),
+        emptyColor: const ui.Color(0xFFFFFFFF),
+      );
+      final byteData = await painter.toImageData(
+        qrPx.toDouble(),
+        format: ui.ImageByteFormat.png,
+      );
+      final bytes = byteData!.buffer.asUint8List();
+      return img.decodeImage(bytes)!;
+    }
+
+    void printTextRow(
+      List<Map<String, String>> rowItems,
+      String key, {
+      bool bold = false,
+      PosTextSize textSize = PosTextSize.size1,
+    }) {
+      final columnsData = rowItems.map((e) {
+        final text = e[key] ?? '';
+        return PosColumn(
+          text: text,
+          width: colWidth,
+          styles: PosStyles(
+            align: PosAlign.center,
+            bold: bold,
+            height: textSize,
+            width: textSize,
+          ),
+        );
+      }).toList();
+
+      bytes.addAll(generator.row(columnsData));
+    }
+
+    final valid = products
+        .where((p) => (p.imei ?? '').trim().isNotEmpty)
+        .toList();
+    for (int i = 0; i < valid.length; i += columns) {
+      final rowItems = valid.skip(i).take(columns).map((p) {
+        final imei = (p.imei ?? '').trim();
+        final name = p.name.trim().isEmpty ? defaultProductName : p.name;
+        final detailParts = <String>[];
+        if (p.model != null && p.model!.trim().isNotEmpty) {
+          detailParts.add(p.model!.trim());
+        }
+        if (p.capacity != null && p.capacity!.trim().isNotEmpty) {
+          detailParts.add(p.capacity!.trim());
+        }
+        if (p.color != null && p.color!.trim().isNotEmpty) {
+          detailParts.add(p.color!.trim());
+        }
+        final detail = detailParts.join(' - ');
+        final code = p.firestoreId?.trim() ?? '';
+        final qrData = code.isNotEmpty
+            ? 'type=DIEN_THOAI&imei=${Uri.encodeComponent(imei)}&code=${Uri.encodeComponent(code)}'
+            : 'type=DIEN_THOAI&imei=${Uri.encodeComponent(imei)}';
+
+        return {
+          'name': _labelSingleLine(name, 1.0),
+          'detail': _labelSingleLine(detail, 0.9, uppercaseWhenLarge: false),
+          'imei': '$imeiPrefix$imei',
+          'qr': qrData,
+        };
+      }).toList();
+
+      if (showName) {
+        printTextRow(rowItems, 'name', bold: true);
+      }
+
+      if (showDetail) {
+        printTextRow(rowItems, 'detail');
+      }
+
+      final gap = 8;
+      final imgWidth = rowItems.length * qrPx + (rowItems.length - 1) * gap;
+      final imgHeight = qrPx;
+      final canvas = img.Image(width: imgWidth, height: imgHeight);
+      img.fill(canvas, color: img.ColorUint8.rgb(255, 255, 255));
+
+      for (int idx = 0; idx < rowItems.length; idx++) {
+        final qr = await buildQrImage(rowItems[idx]['qr'] ?? '');
+        final x = idx * (qrPx + gap);
+        img.compositeImage(canvas, qr, dstX: x, dstY: 0);
+      }
+
+      bytes.addAll(generator.imageRaster(canvas, align: PosAlign.center));
+
+      if (showImei) {
+        final imeiSize = columns >= 3
+            ? PosTextSize.size1
+            : (qrSize == 'large' ? PosTextSize.size2 : PosTextSize.size1);
+        if (imeiLabel.isNotEmpty && !imeiPrefix.startsWith(imeiLabel)) {
+          final labelRowItems = rowItems
+              .map((e) => {
+                    ...e,
+                    'imei': '$imeiLabel ${e['imei'] ?? ''}'.trim(),
+                  })
+              .toList();
+          printTextRow(labelRowItems, 'imei', textSize: imeiSize);
+        } else {
+          printTextRow(rowItems, 'imei', textSize: imeiSize);
+        }
+      }
+
+      if (paddingLines > 0) {
+        bytes.addAll(generator.feed(paddingLines));
+      }
+    }
+
+    bytes.addAll(generator.feed(2));
+
+    return _sendToPrinter(
+      bytes,
+      printerType: printerType,
+      bluetoothPrinter: bluetoothPrinter,
+      wifiIp: wifiIp,
+    );
   }
 
   static Future<bool> printRepairReceiptLegacy(

@@ -385,6 +385,7 @@ class StockEntryService {
               'imei': productImei,
               'brand': item.brand ?? '',
               'model': item.model ?? '',
+              'labelNote': item.labelNote ?? '',
               'cost': item.cost ?? 0,
               'price': item.price ?? 0,
               'quantity': quantityPerProduct,

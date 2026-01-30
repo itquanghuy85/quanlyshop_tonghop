@@ -30,6 +30,7 @@ import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import 'smart_stock_in_view.dart';
 import 'supplier_list_view.dart';
+import '../l10n/app_localizations.dart';
 
 class CreateSaleView extends StatefulWidget {
   final Product? preSelectedProduct;
@@ -258,7 +259,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     }
 
     // Kiểm tra phone format
-    final phoneError = UserService.validatePhone(phone);
+    final phoneError = UserService.validatePhone(
+      phone,
+      AppLocalizations.of(context)!,
+    );
     if (phoneError != null) {
       NotificationService.showSnackBar(phoneError, color: Colors.red);
       return;
@@ -636,7 +640,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
 
     // Validate phone format (only when provided)
     if (!isPhoneEmpty) {
-      final phoneError = UserService.validatePhone(phoneCtrl.text.trim());
+      final phoneError = UserService.validatePhone(
+        phoneCtrl.text.trim(),
+        AppLocalizations.of(context)!,
+      );
       if (phoneError != null) {
         debugPrint('🛒 _processSale: Phone validation failed: $phoneError');
         NotificationService.showSnackBar(phoneError, color: Colors.red);

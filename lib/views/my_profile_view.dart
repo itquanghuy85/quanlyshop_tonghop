@@ -5,6 +5,7 @@ import '../services/user_service.dart';
 import '../widgets/validated_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../l10n/app_localizations.dart';
 
 class MyProfileView extends StatefulWidget {
   const MyProfileView({super.key});
@@ -76,6 +77,7 @@ class _MyProfileViewState extends State<MyProfileView> {
         phone: phoneCtrl.text,
         address: addressCtrl.text,
         role: _role,
+        loc: AppLocalizations.of(context)!,
         photoUrl: _photoPath,
       );
       messenger.showSnackBar(const SnackBar(content: Text('ĐÃ LƯU HỒ SƠ CÁ NHÂN')));

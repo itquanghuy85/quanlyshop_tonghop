@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../l10n/app_localizations.dart';
 import '../constants/product_constants.dart';
 import '../data/db_helper.dart';
 import '../theme/app_text_styles.dart';
@@ -75,6 +76,7 @@ class _FastStockInViewState extends State<FastStockInView> {
 
   final TextEditingController modelCtrl = TextEditingController();
   final TextEditingController imeiCtrl = TextEditingController();
+  final TextEditingController labelNoteCtrl = TextEditingController();
   final TextEditingController quantityCtrl = TextEditingController(text: '1');
   final TextEditingController costCtrl = TextEditingController();
   final TextEditingController priceCtrl = TextEditingController();
@@ -220,6 +222,7 @@ class _FastStockInViewState extends State<FastStockInView> {
     // CurrencyTextField handles formatting - no format listeners to remove
     modelCtrl.dispose();
     imeiCtrl.dispose();
+    labelNoteCtrl.dispose();
     quantityCtrl.dispose();
     costCtrl.dispose();
     priceCtrl.dispose();
@@ -1021,6 +1024,9 @@ class _FastStockInViewState extends State<FastStockInView> {
         color: selectedColor,
         condition: selectedCondition,
         productType: 'DIEN_THOAI',
+        labelNote: labelNoteCtrl.text.trim().isNotEmpty
+            ? labelNoteCtrl.text.trim()
+            : null,
       );
 
       // Tạo StockEntry (DRAFT)
@@ -1146,6 +1152,7 @@ class _FastStockInViewState extends State<FastStockInView> {
     });
     modelCtrl.clear();
     imeiCtrl.clear();
+    labelNoteCtrl.clear();
     quantityCtrl.text = '1';
     costCtrl.clear();
     priceCtrl.clear();
@@ -1449,6 +1456,7 @@ class _FastStockInViewState extends State<FastStockInView> {
 
       // Reset IMEI for new entry
       imeiCtrl.clear();
+      labelNoteCtrl.clear();
       quantityCtrl.text = '1';
     });
 
@@ -1613,6 +1621,30 @@ class _FastStockInViewState extends State<FastStockInView> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  Text(
+                    AppLocalizations.of(context)!.labelNoteFieldLabel,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppTextStyles.body1.fontSize,
+                    ),
+                  ),
+                  TextField(
+                    controller: labelNoteCtrl,
+                    inputFormatters: [UpperCaseTextFormatter()],
+                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(context)!.labelNoteFieldHint,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 8),
 

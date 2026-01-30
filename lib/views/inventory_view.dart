@@ -30,12 +30,16 @@ import 'smart_stock_in_view.dart';
 import 'global_search_view.dart';
 import 'fast_stock_in_view.dart';
 import 'parts_inventory_view.dart';
+import 'imei_qr_print_view.dart';
+import 'label_designer_view.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/validated_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import '../widgets/custom_app_bar.dart';
+import '../l10n/app_localizations.dart';
+import '../l10n/app_localizations.dart';
 
 class InventoryView extends StatefulWidget {
   final String role;
@@ -502,7 +506,7 @@ class _InventoryViewState extends State<InventoryView>
                   },
                   icon: const Icon(Icons.check_circle, color: Colors.white),
                   label: Text(
-                    "XÁC NHẬN GIÁ - CHUYỂN KHO CHÍNH",
+                    AppLocalizations.of(context)!.confirmCostMoveToMainStock,
                     style: AppTextStyles.headline5.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -532,12 +536,22 @@ class _InventoryViewState extends State<InventoryView>
                       
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Đang in tem...'), duration: Duration(seconds: 1)),
+                        SnackBar(
+                          content: Text(AppLocalizations.of(context)!.printingLabel),
+                          duration: const Duration(seconds: 1),
+                        ),
                       );
                       
                       // In tem theo cài đặt từ THIẾT KẾ TEM
+                      final printData = p.toMap();
+                      printData['_labelTexts'] = {
+                        'notAvailable': AppLocalizations.of(context)!.notAvailable,
+                        'kpkPrefix': AppLocalizations.of(context)!.priceKpkPrefix,
+                        'cpkPrefix': AppLocalizations.of(context)!.priceCpkPrefix,
+                        'imeiPrefix': AppLocalizations.of(context)!.imeiPrefix,
+                      };
                       final ok = await UnifiedPrinterService.printProductQRLabel(
-                        p.toMap(),
+                        printData,
                         printerType: printerType,
                         customMac: bluetoothPrinter is Map ? bluetoothPrinter['macAddress'] : null,
                         wifiIp: wifiIp,
@@ -545,7 +559,11 @@ class _InventoryViewState extends State<InventoryView>
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(ok ? '✅ In tem thành công!' : '❌ Lỗi khi in tem'),
+                            content: Text(
+                              ok
+                                  ? AppLocalizations.of(context)!.printLabelSuccess(1)
+                                  : AppLocalizations.of(context)!.printLabelFailed,
+                            ),
                             backgroundColor: ok ? Colors.green : Colors.red,
                           ),
                         );
@@ -553,7 +571,7 @@ class _InventoryViewState extends State<InventoryView>
                     },
                     icon: const Icon(Icons.qr_code_2, color: Colors.white),
                     label: Text(
-                      "IN TEM",
+                      AppLocalizations.of(context)!.printLabelTitle,
                       style: AppTextStyles.subtitle1.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -574,7 +592,7 @@ class _InventoryViewState extends State<InventoryView>
                     },
                     icon: const Icon(Icons.edit, color: Colors.white),
                     label: Text(
-                      "CHỈNH SỬA",
+                      AppLocalizations.of(context)!.edit,
                       style: AppTextStyles.body1.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -595,7 +613,7 @@ class _InventoryViewState extends State<InventoryView>
                     },
                     icon: const Icon(Icons.shopping_cart, color: Colors.white),
                     label: Text(
-                      "TẠO ĐƠN HÀNG",
+                      AppLocalizations.of(context)!.createOrder,
                       style: AppTextStyles.body1.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -612,7 +630,7 @@ class _InventoryViewState extends State<InventoryView>
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.pop(ctx),
                     icon: const Icon(Icons.close),
-                    label: Text("ĐÓNG", style: AppTextStyles.body1),
+                    label: Text(AppLocalizations.of(context)!.close, style: AppTextStyles.body1),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
@@ -638,6 +656,7 @@ class _InventoryViewState extends State<InventoryView>
     final nameCtrl = TextEditingController(text: p.name);
     final capacityCtrl = TextEditingController(text: p.capacity ?? '');
     final imeiCtrl = TextEditingController(text: p.imei ?? '');
+    final labelNoteCtrl = TextEditingController(text: p.labelNote ?? '');
     final supplierCtrl = TextEditingController(text: p.supplier ?? '');
     final costCtrl = TextEditingController(
       text: MoneyUtils.formatCurrency(p.cost),
@@ -673,6 +692,13 @@ class _InventoryViewState extends State<InventoryView>
               ),
               const SizedBox(height: 12),
               ValidatedTextField(controller: imeiCtrl, label: 'IMEI/Serial'),
+              const SizedBox(height: 12),
+              ValidatedTextField(
+                controller: labelNoteCtrl,
+                label: AppLocalizations.of(context)!.labelNoteFieldLabel,
+                hint: AppLocalizations.of(context)!.labelNoteFieldHint,
+                uppercase: true,
+              ),
               const SizedBox(height: 12),
               // Nhà cung cấp - KHÓA nếu đã nhập kho chính
               if (canEditFinancialInfo)
@@ -756,6 +782,9 @@ class _InventoryViewState extends State<InventoryView>
                   name: nameCtrl.text.trim().toUpperCase(),
                   capacity: capacityCtrl.text.trim(),
                   imei: imeiCtrl.text.trim(),
+                  labelNote: labelNoteCtrl.text.trim().isNotEmpty
+                      ? labelNoteCtrl.text.trim()
+                      : null,
                   supplier: canEditFinancialInfo ? supplierCtrl.text.trim() : p.supplier,
                   cost: newCost,
                   price: CurrencyTextField.getValueWithMultiply(priceCtrl),
@@ -1686,6 +1715,19 @@ class _InventoryViewState extends State<InventoryView>
             splashRadius: 20,
           ),
           IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ImeiQrPrintView()),
+            ),
+            icon: Icon(
+              Icons.qr_code_2,
+              color: AppBarAccents.inventory,
+              size: 22,
+            ),
+            tooltip: 'In QR IMEI kho',
+            splashRadius: 20,
+          ),
+          IconButton(
             onPressed: _refresh,
             icon: Icon(
               Icons.refresh_rounded,
@@ -1812,6 +1854,7 @@ class _InventoryViewState extends State<InventoryView>
     final int totalQty = _totalQtyFromDB;
     final int totalCapital = _totalCapitalFromDB;
 
+    final loc = AppLocalizations.of(context)!;
     return Stack(
       children: [
         Column(
@@ -1857,6 +1900,69 @@ class _InventoryViewState extends State<InventoryView>
             // Summary Section
             if (!_isSelectionMode)
               _buildInventorySummary(totalQty, totalCapital),
+
+            if (!_isSelectionMode)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Card(
+                  color: Colors.green.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.green.shade200),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          loc.printQrImeiInventory,
+                          style: AppTextStyles.subtitle1.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ImeiQrPrintView(),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.qr_code_2),
+                                label: Text(loc.openPrintPage),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => LabelDesignerView(),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.design_services),
+                                label: Text(loc.designQrLabel),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
 
             // Search Box
             _buildSearchBox(),
@@ -3622,6 +3728,7 @@ class _InventoryViewState extends State<InventoryView>
     final detailC = TextEditingController(text: p.capacity ?? '');
     final qtyC = TextEditingController(text: p.quantity.toString());
     final modelC = TextEditingController(text: p.model ?? '');
+    final labelNoteC = TextEditingController(text: p.labelNote ?? '');
 
     String type = p.type;
     String? supplier = p.supplier;
@@ -3659,6 +3766,9 @@ class _InventoryViewState extends State<InventoryView>
                     ? modelC.text.trim()
                     : null,
                 imei: imeiC.text.trim(),
+                labelNote: labelNoteC.text.trim().isNotEmpty
+                  ? labelNoteC.text.trim()
+                  : null,
                 cost: newCost,
                 price: CurrencyTextField.parseValue(priceC.text),
                 capacity: detailC.text.trim().toUpperCase(),
@@ -3764,6 +3874,14 @@ class _InventoryViewState extends State<InventoryView>
                     "Số IMEI / Serial",
                     Icons.fingerprint,
                     readOnly: true,
+                  ),
+
+                  // Thông tin in trên tem
+                  _input(
+                    labelNoteC,
+                    AppLocalizations.of(context)!.labelNoteFieldLabel,
+                    Icons.print,
+                    caps: true,
                   ),
 
                   // Model

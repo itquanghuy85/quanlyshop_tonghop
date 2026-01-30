@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_service.dart';
 import '../services/audit_service.dart';
 import '../data/db_helper.dart';
+import '../l10n/app_localizations.dart';
 
 ImageProvider? _safeImageProvider(String? path) {
   if (path == null || path.isEmpty) return null;
@@ -116,6 +117,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
         phone: userData['phone'] ?? '',
         address: userData['address'] ?? '',
         role: newRole,
+        loc: AppLocalizations.of(context)!,
       );
 
       // Nếu đổi thành owner/manager, tự động cấp full permissions

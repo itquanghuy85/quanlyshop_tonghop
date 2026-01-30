@@ -1,10 +1,14 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/utils/money_utils.dart';
 import '../services/unified_printer_service.dart';
 import '../services/bluetooth_printer_service.dart';
+import '../services/label_settings_service.dart';
 import '../models/printer_types.dart';
 import '../theme/app_text_styles.dart';
+import '../l10n/app_localizations.dart';
 import 'printer_selection_dialog.dart';
 
 /// Dialog in tem sản phẩm với nhiều tùy chọn
@@ -48,6 +52,12 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
   bool _showQR = true;
   bool _showCustomLines = false;
 
+  final Map<String, Map<String, dynamic>> _designerElements = {};
+  ShopLabelSettings? _shopSettings;
+  int? _autoCpk;
+
+  AppLocalizations get _loc => AppLocalizations.of(context)!;
+
   @override
   void initState() {
     super.initState();
@@ -57,9 +67,69 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
   void _initValues() {
     final price = widget.product['price'] ?? 0;
     _priceKPKCtrl.text = MoneyUtils.formatVND(price);
-    // Mặc định CPK = KPK + 500,000 (phụ kiện cơ bản)
+    // Default CPK uses formula once settings are loaded
     final priceCPK = widget.product['priceCPK'] ?? (price + 500000);
     _priceCPKCtrl.text = MoneyUtils.formatVND(priceCPK);
+    _loadShopSettings(price);
+    _loadDesignerElements();
+  }
+
+  Future<void> _loadShopSettings(int price) async {
+    final settings = await LabelSettingsService().getShopLabelSettings();
+    final calculated = _calculateAutoCpk(price, settings);
+    if (!mounted) return;
+    setState(() {
+      _shopSettings = settings;
+      _autoCpk = calculated;
+      _priceCPKCtrl.text = MoneyUtils.formatVND(calculated);
+    });
+  }
+
+  int _calculateAutoCpk(int price, ShopLabelSettings settings) {
+    if (!settings.autoCalculateCPK) {
+      final raw = widget.product['priceCPK'];
+      final parsed = raw is int ? raw : int.tryParse(raw?.toString() ?? '') ?? 0;
+      return parsed > 0 ? parsed : price;
+    }
+    return settings.calculateCPK(price);
+  }
+
+  Future<void> _loadDesignerElements() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = prefs.getString('label_designer_elements');
+    if (jsonStr == null) return;
+    try {
+      final List<dynamic> jsonList = jsonDecode(jsonStr);
+      final map = <String, Map<String, dynamic>>{};
+      for (final item in jsonList) {
+        if (item is Map<String, dynamic>) {
+          final id = item['id']?.toString();
+          if (id != null) {
+            map[id] = Map<String, dynamic>.from(item);
+          }
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _designerElements
+          ..clear()
+          ..addAll(map);
+      });
+    } catch (_) {
+      // ignore parse errors
+    }
+  }
+
+  bool _designerVisible(String id, bool fallback) {
+    final el = _designerElements[id];
+    if (el == null) return fallback;
+    return (el['visible'] as bool?) ?? fallback;
+  }
+
+  String _designerPrefix(String id, String fallback) {
+    final el = _designerElements[id];
+    if (el == null) return fallback;
+    return (el['prefix'] as String?) ?? fallback;
   }
 
   @override
@@ -131,14 +201,14 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "IN TEM",
+                  _loc.printLabelTitle,
                   style: AppTextStyles.headline4.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  widget.product['name'] ?? 'N/A',
+                  widget.product['name'] ?? _loc.notAvailable,
                   style: AppTextStyles.caption.copyWith(color: Colors.white70),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -171,7 +241,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
               const Icon(Icons.info_outline, color: Colors.blue, size: 18),
               const SizedBox(width: 8),
               Text(
-                "THÔNG TIN SẢN PHẨM",
+                _loc.productInfoTitle,
                 style: AppTextStyles.subtitle2.copyWith(
                   color: Colors.blue,
                   fontWeight: FontWeight.bold,
@@ -180,10 +250,16 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
             ],
           ),
           const Divider(height: 16),
-          _infoRow("Tên:", widget.product['name'] ?? 'N/A'),
-          _infoRow("Chi tiết:", "${widget.product['capacity'] ?? ''} ${widget.product['color'] ?? ''} ${widget.product['condition'] ?? ''}".trim()),
-          _infoRow("IMEI:", widget.product['imei'] ?? 'N/A'),
-          _infoRow("Giá bán gốc:", MoneyUtils.formatVND(widget.product['price'] ?? 0)),
+          _infoRow(_loc.productNameLabel, widget.product['name'] ?? _loc.notAvailable),
+          _infoRow(
+            _loc.productDetailLabel,
+            "${widget.product['capacity'] ?? ''} ${widget.product['color'] ?? ''} ${widget.product['condition'] ?? ''}".trim(),
+          ),
+          _infoRow(_loc.imeiLabelWithColon, widget.product['imei'] ?? _loc.notAvailable),
+          _infoRow(
+            _loc.originalPriceLabel,
+            MoneyUtils.formatVND(widget.product['price'] ?? 0),
+          ),
         ],
       ),
     );
@@ -217,8 +293,8 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
         children: [
           Expanded(
             child: _modeButton(
-              "TỰ ĐỘNG",
-              "Dùng cấu hình thiết kế tem",
+              _loc.labelModeAutoTitle,
+              _loc.labelModeAutoSubtitle,
               Icons.auto_awesome,
               !_isCustomMode,
               () => setState(() => _isCustomMode = false),
@@ -226,8 +302,8 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
           ),
           Expanded(
             child: _modeButton(
-              "TÙY CHỈNH",
-              "Nhập giá & nội dung riêng",
+              _loc.labelModeCustomTitle,
+              _loc.labelModeCustomSubtitle,
               Icons.edit_note,
               _isCustomMode,
               () => setState(() => _isCustomMode = true),
@@ -292,7 +368,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
               const Icon(Icons.tune, color: Colors.orange, size: 18),
               const SizedBox(width: 8),
               Text(
-                "TÙY CHỈNH NỘI DUNG TEM",
+                _loc.labelCustomContentTitle,
                 style: AppTextStyles.subtitle2.copyWith(
                   color: Colors.orange.shade800,
                   fontWeight: FontWeight.bold,
@@ -313,11 +389,11 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "📌 KPK = Không Phụ Kiện (giá máy trần)",
+                  _loc.labelKpkExplain,
                   style: AppTextStyles.caption.copyWith(color: Colors.blue.shade700),
                 ),
                 Text(
-                  "📌 CPK = Có Phụ Kiện (sạc, cáp, ốp, kính...)",
+                  _loc.labelCpkExplain,
                   style: AppTextStyles.caption.copyWith(color: Colors.red.shade700),
                 ),
               ],
@@ -333,17 +409,20 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
                 onChanged: (v) => setState(() => _showKPK = v ?? true),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              const Text("Giá KPK: ", style: TextStyle(fontWeight: FontWeight.w500)),
+              Text(
+                _loc.priceKpkLabel,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
               Expanded(
                 child: TextField(
                   controller: _priceKPKCtrl,
                   enabled: _showKPK,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    border: OutlineInputBorder(),
-                    suffixText: "đ",
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    border: const OutlineInputBorder(),
+                    suffixText: _loc.currencySymbol,
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -360,17 +439,20 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
                 onChanged: (v) => setState(() => _showCPK = v ?? true),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              const Text("Giá CPK: ", style: TextStyle(fontWeight: FontWeight.w500)),
+              Text(
+                _loc.priceCpkLabel,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
               Expanded(
                 child: TextField(
                   controller: _priceCPKCtrl,
                   enabled: _showCPK,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    border: OutlineInputBorder(),
-                    suffixText: "đ",
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    border: const OutlineInputBorder(),
+                    suffixText: _loc.currencySymbol,
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -384,10 +466,10 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
             spacing: 8,
             runSpacing: 0,
             children: [
-              _miniCheckbox("Tên máy", _showName, (v) => setState(() => _showName = v)),
-              _miniCheckbox("Chi tiết", _showDetail, (v) => setState(() => _showDetail = v)),
-              _miniCheckbox("IMEI", _showIMEI, (v) => setState(() => _showIMEI = v)),
-              _miniCheckbox("QR Code", _showQR, (v) => setState(() => _showQR = v)),
+              _miniCheckbox(_loc.deviceNameLabel, _showName, (v) => setState(() => _showName = v)),
+              _miniCheckbox(_loc.productDetailLabelPlain, _showDetail, (v) => setState(() => _showDetail = v)),
+              _miniCheckbox(_loc.imei, _showIMEI, (v) => setState(() => _showIMEI = v)),
+              _miniCheckbox(_loc.qrCodeLabel, _showQR, (v) => setState(() => _showQR = v)),
             ],
           ),
           const Divider(height: 20),
@@ -402,7 +484,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
               ),
               Expanded(
                 child: Text(
-                  "Thêm nội dung tùy biến (cho giấy lớn)",
+                  _loc.addCustomLinesLabel,
                   style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.w500),
                 ),
               ),
@@ -414,7 +496,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
               controller: _customLine1Ctrl,
               decoration: InputDecoration(
                 isDense: true,
-                hintText: "Dòng 1: VD: BẢO HÀNH 12 THÁNG",
+                hintText: _loc.customLine1Hint,
                 contentPadding: const EdgeInsets.all(10),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
@@ -425,7 +507,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
               controller: _customLine2Ctrl,
               decoration: InputDecoration(
                 isDense: true,
-                hintText: "Dòng 2: VD: ĐỔI TRẢ 7 NGÀY",
+                hintText: _loc.customLine2Hint,
                 contentPadding: const EdgeInsets.all(10),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
@@ -436,7 +518,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
               controller: _customLine3Ctrl,
               decoration: InputDecoration(
                 isDense: true,
-                hintText: "Dòng 3: VD: HOTLINE: 0123.456.789",
+                hintText: _loc.customLine3Hint,
                 contentPadding: const EdgeInsets.all(10),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
@@ -474,7 +556,10 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
         children: [
           const Icon(Icons.print, color: Colors.green),
           const SizedBox(width: 12),
-          const Text("Số lượng in:", style: TextStyle(fontWeight: FontWeight.w500)),
+          Text(
+            _loc.printQuantityLabel,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
           const Spacer(),
           IconButton(
             onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
@@ -506,6 +591,20 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
   }
 
   Widget _buildPreview() {
+    final priceKpk = widget.product['price'] ?? 0;
+    final autoCpk = _autoCpk ?? (widget.product['priceCPK'] ?? priceKpk + 500000);
+    final showNameAuto = _designerVisible('name', true);
+    final showDetailAuto = _designerVisible('detail', true);
+    final showKpkAuto = _designerVisible('price_kpk', true);
+    final showCpkAuto = _designerVisible('price_cpk', true);
+    final showLabelNoteAuto = _designerVisible('label_note', false);
+    final showImeiAuto = _designerVisible('imei', true);
+    final showQrAuto = _designerVisible('qr_code', true);
+    final kpkPrefixAuto = _designerPrefix('price_kpk', _loc.priceKpkPrefix);
+    final cpkPrefixAuto = _designerPrefix('price_cpk', _loc.priceCpkPrefix);
+    final imeiPrefixAuto = _designerPrefix('imei', _loc.imeiPrefix);
+    final labelNote = (widget.product['labelNote'] ?? '').toString().trim();
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -522,7 +621,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
       child: Column(
         children: [
           Text(
-            "XEM TRƯỚC TEM",
+            _loc.labelPreviewTitle,
             style: AppTextStyles.caption.copyWith(
               color: Colors.grey,
               fontWeight: FontWeight.bold,
@@ -538,16 +637,18 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
             ),
             child: Column(
               children: [
-                if (_isCustomMode ? _showName : true)
+                if (_isCustomMode ? _showName : showNameAuto)
                   Text(
-                    (widget.product['name'] ?? 'N/A').toString().toUpperCase(),
+                    (widget.product['name'] ?? _loc.notAvailable)
+                        .toString()
+                        .toUpperCase(),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
                   ),
-                if (_isCustomMode ? _showDetail : true) ...[
+                if (_isCustomMode ? _showDetail : showDetailAuto) ...[
                   const SizedBox(height: 2),
                   Text(
                     "${widget.product['capacity'] ?? ''} ${widget.product['color'] ?? ''} ${widget.product['condition'] ?? ''}".trim().toUpperCase(),
@@ -555,29 +656,48 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
                     style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
                   ),
                 ],
+                if (_isCustomMode ? false : showLabelNoteAuto) ...[
+                  if (labelNote.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      labelNote.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ],
                 const SizedBox(height: 4),
-                if (_isCustomMode ? _showKPK : true)
+                if (_isCustomMode ? _showKPK : showKpkAuto)
                   Text(
-                    "GIÁ KPK: ${_isCustomMode ? _priceKPKCtrl.text : MoneyUtils.formatVND(widget.product['price'] ?? 0)}",
+                    _isCustomMode
+                        ? '${_loc.priceKpkPrefix}${_priceKPKCtrl.text}'
+                        : '$kpkPrefixAuto${MoneyUtils.formatVND(priceKpk)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.blue,
                       fontSize: 12,
                     ),
                   ),
-                if (_isCustomMode ? _showCPK : true)
+                if (_isCustomMode ? _showCPK : showCpkAuto)
                   Text(
-                    "GIÁ CPK: ${_isCustomMode ? _priceCPKCtrl.text : MoneyUtils.formatVND((widget.product['price'] ?? 0) + 500000)}",
+                    _isCustomMode
+                        ? '${_loc.priceCpkPrefix}${_priceCPKCtrl.text}'
+                        : '$cpkPrefixAuto${MoneyUtils.formatVND(autoCpk)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.red,
                       fontSize: 11,
                     ),
                   ),
-                if (_isCustomMode ? _showIMEI : true) ...[
+                if (_isCustomMode ? _showIMEI : showImeiAuto) ...[
                   const SizedBox(height: 2),
                   Text(
-                    "IMEI: ${widget.product['imei'] ?? 'N/A'}",
+                    _isCustomMode
+                        ? _loc.imeiWithValue(
+                            (widget.product['imei'] ?? _loc.notAvailable)
+                                .toString(),
+                          )
+                        : '$imeiPrefixAuto${(widget.product['imei'] ?? _loc.notAvailable).toString()}',
                     style: const TextStyle(fontSize: 9),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -605,7 +725,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
                       textAlign: TextAlign.center,
                     ),
                 ],
-                if (_isCustomMode ? _showQR : true) ...[
+                if (_isCustomMode ? _showQR : showQrAuto) ...[
                   const SizedBox(height: 4),
                   const Icon(Icons.qr_code_2, size: 40),
                 ],
@@ -635,7 +755,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text("HỦY"),
+              child: Text(_loc.cancel),
             ),
           ),
           const SizedBox(width: 12),
@@ -651,7 +771,9 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
                     )
                   : const Icon(Icons.print, color: Colors.white),
               label: Text(
-                _isPrinting ? "ĐANG IN..." : "IN $_quantity TEM",
+                _isPrinting
+                    ? _loc.printingLabel
+                    : _loc.printLabelQuantity(_quantity),
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
@@ -685,6 +807,12 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
 
       // Chuẩn bị dữ liệu in
       final printData = Map<String, dynamic>.from(widget.product);
+      printData['_labelTexts'] = {
+        'notAvailable': _loc.notAvailable,
+        'kpkPrefix': _loc.priceKpkPrefix,
+        'cpkPrefix': _loc.priceCpkPrefix,
+        'imeiPrefix': _loc.imeiPrefix,
+      };
 
       if (_isCustomMode) {
         // Chế độ tùy chỉnh - ghi đè các giá trị
@@ -706,6 +834,12 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
         }
         printData['_customLines'] = customLines;
         printData['_isCustomMode'] = true;
+      } else {
+        final price = widget.product['price'] ?? 0;
+        final settings =
+            _shopSettings ?? await LabelSettingsService().getShopLabelSettings();
+        final calculated = _calculateAutoCpk(price, settings);
+        printData['calculatedCPK'] = calculated;
       }
 
       // In theo số lượng
@@ -731,8 +865,8 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
           SnackBar(
             content: Text(
               successCount == _quantity
-                  ? '✅ Đã in thành công $successCount tem!'
-                  : '⚠️ Đã in $successCount/$_quantity tem',
+                  ? _loc.printLabelSuccess(successCount)
+                  : _loc.printLabelPartial(successCount, _quantity),
             ),
             backgroundColor: successCount == _quantity ? Colors.green : Colors.orange,
           ),
@@ -741,7 +875,10 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi in tem: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(_loc.printLabelError(e.toString())),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {

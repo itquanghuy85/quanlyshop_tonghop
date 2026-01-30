@@ -20,6 +20,7 @@ import 'sale_detail_view.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
+import '../l10n/app_localizations.dart';
 
 ImageProvider? _safeImageProvider(String? path) {
   if (path == null || path.isEmpty) return null;
@@ -1555,6 +1556,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
         phone: phoneCtrl.text,
         address: addressCtrl.text,
         role: _selectedRole,
+        loc: AppLocalizations.of(context)!,
         photoUrl: photoUrl,
       );
 

@@ -5,6 +5,7 @@ import '../models/label_template_model.dart';
 import '../services/label_settings_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_text_styles.dart';
+import '../l10n/app_localizations.dart';
 
 /// Model cho từng element trong tem
 class LabelElement {
@@ -106,6 +107,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
     with SingleTickerProviderStateMixin {
   static const String _prefsKey = 'label_designer_elements';
   late TabController _tabController;
+  bool _didLoad = false;
 
   List<LabelElement> _elements = [];
   bool _isLoading = true;
@@ -133,88 +135,104 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
   final _fixedLine2Ctrl = TextEditingController();
   final _fixedLine3Ctrl = TextEditingController();
 
-  // Default elements với row layout
-  List<LabelElement> get _defaultElements => [
-    LabelElement(
-      id: 'name',
-      label: 'Tên SP',
-      fontSize: 1.4,
-      bold: true,
-      row: 0,
-      col: 0,
-      flex: 1.0,
-      spacing: 2,
-    ),
-    LabelElement(
-      id: 'detail',
-      label: 'Chi tiết',
-      fontSize: 1.0,
-      bold: true,
-      row: 1,
-      col: 0,
-      flex: 1.0,
-      spacing: 4,
-    ),
-    LabelElement(
-      id: 'price_kpk',
-      label: 'Giá KPK',
-      fontSize: 1.2,
-      bold: true,
-      row: 2,
-      col: 0,
-      flex: 1.0,
-      prefix: 'KPK: ',
-      spacing: 2,
-    ),
-    LabelElement(
-      id: 'price_cpk',
-      label: 'Giá CPK',
-      fontSize: 1.2,
-      bold: true,
-      row: 3,
-      col: 0,
-      flex: 1.0,
-      prefix: 'CPK: ',
-      spacing: 4,
-    ),
-    LabelElement(
-      id: 'imei',
-      label: 'IMEI',
-      fontSize: 0.8,
-      bold: false,
-      row: 4,
-      col: 0,
-      flex: 0.6,
-      prefix: '',
-      spacing: 0,
-      align: 'left',
-    ),
-    LabelElement(
-      id: 'qr_code',
-      label: 'QR',
-      fontSize: 1.0,
-      bold: false,
-      row: 4,
-      col: 1,
-      flex: 0.4,
-      spacing: 4,
-    ),
-    LabelElement(
-      id: 'shop_info',
-      label: 'Shop',
-      fontSize: 0.7,
-      bold: false,
-      row: 5,
-      col: 0,
-      flex: 1.0,
-      spacing: 0,
-    ),
-  ];
+  List<LabelElement> _buildDefaultElements(AppLocalizations loc) => [
+        LabelElement(
+          id: 'name',
+          label: loc.labelElementName,
+          fontSize: 1.4,
+          bold: true,
+          row: 0,
+          col: 0,
+          flex: 1.0,
+          spacing: 2,
+        ),
+        LabelElement(
+          id: 'detail',
+          label: loc.labelElementDetail,
+          fontSize: 1.0,
+          bold: true,
+          row: 1,
+          col: 0,
+          flex: 1.0,
+          spacing: 4,
+        ),
+        LabelElement(
+          id: 'price_kpk',
+          label: loc.labelElementPriceKpk,
+          fontSize: 1.2,
+          bold: true,
+          row: 2,
+          col: 0,
+          flex: 1.0,
+          prefix: loc.priceKpkPrefix,
+          spacing: 2,
+        ),
+        LabelElement(
+          id: 'price_cpk',
+          label: loc.labelElementPriceCpk,
+          fontSize: 1.2,
+          bold: true,
+          row: 3,
+          col: 0,
+          flex: 1.0,
+          prefix: loc.priceCpkPrefix,
+          spacing: 4,
+        ),
+        LabelElement(
+          id: 'label_note',
+          label: loc.labelElementLabelNote,
+          fontSize: 0.9,
+          bold: false,
+          row: 4,
+          col: 0,
+          flex: 1.0,
+          spacing: 2,
+        ),
+        LabelElement(
+          id: 'imei',
+          label: loc.labelElementImei,
+          fontSize: 0.8,
+          bold: false,
+          row: 5,
+          col: 0,
+          flex: 0.6,
+          prefix: '',
+          spacing: 0,
+          align: 'left',
+        ),
+        LabelElement(
+          id: 'qr_code',
+          label: loc.labelElementQr,
+          fontSize: 1.0,
+          bold: false,
+          row: 5,
+          col: 1,
+          flex: 0.4,
+          spacing: 4,
+        ),
+        LabelElement(
+          id: 'shop_info',
+          label: loc.labelElementShop,
+          fontSize: 0.7,
+          bold: false,
+          row: 6,
+          col: 0,
+          flex: 1.0,
+          spacing: 0,
+        ),
+      ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didLoad) return;
+    _didLoad = true;
     _loadAllData();
   }
 
@@ -244,6 +262,8 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
   Future<void> _loadElements() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = prefs.getString(_prefsKey);
+    final loc = AppLocalizations.of(context)!;
+    final defaults = _buildDefaultElements(loc);
 
     // Load paper size
     _paperSize = prefs.getString('label_paper_size') ?? '80';
@@ -254,12 +274,21 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
     if (jsonStr != null) {
       try {
         final List<dynamic> jsonList = jsonDecode(jsonStr);
-        _elements = jsonList.map((e) => LabelElement.fromJson(e)).toList();
+        final loaded = jsonList.map((e) => LabelElement.fromJson(e)).toList();
+        final loadedMap = {for (final el in loaded) el.id: el};
+        _elements = [
+          for (final def in defaults)
+            if (loadedMap.containsKey(def.id))
+              loadedMap[def.id]!.copyWith(label: def.label)
+            else
+              def,
+          ...loaded.where((el) => !defaults.any((d) => d.id == el.id)),
+        ];
       } catch (e) {
-        _elements = List.from(_defaultElements);
+        _elements = defaults;
       }
     } else {
-      _elements = List.from(_defaultElements);
+      _elements = defaults;
     }
 
     if (mounted) setState(() => _isLoading = false);
@@ -382,7 +411,8 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
             onPressed: () {
               Navigator.pop(ctx);
               setState(() {
-                _elements = List.from(_defaultElements);
+                    final loc = AppLocalizations.of(context)!;
+                    _elements = _buildDefaultElements(loc);
                 _selectedElementId = null;
               });
             },
@@ -629,6 +659,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                 Expanded(
                   child: Text(
                     '👆 Nhấn vào phần tử trên mẫu để chỉnh sửa\n'
+                    '🤏 Nhấn giữ rồi kéo thả để đổi vị trí\n'
                     '🔀 Gộp/tách dòng ở bảng điều khiển bên dưới',
                     style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
                   ),
@@ -728,7 +759,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                     children: rowElements.map((el) {
                       return Expanded(
                         flex: (el.flex * 10).round(),
-                        child: _buildPreviewElement(el),
+                        child: _buildDraggablePreviewElement(el),
                       );
                     }).toList(),
                   ),
@@ -739,6 +770,65 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
         ],
       ),
     );
+  }
+
+  Widget _buildDraggablePreviewElement(LabelElement el) {
+    return DragTarget<String>(
+      onWillAccept: (data) => data != null && data != el.id,
+      onAccept: (data) => _swapElementPosition(data, el.id),
+      builder: (context, candidateData, rejectedData) {
+        final highlight = candidateData.isNotEmpty;
+        return LongPressDraggable<String>(
+          data: el.id,
+          feedback: Material(
+            color: Colors.transparent,
+            child: Opacity(
+              opacity: 0.9,
+              child: _buildPreviewElement(el),
+            ),
+          ),
+          childWhenDragging: Opacity(
+            opacity: 0.3,
+            child: _buildPreviewElement(el),
+          ),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: highlight ? Colors.teal : Colors.transparent,
+                width: 1.2,
+              ),
+              color:
+                  highlight ? Colors.teal.withValues(alpha: 0.08) : Colors.transparent,
+            ),
+            child: _buildPreviewElement(el),
+          ),
+        );
+      },
+    );
+  }
+
+  void _swapElementPosition(String draggedId, String targetId) {
+    final draggedIndex = _elements.indexWhere((e) => e.id == draggedId);
+    final targetIndex = _elements.indexWhere((e) => e.id == targetId);
+    if (draggedIndex < 0 || targetIndex < 0) return;
+
+    final dragged = _elements[draggedIndex];
+    final target = _elements[targetIndex];
+
+    setState(() {
+      _elements[draggedIndex] = dragged.copyWith(
+        row: target.row,
+        col: target.col,
+      );
+      _elements[targetIndex] = target.copyWith(
+        row: dragged.row,
+        col: dragged.col,
+      );
+      _selectedElementId = draggedId;
+    });
   }
 
   Widget _buildPreviewElement(LabelElement el) {
@@ -758,6 +848,9 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
         break;
       case 'price_cpk':
         text = '${el.prefix}26,400K';
+        break;
+      case 'label_note':
+        text = 'BẢO HÀNH 6 THÁNG';
         break;
       case 'imei':
         text = '${el.prefix}3598765...123';

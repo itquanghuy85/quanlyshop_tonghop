@@ -34,6 +34,7 @@ import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import 'parts_inventory_view.dart';
 import 'repair_partner_view.dart';
+import '../l10n/app_localizations.dart';
 
 class RepairDetailView extends StatefulWidget {
   final Repair repair;
@@ -1518,7 +1519,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   validator: (v) {
                     final text = v?.trim() ?? '';
                     if (text.isEmpty) return 'SĐT không được trống';
-                    final err = UserService.validatePhone(text);
+                    final err = UserService.validatePhone(
+                      text,
+                      AppLocalizations.of(ctx)!,
+                    );
                     return err;
                   },
                 ),

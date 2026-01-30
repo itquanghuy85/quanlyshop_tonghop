@@ -23,6 +23,7 @@ class Product {
   bool isSynced;
   bool isPending; // Kho tạm - chưa có giá vốn
   String? pendingSupplier; // NCC tạm khi chưa xác nhận giá
+  String? labelNote; // Nội dung in trên tem
 
   Product({
     this.id,
@@ -49,6 +50,7 @@ class Product {
     this.isSynced = false,
     this.isPending = false,
     this.pendingSupplier,
+    this.labelNote,
   });
 
   Map<String, dynamic> toMap() {
@@ -77,6 +79,7 @@ class Product {
       'isSynced': isSynced ? 1 : 0,
       'isPending': isPending ? 1 : 0,
       'pendingSupplier': pendingSupplier,
+      'labelNote': labelNote,
     };
   }
 
@@ -135,6 +138,7 @@ class Product {
       isSynced: map['isSynced'] == 1,
       isPending: map['isPending'] == 1,
       pendingSupplier: map['pendingSupplier'],
+      labelNote: map['labelNote'],
     );
   }
 
@@ -163,6 +167,7 @@ class Product {
     int? updatedAt,
     bool? isPending,
     String? pendingSupplier,
+    String? labelNote,
   }) {
     return Product(
       id: id ?? this.id,
@@ -189,6 +194,7 @@ class Product {
       isSynced: isSynced ?? this.isSynced,
       isPending: isPending ?? this.isPending,
       pendingSupplier: pendingSupplier ?? this.pendingSupplier,
+      labelNote: labelNote ?? this.labelNote,
     );
   }
 }

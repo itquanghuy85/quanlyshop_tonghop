@@ -28,6 +28,7 @@ class StockEntryItem {
   final String? capacity;
   final String? color;
   final String? condition;
+  final String? labelNote; // Nội dung in trên tem
   
   // Chỉ phụ kiện/linh kiện
   final String? sku;
@@ -48,6 +49,7 @@ class StockEntryItem {
     this.capacity,
     this.color,
     this.condition,
+    this.labelNote,
     this.sku,
     this.unit,
     required this.productType,
@@ -66,6 +68,7 @@ class StockEntryItem {
       if (capacity != null && capacity!.isNotEmpty) 'capacity': capacity,
       if (color != null && color!.isNotEmpty) 'color': color,
       if (condition != null && condition!.isNotEmpty) 'condition': condition,
+      if (labelNote != null && labelNote!.isNotEmpty) 'labelNote': labelNote,
       if (sku != null && sku!.isNotEmpty) 'sku': sku,
       if (unit != null && unit!.isNotEmpty) 'unit': unit,
       'productType': productType,
@@ -85,6 +88,7 @@ class StockEntryItem {
       capacity: map['capacity'],
       color: map['color'],
       condition: map['condition'],
+      labelNote: map['labelNote'],
       sku: map['sku'],
       unit: map['unit'],
       productType: map['productType'] ?? 'DIEN_THOAI',
@@ -103,6 +107,7 @@ class StockEntryItem {
     String? capacity,
     String? color,
     String? condition,
+    String? labelNote,
     String? sku,
     String? unit,
     String? productType,
@@ -119,6 +124,7 @@ class StockEntryItem {
       capacity: capacity ?? this.capacity,
       color: color ?? this.color,
       condition: condition ?? this.condition,
+      labelNote: labelNote ?? this.labelNote,
       sku: sku ?? this.sku,
       unit: unit ?? this.unit,
       productType: productType ?? this.productType,

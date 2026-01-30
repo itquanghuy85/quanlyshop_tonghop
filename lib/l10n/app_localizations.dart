@@ -5387,6 +5387,510 @@ abstract class AppLocalizations {
   /// **'Import goods, export inventory, check parts'**
   String get inventoryManagementDesc;
 
+  /// No description provided for @printQrImeiInventory.
+  ///
+  /// In en, this message translates to:
+  /// **'PRINT QR IMEI INVENTORY'**
+  String get printQrImeiInventory;
+
+  /// No description provided for @designQrLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Design QR label'**
+  String get designQrLabel;
+
+  /// No description provided for @searchImeiNameModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search IMEI, device name, model...'**
+  String get searchImeiNameModel;
+
+  /// No description provided for @labelCustomization.
+  ///
+  /// In en, this message translates to:
+  /// **'Label customization'**
+  String get labelCustomization;
+
+  /// No description provided for @qrSize.
+  ///
+  /// In en, this message translates to:
+  /// **'QR size'**
+  String get qrSize;
+
+  /// No description provided for @columns.
+  ///
+  /// In en, this message translates to:
+  /// **'Columns'**
+  String get columns;
+
+  /// No description provided for @padding.
+  ///
+  /// In en, this message translates to:
+  /// **'Padding'**
+  String get padding;
+
+  /// No description provided for @modelDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Model/Detail'**
+  String get modelDetail;
+
+  /// No description provided for @printAll.
+  ///
+  /// In en, this message translates to:
+  /// **'PRINT ALL'**
+  String get printAll;
+
+  /// No description provided for @printSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'PRINT SELECTED'**
+  String get printSelected;
+
+  /// No description provided for @openPrintPage.
+  ///
+  /// In en, this message translates to:
+  /// **'OPEN PRINT PAGE'**
+  String get openPrintPage;
+
+  /// No description provided for @printQrImeiSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Printed QR IMEI successfully'**
+  String get printQrImeiSuccess;
+
+  /// No description provided for @printQrImeiFail.
+  ///
+  /// In en, this message translates to:
+  /// **'❌ Failed to print QR IMEI'**
+  String get printQrImeiFail;
+
+  /// No description provided for @imeiListLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load IMEI list: {error}'**
+  String imeiListLoadError(String error);
+
+  /// No description provided for @noImeiToPrint.
+  ///
+  /// In en, this message translates to:
+  /// **'No IMEI to print'**
+  String get noImeiToPrint;
+
+  /// No description provided for @imeiTotalCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Total: {count} IMEI'**
+  String imeiTotalCount(int count);
+
+  /// No description provided for @imeiWithValue.
+  ///
+  /// In en, this message translates to:
+  /// **'IMEI: {value}'**
+  String imeiWithValue(String value);
+
+  /// No description provided for @qrSizeXSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'XS'**
+  String get qrSizeXSmall;
+
+  /// No description provided for @qrSizeSmall.
+  ///
+  /// In en, this message translates to:
+  /// **'S'**
+  String get qrSizeSmall;
+
+  /// No description provided for @qrSizeMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'M'**
+  String get qrSizeMedium;
+
+  /// No description provided for @qrSizeLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'L'**
+  String get qrSizeLarge;
+
+  /// No description provided for @defaultProductName.
+  ///
+  /// In en, this message translates to:
+  /// **'PRODUCT'**
+  String get defaultProductName;
+
+  /// No description provided for @imeiPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'IMEI: '**
+  String get imeiPrefix;
+
+  /// No description provided for @printLabelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PRINT LABEL'**
+  String get printLabelTitle;
+
+  /// No description provided for @notAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'N/A'**
+  String get notAvailable;
+
+  /// No description provided for @productInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PRODUCT INFO'**
+  String get productInfoTitle;
+
+  /// No description provided for @productNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name:'**
+  String get productNameLabel;
+
+  /// No description provided for @productDetailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Detail:'**
+  String get productDetailLabel;
+
+  /// No description provided for @productDetailLabelPlain.
+  ///
+  /// In en, this message translates to:
+  /// **'Detail'**
+  String get productDetailLabelPlain;
+
+  /// No description provided for @imeiLabelWithColon.
+  ///
+  /// In en, this message translates to:
+  /// **'IMEI:'**
+  String get imeiLabelWithColon;
+
+  /// No description provided for @originalPriceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Original price:'**
+  String get originalPriceLabel;
+
+  /// No description provided for @labelModeAutoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AUTO'**
+  String get labelModeAutoTitle;
+
+  /// No description provided for @labelModeAutoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use label designer settings'**
+  String get labelModeAutoSubtitle;
+
+  /// No description provided for @labelModeCustomTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'CUSTOM'**
+  String get labelModeCustomTitle;
+
+  /// No description provided for @labelModeCustomSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter price & custom content'**
+  String get labelModeCustomSubtitle;
+
+  /// No description provided for @labelCustomContentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'CUSTOM LABEL CONTENT'**
+  String get labelCustomContentTitle;
+
+  /// No description provided for @labelKpkExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'📌 KPK = No accessories (bare device price)'**
+  String get labelKpkExplain;
+
+  /// No description provided for @labelCpkExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'📌 CPK = With accessories (charger, cable, case, glass...)'**
+  String get labelCpkExplain;
+
+  /// No description provided for @labelElementName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get labelElementName;
+
+  /// No description provided for @labelElementDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Detail'**
+  String get labelElementDetail;
+
+  /// No description provided for @labelElementPriceKpk.
+  ///
+  /// In en, this message translates to:
+  /// **'KPK price'**
+  String get labelElementPriceKpk;
+
+  /// No description provided for @labelElementPriceCpk.
+  ///
+  /// In en, this message translates to:
+  /// **'CPK price'**
+  String get labelElementPriceCpk;
+
+  /// No description provided for @labelElementLabelNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Label note'**
+  String get labelElementLabelNote;
+
+  /// No description provided for @labelElementImei.
+  ///
+  /// In en, this message translates to:
+  /// **'IMEI'**
+  String get labelElementImei;
+
+  /// No description provided for @labelElementQr.
+  ///
+  /// In en, this message translates to:
+  /// **'QR code'**
+  String get labelElementQr;
+
+  /// No description provided for @labelElementShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop info'**
+  String get labelElementShop;
+
+  /// No description provided for @priceKpkLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'KPK price:'**
+  String get priceKpkLabel;
+
+  /// No description provided for @priceCpkLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'CPK price:'**
+  String get priceCpkLabel;
+
+  /// No description provided for @priceKpkPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'KPK: '**
+  String get priceKpkPrefix;
+
+  /// No description provided for @priceCpkPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'CPK: '**
+  String get priceCpkPrefix;
+
+  /// No description provided for @currencySymbol.
+  ///
+  /// In en, this message translates to:
+  /// **'₫'**
+  String get currencySymbol;
+
+  /// No description provided for @deviceNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Device name'**
+  String get deviceNameLabel;
+
+  /// No description provided for @qrCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'QR Code'**
+  String get qrCodeLabel;
+
+  /// No description provided for @addCustomLinesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add custom lines (for large paper)'**
+  String get addCustomLinesLabel;
+
+  /// No description provided for @customLine1Hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Line 1: e.g. 12 MONTH WARRANTY'**
+  String get customLine1Hint;
+
+  /// No description provided for @customLine2Hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Line 2: e.g. 7-DAY RETURN'**
+  String get customLine2Hint;
+
+  /// No description provided for @customLine3Hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Line 3: e.g. HOTLINE: 0123.456.789'**
+  String get customLine3Hint;
+
+  /// No description provided for @printQuantityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Print quantity:'**
+  String get printQuantityLabel;
+
+  /// No description provided for @labelPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LABEL PREVIEW'**
+  String get labelPreviewTitle;
+
+  /// No description provided for @labelPreviewKpk.
+  ///
+  /// In en, this message translates to:
+  /// **'KPK PRICE: {price}'**
+  String labelPreviewKpk(String price);
+
+  /// No description provided for @labelPreviewCpk.
+  ///
+  /// In en, this message translates to:
+  /// **'CPK PRICE: {price}'**
+  String labelPreviewCpk(String price);
+
+  /// No description provided for @printingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PRINTING...'**
+  String get printingLabel;
+
+  /// No description provided for @printLabelQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'PRINT {count} LABELS'**
+  String printLabelQuantity(int count);
+
+  /// No description provided for @printLabelSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Printed {count} label(s) successfully!'**
+  String printLabelSuccess(int count);
+
+  /// No description provided for @printLabelPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ Printed {count}/{total} labels'**
+  String printLabelPartial(int count, int total);
+
+  /// No description provided for @printLabelError.
+  ///
+  /// In en, this message translates to:
+  /// **'Print label error: {error}'**
+  String printLabelError(String error);
+
+  /// No description provided for @printLabelFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'❌ Label print failed'**
+  String get printLabelFailed;
+
+  /// No description provided for @confirmCostMoveToMainStock.
+  ///
+  /// In en, this message translates to:
+  /// **'CONFIRM PRICE - MOVE TO MAIN STOCK'**
+  String get confirmCostMoveToMainStock;
+
+  /// No description provided for @createOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'CREATE ORDER'**
+  String get createOrder;
+
+  /// No description provided for @nameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Name is required'**
+  String get nameRequired;
+
+  /// No description provided for @phoneLengthInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number must be 9-12 digits'**
+  String get phoneLengthInvalid;
+
+  /// No description provided for @imeiMinLength.
+  ///
+  /// In en, this message translates to:
+  /// **'IMEI must be at least 4 digits'**
+  String get imeiMinLength;
+
+  /// No description provided for @imeiLengthInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'IMEI must be 4-5 digits (short code) or 15 digits (standard IMEI)'**
+  String get imeiLengthInvalid;
+
+  /// No description provided for @imeiDigitsOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'IMEI must contain digits only'**
+  String get imeiDigitsOnly;
+
+  /// No description provided for @modelMinLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Model must be at least 2 characters'**
+  String get modelMinLength;
+
+  /// No description provided for @modelMaxLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Model must be at most 50 characters'**
+  String get modelMaxLength;
+
+  /// No description provided for @fieldRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'{field} is required'**
+  String fieldRequired(String field);
+
+  /// No description provided for @noNetworkMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'No network connection. Please check internet.'**
+  String get noNetworkMessage;
+
+  /// No description provided for @syncSuccessMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Data synced successfully!'**
+  String get syncSuccessMessage;
+
+  /// No description provided for @syncErrorMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync error: {error}'**
+  String syncErrorMessage(String error);
+
+  /// No description provided for @onlineStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get onlineStatus;
+
+  /// No description provided for @offlineStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get offlineStatus;
+
+  /// No description provided for @syncingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing...'**
+  String get syncingLabel;
+
+  /// No description provided for @syncLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get syncLabel;
+
   /// No description provided for @salesAndDebt.
   ///
   /// In en, this message translates to:
@@ -5512,6 +6016,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'💳 \"Deduction/Tax Settings\" icon:\n• Personal deduction: 11 million\n• SI 8%, HI 1.5%, UI 1%'**
   String get taxAndInsuranceDesc;
+
+  /// No description provided for @labelNoteFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Label note'**
+  String get labelNoteFieldLabel;
+
+  /// No description provided for @labelNoteFieldHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown on the label (optional)'**
+  String get labelNoteFieldHint;
 
   /// No description provided for @goToSalaryTable.
   ///

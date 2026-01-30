@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../l10n/app_localizations.dart';
 import '../constants/product_constants.dart';
 import '../models/stock_entry_model.dart';
 import '../models/supplier_model.dart';
@@ -45,6 +46,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   // Controllers - Điện thoại
   final _imeiCtrl = TextEditingController();
   final _modelCtrl = TextEditingController();
+  final _labelNoteCtrl = TextEditingController();
 
   // Controllers - Phụ kiện/Linh kiện
   final _skuCtrl = TextEditingController();
@@ -219,6 +221,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
 
       if (_productType == 'DIEN_THOAI') {
         _imeiCtrl.text = item.imei ?? '';
+        _labelNoteCtrl.text = item.labelNote ?? '';
         // Validate brand - chỉ set nếu có trong list
         if (item.brand != null && _brands.contains(item.brand)) {
           _selectedBrand = item.brand;
@@ -273,6 +276,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     _notesCtrl.dispose();
     _imeiCtrl.dispose();
     _modelCtrl.dispose();
+    _labelNoteCtrl.dispose();
     _skuCtrl.dispose();
     super.dispose();
   }
@@ -364,6 +368,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       capacity: _isPhone ? _selectedCapacity : null,
       color: _isPhone ? _selectedColor : null,
       condition: _isPhone ? _selectedCondition : null,
+      labelNote: _isPhone ? _labelNoteCtrl.text.trim() : null,
       // Phụ kiện
       sku: !_isPhone ? _skuCtrl.text.trim().toUpperCase() : null,
       unit: !_isPhone ? _selectedUnit : null,
@@ -712,6 +717,23 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+
+            TextFormField(
+              controller: _labelNoteCtrl,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.labelNoteFieldLabel,
+                hintText: AppLocalizations.of(context)!.labelNoteFieldHint,
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.print, size: 20),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+              style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
             ),
             const SizedBox(height: 12),
 

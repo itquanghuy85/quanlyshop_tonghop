@@ -1,52 +1,53 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import '../l10n/app_localizations.dart';
 import 'encryption_service.dart';
 import 'claims_service.dart';
 import 'payment_intent_service.dart';
 
 class UserService {
   // Validate input fields
-  static String? validateName(String name) {
-    if (name.trim().isEmpty) return 'Tên không được để trống';
+  static String? validateName(String name, AppLocalizations loc) {
+    if (name.trim().isEmpty) return loc.nameRequired;
     return null;
   }
 
-  static String? validatePhone(String phone) {
+  static String? validatePhone(String phone, AppLocalizations loc) {
     // Cho phép số điện thoại trống (optional)
     if (phone.trim().isEmpty) return null;
     final cleaned = phone.replaceAll(RegExp(r'[^\d]'), '');
     if (cleaned.length < 9 || cleaned.length > 12) {
-      return 'Số điện thoại phải có 9-12 chữ số';
+      return loc.phoneLengthInvalid;
     }
     return null;
   }
 
-  static String? validateAddress(String address) {
+  static String? validateAddress(String address, AppLocalizations loc) {
     // Cho phép địa chỉ trống (optional)
     if (address.trim().isEmpty) return null;
     return null;
   }
 
-  static String? validateIMEI(String imei) {
+  static String? validateIMEI(String imei, AppLocalizations loc) {
     if (imei.isEmpty) return null; // IMEI có thể để trống cho phụ kiện
     // Chấp nhận: 4-5 số (mã ngắn nội bộ) hoặc 15 số (IMEI chuẩn)
     if (imei.length < 4) {
-      return 'IMEI phải có ít nhất 4 chữ số';
+      return loc.imeiMinLength;
     }
     if (imei.length > 5 && imei.length != 15) {
-      return 'IMEI phải là 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)';
+      return loc.imeiLengthInvalid;
     }
     if (!RegExp(r'^\d+$').hasMatch(imei)) {
-      return 'IMEI chỉ được chứa số';
+      return loc.imeiDigitsOnly;
     }
     return null;
   }
 
-  static String? validateModel(String model) {
-    if (model.trim().isEmpty) return 'Model không được để trống';
-    if (model.trim().length < 2) return 'Model phải có ít nhất 2 ký tự';
-    if (model.trim().length > 50) return 'Model không được quá 50 ký tự';
+  static String? validateModel(String model, AppLocalizations loc) {
+    if (model.trim().isEmpty) return loc.modelRequired;
+    if (model.trim().length < 2) return loc.modelMinLength;
+    if (model.trim().length > 50) return loc.modelMaxLength;
     return null;
   }
 
@@ -422,13 +423,14 @@ class UserService {
     required String phone,
     required String address,
     required String role,
+    required AppLocalizations loc,
     String? photoUrl,
     String? shopId,
   }) async {
     // Validate input
-    final nameError = validateName(name);
-    final phoneError = validatePhone(phone);
-    final addressError = validateAddress(address);
+    final nameError = validateName(name, loc);
+    final phoneError = validatePhone(phone, loc);
+    final addressError = validateAddress(address, loc);
     if (nameError != null || phoneError != null || addressError != null) {
       throw Exception(
         [

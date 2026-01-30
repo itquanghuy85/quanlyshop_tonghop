@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/user_service.dart';
 import '../services/claims_service.dart';
 import '../theme/app_text_styles.dart';
+import '../l10n/app_localizations.dart';
 
 String getRoleDisplayName(String role) {
   switch (role) {
@@ -885,6 +886,7 @@ class UsersTab extends StatelessWidget {
                   phone: phoneController.text,
                   address: addressController.text,
                   role: roleController.text,
+                  loc: AppLocalizations.of(context)!,
                   shopId: shopIdController.text.isEmpty
                       ? null
                       : shopIdController.text,

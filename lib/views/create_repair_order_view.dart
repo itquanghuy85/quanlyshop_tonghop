@@ -30,6 +30,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/event_bus.dart';
 import '../widgets/custom_app_bar.dart';
+import '../l10n/app_localizations.dart';
 
 class CreateRepairOrderView extends StatefulWidget {
   final String role;
@@ -256,7 +257,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     }
 
     // Kiểm tra phone format
-    final phoneError = UserService.validatePhone(phone);
+    final phoneError = UserService.validatePhone(
+      phone,
+      AppLocalizations.of(context)!,
+    );
     if (phoneError != null) {
       NotificationService.showSnackBar(phoneError, color: Colors.red);
       return;

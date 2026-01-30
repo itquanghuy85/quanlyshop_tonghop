@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/user_service.dart';
 import '../theme/app_text_styles.dart';
+import '../l10n/app_localizations.dart';
 
 class ValidatedTextField extends StatefulWidget {
   final TextEditingController controller;
@@ -66,10 +67,12 @@ class _ValidatedTextFieldState extends State<ValidatedTextField> {
 
     final value = widget.controller.text;
     String? error;
+    final loc = AppLocalizations.of(context);
+    if (loc == null) return;
 
     // Required check
     if (widget.required && value.trim().isEmpty) {
-      error = '${widget.label} không được để trống';
+      error = loc.fieldRequired(widget.label);
     }
     // Custom validation
     else if (widget.customValidator != null) {
@@ -77,24 +80,24 @@ class _ValidatedTextFieldState extends State<ValidatedTextField> {
     }
     // Built-in validations
     else if (widget.keyboardType == TextInputType.phone) {
-      error = UserService.validatePhone(value);
+      error = UserService.validatePhone(value, loc);
     } else if (widget.label.toLowerCase().contains('email')) {
       // Simple email validation
       final emailReg = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
       if (value.isNotEmpty && !emailReg.hasMatch(value)) {
-        error = 'Email không hợp lệ';
+        error = loc.invalidEmailFormat;
       }
     } else if (widget.label.toLowerCase().contains('tên') ||
         widget.label.toLowerCase().contains('name')) {
-      error = UserService.validateName(value);
+      error = UserService.validateName(value, loc);
     } else if (widget.label.toLowerCase().contains('imei') ||
         widget.label.toLowerCase().contains('serial')) {
-      error = UserService.validateIMEI(value);
+      error = UserService.validateIMEI(value, loc);
     } else if (widget.label.toLowerCase().contains('model')) {
-      error = UserService.validateModel(value);
+      error = UserService.validateModel(value, loc);
     } else if (widget.label.toLowerCase().contains('địa chỉ') ||
         widget.label.toLowerCase().contains('address')) {
-      error = UserService.validateAddress(value);
+      error = UserService.validateAddress(value, loc);
     }
 
     setState(() => _errorText = error);
