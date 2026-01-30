@@ -7,7 +7,10 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/utils/money_utils.dart';
+import '../l10n/app_localizations.dart';
 import '../services/event_bus.dart';
+import '../models/repair_model.dart';
+import '../models/sale_order_model.dart';
 import 'order_list_view.dart';
 import 'revenue_view.dart';
 import 'inventory_view.dart';
@@ -21,7 +24,7 @@ import 'debt_view.dart';
 import 'warranty_view.dart';
 import 'shop_settings_view.dart';
 import 'advanced_chat_view.dart';
-import 'thermal_printer_design_view.dart';
+import 'printer_settings_view.dart';
 import 'super_admin_view.dart' as admin_view;
 import 'staff_list_view.dart';
 import 'qr_scan_view.dart';
@@ -46,6 +49,7 @@ import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
 import 'pending_payments_list_view.dart';
+import 'user_guide_view.dart';
 import '../data/db_helper.dart';
 import '../widgets/pending_stock_widget.dart';
 import '../widgets/pending_payments_widget.dart';
@@ -113,6 +117,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   int unreadChatCount = 0;
   String _latestChatMessage = ''; // Tin nhắn mới nhất
   String _latestChatSender = ''; // Người gửi tin mới nhất
+  Locale _currentLocale = const Locale('vi');
+  bool _tabsInitialized = false;
   bool _notificationWorking = false; // Trạng thái thông báo
   String _userName = ''; // Tên hiển thị của người dùng
   String _shopName = ''; // Tên cửa hàng
@@ -125,7 +131,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     debugPrint('HomeView: initState STARTED - instance created');
-    _initializeTabConfigs();
 
     // Delay các tác vụ nặng sau khi UI render xong để tránh treo máy yếu
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -168,6 +173,56 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         }
       });
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Localizations.localeOf(context);
+    if (_currentLocale.languageCode != locale.languageCode) {
+      _currentLocale = locale;
+    }
+
+    if (!_tabsInitialized) {
+      _initializeTabConfigs();
+      _tabsInitialized = true;
+    }
+  }
+
+  void _changeLanguage(Locale locale) {
+    _currentLocale = locale;
+    widget.setLocale?.call(locale);
+    setState(() {});
+  }
+
+  void _showLanguageSheet() {
+    final loc = AppLocalizations.of(context)!;
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.flag, color: AppColors.primary),
+              title: Text(loc.vietnamese),
+              onTap: () {
+                Navigator.pop(context);
+                _changeLanguage(const Locale('vi'));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.flag_circle, color: AppColors.primary),
+              title: Text(loc.english),
+              onTap: () {
+                Navigator.pop(context);
+                _changeLanguage(const Locale('en'));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _initializeTabConfigs() {
@@ -957,15 +1012,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   Future<void> _initialSetup() async {
     try {
-      // Đợi 1 frame để UI render trước
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Load UI ngay lập tức với data local, không chờ Firestore
+      // 1. Load permissions và stats từ local trước (nhanh)
+      _updatePermissions(); // Không await - chạy song song
+      _loadStats(); // Không await - chạy song song
+      
+      // 2. Load user info ở background (chậm hơn vì cần Firestore)
+      _loadUserAndShopInfo(); // Không await
 
       final prefs = await SharedPreferences.getInstance();
       final currentUser = FirebaseAuth.instance.currentUser;
       final lastUserId = prefs.getString('lastUserId');
-
-      // Load tên người dùng và tên shop
-      _loadUserAndShopInfo();
 
       // Khi đổi user, KHÔNG xóa toàn bộ data local nữa
       // Chỉ cần update lastUserId và sync lại từ cloud
@@ -979,32 +1036,29 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         await prefs.setString('lastUserId', currentUser.uid);
         if (currentUser.email != null) {
           await UserService.syncUserInfo(currentUser.uid, currentUser.email!);
-          // Download lại dữ liệu từ cloud cho shop mới
-          try {
-            await SyncService.downloadAllFromCloud().timeout(
-              const Duration(seconds: 20),
-              onTimeout: () {
-                debugPrint('HomeView: Sync timeout khi đổi user');
-              },
-            );
-          } catch (e) {
+          // Download lại dữ liệu từ cloud cho shop mới (background)
+          SyncService.downloadAllFromCloud().timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {
+              debugPrint('HomeView: Sync timeout khi đổi user');
+            },
+          ).then((_) {
+            if (mounted) _loadStats(); // Reload sau khi sync xong
+          }).catchError((e) {
             debugPrint('HomeView: Lỗi sync khi đổi user: $e');
-          }
+          });
         }
       }
 
-      // Đợi 1 frame trước khi clean duplicate
-      await Future.delayed(Duration.zero);
-      await db.cleanDuplicateData();
-
-      // Load stats và permissions
-      debugPrint('HomeView: Loading stats and permissions...');
-      await _loadStats();
-      await _updatePermissions();
+      // Clean duplicate ở background, không block UI
+      Future.delayed(const Duration(seconds: 2), () {
+        db.cleanDuplicateData();
+      });
+      
     } catch (e) {
       debugPrint('Error in _initialSetup: $e');
       // Still try to load permissions
-      await _updatePermissions();
+      _updatePermissions();
     }
   }
 
@@ -1014,7 +1068,22 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      // Lấy tên hiển thị từ Firestore
+      // ====== TỐI ƯU: Load từ cache trước, hiện UI ngay ======
+      final prefs = await SharedPreferences.getInstance();
+      final cachedUserName = prefs.getString('cached_userName_${user.uid}');
+      final cachedShopName = prefs.getString('cached_shopName_${user.uid}');
+      
+      // Hiển thị cache ngay lập tức (nếu có)
+      if (cachedUserName != null || cachedShopName != null) {
+        if (mounted) {
+          setState(() {
+            if (cachedUserName != null) _userName = cachedUserName;
+            if (cachedShopName != null) _shopName = cachedShopName;
+          });
+        }
+      }
+
+      // Lấy tên hiển thị từ Firestore (background)
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -1045,6 +1114,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         if (shopDoc.exists) {
           shopName = shopDoc.data()?['name'] ?? '';
         }
+      }
+
+      // ====== Cache lại để load nhanh lần sau ======
+      if (displayName.isNotEmpty) {
+        await prefs.setString('cached_userName_${user.uid}', displayName);
+      }
+      if (shopName.isNotEmpty) {
+        await prefs.setString('cached_shopName_${user.uid}', shopName);
       }
 
       if (mounted) {
@@ -1137,24 +1214,21 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     _isLoadingStats = true;
 
     try {
-      // Yield để UI không bị treo
-      await Future.delayed(Duration.zero);
+      // ====== TỐI ƯU: Chạy song song tất cả queries ======
+      final results = await Future.wait([
+        db.getAllRepairs(),
+        db.getAllSales(),
+        db.getAllDebts(),
+        db.getAllExpenses(),
+        db.getAllDebtPaymentsWithDetails(),
+      ]);
 
-      final repairs = await db.getAllRepairs();
-      await Future.delayed(Duration.zero); // Yield
-
-      final sales = await db.getAllSales();
-      await Future.delayed(Duration.zero); // Yield
-
-      final debtsRaw = await db.getAllDebts();
+      final repairs = results[0] as List<Repair>;
+      final sales = results[1] as List<SaleOrder>;
+      final debtsRaw = results[2] as List<Map<String, dynamic>>;
       final debts = debtsRaw.where((d) => (d['deleted'] ?? 0) != 1).toList();
-      await Future.delayed(Duration.zero); // Yield
-
-      final expenses = await db.getAllExpenses();
-
-      // FIX BUG-CC-006: Thêm debt_payments để tính thu nợ khách hàng (đồng nhất với cash_closing_view)
-      final debtPayments = await db.getAllDebtPaymentsWithDetails();
-      await Future.delayed(Duration.zero); // Yield
+      final expenses = results[3] as List<Map<String, dynamic>>;
+      final debtPayments = results[4] as List<Map<String, dynamic>>;
 
       int pendingR = repairs
           .where((r) => r.status == 1 || r.status == 2)
@@ -1724,6 +1798,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
           // CẢNH BÁO
           _buildAlerts(),
+
+          const SizedBox(height: 20),
+          
+          // HƯỚNG DẪN SỬ DỤNG - Lối tắt ở cuối trang
+          _buildUserGuideShortcut(),
 
           const SizedBox(height: 50),
         ],
@@ -3879,9 +3958,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
-                'HƯỚNG DẪN TÍNH LƯƠNG',
+                AppLocalizations.of(context)!.salaryCalculationGuide,
                 style: TextStyle(
                   fontSize: AppTextStyles.h3,
                   fontWeight: FontWeight.bold,
@@ -3897,44 +3976,33 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildHelpSection(
-                '📋 Truy cập bảng lương',
-                'Vào tab Nhân sự → Nhấn "LƯƠNG Tính lương" để xem bảng lương toàn bộ nhân viên.',
+                AppLocalizations.of(context)!.accessSalaryTable,
+                AppLocalizations.of(context)!.accessSalaryDesc,
                 Colors.blue,
               ),
               _buildHelpSection(
-                '⚙️ Cài đặt lương',
-                '• Cài đặt mặc định: Icon ⚙️ → Tab "MẶC ĐỊNH"\n'
-                    '• Cài đặt riêng: Tab "NHÂN VIÊN" → Chọn NV → "Cài đặt riêng"',
+                AppLocalizations.of(context)!.salarySettings,
+                AppLocalizations.of(context)!.salarySettingsDesc,
                 Colors.green,
               ),
               _buildHelpSection(
-                '💰 Các thành phần lương',
-                '• Lương cơ bản (tháng/ngày/giờ)\n'
-                    '• Hoa hồng bán hàng (% hoặc cố định)\n'
-                    '• Hoa hồng sửa chữa\n'
-                    '• Phụ cấp (đi lại, ăn trưa, điện thoại...)\n'
-                    '• Tăng ca OT (hệ số 150%, 200%...)',
+                AppLocalizations.of(context)!.salaryComponents,
+                AppLocalizations.of(context)!.salaryComponentsDesc,
                 Colors.orange,
               ),
               _buildHelpSection(
-                '📊 Xem chi tiết',
-                'Nhấn vào tên nhân viên để xem:\n'
-                    '• THU NHẬP: Lương + Hoa hồng + Phụ cấp + Thưởng + OT\n'
-                    '• KHẤU TRỪ: Thuế TNCN + BHXH + BHYT + BHTN\n'
-                    '• THỰC LĨNH: Tổng thu nhập - Tổng khấu trừ',
+                AppLocalizations.of(context)!.viewDetails,
+                AppLocalizations.of(context)!.viewDetailsDesc,
                 Colors.purple,
               ),
               _buildHelpSection(
-                '🖨️ In phiếu lương',
-                '• In tổng hợp: Icon 🖨️ → "In bảng lương tổng hợp"\n'
-                    '• In cá nhân: Mở chi tiết NV → "In phiếu lương"',
+                AppLocalizations.of(context)!.printSalarySlip,
+                AppLocalizations.of(context)!.printSalaryDesc,
                 Colors.teal,
               ),
               _buildHelpSection(
-                '💵 Thuế & Bảo hiểm',
-                'Icon 💳 "Cài đặt Khấu trừ/Thuế":\n'
-                    '• Giảm trừ cá nhân: 11 triệu\n'
-                    '• BHXH 8%, BHYT 1.5%, BHTN 1%',
+                AppLocalizations.of(context)!.taxAndInsurance,
+                AppLocalizations.of(context)!.taxAndInsuranceDesc,
                 Colors.red,
               ),
             ],
@@ -3943,8 +4011,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'ĐÃ HIỂU',
+            child: Text(
+              AppLocalizations.of(context)!.understood,
               style: TextStyle(
                 color: Colors.orange,
                 fontWeight: FontWeight.bold,
@@ -3960,7 +4028,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               );
             },
             icon: const Icon(Icons.arrow_forward, size: 16),
-            label: const Text('ĐI ĐẾN BẢNG LƯƠNG'),
+            label: Text(AppLocalizations.of(context)!.goToSalaryTable),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
@@ -4561,6 +4629,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Widget _buildSettingsTab() {
+    final loc = AppLocalizations.of(context)!;
+    final currentLangLabel =
+        _currentLocale.languageCode == 'en' ? loc.english : loc.vietnamese;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
@@ -4571,6 +4643,20 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             style: AppTextStyles.headline5.copyWith(color: AppColors.onSurface),
           ),
           const SizedBox(height: 20),
+
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              leading: const Icon(Icons.language, color: AppColors.primary),
+              title: Text(loc.languageApp),
+              subtitle: Text(loc.languageAndInterface),
+              trailing: Text(currentLangLabel),
+              onTap: _showLanguageSheet,
+            ),
+          ),
+          const SizedBox(height: 12),
 
           // CÀI ĐẶT CỬA HÀNG - Đưa ra ngoài đầu tiên
           if (hasFullAccess)
@@ -4608,10 +4694,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => const ThermalPrinterDesignView(),
+                builder: (_) => const PrinterSettingsView(),
               ),
             ),
-            subtitle: "Thiết kế mẫu in cho máy in nhiệt.",
+            subtitle: "Cài đặt kết nối và thiết kế mẫu in.",
           ),
           if (_isSuperAdmin)
             _tabMenuItem(
@@ -5320,6 +5406,85 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               textAlign: TextAlign.center,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Lối tắt đến Hướng dẫn sử dụng ở cuối Home
+  Widget _buildUserGuideShortcut() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => UserGuideView(userRole: widget.role),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.purple.shade50, Colors.purple.shade100],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.purple.shade200),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.purple.shade400, Colors.purple.shade600],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.menu_book_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '📚 Hướng dẫn sử dụng',
+                      style: TextStyle(
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Xem hướng dẫn chi tiết từng tính năng trong app',
+                      style: TextStyle(
+                        color: Colors.purple.shade700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.purple.shade400,
+                size: 16,
+              ),
+            ],
+          ),
         ),
       ),
     );

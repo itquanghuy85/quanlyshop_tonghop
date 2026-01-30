@@ -17,6 +17,16 @@ class BluetoothPrinterConfig {
         name: json['name'] as String,
         macAddress: json['macAddress'] as String,
       );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BluetoothPrinterConfig &&
+          runtimeType == other.runtimeType &&
+          macAddress == other.macAddress;
+
+  @override
+  int get hashCode => macAddress.hashCode;
 }
 
 class BluetoothPrinterService {
@@ -181,20 +191,20 @@ class BluetoothPrinterService {
         }
       }
 
-      // 3. GIÁ BÁN KPK (Không phụ kiện)
+      // 3. GIÁ BÁN KPK (Không phụ kiện) - font lớn
       if (showKPK) {
         bytes.addAll(generator.text(
           "GIA KPK: ${labelData['price'] ?? '0'}",
-          styles: const PosStyles(align: PosAlign.center, bold: true),
+          styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2),
         ));
       }
 
-      // 4. GIÁ BÁN CPK (Có phụ kiện)
+      // 4. GIÁ BÁN CPK (Có phụ kiện) - font lớn
       if (showCPK) {
         final priceCPK = labelData['priceCPK'] ?? labelData['price'] ?? '0';
         bytes.addAll(generator.text(
           "GIA CPK: $priceCPK",
-          styles: const PosStyles(align: PosAlign.center, bold: true),
+          styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2),
         ));
       }
 

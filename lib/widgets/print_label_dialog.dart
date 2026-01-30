@@ -131,7 +131,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "IN TEM SẢN PHẨM",
+                  "IN TEM",
                   style: AppTextStyles.headline4.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

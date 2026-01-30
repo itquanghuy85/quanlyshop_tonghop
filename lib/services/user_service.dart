@@ -30,8 +30,12 @@ class UserService {
 
   static String? validateIMEI(String imei) {
     if (imei.isEmpty) return null; // IMEI có thể để trống cho phụ kiện
-    if (imei.length != 5) {
-      return 'IMEI phải có đúng 5 chữ số cuối';
+    // Chấp nhận: 4-5 số (mã ngắn nội bộ) hoặc 15 số (IMEI chuẩn)
+    if (imei.length < 4) {
+      return 'IMEI phải có ít nhất 4 chữ số';
+    }
+    if (imei.length > 5 && imei.length != 15) {
+      return 'IMEI phải là 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)';
     }
     if (!RegExp(r'^\d+$').hasMatch(imei)) {
       return 'IMEI chỉ được chứa số';

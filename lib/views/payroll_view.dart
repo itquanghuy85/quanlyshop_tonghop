@@ -315,10 +315,10 @@ class _PayrollViewState extends State<PayrollView> {
           elevation: 0,
           title: const Text('BẢNG LƯƠNG'),
         ),
-        body: const Center(
+        body: Center(
           child: Text(
             "Bạn không có quyền truy cập tính năng này",
-            style: AppTextStyles.body1.copyWith(color: AppColors.onSurface.withOpacity(0.6)),
+            style: AppTextStyles.body1.copyWith(color: AppColors.onSurface.withValues(alpha: 0.6)),
           ),
         ),
       );

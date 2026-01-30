@@ -312,8 +312,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // User thường: Kiểm tra và đảm bảo có shopId
     String? currentShopId;
     try {
-      // CRITICAL: Sử dụng ensureShopId thay vì getCurrentShopId để đảm bảo có shopId
-      currentShopId = await UserService.ensureShopId(maxRetries: 5);
+      // TỐI ƯU: Giảm maxRetries từ 5 xuống 2 để không chờ quá lâu
+      currentShopId = await UserService.ensureShopId(maxRetries: 2);
       debugPrint('✅ _getRoleAfterSync: Got shopId=$currentShopId');
     } catch (e) {
       debugPrint('❌ _getRoleAfterSync: Cannot get shopId: $e');
@@ -321,7 +321,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       try {
         debugPrint('🔄 _getRoleAfterSync: Attempting final claims refresh...');
         await ClaimsService().refreshMyClaims();
-        await Future.delayed(const Duration(seconds: 3));
+        // TỐI ƯU: Giảm delay từ 3s xuống 1s
+        await Future.delayed(const Duration(seconds: 1));
         currentShopId = await UserService.getCurrentShopId();
       } catch (_) {}
     }
@@ -337,29 +338,34 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
 
     // Download dữ liệu từ cloud về (chỉ khi có shopId)
+    // ====== TỐI ƯU: Chạy BACKGROUND, không block UI ======
     if (currentShopId != null && currentShopId.isNotEmpty) {
-      try {
-        await SyncService.downloadAllFromCloud().timeout(
-          const Duration(seconds: 20),
-          onTimeout: () {
-            debugPrint('⚠️ Sync timeout sau 20s, tiếp tục với data local...');
-          },
-        );
-        debugPrint('✅ Sync hoàn thành');
+      // Chạy tất cả các init ở background - KHÔNG await
+      Future.microtask(() async {
+        try {
+          debugPrint('🔄 Bắt đầu sync ở background...');
+          await SyncService.downloadAllFromCloud().timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {
+              debugPrint('⚠️ Sync timeout sau 20s, tiếp tục với data local...');
+            },
+          );
+          debugPrint('✅ Sync hoàn thành');
 
-        // Initialize SyncOrchestrator AFTER successful login and data sync
-        await _initSyncOrchestrator();
+          // Initialize các services ở background
+          await _initSyncOrchestrator();
 
-        // Khởi tạo CashClosingNotifier
-        await CashClosingNotifier.instance.init();
-        debugPrint('✅ CashClosingNotifier initialized');
+          // Khởi tạo CashClosingNotifier
+          await CashClosingNotifier.instance.init();
+          debugPrint('✅ CashClosingNotifier initialized');
 
-        // Khởi tạo PaymentIntentService (load pending intents từ DB)
-        await PaymentIntentService.initialize();
-        debugPrint('✅ PaymentIntentService initialized');
-      } catch (e) {
-        debugPrint('❌ Lỗi đồng bộ: $e');
-      }
+          // Khởi tạo PaymentIntentService (load pending intents từ DB)
+          await PaymentIntentService.initialize();
+          debugPrint('✅ PaymentIntentService initialized');
+        } catch (e) {
+          debugPrint('❌ Lỗi đồng bộ background: $e');
+        }
+      });
     } else {
       debugPrint('⚠️ Skipping sync - no shopId available');
     }

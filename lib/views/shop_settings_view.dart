@@ -14,7 +14,7 @@ import '../widgets/validated_text_field.dart';
 import '../theme/app_text_styles.dart';
 import 'adjustment_history_view.dart';
 import 'hr_salary_settings_view.dart';
-import 'label_settings_view.dart';
+import 'label_designer_view.dart';
 
 class ShopSettingsView extends StatefulWidget {
   const ShopSettingsView({super.key});
@@ -526,11 +526,11 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           ListTile(
             dense: true,
             leading: Icon(Icons.qr_code_2, color: Colors.purple.shade700, size: 22),
-            title: const Text('Cài đặt Tem sản phẩm', style: TextStyle(fontSize: 13)),
+            title: const Text('Thiết kế Tem sản phẩm', style: TextStyle(fontSize: 13)),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const LabelSettingsView()),
+              MaterialPageRoute(builder: (_) => const LabelDesignerView()),
             ),
           ),
         ],

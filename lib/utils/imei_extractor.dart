@@ -43,6 +43,9 @@ class IMEIExtractor {
     caseSensitive: false,
   );
 
+  // Short IMEI pattern - 4-5 digits (internal code)
+  static final RegExp _shortImeiPattern = RegExp(r'^(\d{4,5})$');
+
   // Serial number patterns
   static final RegExp _serialPattern = RegExp(
     r'(?:S/?N|Serial)[:\s]*([A-Z0-9]{8,20})',
@@ -57,6 +60,9 @@ class IMEIExtractor {
 
   // Pure 15-digit number (likely IMEI)
   static final RegExp _pureIMEI = RegExp(r'^(\d{15})$');
+
+  // Pure 4-5 digit number (short IMEI code)
+  static final RegExp _pureShortIMEI = RegExp(r'^(\d{4,5})$');
 
   // 8-20 alphanumeric (could be serial)
   static final RegExp _pureSerial = RegExp(r'^([A-Z0-9]{8,20})$');
@@ -142,6 +148,22 @@ class IMEIExtractor {
       }
     }
 
+    // Third pass: Look for short IMEI codes (4-5 digits)
+    if (imei == null) {
+      for (final line in lines) {
+        final trimmed = line.trim();
+        final shortMatch = _pureShortIMEI.firstMatch(trimmed);
+        if (shortMatch != null) {
+          final candidate = shortMatch.group(1)!;
+          imei ??= candidate;
+          if (!candidates.contains(candidate)) {
+            candidates.add(candidate);
+          }
+          break; // Chỉ lấy mã ngắn đầu tiên
+        }
+      }
+    }
+
     // If no IMEI found, check for serial-like patterns
     if (serial == null) {
       for (final line in lines) {
@@ -165,8 +187,15 @@ class IMEIExtractor {
     );
   }
 
-  /// Validate IMEI using Luhn algorithm
+  /// Validate IMEI using Luhn algorithm (for 15-digit IMEI)
+  /// Short codes (4-5 digits) are always considered valid
   static bool _isValidIMEI(String imei) {
+    // Short IMEI code (4-5 digits) - always valid
+    if (imei.length >= 4 && imei.length <= 5) {
+      return RegExp(r'^\d{4,5}$').hasMatch(imei);
+    }
+    
+    // Standard IMEI must be 15 digits
     if (imei.length != 15) return false;
     if (!RegExp(r'^\d{15}$').hasMatch(imei)) return false;
 
@@ -233,8 +262,47 @@ class IMEIExtractor {
   }
 
   /// Kiểm tra xem có phải IMEI không (quick check without Luhn)
+  /// Hỗ trợ: 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)
   static bool looksLikeIMEI(String text) {
     final digitsOnly = text.replaceAll(RegExp(r'[^0-9]'), '');
-    return digitsOnly.length == 15;
+    // Chấp nhận 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)
+    return (digitsOnly.length >= 4 && digitsOnly.length <= 5) || 
+           digitsOnly.length == 15;
+  }
+
+  /// Kiểm tra xem mã có phải là mã ngắn (4-5 số) không
+  static bool isShortCode(String text) {
+    final digitsOnly = text.replaceAll(RegExp(r'[^0-9]'), '');
+    return digitsOnly.length >= 4 && digitsOnly.length <= 5;
+  }
+
+  /// Lấy n số cuối của IMEI (mặc định 5, có thể 4)
+  static String getLastNDigits(String imei, [int n = 5]) {
+    final digitsOnly = imei.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitsOnly.length >= n) {
+      return digitsOnly.substring(digitsOnly.length - n);
+    }
+    return digitsOnly;
+  }
+
+  /// So sánh 2 IMEI - hỗ trợ mã ngắn và mã dài
+  static bool matchIMEI(String imei1, String imei2) {
+    final clean1 = imei1.replaceAll(RegExp(r'[^0-9]'), '');
+    final clean2 = imei2.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (clean1.isEmpty || clean2.isEmpty) return false;
+
+    // Match chính xác
+    if (clean1 == clean2) return true;
+
+    // So sánh theo suffix (mã ngắn)
+    final shorter = clean1.length <= clean2.length ? clean1 : clean2;
+    final longer = clean1.length > clean2.length ? clean1 : clean2;
+
+    if (shorter.length >= 4 && shorter.length <= 5) {
+      return longer.endsWith(shorter);
+    }
+
+    return false;
   }
 }

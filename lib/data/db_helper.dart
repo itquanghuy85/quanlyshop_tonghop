@@ -2161,6 +2161,18 @@ class DBHelper {
         } catch (e) {
           debugPrint('DB onOpen check error (cash_closings columns): $e');
         }
+        
+        // Tạo index cho bảng products để tăng tốc query
+        try {
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_products_createdAt ON products(createdAt DESC)');
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted)');
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_products_type ON products(type)');
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_products_quantity ON products(quantity)');
+          await db.execute('CREATE INDEX IF NOT EXISTS idx_products_status ON products(status)');
+          debugPrint('DB: created indexes for products table');
+        } catch (e) {
+          debugPrint('DB onOpen check error (products indexes): $e');
+        }
       },
     );
   }
@@ -3562,6 +3574,66 @@ class DBHelper {
       } catch (e) {
         debugPrint('⚠️ Failed to sync part quantity immediately: $e');
         // Vẫn return true vì local đã update, sẽ sync sau
+      }
+    }
+    
+    return true;
+  }
+
+  /// Khôi phục số lượng phụ tùng theo tên (khi xóa đơn sửa chữa)
+  Future<bool> restorePartQuantityByName(String partName, int quantity) async {
+    final db = await database;
+    
+    // Tìm phụ tùng theo tên trong bảng repair_parts
+    final parts = await db.query(
+      'repair_parts',
+      where: 'name = ? AND deleted = 0',
+      whereArgs: [partName],
+      limit: 1,
+    );
+    
+    if (parts.isEmpty) {
+      debugPrint('⚠️ restorePartQuantityByName: Part not found: $partName');
+      return false;
+    }
+    
+    final part = parts.first;
+    final partId = part['id'] as int;
+    final currentQty = part['quantity'] as int? ?? 0;
+    final newQty = currentQty + quantity;
+    final firestoreId = part['firestoreId'] as String?;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    
+    await db.update(
+      'repair_parts',
+      {
+        'quantity': newQty,
+        'updatedAt': now,
+        'isSynced': 0,
+      },
+      where: 'id = ?',
+      whereArgs: [partId],
+    );
+    
+    // Sync ngay lập tức
+    if (firestoreId != null && firestoreId.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('repair_parts')
+            .doc(firestoreId)
+            .update({
+          'quantity': newQty,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        await db.update(
+          'repair_parts',
+          {'isSynced': 1},
+          where: 'id = ?',
+          whereArgs: [partId],
+        );
+        debugPrint('✅ Restored part quantity: $partName, +$quantity => $newQty');
+      } catch (e) {
+        debugPrint('⚠️ Failed to sync restored part quantity: $e');
       }
     }
     

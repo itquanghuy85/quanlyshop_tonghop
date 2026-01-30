@@ -153,11 +153,12 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           
           if ((dpDebtFirestoreId != null && supplierDebtIds.contains(dpDebtFirestoreId)) ||
               (dpDebtId != null && supplierDebtLocalIds.contains(dpDebtId))) {
+            final shopId = await UserService.getCurrentShopId() ?? '';
             _supplierPayments.add(SupplierPayment(
               id: dp['id'] as int?,
               firestoreId: dp['firestoreId'] as String?,
               supplierId: supplier.id!,
-              supplierName: supplier.name,
+              shopId: shopId,
               amount: dp['amount'] as int? ?? 0,
               paymentMethod: dp['paymentMethod'] as String? ?? 'CASH',
               paidAt: dp['paidAt'] as int? ?? DateTime.now().millisecondsSinceEpoch,

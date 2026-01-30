@@ -57,13 +57,24 @@ class OrderListViewState extends State<OrderListView> {
   bool get canDelete => widget.role == 'admin' || widget.role == 'owner';
   
   /// Check if we need full data (for filtering)
-  bool get _needsFullData => 
-      _currentSearch.isNotEmpty || 
-      _timeFilter != 'all' || 
-      _statusFilters.isNotEmpty ||
-      _filterPendingApproval ||
-      widget.statusFilter != null ||
-      widget.todayOnly;
+  bool get _needsFullData => true; // Luôn lấy full data để sort đúng
+
+  // Ưu tiên: Tiếp nhận -> Đang sửa -> Đã xong -> Chờ duyệt giao -> Giao máy
+  int _compareRepairs(Repair a, Repair b) {
+    int priority(Repair r) {
+      if (r.status == 1) return 1;
+      if (r.status == 2) return 2;
+      if (r.status == 3 && !r.pendingDeliveryApproval) return 3;
+      if (r.status == 3 && r.pendingDeliveryApproval) return 4;
+      if (r.status == 4) return 5;
+      return 6;
+    }
+
+    final pa = priority(a);
+    final pb = priority(b);
+    if (pa != pb) return pa.compareTo(pb);
+    return b.createdAt.compareTo(a.createdAt); // Mới nhất trước
+  }
 
   @override
   void initState() {
@@ -93,32 +104,15 @@ class OrderListViewState extends State<OrderListView> {
   }
   
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
+    if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 300) {
       _loadMoreIfNeeded();
     }
   }
   
   Future<void> _loadMoreIfNeeded() async {
-    if (_isLoadingMore || !_hasMore || _needsFullData) return;
-    
-    setState(() => _isLoadingMore = true);
-    
-    try {
-      final newData = await db.getRepairsPaged(_pageSize, _currentOffset);
-      if (mounted) {
-        setState(() {
-          _allLoadedRepairs.addAll(newData);
-          _displayedRepairs = _allLoadedRepairs;
-          _currentOffset += _pageSize;
-          _isLoadingMore = false;
-          _hasMore = newData.length >= _pageSize;
-        });
-      }
-    } catch (e) {
-      debugPrint('OrderListView: Error loading more: $e');
-      if (mounted) setState(() => _isLoadingMore = false);
-    }
+    // Không dùng phân trang khi cần sort toàn bộ
+    return;
   }
 
   Future<void> _loadInitialData() async {
@@ -126,55 +120,33 @@ class OrderListViewState extends State<OrderListView> {
       _isLoading = true;
       _currentOffset = 0;
       _allLoadedRepairs = [];
-      _hasMore = true;
+      _hasMore = false;
+      _isLoadingMore = false;
     });
-    
-    if (_needsFullData) {
-      // Load all data for filtering
-      final all = await db.getAllRepairs();
-      if (!mounted) return;
-      setState(() {
-        _allLoadedRepairs = all;
-        _displayedRepairs = _applyFilters(all);
-        _isLoading = false;
-        _hasMore = false;
-      });
-    } else {
-      // Lazy load first page
-      final firstPage = await db.getRepairsPaged(_pageSize, 0);
-      if (!mounted) return;
-      setState(() {
-        _allLoadedRepairs = firstPage;
-        _displayedRepairs = firstPage;
-        _currentOffset = _pageSize;
-        _isLoading = false;
-        _hasMore = firstPage.length >= _pageSize;
-      });
-    }
+
+    final all = await db.getAllRepairs();
+    if (!mounted) return;
+
+    final filtered = _applyFilters(all)..sort(_compareRepairs);
+    setState(() {
+      _allLoadedRepairs = filtered;
+      _displayedRepairs = List<Repair>.from(filtered);
+      _currentOffset = filtered.length;
+      _isLoading = false;
+    });
   }
 
   void _onSearch(String val) async {
     setState(() => _currentSearch = val);
     
-    if (val.isEmpty && !_needsFullData) {
-      // Back to lazy loading mode
-      _loadInitialData();
-      return;
+    if (_allLoadedRepairs.isEmpty) {
+      _allLoadedRepairs = await db.getAllRepairs();
     }
-    
-    // Need full data for search
-    if (_allLoadedRepairs.isEmpty || _hasMore) {
-      final all = await db.getAllRepairs();
-      _allLoadedRepairs = all;
-      _hasMore = false;
-    }
-    
-    setState(() {
-      final filtered = _applyFilters(_allLoadedRepairs);
-      if (val.isEmpty) {
-        _displayedRepairs = filtered;
-      } else {
-        _displayedRepairs = filtered
+
+    final filtered = _applyFilters(_allLoadedRepairs);
+    final searched = val.isEmpty
+        ? filtered
+        : filtered
             .where(
               (r) =>
                   r.customerName.toLowerCase().contains(val.toLowerCase()) ||
@@ -182,8 +154,15 @@ class OrderListViewState extends State<OrderListView> {
                   r.model.toLowerCase().contains(val.toLowerCase()),
             )
             .toList();
-      }
-    });
+
+    searched.sort(_compareRepairs);
+
+    if (mounted) {
+      setState(() {
+        _displayedRepairs = searched;
+        _hasMore = false;
+      });
+    }
   }
 
   List<Repair> _applyFilters(List<Repair> list) {
@@ -586,15 +565,125 @@ class OrderListViewState extends State<OrderListView> {
 
   void _confirmDelete(Repair r) {
     if (!canDelete) return;
+    
+    // === KIỂM TRA ĐIỀU KIỆN XÓA ===
+    // 1. Chỉ xóa đơn chưa giao (status < 4)
+    if (r.status >= 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ Không thể xóa đơn ĐÃ GIAO. Chỉ xóa đơn chưa giao.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    // 2. Cảnh báo nếu đơn đã có giá (có số liệu kế toán)
+    final hasAccountingData = r.price > 0 || r.cost > 0;
+    final hasPartsUsed = r.partsUsed.isNotEmpty;
+    
     final passCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("XÁC NHẬN XÓA ĐƠN"),
-        content: TextField(
-          controller: passCtrl,
-          obscureText: true,
-          decoration: const InputDecoration(hintText: "Nhập mật khẩu quản lý"),
+        title: Row(
+          children: [
+            Icon(
+              hasAccountingData || hasPartsUsed ? Icons.warning_amber_rounded : Icons.delete_forever,
+              color: Colors.red,
+            ),
+            const SizedBox(width: 8),
+            const Expanded(child: Text("XÁC NHẬN XÓA ĐƠN")),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Thông tin đơn
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(r.model, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${r.customerName} - ${r.phone}'),
+                  Text('Trạng thái: ${_getStatusText(r.status)}'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Cảnh báo nếu có số liệu
+            if (hasAccountingData)
+              Container(
+                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.attach_money, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Đơn có số liệu kế toán:\n• Giá: ${_formatMoney(r.price)}\n• Chi phí: ${_formatMoney(r.cost)}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // Cảnh báo nếu có phụ tùng
+            if (hasPartsUsed)
+              Container(
+                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.purple),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.build, color: Colors.purple, size: 20),
+                        SizedBox(width: 8),
+                        Text('Đơn có phụ tùng:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(r.partsUsed, style: const TextStyle(fontSize: 11, color: Colors.purple)),
+                    const SizedBox(height: 4),
+                    const Text(
+                      '⚠️ Phụ tùng sẽ được hoàn trả về kho!',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
+                    ),
+                  ],
+                ),
+              ),
+            
+            const SizedBox(height: 8),
+            TextField(
+              controller: passCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                hintText: "Nhập mật khẩu quản lý để xác nhận",
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -603,83 +692,140 @@ class OrderListViewState extends State<OrderListView> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              final user = FirebaseAuth.instance.currentUser;
-              if (user == null || user.email == null) return;
-              try {
-                final navigator = Navigator.of(ctx);
-                final cred = EmailAuthProvider.credential(
-                  email: user.email!,
-                  password: passCtrl.text,
-                );
-                await user.reauthenticateWithCredential(cred);
-
-                // Lưu id trước khi xóa để dùng cho sync
-                final repairId = r.id;
-                final repairFirestoreId = r.firestoreId;
-
-                // Nếu có firestoreId, xóa trực tiếp trên Firestore trước
-                if (repairFirestoreId != null && repairFirestoreId.isNotEmpty) {
-                  try {
-                    await FirebaseFirestore.instance
-                        .collection('repairs')
-                        .doc(repairFirestoreId)
-                        .update({
-                          'deleted': true,
-                          'updatedAt': FieldValue.serverTimestamp(),
-                        });
-                  } catch (e) {
-                    debugPrint('❌ Failed to soft delete on Firestore: $e');
-                    // Tiếp tục xóa local dù Firestore fail
-                  }
-                }
-
-                // Xóa local bằng firestoreId nếu có, nếu không thì xóa bằng id
-                if (repairFirestoreId != null && repairFirestoreId.isNotEmpty) {
-                  await db.deleteRepairByFirestoreId(repairFirestoreId);
-                } else if (repairId != null) {
-                  await db.deleteRepair(repairId);
-                }
-
-                // Ghi nhật ký xóa đơn
-                await db.logAction(
-                  userId: user.uid,
-                  userName: user.email?.split('@').first.toUpperCase() ?? 'NV',
-                  action: 'XÓA ĐƠN SỬA',
-                  type: 'REPAIR',
-                  targetId: repairFirestoreId,
-                  desc:
-                      'Đã xóa đơn sửa ${r.model} - ${r.customerName} - ${r.phone}',
-                );
-
-                // Queue delete sync via SyncOrchestrator (backup nếu Firestore direct fail)
-                if (repairId != null && repairFirestoreId != null) {
-                  await SyncOrchestrator().enqueue(
-                    entityType: SyncEntityType.repair,
-                    entityId: repairId,
-                    firestoreId: repairFirestoreId,
-                    operation: SyncOperation.delete,
-                    data: null,
-                  );
-                }
-
-                navigator.pop();
-                _loadInitialData();
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('ĐÃ XÓA THÀNH CÔNG')),
-                );
-              } catch (_) {
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Mật khẩu sai')),
-                );
-              }
-            },
+            onPressed: () => _executeDelete(ctx, r, passCtrl.text),
             child: const Text("XÓA", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
+  }
+  
+  String _getStatusText(int status) {
+    switch (status) {
+      case 1: return 'Tiếp nhận';
+      case 2: return 'Đang sửa';
+      case 3: return 'Sửa xong';
+      case 4: return 'Đã giao';
+      default: return 'Không xác định';
+    }
+  }
+  
+  String _formatMoney(int amount) {
+    if (amount == 0) return '0đ';
+    return '${NumberFormat('#,###', 'vi_VN').format(amount)}đ';
+  }
+  
+  Future<void> _executeDelete(BuildContext ctx, Repair r, String password) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.email == null) return;
+    
+    try {
+      final navigator = Navigator.of(ctx);
+      final cred = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+      await user.reauthenticateWithCredential(cred);
+
+      // === HOÀN TRẢ PHỤ TÙNG VỀ KHO ===
+      if (r.partsUsed.isNotEmpty) {
+        await _restorePartsToInventory(r.partsUsed);
+      }
+
+      // Lưu id trước khi xóa để dùng cho sync
+      final repairId = r.id;
+      final repairFirestoreId = r.firestoreId;
+
+      // Nếu có firestoreId, xóa trực tiếp trên Firestore trước
+      if (repairFirestoreId != null && repairFirestoreId.isNotEmpty) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('repairs')
+              .doc(repairFirestoreId)
+              .update({
+                'deleted': true,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+        } catch (e) {
+          debugPrint('❌ Failed to soft delete on Firestore: $e');
+        }
+      }
+
+      // Xóa local
+      if (repairFirestoreId != null && repairFirestoreId.isNotEmpty) {
+        await db.deleteRepairByFirestoreId(repairFirestoreId);
+      } else if (repairId != null) {
+        await db.deleteRepair(repairId);
+      }
+
+      // Ghi nhật ký
+      await db.logAction(
+        userId: user.uid,
+        userName: user.email?.split('@').first.toUpperCase() ?? 'NV',
+        action: 'XÓA ĐƠN SỬA',
+        type: 'REPAIR',
+        targetId: repairFirestoreId,
+        desc: 'Đã xóa đơn sửa ${r.model} - ${r.customerName} - ${r.phone}${r.partsUsed.isNotEmpty ? ' (đã hoàn trả phụ tùng: ${r.partsUsed})' : ''}',
+      );
+
+      // Queue delete sync
+      if (repairId != null && repairFirestoreId != null) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.repair,
+          entityId: repairId,
+          firestoreId: repairFirestoreId,
+          operation: SyncOperation.delete,
+          data: null,
+        );
+      }
+
+      navigator.pop();
+      _loadInitialData();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(r.partsUsed.isNotEmpty 
+            ? '✅ Đã xóa đơn và hoàn trả phụ tùng về kho'
+            : '✅ Đã xóa đơn thành công'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('❌ Mật khẩu sai'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  
+  /// Hoàn trả phụ tùng về kho
+  /// Format partsUsed: "Part1 x1, Part2 x2, ..."
+  Future<void> _restorePartsToInventory(String partsUsed) async {
+    if (partsUsed.isEmpty) return;
+    
+    // Parse partsUsed
+    final parts = partsUsed.split(', ');
+    for (final part in parts) {
+      // Parse "PartName x2" hoặc "PartName"
+      final match = RegExp(r'^(.+?)\s*x(\d+)$').firstMatch(part.trim());
+      String partName;
+      int quantity;
+      
+      if (match != null) {
+        partName = match.group(1)!.trim();
+        quantity = int.tryParse(match.group(2)!) ?? 1;
+      } else {
+        partName = part.trim();
+        quantity = 1;
+      }
+      
+      if (partName.isEmpty) continue;
+      
+      // Tìm part trong kho và cộng số lượng
+      await db.restorePartQuantityByName(partName, quantity);
+    }
   }
 
   @override

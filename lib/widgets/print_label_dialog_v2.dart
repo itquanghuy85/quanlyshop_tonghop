@@ -7,6 +7,7 @@ import '../services/bluetooth_printer_service.dart';
 import '../services/label_settings_service.dart';
 import '../services/unified_printer_service.dart';
 import '../theme/app_text_styles.dart';
+import '../views/label_designer_view.dart';
 import 'printer_selection_dialog.dart';
 
 /// Dialog in tem sản phẩm đa năng
@@ -139,7 +140,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: MediaQuery.of(context).size.width * 0.95,
-        constraints: const BoxConstraints(maxWidth: 550, maxHeight: 750),
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : Column(
@@ -153,18 +154,11 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildTemplateSelector(),
-                          const SizedBox(height: 12),
-                          _buildModeToggle(),
-                          const SizedBox(height: 12),
-                          if (_isCustomMode) ...[
-                            _buildFieldOptions(),
-                            const SizedBox(height: 12),
-                            _buildPriceInputs(),
-                            const SizedBox(height: 12),
-                            _buildCustomLines(),
-                            const SizedBox(height: 12),
-                          ],
+                          const SizedBox(height: 16),
                           _buildQuantitySelector(),
+                          const SizedBox(height: 16),
+                          // Nút mở rộng tùy chỉnh (collapsed by default)
+                          _buildExpandableCustomOptions(),
                           const SizedBox(height: 16),
                           _buildPreview(),
                         ],
@@ -175,6 +169,39 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
                 ],
               ),
       ),
+    );
+  }
+
+  Widget _buildExpandableCustomOptions() {
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(top: 8),
+      initiallyExpanded: _isCustomMode,
+      onExpansionChanged: (expanded) => setState(() => _isCustomMode = expanded),
+      leading: Icon(
+        Icons.tune,
+        color: _isCustomMode ? Colors.purple : Colors.grey,
+        size: 20,
+      ),
+      title: Text(
+        'Tùy chỉnh nội dung tem',
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: _isCustomMode ? FontWeight.bold : FontWeight.normal,
+          color: _isCustomMode ? Colors.purple : Colors.grey.shade700,
+        ),
+      ),
+      trailing: Icon(
+        _isCustomMode ? Icons.expand_less : Icons.expand_more,
+        color: _isCustomMode ? Colors.purple : Colors.grey,
+      ),
+      children: [
+        _buildFieldOptions(),
+        const SizedBox(height: 12),
+        _buildPriceInputs(),
+        const SizedBox(height: 12),
+        _buildCustomLines(),
+      ],
     );
   }
 
@@ -196,7 +223,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'IN TEM SẢN PHẨM',
+                  'IN TEM',
                   style: AppTextStyles.headline4.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -210,6 +237,18 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
                 ),
               ],
             ),
+          ),
+          // Nút cài đặt thiết kế tem
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white70),
+            tooltip: 'Thiết kế tem',
+            onPressed: () async {
+              Navigator.pop(context);
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LabelDesignerView()),
+              );
+            },
           ),
           IconButton(
             onPressed: () => Navigator.pop(context),
@@ -829,7 +868,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        '🛡️ BH: ${product['warrantyPeriod'] ?? '6 tháng'}',
+                        '🛡️ BH: ${product['warranty'] ?? '6 tháng'}',
                         style: TextStyle(fontSize: 9, color: Colors.green.shade700),
                       ),
                     ),

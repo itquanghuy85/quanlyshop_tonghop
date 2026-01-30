@@ -25,7 +25,24 @@ class _MyProfileViewState extends State<MyProfileView> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final data = await UserService.getUserInfo(user.uid);
+      if (data != null && mounted) {
+        setState(() {
+          nameCtrl.text = data['name'] ?? '';
+          phoneCtrl.text = data['phone'] ?? '';
+          addressCtrl.text = data['address'] ?? '';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
+    }
   }
 
   String _getRoleDisplayName(String role) {

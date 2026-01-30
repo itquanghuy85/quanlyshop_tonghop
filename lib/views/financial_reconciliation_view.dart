@@ -103,7 +103,7 @@ class _FinancialReconciliationViewState
                       '${entry.activityType ?? ''} - ${entry.amount}đ',
                     ),
                     subtitle: Text(
-                      '${entry.referenceId ?? ''} | ${entry.notes ?? ''}',
+                      '${entry.referenceId ?? ''} | ${entry.description ?? ''}',
                     ),
                     trailing: anomaly
                         ? const Icon(Icons.warning, color: Colors.orange)

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../l10n/app_localizations.dart';
 
 /// Màn hình loading với animation giới thiệu app
 /// Hiển thị khi đăng nhập thành công và đang load dữ liệu
@@ -29,38 +30,41 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
   
   int _currentFeatureIndex = 0;
   
-  final List<FeatureItem> _features = [
-    FeatureItem(
-      icon: Icons.phone_android,
-      title: 'Quản lý sửa chữa',
-      subtitle: 'Theo dõi đơn sửa chữa từ nhận máy đến giao máy',
-    ),
-    FeatureItem(
-      icon: Icons.inventory_2,
-      title: 'Quản lý kho hàng',
-      subtitle: 'Nhập hàng, xuất kho, kiểm kê linh kiện',
-    ),
-    FeatureItem(
-      icon: Icons.point_of_sale,
-      title: 'Bán hàng & Công nợ',
-      subtitle: 'Bán hàng nhanh, theo dõi công nợ khách hàng',
-    ),
-    FeatureItem(
-      icon: Icons.people,
-      title: 'Quản lý NCC & Đối tác sua chữa',
-      subtitle: 'Theo dõi công nợ nhà cung cấp và đối tác',
-    ),
-    FeatureItem(
-      icon: Icons.analytics,
-      title: 'Báo cáo thống kê',
-      subtitle: 'Doanh thu, lợi nhuận, tồn kho theo thời gian',
-    ),
-    FeatureItem(
-      icon: Icons.cloud_sync,
-      title: 'Đồng bộ Cloud',
-      subtitle: 'Dữ liệu an toàn, truy cập mọi lúc mọi nơi',
-    ),
-  ];
+  List<FeatureItem> get _features {
+    final loc = AppLocalizations.of(context)!;
+    return [
+      FeatureItem(
+        icon: Icons.phone_android,
+        title: loc.repairManagement,
+        subtitle: loc.repairManagementDesc,
+      ),
+      FeatureItem(
+        icon: Icons.inventory_2,
+        title: loc.inventoryManagement,
+        subtitle: loc.inventoryManagementDesc,
+      ),
+      FeatureItem(
+        icon: Icons.point_of_sale,
+        title: loc.salesAndDebt,
+        subtitle: loc.salesAndDebtDesc,
+      ),
+      FeatureItem(
+        icon: Icons.people,
+        title: loc.supplierAndPartnerManagement,
+        subtitle: loc.supplierAndPartnerManagementDesc,
+      ),
+      FeatureItem(
+        icon: Icons.analytics,
+        title: loc.reportsAndStatistics,
+        subtitle: loc.reportsAndStatisticsDesc,
+      ),
+      FeatureItem(
+        icon: Icons.cloud_sync,
+        title: loc.cloudSync,
+        subtitle: loc.cloudSyncDesc,
+      ),
+    ];
+  }
 
   @override
   void initState() {
@@ -197,10 +201,10 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
                 position: _textSlide,
                 child: FadeTransition(
                   opacity: _textOpacity,
-                  child: const Column(
+                  child: Column(
                     children: [
                       Text(
-                        'HULUCA SHOP',
+                        AppLocalizations.of(context)!.hulucaShop,
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -210,7 +214,7 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Quản lý cửa hàng sửa chữa điện thoại',
+                        AppLocalizations.of(context)!.phoneRepairShopManagement,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.white70,
@@ -277,11 +281,10 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
                 ),
               ),
               
-              // Version info
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Text(
-                  'Phiên bản 1.5.0',
+                  AppLocalizations.of(context)!.version,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withOpacity(0.5),

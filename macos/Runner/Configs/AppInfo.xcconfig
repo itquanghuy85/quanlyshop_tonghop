@@ -8,7 +8,7 @@
 PRODUCT_NAME = shop_new
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.shopNew
+PRODUCT_BUNDLE_IDENTIFIER = com.example.Shopmanager
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 com.example. All rights reserved.

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../l10n/app_localizations.dart';
 import '../services/user_service.dart';
 import '../theme/app_text_styles.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../services/encryption_service.dart';
+import '../services/first_time_guide_service.dart';
 import '../data/db_helper.dart';
 import '../services/sync_service.dart';
 import '../widgets/unified_sync_button.dart';
 import '../utils/app_info.dart';
+import 'help_center_view.dart';
+import 'user_guide_view.dart';
 import 'staff_permissions_view.dart';
 import 'shop_selector_view.dart'; // Màn hình chọn shop cho super admin
 
@@ -146,6 +149,24 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
+  void _openHelpCenter() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HelpCenterView(userRole: _role),
+      ),
+    );
+  }
+
+  void _openUserGuide() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UserGuideView(userRole: _role),
+      ),
+    );
+  }
+
   // HÀM XỬ LÝ XÓA TRẮNG SHOP (BẢO MẬT TUYỆT ĐỐI)
   Future<void> _handleResetShop() async {
     // Chỉ super admin mới được xóa dữ liệu shop
@@ -273,7 +294,95 @@ class _SettingsViewState extends State<SettingsView> {
                     }
                   },
                 ),
-                const Divider(),
+                
+                const SizedBox(height: 16),
+                
+                // ====== HƯỚNG DẪN SỬ DỤNG - MOVE LÊN ĐẦU ĐỂ DỄ TÌM ======
+                _buildSection('📚 Hướng dẫn sử dụng'),
+                
+                // Card chính: Hướng dẫn sử dụng đầy đủ
+                Card(
+                  color: Colors.purple.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    side: BorderSide(color: Colors.purple.shade100),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(18),
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.purple.shade400, Colors.purple.shade600],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.purple.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.menu_book_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    title: const Text(
+                      'Hướng dẫn sử dụng',
+                      style: TextStyle(
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                      ),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 6),
+                        Text(
+                          'Hướng dẫn chi tiết từng bước cho mọi tính năng trong app.',
+                          style: TextStyle(
+                            fontSize: AppTextStyles.body1.fontSize,
+                            color: Colors.purple.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _buildFeatureChip('📦 Kho hàng', Colors.blue),
+                            _buildFeatureChip('🛒 Bán hàng', Colors.orange),
+                            _buildFeatureChip('🔧 Sửa chữa', Colors.purple),
+                            _buildFeatureChip('📊 Báo cáo', Colors.pink),
+                          ],
+                        ),
+                      ],
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: Colors.purple,
+                      ),
+                    ),
+                    onTap: _openUserGuide,
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                const Divider();
                 _buildSection(localizations.accountAndSecurity),
                 ListTile(
                   leading: const Icon(Icons.person_pin, color: Colors.teal),
@@ -496,6 +605,8 @@ class _SettingsViewState extends State<SettingsView> {
                             ],
                           ),
                           const SizedBox(height: 10),
+
+
                           Text(
                             localizations.viewShopAsAdmin,
                             style: TextStyle(
@@ -641,6 +752,43 @@ class _SettingsViewState extends State<SettingsView> {
                     ),
                   ),
                   const SizedBox(height: 15),
+                  // Nút reset hướng dẫn sử dụng
+                  Card(
+                    color: Colors.blue.shade50,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      side: BorderSide(color: Colors.blue.shade200),
+                    ),
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.replay,
+                        color: Colors.blue,
+                      ),
+                      title: const Text(
+                        'Xem lại hướng dẫn sử dụng',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Reset để hiển thị lại các hướng dẫn lần đầu',
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                        ),
+                      ),
+                      onTap: () async {
+                        await FirstTimeGuideService.resetAllGuides();
+                        if (mounted) {
+                          NotificationService.showSnackBar(
+                            'Đã reset! Hướng dẫn sẽ hiển thị lại khi vào các màn hình.',
+                            color: Colors.green,
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 15),
                   Card(
                     color: Colors.red.shade50,
                     shape: RoundedRectangleBorder(
@@ -704,4 +852,23 @@ class _SettingsViewState extends State<SettingsView> {
       ),
     ),
   );
+
+  Widget _buildFeatureChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: color,
+        ),
+      ),
+    );
+  }
 }

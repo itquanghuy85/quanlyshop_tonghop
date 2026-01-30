@@ -1406,7 +1406,11 @@ class _IMEIScannerDialog extends StatefulWidget {
 }
 
 class _IMEIScannerDialogState extends State<_IMEIScannerDialog> {
-  final _controller = MobileScannerController();
+  final _controller = MobileScannerController(
+    detectionSpeed: DetectionSpeed.normal,
+    detectionTimeoutMs: 1000,
+    formats: [BarcodeFormat.qrCode, BarcodeFormat.code128, BarcodeFormat.ean13, BarcodeFormat.ean8],
+  );
   bool _scanned = false;
 
   @override

@@ -857,6 +857,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           operation: SyncOperation.update,
           data: r.toMap(),
         );
+
+        // Best-effort: push ngay để các thiết bị khác nhận update nhanh
+        // ignore: unawaited_futures
+        SyncOrchestrator().syncAll();
       }
 
       // Log
@@ -915,6 +919,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           operation: SyncOperation.update,
           data: r.toMap(),
         );
+
+        // Best-effort: push ngay để các thiết bị khác nhận update nhanh
+        // ignore: unawaited_futures
+        SyncOrchestrator().syncAll();
       }
 
       final user = FirebaseAuth.instance.currentUser;

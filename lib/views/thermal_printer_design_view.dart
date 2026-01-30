@@ -5,7 +5,7 @@ import '../services/notification_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/thermal_printer_service.dart';
 import '../theme/app_text_styles.dart';
-import 'label_settings_view.dart';
+import 'label_designer_view.dart';
 
 class ThermalPrinterDesignView extends StatefulWidget {
   const ThermalPrinterDesignView({super.key});
@@ -25,7 +25,7 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
 
   // 2. THIẾT KẾ TEM (LABEL)
   String _paperSize = "80mm";
-  double _labelFontScale = 1.0; // 1.0: Normal, 2.0: Large, 3.0: Extra Large
+  double _labelFontScale = 1.0; // 0.6: Mini, 1.0: Normal, 2.0+: Large
   bool _showLabelName = true;
   bool _showLabelDetail = true; 
   bool _showLabelPriceKPK = true;
@@ -90,6 +90,13 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
     await prefs.setBool('receipt_show_qr', _showRcQR);
     await prefs.setString('receipt_note', _rcNoteCtrl.text);
     NotificationService.showSnackBar("ĐÃ LƯU & ÁP DỤNG CỠ CHỮ MỚI", color: Colors.green);
+  }
+
+  String _fontScaleLabel(double value) {
+    if (value <= 0.75) return "Nhỏ";
+    if (value < 1.25) return "Bình thường";
+    if (value < 2.0) return "Lớn";
+    return "Rất lớn";
   }
 
   @override
@@ -210,11 +217,18 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
           _sectionCard("ĐỘ PHÓNG ĐẠI CHỮ (QUAN TRỌNG)", [
             Slider(
               value: _labelFontScale,
-              min: 1.0, max: 3.0, divisions: 2,
-              label: _labelFontScale == 1.0 ? "Bình thường" : (_labelFontScale == 2.0 ? "Lớn" : "Rất lớn"),
+              min: 0.6,
+              max: 3.0,
+              divisions: 12,
+              label: _fontScaleLabel(_labelFontScale),
               onChanged: (v) => setState(() => _labelFontScale = v),
             ),
-            Center(child: Text(_labelFontScale == 1.0 ? "Cỡ chữ: BÌNH THƯỜNG" : (_labelFontScale == 2.0 ? "Cỡ chữ: LỚN (Gợi ý)" : "Cỡ chữ: RẤT LỚN"), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red))),
+            Center(
+              child: Text(
+                "Cỡ chữ: ${_fontScaleLabel(_labelFontScale).toUpperCase()}",
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+              ),
+            ),
           ]),
           const SizedBox(height: 15),
           _sectionCard("HIỂN THỊ NỘI DUNG", [
@@ -255,15 +269,30 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
           const SizedBox(height: 15),
           // Nút mở cài đặt tem nâng cao
           _sectionCard("CÀI ĐẶT TEM NÂNG CAO", [
+            // THIẾT KẾ TEM PRO - TÙY BIẾN SIZE TỪNG PHẦN
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.style, color: Colors.purple),
-              title: const Text("Thiết kế mẫu tem", style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text("Thông tin shop, công thức CPK, mẫu tem tùy chỉnh"),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [Colors.purple.shade400, Colors.pink.shade400]),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.design_services, color: Colors.white, size: 22),
+              ),
+              title: const Text("🎨 THIẾT KẾ TEM", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple)),
+              subtitle: const Text("Bố cục, thông tin Shop, công thức CPK"),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text('HOT', style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 10)),
+              ),
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const LabelSettingsView()),
+                MaterialPageRoute(builder: (_) => const LabelDesignerView()),
               ),
             ),
           ], color: Colors.purple),

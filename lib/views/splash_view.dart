@@ -23,11 +23,11 @@ class _SplashViewState extends State<SplashView> {
   }
 
   Future<void> _startInit() async {
-    // Giả lập nạp dữ liệu để người dùng thấy app đang chạy
-    await Future.delayed(const Duration(milliseconds: 800));
+    // TỐI ƯU: Giảm delay từ 800ms xuống 300ms
+    await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) setState(() => _status = "Đang nạp cấu hình cửa hàng...");
     
-    await Future.delayed(const Duration(milliseconds: 800));
+    await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) setState(() => _status = "Đang kết nối đám mây an toàn...");
     
     // iOS-specific: Wait for Firebase to be initialized

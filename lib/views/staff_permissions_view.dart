@@ -178,12 +178,12 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
           elevation: 0,
           title: const Text("QUẢN LÝ PHÂN QUYỀN"),
         ),
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.admin_panel_settings, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
+              const Icon(Icons.admin_panel_settings, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
               Text(
                 "Bạn không có quyền truy cập\nmàn hình quản lý phân quyền",
                 textAlign: TextAlign.center,

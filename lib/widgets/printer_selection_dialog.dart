@@ -57,6 +57,18 @@ class _PrinterSelectionDialogState extends State<PrinterSelectionDialog> {
           _availableBluetoothPrinters = printers
               .map((p) => BluetoothPrinterConfig(name: p.name, macAddress: p.macAdress))
               .toList();
+          
+          // Đảm bảo _selectedBluetoothPrinter tồn tại trong danh sách
+          // Nếu không, reset về null hoặc item đầu tiên
+          if (_selectedBluetoothPrinter != null && _availableBluetoothPrinters.isNotEmpty) {
+            final exists = _availableBluetoothPrinters.any(
+              (p) => p.macAddress == _selectedBluetoothPrinter!.macAddress
+            );
+            if (!exists) {
+              // Thêm saved printer vào danh sách nếu không có
+              _availableBluetoothPrinters.insert(0, _selectedBluetoothPrinter!);
+            }
+          }
         });
       }
     } catch (e) {

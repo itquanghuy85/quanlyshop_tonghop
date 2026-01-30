@@ -8,7 +8,6 @@ import '../theme/app_text_styles.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/gradient_fab.dart';
-import 'quick_input_sync_check_view.dart';
 import 'smart_stock_in_view.dart';
 
 enum QuickInputFilter { all, unsynced }
@@ -204,12 +203,9 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
             tooltip: 'Đồng bộ lên Cloud',
           ),
           IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const QuickInputSyncCheckView()),
-            ),
+            onPressed: _syncToCloud,
             icon: const Icon(Icons.sync, color: Colors.orange),
-            tooltip: 'Kiểm tra đồng bộ',
+            tooltip: 'Đồng bộ dữ liệu',
           ),
           IconButton(
             onPressed: _loadCodes,

@@ -60,7 +60,6 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
 
     try {
       final db = DBHelper();
-      final shopId = await UserService.getCurrentShopId();
       final now = DateTime.now().millisecondsSinceEpoch;
       final firestoreId = 'rep_${now}_${_phoneController.text.trim()}';
       
@@ -75,17 +74,16 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
         accessories: _accessoriesController.text.trim(),
         address: _addressController.text.trim(),
         price: estimatedCost,
-        status: 0, // Received
+        status: 1, // Received
         createdAt: now,
         lastCaredAt: now,
         isSynced: false,
         deleted: false,
         firestoreId: firestoreId,
-        shopId: shopId,
       );
 
       // Lưu vào local database
-      final repairId = await db.upsertRepair(repair);
+      final repairId = await db.insertRepair(repair);
 
       // Queue sync via SyncOrchestrator
       await SyncOrchestrator().enqueue(

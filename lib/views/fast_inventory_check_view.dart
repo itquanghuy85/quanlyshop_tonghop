@@ -20,7 +20,11 @@ class FastInventoryCheckView extends StatefulWidget {
 
 class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   final db = DBHelper();
-  final MobileScannerController _scannerController = MobileScannerController();
+  final MobileScannerController _scannerController = MobileScannerController(
+    detectionSpeed: DetectionSpeed.normal,
+    detectionTimeoutMs: 1000,
+    formats: [BarcodeFormat.qrCode, BarcodeFormat.code128, BarcodeFormat.ean13, BarcodeFormat.ean8],
+  );
 
   // Inventory data
   List<Product> _expectedPhones = [];
@@ -200,6 +204,39 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     }
   }
 
+  /// Smart IMEI matching - hỗ trợ 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)
+  /// [storedIMEI]: IMEI đã lưu trong DB (có thể 4-5 hoặc 15 số)
+  /// [scannedIMEI]: IMEI vừa quét được (có thể 4-5 hoặc 15 số)
+  bool _matchIMEI(String storedIMEI, String scannedIMEI) {
+    // Làm sạch - chỉ giữ số
+    final stored = storedIMEI.replaceAll(RegExp(r'[^0-9]'), '');
+    final scanned = scannedIMEI.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (stored.isEmpty || scanned.isEmpty) return false;
+
+    // Case 1: Match chính xác
+    if (stored == scanned) return true;
+
+    // Case 2: Scanned là mã ngắn (4-5 số) - so với cuối stored
+    if (scanned.length >= 4 && scanned.length <= 5) {
+      if (stored.length >= scanned.length) {
+        return stored.substring(stored.length - scanned.length) == scanned;
+      }
+      // stored cũng là mã ngắn - so chính xác
+      return stored == scanned;
+    }
+
+    // Case 3: Stored là mã ngắn (4-5 số) - so với cuối scanned
+    if (stored.length >= 4 && stored.length <= 5) {
+      if (scanned.length >= stored.length) {
+        return scanned.substring(scanned.length - stored.length) == stored;
+      }
+    }
+
+    // Case 4: Cả 2 đều là IMEI dài (15 số) - đã check ở Case 1
+    return false;
+  }
+
   void _onQRDetected(BarcodeCapture capture) {
     // Chờ countdown 2 giây xong mới cho scan
     if (!_isScanReady) return;
@@ -357,14 +394,8 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     final expectedProduct = _expectedPhones.firstWhere(
       (p) {
         if (p.imei == null || p.imei!.isEmpty) return false;
-        // If QR IMEI is 5 digits, compare with last 5 digits of stored IMEI
-        // If QR IMEI is longer, compare directly
-        if (imei.length == 5) {
-          return p.imei!.length >= 5 &&
-              p.imei!.substring(p.imei!.length - 5) == imei;
-        } else {
-          return p.imei == imei;
-        }
+        // Smart matching: hỗ trợ 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)
+        return _matchIMEI(p.imei!, imei);
       },
       orElse: () => Product(
         name: 'Không có trong kho',
@@ -465,9 +496,18 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
 
   /// Handle legacy QR codes that don't have type field
   Future<void> _handleLegacyQR(String qrData, Map<String, String> qrMap) async {
-    // Handle legacy inventory check format: check_inv:ID
+    // Handle legacy inventory check format: check_inv:ID hoặc check_product:ID
     if (qrData.startsWith('check_inv:')) {
       final productId = qrData.substring('check_inv:'.length);
+      if (productId.isNotEmpty) {
+        await _handleLegacyInventoryCheck(productId);
+        return;
+      }
+    }
+    
+    // Handle QR từ tem in: check_product:ID
+    if (qrData.startsWith('check_product:')) {
+      final productId = qrData.substring('check_product:'.length);
       if (productId.isNotEmpty) {
         await _handleLegacyInventoryCheck(productId);
         return;
@@ -504,20 +544,21 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       return;
     }
 
-    // Case 4: No key-value pairs, just raw data (single line number)
-    if (qrMap.isEmpty) {
-      // Check if it's a number (IMEI)
-      if (RegExp(r'^\d+$').hasMatch(qrData) && qrData.length >= 5) {
-        final legacyQrMap = {'imei': qrData, 'type': 'DIEN_THOAI'};
-        _handlePhoneScan(legacyQrMap);
-        return;
-      }
-      // Check if it's text (accessory code)
-      else if (qrData.isNotEmpty) {
-        final legacyQrMap = {'code': qrData, 'type': 'PHỤ KIỆN'};
-        _handleAccessoryScan(legacyQrMap);
-        return;
-      }
+    // Case 4: Raw data (single line number/text) - xử lý cả khi qrMap không rỗng nhưng không có type/imei/code
+    // Khi QRParser parse "1234" sẽ trả về {"1234": ""} - không empty nhưng không hợp lệ
+    final isRawNumber = RegExp(r'^\d+$').hasMatch(qrData);
+    if (isRawNumber && qrData.length >= 4) {
+      // IMEI ngắn (4-5 số) hoặc IMEI chuẩn (15 số)
+      final legacyQrMap = {'imei': qrData, 'type': 'DIEN_THOAI'};
+      _handlePhoneScan(legacyQrMap);
+      return;
+    }
+    
+    // Nếu không phải số thuần, check qrMap empty rồi xử lý như text
+    if (qrMap.isEmpty && qrData.isNotEmpty) {
+      final legacyQrMap = {'code': qrData, 'type': 'PHỤ KIỆN'};
+      _handleAccessoryScan(legacyQrMap);
+      return;
     }
 
     // Case 5: Malformed or unknown format
@@ -528,11 +569,23 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     );
   }
 
-  /// Handle legacy inventory check format: check_inv:ID
+  /// Handle legacy inventory check format: check_inv:ID hoặc check_product:ID
   Future<void> _handleLegacyInventoryCheck(String productId) async {
     try {
       final db = DBHelper();
-      final product = await db.getProductById(int.tryParse(productId) ?? -1);
+      Product? product;
+      
+      // Thử tìm theo SQLite id (số nguyên)
+      final intId = int.tryParse(productId);
+      if (intId != null && intId > 0) {
+        product = await db.getProductById(intId);
+      }
+      
+      // Nếu không tìm thấy, thử tìm theo firestoreId (chuỗi)
+      if (product == null) {
+        product = await db.getProductByFirestoreId(productId);
+      }
+      
       if (product == null) {
         HapticFeedback.vibrate();
         NotificationService.showSnackBar(
@@ -727,6 +780,108 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     });
 
     NotificationService.showSnackBar('Đã chuyển sang zone: ${zone.name}');
+  }
+
+  /// Build danh sách sản phẩm chờ kiểm (khi chưa scan gì)
+  Widget _buildPendingItemsList() {
+    // Gộp điện thoại và phụ kiện thành 1 list
+    final allItems = <Map<String, dynamic>>[];
+    
+    // Thêm điện thoại
+    for (final phone in _expectedPhones) {
+      final isChecked = _checkedPhoneImeis.contains(phone.imei);
+      // Lấy 5 số cuối IMEI một cách an toàn
+      String imeiSuffix = '';
+      if (phone.imei != null && phone.imei!.isNotEmpty) {
+        final imeiLen = phone.imei!.length;
+        imeiSuffix = imeiLen >= 5 ? phone.imei!.substring(imeiLen - 5) : phone.imei!;
+      }
+      allItems.add({
+        'type': '📱',
+        'name': phone.name,
+        'identifier': imeiSuffix,
+        'isChecked': isChecked,
+      });
+    }
+    
+    // Thêm phụ kiện
+    for (final acc in _expectedAccessories) {
+      final code = acc.firestoreId ?? acc.id.toString();
+      final scanned = _scannedAccessoryCounts[code] ?? 0;
+      final expected = _expectedAccessoryCounts[code] ?? 1;
+      allItems.add({
+        'type': '🔧',
+        'name': acc.name,
+        'identifier': 'SL: $scanned/$expected',
+        'isChecked': scanned >= expected,
+      });
+    }
+    
+    if (allItems.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Không có sản phẩm nào trong kho',
+            style: TextStyle(color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      itemCount: allItems.length,
+      itemBuilder: (context, index) {
+        final item = allItems[index];
+        final isChecked = item['isChecked'] as bool;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isChecked ? Colors.green.shade50 : null,
+            border: Border(
+              bottom: BorderSide(color: Colors.grey.shade200),
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(
+                isChecked ? '✅' : '⏳',
+                style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${item['type']} ${item['name']}',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.body1.fontSize,
+                        fontWeight: FontWeight.w500,
+                        color: isChecked ? Colors.green.shade700 : null,
+                        decoration: isChecked ? TextDecoration.lineThrough : null,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      item['identifier'],
+                      style: TextStyle(
+                        fontSize: AppTextStyles.overlineSize,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   /// Add scanned item to checklist (smart grouping for accessories)
@@ -962,10 +1117,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                   ),
                 ),
 
-                // Checklist Panel
-                if (_showChecklist && _scannedItems.isNotEmpty)
+                // Checklist Panel - Hiện cả khi chưa scan (để xem danh sách cần kiểm)
+                if (_showChecklist)
                   Container(
-                    width: 200,
+                    width: 220,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border(
@@ -981,18 +1136,22 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                     ),
                     child: Column(
                       children: [
-                        // Checklist Header
+                        // Checklist Header with tabs
                         Container(
                           padding: const EdgeInsets.all(8),
                           color: Colors.blue.shade50,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Đã scan (${_scannedItems.length})',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: AppTextStyles.subtitle1.fontSize,
+                              Expanded(
+                                child: Text(
+                                  _scannedItems.isEmpty 
+                                    ? 'Chờ kiểm (${_expectedPhones.length + _expectedAccessories.length})'
+                                    : 'Đã scan (${_scannedItems.length})',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                               ),
                               IconButton(
@@ -1006,62 +1165,64 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                           ),
                         ),
 
-                        // Scanned Items List
+                        // Items List - hiện đã scan hoặc danh sách chờ kiểm
                         Expanded(
-                          child: ListView.builder(
-                            itemCount: _scannedItems.length,
-                            itemBuilder: (context, index) {
-                              final item = _scannedItems[index];
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color: Colors.grey.shade200,
+                          child: _scannedItems.isNotEmpty 
+                            ? ListView.builder(
+                                itemCount: _scannedItems.length,
+                                itemBuilder: (context, index) {
+                                  final item = _scannedItems[index];
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
                                     ),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      item['status'],
-                                      style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '${item['type']} ${item['name']}',
-                                            style: TextStyle(
-                                              fontSize: AppTextStyles.body1.fontSize,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          Text(
-                                            item['identifier'],
-                                            style: TextStyle(
-                                              fontSize: AppTextStyles.overlineSize,
-                                              color: Colors.grey[600],
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: Colors.grey.shade200,
+                                        ),
                                       ),
                                     ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          item['status'],
+                                          style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                '${item['type']} ${item['name']}',
+                                                style: TextStyle(
+                                                  fontSize: AppTextStyles.body1.fontSize,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              Text(
+                                                item['identifier'],
+                                                style: TextStyle(
+                                                  fontSize: AppTextStyles.overlineSize,
+                                                  color: Colors.grey[600],
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              )
+                            : _buildPendingItemsList(),
                         ),
                       ],
                     ),

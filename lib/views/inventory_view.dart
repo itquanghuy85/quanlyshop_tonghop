@@ -25,7 +25,6 @@ import 'supplier_list_view.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../widgets/print_label_dialog.dart';
-import '../widgets/print_label_dialog_v2.dart';
 import '../models/printer_types.dart';
 import 'smart_stock_in_view.dart';
 import 'global_search_view.dart';
@@ -92,7 +91,11 @@ class _InventoryViewState extends State<InventoryView>
   List<InventoryCheckItem> _checkItems = [];
   bool _isCheckingLoading = false;
   bool _isScanning = false;
-  final MobileScannerController _scannerController = MobileScannerController();
+  final MobileScannerController _scannerController = MobileScannerController(
+    detectionSpeed: DetectionSpeed.normal,
+    detectionTimeoutMs: 1000,
+    formats: [BarcodeFormat.qrCode, BarcodeFormat.code128, BarcodeFormat.ean13, BarcodeFormat.ean8],
+  );
   InventoryCheck? _currentCheck;
 
   // Layout sizing constants
@@ -519,12 +522,38 @@ class _InventoryViewState extends State<InventoryView>
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       Navigator.pop(ctx);
-                      // Hiển thị dialog in tem nâng cao (V2)
-                      await PrintLabelDialogV2.show(context, p.toMap());
+                      // Hiện popup chọn máy in
+                      final printerConfig = await showPrinterSelectionDialog(context);
+                      if (printerConfig == null) return; // User hủy
+                      
+                      final printerType = printerConfig['type'] as PrinterType?;
+                      final bluetoothPrinter = printerConfig['bluetoothPrinter'];
+                      final wifiIp = printerConfig['wifiIp'] as String?;
+                      
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Đang in tem...'), duration: Duration(seconds: 1)),
+                      );
+                      
+                      // In tem theo cài đặt từ THIẾT KẾ TEM
+                      final ok = await UnifiedPrinterService.printProductQRLabel(
+                        p.toMap(),
+                        printerType: printerType,
+                        customMac: bluetoothPrinter is Map ? bluetoothPrinter['macAddress'] : null,
+                        wifiIp: wifiIp,
+                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(ok ? '✅ In tem thành công!' : '❌ Lỗi khi in tem'),
+                            backgroundColor: ok ? Colors.green : Colors.red,
+                          ),
+                        );
+                      }
                     },
                     icon: const Icon(Icons.qr_code_2, color: Colors.white),
                     label: Text(
-                      "IN TEM QR",
+                      "IN TEM",
                       style: AppTextStyles.subtitle1.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -1222,7 +1251,7 @@ class _InventoryViewState extends State<InventoryView>
     }
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh({bool forceSync = false}) async {
     setState(() {
       _isLoading = true;
       _selectedIds.clear();
@@ -1232,9 +1261,20 @@ class _InventoryViewState extends State<InventoryView>
       _hasMore = true;
     });
     
-    // Force sync products từ Firestore để đảm bảo local DB có dữ liệu mới nhất
-    await _forceSyncProductsFromFirestore();
+    // Load từ local DB trước để UI hiển thị nhanh
+    // Chỉ force sync khi user kéo refresh hoặc yêu cầu cụ thể
+    if (forceSync) {
+      // Sync Firestore ở background, không block UI
+      _forceSyncProductsFromFirestore().then((_) {
+        if (mounted) _refreshLocalData();
+      });
+    }
     
+    await _refreshLocalData();
+  }
+  
+  /// Load dữ liệu từ local DB (nhanh)
+  Future<void> _refreshLocalData() async {
     final suppliers = await supplierService.getSuppliers();
     final unsyncedCount = await db.getUnsyncedQuickInputCodesCount();
     
@@ -1828,7 +1868,7 @@ class _InventoryViewState extends State<InventoryView>
                   : filteredList.isEmpty
                   ? _buildEmptyState()
                   : RefreshIndicator(
-                      onRefresh: _refresh,
+                      onRefresh: () => _refresh(forceSync: true), // Kéo refresh = force sync Firestore
                       child: ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
