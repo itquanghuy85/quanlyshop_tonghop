@@ -159,6 +159,7 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
              DropdownButtonFormField<String>(
               initialValue: _paperSize,
               items: const [
+                DropdownMenuItem(value: "50mm", child: Text("Khổ 50mm (PT-50DC)")),
                 DropdownMenuItem(value: "80mm", child: Text("Khổ 80mm (Mặc định)")),
                 DropdownMenuItem(value: "58mm", child: Text("Khổ 58mm / Tem nhỏ")),
               ],

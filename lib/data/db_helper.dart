@@ -66,13 +66,13 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 70,
+      version: 72,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, brand TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, brand TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, isSynced INTEGER DEFAULT 0)',
@@ -151,7 +151,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS debt_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, debtId INTEGER, debtFirestoreId TEXT, debtType TEXT, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, createdBy TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS quick_input_codes(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, code TEXT, name TEXT, type TEXT, brand TEXT, model TEXT, capacity TEXT, color TEXT, condition TEXT, cost INTEGER, price INTEGER, description TEXT, supplier TEXT, paymentMethod TEXT, isActive INTEGER DEFAULT 1, createdAt INTEGER, isSynced INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS quick_input_codes(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, code TEXT, name TEXT, type TEXT, brand TEXT, model TEXT, capacity TEXT, color TEXT, condition TEXT, cost INTEGER, price INTEGER, description TEXT, labelInfo TEXT, supplier TEXT, paymentMethod TEXT, isActive INTEGER DEFAULT 1, createdAt INTEGER, isSynced INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS supplier_product_prices(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, supplierId INTEGER, productName TEXT, productBrand TEXT, productModel TEXT, costPrice INTEGER, lastUpdated INTEGER, createdAt INTEGER, isActive INTEGER DEFAULT 1, shopId TEXT)',
@@ -166,7 +166,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS partner_repair_history(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, repairOrderId TEXT, partnerId INTEGER, customerName TEXT, deviceModel TEXT, issue TEXT, partnerCost INTEGER, repairContent TEXT, sentAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS repair_parts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, partName TEXT, compatibleModels TEXT, cost INTEGER, price INTEGER, quantity INTEGER, updatedAt INTEGER, createdAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0, supplierId INTEGER, paymentMethod TEXT, createdBy TEXT)',
+          'CREATE TABLE IF NOT EXISTS repair_parts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, partName TEXT, compatibleModels TEXT, cost INTEGER, price INTEGER, quantity INTEGER, updatedAt INTEGER, createdAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0, supplierId INTEGER, paymentMethod TEXT, createdBy TEXT, stockEntryId TEXT)',
         );
         // Sync queue table for tracking pending sync operations
         await db.execute('''
@@ -342,7 +342,7 @@ class DBHelper {
           }
           try {
             await db.execute(
-              'CREATE TABLE IF NOT EXISTS quick_input_codes(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, type TEXT, brand TEXT, model TEXT, capacity TEXT, color TEXT, condition TEXT, cost INTEGER, price INTEGER, description TEXT, supplier TEXT, paymentMethod TEXT, isActive INTEGER DEFAULT 1, createdAt INTEGER, isSynced INTEGER DEFAULT 0)',
+              'CREATE TABLE IF NOT EXISTS quick_input_codes(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, type TEXT, brand TEXT, model TEXT, capacity TEXT, color TEXT, condition TEXT, cost INTEGER, price INTEGER, description TEXT, labelInfo TEXT, supplier TEXT, paymentMethod TEXT, isActive INTEGER DEFAULT 1, createdAt INTEGER, isSynced INTEGER DEFAULT 0)',
             );
           } catch (e) {
             debugPrint('DB upgrade error (quick_input_codes): $e');
@@ -417,6 +417,31 @@ class DBHelper {
             debugPrint('DB upgrade error (sales walkInPhone): $e');
           }
         }
+        if (oldV < 71) {
+          try {
+            await db.execute(
+              'ALTER TABLE products ADD COLUMN labelInfo TEXT',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (products labelInfo): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE quick_input_codes ADD COLUMN labelInfo TEXT',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (quick_input_codes labelInfo): $e');
+          }
+        }
+        if (oldV < 72) {
+          try {
+            await db.execute(
+              'ALTER TABLE repair_parts ADD COLUMN stockEntryId TEXT',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (repair_parts stockEntryId): $e');
+          }
+        }
         if (oldV < 26) {
           // Migration to remove kpkPrice and pkPrice columns from products and quick_input_codes tables
           // Since SQLite doesn't support DROP COLUMN, we'll recreate tables without these columns
@@ -483,7 +508,7 @@ class DBHelper {
         if (oldV < 28) {
           try {
             await db.execute(
-              'CREATE TABLE IF NOT EXISTS repair_parts(id INTEGER PRIMARY KEY AUTOINCREMENT, partName TEXT, compatibleModels TEXT, cost INTEGER, price INTEGER, quantity INTEGER, updatedAt INTEGER, createdAt INTEGER)',
+              'CREATE TABLE IF NOT EXISTS repair_parts(id INTEGER PRIMARY KEY AUTOINCREMENT, partName TEXT, compatibleModels TEXT, cost INTEGER, price INTEGER, quantity INTEGER, updatedAt INTEGER, createdAt INTEGER, stockEntryId TEXT)',
             );
           } catch (e) {
             debugPrint('DB upgrade error (repair_parts): $e');
@@ -1728,6 +1753,9 @@ class DBHelper {
           final hasUpdatedAt = cols.any(
             (c) => (c['name'] ?? c['name'.toString()]) == 'updatedAt',
           );
+          final hasLabelInfo = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'labelInfo',
+          );
 
           if (!hasPaymentMethod) {
             await db.execute(
@@ -1745,8 +1773,30 @@ class DBHelper {
             );
             debugPrint('DB: added updatedAt column');
           }
+          if (!hasLabelInfo) {
+            await db.execute(
+              'ALTER TABLE products ADD COLUMN labelInfo TEXT',
+            );
+            debugPrint('DB: added labelInfo column');
+          }
         } catch (e) {
           debugPrint('DB onOpen check error: $e');
+        }
+
+        // Ensure labelInfo column exists in quick_input_codes table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(quick_input_codes)');
+          final has = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'labelInfo',
+          );
+          if (!has) {
+            await db.execute(
+              'ALTER TABLE quick_input_codes ADD COLUMN labelInfo TEXT',
+            );
+            debugPrint('DB: added labelInfo column to quick_input_codes');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (quick_input_codes labelInfo): $e');
         }
 
         // Ensure checkedBy column exists in inventory_checks table
@@ -1763,6 +1813,22 @@ class DBHelper {
           }
         } catch (e) {
           debugPrint('DB onOpen check error (inventory_checks checkedBy): $e');
+        }
+
+        // Ensure stockEntryId column exists in repair_parts table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(repair_parts)');
+          final has = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'stockEntryId',
+          );
+          if (!has) {
+            await db.execute(
+              'ALTER TABLE repair_parts ADD COLUMN stockEntryId TEXT',
+            );
+            debugPrint('DB: added stockEntryId column to repair_parts');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (repair_parts stockEntryId): $e');
         }
 
         // Ensure model column exists in products table

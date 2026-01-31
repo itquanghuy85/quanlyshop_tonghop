@@ -20,6 +20,7 @@ class Product {
   String? color;
   String? capacity; // Dung lượng (ví dụ: 64GB, 128GB, etc.)
   String? paymentMethod; // Phương thức thanh toán
+  String? labelInfo; // Thông tin in trên tem
   bool isSynced;
   bool isPending; // Kho tạm - chưa có giá vốn
   String? pendingSupplier; // NCC tạm khi chưa xác nhận giá
@@ -46,6 +47,7 @@ class Product {
     this.color,
     this.capacity,
     this.paymentMethod,
+    this.labelInfo,
     this.isSynced = false,
     this.isPending = false,
     this.pendingSupplier,
@@ -74,6 +76,7 @@ class Product {
       'color': color,
       'capacity': capacity,
       'paymentMethod': paymentMethod,
+      'labelInfo': labelInfo,
       'isSynced': isSynced ? 1 : 0,
       'isPending': isPending ? 1 : 0,
       'pendingSupplier': pendingSupplier,
@@ -132,6 +135,7 @@ class Product {
       color: map['color'],
       capacity: map['capacity'],
       paymentMethod: map['paymentMethod'],
+      labelInfo: map['labelInfo'],
       isSynced: map['isSynced'] == 1,
       isPending: map['isPending'] == 1,
       pendingSupplier: map['pendingSupplier'],
@@ -159,6 +163,7 @@ class Product {
     String? color,
     String? capacity,
     String? paymentMethod,
+    String? labelInfo,
     bool? isSynced,
     int? updatedAt,
     bool? isPending,
@@ -186,6 +191,7 @@ class Product {
       color: color ?? this.color,
       capacity: capacity ?? this.capacity,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      labelInfo: labelInfo ?? this.labelInfo,
       isSynced: isSynced ?? this.isSynced,
       isPending: isPending ?? this.isPending,
       pendingSupplier: pendingSupplier ?? this.pendingSupplier,

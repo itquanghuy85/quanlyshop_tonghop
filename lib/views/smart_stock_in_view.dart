@@ -41,6 +41,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   final _costCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  final _labelInfoCtrl = TextEditingController();
 
   // Controllers - Điện thoại
   final _imeiCtrl = TextEditingController();
@@ -202,6 +203,11 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     if (code.description != null && code.description!.isNotEmpty) {
       _notesCtrl.text = code.description!;
     }
+
+    // Thông tin in trên tem
+    if (code.labelInfo != null && code.labelInfo!.isNotEmpty) {
+      _labelInfoCtrl.text = code.labelInfo!;
+    }
   }
 
   void _loadEditData() {
@@ -243,6 +249,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
           _selectedUnit = item.unit;
         }
       }
+      _labelInfoCtrl.text = item.labelInfo ?? '';
     }
 
     _selectedSupplierId = entry.supplierId;
@@ -271,6 +278,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     _costCtrl.dispose();
     _priceCtrl.dispose();
     _notesCtrl.dispose();
+    _labelInfoCtrl.dispose();
     _imeiCtrl.dispose();
     _modelCtrl.dispose();
     _skuCtrl.dispose();
@@ -357,6 +365,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       cost: cost,
       price: price,
       productType: _productType,
+      labelInfo: _labelInfoCtrl.text.trim(),
       // Điện thoại
       imei: _isPhone ? _imeiCtrl.text.trim() : null,
       brand: _isPhone ? _selectedBrand : null,
@@ -671,6 +680,22 @@ class _SmartStockInViewState extends State<SmartStockInView> {
             ),
             const SizedBox(height: 12),
 
+
+            TextFormField(
+              controller: _labelInfoCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Thông tin in trên tem',
+                hintText: 'VD: BH 6T, Hàng mới',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.local_offer_outlined, size: 20),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+            ),
+            const SizedBox(height: 12),
             // IMEI + Scan
             Row(
               children: [
@@ -712,6 +737,22 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+
+            TextFormField(
+              controller: _labelInfoCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Thông tin in trên tem',
+                hintText: 'VD: Bảo hành 6T, Máy đẹp 99%',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.local_offer_outlined, size: 20),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
             ),
             const SizedBox(height: 12),
 

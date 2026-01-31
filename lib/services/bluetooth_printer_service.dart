@@ -116,25 +116,34 @@ class BluetoothPrinterService {
   }
 
   static Future<bool> isConnected() async {
-    return await PrintBluetoothThermal.connectionStatus;
+    final connected = await PrintBluetoothThermal.connectionStatus;
+    print('BLUETOOTH_PRINTER: isConnected = $connected');
+    return connected;
   }
 
   static Future<List<BluetoothInfo>> getPairedPrinters() async {
-    return await PrintBluetoothThermal.pairedBluetooths;
+    final printers = await PrintBluetoothThermal.pairedBluetooths;
+    print('BLUETOOTH_PRINTER: Found ${printers.length} paired devices');
+    return printers;
   }
 
   static Future<bool> connect(String macAddress) async {
-    return await PrintBluetoothThermal.connect(macPrinterAddress: macAddress);
+    print('BLUETOOTH_PRINTER: Connecting to MAC: $macAddress');
+    final result = await PrintBluetoothThermal.connect(macPrinterAddress: macAddress);
+    print('BLUETOOTH_PRINTER: Connect result: $result');
+    return result;
   }
 
   static Future<Map<String, dynamic>> connectWithStatus(String macAddress) async {
     try {
+      print('BLUETOOTH_PRINTER: connectWithStatus to MAC: $macAddress');
       final success = await connect(macAddress);
       return {
         'success': success,
         'error': success ? null : 'Không thể kết nối với máy in',
       };
     } catch (e) {
+      print('BLUETOOTH_PRINTER: connectWithStatus error: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -143,7 +152,10 @@ class BluetoothPrinterService {
   }
 
   static Future<bool> printBytes(List<int> bytes) async {
-    return await PrintBluetoothThermal.writeBytes(bytes);
+    print('BLUETOOTH_PRINTER: printBytes called with ${bytes.length} bytes');
+    final result = await PrintBluetoothThermal.writeBytes(bytes);
+    print('BLUETOOTH_PRINTER: writeBytes result: $result');
+    return result;
   }
 
   // IN TEM DIEN_THOAI VỚI CẤU HÌNH SIZE CHỮ TỐI ƯU
@@ -239,12 +251,18 @@ class BluetoothPrinterService {
   }
 
   static Future<bool> ensureConnection() async {
+    print('BLUETOOTH_PRINTER: ensureConnection called');
     final connected = await isConnected();
+    print('BLUETOOTH_PRINTER: Current connection status: $connected');
     if (!connected) {
       final savedPrinter = await getSavedPrinter();
+      print('BLUETOOTH_PRINTER: Saved printer: ${savedPrinter?.name} (${savedPrinter?.macAddress})');
       if (savedPrinter != null) {
-        return await connect(savedPrinter.macAddress);
+        final connectResult = await connect(savedPrinter.macAddress);
+        print('BLUETOOTH_PRINTER: Connect to saved printer result: $connectResult');
+        return connectResult;
       }
+      print('BLUETOOTH_PRINTER: No saved printer found');
     }
     return connected;
   }

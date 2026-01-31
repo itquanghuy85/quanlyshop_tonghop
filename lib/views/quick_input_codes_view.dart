@@ -933,6 +933,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   final _costCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
+  final _labelInfoCtrl = TextEditingController();
   final _supplierCtrl = TextEditingController();
 
   String _type = 'DIEN_THOAI';
@@ -997,6 +998,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
       _costCtrl.text = code.cost?.toString() ?? '';
       _priceCtrl.text = code.price?.toString() ?? '';
       _descriptionCtrl.text = code.description ?? '';
+      _labelInfoCtrl.text = code.labelInfo ?? '';
       _supplierCtrl.text = code.supplier ?? '';
       _selectedSupplier = code.supplier;
       // Map payment method về giá trị chuẩn
@@ -1040,6 +1042,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
     _costCtrl.dispose();
     _priceCtrl.dispose();
     _descriptionCtrl.dispose();
+    _labelInfoCtrl.dispose();
     _supplierCtrl.dispose();
     super.dispose();
   }
@@ -1068,6 +1071,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
       cost: CurrencyTextField.parseValue(_costCtrl.text),
       price: CurrencyTextField.parseValue(_priceCtrl.text),
       description: _descriptionCtrl.text.trim(),
+      labelInfo: _labelInfoCtrl.text.trim(),
       supplier: _supplierCtrl.text.trim(),
       paymentMethod: _paymentMethod,
       isActive: widget.code?.isActive ?? true,

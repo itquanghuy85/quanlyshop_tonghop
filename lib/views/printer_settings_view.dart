@@ -1,13 +1,18 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import '../services/notification_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/thermal_printer_service.dart';
+import '../services/wifi_printer_service.dart';
 import '../theme/app_text_styles.dart';
 import 'label_designer_view.dart';
+import 'imei_qr_printer_view.dart';
+import 'pty_print_designer_view.dart';
 
 /// Màn hình cài đặt máy in - Đơn giản, tập trung vào kết nối
 class PrinterSettingsView extends StatefulWidget {
@@ -131,6 +136,17 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                     macAddress: device.macAdress,
                   );
                   await BluetoothPrinterService.savePrinter(config);
+                  if (device.name.toUpperCase().contains('PT-50DC')) {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setString('label_paper_size', '50');
+                    await prefs.setString('paper_size', '50mm');
+                    await prefs.setBool('pt50dc_force_raster_qr', true);
+                    await prefs.setString('label_code_type', 'qr');
+                    NotificationService.showSnackBar(
+                      'Đã áp dụng preset PT-50DC (khổ 50mm).',
+                      color: Colors.green,
+                    );
+                  }
                   setState(() => _selectedBT = config);
                   NotificationService.showSnackBar(AppLocalizations.of(context)!.selected(device.name), color: Colors.green);
                 },
@@ -157,11 +173,43 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
     
     NotificationService.showSnackBar(AppLocalizations.of(context)!.testingConnection, color: Colors.blue);
     try {
+      print('WIFI_TEST: Connecting to $ip:9100...');
       // Test connection by trying to connect to printer port
-      final socket = await Socket.connect(ip, 9100, timeout: const Duration(seconds: 5));
+      final socket = await Socket.connect(ip, 9100, timeout: const Duration(seconds: 8));
+      print('WIFI_TEST: Socket connected, sending test print...');
+      
+      // Tạo lệnh ESC/POS test
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(PaperSize.mm80, profile);
+      final bytes = <int>[];
+      bytes.addAll(generator.reset());
+      bytes.addAll(generator.text('=== TEST WIFI PRINTER ===', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2)));
+      bytes.addAll(generator.text('Shop Manager', styles: const PosStyles(align: PosAlign.center)));
+      bytes.addAll(generator.text('IP: $ip', styles: const PosStyles(align: PosAlign.center)));
+      bytes.addAll(generator.text('Time: ${DateTime.now().toString().substring(0, 19)}', styles: const PosStyles(align: PosAlign.center)));
+      bytes.addAll(generator.text('------------------------', styles: const PosStyles(align: PosAlign.center)));
+      bytes.addAll(generator.text('Ket noi WiFi thanh cong!', styles: const PosStyles(align: PosAlign.center, bold: true)));
+      bytes.addAll(generator.feed(2));
+      bytes.addAll(generator.cut());
+      
+      // Gửi dữ liệu
+      socket.add(bytes);
+      await socket.flush();
+      print('WIFI_TEST: Data sent, ${bytes.length} bytes');
+      
+      await Future.delayed(const Duration(milliseconds: 500));
       await socket.close();
-      NotificationService.showSnackBar(AppLocalizations.of(context)!.connectionSuccessful, color: Colors.green);
+      print('WIFI_TEST: Socket closed');
+      
+      NotificationService.showSnackBar('✅ In thử WiFi thành công!', color: Colors.green);
+    } on SocketException catch (e) {
+      print('WIFI_TEST: SocketException: $e');
+      NotificationService.showSnackBar('❌ Lỗi kết nối: ${e.message}', color: Colors.red);
+    } on TimeoutException catch (e) {
+      print('WIFI_TEST: Timeout: $e');
+      NotificationService.showSnackBar('❌ Timeout: Không kết nối được $ip', color: Colors.red);
     } catch (e) {
+      print('WIFI_TEST: Error: $e');
       NotificationService.showSnackBar(AppLocalizations.of(context)!.connectionFailed(e.toString()), color: Colors.red);
     }
   }
@@ -173,9 +221,36 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
     }
     
     NotificationService.showSnackBar(AppLocalizations.of(context)!.testingConnection, color: Colors.blue);
+    print('BT_TEST: Connecting to ${_selectedBT!.macAddress}...');
+    
     final success = await BluetoothPrinterService.connect(_selectedBT!.macAddress);
+    print('BT_TEST: Connect result: $success');
+    
     if (success) {
-      NotificationService.showSnackBar(AppLocalizations.of(context)!.bluetoothConnectionSuccessful, color: Colors.green);
+      // Tạo lệnh ESC/POS test
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(PaperSize.mm80, profile);
+      final bytes = <int>[];
+      bytes.addAll(generator.reset());
+      bytes.addAll(generator.text('=== TEST BLUETOOTH ===', styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2)));
+      bytes.addAll(generator.text('Shop Manager', styles: const PosStyles(align: PosAlign.center)));
+      bytes.addAll(generator.text('Printer: ${_selectedBT!.name}', styles: const PosStyles(align: PosAlign.center)));
+      bytes.addAll(generator.text('MAC: ${_selectedBT!.macAddress}', styles: const PosStyles(align: PosAlign.center)));
+      bytes.addAll(generator.text('Time: ${DateTime.now().toString().substring(0, 19)}', styles: const PosStyles(align: PosAlign.center)));
+      bytes.addAll(generator.text('------------------------', styles: const PosStyles(align: PosAlign.center)));
+      bytes.addAll(generator.text('Ket noi Bluetooth OK!', styles: const PosStyles(align: PosAlign.center, bold: true)));
+      bytes.addAll(generator.feed(2));
+      bytes.addAll(generator.cut());
+      
+      print('BT_TEST: Sending ${bytes.length} bytes...');
+      final printResult = await BluetoothPrinterService.printBytes(bytes);
+      print('BT_TEST: Print result: $printResult');
+      
+      if (printResult) {
+        NotificationService.showSnackBar('✅ In thử Bluetooth thành công!', color: Colors.green);
+      } else {
+        NotificationService.showSnackBar('❌ Kết nối OK nhưng gửi dữ liệu thất bại!', color: Colors.orange);
+      }
     } else {
       NotificationService.showSnackBar(AppLocalizations.of(context)!.bluetoothConnectionFailed, color: Colors.red);
     }
@@ -296,6 +371,45 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const LabelDesignerView()),
+              ),
+            ),
+            const SizedBox(height: 4),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.print, color: Colors.black, size: 20),
+              ),
+              title: const Text('PTY 1:1 Designer', style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text('Thiết kế tem 1:1, kéo thả và in bitmap'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PtyPrintDesignerView()),
+              ),
+            ),
+            const Divider(height: 16),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.qr_code_2, color: Colors.green, size: 20),
+              ),
+              title: const Text(
+                'In tem QR/Barcode IMEI hàng loạt',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text('Chọn IMEI và in hàng loạt qua Bluetooth/WiFi'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ImeiQrPrinterView()),
               ),
             ),
           ],

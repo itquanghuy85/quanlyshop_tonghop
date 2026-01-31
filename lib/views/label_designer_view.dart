@@ -1,10 +1,14 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import '../models/label_template_model.dart';
 import '../services/label_settings_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_text_styles.dart';
+import 'pty_print_designer_view.dart';
 
 /// Model cho từng element trong tem
 class LabelElement {
@@ -13,6 +17,7 @@ class LabelElement {
   bool visible;
   double fontSize;
   bool bold;
+  String fontType;
   String align;
   int order;
   String prefix;
@@ -27,6 +32,7 @@ class LabelElement {
     this.visible = true,
     this.fontSize = 1.0,
     this.bold = true,
+    this.fontType = 'A',
     this.align = 'center',
     this.order = 0,
     this.prefix = '',
@@ -42,6 +48,7 @@ class LabelElement {
     'visible': visible,
     'fontSize': fontSize,
     'bold': bold,
+    'fontType': fontType,
     'align': align,
     'order': order,
     'prefix': prefix,
@@ -57,6 +64,7 @@ class LabelElement {
     visible: json['visible'] ?? true,
     fontSize: (json['fontSize'] ?? 1.0).toDouble(),
     bold: json['bold'] ?? true,
+    fontType: json['fontType'] ?? 'A',
     align: json['align'] ?? 'center',
     order: json['order'] ?? 0,
     prefix: json['prefix'] ?? '',
@@ -71,6 +79,7 @@ class LabelElement {
     bool? visible,
     double? fontSize,
     bool? bold,
+    String? fontType,
     String? align,
     int? order,
     String? prefix,
@@ -84,6 +93,7 @@ class LabelElement {
     visible: visible ?? this.visible,
     fontSize: fontSize ?? this.fontSize,
     bold: bold ?? this.bold,
+    fontType: fontType ?? this.fontType,
     align: align ?? this.align,
     order: order ?? this.order,
     prefix: prefix ?? this.prefix,
@@ -92,6 +102,13 @@ class LabelElement {
     flex: flex ?? this.flex,
     spacing: spacing ?? this.spacing,
   );
+}
+
+class _PaperSpec {
+  final double widthMm;
+  final double? heightMm;
+
+  const _PaperSpec({required this.widthMm, this.heightMm});
 }
 
 /// Trang THIẾT KẾ TEM - Kéo thả trực tiếp trên mẫu
@@ -114,9 +131,22 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
 
   // Paper Size: '58', '72', '80' (mm) hoặc '2x4', '3x4', '4x6' (inch)
   String _paperSize = '80';
+  String _paperMode = 'roll'; // 'roll' (mm) | 'sticker' (cm)
+  final TextEditingController _customRollSizeCtrl = TextEditingController();
+    final TextEditingController _customStickerWidthCtrl =
+      TextEditingController();
+    final TextEditingController _customStickerHeightCtrl =
+      TextEditingController();
 
-  // Code Type: 'qr' hoặc 'barcode'
+  // Code Type: 'qr', 'barcode' hoặc 'none'
   String _codeType = 'qr';
+
+  double _previewZoom = 1.3;
+
+  // Auto-save debounce timer
+  Timer? _autoSaveTimer;
+
+  static const double _referenceWidthMm = 80.0;
 
   // Prefix controllers for each element
   final Map<String, TextEditingController> _prefixControllers = {};
@@ -156,11 +186,21 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
       spacing: 4,
     ),
     LabelElement(
+      id: 'label_info',
+      label: 'Thông tin tem',
+      fontSize: 0.9,
+      bold: false,
+      row: 2,
+      col: 0,
+      flex: 1.0,
+      spacing: 3,
+    ),
+    LabelElement(
       id: 'price_kpk',
       label: 'Giá KPK',
       fontSize: 1.2,
       bold: true,
-      row: 2,
+      row: 3,
       col: 0,
       flex: 1.0,
       prefix: 'KPK: ',
@@ -171,7 +211,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
       label: 'Giá CPK',
       fontSize: 1.2,
       bold: true,
-      row: 3,
+      row: 4,
       col: 0,
       flex: 1.0,
       prefix: 'CPK: ',
@@ -182,7 +222,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
       label: 'IMEI',
       fontSize: 0.8,
       bold: false,
-      row: 4,
+      row: 5,
       col: 0,
       flex: 0.6,
       prefix: '',
@@ -194,7 +234,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
       label: 'QR',
       fontSize: 1.0,
       bold: false,
-      row: 4,
+      row: 5,
       col: 1,
       flex: 0.4,
       spacing: 4,
@@ -204,7 +244,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
       label: 'Shop',
       fontSize: 0.7,
       bold: false,
-      row: 5,
+      row: 6,
       col: 0,
       flex: 1.0,
       spacing: 0,
@@ -220,7 +260,14 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
 
   @override
   void dispose() {
+    // Cancel auto-save timer and save immediately
+    _autoSaveTimer?.cancel();
+    _saveSettingsQuiet(); // Save on exit
+    
     _tabController.dispose();
+    _customRollSizeCtrl.dispose();
+    _customStickerWidthCtrl.dispose();
+    _customStickerHeightCtrl.dispose();
     _shopNameCtrl.dispose();
     _hotlineCtrl.dispose();
     _sloganCtrl.dispose();
@@ -237,6 +284,60 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
     super.dispose();
   }
 
+  /// Auto-save with debounce (500ms delay)
+  void _scheduleAutoSave() {
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(milliseconds: 500), () {
+      _saveSettingsQuiet();
+    });
+  }
+
+  /// Save settings without showing notification
+  Future<void> _saveSettingsQuiet() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = jsonEncode(_elements.map((e) => e.toJson()).toList());
+      await prefs.setString(_prefsKey, jsonStr);
+      await prefs.setString('label_paper_size', _paperSize);
+      await prefs.setString('label_code_type', _codeType);
+
+      // Save backward compatible settings
+      for (final el in _elements) {
+        switch (el.id) {
+          case 'name':
+            await prefs.setBool('label_show_name', el.visible);
+            await prefs.setDouble('label_name_font_size', el.fontSize);
+            break;
+          case 'detail':
+            await prefs.setBool('label_show_detail', el.visible);
+            await prefs.setDouble('label_detail_font_size', el.fontSize);
+            break;
+          case 'price_kpk':
+            await prefs.setBool('label_show_price_kpk', el.visible);
+            await prefs.setDouble('label_kpk_font_size', el.fontSize);
+            break;
+          case 'price_cpk':
+            await prefs.setBool('label_show_price_cpk', el.visible);
+            await prefs.setDouble('label_cpk_font_size', el.fontSize);
+            break;
+          case 'imei':
+            await prefs.setBool('label_show_imei', el.visible);
+            await prefs.setDouble('label_imei_font_size', el.fontSize);
+            break;
+          case 'qr_code':
+            await prefs.setBool('label_show_qr', el.visible);
+            break;
+          case 'shop_info':
+            await prefs.setBool('label_show_shop_info', el.visible);
+            break;
+        }
+      }
+      debugPrint('Auto-saved label settings');
+    } catch (e) {
+      debugPrint('Auto-save error: $e');
+    }
+  }
+
   Future<void> _loadAllData() async {
     await Future.wait([_loadElements(), _loadShopSettings()]);
   }
@@ -247,6 +348,15 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
 
     // Load paper size
     _paperSize = prefs.getString('label_paper_size') ?? '80';
+    _paperMode = _paperSize.contains('x') ? 'sticker' : 'roll';
+    if (_paperMode == 'roll') {
+      _customRollSizeCtrl.text = _paperSize;
+    } else {
+      final parts = _paperSize.split('x');
+      _customStickerWidthCtrl.text = parts.first;
+      _customStickerHeightCtrl.text =
+          parts.length > 1 ? parts.last : '3';
+    }
 
     // Load code type (qr or barcode)
     _codeType = prefs.getString('label_code_type') ?? 'qr';
@@ -260,6 +370,14 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
       }
     } else {
       _elements = List.from(_defaultElements);
+    }
+
+    // Ensure new default elements are present (backward compatibility)
+    final existingIds = _elements.map((e) => e.id).toSet();
+    for (final def in _defaultElements) {
+      if (!existingIds.contains(def.id)) {
+        _elements.add(def);
+      }
     }
 
     if (mounted) setState(() => _isLoading = false);
@@ -428,6 +546,18 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.print),
+            tooltip: 'PTY 1:1 Designer',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PtyPrintDesignerView(),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Đặt lại',
             onPressed: _resetToDefault,
@@ -483,6 +613,53 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
               children: [
                 Row(
                   children: [
+                    Icon(Icons.tune, color: Colors.orange.shade700),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Loại giấy:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(value: 'roll', label: Text('Cuộn (mm)')),
+                          ButtonSegment(value: 'sticker', label: Text('Tem dán (cm)')),
+                        ],
+                        selected: {_paperMode},
+                        onSelectionChanged: (s) {
+                          setState(() {
+                            _paperMode = s.first;
+                            _paperSize = _paperMode == 'roll' ? '80' : '2x3';
+                            if (_paperMode == 'roll') {
+                              _customRollSizeCtrl.text = _paperSize;
+                            }
+                          });
+                          _scheduleAutoSave();
+                        },
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStateProperty.resolveWith((
+                            states,
+                          ) {
+                            if (states.contains(WidgetState.selected))
+                              return Colors.orange;
+                            return null;
+                          }),
+                          foregroundColor: WidgetStateProperty.resolveWith((
+                            states,
+                          ) {
+                            if (states.contains(WidgetState.selected))
+                              return Colors.white;
+                            return null;
+                          }),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
                     Icon(Icons.receipt_long, color: Colors.orange.shade700),
                     const SizedBox(width: 12),
                     const Text(
@@ -494,27 +671,60 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                 const SizedBox(height: 8),
                 SegmentedButton<String>(
                   segments: const [
+                    ButtonSegment(value: '50', label: Text('50mm (PT-50DC)')),
                     ButtonSegment(value: '58', label: Text('58mm')),
                     ButtonSegment(value: '72', label: Text('72mm')),
                     ButtonSegment(value: '80', label: Text('80mm')),
                   ],
-                  selected: {_paperSize.contains('x') ? '80' : _paperSize},
-                  onSelectionChanged: (s) =>
-                      setState(() => _paperSize = s.first),
+                  selected: {
+                    _paperMode == 'roll' && !_paperSize.contains('x')
+                        ? _paperSize
+                        : '80',
+                  },
+                  onSelectionChanged: _paperMode != 'roll'
+                      ? null
+                      : (s) {
+                          setState(() {
+                            _paperSize = s.first;
+                            _customRollSizeCtrl.text = _paperSize;
+                          });
+                          _scheduleAutoSave();
+                        },
                   style: ButtonStyle(
                     backgroundColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected) &&
-                          !_paperSize.contains('x'))
+                          _paperMode == 'roll')
                         return Colors.orange;
                       return null;
                     }),
                     foregroundColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected) &&
-                          !_paperSize.contains('x'))
+                          _paperMode == 'roll')
                         return Colors.white;
                       return null;
                     }),
                   ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _customRollSizeCtrl,
+                  enabled: _paperMode == 'roll',
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Tự nhập khổ giấy (mm)',
+                    hintText: 'VD: 76',
+                    prefixIcon: const Icon(Icons.straighten),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    final normalized = value.trim();
+                    final mm = double.tryParse(normalized);
+                    if (mm == null) return;
+                    setState(() => _paperSize = mm.toStringAsFixed(0));
+                    _scheduleAutoSave();
+                  },
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -534,30 +744,82 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                     ButtonSegment(value: '3x4', label: Text('3x4')),
                     ButtonSegment(value: '4x6', label: Text('4x6')),
                   ],
-                  selected: {_paperSize.contains('x') ? _paperSize : '2x3'},
-                  onSelectionChanged: (s) =>
-                      setState(() => _paperSize = s.first),
+                  selected: {
+                    _paperMode == 'sticker' && _paperSize.contains('x')
+                        ? _paperSize
+                        : '2x3',
+                  },
+                  onSelectionChanged: _paperMode != 'sticker'
+                      ? null
+                      : (s) {
+                          setState(() {
+                            _paperSize = s.first;
+                            final parts = _paperSize.split('x');
+                            _customStickerWidthCtrl.text = parts.first;
+                            _customStickerHeightCtrl.text =
+                                parts.length > 1 ? parts.last : '3';
+                          });
+                          _scheduleAutoSave();
+                        },
                   style: ButtonStyle(
                     backgroundColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected) &&
-                          _paperSize.contains('x'))
+                          _paperMode == 'sticker')
                         return Colors.orange;
                       return null;
                     }),
                     foregroundColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected) &&
-                          _paperSize.contains('x'))
+                          _paperMode == 'sticker')
                         return Colors.white;
                       return null;
                     }),
                   ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _customStickerWidthCtrl,
+                        enabled: _paperMode == 'sticker',
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Rộng (cm)',
+                          hintText: 'VD: 2.5',
+                          prefixIcon: const Icon(Icons.straighten),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onChanged: (_) => _updateCustomStickerSize(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _customStickerHeightCtrl,
+                        enabled: _paperMode == 'sticker',
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Dài (cm)',
+                          hintText: 'VD: 3.5',
+                          prefixIcon: const Icon(Icons.straighten),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onChanged: (_) => _updateCustomStickerSize(),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 12),
 
-          // Code Type Selection (QR vs Barcode)
+          // Code Type Selection (QR vs Barcode vs None)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -578,8 +840,13 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                   child: SegmentedButton<String>(
                     segments: const [
                       ButtonSegment(
+                        value: 'none',
+                        label: Text('Tắt'),
+                        icon: Icon(Icons.block, size: 18),
+                      ),
+                      ButtonSegment(
                         value: 'qr',
-                        label: Text('QR Code'),
+                        label: Text('QR'),
                         icon: Icon(Icons.qr_code_2, size: 18),
                       ),
                       ButtonSegment(
@@ -589,8 +856,10 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                       ),
                     ],
                     selected: {_codeType},
-                    onSelectionChanged: (s) =>
-                        setState(() => _codeType = s.first),
+                    onSelectionChanged: (s) {
+                        setState(() => _codeType = s.first);
+                        _scheduleAutoSave();
+                    },
                     style: ButtonStyle(
                       backgroundColor: WidgetStateProperty.resolveWith((
                         states,
@@ -629,12 +898,32 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                 Expanded(
                   child: Text(
                     '👆 Nhấn vào phần tử trên mẫu để chỉnh sửa\n'
+                    '🖐️ Nhấn giữ và kéo thả để hoán đổi vị trí\n'
                     '🔀 Gộp/tách dòng ở bảng điều khiển bên dưới',
                     style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
                   ),
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.zoom_in, size: 18, color: Colors.purple),
+              const SizedBox(width: 8),
+              const Text('Phóng to mẫu:', style: TextStyle(fontSize: 12)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Slider(
+                  value: _previewZoom,
+                  min: 0.9,
+                  max: 2.2,
+                  divisions: 13,
+                  label: '${_previewZoom.toStringAsFixed(1)}x',
+                  onChanged: (v) => setState(() => _previewZoom = v),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
 
@@ -664,94 +953,185 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
     }
     final sortedRows = rowMap.keys.toList()..sort();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.purple.withValues(alpha: 0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(12),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final paperSpec = _getPaperSpec();
+        final effectiveWidth =
+          max(constraints.maxWidth, _referenceWidthMm * 4);
+        final previewScale =
+          (effectiveWidth / _referenceWidthMm) * _previewZoom;
+        final paperScale = paperSpec.widthMm / _referenceWidthMm;
+        final previewWidth = paperSpec.widthMm * previewScale;
+        final previewHeight = paperSpec.heightMm == null
+            ? null
+            : paperSpec.heightMm! * previewScale;
+        final sizeLabel = paperSpec.heightMm == null
+            ? '${paperSpec.widthMm.toInt()}mm'
+            : '${paperSpec.widthMm.toInt()}x${paperSpec.heightMm!.toInt()}mm';
+
+        final content = Column(
+          children: sortedRows.map((rowIndex) {
+            final rowElements = rowMap[rowIndex]!;
+            rowElements.sort((a, b) => a.col.compareTo(b.col));
+
+            final spacing = rowElements.first.spacing * paperScale;
+
+            return Padding(
+              padding: EdgeInsets.only(bottom: spacing),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: rowElements.map((el) {
+                  return Expanded(
+                    flex: (el.flex * 10).round(),
+                    child: _buildPreviewElement(el, paperScale),
+                  );
+                }).toList(),
+              ),
+            );
+          }).toList(),
+        );
+
+        return Center(
+          child: Container(
+            width: previewWidth,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.purple.shade100, Colors.purple.shade50],
-              ),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.purple.withValues(alpha: 0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: Row(
+            child: Column(
               children: [
-                Icon(Icons.label, color: Colors.purple.shade600, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'MẪU TEM',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.purple.shade700,
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.purple.shade100, Colors.purple.shade50],
+                    ),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.label,
+                        color: Colors.purple.shade600,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'MẪU TEM',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade700,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        sizeLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.purple.shade500,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Nhấn để chọn',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.purple.shade400,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  'Nhấn để chọn',
-                  style: TextStyle(fontSize: 11, color: Colors.purple.shade400),
+
+                // Preview Content
+                Container(
+                  width: previewWidth,
+                  padding: EdgeInsets.all(16 * paperScale),
+                  child: previewHeight == null
+                      ? content
+                      : SizedBox(
+                          height: previewHeight,
+                          child: ClipRect(child: content),
+                        ),
                 ),
               ],
             ),
           ),
-
-          // Preview Content
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: sortedRows.map((rowIndex) {
-                final rowElements = rowMap[rowIndex]!;
-                rowElements.sort((a, b) => a.col.compareTo(b.col));
-
-                // Calculate spacing from first element in row
-                final spacing = rowElements.first.spacing;
-
-                return Padding(
-                  padding: EdgeInsets.only(bottom: spacing),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: rowElements.map((el) {
-                      return Expanded(
-                        flex: (el.flex * 10).round(),
-                        child: _buildPreviewElement(el),
-                      );
-                    }).toList(),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildPreviewElement(LabelElement el) {
+  _PaperSpec _getPaperSpec() {
+    if (_paperSize.contains('x')) {
+      final parts = _paperSize.split('x');
+      final widthCm = double.tryParse(parts.first) ?? 2;
+      final heightCm = double.tryParse(parts.last) ?? 3;
+      return _PaperSpec(widthMm: widthCm * 10, heightMm: heightCm * 10);
+    }
+    final width = double.tryParse(_paperSize) ?? 80;
+    return _PaperSpec(widthMm: width, heightMm: null);
+  }
+
+  void _updateCustomStickerSize() {
+    if (_paperMode != 'sticker') return;
+    final width = double.tryParse(_customStickerWidthCtrl.text.trim());
+    final height = double.tryParse(_customStickerHeightCtrl.text.trim());
+    if (width == null || height == null || width <= 0 || height <= 0) return;
+    setState(() => _paperSize = '${width}x$height');
+    _scheduleAutoSave();
+  }
+
+  void _swapElementPositions(String sourceId, String targetId) {
+    if (sourceId == targetId) return;
+    final sourceIndex = _elements.indexWhere((e) => e.id == sourceId);
+    final targetIndex = _elements.indexWhere((e) => e.id == targetId);
+    if (sourceIndex == -1 || targetIndex == -1) return;
+
+    final source = _elements[sourceIndex];
+    final target = _elements[targetIndex];
+
+    setState(() {
+      _elements[sourceIndex] = source.copyWith(
+        row: target.row,
+        col: target.col,
+        order: target.order,
+      );
+      _elements[targetIndex] = target.copyWith(
+        row: source.row,
+        col: source.col,
+        order: source.order,
+      );
+      _selectedElementId = targetId;
+    });
+    _scheduleAutoSave();
+  }
+
+  Widget _buildPreviewElement(LabelElement el, double paperScale) {
     final isSelected = _selectedElementId == el.id;
     String text = '';
     Widget? child;
 
     switch (el.id) {
       case 'name':
-        text = 'IPHONE 15 PRO MAX';
+        text = '${el.prefix}IPHONE 15 PRO MAX';
         break;
       case 'detail':
-        text = '256GB ĐEN 98%';
+        text = '${el.prefix}256GB ĐEN 98%';
+        break;
+      case 'label_info':
+        text = '${el.prefix}BẢO HÀNH 6T / MÁY ĐẸP'.toUpperCase();
         break;
       case 'price_kpk':
         text = '${el.prefix}25,900K';
@@ -763,9 +1143,13 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
         text = '${el.prefix}3598765...123';
         break;
       case 'qr_code':
+        // Ẩn nếu chọn "none" (tắt QR/Barcode)
+        if (_codeType == 'none') {
+          return const SizedBox.shrink();
+        }
         child = Icon(
-          Icons.qr_code_2,
-          size: 36 * el.fontSize,
+          _codeType == 'barcode' ? Icons.view_week : Icons.qr_code_2,
+          size: 36 * el.fontSize * paperScale,
           color: isSelected ? Colors.purple : Colors.black87,
         );
         break;
@@ -782,25 +1166,30 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
         text = el.label;
     }
 
-    const baseFontSize = 13.0;
+    final baseFontSize = 13.0 * paperScale;
     final alignment = el.align == 'left'
         ? TextAlign.left
         : el.align == 'right'
         ? TextAlign.right
         : TextAlign.center;
-
-    return GestureDetector(
-      onTap: () =>
-          setState(() => _selectedElementId = isSelected ? null : el.id),
-      child: AnimatedContainer(
+    Widget buildContent({required bool isHover}) {
+      return AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.purple.shade50 : Colors.transparent,
+          color: isSelected
+              ? Colors.purple.shade50
+              : isHover
+              ? Colors.purple.shade100.withValues(alpha: 0.4)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
-            color: isSelected ? Colors.purple : Colors.transparent,
-            width: isSelected ? 2 : 0,
+            color: isSelected
+                ? Colors.purple
+                : isHover
+                ? Colors.purple.shade300
+                : Colors.transparent,
+            width: isSelected || isHover ? 2 : 0,
           ),
         ),
         child:
@@ -814,6 +1203,34 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                 color: isSelected ? Colors.purple.shade700 : Colors.black87,
               ),
             ),
+      );
+    }
+
+    return LongPressDraggable<String>(
+      data: el.id,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Transform.scale(
+          scale: 1.05,
+          child: buildContent(isHover: false),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.4,
+        child: buildContent(isHover: false),
+      ),
+      child: DragTarget<String>(
+        onWillAccept: (data) => data != null && data != el.id,
+        onAccept: (data) => _swapElementPositions(data, el.id),
+        builder: (context, candidates, rejects) {
+          final isHover = candidates.isNotEmpty;
+          return GestureDetector(
+            onTap: () => setState(
+              () => _selectedElementId = isSelected ? null : el.id,
+            ),
+            child: buildContent(isHover: isHover),
+          );
+        },
       ),
     );
   }
@@ -864,10 +1281,13 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
             onChanged: (v) => _updateElement(el.id, visible: v),
           ),
 
-          // Font Size
+          // Font Size / QR-Barcode Size
           Row(
             children: [
-              const Text('Cỡ chữ:', style: TextStyle(fontSize: 14)),
+              Text(
+                el.id == 'qr_code' ? 'Kích thước QR/Barcode:' : 'Cỡ chữ:',
+                style: const TextStyle(fontSize: 14),
+              ),
               const SizedBox(width: 8),
               Text(
                 '${el.fontSize.toStringAsFixed(1)}x',
@@ -879,9 +1299,9 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
               Expanded(
                 child: Slider(
                   value: el.fontSize,
-                  min: 0.5,
-                  max: 2.0,
-                  divisions: 15,
+                  min: el.id == 'qr_code' ? 0.6 : 0.5,
+                  max: el.id == 'qr_code' ? 4.0 : 4.0,
+                  divisions: el.id == 'qr_code' ? 34 : 35,
                   onChanged: (v) => _updateElement(el.id, fontSize: v),
                 ),
               ),
@@ -946,8 +1366,28 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
             ],
           ),
 
-          // Prefix (for price/imei)
-          if (el.id.contains('price') || el.id == 'imei') ...[
+          if (el.id != 'qr_code') ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text('Kiểu chữ:', style: TextStyle(fontSize: 14)),
+                const SizedBox(width: 8),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'A', label: Text('A')),
+                    ButtonSegment(value: 'B', label: Text('B')),
+                  ],
+                  selected: {el.fontType},
+                  onSelectionChanged: (s) =>
+                      _updateElement(el.id, fontType: s.first),
+                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                ),
+              ],
+            ),
+          ],
+
+          // Prefix (tiền tố cho mọi element text)
+          if (el.id != 'qr_code' && el.id != 'shop_info') ...[
             const SizedBox(height: 12),
             Builder(
               builder: (context) {
@@ -964,8 +1404,9 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                 return TextField(
                   controller: ctrl,
                   decoration: InputDecoration(
-                    labelText: 'Tiền tố',
-                    hintText: 'VD: Giá: ',
+                    labelText: 'Tiền tố (ký tự đầu)',
+                    hintText: el.id.contains('price') ? 'VD: KPK: hoặc Giá: ' : 'VD: IMEI: ',
+                    helperText: 'Nhập ký tự hiện trước nội dung',
                     isDense: true,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -1014,37 +1455,37 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
               _presetChip('IMEI + QR cùng dòng', () {
                 _updateElement(
                   'imei',
-                  row: 4,
+                  row: 5,
                   col: 0,
                   flex: 0.6,
                   align: 'left',
                 );
-                _updateElement('qr_code', row: 4, col: 1, flex: 0.4);
+                _updateElement('qr_code', row: 5, col: 1, flex: 0.4);
               }, Icons.horizontal_distribute),
 
               _presetChip('IMEI riêng, QR riêng', () {
                 _updateElement(
                   'imei',
-                  row: 4,
+                  row: 5,
                   col: 0,
                   flex: 1.0,
                   align: 'center',
                 );
-                _updateElement('qr_code', row: 5, col: 0, flex: 1.0);
-                _updateElement('shop_info', row: 6, col: 0, flex: 1.0);
+                _updateElement('qr_code', row: 6, col: 0, flex: 1.0);
+                _updateElement('shop_info', row: 7, col: 0, flex: 1.0);
               }, Icons.view_agenda),
 
               _presetChip('KPK + CPK cùng dòng', () {
                 _updateElement(
                   'price_kpk',
-                  row: 2,
+                  row: 3,
                   col: 0,
                   flex: 0.5,
                   align: 'right',
                 );
                 _updateElement(
                   'price_cpk',
-                  row: 2,
+                  row: 3,
                   col: 1,
                   flex: 0.5,
                   align: 'left',
@@ -1054,14 +1495,14 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
               _presetChip('KPK, CPK riêng dòng', () {
                 _updateElement(
                   'price_kpk',
-                  row: 2,
+                  row: 3,
                   col: 0,
                   flex: 1.0,
                   align: 'center',
                 );
                 _updateElement(
                   'price_cpk',
-                  row: 3,
+                  row: 4,
                   col: 0,
                   flex: 1.0,
                   align: 'center',
@@ -1125,6 +1566,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
     bool? visible,
     double? fontSize,
     bool? bold,
+    String? fontType,
     String? align,
     String? prefix,
     int? row,
@@ -1139,6 +1581,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
           visible: visible,
           fontSize: fontSize,
           bold: bold,
+          fontType: fontType,
           align: align,
           prefix: prefix,
           row: row,
@@ -1148,6 +1591,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
         );
       }
     });
+    _scheduleAutoSave();
   }
 
   // ===== TAB 2: Shop Settings =====
