@@ -170,6 +170,9 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
   // Grid settings
   bool _showGrid = true;
   double _gridSpacingMm = 5.0; // 5mm grid spacing
+  
+  // Overflow area - vùng giấy thừa cho phép kéo ra ngoài
+  double _overflowMm = 10.0; // 10mm mỗi bên
 
   // Auto-save
   Timer? _saveTimer;
@@ -347,6 +350,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
         _feedLines = data['feedLines'] as int? ?? 1;
         _showGrid = data['showGrid'] as bool? ?? true;
         _gridSpacingMm = (data['gridSpacingMm'] as num?)?.toDouble() ?? 5.0;
+        _overflowMm = (data['overflowMm'] as num?)?.toDouble() ?? 10.0;
 
         // Load elements - merge với default để đảm bảo có đủ phần tử mới
         final elementsJson = data['elements'] as List<dynamic>?;
@@ -393,6 +397,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
         'feedLines': _feedLines,
         'showGrid': _showGrid,
         'gridSpacingMm': _gridSpacingMm,
+        'overflowMm': _overflowMm,
         'elements': _elements.map((e) => e.toJson()).toList(),
       };
       await prefs.setString(_settingsKey, jsonEncode(data));
@@ -644,54 +649,79 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(8),
                 child: GestureDetector(
                   onTapDown: (_) => _selectElement(null),
+                  // Vùng bao gồm cả overflow (giấy thừa)
                   child: Container(
-                    width: scaledSize.width,
-                    height: scaledSize.height,
+                    width: scaledSize.width + (_overflowMm * 2 * pxPerMm),
+                    height: scaledSize.height + (_overflowMm * 2 * pxPerMm),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: colorScheme.outline, width: 1),
+                      // Vùng giấy thừa - màu xám nhạt
+                      color: Colors.grey.shade200,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(3),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          // Grid lines (if enabled)
-                          if (_showGrid)
-                            CustomPaint(
-                              size: scaledSize,
-                              painter: _GridPainter(
-                                gridSpacingPx: _gridSpacingMm * pxPerMm,
-                                color: Colors.grey.withOpacity(0.3),
-                              ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Vùng in chính (label) - nằm giữa
+                        Positioned(
+                          left: _overflowMm * pxPerMm,
+                          top: _overflowMm * pxPerMm,
+                          child: Container(
+                            width: scaledSize.width,
+                            height: scaledSize.height,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: colorScheme.primary, width: 2),
+                              borderRadius: BorderRadius.circular(2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: colorScheme.primary.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  spreadRadius: 1,
+                                ),
+                              ],
                             ),
-                          // Margin guides
-                          CustomPaint(
-                            size: scaledSize,
-                            painter: _MarginGuidePainter(
-                              margins: EdgeInsets.fromLTRB(
-                                _marginLeftMm * pxPerMm,
-                                _marginTopMm * pxPerMm,
-                                _marginRightMm * pxPerMm,
-                                _marginBottomMm * pxPerMm,
-                              ),
-                              color: colorScheme.primary.withOpacity(0.2),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                // Grid lines (if enabled)
+                                if (_showGrid)
+                                  CustomPaint(
+                                    size: scaledSize,
+                                    painter: _GridPainter(
+                                      gridSpacingPx: _gridSpacingMm * pxPerMm,
+                                      color: Colors.grey.withOpacity(0.3),
+                                    ),
+                                  ),
+                                // Margin guides
+                                CustomPaint(
+                                  size: scaledSize,
+                                  painter: _MarginGuidePainter(
+                                    margins: EdgeInsets.fromLTRB(
+                                      _marginLeftMm * pxPerMm,
+                                      _marginTopMm * pxPerMm,
+                                      _marginRightMm * pxPerMm,
+                                      _marginBottomMm * pxPerMm,
+                                    ),
+                                    color: colorScheme.primary.withOpacity(0.2),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          // Elements (only visible ones)
-                          ..._elements.where((el) => el.visible).map(
-                            (el) => _buildDraggableElement(
-                              el,
-                              pxPerMm,
-                              colorScheme,
-                            ),
+                        ),
+                        // Elements (only visible ones) - có thể kéo ra ngoài vùng in
+                        ..._elements.where((el) => el.visible).map(
+                          (el) => _buildDraggableElement(
+                            el,
+                            pxPerMm,
+                            colorScheme,
+                            _overflowMm * pxPerMm, // offset for overflow area
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -740,13 +770,21 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
   Widget _buildDraggableElement(
     LabelElement el,
     double pxPerMm,
-    ColorScheme colorScheme,
-  ) {
-    final left = el.xMm * pxPerMm;
-    final top = el.yMm * pxPerMm;
+    ColorScheme colorScheme, [
+    double overflowOffset = 0,
+  ]) {
+    // Tính vị trí có tính overflow offset
+    final left = (el.xMm * pxPerMm) + overflowOffset;
+    final top = (el.yMm * pxPerMm) + overflowOffset;
     final width = el.widthMm * pxPerMm;
     final height = el.heightMm * pxPerMm;
     final isSelected = _selectedElement?.id == el.id;
+    
+    // Kiểm tra element có nằm ngoài vùng in không
+    final isOutsidePrintArea = el.xMm < 0 || 
+        el.yMm < 0 || 
+        el.xMm + el.widthMm > _labelWidthMm ||
+        el.yMm + el.heightMm > _labelHeightMm;
 
     return Positioned(
       left: left,
@@ -761,11 +799,14 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
         onPanUpdate: (details) {
           final deltaX = details.delta.dx / pxPerMm;
           final deltaY = details.delta.dy / pxPerMm;
-          final maxX = _labelWidthMm - el.widthMm;
-          final maxY = _labelHeightMm - el.heightMm;
+          // Cho phép kéo ra ngoài vùng in, giới hạn bởi vùng overflow
+          final minX = -_overflowMm;
+          final minY = -_overflowMm;
+          final maxX = _labelWidthMm + _overflowMm - el.widthMm;
+          final maxY = _labelHeightMm + _overflowMm - el.heightMm;
           _updateElement(el, (e) {
-            e.xMm = (e.xMm + deltaX).clamp(0.0, maxX);
-            e.yMm = (e.yMm + deltaY).clamp(0.0, maxY);
+            e.xMm = (e.xMm + deltaX).clamp(minX, maxX);
+            e.yMm = (e.yMm + deltaY).clamp(minY, maxY);
           });
         },
         onPanEnd: (_) => setState(() => _isDragging = false),
@@ -776,25 +817,48 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
           transform: Matrix4.rotationZ((el.rotationDeg * pi) / 180),
           transformAlignment: Alignment.center,
           decoration: BoxDecoration(
-            color: Colors.white,
+            // Màu nền khác khi nằm ngoài vùng in
+            color: isOutsidePrintArea 
+                ? Colors.orange.shade50 
+                : Colors.white,
             border: Border.all(
-              color: isSelected
-                  ? colorScheme.primary
-                  : colorScheme.outlineVariant,
+              color: isOutsidePrintArea
+                  ? Colors.orange
+                  : isSelected
+                      ? colorScheme.primary
+                      : colorScheme.outlineVariant,
               width: isSelected ? 2 : 1,
+              strokeAlign: BorderSide.strokeAlignOutside,
             ),
             borderRadius: BorderRadius.circular(2),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: colorScheme.primary.withOpacity(0.3),
+                      color: (isOutsidePrintArea 
+                          ? Colors.orange 
+                          : colorScheme.primary).withOpacity(0.3),
                       blurRadius: 8,
                       spreadRadius: 1,
                     )
                   ]
                 : null,
           ),
-          child: _buildElementContent(el, pxPerMm, colorScheme),
+          child: Stack(
+            children: [
+              _buildElementContent(el, pxPerMm, colorScheme),
+              // Icon cảnh báo nếu nằm ngoài vùng in
+              if (isOutsidePrintArea)
+                Positioned(
+                  right: 2,
+                  top: 2,
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    size: 12,
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -1044,6 +1108,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Grid toggle
             Row(
               children: [
                 Icon(Icons.grid_4x4, size: 18, color: colorScheme.primary),
@@ -1088,6 +1153,50 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                 ],
               ),
             ],
+            const Divider(height: 16),
+            // Overflow area - vùng giấy thừa
+            Row(
+              children: [
+                Icon(Icons.crop_free, size: 18, color: colorScheme.tertiary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Vùng giấy thừa',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Cho phép kéo phần tử ra ngoài vùng in ${_overflowMm.toInt()}mm',
+              style: TextStyle(
+                fontSize: 11,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            Row(
+              children: [
+                const Text('Kích thước:'),
+                Expanded(
+                  child: Slider(
+                    value: _overflowMm,
+                    min: 0,
+                    max: 20,
+                    divisions: 20,
+                    label: '${_overflowMm.toInt()}mm',
+                    onChanged: (v) {
+                      setState(() => _overflowMm = v);
+                      _scheduleAutoSave();
+                    },
+                  ),
+                ),
+                Text('${_overflowMm.toInt()}mm'),
+              ],
+            ),
           ],
         ),
       ),
