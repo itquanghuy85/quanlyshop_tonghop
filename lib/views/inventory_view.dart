@@ -30,6 +30,7 @@ import 'smart_stock_in_view.dart';
 import 'global_search_view.dart';
 import 'fast_stock_in_view.dart';
 import 'parts_inventory_view.dart';
+import 'pty_print_designer_view.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/validated_text_field.dart';
 import '../theme/app_colors.dart';
@@ -1693,6 +1694,19 @@ class _InventoryViewState extends State<InventoryView>
               size: 22,
             ),
             tooltip: 'Làm mới',
+            splashRadius: 20,
+          ),
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PtyPrintDesignerView()),
+            ),
+            icon: Icon(
+              Icons.qr_code_2_rounded,
+              color: AppBarAccents.inventory,
+              size: 22,
+            ),
+            tooltip: 'PTY Designer',
             splashRadius: 20,
           ),
           TextButton.icon(
