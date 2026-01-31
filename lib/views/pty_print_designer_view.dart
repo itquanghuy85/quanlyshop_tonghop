@@ -348,12 +348,23 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
         _showGrid = data['showGrid'] as bool? ?? true;
         _gridSpacingMm = (data['gridSpacingMm'] as num?)?.toDouble() ?? 5.0;
 
-        // Load elements
+        // Load elements - merge với default để đảm bảo có đủ phần tử mới
         final elementsJson = data['elements'] as List<dynamic>?;
         if (elementsJson != null && elementsJson.isNotEmpty) {
-          _elements.clear();
+          // Load saved elements
+          final savedElements = <String, LabelElement>{};
           for (final ej in elementsJson) {
-            _elements.add(LabelElement.fromJson(ej as Map<String, dynamic>));
+            final el = LabelElement.fromJson(ej as Map<String, dynamic>);
+            savedElements[el.id] = el;
+          }
+          
+          // Merge với default - giữ vị trí và settings của saved, thêm mới nếu chưa có
+          for (int i = 0; i < _elements.length; i++) {
+            final defaultEl = _elements[i];
+            if (savedElements.containsKey(defaultEl.id)) {
+              _elements[i] = savedElements[defaultEl.id]!;
+            }
+            // Nếu không có trong saved thì giữ nguyên default
           }
         }
 
