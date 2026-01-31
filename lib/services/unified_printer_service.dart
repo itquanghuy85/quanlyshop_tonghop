@@ -1,19 +1,20 @@
 import 'dart:convert';
 import 'dart:math';
-import 'dart:ui' as ui;
+import 'dart:typed_data';
 
+import 'package:barcode/barcode.dart' as bc;
+import 'package:barcode_image/barcode_image.dart' hide Barcode;
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
-import 'package:intl/intl.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image/image.dart' as img;
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/utils/money_utils.dart';
 import 'bluetooth_printer_service.dart';
 import 'wifi_printer_service.dart';
 import 'label_settings_service.dart';
 import '../models/label_template_model.dart';
-import '../models/repair_model.dart';
 import '../models/product_model.dart';
+import '../models/repair_model.dart';
 
 import '../models/printer_types.dart';
 
@@ -23,6 +24,7 @@ class _LabelElementConfig {
   final bool visible;
   final double fontSize;
   final bool bold;
+  final String fontType;
   final String align;
   final String prefix;
   final int row;
@@ -35,6 +37,7 @@ class _LabelElementConfig {
     this.visible = true,
     this.fontSize = 1.0,
     this.bold = true,
+    this.fontType = 'A',
     this.align = 'center',
     this.prefix = '',
     this.row = 0,
@@ -49,6 +52,7 @@ class _LabelElementConfig {
         visible: json['visible'] ?? true,
         fontSize: (json['fontSize'] ?? 1.0).toDouble(),
         bold: json['bold'] ?? true,
+        fontType: json['fontType'] ?? 'A',
         align: json['align'] ?? 'center',
         prefix: json['prefix'] ?? '',
         row: json['row'] ?? 0,
@@ -59,34 +63,6 @@ class _LabelElementConfig {
 }
 
 class UnifiedPrinterService {
-  static Future<img.Image?> _buildQrImage(String data, int sizePx) async {
-    final painter = QrPainter(
-      data: data,
-      version: QrVersions.auto,
-      gapless: true,
-      color: const ui.Color(0xFF000000),
-      emptyColor: const ui.Color(0xFFFFFFFF),
-    );
-    final byteData = await painter.toImageData(
-      sizePx.toDouble(),
-      format: ui.ImageByteFormat.png,
-    );
-    if (byteData == null) return null;
-    return img.decodeImage(byteData.buffer.asUint8List());
-  }
-
-  static Future<void> _appendQrRaster(
-    Generator generator,
-    List<int> bytes,
-    String data,
-    int sizePx, {
-    PosAlign align = PosAlign.center,
-  }) async {
-    final qrImage = await _buildQrImage(data, sizePx);
-    if (qrImage == null) return;
-    bytes.addAll(generator.imageRaster(qrImage, align: align));
-  }
-
   /// Đọc cài đặt từng element từ Label Designer
   static Future<Map<String, _LabelElementConfig>>
   _loadLabelDesignerConfig() async {
@@ -148,36 +124,10 @@ class UnifiedPrinterService {
     // Lấy loại mã (QR hoặc Barcode)
     final codeType = prefs.getString('label_code_type') ?? 'qr';
 
-    int _qrPxForLabel(double fontSize) {
-      if (paperSizeStr == '2x3') {
-        if (fontSize <= 0.7) return 56;
-        if (fontSize <= 1.0) return 72;
-        return 88;
-      }
-      if (paperSizeStr == '3x4') {
-        if (fontSize <= 0.7) return 64;
-        if (fontSize <= 1.0) return 88;
-        return 104;
-      }
-      if (paperSizeStr == '4x6') {
-        if (fontSize <= 0.7) return 80;
-        if (fontSize <= 1.0) return 104;
-        return 128;
-      }
-      if (paperSizeStr == '58') {
-        if (fontSize <= 0.7) return 64;
-        if (fontSize <= 1.0) return 80;
-        return 96;
-      }
-      if (paperSizeStr == '72') {
-        if (fontSize <= 0.7) return 80;
-        if (fontSize <= 1.0) return 96;
-        return 112;
-      }
-      if (fontSize <= 0.7) return 96;
-      if (fontSize <= 1.0) return 120;
-      return 144;
-    }
+    final forceRasterQr = await _shouldForceRasterQr(
+      printerType: printerType,
+      bluetoothPrinter: bluetoothPrinter,
+    );
 
     // Lấy thông tin shop từ LabelSettingsService
     final labelService = LabelSettingsService();
@@ -198,19 +148,10 @@ class UnifiedPrinterService {
 
     // Lấy giá từ printData nếu có
     final priceKPK = printData?.customPriceKPK ?? product['price'] ?? 0;
-    final rawCpk = product['priceCPK'];
-    final parsedCpk =
-      rawCpk is int ? rawCpk : int.tryParse(rawCpk?.toString() ?? '') ?? 0;
     final priceCPK =
-      printData?.customPriceCPK ??
-      printData?.calculatedCPK ??
-      (shopSettings.autoCalculateCPK
-        ? (priceKPK is int
-          ? shopSettings.calculateCPK(priceKPK)
-          : priceKPK)
-        : (parsedCpk > 0
-          ? parsedCpk
-          : (priceKPK is int ? priceKPK : 0)));
+        printData?.customPriceCPK ??
+        printData?.calculatedCPK ??
+        (priceKPK is int ? priceKPK + 500000 : priceKPK);
 
     // In từng row
     for (final rowIndex in sortedRows) {
@@ -265,6 +206,7 @@ class UnifiedPrinterService {
                   leftEl.fontSize,
                   bold: leftEl.bold,
                   secondary: leftEl.fontSize < 1.0,
+                  fontTypeKey: leftEl.fontType,
                 ),
               ),
             );
@@ -292,12 +234,20 @@ class UnifiedPrinterService {
             );
           } else {
             // In QR code
-            final sizePx = _qrPxForLabel(rightEl.fontSize);
-            await _appendQrRaster(
-              generator,
-              bytes,
-              "check_inv:$simpleId",
-              sizePx,
+            QRSize qrSize;
+            if (rightEl.fontSize <= 0.7) {
+              qrSize = QRSize.size2;
+            } else if (rightEl.fontSize <= 1.0) {
+              qrSize = QRSize.size3;
+            } else {
+              qrSize = QRSize.size4;
+            }
+            _addQrCode(
+              generator: generator,
+              bytes: bytes,
+              data: "check_inv:$simpleId",
+              size: qrSize,
+              forceRaster: forceRasterQr,
             );
           }
         } else if (leftEl.id == 'qr_code') {
@@ -326,12 +276,20 @@ class UnifiedPrinterService {
               ),
             );
           } else {
-            final sizePx = _qrPxForLabel(leftEl.fontSize);
-            await _appendQrRaster(
-              generator,
-              bytes,
-              "check_inv:$simpleId",
-              sizePx,
+            QRSize qrSize;
+            if (leftEl.fontSize <= 0.7) {
+              qrSize = QRSize.size2;
+            } else if (leftEl.fontSize <= 1.0) {
+              qrSize = QRSize.size3;
+            } else {
+              qrSize = QRSize.size4;
+            }
+            _addQrCode(
+              generator: generator,
+              bytes: bytes,
+              data: "check_inv:$simpleId",
+              size: qrSize,
+              forceRaster: forceRasterQr,
             );
           }
 
@@ -348,6 +306,7 @@ class UnifiedPrinterService {
                   rightEl.fontSize,
                   bold: rightEl.bold,
                   secondary: rightEl.fontSize < 1.0,
+                  fontTypeKey: rightEl.fontType,
                 ),
               ),
             );
@@ -357,6 +316,16 @@ class UnifiedPrinterService {
           final leftWidth = (leftEl.flex * 12).round().clamp(1, 11);
           final rightWidth = 12 - leftWidth;
 
+          final leftAlign = leftEl.align == 'left'
+              ? PosAlign.left
+              : leftEl.align == 'right'
+              ? PosAlign.right
+              : PosAlign.center;
+          final rightAlign = rightEl.align == 'left'
+              ? PosAlign.left
+              : rightEl.align == 'right'
+              ? PosAlign.right
+              : PosAlign.center;
           bytes.addAll(
             generator.row([
               PosColumn(
@@ -366,13 +335,12 @@ class UnifiedPrinterService {
                   uppercaseWhenLarge: leftEl.fontSize >= 1.0,
                 ),
                 width: leftWidth,
-                styles: PosStyles(
-                  align: leftEl.align == 'left'
-                      ? PosAlign.left
-                      : leftEl.align == 'right'
-                      ? PosAlign.right
-                      : PosAlign.center,
+                styles: _labelTextStyle(
+                  leftEl.fontSize,
+                  align: leftAlign,
                   bold: leftEl.bold,
+                  secondary: leftEl.fontSize < 1.0,
+                  fontTypeKey: leftEl.fontType,
                 ),
               ),
               PosColumn(
@@ -382,13 +350,12 @@ class UnifiedPrinterService {
                   uppercaseWhenLarge: rightEl.fontSize >= 1.0,
                 ),
                 width: rightWidth,
-                styles: PosStyles(
-                  align: rightEl.align == 'left'
-                      ? PosAlign.left
-                      : rightEl.align == 'right'
-                      ? PosAlign.right
-                      : PosAlign.center,
+                styles: _labelTextStyle(
+                  rightEl.fontSize,
+                  align: rightAlign,
                   bold: rightEl.bold,
+                  secondary: rightEl.fontSize < 1.0,
+                  fontTypeKey: rightEl.fontType,
                 ),
               ),
             ]),
@@ -425,12 +392,20 @@ class UnifiedPrinterService {
             );
           } else {
             // In QR code
-            final sizePx = _qrPxForLabel(el.fontSize);
-            await _appendQrRaster(
-              generator,
-              bytes,
-              "check_inv:$simpleId",
-              sizePx,
+            QRSize qrSize;
+            if (el.fontSize <= 0.7) {
+              qrSize = QRSize.size2;
+            } else if (el.fontSize <= 1.0) {
+              qrSize = QRSize.size3;
+            } else {
+              qrSize = QRSize.size4;
+            }
+            _addQrCode(
+              generator: generator,
+              bytes: bytes,
+              data: "check_inv:$simpleId",
+              size: qrSize,
+              forceRaster: forceRasterQr,
             );
           }
         } else {
@@ -465,6 +440,7 @@ class UnifiedPrinterService {
                     el.fontSize,
                     bold: el.bold,
                     emphasize: el.fontSize >= 1.3,
+                    fontTypeKey: el.fontType,
                   ),
                 ),
               );
@@ -517,11 +493,15 @@ class UnifiedPrinterService {
   ) {
     switch (el.id) {
       case 'name':
-        return product['name']?.toString() ?? '';
+        return (product['name']?.toString() ?? '').toUpperCase();
       case 'detail':
         return "${product['capacity'] ?? ''} ${product['color'] ?? ''} ${product['condition'] ?? ''}"
             .replaceAll(RegExp(r'\s+'), ' ')
-            .trim();
+            .trim()
+            .toUpperCase();
+      case 'label_info':
+        final labelInfo = product['labelInfo']?.toString() ?? '';
+        return labelInfo.isNotEmpty ? "${el.prefix}${labelInfo.toUpperCase()}" : '';
       case 'price_kpk':
         return "${el.prefix}${MoneyUtils.formatVND(priceKPK is int ? priceKPK : 0)}";
       case 'price_cpk':
@@ -529,12 +509,9 @@ class UnifiedPrinterService {
       case 'imei':
         final imei = product['imei']?.toString() ?? '';
         return imei.isNotEmpty ? "${el.prefix}$imei" : '';
-      case 'label_note':
-        final note = product['labelNote']?.toString() ?? '';
-        return note.isNotEmpty ? "${el.prefix}$note" : '';
       case 'shop_info':
         final parts = <String>[];
-        if (shopName.isNotEmpty) parts.add(shopName);
+        if (shopName.isNotEmpty) parts.add(shopName.toUpperCase());
         if (hotline.isNotEmpty) parts.add(hotline);
         return parts.join(' - ');
       default:
@@ -662,6 +639,7 @@ class UnifiedPrinterService {
     bool bold = false,
     bool emphasize = false,
     bool secondary = false,
+    String? fontTypeKey,
   }) {
     // Logic đơn giản cho máy in nhiệt ESC/POS:
     // - fontB: chữ nhỏ hơn (~50%)
@@ -676,9 +654,13 @@ class UnifiedPrinterService {
     final useSmallFont = fontScale <= 0.85;
     final useLargeFont = fontScale >= 2.0;
 
-    final fontType = (secondary || useSmallFont)
-        ? PosFontType.fontB
-        : PosFontType.fontA;
+    final fontType = (fontTypeKey == 'B')
+      ? PosFontType.fontB
+      : fontTypeKey == 'A'
+      ? PosFontType.fontA
+      : (secondary || useSmallFont)
+      ? PosFontType.fontB
+      : PosFontType.fontA;
 
     final textSize = useLargeFont ? PosTextSize.size2 : PosTextSize.size1;
 
@@ -729,6 +711,80 @@ class UnifiedPrinterService {
         : normalized;
   }
 
+  static Future<bool> _shouldForceRasterQr({
+    PrinterType? printerType,
+    dynamic bluetoothPrinter,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('pt50dc_force_raster_qr') ?? false) {
+      return true;
+    }
+
+    final paperSize = prefs.getString('label_paper_size');
+    if (paperSize == '50') {
+      return true;
+    }
+
+    String? name;
+    if (bluetoothPrinter != null) {
+      if (bluetoothPrinter is Map) {
+        name = bluetoothPrinter['name']?.toString();
+      } else {
+        name = bluetoothPrinter.name?.toString();
+      }
+    }
+    name ??= (await BluetoothPrinterService.getSavedPrinter())?.name;
+    return name?.toUpperCase().contains('PT-50DC') ?? false;
+  }
+
+  static int _qrPixelSize(QRSize size) {
+    switch (size) {
+      case QRSize.size2:
+        return 140;
+      case QRSize.size3:
+        return 180;
+      case QRSize.size4:
+        return 220;
+      case QRSize.size6:
+        return 280;
+      default:
+        return 220;
+    }
+  }
+
+  static img.Image _buildQrImage(String data, int sizePx) {
+    final qr = bc.Barcode.qrCode(
+      errorCorrectLevel: bc.BarcodeQRCorrectionLevel.medium,
+    );
+    final image = img.Image(width: sizePx, height: sizePx);
+    img.fill(image, color: img.ColorRgb8(255, 255, 255));
+    drawBarcode(
+      image,
+      qr,
+      data,
+      x: 0,
+      y: 0,
+      width: sizePx,
+      height: sizePx,
+    );
+    return image;
+  }
+
+  static void _addQrCode({
+    required Generator generator,
+    required List<int> bytes,
+    required String data,
+    required QRSize size,
+    bool forceRaster = false,
+  }) {
+    if (!forceRaster) {
+      bytes.addAll(generator.qrcode(data, size: size));
+      return;
+    }
+    final image = _buildQrImage(data, _qrPixelSize(size));
+    bytes.addAll(generator.imageRaster(image, align: PosAlign.center));
+  }
+
   static Future<bool> _sendToPrinter(
     List<int> bytes, {
     PrinterType? printerType,
@@ -736,38 +792,204 @@ class UnifiedPrinterService {
     dynamic bluetoothPrinter,
   }) async {
     try {
-      if (printerType == PrinterType.wifi ||
-          (printerType == null && wifiIp != null)) {
-        await WifiPrinterService.instance.connect(
-          ip: wifiIp ?? "192.168.1.100",
+      print('PRINT_DEBUG: === _sendToPrinter START ===');
+      print('PRINT_DEBUG: bytes length = ${bytes.length}');
+      print('PRINT_DEBUG: printerType = $printerType');
+      print('PRINT_DEBUG: wifiIp = $wifiIp');
+      print('PRINT_DEBUG: bluetoothPrinter = $bluetoothPrinter');
+      print('PRINT_DEBUG: bluetoothPrinter type = ${bluetoothPrinter?.runtimeType}');
+      
+      // WiFi printer - chỉ khi chọn explicit WiFi
+      if (printerType == PrinterType.wifi) {
+        print('PRINT_DEBUG: [WIFI] Trying WiFi printer (explicit)...');
+        final prefs = await SharedPreferences.getInstance();
+        final ip = wifiIp ?? prefs.getString('printer_ip') ?? prefs.getString('thermal_printer_ip') ?? "192.168.1.100";
+        print('PRINT_DEBUG: [WIFI] Connecting to IP: $ip');
+        final connected = await WifiPrinterService.instance.connect(
+          ip: ip,
           port: 9100,
         );
-        await WifiPrinterService.instance.printBytes(bytes);
-        return true;
+        print('PRINT_DEBUG: [WIFI] Connection result: $connected');
+        if (connected) {
+          final printResult = await WifiPrinterService.instance.printBytes(bytes);
+          print('PRINT_DEBUG: [WIFI] printBytes result: $printResult');
+          return printResult;
+        }
+        print('PRINT_DEBUG: [WIFI] Connection failed');
+        return false;
       }
-      if (bluetoothPrinter != null) {
-        final mac = bluetoothPrinter is Map
-            ? bluetoothPrinter['macAddress']
-            : bluetoothPrinter.macAddress;
-        final ok = await BluetoothPrinterService.connect(mac);
-        if (ok) return await BluetoothPrinterService.printBytes(bytes);
+      
+      // Bluetooth explicit hoặc Auto mode - thử Bluetooth trước
+      if (printerType == PrinterType.bluetooth || printerType == PrinterType.auto || printerType == null) {
+        // Nếu có bluetooth printer object cụ thể
+        if (bluetoothPrinter != null) {
+          print('PRINT_DEBUG: [BT] Trying with provided printer object...');
+          String? mac;
+          if (bluetoothPrinter is Map) {
+            mac = bluetoothPrinter['macAddress'] as String?;
+          } else if (bluetoothPrinter is BluetoothPrinterConfig) {
+            mac = bluetoothPrinter.macAddress;
+          } else {
+            // Try dynamic access
+            try {
+              mac = bluetoothPrinter.macAddress as String?;
+            } catch (e) {
+              print('PRINT_DEBUG: [BT] Cannot get macAddress: $e');
+            }
+          }
+          print('PRINT_DEBUG: [BT] Extracted MAC: $mac');
+          
+          if (mac != null && mac.isNotEmpty) {
+            final ok = await BluetoothPrinterService.connect(mac);
+            print('PRINT_DEBUG: [BT] Connect result: $ok');
+            if (ok) {
+              final printOk = await BluetoothPrinterService.printBytes(bytes);
+              print('PRINT_DEBUG: [BT] printBytes result: $printOk');
+              if (printOk) return true;
+            }
+          } else {
+            print('PRINT_DEBUG: [BT] MAC address is null or empty');
+          }
+        }
+        
+        // Thử với saved Bluetooth printer
+        print('PRINT_DEBUG: [BT] Trying with ensureConnection (saved printer)...');
+        final hasBt = await BluetoothPrinterService.ensureConnection();
+        print('PRINT_DEBUG: [BT] ensureConnection result: $hasBt');
+        if (hasBt) {
+          final printOk = await BluetoothPrinterService.printBytes(bytes);
+          print('PRINT_DEBUG: [BT] printBytes with saved printer result: $printOk');
+          if (printOk) return true;
+        }
+        
+        // Nếu chọn explicit Bluetooth mà không kết nối được
+        if (printerType == PrinterType.bluetooth) {
+          print('PRINT_DEBUG: [BT] Explicitly selected but all attempts failed');
+          return false;
+        }
       }
-      final hasBt = await BluetoothPrinterService.ensureConnection();
-      if (hasBt) return await BluetoothPrinterService.printBytes(bytes);
+      
+      // Auto mode fallback: thử WiFi sau khi Bluetooth fail
+      if (printerType == PrinterType.auto || printerType == null) {
+        print('PRINT_DEBUG: [AUTO] Trying WiFi fallback...');
+        final prefs = await SharedPreferences.getInstance();
+        final savedIp = wifiIp ?? prefs.getString('printer_ip') ?? prefs.getString('thermal_printer_ip');
+        print('PRINT_DEBUG: [AUTO] WiFi fallback IP: $savedIp');
+        if (savedIp != null && savedIp.isNotEmpty) {
+          final connected = await WifiPrinterService.instance.connect(ip: savedIp, port: 9100);
+          print('PRINT_DEBUG: [AUTO] WiFi connection result: $connected');
+          if (connected) {
+            final printResult = await WifiPrinterService.instance.printBytes(bytes);
+            print('PRINT_DEBUG: [AUTO] WiFi printBytes result: $printResult');
+            return printResult;
+          }
+        } else {
+          print('PRINT_DEBUG: [AUTO] No saved WiFi IP for fallback');
+        }
+      }
 
-      // Nếu không có Bluetooth, thử WiFi với IP từ settings
-      final prefs = await SharedPreferences.getInstance();
-      final savedIp =
-          prefs.getString('printer_ip') ??
-          prefs.getString('thermal_printer_ip');
-      if (savedIp != null && savedIp.isNotEmpty) {
-        await WifiPrinterService.instance.connect(ip: savedIp, port: 9100);
-        await WifiPrinterService.instance.printBytes(bytes);
-        return true;
-      }
-
+      print('PRINT_DEBUG: === _sendToPrinter END: No printer available ===');
       return false;
-    } catch (_) {
+    } catch (e, stackTrace) {
+      print('PRINT_DEBUG: Exception in _sendToPrinter: $e');
+      print('PRINT_DEBUG: Stack trace: $stackTrace');
+      return false;
+    }
+  }
+
+  static Future<bool> printLabelBitmap(
+    Uint8List pngBytes, {
+    PrinterType? printerType,
+    dynamic bluetoothPrinter,
+    String? wifiIp,
+    int feedLines = 2,
+    bool cut = true,
+  }) async {
+    try {
+      print('PRINT_DEBUG: printLabelBitmap called');
+      print('PRINT_DEBUG: pngBytes length = ${pngBytes.length}');
+      print('PRINT_DEBUG: printerType = $printerType');
+      print('PRINT_DEBUG: wifiIp = $wifiIp');
+      print('PRINT_DEBUG: bluetoothPrinter = $bluetoothPrinter');
+      
+      var decoded = img.decodeImage(pngBytes);
+      if (decoded == null) {
+        print('PRINT_DEBUG: Failed to decode image - trying decodePng');
+        decoded = img.decodePng(pngBytes);
+      }
+      if (decoded == null) {
+        print('PRINT_DEBUG: Failed to decode image with both methods');
+        return false;
+      }
+      print('PRINT_DEBUG: Image decoded: ${decoded.width}x${decoded.height}');
+
+      final prefs = await SharedPreferences.getInstance();
+      final paperSizeStr = prefs.getString('label_paper_size') ?? '80';
+      print('PRINT_DEBUG: Paper size setting = $paperSizeStr');
+      
+      PaperSize paperSize;
+      int maxWidth;
+      switch (paperSizeStr) {
+        case '50':
+          paperSize = PaperSize.mm58;
+          maxWidth = 384; // 58mm thermal printer width in dots
+          break;
+        case '58':
+          paperSize = PaperSize.mm58;
+          maxWidth = 384;
+          break;
+        case '72':
+          paperSize = PaperSize.mm72;
+          maxWidth = 512;
+          break;
+        default:
+          paperSize = PaperSize.mm80;
+          maxWidth = 576; // 80mm thermal printer width in dots
+      }
+      
+      // Resize hình ảnh nếu quá lớn
+      if (decoded.width > maxWidth) {
+        print('PRINT_DEBUG: Resizing image from ${decoded.width} to $maxWidth width');
+        final ratio = maxWidth / decoded.width;
+        final newHeight = (decoded.height * ratio).round();
+        decoded = img.copyResize(decoded, width: maxWidth, height: newHeight);
+        print('PRINT_DEBUG: Image resized to: ${decoded.width}x${decoded.height}');
+      }
+
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(paperSize, profile);
+      final bytes = <int>[];
+      bytes.addAll(generator.reset());
+      
+      // Sử dụng imageRaster với imageFn để đảm bảo tương thích
+      try {
+        bytes.addAll(generator.imageRaster(decoded, align: PosAlign.center));
+      } catch (rasterError) {
+        print('PRINT_DEBUG: imageRaster failed: $rasterError - trying image method');
+        // Fallback: thử method image() thay vì imageRaster()
+        bytes.addAll(generator.image(decoded, align: PosAlign.center));
+      }
+      
+      if (feedLines > 0) {
+        bytes.addAll(generator.feed(feedLines));
+      }
+      if (cut) {
+        bytes.addAll(generator.cut());
+      }
+      
+      print('PRINT_DEBUG: ESC/POS bytes generated, length = ${bytes.length}');
+
+      final result = await _sendToPrinter(
+        bytes,
+        printerType: printerType,
+        bluetoothPrinter: bluetoothPrinter,
+        wifiIp: wifiIp,
+      );
+      print('PRINT_DEBUG: _sendToPrinter result = $result');
+      return result;
+    } catch (e, stackTrace) {
+      print('PRINT_DEBUG: printLabelBitmap Exception: $e');
+      print('PRINT_DEBUG: Stack: $stackTrace');
       return false;
     }
   }
@@ -956,22 +1178,19 @@ class UnifiedPrinterService {
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final labelTextsRaw = product['_labelTexts'] as Map<String, dynamic>?;
-      final labelTexts = <String, String>{};
-      if (labelTextsRaw != null) {
-        for (final entry in labelTextsRaw.entries) {
-          labelTexts[entry.key] = entry.value?.toString() ?? '';
-        }
-      }
-      final notAvailable = labelTexts['notAvailable'] ?? '';
-      final kpkPrefixText = labelTexts['kpkPrefix'] ?? '';
-      final cpkPrefixText = labelTexts['cpkPrefix'] ?? '';
-      final imeiPrefixText = labelTexts['imeiPrefix'] ?? '';
+
+      final forceRasterQr = await _shouldForceRasterQr(
+        printerType: printerType,
+        bluetoothPrinter: customMac != null ? {'macAddress': customMac} : null,
+      );
 
       // Đọc size giấy từ cài đặt THIẾT KẾ TEM
       final paperSizeStr = prefs.getString('label_paper_size') ?? '80';
       PaperSize paperSize;
       switch (paperSizeStr) {
+        case '50':
+          paperSize = PaperSize.mm58;
+          break;
         case '58':
           paperSize = PaperSize.mm58;
           break;
@@ -1017,6 +1236,9 @@ class UnifiedPrinterService {
       // Tính maxChars dựa trên khổ giấy
       final int fallbackMaxChars;
       switch (paperSizeStr) {
+        case '50':
+          fallbackMaxChars = 20;
+          break;
         case '58':
           fallbackMaxChars = 22;
           break;
@@ -1055,9 +1277,9 @@ class UnifiedPrinterService {
 
         nameScale = detailScale = kpkScale = cpkScale = imeiScale =
             shopInfoScale = prefs.getDouble('label_font_scale') ?? 1.0;
-        kpkPrefix = kpkPrefixText;
-        cpkPrefix = cpkPrefixText;
-        imeiPrefix = imeiPrefixText;
+        kpkPrefix = 'Giá KPK: ';
+        cpkPrefix = 'Giá CPK: ';
+        imeiPrefix = 'IMEI: ';
       } else {
         // Fallback: Cấu hình cơ bản từ Design View (khi chưa có Label Designer)
         showName = prefs.getBool('label_show_name') ?? true;
@@ -1076,9 +1298,9 @@ class UnifiedPrinterService {
         imeiScale = globalScale * 0.9;
         shopInfoScale = globalScale * 0.8;
 
-        kpkPrefix = kpkPrefixText;
-        cpkPrefix = cpkPrefixText;
-        imeiPrefix = imeiPrefixText;
+        kpkPrefix = 'GIA KPK: ';
+        cpkPrefix = 'GIA CPK: ';
+        imeiPrefix = 'IMEI: ';
       }
 
       final customText = prefs.getString('label_custom_text') ?? "";
@@ -1089,7 +1311,7 @@ class UnifiedPrinterService {
 
       // 1. TÊN SẢN PHẨM (SIZE theo nameScale) - Tự động xuống dòng
       if (showName) {
-        final rawName = product['name']?.toString() ?? notAvailable;
+        final rawName = product['name']?.toString() ?? 'N/A';
         final cleanName = _labelSingleLine(rawName, nameScale);
         // Tính maxChars theo khổ giấy và fontSize
         final adjustedMax = nameScale >= 1.5
@@ -1177,7 +1399,7 @@ class UnifiedPrinterService {
       // 5. IMEI (SIZE theo imeiScale)
       if (showIMEI) {
         final imeiLine = _labelSingleLine(
-          "$imeiPrefix${product['imei'] ?? notAvailable}",
+          "$imeiPrefix${product['imei'] ?? 'N/A'}",
           imeiScale,
           uppercaseWhenLarge: false,
         );
@@ -1216,22 +1438,12 @@ class UnifiedPrinterService {
             product['id']?.toString() ??
             product['firestoreId']?.split('_').last ??
             'unknown';
-        final int sizePx;
-        switch (paperSizeStr) {
-          case '58':
-            sizePx = 96;
-            break;
-          case '72':
-            sizePx = 112;
-            break;
-          default:
-            sizePx = 128;
-        }
-        await _appendQrRaster(
-          generator,
-          bytes,
-          "check_inv:$simpleId",
-          sizePx,
+        _addQrCode(
+          generator: generator,
+          bytes: bytes,
+          data: "check_inv:$simpleId",
+          size: QRSize.size4,
+          forceRaster: forceRasterQr,
         );
       }
 
@@ -1283,9 +1495,9 @@ class UnifiedPrinterService {
     }
   }
 
-  /// In QR IMEI theo danh sách (in 1 lần, nhiều tem liên tiếp)
+  /// In QR/Barcode IMEI hàng loạt (Bluetooth/WiFi)
   static Future<bool> printImeiQrBatch(
-    List<Product> products, {
+    List<Product> items, {
     PrinterType? printerType,
     dynamic bluetoothPrinter,
     String? wifiIp,
@@ -1295,23 +1507,25 @@ class UnifiedPrinterService {
     int paddingLines = 1,
     String qrSize = 'medium',
     int columns = 1,
-    required String defaultProductName,
-    required String imeiPrefix,
-    required String imeiLabel,
+    String codeType = 'qr',
+    String defaultProductName = 'Sản phẩm',
+    String imeiPrefix = 'IMEI',
+    String imeiLabel = 'IMEI',
+    bool preferRasterForBluetooth = true,
   }) async {
-    if (products.isEmpty) return false;
+    if (items.isEmpty) return false;
 
     final prefs = await SharedPreferences.getInstance();
     final paperSizeStr = prefs.getString('label_paper_size') ?? '80';
     PaperSize paperSize;
     switch (paperSizeStr) {
+      case '50':
+        paperSize = PaperSize.mm58;
+        break;
       case '58':
-      case '2x3':
-      case '3x4':
         paperSize = PaperSize.mm58;
         break;
       case '72':
-      case '4x6':
         paperSize = PaperSize.mm72;
         break;
       default:
@@ -1323,199 +1537,100 @@ class UnifiedPrinterService {
     final List<int> bytes = [];
     bytes.addAll(generator.reset());
 
-    columns = columns.clamp(1, 4);
-    final int qrPx;
-    if (paperSizeStr == '2x3') {
-      switch (qrSize) {
-        case 'xsmall':
-          qrPx = 40;
-          break;
-        case 'small':
-          qrPx = 56;
-          break;
-        case 'large':
-          qrPx = 88;
-          break;
-        default:
-          qrPx = 72;
-      }
-    } else if (paperSizeStr == '3x4') {
-      switch (qrSize) {
-        case 'xsmall':
-          qrPx = 48;
-          break;
-        case 'small':
-          qrPx = 64;
-          break;
-        case 'large':
-          qrPx = 96;
-          break;
-        default:
-          qrPx = 80;
-      }
-    } else if (paperSizeStr == '4x6') {
-      switch (qrSize) {
-        case 'xsmall':
-          qrPx = 64;
-          break;
-        case 'small':
-          qrPx = 80;
-          break;
-        case 'large':
-          qrPx = 120;
-          break;
-        default:
-          qrPx = 96;
-      }
-    } else if (paperSize == PaperSize.mm58) {
-      switch (qrSize) {
-        case 'xsmall':
-          qrPx = 48;
-          break;
-        case 'small':
-          qrPx = 64;
-          break;
-        case 'large':
-          qrPx = 96;
-          break;
-        default:
-          qrPx = 80;
-      }
-    } else {
-      switch (qrSize) {
-        case 'xsmall':
-          qrPx = 64;
-          break;
-        case 'small':
-          qrPx = 80;
-          break;
-        case 'large':
-          qrPx = 120;
-          break;
-        default:
-          qrPx = 96;
-      }
+    final forceRasterQr = preferRasterForBluetooth &&
+        await _shouldForceRasterQr(
+          printerType: printerType,
+          bluetoothPrinter: bluetoothPrinter,
+        );
+
+    QRSize qrSizeEnum;
+    switch (qrSize) {
+      case 'xsmall':
+        qrSizeEnum = QRSize.size2;
+        break;
+      case 'small':
+        qrSizeEnum = QRSize.size3;
+        break;
+      case 'large':
+        qrSizeEnum = QRSize.size6;
+        break;
+      default:
+        qrSizeEnum = QRSize.size4;
     }
 
-    int colWidth = (12 / columns).floor();
-    colWidth = colWidth < 1 ? 1 : colWidth;
+    int printed = 0;
+    for (final p in items) {
+      final imei = p.imei?.trim();
+      if (imei == null || imei.isEmpty) continue;
+      printed++;
 
-    Future<img.Image> buildQrImage(String data) async {
-      final painter = QrPainter(
-        data: data,
-        version: QrVersions.auto,
-        gapless: true,
-        color: const ui.Color(0xFF000000),
-        emptyColor: const ui.Color(0xFFFFFFFF),
-      );
-      final byteData = await painter.toImageData(
-        qrPx.toDouble(),
-        format: ui.ImageByteFormat.png,
-      );
-      final bytes = byteData!.buffer.asUint8List();
-      return img.decodeImage(bytes)!;
-    }
-
-    void printTextRow(
-      List<Map<String, String>> rowItems,
-      String key, {
-      bool bold = false,
-      PosTextSize textSize = PosTextSize.size1,
-    }) {
-      final columnsData = rowItems.map((e) {
-        final text = e[key] ?? '';
-        return PosColumn(
-          text: text,
-          width: colWidth,
-          styles: PosStyles(
-            align: PosAlign.center,
-            bold: bold,
-            height: textSize,
-            width: textSize,
+      final name = p.name.isNotEmpty ? p.name : defaultProductName;
+      if (showName) {
+        bytes.addAll(
+          generator.text(
+            _removeDiacritics(name),
+            styles: const PosStyles(bold: true),
           ),
         );
-      }).toList();
-
-      bytes.addAll(generator.row(columnsData));
-    }
-
-    final valid = products
-        .where((p) => (p.imei ?? '').trim().isNotEmpty)
-        .toList();
-    for (int i = 0; i < valid.length; i += columns) {
-      final rowItems = valid.skip(i).take(columns).map((p) {
-        final imei = (p.imei ?? '').trim();
-        final name = p.name.trim().isEmpty ? defaultProductName : p.name;
-        final detailParts = <String>[];
-        if (p.model != null && p.model!.trim().isNotEmpty) {
-          detailParts.add(p.model!.trim());
-        }
-        if (p.capacity != null && p.capacity!.trim().isNotEmpty) {
-          detailParts.add(p.capacity!.trim());
-        }
-        if (p.color != null && p.color!.trim().isNotEmpty) {
-          detailParts.add(p.color!.trim());
-        }
-        final detail = detailParts.join(' - ');
-        final code = p.firestoreId?.trim() ?? '';
-        final qrData = code.isNotEmpty
-            ? 'type=DIEN_THOAI&imei=${Uri.encodeComponent(imei)}&code=${Uri.encodeComponent(code)}'
-            : 'type=DIEN_THOAI&imei=${Uri.encodeComponent(imei)}';
-
-        return {
-          'name': _labelSingleLine(name, 1.0),
-          'detail': _labelSingleLine(detail, 0.9, uppercaseWhenLarge: false),
-          'imei': '$imeiPrefix$imei',
-          'qr': qrData,
-        };
-      }).toList();
-
-      if (showName) {
-        printTextRow(rowItems, 'name', bold: true);
       }
 
       if (showDetail) {
-        printTextRow(rowItems, 'detail');
+        final detailParts = <String>[
+          if ((p.model ?? '').trim().isNotEmpty) p.model!.trim(),
+          if ((p.capacity ?? '').trim().isNotEmpty) p.capacity!.trim(),
+          if ((p.color ?? '').trim().isNotEmpty) p.color!.trim(),
+        ].join(' | ');
+        if (detailParts.isNotEmpty) {
+          bytes.addAll(generator.text(_removeDiacritics(detailParts)));
+        }
       }
-
-      final gap = 8;
-      final imgWidth = rowItems.length * qrPx + (rowItems.length - 1) * gap;
-      final imgHeight = qrPx;
-      final canvas = img.Image(width: imgWidth, height: imgHeight);
-      img.fill(canvas, color: img.ColorUint8.rgb(255, 255, 255));
-
-      for (int idx = 0; idx < rowItems.length; idx++) {
-        final qr = await buildQrImage(rowItems[idx]['qr'] ?? '');
-        final x = idx * (qrPx + gap);
-        img.compositeImage(canvas, qr, dstX: x, dstY: 0);
-      }
-
-      bytes.addAll(generator.imageRaster(canvas, align: PosAlign.center));
 
       if (showImei) {
-        final imeiSize = columns >= 3
-            ? PosTextSize.size1
-            : (qrSize == 'large' ? PosTextSize.size2 : PosTextSize.size1);
-        if (imeiLabel.isNotEmpty && !imeiPrefix.startsWith(imeiLabel)) {
-          final labelRowItems = rowItems
-              .map((e) => {
-                    ...e,
-                    'imei': '$imeiLabel ${e['imei'] ?? ''}'.trim(),
-                  })
-              .toList();
-          printTextRow(labelRowItems, 'imei', textSize: imeiSize);
-        } else {
-          printTextRow(rowItems, 'imei', textSize: imeiSize);
+        bytes.addAll(
+          generator.text(_removeDiacritics('$imeiLabel: $imei')),
+        );
+      }
+
+      if (codeType == 'barcode') {
+        try {
+          bytes.addAll(
+            generator.barcode(
+              Barcode.code128(imei.codeUnits),
+              align: PosAlign.center,
+            ),
+          );
+        } catch (_) {
+          bytes.addAll(
+            generator.text(
+              _removeDiacritics(imei),
+              styles: const PosStyles(align: PosAlign.center, bold: true),
+            ),
+          );
         }
+      } else {
+        final qrContent = imeiPrefix.trim().isNotEmpty
+            ? '${imeiPrefix.trim()}$imei'
+            : imei;
+        _addQrCode(
+          generator: generator,
+          bytes: bytes,
+          data: qrContent,
+          size: qrSizeEnum,
+          forceRaster: forceRasterQr,
+        );
       }
 
       if (paddingLines > 0) {
         bytes.addAll(generator.feed(paddingLines));
       }
+
+      if (columns > 1) {
+        bytes.addAll(generator.feed(1));
+      }
     }
 
-    bytes.addAll(generator.feed(2));
-
+    if (printed == 0) return false;
+    bytes.addAll(generator.cut());
     return _sendToPrinter(
       bytes,
       printerType: printerType,
@@ -1992,6 +2107,9 @@ class UnifiedPrinterService {
     final paperSizeStr = prefs.getString('label_paper_size') ?? '80';
     PaperSize paperSize;
     switch (paperSizeStr) {
+      case '50':
+        paperSize = PaperSize.mm58;
+        break;
       case '58':
         paperSize = PaperSize.mm58;
         break;
@@ -2169,6 +2287,9 @@ class UnifiedPrinterService {
       final paperSizeStr = prefs.getString('label_paper_size') ?? '80';
       PaperSize paperSize;
       switch (paperSizeStr) {
+        case '50':
+          paperSize = PaperSize.mm58;
+          break;
         case '58':
           paperSize = PaperSize.mm58;
           break;

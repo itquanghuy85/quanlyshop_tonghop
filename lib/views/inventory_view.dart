@@ -2731,18 +2731,16 @@ class _InventoryViewState extends State<InventoryView>
                                   fontWeight: FontWeight.bold,
                                   color: isPending ? Colors.orange.shade800 : const Color(0xFF1A237E),
                                 ),
-                                maxLines: 1,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
-                        // Detail line: capacity/IMEI
-                        if (p.capacity != null || p.imei != null)
+                        // Detail line: only IMEI (capacity/color/condition already in name)
+                        if (p.imei != null && p.imei!.isNotEmpty)
                           Text(
-                            [p.capacity, if (p.imei != null && p.imei!.isNotEmpty) 'IMEI: ${p.imei}']
-                                .where((e) => e != null && e.isNotEmpty)
-                                .join(' • '),
+                            'IMEI: ${p.imei}',
                             style: AppTextStyles.caption.copyWith(color: Colors.grey.shade600),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -2784,7 +2782,7 @@ class _InventoryViewState extends State<InventoryView>
               
               const SizedBox(height: 6),
               
-              // Info chips row
+              // Info chips row - removed color/condition since they're in name
               Wrap(
                 spacing: 4,
                 runSpacing: 4,
@@ -2793,10 +2791,6 @@ class _InventoryViewState extends State<InventoryView>
                     _compactChip('Vốn: ${NumberFormat.compact(locale: 'vi').format(p.cost)}đ', Colors.orange.shade100),
                   if (!isPending)
                     _compactChip('Bán: ${NumberFormat.compact(locale: 'vi').format(p.price)}đ', Colors.green.shade100),
-                  if (p.color != null && p.color!.isNotEmpty)
-                    _compactChip('🎨 ${p.color}', Colors.pink.shade50),
-                  if (p.condition != null && p.condition!.isNotEmpty)
-                    _compactChip('📦 ${p.condition}', Colors.cyan.shade50),
                   if (p.supplier != null && p.supplier!.isNotEmpty)
                     _compactChip('🏭 ${p.supplier}', Colors.purple.shade50),
                   if (isPending)
@@ -3726,6 +3720,7 @@ class _InventoryViewState extends State<InventoryView>
       text: CurrencyTextField.formatDisplay(p.price),
     );
     final detailC = TextEditingController(text: p.capacity ?? '');
+    final labelInfoC = TextEditingController(text: p.labelInfo ?? '');
     final qtyC = TextEditingController(text: p.quantity.toString());
     final modelC = TextEditingController(text: p.model ?? '');
     final labelNoteC = TextEditingController(text: p.labelNote ?? '');
@@ -3772,6 +3767,7 @@ class _InventoryViewState extends State<InventoryView>
                 cost: newCost,
                 price: CurrencyTextField.parseValue(priceC.text),
                 capacity: detailC.text.trim().toUpperCase(),
+                labelInfo: labelInfoC.text.trim(),
                 quantity: int.tryParse(qtyC.text) ?? 1,
                 type: type,
                 supplier: supplier,
@@ -3866,6 +3862,13 @@ class _InventoryViewState extends State<InventoryView>
                     "Chi tiết (Dung lượng - Màu...)",
                     Icons.info_outline,
                     caps: true,
+                  ),
+
+                  // Thông tin in trên tem
+                  _input(
+                    labelInfoC,
+                    "Thông tin in trên tem",
+                    Icons.local_offer_outlined,
                   ),
 
                   // IMEI/Serial (read-only)

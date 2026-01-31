@@ -13,6 +13,7 @@ class QuickInputCode {
   int? cost; // Giá nhập
   int? price; // Giá bán
   String? description; // Mô tả/ghi chú
+  String? labelInfo; // Thông tin in trên tem
   String? supplier; // Nhà cung cấp
   String? paymentMethod; // Phương thức thanh toán
   bool isActive; // Có đang active không
@@ -34,6 +35,7 @@ class QuickInputCode {
     this.cost,
     this.price,
     this.description,
+    this.labelInfo,
     this.supplier,
     this.paymentMethod,
     this.isActive = true,
@@ -57,6 +59,7 @@ class QuickInputCode {
       'cost': cost,
       'price': price,
       'description': description,
+      'labelInfo': labelInfo,
       'supplier': supplier,
       'paymentMethod': paymentMethod,
       'isActive': isActive ? 1 : 0,
@@ -81,6 +84,7 @@ class QuickInputCode {
       cost: map['cost'] is int ? map['cost'] : int.tryParse(map['cost']?.toString() ?? '0'),
       price: map['price'] is int ? map['price'] : int.tryParse(map['price']?.toString() ?? '0'),
       description: map['description'],
+      labelInfo: map['labelInfo'],
       supplier: map['supplier'],
       paymentMethod: map['paymentMethod'],
       isActive: map['isActive'] is int ? map['isActive'] == 1 : (map['isActive'] == true || map['isActive'] == 1),
@@ -103,6 +107,7 @@ class QuickInputCode {
     int? cost,
     int? price,
     String? description,
+    String? labelInfo,
     String? supplier,
     String? paymentMethod,
     bool? isActive,
@@ -123,6 +128,7 @@ class QuickInputCode {
       cost: cost ?? this.cost,
       price: price ?? this.price,
       description: description ?? this.description,
+      labelInfo: labelInfo ?? this.labelInfo,
       supplier: supplier ?? this.supplier,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       isActive: isActive ?? this.isActive,

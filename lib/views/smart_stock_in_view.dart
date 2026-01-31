@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../l10n/app_localizations.dart';
 import '../constants/product_constants.dart';
 import '../models/stock_entry_model.dart';
 import '../models/supplier_model.dart';
@@ -42,11 +41,11 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   final _costCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  final _labelInfoCtrl = TextEditingController();
 
   // Controllers - Điện thoại
   final _imeiCtrl = TextEditingController();
   final _modelCtrl = TextEditingController();
-  final _labelNoteCtrl = TextEditingController();
 
   // Controllers - Phụ kiện/Linh kiện
   final _skuCtrl = TextEditingController();
@@ -204,6 +203,11 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     if (code.description != null && code.description!.isNotEmpty) {
       _notesCtrl.text = code.description!;
     }
+
+    // Thông tin in trên tem
+    if (code.labelInfo != null && code.labelInfo!.isNotEmpty) {
+      _labelInfoCtrl.text = code.labelInfo!;
+    }
   }
 
   void _loadEditData() {
@@ -221,7 +225,6 @@ class _SmartStockInViewState extends State<SmartStockInView> {
 
       if (_productType == 'DIEN_THOAI') {
         _imeiCtrl.text = item.imei ?? '';
-        _labelNoteCtrl.text = item.labelNote ?? '';
         // Validate brand - chỉ set nếu có trong list
         if (item.brand != null && _brands.contains(item.brand)) {
           _selectedBrand = item.brand;
@@ -246,6 +249,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
           _selectedUnit = item.unit;
         }
       }
+      _labelInfoCtrl.text = item.labelInfo ?? '';
     }
 
     _selectedSupplierId = entry.supplierId;
@@ -274,9 +278,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     _costCtrl.dispose();
     _priceCtrl.dispose();
     _notesCtrl.dispose();
+    _labelInfoCtrl.dispose();
     _imeiCtrl.dispose();
     _modelCtrl.dispose();
-    _labelNoteCtrl.dispose();
     _skuCtrl.dispose();
     super.dispose();
   }
@@ -361,6 +365,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       cost: cost,
       price: price,
       productType: _productType,
+      labelInfo: _labelInfoCtrl.text.trim(),
       // Điện thoại
       imei: _isPhone ? _imeiCtrl.text.trim() : null,
       brand: _isPhone ? _selectedBrand : null,
@@ -368,7 +373,6 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       capacity: _isPhone ? _selectedCapacity : null,
       color: _isPhone ? _selectedColor : null,
       condition: _isPhone ? _selectedCondition : null,
-      labelNote: _isPhone ? _labelNoteCtrl.text.trim() : null,
       // Phụ kiện
       sku: !_isPhone ? _skuCtrl.text.trim().toUpperCase() : null,
       unit: !_isPhone ? _selectedUnit : null,
@@ -676,6 +680,22 @@ class _SmartStockInViewState extends State<SmartStockInView> {
             ),
             const SizedBox(height: 12),
 
+
+            TextFormField(
+              controller: _labelInfoCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Thông tin in trên tem',
+                hintText: 'VD: BH 6T, Hàng mới',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.local_offer_outlined, size: 20),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+            ),
+            const SizedBox(height: 12),
             // IMEI + Scan
             Row(
               children: [
@@ -721,19 +741,18 @@ class _SmartStockInViewState extends State<SmartStockInView> {
             const SizedBox(height: 12),
 
             TextFormField(
-              controller: _labelNoteCtrl,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.labelNoteFieldLabel,
-                hintText: AppLocalizations.of(context)!.labelNoteFieldHint,
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.print, size: 20),
-                contentPadding: const EdgeInsets.symmetric(
+              controller: _labelInfoCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Thông tin in trên tem',
+                hintText: 'VD: Bảo hành 6T, Máy đẹp 99%',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.local_offer_outlined, size: 20),
+                contentPadding: EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 8,
                 ),
               ),
-              style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
             ),
             const SizedBox(height: 12),
 

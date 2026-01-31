@@ -80,6 +80,7 @@ class _FastStockInViewState extends State<FastStockInView> {
   final TextEditingController quantityCtrl = TextEditingController(text: '1');
   final TextEditingController costCtrl = TextEditingController();
   final TextEditingController priceCtrl = TextEditingController();
+  final TextEditingController labelInfoCtrl = TextEditingController();
 
   List<Map<String, dynamic>> suppliers = [];
 
@@ -226,6 +227,7 @@ class _FastStockInViewState extends State<FastStockInView> {
     quantityCtrl.dispose();
     costCtrl.dispose();
     priceCtrl.dispose();
+    labelInfoCtrl.dispose();
     super.dispose();
   }
 
@@ -718,6 +720,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         quantity: quantity,
         color: selectedColor!,
         capacity: selectedCapacity!,
+        labelInfo: labelInfoCtrl.text.trim(),
         paymentMethod: isPending
             ? null
             : selectedPaymentMethod, // Chỉ gán khi không pending
@@ -1023,6 +1026,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         capacity: selectedCapacity,
         color: selectedColor,
         condition: selectedCondition,
+        labelInfo: labelInfoCtrl.text.trim(),
         productType: 'DIEN_THOAI',
         labelNote: labelNoteCtrl.text.trim().isNotEmpty
             ? labelNoteCtrl.text.trim()
@@ -1568,6 +1572,29 @@ class _FastStockInViewState extends State<FastStockInView> {
                   ),
 
                   _buildModelField(),
+                  Text(
+                    'Thông tin in trên tem',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppTextStyles.body1.fontSize,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: labelInfoCtrl,
+                    style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                    decoration: InputDecoration(
+                      hintText: 'VD: Bảo hành 6T, Máy đẹp 99%',
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 8,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   _buildSupplierField(),
                   // Thanh toán đặt dưới nhà cung cấp để người dùng thấy rõ liên quan tới thanh toán
                   const SizedBox(height: 6),
