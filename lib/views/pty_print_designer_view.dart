@@ -479,7 +479,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
     return price + 500000;
   }
 
-  String _resolveText(String template, Product product) {
+  String _resolveText(String template, Product product, {String prefix = ''}) {
     final priceCPK = _calculateCPK(product);
     final map = <String, String>{
       '{{name}}': product.name.toUpperCase(),
@@ -499,6 +499,10 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
     map.forEach((key, value) {
       result = result.replaceAll(key, value);
     });
+    // Thêm prefix vào đầu nếu có
+    if (prefix.isNotEmpty && result.isNotEmpty) {
+      return '$prefix$result';
+    }
     return result;
   }
 
@@ -792,7 +796,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
   ) {
     switch (el.type) {
       case LabelElementType.text:
-        final resolvedText = _resolveText(el.text, _previewProduct);
+        final resolvedText = _resolveText(el.text, _previewProduct, prefix: el.prefix);
         return Container(
           padding: const EdgeInsets.all(2),
           alignment: Alignment.center,
@@ -2419,7 +2423,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
       case LabelElementType.text:
         final textPainter = TextPainter(
           text: TextSpan(
-            text: _resolveText(el.text, product),
+            text: _resolveText(el.text, product, prefix: el.prefix),
             style: TextStyle(
               color: Colors.black,
               fontSize: _mmToPx(el.fontSizeMm) * 0.28,
