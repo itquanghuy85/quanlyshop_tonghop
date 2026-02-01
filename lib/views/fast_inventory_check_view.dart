@@ -416,8 +416,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
           _totalScanned++;
         });
         _provideScanFeedback(isSuccess: true);
+        final imeiSuffix = storedImei.length >= 5 ? storedImei.substring(storedImei.length - 5) : storedImei;
         NotificationService.showSnackBar(
-          '✅ ${expectedProduct.name} (${storedImei.substring(storedImei.length - 5)})',
+          '✅ ${expectedProduct.name} ($imeiSuffix)',
         );
 
         // Update zone progress
@@ -427,21 +428,22 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         _addToChecklist(
           '📱',
           expectedProduct.name,
-          storedImei.substring(storedImei.length - 5),
+          imeiSuffix,
         );
       }
     } else {
       // Unexpected phone
       _provideScanFeedback(isSuccess: false);
+      final extraImeiSuffix = imei.length >= 5 ? imei.substring(imei.length - 5) : imei;
       NotificationService.showSnackBar(
-        '🚨 Thừa: ${imei.substring(imei.length - 5)}',
+        '🚨 Thừa: $extraImeiSuffix',
         color: Colors.red,
       );
 
       // Add to checklist as extra
       _addToChecklist(
         '📱',
-        'Thừa: ${imei.substring(imei.length - 5)}',
+        'Thừa: $extraImeiSuffix',
         imei,
         status: '🚨',
       );
