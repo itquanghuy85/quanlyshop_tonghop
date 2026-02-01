@@ -498,6 +498,8 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
 
   /// Handle legacy QR codes that don't have type field
   Future<void> _handleLegacyQR(String qrData, Map<String, String> qrMap) async {
+    debugPrint('🔍 _handleLegacyQR: qrData="$qrData", qrMap=$qrMap');
+    
     // Handle legacy inventory check format: check_inv:ID hoặc check_product:ID
     if (qrData.startsWith('check_inv:')) {
       final productId = qrData.substring('check_inv:'.length);
@@ -516,9 +518,17 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       }
     }
 
-    // Case 1: Has imei key
+    // Case 1: Has imei key (format: imei=XXXXX hoặc imei=XXXXX&id=YYY)
     if (qrMap.containsKey('imei') && qrMap['imei']!.isNotEmpty) {
+      debugPrint('✅ Found imei key: ${qrMap['imei']}');
       _handlePhoneScan(qrMap);
+      return;
+    }
+    
+    // Case 1b: Has id key only (format: id=XXXXX) - lookup product by firestoreId
+    if (qrMap.containsKey('id') && qrMap['id']!.isNotEmpty) {
+      debugPrint('✅ Found id key: ${qrMap['id']}');
+      await _handleLegacyInventoryCheck(qrMap['id']!);
       return;
     }
 
