@@ -211,29 +211,45 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     // Làm sạch - chỉ giữ số
     final stored = storedIMEI.replaceAll(RegExp(r'[^0-9]'), '');
     final scanned = scannedIMEI.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    debugPrint('🔍 _matchIMEI: stored="$stored"(${stored.length}) vs scanned="$scanned"(${scanned.length})');
 
-    if (stored.isEmpty || scanned.isEmpty) return false;
+    if (stored.isEmpty || scanned.isEmpty) {
+      debugPrint('  ❌ Empty IMEI');
+      return false;
+    }
 
     // Case 1: Match chính xác
-    if (stored == scanned) return true;
+    if (stored == scanned) {
+      debugPrint('  ✅ Exact match');
+      return true;
+    }
 
     // Case 2: Scanned là mã ngắn (4-5 số) - so với cuối stored
     if (scanned.length >= 4 && scanned.length <= 5) {
       if (stored.length >= scanned.length) {
-        return stored.substring(stored.length - scanned.length) == scanned;
+        final storedSuffix = stored.substring(stored.length - scanned.length);
+        final result = storedSuffix == scanned;
+        debugPrint('  🔍 Case2: storedSuffix="$storedSuffix" vs scanned="$scanned" => $result');
+        return result;
       }
       // stored cũng là mã ngắn - so chính xác
+      debugPrint('  🔍 Case2b: both short, exact match => ${stored == scanned}');
       return stored == scanned;
     }
 
     // Case 3: Stored là mã ngắn (4-5 số) - so với cuối scanned
     if (stored.length >= 4 && stored.length <= 5) {
       if (scanned.length >= stored.length) {
-        return scanned.substring(scanned.length - stored.length) == stored;
+        final scannedSuffix = scanned.substring(scanned.length - stored.length);
+        final result = scannedSuffix == stored;
+        debugPrint('  🔍 Case3: scannedSuffix="$scannedSuffix" vs stored="$stored" => $result');
+        return result;
       }
     }
 
     // Case 4: Cả 2 đều là IMEI dài (15 số) - đã check ở Case 1
+    debugPrint('  ❌ No match (Case4)');
     return false;
   }
 
@@ -380,6 +396,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   }
 
   void _handlePhoneScan(Map<String, String> qrMap) {
+    debugPrint('📱 _handlePhoneScan: qrMap=$qrMap');
     final imei = qrMap['imei'];
     if (imei == null || imei.isEmpty) {
       _provideScanFeedback(isSuccess: false);
@@ -389,13 +406,20 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       );
       return;
     }
+    debugPrint('📱 IMEI từ QR: "$imei" (${imei.length} ký tự)');
 
     // Check if this IMEI exists in expected inventory
+    debugPrint('📱 Tìm trong ${_expectedPhones.length} điện thoại...');
+    for (var p in _expectedPhones.take(5)) {
+      debugPrint('  - ${p.name}: IMEI="${p.imei}"');
+    }
     final expectedProduct = _expectedPhones.firstWhere(
       (p) {
         if (p.imei == null || p.imei!.isEmpty) return false;
         // Smart matching: hỗ trợ 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)
-        return _matchIMEI(p.imei!, imei);
+        final match = _matchIMEI(p.imei!, imei);
+        if (match) debugPrint('✅ MATCH: ${p.name} - stored="${p.imei}" vs scanned="$imei"');
+        return match;
       },
       orElse: () => Product(
         name: 'Không có trong kho',
