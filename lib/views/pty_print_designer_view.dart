@@ -342,6 +342,11 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
         _labelWidthMm = (data['labelWidthMm'] as num?)?.toDouble() ?? 50;
         _labelHeightMm = (data['labelHeightMm'] as num?)?.toDouble() ?? 30;
         _dpi = (data['dpi'] as num?)?.toDouble() ?? 203;
+
+        // Guard against corrupted settings (0 or negative values)
+        if (_labelWidthMm <= 0) _labelWidthMm = 50;
+        if (_labelHeightMm <= 0) _labelHeightMm = 30;
+        if (_dpi <= 0) _dpi = 203;
         _marginLeftMm = (data['marginLeftMm'] as num?)?.toDouble() ?? 2;
         _marginTopMm = (data['marginTopMm'] as num?)?.toDouble() ?? 2;
         _marginRightMm = (data['marginRightMm'] as num?)?.toDouble() ?? 2;
@@ -2498,7 +2503,9 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
   }
 
   Future<Uint8List> _exportBitmap(Product product) async {
-    final labelPxSize = _labelPxSize;
+    final safeWidthMm = _labelWidthMm <= 0 ? 50 : _labelWidthMm;
+    final safeHeightMm = _labelHeightMm <= 0 ? 30 : _labelHeightMm;
+    final labelPxSize = Size(_mmToPx(safeWidthMm), _mmToPx(safeHeightMm));
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 

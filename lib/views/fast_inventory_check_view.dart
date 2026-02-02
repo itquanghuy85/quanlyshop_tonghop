@@ -506,6 +506,16 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
 
   /// Handle legacy QR codes that don't have type field
   Future<void> _handleLegacyQR(String qrData, Map<String, String> qrMap) async {
+    // Normalize common IMEI prefix formats (e.g., "IMEI:12345")
+    final imeiPrefixMatch = RegExp(r'(?i)imei\s*[:\-]?\s*(\d{4,})').firstMatch(qrData);
+    if (imeiPrefixMatch != null) {
+      final imei = imeiPrefixMatch.group(1);
+      if (imei != null && imei.isNotEmpty) {
+        _handlePhoneScan({'imei': imei, 'type': 'DIEN_THOAI'});
+        return;
+      }
+    }
+
     // Handle legacy inventory check format: check_inv:ID hoặc check_product:ID
     if (qrData.startsWith('check_inv:')) {
       final productId = qrData.substring('check_inv:'.length);
