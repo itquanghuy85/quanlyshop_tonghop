@@ -95,7 +95,7 @@ class _InventoryViewState extends State<InventoryView>
   final MobileScannerController _scannerController = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     detectionTimeoutMs: 1000,
-    formats: [BarcodeFormat.qrCode, BarcodeFormat.code128, BarcodeFormat.ean13, BarcodeFormat.ean8],
+    formats: [BarcodeFormat.all],
   );
   InventoryCheck? _currentCheck;
 

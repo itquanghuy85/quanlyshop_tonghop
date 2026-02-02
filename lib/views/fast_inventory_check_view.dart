@@ -23,7 +23,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   final MobileScannerController _scannerController = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     detectionTimeoutMs: 1000,
-    formats: [BarcodeFormat.qrCode, BarcodeFormat.code128, BarcodeFormat.ean13, BarcodeFormat.ean8],
+    formats: [BarcodeFormat.all],
   );
 
   // Inventory data
@@ -211,45 +211,29 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     // Làm sạch - chỉ giữ số
     final stored = storedIMEI.replaceAll(RegExp(r'[^0-9]'), '');
     final scanned = scannedIMEI.replaceAll(RegExp(r'[^0-9]'), '');
-    
-    debugPrint('🔍 _matchIMEI: stored="$stored"(${stored.length}) vs scanned="$scanned"(${scanned.length})');
 
-    if (stored.isEmpty || scanned.isEmpty) {
-      debugPrint('  ❌ Empty IMEI');
-      return false;
-    }
+    if (stored.isEmpty || scanned.isEmpty) return false;
 
     // Case 1: Match chính xác
-    if (stored == scanned) {
-      debugPrint('  ✅ Exact match');
-      return true;
-    }
+    if (stored == scanned) return true;
 
     // Case 2: Scanned là mã ngắn (4-5 số) - so với cuối stored
     if (scanned.length >= 4 && scanned.length <= 5) {
       if (stored.length >= scanned.length) {
-        final storedSuffix = stored.substring(stored.length - scanned.length);
-        final result = storedSuffix == scanned;
-        debugPrint('  🔍 Case2: storedSuffix="$storedSuffix" vs scanned="$scanned" => $result');
-        return result;
+        return stored.substring(stored.length - scanned.length) == scanned;
       }
       // stored cũng là mã ngắn - so chính xác
-      debugPrint('  🔍 Case2b: both short, exact match => ${stored == scanned}');
       return stored == scanned;
     }
 
     // Case 3: Stored là mã ngắn (4-5 số) - so với cuối scanned
     if (stored.length >= 4 && stored.length <= 5) {
       if (scanned.length >= stored.length) {
-        final scannedSuffix = scanned.substring(scanned.length - stored.length);
-        final result = scannedSuffix == stored;
-        debugPrint('  🔍 Case3: scannedSuffix="$scannedSuffix" vs stored="$stored" => $result');
-        return result;
+        return scanned.substring(scanned.length - stored.length) == stored;
       }
     }
 
     // Case 4: Cả 2 đều là IMEI dài (15 số) - đã check ở Case 1
-    debugPrint('  ❌ No match (Case4)');
     return false;
   }
 
@@ -396,7 +380,6 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   }
 
   void _handlePhoneScan(Map<String, String> qrMap) {
-    debugPrint('📱 _handlePhoneScan: qrMap=$qrMap');
     final imei = qrMap['imei'];
     if (imei == null || imei.isEmpty) {
       _provideScanFeedback(isSuccess: false);
@@ -406,20 +389,12 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       );
       return;
     }
-    debugPrint('📱 IMEI từ QR: "$imei" (${imei.length} ký tự)');
-
     // Check if this IMEI exists in expected inventory
-    debugPrint('📱 Tìm trong ${_expectedPhones.length} điện thoại...');
-    for (var p in _expectedPhones.take(5)) {
-      debugPrint('  - ${p.name}: IMEI="${p.imei}"');
-    }
     final expectedProduct = _expectedPhones.firstWhere(
       (p) {
         if (p.imei == null || p.imei!.isEmpty) return false;
         // Smart matching: hỗ trợ 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)
-        final match = _matchIMEI(p.imei!, imei);
-        if (match) debugPrint('✅ MATCH: ${p.name} - stored="${p.imei}" vs scanned="$imei"');
-        return match;
+        return _matchIMEI(p.imei!, imei);
       },
       orElse: () => Product(
         name: 'Không có trong kho',
@@ -522,8 +497,6 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
 
   /// Handle legacy QR codes that don't have type field
   Future<void> _handleLegacyQR(String qrData, Map<String, String> qrMap) async {
-    debugPrint('🔍 _handleLegacyQR: qrData="$qrData", qrMap=$qrMap');
-    
     // Handle legacy inventory check format: check_inv:ID hoặc check_product:ID
     if (qrData.startsWith('check_inv:')) {
       final productId = qrData.substring('check_inv:'.length);
