@@ -2503,8 +2503,8 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
   }
 
   Future<Uint8List> _exportBitmap(Product product) async {
-    final safeWidthMm = _labelWidthMm <= 0 ? 50 : _labelWidthMm;
-    final safeHeightMm = _labelHeightMm <= 0 ? 30 : _labelHeightMm;
+    final safeWidthMm = (_labelWidthMm <= 0 ? 50 : _labelWidthMm).toDouble();
+    final safeHeightMm = (_labelHeightMm <= 0 ? 30 : _labelHeightMm).toDouble();
     final labelPxSize = Size(_mmToPx(safeWidthMm), _mmToPx(safeHeightMm));
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
