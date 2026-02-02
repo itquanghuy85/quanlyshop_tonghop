@@ -1216,11 +1216,17 @@ class UnifiedPrinterService {
       // ĐỌC CẤU HÌNH TỪ LABEL DESIGNER PRO (nếu có)
       final designerConfig = await _loadLabelDesignerConfig();
       final hasDesignerConfig = designerConfig.isNotEmpty;
+      final hasVisibleDesignerElements = designerConfig.values.any(
+        (e) => e.visible,
+      );
+      final hasVisibleDesignerElements = designerConfig.values.any(
+        (e) => e.visible,
+      );
 
       // Nếu có cài đặt từ Label Designer và KHÔNG phải custom mode -> Dùng layout từ Designer
-      if (hasDesignerConfig && !isCustomMode) {
+      if (hasDesignerConfig && hasVisibleDesignerElements && !isCustomMode) {
         final service = UnifiedPrinterService();
-        return service._printLabelWithDesignerConfig(
+        final ok = await service._printLabelWithDesignerConfig(
           generator: generator,
           bytes: bytes,
           product: product,
@@ -1231,6 +1237,7 @@ class UnifiedPrinterService {
           bluetoothPrinter: resolvedBluetoothPrinter,
           wifiIp: wifiIp,
         );
+        if (ok) return true;
       }
 
       // ========== FALLBACK: In theo cách cũ nếu chưa có Label Designer config ==========
@@ -2330,7 +2337,7 @@ class UnifiedPrinterService {
       final customLines = printData.additionalLines as List<String>? ?? [];
 
       // Nếu có cài đặt từ Label Designer, sử dụng nó!
-      if (hasDesignerConfig) {
+      if (hasDesignerConfig && hasVisibleDesignerElements) {
         return _printLabelWithDesignerConfig(
           generator: generator,
           bytes: bytes,
