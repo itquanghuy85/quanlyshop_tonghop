@@ -249,10 +249,19 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       return;
     }
 
-    final barcode = capture.barcodes.first;
-    if (barcode.rawValue == null) return;
+    if (capture.barcodes.isEmpty) return;
 
-    final qrData = barcode.rawValue!.trim();
+    final barcode = capture.barcodes.firstWhere(
+      (b) {
+        final raw = b.rawValue?.trim();
+        final display = b.displayValue?.trim();
+        return (raw != null && raw.isNotEmpty) ||
+            (display != null && display.isNotEmpty);
+      },
+      orElse: () => capture.barcodes.first,
+    );
+
+    final qrData = (barcode.rawValue ?? barcode.displayValue ?? '').trim();
     if (qrData.isEmpty) return;
 
     // Check if this QR was processed recently (within 3 seconds)
