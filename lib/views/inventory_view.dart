@@ -540,6 +540,7 @@ class _InventoryViewState extends State<InventoryView>
                       final ok = await UnifiedPrinterService.printProductQRLabel(
                         p.toMap(),
                         printerType: printerType,
+                        bluetoothPrinter: bluetoothPrinter,
                         customMac: bluetoothPrinter is Map ? bluetoothPrinter['macAddress'] : null,
                         wifiIp: wifiIp,
                       );

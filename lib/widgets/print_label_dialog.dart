@@ -714,6 +714,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
         final success = await UnifiedPrinterService.printProductQRLabel(
           printData,
           customMac: bluetoothPrinter?.macAddress,
+          bluetoothPrinter: bluetoothPrinter,
           printerType: printerType,
           wifiIp: wifiIp,
         );

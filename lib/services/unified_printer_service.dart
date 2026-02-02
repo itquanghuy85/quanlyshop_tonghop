@@ -1175,13 +1175,17 @@ class UnifiedPrinterService {
     String? customMac,
     PrinterType? printerType,
     String? wifiIp,
+    dynamic bluetoothPrinter,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
 
+      final resolvedBluetoothPrinter = bluetoothPrinter ??
+          (customMac != null ? {'macAddress': customMac} : null);
+
       final forceRasterQr = await _shouldForceRasterQr(
         printerType: printerType,
-        bluetoothPrinter: customMac != null ? {'macAddress': customMac} : null,
+        bluetoothPrinter: resolvedBluetoothPrinter,
       );
 
       // Đọc size giấy từ cài đặt THIẾT KẾ TEM
@@ -1224,9 +1228,7 @@ class UnifiedPrinterService {
           customLines: [],
           printData: null,
           printerType: printerType,
-          bluetoothPrinter: customMac != null
-              ? {'macAddress': customMac}
-              : null,
+          bluetoothPrinter: resolvedBluetoothPrinter,
           wifiIp: wifiIp,
         );
       }
@@ -2311,6 +2313,7 @@ class UnifiedPrinterService {
         return printProductQRLabel(
           printData,
           printerType: printerType,
+          bluetoothPrinter: bluetoothPrinter,
           customMac: bluetoothPrinter is Map
               ? bluetoothPrinter['macAddress']
               : null,
