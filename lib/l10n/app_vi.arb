@@ -1458,5 +1458,78 @@
       }
     }
   },
-  "repairPartner": "Đối tác sửa chữa"
+  "repairPartner": "Đối tác sửa chữa",
+  "resetAll": "Đặt lại tất cả",
+  "repairing": "Đang sửa",
+  "repairDone": "Sửa xong",
+  "delivered": "Đã giao",
+  "received": "Tiếp nhận",
+  "selectedStatuses": "Đã chọn: {count} trạng thái",
+  "@selectedStatuses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "apply": "ÁP DỤNG",
+  "orderHasAccounting": "Đơn có số liệu kế toán:\n• Giá: {price}\n• Chi phí: {cost}",
+  "@orderHasAccounting": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "orderHasParts": "Đơn có phụ tùng:",
+  "statusRepairing": "ĐANG SỬA",
+  "statusRepairDone": "SỬA XONG",
+  "statusDelivered": "ĐÃ GIAO",
+  "deletedRepairDesc": "Đã xóa đơn sửa {model} - {customer} - {phone}{partsInfo}",
+  "@deletedRepairDesc": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      },
+      "phone": {
+        "type": "String"
+      },
+      "partsInfo": {
+        "type": "String"
+      }
+    }
+  },
+  "returnedParts": " (đã hoàn trả phụ tùng: {parts})",
+  "@returnedParts": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
+  },
+  "displayedRepairs": "Đã hiển thị {count} đơn sửa",
+  "@displayedRepairs": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statusReceivedUpper": "TIẾP NHẬN",
+  "statusRepairingUpper": "ĐANG SỬA",
+  "statusRepairDoneUpper": "SỬA XONG",
+  "statusDeliveredUpper": "ĐÃ GIAO",
+  "statusPendingApproval": "CHỜ DUYỆT",
+  "statusOther": "KHÁC",
+  "all": "Tất cả",
+  "statusSelectMultiple": "TRẠNG THÁI (chọn nhiều)",
+  "timeFilter": "THỜI GIAN",
+  "partsWillReturn": "⚠️ Phụ tùng sẽ được hoàn trả về kho!",
+  "deleteRepairAction": "XÓA ĐƠN SỬA"
 }

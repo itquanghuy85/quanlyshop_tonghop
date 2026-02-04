@@ -1366,7 +1366,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get reset => 'Đặt lại';
 
   @override
-  String get apply => 'Áp dụng';
+  String get apply => 'ÁP DỤNG';
 
   @override
   String get from => 'Từ';
@@ -3188,4 +3188,80 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get repairPartner => 'Đối tác sửa chữa';
+
+  @override
+  String get resetAll => 'Đặt lại tất cả';
+
+  @override
+  String get repairing => 'Đang sửa';
+
+  @override
+  String get repairDone => 'Sửa xong';
+
+  @override
+  String get received => 'Tiếp nhận';
+
+  @override
+  String selectedStatuses(int count) {
+    return 'Đã chọn: $count trạng thái';
+  }
+
+  @override
+  String orderHasAccounting(String price, String cost) {
+    return 'Đơn có số liệu kế toán:\n• Giá: $price\n• Chi phí: $cost';
+  }
+
+  @override
+  String get orderHasParts => 'Đơn có phụ tùng:';
+
+  @override
+  String get statusRepairDone => 'SỬA XONG';
+
+  @override
+  String get statusDelivered => 'ĐÃ GIAO';
+
+  @override
+  String deletedRepairDesc(String model, String customer, String phone, String partsInfo) {
+    return 'Đã xóa đơn sửa $model - $customer - $phone$partsInfo';
+  }
+
+  @override
+  String returnedParts(String parts) {
+    return ' (đã hoàn trả phụ tùng: $parts)';
+  }
+
+  @override
+  String displayedRepairs(int count) {
+    return 'Đã hiển thị $count đơn sửa';
+  }
+
+  @override
+  String get statusReceivedUpper => 'TIẾP NHẬN';
+
+  @override
+  String get statusRepairingUpper => 'ĐANG SỬA';
+
+  @override
+  String get statusRepairDoneUpper => 'SỬA XONG';
+
+  @override
+  String get statusDeliveredUpper => 'ĐÃ GIAO';
+
+  @override
+  String get statusPendingApproval => 'CHỜ DUYỆT';
+
+  @override
+  String get statusOther => 'KHÁC';
+
+  @override
+  String get statusSelectMultiple => 'TRẠNG THÁI (chọn nhiều)';
+
+  @override
+  String get timeFilter => 'THỜI GIAN';
+
+  @override
+  String get partsWillReturn => '⚠️ Phụ tùng sẽ được hoàn trả về kho!';
+
+  @override
+  String get deleteRepairAction => 'XÓA ĐƠN SỬA';
 }

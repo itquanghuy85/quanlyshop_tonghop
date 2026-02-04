@@ -2780,7 +2780,7 @@ abstract class AppLocalizations {
   /// No description provided for @apply.
   ///
   /// In en, this message translates to:
-  /// **'Apply'**
+  /// **'APPLY'**
   String get apply;
 
   /// No description provided for @from.
@@ -6256,6 +6256,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Repair partner'**
   String get repairPartner;
+
+  /// No description provided for @resetAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all'**
+  String get resetAll;
+
+  /// No description provided for @repairing.
+  ///
+  /// In en, this message translates to:
+  /// **'Repairing'**
+  String get repairing;
+
+  /// No description provided for @repairDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair done'**
+  String get repairDone;
+
+  /// No description provided for @received.
+  ///
+  /// In en, this message translates to:
+  /// **'Received'**
+  String get received;
+
+  /// No description provided for @selectedStatuses.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected: {count} statuses'**
+  String selectedStatuses(int count);
+
+  /// No description provided for @orderHasAccounting.
+  ///
+  /// In en, this message translates to:
+  /// **'Order has accounting data:\n• Price: {price}\n• Cost: {cost}'**
+  String orderHasAccounting(String price, String cost);
+
+  /// No description provided for @orderHasParts.
+  ///
+  /// In en, this message translates to:
+  /// **'Order has parts:'**
+  String get orderHasParts;
+
+  /// No description provided for @statusRepairDone.
+  ///
+  /// In en, this message translates to:
+  /// **'REPAIR DONE'**
+  String get statusRepairDone;
+
+  /// No description provided for @statusDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'DELIVERED'**
+  String get statusDelivered;
+
+  /// No description provided for @deletedRepairDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted repair {model} - {customer} - {phone}{partsInfo}'**
+  String deletedRepairDesc(String model, String customer, String phone, String partsInfo);
+
+  /// No description provided for @returnedParts.
+  ///
+  /// In en, this message translates to:
+  /// **' (returned parts: {parts})'**
+  String returnedParts(String parts);
+
+  /// No description provided for @displayedRepairs.
+  ///
+  /// In en, this message translates to:
+  /// **'Displayed {count} repair orders'**
+  String displayedRepairs(int count);
+
+  /// No description provided for @statusReceivedUpper.
+  ///
+  /// In en, this message translates to:
+  /// **'RECEIVED'**
+  String get statusReceivedUpper;
+
+  /// No description provided for @statusRepairingUpper.
+  ///
+  /// In en, this message translates to:
+  /// **'REPAIRING'**
+  String get statusRepairingUpper;
+
+  /// No description provided for @statusRepairDoneUpper.
+  ///
+  /// In en, this message translates to:
+  /// **'REPAIR DONE'**
+  String get statusRepairDoneUpper;
+
+  /// No description provided for @statusDeliveredUpper.
+  ///
+  /// In en, this message translates to:
+  /// **'DELIVERED'**
+  String get statusDeliveredUpper;
+
+  /// No description provided for @statusPendingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'PENDING APPROVAL'**
+  String get statusPendingApproval;
+
+  /// No description provided for @statusOther.
+  ///
+  /// In en, this message translates to:
+  /// **'OTHER'**
+  String get statusOther;
+
+  /// No description provided for @statusSelectMultiple.
+  ///
+  /// In en, this message translates to:
+  /// **'STATUS (select multiple)'**
+  String get statusSelectMultiple;
+
+  /// No description provided for @timeFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'TIME'**
+  String get timeFilter;
+
+  /// No description provided for @partsWillReturn.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ Parts will be returned to inventory!'**
+  String get partsWillReturn;
+
+  /// No description provided for @deleteRepairAction.
+  ///
+  /// In en, this message translates to:
+  /// **'DELETE REPAIR'**
+  String get deleteRepairAction;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

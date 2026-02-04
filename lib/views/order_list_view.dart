@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_text_styles.dart';
 import '../models/repair_model.dart';
 import '../services/sync_orchestrator.dart';
@@ -35,6 +36,8 @@ class OrderListViewState extends State<OrderListView> {
   final db = DBHelper();
   final ScrollController _scrollController = ScrollController();
   StreamSubscription? _eventSubscription;
+
+  AppLocalizations get loc => AppLocalizations.of(context)!;
 
   List<Repair> _displayedRepairs = [];
   List<Repair> _allLoadedRepairs = []; // Cache for filtering
@@ -275,7 +278,7 @@ class OrderListViewState extends State<OrderListView> {
                         _statusFilters = {};
                       });
                     },
-                    child: const Text('Đặt lại tất cả'),
+                    child: Text(loc.resetAll),
                   ),
                 ],
               ),
@@ -283,7 +286,7 @@ class OrderListViewState extends State<OrderListView> {
 
               // STATUS FILTER - CHO PHÉP CHỌN NHIỀU
               Text(
-                'TRẠNG THÁI (chọn nhiều)',
+                loc.statusSelectMultiple,
                 style: AppTextStyles.subtitle1.copyWith(
                   fontWeight: FontWeight.w600,
                   color: Colors.grey,
@@ -294,19 +297,19 @@ class OrderListViewState extends State<OrderListView> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _statusChipMulti('Tất cả', null, setSheetState),
-                  _statusChipMulti('Tiếp nhận', 1, setSheetState, Colors.blue),
-                  _statusChipMulti('Đang sửa', 2, setSheetState, Colors.orange),
-                  _statusChipMulti('Đã xong', 3, setSheetState, Colors.green),
+                  _statusChipMulti(loc.all, null, setSheetState),
+                  _statusChipMulti(loc.received, 1, setSheetState, Colors.blue),
+                  _statusChipMulti(loc.repairing, 2, setSheetState, Colors.orange),
+                  _statusChipMulti(loc.repairDone, 3, setSheetState, Colors.green),
                   _pendingApprovalChip(setSheetState),
-                  _statusChipMulti('Đã giao', 4, setSheetState, Colors.purple),
+                  _statusChipMulti(loc.delivered, 4, setSheetState, Colors.purple),
                 ],
               ),
               if (_statusFilters.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Đã chọn: ${_statusFilters.length} trạng thái',
+                    loc.selectedStatuses(_statusFilters.length),
                     style: AppTextStyles.caption.copyWith(
                       color: Colors.blue.shade700,
                       fontWeight: FontWeight.w500,
@@ -317,7 +320,7 @@ class OrderListViewState extends State<OrderListView> {
 
               // TIME FILTER
               Text(
-                'THỜI GIAN',
+                loc.timeFilter,
                 style: AppTextStyles.subtitle1.copyWith(
                   fontWeight: FontWeight.w600,
                   color: Colors.grey,
@@ -428,9 +431,9 @@ class OrderListViewState extends State<OrderListView> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'ÁP DỤNG',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  child: Text(
+                    loc.apply,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -482,8 +485,8 @@ class OrderListViewState extends State<OrderListView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isSelected && value != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
+              const Padding(
+                padding: EdgeInsets.only(right: 4),
                 child: Icon(Icons.check_circle, size: 14, color: Colors.white),
               ),
             Text(
@@ -501,7 +504,7 @@ class OrderListViewState extends State<OrderListView> {
 
   Widget _pendingApprovalChip(StateSetter setSheetState) {
     final isSelected = _filterPendingApproval;
-    final color = Colors.deepOrange;
+    const color = Colors.deepOrange;
     return GestureDetector(
       onTap: () {
         setSheetState(() {
@@ -522,8 +525,8 @@ class OrderListViewState extends State<OrderListView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isSelected)
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
+              const Padding(
+                padding: EdgeInsets.only(right: 4),
                 child: Icon(Icons.check_circle, size: 14, color: Colors.white),
               ),
             Text(
@@ -634,7 +637,7 @@ class OrderListViewState extends State<OrderListView> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Đơn có số liệu kế toán:\n• Giá: ${_formatMoney(r.price)}\n• Chi phí: ${_formatMoney(r.cost)}',
+                        loc.orderHasAccounting(_formatMoney(r.price), _formatMoney(r.cost)),
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -655,19 +658,19 @@ class OrderListViewState extends State<OrderListView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.build, color: Colors.purple, size: 20),
-                        SizedBox(width: 8),
-                        Text('Đơn có phụ tùng:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Icon(Icons.build, color: Colors.purple, size: 20),
+                        const SizedBox(width: 8),
+                        Text(loc.orderHasParts, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(r.partsUsed, style: const TextStyle(fontSize: 11, color: Colors.purple)),
                     const SizedBox(height: 4),
-                    const Text(
-                      '⚠️ Phụ tùng sẽ được hoàn trả về kho!',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
+                    Text(
+                      loc.partsWillReturn,
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
                     ),
                   ],
                 ),
@@ -702,11 +705,11 @@ class OrderListViewState extends State<OrderListView> {
   
   String _getStatusText(int status) {
     switch (status) {
-      case 1: return 'Tiếp nhận';
-      case 2: return 'Đang sửa';
-      case 3: return 'Sửa xong';
-      case 4: return 'Đã giao';
-      default: return 'Không xác định';
+      case 1: return loc.received;
+      case 2: return loc.repairing;
+      case 3: return loc.repairDone;
+      case 4: return loc.delivered;
+      default: return 'Unknown';
     }
   }
   
@@ -760,13 +763,14 @@ class OrderListViewState extends State<OrderListView> {
       }
 
       // Ghi nhật ký
+      final partsInfo = r.partsUsed.isNotEmpty ? loc.returnedParts(r.partsUsed) : '';
       await db.logAction(
         userId: user.uid,
         userName: user.email?.split('@').first.toUpperCase() ?? 'NV',
-        action: 'XÓA ĐƠN SỬA',
+        action: loc.deleteRepairAction,
         type: 'REPAIR',
         targetId: repairFirestoreId,
-        desc: 'Đã xóa đơn sửa ${r.model} - ${r.customerName} - ${r.phone}${r.partsUsed.isNotEmpty ? ' (đã hoàn trả phụ tùng: ${r.partsUsed})' : ''}',
+        desc: loc.deletedRepairDesc(r.model, r.customerName, r.phone, partsInfo),
       );
 
       // Queue delete sync
@@ -995,7 +999,7 @@ class OrderListViewState extends State<OrderListView> {
                           padding: const EdgeInsets.all(16),
                           child: Center(
                             child: Text(
-                              'Đã hiển thị ${_displayedRepairs.length} đơn sửa',
+                              loc.displayedRepairs(_displayedRepairs.length),
                               style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
                             ),
                           ),
@@ -1283,19 +1287,19 @@ class OrderListViewState extends State<OrderListView> {
 
   String _getStatusLabel(int status, {bool pendingApproval = false}) {
     if (status == 3 && pendingApproval) {
-      return "CHỜ DUYỆT";
+      return loc.statusPendingApproval;
     }
     switch (status) {
       case 1:
-        return "TIẾP NHẬN";
+        return loc.statusReceivedUpper;
       case 2:
-        return "ĐANG SỬA";
+        return loc.statusRepairingUpper;
       case 3:
-        return "SỬA XONG";
+        return loc.statusRepairDoneUpper;
       case 4:
-        return "ĐÃ GIAO";
+        return loc.statusDeliveredUpper;
       default:
-        return "KHÁC";
+        return loc.statusOther;
     }
   }
 

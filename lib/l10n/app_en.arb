@@ -1458,5 +1458,78 @@
       }
     }
   },
-  "repairPartner": "Repair partner"
+  "repairPartner": "Repair partner",
+  "resetAll": "Reset all",
+  "repairing": "Repairing",
+  "repairDone": "Repair done",
+  "delivered": "Delivered",
+  "received": "Received",
+  "selectedStatuses": "Selected: {count} statuses",
+  "@selectedStatuses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "apply": "APPLY",
+  "orderHasAccounting": "Order has accounting data:\n• Price: {price}\n• Cost: {cost}",
+  "@orderHasAccounting": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "orderHasParts": "Order has parts:",
+  "statusRepairing": "REPAIRING",
+  "statusRepairDone": "REPAIR DONE",
+  "statusDelivered": "DELIVERED",
+  "deletedRepairDesc": "Deleted repair {model} - {customer} - {phone}{partsInfo}",
+  "@deletedRepairDesc": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      },
+      "phone": {
+        "type": "String"
+      },
+      "partsInfo": {
+        "type": "String"
+      }
+    }
+  },
+  "returnedParts": " (returned parts: {parts})",
+  "@returnedParts": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
+  },
+  "displayedRepairs": "Displayed {count} repair orders",
+  "@displayedRepairs": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statusReceivedUpper": "RECEIVED",
+  "statusRepairingUpper": "REPAIRING",
+  "statusRepairDoneUpper": "REPAIR DONE",
+  "statusDeliveredUpper": "DELIVERED",
+  "statusPendingApproval": "PENDING APPROVAL",
+  "statusOther": "OTHER",
+  "all": "All",
+  "statusSelectMultiple": "STATUS (select multiple)",
+  "timeFilter": "TIME",
+  "partsWillReturn": "⚠️ Parts will be returned to inventory!",
+  "deleteRepairAction": "DELETE REPAIR"
 }

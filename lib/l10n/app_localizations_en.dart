@@ -1366,7 +1366,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reset => 'Reset';
 
   @override
-  String get apply => 'Apply';
+  String get apply => 'APPLY';
 
   @override
   String get from => 'From';
@@ -3188,4 +3188,80 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get repairPartner => 'Repair partner';
+
+  @override
+  String get resetAll => 'Reset all';
+
+  @override
+  String get repairing => 'Repairing';
+
+  @override
+  String get repairDone => 'Repair done';
+
+  @override
+  String get received => 'Received';
+
+  @override
+  String selectedStatuses(int count) {
+    return 'Selected: $count statuses';
+  }
+
+  @override
+  String orderHasAccounting(String price, String cost) {
+    return 'Order has accounting data:\n• Price: $price\n• Cost: $cost';
+  }
+
+  @override
+  String get orderHasParts => 'Order has parts:';
+
+  @override
+  String get statusRepairDone => 'REPAIR DONE';
+
+  @override
+  String get statusDelivered => 'DELIVERED';
+
+  @override
+  String deletedRepairDesc(String model, String customer, String phone, String partsInfo) {
+    return 'Deleted repair $model - $customer - $phone$partsInfo';
+  }
+
+  @override
+  String returnedParts(String parts) {
+    return ' (returned parts: $parts)';
+  }
+
+  @override
+  String displayedRepairs(int count) {
+    return 'Displayed $count repair orders';
+  }
+
+  @override
+  String get statusReceivedUpper => 'RECEIVED';
+
+  @override
+  String get statusRepairingUpper => 'REPAIRING';
+
+  @override
+  String get statusRepairDoneUpper => 'REPAIR DONE';
+
+  @override
+  String get statusDeliveredUpper => 'DELIVERED';
+
+  @override
+  String get statusPendingApproval => 'PENDING APPROVAL';
+
+  @override
+  String get statusOther => 'OTHER';
+
+  @override
+  String get statusSelectMultiple => 'STATUS (select multiple)';
+
+  @override
+  String get timeFilter => 'TIME';
+
+  @override
+  String get partsWillReturn => '⚠️ Parts will be returned to inventory!';
+
+  @override
+  String get deleteRepairAction => 'DELETE REPAIR';
 }
