@@ -147,7 +147,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get payroll => 'PAYROLL';
 
   @override
-  String get debt => 'Debt';
+  String get debt => 'DEBT';
 
   @override
   String get quickActions => 'QUICK ACCESS';
@@ -2210,7 +2210,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get viewManageQuickInputCodes => 'View and manage quick input codes.';
 
   @override
-  String get noAccessPermission => 'No access permission';
+  String get noAccessPermission => 'You do not have permission to access this feature';
 
   @override
   String get contactOwnerForPermission => 'Contact shop owner for permission';
@@ -3175,7 +3175,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notesLabel(String notes) {
-    return 'Notes: $notes';
+    return 'Notes';
   }
 
   @override
@@ -3356,4 +3356,184 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get repairDoneButton => 'DONE';
+
+  @override
+  String get orderAlreadyHasParts => 'This order already has parts:';
+
+  @override
+  String get partsWillBeAddedAndDeducted => 'If you continue, new parts will be ADDED and DEDUCTED FROM INVENTORY immediately.\n\nDo you want to continue?';
+
+  @override
+  String get continueAddMore => 'CONTINUE ADDING';
+
+  @override
+  String get editPrice => 'Edit price';
+
+  @override
+  String get partnerOptional2 => 'Partner (optional)';
+
+  @override
+  String get serviceUpdated => 'SERVICE UPDATED';
+
+  @override
+  String get serviceAdded => 'SERVICE ADDED';
+
+  @override
+  String get serviceDeleted => 'SERVICE DELETED';
+
+  @override
+  String get preparingPrint => 'Preparing print command...';
+
+  @override
+  String get printSuccess => 'Printed successfully!';
+
+  @override
+  String get smartphoneSpecialist => 'Smartphone Specialist';
+
+  @override
+  String get editOrderInfoTitle => 'Edit order information';
+
+  @override
+  String get customerNameLabel => 'Customer name';
+
+  @override
+  String get deviceModelLabel => 'Device model';
+
+  @override
+  String get deviceIssueLabel => 'Device issue';
+
+  @override
+  String get accessoriesIncludedLabel => 'Accessories included';
+
+  @override
+  String get warrantyLabel2 => 'Warranty';
+
+  @override
+  String get cancelButton => 'CANCEL';
+
+  @override
+  String get saveButton => 'SAVE';
+
+  @override
+  String get cancelButtonLower => 'Cancel';
+
+  @override
+  String get enterModelRequired => 'Enter device model';
+
+  @override
+  String get enterIssueRequired => 'Enter issue description';
+
+  @override
+  String get editInfoTooltip => 'Edit information';
+
+  @override
+  String get noPartnerOption => 'No partner';
+
+  @override
+  String get viewRepairPartners => 'View repair partners';
+
+  @override
+  String get enterServiceName => 'Please enter service name';
+
+  @override
+  String get serviceNameRequired => 'Service name *';
+
+  @override
+  String get costVnd => 'Cost (VND)';
+
+  @override
+  String get paymentMethodLabel => 'Payment method';
+
+  @override
+  String get chargeCustomerVnd => 'Charge customer (VND)';
+
+  @override
+  String get partsCostVnd => 'Parts cost (VND)';
+
+  @override
+  String get repairOrderFinance => 'REPAIR ORDER FINANCE';
+
+  @override
+  String get customerCharge => 'Customer charge';
+
+  @override
+  String get partsCost => 'Parts cost';
+
+  @override
+  String get editInfoTitle => 'EDIT INFO';
+
+  @override
+  String get techNotesTitle => 'Technician notes';
+
+  @override
+  String get partsInventoryShort => 'Parts Inv';
+
+  @override
+  String get techShort => 'Tech';
+
+  @override
+  String get printFailed => 'Print failed! Please check printer settings.';
+
+  @override
+  String printError(String error) {
+    return 'Print error: $error';
+  }
+
+  @override
+  String get repairDetailTitle => 'REPAIR ORDER DETAIL';
+
+  @override
+  String get sendApprovalRequest => 'SEND APPROVAL REQUEST';
+
+  @override
+  String get selectWarrantyPeriod => 'Select warranty period:';
+
+  @override
+  String get selectPaymentMethod => 'Select payment method:';
+
+  @override
+  String get completeDelivery => 'COMPLETE DELIVERY';
+
+  @override
+  String get noWarranty => 'NO WARRANTY';
+
+  @override
+  String get oneMonth => '1 MONTH';
+
+  @override
+  String get threeMonths => '3 MONTHS';
+
+  @override
+  String get sixMonths => '6 MONTHS';
+
+  @override
+  String get twelveMonths => '12 MONTHS';
+
+  @override
+  String get techNotesHint => 'E.g.: Replaced power IC, re-soldered main board, replaced charging cable...';
+
+  @override
+  String get financeTitleUpper => 'FINANCE';
+
+  @override
+  String get luuYTitle => 'WARNING';
+
+  @override
+  String get partsInventoryEmpty => 'Parts inventory empty. ';
+
+  @override
+  String get noProductsInInventory => 'No products in inventory yet.';
+
+  @override
+  String totalProductsLinhKien(int total, int parts) {
+    return 'Total: $total, PARTS: $parts. ';
+  }
+
+  @override
+  String get goToInventoryAddParts => 'Go to Inventory → Add Product → Select type \'PARTS\'';
+
+  @override
+  String addedPartsFromInventoryMsg(String parts) {
+    return 'Added parts from inventory: $parts\n(Cost already recorded when imported)';
+  }
 }

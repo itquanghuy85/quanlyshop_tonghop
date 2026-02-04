@@ -147,7 +147,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get payroll => 'LƯƠNG';
 
   @override
-  String get debt => 'Công nợ';
+  String get debt => 'CÔNG NỢ';
 
   @override
   String get quickActions => 'TRUY CẬP NHANH';
@@ -2210,7 +2210,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get viewManageQuickInputCodes => 'Xem và quản lý danh sách mã nhập nhanh đã tạo.';
 
   @override
-  String get noAccessPermission => 'Không có quyền truy cập';
+  String get noAccessPermission => 'Bạn không có quyền truy cập tính năng này';
 
   @override
   String get contactOwnerForPermission => 'Liên hệ chủ shop để được cấp quyền';
@@ -3175,7 +3175,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String notesLabel(String notes) {
-    return 'Ghi chú: $notes';
+    return 'Ghi chú';
   }
 
   @override
@@ -3356,4 +3356,184 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get repairDoneButton => 'ĐÃ XONG';
+
+  @override
+  String get orderAlreadyHasParts => 'Đơn này đã có phụ tùng:';
+
+  @override
+  String get partsWillBeAddedAndDeducted => 'Nếu tiếp tục chọn, phụ tùng mới sẽ được THÊM VÀO và TRỪ KHO ngay lập tức.\n\nBạn có muốn tiếp tục không?';
+
+  @override
+  String get continueAddMore => 'TIẾP TỤC CHỌN THÊM';
+
+  @override
+  String get editPrice => 'Sửa giá';
+
+  @override
+  String get partnerOptional2 => 'Đối tác (tùy chọn)';
+
+  @override
+  String get serviceUpdated => 'ĐÃ CẬP NHẬT DỊCH VỤ';
+
+  @override
+  String get serviceAdded => 'ĐÃ THÊM DỊCH VỤ';
+
+  @override
+  String get serviceDeleted => 'ĐÃ XÓA DỊCH VỤ';
+
+  @override
+  String get preparingPrint => 'Đang chuẩn bị lệnh in...';
+
+  @override
+  String get printSuccess => 'Đã in phiếu thành công!';
+
+  @override
+  String get smartphoneSpecialist => 'Chuyên gia Smartphone';
+
+  @override
+  String get editOrderInfoTitle => 'Chỉnh sửa thông tin đơn sửa';
+
+  @override
+  String get customerNameLabel => 'Tên khách';
+
+  @override
+  String get deviceModelLabel => 'Model máy';
+
+  @override
+  String get deviceIssueLabel => 'Lỗi máy';
+
+  @override
+  String get accessoriesIncludedLabel => 'Phụ kiện kèm';
+
+  @override
+  String get warrantyLabel2 => 'Bảo hành';
+
+  @override
+  String get cancelButton => 'HỦY';
+
+  @override
+  String get saveButton => 'LƯU';
+
+  @override
+  String get cancelButtonLower => 'Hủy';
+
+  @override
+  String get enterModelRequired => 'Nhập model máy';
+
+  @override
+  String get enterIssueRequired => 'Nhập tình trạng lỗi';
+
+  @override
+  String get editInfoTooltip => 'Chỉnh sửa thông tin';
+
+  @override
+  String get noPartnerOption => 'Không có đối tác';
+
+  @override
+  String get viewRepairPartners => 'Xem đối tác sửa chữa';
+
+  @override
+  String get enterServiceName => 'Vui lòng nhập tên dịch vụ';
+
+  @override
+  String get serviceNameRequired => 'Tên dịch vụ *';
+
+  @override
+  String get costVnd => 'Chi phí (VNĐ)';
+
+  @override
+  String get paymentMethodLabel => 'Phương thức thanh toán';
+
+  @override
+  String get chargeCustomerVnd => 'Giá thu khách (VNĐ)';
+
+  @override
+  String get partsCostVnd => 'Giá vốn linh kiện (VNĐ)';
+
+  @override
+  String get repairOrderFinance => 'TÀI CHÍNH ĐƠN SỬA';
+
+  @override
+  String get customerCharge => 'Giá thu khách';
+
+  @override
+  String get partsCost => 'Giá vốn';
+
+  @override
+  String get editInfoTitle => 'SỬA THÔNG TIN';
+
+  @override
+  String get techNotesTitle => 'Ghi chú kỹ thuật viên';
+
+  @override
+  String get partsInventoryShort => 'Kho LK';
+
+  @override
+  String get techShort => 'KTV';
+
+  @override
+  String get printFailed => 'In thất bại! Vui lòng kiểm tra cài đặt máy in.';
+
+  @override
+  String printError(String error) {
+    return 'Lỗi khi in: $error';
+  }
+
+  @override
+  String get repairDetailTitle => 'CHI TIẾT ĐƠN SỬA';
+
+  @override
+  String get sendApprovalRequest => 'GỬI YÊU CẦU DUYỆT';
+
+  @override
+  String get selectWarrantyPeriod => 'Chọn thời gian bảo hành:';
+
+  @override
+  String get selectPaymentMethod => 'Chọn phương thức thanh toán:';
+
+  @override
+  String get completeDelivery => 'HOÀN TẤT GIAO MÁY';
+
+  @override
+  String get noWarranty => 'KO BH';
+
+  @override
+  String get oneMonth => '1 THÁNG';
+
+  @override
+  String get threeMonths => '3 THÁNG';
+
+  @override
+  String get sixMonths => '6 THÁNG';
+
+  @override
+  String get twelveMonths => '12 THÁNG';
+
+  @override
+  String get techNotesHint => 'VD: KT thay IC nguồn, sàng main, thay cáp sạc...';
+
+  @override
+  String get financeTitleUpper => 'TÀI CHÍNH';
+
+  @override
+  String get luuYTitle => 'LƯU Ý';
+
+  @override
+  String get partsInventoryEmpty => 'Kho Linh Kiện trống. ';
+
+  @override
+  String get noProductsInInventory => 'Chưa có sản phẩm nào trong kho.';
+
+  @override
+  String totalProductsLinhKien(int total, int parts) {
+    return 'Tổng: $total, LINH KIỆN: $parts. ';
+  }
+
+  @override
+  String get goToInventoryAddParts => 'Vào Kho → Nhập SP → Chọn loại \'LINH KIỆN\'';
+
+  @override
+  String addedPartsFromInventoryMsg(String parts) {
+    return 'Đã thêm phụ tùng từ kho: $parts\n(Chi phí đã ghi nhận khi nhập kho)';
+  }
 }

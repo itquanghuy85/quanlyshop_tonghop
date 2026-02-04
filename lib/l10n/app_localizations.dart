@@ -374,7 +374,7 @@ abstract class AppLocalizations {
   /// No description provided for @debt.
   ///
   /// In en, this message translates to:
-  /// **'Debt'**
+  /// **'DEBT'**
   String get debt;
 
   /// No description provided for @quickActions.
@@ -4388,7 +4388,7 @@ abstract class AppLocalizations {
   /// No description provided for @noAccessPermission.
   ///
   /// In en, this message translates to:
-  /// **'No access permission'**
+  /// **'You do not have permission to access this feature'**
   String get noAccessPermission;
 
   /// No description provided for @contactOwnerForPermission.
@@ -6236,7 +6236,7 @@ abstract class AppLocalizations {
   /// No description provided for @notesLabel.
   ///
   /// In en, this message translates to:
-  /// **'Notes: {notes}'**
+  /// **'Notes'**
   String notesLabel(String notes);
 
   /// No description provided for @repairInputAction.
@@ -6544,6 +6544,354 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'DONE'**
   String get repairDoneButton;
+
+  /// No description provided for @orderAlreadyHasParts.
+  ///
+  /// In en, this message translates to:
+  /// **'This order already has parts:'**
+  String get orderAlreadyHasParts;
+
+  /// No description provided for @partsWillBeAddedAndDeducted.
+  ///
+  /// In en, this message translates to:
+  /// **'If you continue, new parts will be ADDED and DEDUCTED FROM INVENTORY immediately.\n\nDo you want to continue?'**
+  String get partsWillBeAddedAndDeducted;
+
+  /// No description provided for @continueAddMore.
+  ///
+  /// In en, this message translates to:
+  /// **'CONTINUE ADDING'**
+  String get continueAddMore;
+
+  /// No description provided for @editPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit price'**
+  String get editPrice;
+
+  /// No description provided for @partnerOptional2.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner (optional)'**
+  String get partnerOptional2;
+
+  /// No description provided for @serviceUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'SERVICE UPDATED'**
+  String get serviceUpdated;
+
+  /// No description provided for @serviceAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'SERVICE ADDED'**
+  String get serviceAdded;
+
+  /// No description provided for @serviceDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'SERVICE DELETED'**
+  String get serviceDeleted;
+
+  /// No description provided for @preparingPrint.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing print command...'**
+  String get preparingPrint;
+
+  /// No description provided for @printSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Printed successfully!'**
+  String get printSuccess;
+
+  /// No description provided for @smartphoneSpecialist.
+  ///
+  /// In en, this message translates to:
+  /// **'Smartphone Specialist'**
+  String get smartphoneSpecialist;
+
+  /// No description provided for @editOrderInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit order information'**
+  String get editOrderInfoTitle;
+
+  /// No description provided for @customerNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer name'**
+  String get customerNameLabel;
+
+  /// No description provided for @deviceModelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Device model'**
+  String get deviceModelLabel;
+
+  /// No description provided for @deviceIssueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Device issue'**
+  String get deviceIssueLabel;
+
+  /// No description provided for @accessoriesIncludedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Accessories included'**
+  String get accessoriesIncludedLabel;
+
+  /// No description provided for @warrantyLabel2.
+  ///
+  /// In en, this message translates to:
+  /// **'Warranty'**
+  String get warrantyLabel2;
+
+  /// No description provided for @cancelButton.
+  ///
+  /// In en, this message translates to:
+  /// **'CANCEL'**
+  String get cancelButton;
+
+  /// No description provided for @saveButton.
+  ///
+  /// In en, this message translates to:
+  /// **'SAVE'**
+  String get saveButton;
+
+  /// No description provided for @cancelButtonLower.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelButtonLower;
+
+  /// No description provided for @enterModelRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter device model'**
+  String get enterModelRequired;
+
+  /// No description provided for @enterIssueRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter issue description'**
+  String get enterIssueRequired;
+
+  /// No description provided for @editInfoTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit information'**
+  String get editInfoTooltip;
+
+  /// No description provided for @noPartnerOption.
+  ///
+  /// In en, this message translates to:
+  /// **'No partner'**
+  String get noPartnerOption;
+
+  /// No description provided for @viewRepairPartners.
+  ///
+  /// In en, this message translates to:
+  /// **'View repair partners'**
+  String get viewRepairPartners;
+
+  /// No description provided for @enterServiceName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter service name'**
+  String get enterServiceName;
+
+  /// No description provided for @serviceNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Service name *'**
+  String get serviceNameRequired;
+
+  /// No description provided for @costVnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost (VND)'**
+  String get costVnd;
+
+  /// No description provided for @paymentMethodLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment method'**
+  String get paymentMethodLabel;
+
+  /// No description provided for @chargeCustomerVnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Charge customer (VND)'**
+  String get chargeCustomerVnd;
+
+  /// No description provided for @partsCostVnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Parts cost (VND)'**
+  String get partsCostVnd;
+
+  /// No description provided for @repairOrderFinance.
+  ///
+  /// In en, this message translates to:
+  /// **'REPAIR ORDER FINANCE'**
+  String get repairOrderFinance;
+
+  /// No description provided for @customerCharge.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer charge'**
+  String get customerCharge;
+
+  /// No description provided for @partsCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Parts cost'**
+  String get partsCost;
+
+  /// No description provided for @editInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'EDIT INFO'**
+  String get editInfoTitle;
+
+  /// No description provided for @techNotesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Technician notes'**
+  String get techNotesTitle;
+
+  /// No description provided for @partsInventoryShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Parts Inv'**
+  String get partsInventoryShort;
+
+  /// No description provided for @techShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Tech'**
+  String get techShort;
+
+  /// No description provided for @printFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Print failed! Please check printer settings.'**
+  String get printFailed;
+
+  /// No description provided for @printError.
+  ///
+  /// In en, this message translates to:
+  /// **'Print error: {error}'**
+  String printError(String error);
+
+  /// No description provided for @repairDetailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'REPAIR ORDER DETAIL'**
+  String get repairDetailTitle;
+
+  /// No description provided for @sendApprovalRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'SEND APPROVAL REQUEST'**
+  String get sendApprovalRequest;
+
+  /// No description provided for @selectWarrantyPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Select warranty period:'**
+  String get selectWarrantyPeriod;
+
+  /// No description provided for @selectPaymentMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Select payment method:'**
+  String get selectPaymentMethod;
+
+  /// No description provided for @completeDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'COMPLETE DELIVERY'**
+  String get completeDelivery;
+
+  /// No description provided for @noWarranty.
+  ///
+  /// In en, this message translates to:
+  /// **'NO WARRANTY'**
+  String get noWarranty;
+
+  /// No description provided for @oneMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'1 MONTH'**
+  String get oneMonth;
+
+  /// No description provided for @threeMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'3 MONTHS'**
+  String get threeMonths;
+
+  /// No description provided for @sixMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'6 MONTHS'**
+  String get sixMonths;
+
+  /// No description provided for @twelveMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'12 MONTHS'**
+  String get twelveMonths;
+
+  /// No description provided for @techNotesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'E.g.: Replaced power IC, re-soldered main board, replaced charging cable...'**
+  String get techNotesHint;
+
+  /// No description provided for @financeTitleUpper.
+  ///
+  /// In en, this message translates to:
+  /// **'FINANCE'**
+  String get financeTitleUpper;
+
+  /// No description provided for @luuYTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'WARNING'**
+  String get luuYTitle;
+
+  /// No description provided for @partsInventoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Parts inventory empty. '**
+  String get partsInventoryEmpty;
+
+  /// No description provided for @noProductsInInventory.
+  ///
+  /// In en, this message translates to:
+  /// **'No products in inventory yet.'**
+  String get noProductsInInventory;
+
+  /// No description provided for @totalProductsLinhKien.
+  ///
+  /// In en, this message translates to:
+  /// **'Total: {total}, PARTS: {parts}. '**
+  String totalProductsLinhKien(int total, int parts);
+
+  /// No description provided for @goToInventoryAddParts.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Inventory → Add Product → Select type \'PARTS\''**
+  String get goToInventoryAddParts;
+
+  /// No description provided for @addedPartsFromInventoryMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Added parts from inventory: {parts}\n(Cost already recorded when imported)'**
+  String addedPartsFromInventoryMsg(String parts);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
