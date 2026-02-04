@@ -1010,7 +1010,7 @@ abstract class AppLocalizations {
   /// No description provided for @createRepairOrder.
   ///
   /// In en, this message translates to:
-  /// **'CREATE REPAIR ORDER'**
+  /// **'CREATE REPAIR'**
   String get createRepairOrder;
 
   /// No description provided for @noPermissionRepair.
@@ -1220,7 +1220,7 @@ abstract class AppLocalizations {
   /// No description provided for @customerName.
   ///
   /// In en, this message translates to:
-  /// **'CUSTOMER NAME'**
+  /// **'Customer name'**
   String get customerName;
 
   /// No description provided for @phoneNumber.
@@ -1250,13 +1250,13 @@ abstract class AppLocalizations {
   /// No description provided for @deviceModel.
   ///
   /// In en, this message translates to:
-  /// **'DEVICE MODEL'**
+  /// **'DEVICE MODEL *'**
   String get deviceModel;
 
   /// No description provided for @deviceIssue.
   ///
   /// In en, this message translates to:
-  /// **'DEVICE ISSUE'**
+  /// **'DEVICE ISSUE *'**
   String get deviceIssue;
 
   /// No description provided for @appearanceCondition.
@@ -1286,7 +1286,7 @@ abstract class AppLocalizations {
   /// No description provided for @screenPassword.
   ///
   /// In en, this message translates to:
-  /// **'SCREEN PASSWORD'**
+  /// **'Screen password'**
   String get screenPassword;
 
   /// No description provided for @estimatedPrice.
@@ -5908,6 +5908,354 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Changed to English'**
   String get changedToEnglish;
+
+  /// No description provided for @replacePin.
+  ///
+  /// In en, this message translates to:
+  /// **'REPLACE PIN'**
+  String get replacePin;
+
+  /// No description provided for @pressGlass.
+  ///
+  /// In en, this message translates to:
+  /// **'PRESS GLASS'**
+  String get pressGlass;
+
+  /// No description provided for @replaceScreen.
+  ///
+  /// In en, this message translates to:
+  /// **'REPLACE SCREEN'**
+  String get replaceScreen;
+
+  /// No description provided for @noPower.
+  ///
+  /// In en, this message translates to:
+  /// **'NO POWER'**
+  String get noPower;
+
+  /// No description provided for @speakerMic.
+  ///
+  /// In en, this message translates to:
+  /// **'SPEAKER/MIC'**
+  String get speakerMic;
+
+  /// No description provided for @charging.
+  ///
+  /// In en, this message translates to:
+  /// **'CHARGING'**
+  String get charging;
+
+  /// No description provided for @software.
+  ///
+  /// In en, this message translates to:
+  /// **'SOFTWARE'**
+  String get software;
+
+  /// No description provided for @sim.
+  ///
+  /// In en, this message translates to:
+  /// **'SIM'**
+  String get sim;
+
+  /// No description provided for @backCover.
+  ///
+  /// In en, this message translates to:
+  /// **'BACK COVER'**
+  String get backCover;
+
+  /// No description provided for @noAccessories.
+  ///
+  /// In en, this message translates to:
+  /// **'NO ACCESSORIES'**
+  String get noAccessories;
+
+  /// No description provided for @walkInCustomerNoSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Walk-in customer - not saved to contacts'**
+  String get walkInCustomerNoSave;
+
+  /// No description provided for @pleaseEnterNameAndPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter both name and phone number'**
+  String get pleaseEnterNameAndPhone;
+
+  /// No description provided for @customerWithPhoneExists.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer with this phone already exists: {name}'**
+  String customerWithPhoneExists(String name);
+
+  /// No description provided for @customerAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer added: {name}'**
+  String customerAdded(String name);
+
+  /// No description provided for @errorAddingCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Error adding customer: {error}'**
+  String errorAddingCustomer(String error);
+
+  /// No description provided for @pleaseEnterModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter device Model'**
+  String get pleaseEnterModel;
+
+  /// No description provided for @pleaseEnterPhoneAndModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter Phone and device Model'**
+  String get pleaseEnterPhoneAndModel;
+
+  /// No description provided for @syncingDataToServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing data to server...'**
+  String get syncingDataToServer;
+
+  /// No description provided for @repairOrderCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Created repair order {model} for customer {customer}'**
+  String repairOrderCreated(String model, String customer);
+
+  /// No description provided for @orderSavedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'ORDER SAVED SUCCESSFULLY'**
+  String get orderSavedSuccess;
+
+  /// No description provided for @sendingPrintCommand.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending print command...'**
+  String get sendingPrintCommand;
+
+  /// No description provided for @partnerCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner: {partner} - Cost: {cost}'**
+  String partnerCost(String partner, String cost);
+
+  /// No description provided for @costOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost: {cost}'**
+  String costOnly(String cost);
+
+  /// No description provided for @totalCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Total cost: {amount}'**
+  String totalCost(String amount);
+
+  /// No description provided for @addServiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add service'**
+  String get addServiceTitle;
+
+  /// No description provided for @serviceName.
+  ///
+  /// In en, this message translates to:
+  /// **'Service name *'**
+  String get serviceName;
+
+  /// No description provided for @costVND.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost (VND)'**
+  String get costVND;
+
+  /// No description provided for @partnerOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner (optional)'**
+  String get partnerOptional;
+
+  /// No description provided for @partnerPaymentMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner payment method *'**
+  String get partnerPaymentMethod;
+
+  /// No description provided for @saveOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'SAVE ORDER'**
+  String get saveOrder;
+
+  /// No description provided for @customerAndDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'CUSTOMER & DEVICE'**
+  String get customerAndDevice;
+
+  /// No description provided for @phoneOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone (optional)'**
+  String get phoneOptional;
+
+  /// No description provided for @phoneRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone *'**
+  String get phoneRequired;
+
+  /// No description provided for @customerNameOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer name (optional)'**
+  String get customerNameOptional;
+
+  /// No description provided for @services.
+  ///
+  /// In en, this message translates to:
+  /// **'SERVICES'**
+  String get services;
+
+  /// No description provided for @securityAccessories.
+  ///
+  /// In en, this message translates to:
+  /// **'SECURITY & ACCESSORIES'**
+  String get securityAccessories;
+
+  /// No description provided for @otherAccessories.
+  ///
+  /// In en, this message translates to:
+  /// **'Other accessories'**
+  String get otherAccessories;
+
+  /// No description provided for @notesAndImages.
+  ///
+  /// In en, this message translates to:
+  /// **'NOTES & IMAGES'**
+  String get notesAndImages;
+
+  /// No description provided for @notesPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes...'**
+  String get notesPlaceholder;
+
+  /// No description provided for @walkInCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Walk-in customer (not saved to contacts)'**
+  String get walkInCustomer;
+
+  /// No description provided for @walkInCustomerDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Name/Phone only saved on receipt, phone not required'**
+  String get walkInCustomerDesc;
+
+  /// No description provided for @saveToContactsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter phone to save customer to contacts'**
+  String get saveToContactsDesc;
+
+  /// No description provided for @walkInCustomerDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'WALK-IN CUSTOMER'**
+  String get walkInCustomerDefault;
+
+  /// No description provided for @createRepairOrderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'CREATE REPAIR ORDER'**
+  String get createRepairOrderTitle;
+
+  /// No description provided for @fillCustomerAndDeviceInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill customer and device info'**
+  String get fillCustomerAndDeviceInfo;
+
+  /// No description provided for @selectCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Select customer'**
+  String get selectCustomer;
+
+  /// No description provided for @addCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Add customer'**
+  String get addCustomer;
+
+  /// No description provided for @todayClosedNoRepair.
+  ///
+  /// In en, this message translates to:
+  /// **'❌ Today is closed! Cannot create new repair order.'**
+  String get todayClosedNoRepair;
+
+  /// No description provided for @pleaseEnterServiceName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter service name'**
+  String get pleaseEnterServiceName;
+
+  /// No description provided for @pleaseSelectPaymentMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select payment method'**
+  String get pleaseSelectPaymentMethod;
+
+  /// No description provided for @selectCustomerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SELECT CUSTOMER'**
+  String get selectCustomerTitle;
+
+  /// No description provided for @searchByNameOrPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name or phone...'**
+  String get searchByNameOrPhone;
+
+  /// No description provided for @noCustomerFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No customer found'**
+  String get noCustomerFound;
+
+  /// No description provided for @addressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Address: {address}'**
+  String addressLabel(String address);
+
+  /// No description provided for @notesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes: {notes}'**
+  String notesLabel(String notes);
+
+  /// No description provided for @repairInputAction.
+  ///
+  /// In en, this message translates to:
+  /// **'CREATE REPAIR ORDER'**
+  String get repairInputAction;
+
+  /// No description provided for @repairInputDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Created repair order {model} for customer {customer}'**
+  String repairInputDesc(String model, String customer);
+
+  /// No description provided for @repairPartner.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair partner'**
+  String get repairPartner;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

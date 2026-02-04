@@ -465,7 +465,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get scanQRCode => 'Quét mã QR';
 
   @override
-  String get createRepairOrder => 'TẠO ĐƠN SỬA CHỮA';
+  String get createRepairOrder => 'NHẬP ĐƠN SỬA';
 
   @override
   String get noPermissionRepair => 'Tài khoản này không được phép vào mục SỬA CHỮA. Liên hệ chủ shop để phân quyền.';
@@ -570,7 +570,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get quickMenu => 'Menu nhanh';
 
   @override
-  String get customerName => 'TÊN KHÁCH HÀNG';
+  String get customerName => 'Tên KH';
 
   @override
   String get phoneNumber => 'Số điện thoại';
@@ -585,10 +585,10 @@ class AppLocalizationsVi extends AppLocalizations {
   String get viewCustomerHistory => 'XEM LỊCH SỬ KHÁCH NÀY';
 
   @override
-  String get deviceModel => 'MODEL MÁY';
+  String get deviceModel => 'MODEL MÁY *';
 
   @override
-  String get deviceIssue => 'LỖI MÁY';
+  String get deviceIssue => 'LỖI MÁY *';
 
   @override
   String get appearanceCondition => 'TÌNH TRẠNG NGOẠI QUAN';
@@ -603,7 +603,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get accessoriesHint => 'Ví dụ: SẠC, TAI NGHE...';
 
   @override
-  String get screenPassword => 'MẬT KHẨU MÀN HÌNH';
+  String get screenPassword => 'Mật khẩu màn hình';
 
   @override
   String get estimatedPrice => 'GIÁ DỰ KIẾN';
@@ -2994,4 +2994,198 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get changedToEnglish => 'Changed to English';
+
+  @override
+  String get replacePin => 'THAY PIN';
+
+  @override
+  String get pressGlass => 'ÉP KÍNH';
+
+  @override
+  String get replaceScreen => 'THAY MÀN';
+
+  @override
+  String get noPower => 'MẤT NGUỒN';
+
+  @override
+  String get speakerMic => 'LOA/MIC';
+
+  @override
+  String get charging => 'SẠC';
+
+  @override
+  String get software => 'PHẦN MỀM';
+
+  @override
+  String get sim => 'SIM';
+
+  @override
+  String get backCover => 'ỐP LƯNG';
+
+  @override
+  String get noAccessories => 'KO PHỤ KIỆN';
+
+  @override
+  String get walkInCustomerNoSave => 'Khách vãng lai không lưu danh bạ';
+
+  @override
+  String get pleaseEnterNameAndPhone => 'Vui lòng nhập đủ tên và số điện thoại';
+
+  @override
+  String customerWithPhoneExists(String name) {
+    return 'Khách hàng với SĐT này đã tồn tại: $name';
+  }
+
+  @override
+  String customerAdded(String name) {
+    return 'Đã thêm khách hàng: $name';
+  }
+
+  @override
+  String errorAddingCustomer(String error) {
+    return 'Lỗi thêm khách hàng: $error';
+  }
+
+  @override
+  String get pleaseEnterModel => 'Vui lòng nhập Model máy';
+
+  @override
+  String get pleaseEnterPhoneAndModel => 'Vui lòng nhập SĐT và Model máy';
+
+  @override
+  String get syncingDataToServer => 'Đang đồng bộ dữ liệu lên server...';
+
+  @override
+  String repairOrderCreated(String model, String customer) {
+    return 'Đã nhập đơn sửa $model cho khách $customer';
+  }
+
+  @override
+  String get orderSavedSuccess => 'ĐÃ LƯU ĐƠN THÀNH CÔNG';
+
+  @override
+  String get sendingPrintCommand => 'Đang gửi lệnh in phiếu...';
+
+  @override
+  String partnerCost(String partner, String cost) {
+    return 'Đối tác: $partner - Chi phí: $cost';
+  }
+
+  @override
+  String costOnly(String cost) {
+    return 'Chi phí: $cost';
+  }
+
+  @override
+  String totalCost(String amount) {
+    return 'Tổng chi phí: $amount';
+  }
+
+  @override
+  String get addServiceTitle => 'Thêm dịch vụ';
+
+  @override
+  String get serviceName => 'Tên dịch vụ *';
+
+  @override
+  String get costVND => 'Chi phí (VNĐ)';
+
+  @override
+  String get partnerOptional => 'Đối tác (tùy chọn)';
+
+  @override
+  String get partnerPaymentMethod => 'Phương thức TT đối tác *';
+
+  @override
+  String get saveOrder => 'LƯU ĐƠN';
+
+  @override
+  String get customerAndDevice => 'KHÁCH HÀNG & MÁY';
+
+  @override
+  String get phoneOptional => 'SĐT (không bắt buộc)';
+
+  @override
+  String get phoneRequired => 'SĐT *';
+
+  @override
+  String get customerNameOptional => 'Tên KH (tùy chọn)';
+
+  @override
+  String get services => 'DỊCH VỤ';
+
+  @override
+  String get securityAccessories => 'BẢO MẬT & PHỤ KIỆN';
+
+  @override
+  String get otherAccessories => 'Phụ kiện khác';
+
+  @override
+  String get notesAndImages => 'GHI CHÚ & HÌNH ẢNH';
+
+  @override
+  String get notesPlaceholder => 'Ghi chú...';
+
+  @override
+  String get walkInCustomer => 'Khách vãng lai (không lưu danh bạ)';
+
+  @override
+  String get walkInCustomerDesc => 'Tên/SĐT chỉ lưu trên phiếu, không bắt buộc SĐT';
+
+  @override
+  String get saveToContactsDesc => 'Nhập SĐT để lưu khách vào danh bạ';
+
+  @override
+  String get walkInCustomerDefault => 'KHÁCH VÃNG LAI';
+
+  @override
+  String get createRepairOrderTitle => 'NHẬP ĐƠN SỬA CHỮA';
+
+  @override
+  String get fillCustomerAndDeviceInfo => 'Điền thông tin khách và máy';
+
+  @override
+  String get selectCustomer => 'Chọn khách';
+
+  @override
+  String get addCustomer => 'Thêm khách';
+
+  @override
+  String get todayClosedNoRepair => '❌ Ngày hôm nay đã chốt quỹ! Không thể tạo phiếu sửa mới.';
+
+  @override
+  String get pleaseEnterServiceName => 'Vui lòng nhập tên dịch vụ';
+
+  @override
+  String get pleaseSelectPaymentMethod => 'Vui lòng chọn phương thức TT';
+
+  @override
+  String get selectCustomerTitle => 'CHỌN KHÁCH HÀNG';
+
+  @override
+  String get searchByNameOrPhone => 'Tìm theo tên hoặc số điện thoại...';
+
+  @override
+  String get noCustomerFound => 'Không tìm thấy khách hàng';
+
+  @override
+  String addressLabel(String address) {
+    return 'Địa chỉ: $address';
+  }
+
+  @override
+  String notesLabel(String notes) {
+    return 'Ghi chú: $notes';
+  }
+
+  @override
+  String get repairInputAction => 'NHẬP ĐƠN SỬA';
+
+  @override
+  String repairInputDesc(String model, String customer) {
+    return 'Đã nhập đơn sửa $model cho khách $customer';
+  }
+
+  @override
+  String get repairPartner => 'Đối tác sửa chữa';
 }

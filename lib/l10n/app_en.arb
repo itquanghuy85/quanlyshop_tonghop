@@ -1328,5 +1328,135 @@
   "resetGuidesDesc": "Reset to show first-time guides again",
   "guidesReset": "Done! Guides will show again when entering screens.",
   "changedToVietnamese": "Changed to Vietnamese",
-  "changedToEnglish": "Changed to English"
+  "changedToEnglish": "Changed to English",
+  "replacePin": "REPLACE PIN",
+  "pressGlass": "PRESS GLASS",
+  "replaceScreen": "REPLACE SCREEN",
+  "noPower": "NO POWER",
+  "speakerMic": "SPEAKER/MIC",
+  "charging": "CHARGING",
+  "software": "SOFTWARE",
+  "sim": "SIM",
+  "backCover": "BACK COVER",
+  "noAccessories": "NO ACCESSORIES",
+  "walkInCustomerNoSave": "Walk-in customer - not saved to contacts",
+  "pleaseEnterNameAndPhone": "Please enter both name and phone number",
+  "customerWithPhoneExists": "Customer with this phone already exists: {name}",
+  "@customerWithPhoneExists": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "customerAdded": "Customer added: {name}",
+  "@customerAdded": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "errorAddingCustomer": "Error adding customer: {error}",
+  "@errorAddingCustomer": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "pleaseEnterModel": "Please enter device Model",
+  "pleaseEnterPhoneAndModel": "Please enter Phone and device Model",
+  "syncingDataToServer": "Syncing data to server...",
+  "createRepairOrder": "CREATE REPAIR",
+  "repairOrderCreated": "Created repair order {model} for customer {customer}",
+  "@repairOrderCreated": {
+    "placeholders": {
+      "model": {"type": "String"},
+      "customer": {"type": "String"}
+    }
+  },
+  "orderSavedSuccess": "ORDER SAVED SUCCESSFULLY",
+  "sendingPrintCommand": "Sending print command...",
+  "partnerCost": "Partner: {partner} - Cost: {cost}",
+  "@partnerCost": {
+    "placeholders": {
+      "partner": {"type": "String"},
+      "cost": {"type": "String"}
+    }
+  },
+  "costOnly": "Cost: {cost}",
+  "@costOnly": {
+    "placeholders": {
+      "cost": {"type": "String"}
+    }
+  },
+  "totalCost": "Total cost: {amount}",
+  "@totalCost": {
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "addService": "ADD SERVICE",
+  "editService": "Edit service",
+  "addServiceTitle": "Add service",
+  "serviceName": "Service name *",
+  "costVND": "Cost (VND)",
+  "partnerOptional": "Partner (optional)",
+  "noPartner": "No partner",
+  "partnerPaymentMethod": "Partner payment method *",
+  "update": "Update",
+  "add": "Add",
+  "saveOrder": "SAVE ORDER",
+  "customerAndDevice": "CUSTOMER & DEVICE",
+  "phoneOptional": "Phone (optional)",
+  "phoneRequired": "Phone *",
+  "customerNameOptional": "Customer name (optional)",
+  "customerName": "Customer name",
+  "deviceModel": "DEVICE MODEL *",
+  "deviceIssue": "DEVICE ISSUE *",
+  "estimatedPrice": "ESTIMATED PRICE",
+  "services": "SERVICES",
+  "securityAccessories": "SECURITY & ACCESSORIES",
+  "screenPassword": "Screen password",
+  "otherAccessories": "Other accessories",
+  "notesAndImages": "NOTES & IMAGES",
+  "notesPlaceholder": "Notes...",
+  "walkInCustomer": "Walk-in customer (not saved to contacts)",
+  "walkInCustomerDesc": "Name/Phone only saved on receipt, phone not required",
+  "saveToContactsDesc": "Enter phone to save customer to contacts",
+  "walkInCustomerDefault": "WALK-IN CUSTOMER",
+  "createRepairOrderTitle": "CREATE REPAIR ORDER",
+  "fillCustomerAndDeviceInfo": "Fill customer and device info",
+  "selectCustomer": "Select customer",
+  "addCustomer": "Add customer",
+  "todayClosedNoRepair": "❌ Today is closed! Cannot create new repair order.",
+  "pleaseEnterServiceName": "Please enter service name",
+  "pleaseSelectPaymentMethod": "Please select payment method",
+  "selectCustomerTitle": "SELECT CUSTOMER",
+  "searchByNameOrPhone": "Search by name or phone...",
+  "noCustomerFound": "No customer found",
+  "addressLabel": "Address: {address}",
+  "@addressLabel": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "notesLabel": "Notes: {notes}",
+  "@notesLabel": {
+    "placeholders": {
+      "notes": {
+        "type": "String"
+      }
+    }
+  },
+  "repairInputAction": "CREATE REPAIR ORDER",
+  "repairInputDesc": "Created repair order {model} for customer {customer}",
+  "@repairInputDesc": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      }
+    }
+  },
+  "repairPartner": "Repair partner"
 }

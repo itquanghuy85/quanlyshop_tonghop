@@ -1328,5 +1328,135 @@
   "resetGuidesDesc": "Reset để hiển thị lại các hướng dẫn lần đầu",
   "guidesReset": "Đã reset! Hướng dẫn sẽ hiển thị lại khi vào các màn hình.",
   "changedToVietnamese": "Đã chuyển sang Tiếng Việt",
-  "changedToEnglish": "Changed to English"
+  "changedToEnglish": "Changed to English",
+  "replacePin": "THAY PIN",
+  "pressGlass": "ÉP KÍNH",
+  "replaceScreen": "THAY MÀN",
+  "noPower": "MẤT NGUỒN",
+  "speakerMic": "LOA/MIC",
+  "charging": "SẠC",
+  "software": "PHẦN MỀM",
+  "sim": "SIM",
+  "backCover": "ỐP LƯNG",
+  "noAccessories": "KO PHỤ KIỆN",
+  "walkInCustomerNoSave": "Khách vãng lai không lưu danh bạ",
+  "pleaseEnterNameAndPhone": "Vui lòng nhập đủ tên và số điện thoại",
+  "customerWithPhoneExists": "Khách hàng với SĐT này đã tồn tại: {name}",
+  "@customerWithPhoneExists": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "customerAdded": "Đã thêm khách hàng: {name}",
+  "@customerAdded": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "errorAddingCustomer": "Lỗi thêm khách hàng: {error}",
+  "@errorAddingCustomer": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "pleaseEnterModel": "Vui lòng nhập Model máy",
+  "pleaseEnterPhoneAndModel": "Vui lòng nhập SĐT và Model máy",
+  "syncingDataToServer": "Đang đồng bộ dữ liệu lên server...",
+  "createRepairOrder": "NHẬP ĐƠN SỬA",
+  "repairOrderCreated": "Đã nhập đơn sửa {model} cho khách {customer}",
+  "@repairOrderCreated": {
+    "placeholders": {
+      "model": {"type": "String"},
+      "customer": {"type": "String"}
+    }
+  },
+  "orderSavedSuccess": "ĐÃ LƯU ĐƠN THÀNH CÔNG",
+  "sendingPrintCommand": "Đang gửi lệnh in phiếu...",
+  "partnerCost": "Đối tác: {partner} - Chi phí: {cost}",
+  "@partnerCost": {
+    "placeholders": {
+      "partner": {"type": "String"},
+      "cost": {"type": "String"}
+    }
+  },
+  "costOnly": "Chi phí: {cost}",
+  "@costOnly": {
+    "placeholders": {
+      "cost": {"type": "String"}
+    }
+  },
+  "totalCost": "Tổng chi phí: {amount}",
+  "@totalCost": {
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "addService": "THÊM DỊCH VỤ",
+  "editService": "Sửa dịch vụ",
+  "addServiceTitle": "Thêm dịch vụ",
+  "serviceName": "Tên dịch vụ *",
+  "costVND": "Chi phí (VNĐ)",
+  "partnerOptional": "Đối tác (tùy chọn)",
+  "noPartner": "Không có đối tác",
+  "partnerPaymentMethod": "Phương thức TT đối tác *",
+  "update": "Cập nhật",
+  "add": "Thêm",
+  "saveOrder": "LƯU ĐƠN",
+  "customerAndDevice": "KHÁCH HÀNG & MÁY",
+  "phoneOptional": "SĐT (không bắt buộc)",
+  "phoneRequired": "SĐT *",
+  "customerNameOptional": "Tên KH (tùy chọn)",
+  "customerName": "Tên KH",
+  "deviceModel": "MODEL MÁY *",
+  "deviceIssue": "LỖI MÁY *",
+  "estimatedPrice": "GIÁ DỰ KIẾN",
+  "services": "DỊCH VỤ",
+  "securityAccessories": "BẢO MẬT & PHỤ KIỆN",
+  "screenPassword": "Mật khẩu màn hình",
+  "otherAccessories": "Phụ kiện khác",
+  "notesAndImages": "GHI CHÚ & HÌNH ẢNH",
+  "notesPlaceholder": "Ghi chú...",
+  "walkInCustomer": "Khách vãng lai (không lưu danh bạ)",
+  "walkInCustomerDesc": "Tên/SĐT chỉ lưu trên phiếu, không bắt buộc SĐT",
+  "saveToContactsDesc": "Nhập SĐT để lưu khách vào danh bạ",
+  "walkInCustomerDefault": "KHÁCH VÃNG LAI",
+  "createRepairOrderTitle": "NHẬP ĐƠN SỬA CHỮA",
+  "fillCustomerAndDeviceInfo": "Điền thông tin khách và máy",
+  "selectCustomer": "Chọn khách",
+  "addCustomer": "Thêm khách",
+  "todayClosedNoRepair": "❌ Ngày hôm nay đã chốt quỹ! Không thể tạo phiếu sửa mới.",
+  "pleaseEnterServiceName": "Vui lòng nhập tên dịch vụ",
+  "pleaseSelectPaymentMethod": "Vui lòng chọn phương thức TT",
+  "selectCustomerTitle": "CHỌN KHÁCH HÀNG",
+  "searchByNameOrPhone": "Tìm theo tên hoặc số điện thoại...",
+  "noCustomerFound": "Không tìm thấy khách hàng",
+  "addressLabel": "Địa chỉ: {address}",
+  "@addressLabel": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "notesLabel": "Ghi chú: {notes}",
+  "@notesLabel": {
+    "placeholders": {
+      "notes": {
+        "type": "String"
+      }
+    }
+  },
+  "repairInputAction": "NHẬP ĐƠN SỬA",
+  "repairInputDesc": "Đã nhập đơn sửa {model} cho khách {customer}",
+  "@repairInputDesc": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      }
+    }
+  },
+  "repairPartner": "Đối tác sửa chữa"
 }

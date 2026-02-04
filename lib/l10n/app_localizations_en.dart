@@ -465,7 +465,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scanQRCode => 'Scan QR code';
 
   @override
-  String get createRepairOrder => 'CREATE REPAIR ORDER';
+  String get createRepairOrder => 'CREATE REPAIR';
 
   @override
   String get noPermissionRepair => 'This account is not permitted to access REPAIR section. Contact shop owner for permissions.';
@@ -570,7 +570,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quickMenu => 'Quick menu';
 
   @override
-  String get customerName => 'CUSTOMER NAME';
+  String get customerName => 'Customer name';
 
   @override
   String get phoneNumber => 'Phone Number';
@@ -585,10 +585,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get viewCustomerHistory => 'VIEW CUSTOMER HISTORY';
 
   @override
-  String get deviceModel => 'DEVICE MODEL';
+  String get deviceModel => 'DEVICE MODEL *';
 
   @override
-  String get deviceIssue => 'DEVICE ISSUE';
+  String get deviceIssue => 'DEVICE ISSUE *';
 
   @override
   String get appearanceCondition => 'APPEARANCE CONDITION';
@@ -603,7 +603,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accessoriesHint => 'E.g.: CHARGER, EARPHONES...';
 
   @override
-  String get screenPassword => 'SCREEN PASSWORD';
+  String get screenPassword => 'Screen password';
 
   @override
   String get estimatedPrice => 'ESTIMATED PRICE';
@@ -2994,4 +2994,198 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get changedToEnglish => 'Changed to English';
+
+  @override
+  String get replacePin => 'REPLACE PIN';
+
+  @override
+  String get pressGlass => 'PRESS GLASS';
+
+  @override
+  String get replaceScreen => 'REPLACE SCREEN';
+
+  @override
+  String get noPower => 'NO POWER';
+
+  @override
+  String get speakerMic => 'SPEAKER/MIC';
+
+  @override
+  String get charging => 'CHARGING';
+
+  @override
+  String get software => 'SOFTWARE';
+
+  @override
+  String get sim => 'SIM';
+
+  @override
+  String get backCover => 'BACK COVER';
+
+  @override
+  String get noAccessories => 'NO ACCESSORIES';
+
+  @override
+  String get walkInCustomerNoSave => 'Walk-in customer - not saved to contacts';
+
+  @override
+  String get pleaseEnterNameAndPhone => 'Please enter both name and phone number';
+
+  @override
+  String customerWithPhoneExists(String name) {
+    return 'Customer with this phone already exists: $name';
+  }
+
+  @override
+  String customerAdded(String name) {
+    return 'Customer added: $name';
+  }
+
+  @override
+  String errorAddingCustomer(String error) {
+    return 'Error adding customer: $error';
+  }
+
+  @override
+  String get pleaseEnterModel => 'Please enter device Model';
+
+  @override
+  String get pleaseEnterPhoneAndModel => 'Please enter Phone and device Model';
+
+  @override
+  String get syncingDataToServer => 'Syncing data to server...';
+
+  @override
+  String repairOrderCreated(String model, String customer) {
+    return 'Created repair order $model for customer $customer';
+  }
+
+  @override
+  String get orderSavedSuccess => 'ORDER SAVED SUCCESSFULLY';
+
+  @override
+  String get sendingPrintCommand => 'Sending print command...';
+
+  @override
+  String partnerCost(String partner, String cost) {
+    return 'Partner: $partner - Cost: $cost';
+  }
+
+  @override
+  String costOnly(String cost) {
+    return 'Cost: $cost';
+  }
+
+  @override
+  String totalCost(String amount) {
+    return 'Total cost: $amount';
+  }
+
+  @override
+  String get addServiceTitle => 'Add service';
+
+  @override
+  String get serviceName => 'Service name *';
+
+  @override
+  String get costVND => 'Cost (VND)';
+
+  @override
+  String get partnerOptional => 'Partner (optional)';
+
+  @override
+  String get partnerPaymentMethod => 'Partner payment method *';
+
+  @override
+  String get saveOrder => 'SAVE ORDER';
+
+  @override
+  String get customerAndDevice => 'CUSTOMER & DEVICE';
+
+  @override
+  String get phoneOptional => 'Phone (optional)';
+
+  @override
+  String get phoneRequired => 'Phone *';
+
+  @override
+  String get customerNameOptional => 'Customer name (optional)';
+
+  @override
+  String get services => 'SERVICES';
+
+  @override
+  String get securityAccessories => 'SECURITY & ACCESSORIES';
+
+  @override
+  String get otherAccessories => 'Other accessories';
+
+  @override
+  String get notesAndImages => 'NOTES & IMAGES';
+
+  @override
+  String get notesPlaceholder => 'Notes...';
+
+  @override
+  String get walkInCustomer => 'Walk-in customer (not saved to contacts)';
+
+  @override
+  String get walkInCustomerDesc => 'Name/Phone only saved on receipt, phone not required';
+
+  @override
+  String get saveToContactsDesc => 'Enter phone to save customer to contacts';
+
+  @override
+  String get walkInCustomerDefault => 'WALK-IN CUSTOMER';
+
+  @override
+  String get createRepairOrderTitle => 'CREATE REPAIR ORDER';
+
+  @override
+  String get fillCustomerAndDeviceInfo => 'Fill customer and device info';
+
+  @override
+  String get selectCustomer => 'Select customer';
+
+  @override
+  String get addCustomer => 'Add customer';
+
+  @override
+  String get todayClosedNoRepair => '❌ Today is closed! Cannot create new repair order.';
+
+  @override
+  String get pleaseEnterServiceName => 'Please enter service name';
+
+  @override
+  String get pleaseSelectPaymentMethod => 'Please select payment method';
+
+  @override
+  String get selectCustomerTitle => 'SELECT CUSTOMER';
+
+  @override
+  String get searchByNameOrPhone => 'Search by name or phone...';
+
+  @override
+  String get noCustomerFound => 'No customer found';
+
+  @override
+  String addressLabel(String address) {
+    return 'Address: $address';
+  }
+
+  @override
+  String notesLabel(String notes) {
+    return 'Notes: $notes';
+  }
+
+  @override
+  String get repairInputAction => 'CREATE REPAIR ORDER';
+
+  @override
+  String repairInputDesc(String model, String customer) {
+    return 'Created repair order $model for customer $customer';
+  }
+
+  @override
+  String get repairPartner => 'Repair partner';
 }
