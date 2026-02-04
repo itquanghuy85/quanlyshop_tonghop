@@ -403,9 +403,14 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     final qty = p['quantity'] as int? ?? 0;
     final cost = p['cost'] as int? ?? 0;
     final price = p['price'] as int? ?? 0;
+    final createdAt = p['createdAt'] as int?;
+    final updatedAt = p['updatedAt'] as int?;
     final isLow = qty > 0 && qty <= 2;
     final isOut = qty == 0;
     final supplierName = _getSupplierName(p['supplierId'] as int?);
+    final updatedText = updatedAt != null
+      ? DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(updatedAt))
+      : null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -482,7 +487,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                               color: Colors.orange.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: Text('SẮP HẾT', style: TextStyle(
+                            child: const Text('SẮP HẾT', style: TextStyle(
                               fontSize: AppTextStyles.overlineSize,
                               color: Colors.orange,
                               fontWeight: FontWeight.bold,
@@ -495,7 +500,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                               color: Colors.grey.shade200,
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: Text('HẾT HÀNG', style: TextStyle(
+                            child: const Text('HẾT HÀNG', style: TextStyle(
                               fontSize: AppTextStyles.overlineSize,
                               color: Colors.grey,
                               fontWeight: FontWeight.bold,
@@ -515,21 +520,28 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                       children: [
                         _infoChip(Icons.inventory_2, 'SL: $qty', isLow ? Colors.orange : Colors.blue),
                         const SizedBox(width: 8),
-                        _infoChip(Icons.attach_money, '${NumberFormat.compact().format(cost)}', Colors.green),
+                        _infoChip(Icons.attach_money, NumberFormat.compact().format(cost), Colors.green),
                         const SizedBox(width: 8),
-                        _infoChip(Icons.sell, '${NumberFormat.compact().format(price)}', Colors.red),
+                        _infoChip(Icons.sell, NumberFormat.compact().format(price), Colors.red),
                       ],
                     ),
-                    if (supplierName != 'Không xác định') ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.store, size: 12, color: Colors.grey.shade500),
-                          const SizedBox(width: 4),
-                          Text(supplierName, style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade500)),
-                        ],
-                      ),
-                    ],
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        if (supplierName != 'Không xác định')
+                          _infoChip(Icons.store, supplierName, _primaryColor),
+                        if (updatedText != null)
+                          _infoChip(Icons.update, 'Cập nhật: $updatedText', Colors.grey.shade700),
+                        if (createdAt != null && updatedAt == null)
+                          _infoChip(
+                            Icons.schedule,
+                            'Tạo: ${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(createdAt))}',
+                            Colors.grey.shade700,
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),

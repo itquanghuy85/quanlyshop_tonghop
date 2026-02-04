@@ -103,37 +103,48 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
       return;
     }
 
-    final printerConfig = await showPrinterSelectionDialog(context);
-    if (printerConfig == null) return;
-
-    final printerType = printerConfig['type'] as PrinterType?;
-    final bluetoothPrinter = printerConfig['bluetoothPrinter'];
-    final wifiIp = printerConfig['wifiIp'] as String?;
     setState(() => _isPrinting = true);
-    final ok = await UnifiedPrinterService.printImeiQrBatch(
-      items,
-      printerType: printerType,
-      bluetoothPrinter: bluetoothPrinter,
-      wifiIp: wifiIp,
-      showName: _showName,
-      showDetail: _showDetail,
-      showImei: _showImei,
-      paddingLines: _paddingLines,
-      qrSize: _qrSize,
-      columns: _columns,
-      codeType: _codeType,
-      defaultProductName: 'SẢN PHẨM',
-      imeiPrefix: 'IMEI: ',
-      imeiLabel: 'IMEI',
-      preferRasterForBluetooth: _bluetoothCompat,
-    );
-    if (!mounted) return;
-    setState(() => _isPrinting = false);
 
-    NotificationService.showSnackBar(
-      ok ? 'In QR IMEI thành công' : 'In QR IMEI thất bại',
-      color: ok ? Colors.green : Colors.red,
-    );
+    try {
+      final printerConfig = await showPrinterSelectionDialog(context);
+      if (printerConfig == null) return;
+
+      final printerType = printerConfig['type'] as PrinterType?;
+      final bluetoothPrinter = printerConfig['bluetoothPrinter'];
+      final wifiIp = printerConfig['wifiIp'] as String?;
+
+      final ok = await UnifiedPrinterService.printImeiQrBatch(
+        items,
+        printerType: printerType,
+        bluetoothPrinter: bluetoothPrinter,
+        wifiIp: wifiIp,
+        showName: _showName,
+        showDetail: _showDetail,
+        showImei: _showImei,
+        paddingLines: _paddingLines,
+        qrSize: _qrSize,
+        columns: _columns,
+        codeType: _codeType,
+        defaultProductName: 'SẢN PHẨM',
+        imeiPrefix: 'IMEI: ',
+        imeiLabel: 'IMEI',
+        preferRasterForBluetooth: _bluetoothCompat,
+      );
+      if (!mounted) return;
+
+      NotificationService.showSnackBar(
+        ok ? 'In QR IMEI thành công' : 'In QR IMEI thất bại',
+        color: ok ? Colors.green : Colors.red,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      NotificationService.showSnackBar(
+        'Lỗi in QR IMEI: $e',
+        color: Colors.red,
+      );
+    } finally {
+      if (mounted) setState(() => _isPrinting = false);
+    }
   }
 
   @override

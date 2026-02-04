@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter/foundation.dart';
@@ -2244,6 +2246,20 @@ class DBHelper {
   }
 
   // --- HÀM HỖ TRỢ CHUNG ---
+  Map<String, dynamic> _sanitizeForSqlite(Map<String, dynamic> input) {
+    final sanitized = <String, dynamic>{};
+    input.forEach((key, value) {
+      if (value is bool) {
+        sanitized[key] = value ? 1 : 0;
+      } else if (value is Map || value is List) {
+        sanitized[key] = jsonEncode(value);
+      } else {
+        sanitized[key] = value;
+      }
+    });
+    return sanitized;
+  }
+
   Future<void> _upsert(
     String table,
     Map<String, dynamic> map,
@@ -2257,7 +2273,9 @@ class DBHelper {
         whereArgs: [firestoreId],
         limit: 1,
       );
-      Map<String, dynamic> data = Map<String, dynamic>.from(map);
+      Map<String, dynamic> data = _sanitizeForSqlite(
+        Map<String, dynamic>.from(map),
+      );
       data.remove('id');
       data.remove(
         '_encrypted',
@@ -4503,7 +4521,7 @@ class DBHelper {
     final productHash = productName.hashCode;
     final firestoreId =
         history['firestoreId'] ??
-        "import_${ts}_${supplierId}_${productHash}_${imei}";
+        "import_${ts}_${supplierId}_${productHash}_$imei";
     history['firestoreId'] = firestoreId;
     return await db.insert(
       'supplier_import_history',
@@ -4529,6 +4547,12 @@ class DBHelper {
       where: 'deleted = 0 OR deleted IS NULL',
       orderBy: 'paidAt DESC',
     );
+  }
+
+  /// Lấy tất cả supplier_payments (kể cả deleted) cho sync
+  Future<List<Map<String, dynamic>>> getSupplierPaymentsForSync() async {
+    final db = await database;
+    return await db.query('supplier_payments');
   }
 
   Future<List<Map<String, dynamic>>> getSupplierImportHistory(
@@ -5073,7 +5097,8 @@ class DBHelper {
   // Supplier Payment methods
   Future<int> insertSupplierPayment(Map<String, dynamic> payment) async {
     final db = await database;
-    return await db.insert('supplier_payments', payment);
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(payment));
+    return await db.insert('supplier_payments', cleanData);
   }
 
   Future<int> updateSupplierPayment(
@@ -5081,9 +5106,10 @@ class DBHelper {
     Map<String, dynamic> payment,
   ) async {
     final db = await database;
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(payment));
     return await db.update(
       'supplier_payments',
-      payment,
+      cleanData,
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -5112,7 +5138,7 @@ class DBHelper {
     final firestoreId = payment['firestoreId'];
 
     // Loại bỏ id vì SQLite auto-generate
-    final cleanData = Map<String, dynamic>.from(payment);
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(payment));
     cleanData.remove('id');
     cleanData.remove('_encrypted');
 
@@ -5136,9 +5162,15 @@ class DBHelper {
   }
 
   // Repair Partner Payment methods
+  Future<List<Map<String, dynamic>>> getRepairPartnerPaymentsForSync() async {
+    final db = await database;
+    return await db.query('repair_partner_payments');
+  }
+
   Future<int> insertRepairPartnerPayment(Map<String, dynamic> payment) async {
     final db = await database;
-    return await db.insert('repair_partner_payments', payment);
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(payment));
+    return await db.insert('repair_partner_payments', cleanData);
   }
 
   Future<int> updateRepairPartnerPayment(
@@ -5146,9 +5178,10 @@ class DBHelper {
     Map<String, dynamic> payment,
   ) async {
     final db = await database;
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(payment));
     return await db.update(
       'repair_partner_payments',
-      payment,
+      cleanData,
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -5179,7 +5212,9 @@ class DBHelper {
     final firestoreId = payment['firestoreId'];
 
     // Loại bỏ id vì SQLite auto-generate
-    final cleanData = Map<String, dynamic>.from(payment);
+    final cleanData = _sanitizeForSqlite(
+      Map<String, dynamic>.from(payment),
+    );
     cleanData.remove('id');
     cleanData.remove('_encrypted');
 
@@ -5977,5 +6012,126 @@ class DBHelper {
       whereArgs: [type, shopId],
       orderBy: 'createdAt DESC',
     );
+  }
+
+  // ============================================================================
+  // PAYMENT INTENTS - SYNC SUPPORT
+  // ============================================================================
+
+  /// Get payment intents that need to be synced to cloud
+  Future<List<Map<String, dynamic>>> getPaymentIntentsForSync() async {
+    final db = await database;
+    final shopId = await _getCurrentShopId();
+    if (shopId == null) return [];
+    return await db.query(
+      'payment_intents',
+      where: 'shopId = ? AND (isSynced = 0 OR isSynced IS NULL OR firestoreId IS NULL)',
+      whereArgs: [shopId],
+      orderBy: 'createdAt DESC',
+    );
+  }
+
+  /// Upsert payment intent from cloud sync
+  Future<void> upsertPaymentIntent(Map<String, dynamic> data) async {
+    final db = await database;
+    // Ensure table exists
+    try {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS payment_intents(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          intentId TEXT UNIQUE NOT NULL,
+          firestoreId TEXT,
+          type TEXT NOT NULL,
+          amount INTEGER NOT NULL,
+          description TEXT,
+          status TEXT DEFAULT 'PENDING',
+          personName TEXT,
+          personPhone TEXT,
+          referenceId TEXT,
+          referenceType TEXT,
+          paymentMethod TEXT,
+          createdBy TEXT,
+          createdAt INTEGER,
+          paidBy TEXT,
+          paidAt INTEGER,
+          notes TEXT,
+          metadata TEXT,
+          shopId TEXT,
+          isSynced INTEGER DEFAULT 0,
+          deleted INTEGER DEFAULT 0,
+          updatedAt INTEGER
+        )
+      ''');
+    } catch (e) {
+      debugPrint('DB: ensure payment_intents table error: $e');
+    }
+
+    final sanitized = _sanitizeForSqlite(data);
+    final intentId = sanitized['intentId'];
+    final firestoreId = sanitized['firestoreId'];
+
+    if (intentId == null && firestoreId == null) {
+      debugPrint('upsertPaymentIntent: No intentId or firestoreId, skipping');
+      return;
+    }
+
+    // Try to find existing by intentId first, then firestoreId
+    final existing = await db.query(
+      'payment_intents',
+      where: 'intentId = ? OR firestoreId = ?',
+      whereArgs: [intentId, firestoreId],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      // Update existing
+      final localId = existing.first['id'];
+      await db.update(
+        'payment_intents',
+        sanitized,
+        where: 'id = ?',
+        whereArgs: [localId],
+      );
+    } else {
+      // Insert new
+      await db.insert(
+        'payment_intents',
+        sanitized,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+  }
+
+  /// Update payment intent sync status after cloud sync
+  Future<void> updatePaymentIntentSynced(int localId, String firestoreId) async {
+    final db = await database;
+    await db.update(
+      'payment_intents',
+      {'firestoreId': firestoreId, 'isSynced': 1},
+      where: 'id = ?',
+      whereArgs: [localId],
+    );
+  }
+
+  /// Delete payment intent by firestoreId (for soft delete from cloud)
+  Future<void> deletePaymentIntentByFirestoreId(String firestoreId) async {
+    final db = await database;
+    await db.delete(
+      'payment_intents',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
+
+  /// Get payment intent by firestoreId
+  Future<Map<String, dynamic>?> getPaymentIntentByFirestoreId(String firestoreId) async {
+    final db = await database;
+    final results = await db.query(
+      'payment_intents',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+      limit: 1,
+    );
+    return results.isNotEmpty ? results.first : null;
   }
 }

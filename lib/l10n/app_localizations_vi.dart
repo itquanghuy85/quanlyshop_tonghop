@@ -15,7 +15,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get login => 'Đăng nhập';
 
   @override
-  String get logout => 'Đăng xuất';
+  String get logout => 'ĐĂNG XUẤT';
 
   @override
   String get settings => 'Cài đặt';
@@ -66,7 +66,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get parts => 'Linh kiện';
 
   @override
-  String get sales => 'Bán hàng';
+  String get sales => 'bán';
 
   @override
   String get customers => 'Khách hàng';
@@ -126,13 +126,13 @@ class AppLocalizationsVi extends AppLocalizations {
   String get dashboard => 'DASHBOARD';
 
   @override
-  String get repair => 'SỬA CHỮA';
+  String get repair => 'sửa';
 
   @override
   String get warranty => 'BẢO HÀNH';
 
   @override
-  String get printer => 'MÁY IN';
+  String get printer => 'Máy in';
 
   @override
   String get auditLog => 'NHẬT KÝ';
@@ -147,7 +147,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get payroll => 'LƯƠNG';
 
   @override
-  String get debt => 'CÔNG NỢ';
+  String get debt => 'Công nợ';
 
   @override
   String get quickActions => 'TRUY CẬP NHANH';
@@ -237,7 +237,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get quickStats => 'Thống kê nhanh';
 
   @override
-  String get pendingRepairs => 'Đang sửa';
+  String get pendingRepairs => 'Đơn sửa chờ';
 
   @override
   String get completedToday => 'Xong/Giao hôm nay';
@@ -393,7 +393,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get appDescription => 'Quản lý cửa hàng sửa chữa điện thoại';
 
   @override
-  String get version => 'Phiên bản 10.0.0';
+  String get version => 'Phiên bản 10.0.1';
 
   @override
   String get versionNumber => '2.6.0';
@@ -962,10 +962,10 @@ class AppLocalizationsVi extends AppLocalizations {
   String get warningNewDevice => 'Máy này có rất ít dữ liệu';
 
   @override
-  String get repairOrders => 'đơn sửa chữa';
+  String get repairOrders => 'đơn sửa';
 
   @override
-  String get saleOrders => 'đơn bán hàng';
+  String get saleOrders => 'đơn bán';
 
   @override
   String get products => 'sản phẩm';
@@ -998,7 +998,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get uploadingData => 'Đang đồng bộ dữ liệu...';
 
   @override
-  String get downloadSuccess => 'Đã tải xong toàn bộ dữ liệu shop!';
+  String get downloadSuccess => 'Đã tải xong dữ liệu shop!';
 
   @override
   String get uploadSuccess => 'Đã đồng bộ dữ liệu lên đám mây!';
@@ -1136,7 +1136,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get checkBluetoothOn => 'Kiểm tra Bluetooth có bật...';
 
   @override
-  String get appVersion => 'Phiên bản 10.0.0';
+  String get appVersion => 'Phiên bản 10.0.1';
 
   @override
   String get saving => 'Đang lưu...';
@@ -2063,6 +2063,21 @@ class AppLocalizationsVi extends AppLocalizations {
   String get shopDataDownloaded => 'Đã tải xong dữ liệu shop!';
 
   @override
+  String get quickAccess => 'TRUY CẬP NHANH';
+
+  @override
+  String get salesOrder => 'Đơn bán';
+
+  @override
+  String get salesOrderList => 'Danh sách';
+
+  @override
+  String get repairOrderTitle => 'Đơn sửa';
+
+  @override
+  String get repairOrderList => 'Danh sách đơn sửa';
+
+  @override
   String get pendingStockShort => 'Hàng chờ XN';
 
   @override
@@ -2138,9 +2153,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get createNewRepairOrder => 'TẠO ĐƠN SỬA MỚI';
 
   @override
-  String get repairOrderList => 'Danh sách đơn sửa';
-
-  @override
   String get viewSearchTrackRepairs => 'Xem, tìm kiếm và theo dõi tất cả đơn sửa chữa.';
 
   @override
@@ -2153,10 +2165,22 @@ class AppLocalizationsVi extends AppLocalizations {
   String get stockInNew => 'NHẬP MỚI';
 
   @override
+  String get stockInNewGuide => 'Nhập hàng vào kho với đầy đủ thông tin:\n\n✅ Hỗ trợ: Điện thoại, Phụ kiện, Linh kiện\n✅ Lưu tạm: Nhập khi chưa có đầy đủ thông tin\n✅ Xác nhận: Hàng chính thức vào kho\n\n📌 Dùng khi: Nhập hàng mới từ NCC, cần ghi đầy đủ IMEI/SKU, giá vốn, NCC...';
+
+  @override
   String get fullInformation => 'Đầy đủ thông tin';
 
   @override
+  String get quickStockInGuide => 'Nhập hàng siêu tốc - chỉ cần quét mã:\n\n⚡ Quét barcode/QR liên tục\n⚡ Tự động điền thông tin từ thư viện\n⚡ Phù hợp nhập số lượng lớn\n\n📌 Dùng khi: Nhập nhanh phụ kiện, linh kiện đã có sẵn mã trong hệ thống.';
+
+  @override
   String get continuousScan => 'Quét mã liên tục';
+
+  @override
+  String get checkInventoryGuide => 'Kiểm tra tồn kho bằng quét mã:\n\n🔍 Quét QR/Barcode để kiểm hàng\n🔍 So sánh số lượng thực tế vs hệ thống\n🔍 Ghi nhận chênh lệch\n\n📌 Dùng khi: Kiểm kê định kỳ, đối chiếu hàng tồn.';
+
+  @override
+  String get contactOwnerForAccess => 'Liên hệ chủ shop để được cấp quyền';
 
   @override
   String get compareInventory => 'Đối chiếu tồn kho';
@@ -2327,14 +2351,14 @@ class AppLocalizationsVi extends AppLocalizations {
   String get localCloudMatch100 => 'Local và Cloud đã khớp 100%';
 
   @override
-  String get recheckingSync => 'Đang kiểm tra lại...';
+  String get recheckingSync => '🔄 Đang kiểm tra lại...';
 
   @override
   String get needsDataSync => 'Cần đồng bộ dữ liệu';
 
   @override
   String recordsNotSynced(int count) {
-    return '$count bản ghi chưa đồng bộ. Bấm để mở Trung tâm đồng bộ.';
+    return 'bản ghi chưa đồng bộ. Bấm để mở Trung tâm đồng bộ.';
   }
 
   @override
@@ -2353,6 +2377,32 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get productsInStock => 'Sản phẩm trong kho';
+
+  @override
+  String get repairOrdersDataItem => 'Đơn sửa chữa';
+
+  @override
+  String get saleOrdersDataItem => 'Đơn bán hàng';
+
+  @override
+  String get debtsAndExpensesDataItem => 'Công nợ & Chi phí';
+
+  @override
+  String get customersAndSuppliersDataItem => 'Khách hàng & NCC';
+
+  @override
+  String get fromCloudToThisDevice => 'từ đám mây về máy này.';
+
+  @override
+  String get onlyDownloadThisShopData => 'Chỉ tải dữ liệu của shop này, không ảnh hưởng shop khác.';
+
+  @override
+  String get processMayTakeFewMinutes => 'Quá trình có thể mất vài phút tùy lượng dữ liệu.';
+
+  @override
+  String downloadError(String error) {
+    return 'Lỗi: $error';
+  }
 
   @override
   String get dataFullySynced => 'Dữ liệu đã đồng bộ hoàn toàn';
@@ -2795,4 +2845,73 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get goToSalaryTable => 'ĐI ĐẾN BẢNG LƯƠNG';
+
+  @override
+  String get staffListLabel => 'Danh sách\nNhân viên';
+
+  @override
+  String get viewAttendanceAllStaff => 'Xem chấm công tất cả nhân viên theo ngày/tháng.';
+
+  @override
+  String get personalAttendanceDescription => 'Check-in/out và xem lịch sử chấm công cá nhân.';
+
+  @override
+  String get usageGuide => 'Hướng dẫn sử dụng';
+
+  @override
+  String get cashClosingToday => 'CHỐT QUỸ HÔM NAY';
+
+  @override
+  String get reportAndAnalysis => 'BÁO CÁO & PHÂN TÍCH';
+
+  @override
+  String get debtManagementInOut => 'Quản lý nợ (Thu/Chi)';
+
+  @override
+  String get financialReportLabel => 'Báo cáo tài chính';
+
+  @override
+  String get summarizeAllTransactions => 'Tổng hợp tất cả giao dịch thu chi.';
+
+  @override
+  String get financialActivityLog => 'Nhật ký tài chính';
+
+  @override
+  String get trackAllIncomeExpenseActivities => 'Theo dõi mọi hoạt động thu chi.';
+
+  @override
+  String get shopSettingsDescription => 'Thông tin, logo, vị trí và quản lý thành viên shop.';
+
+  @override
+  String get notificationSettingsDescription => 'Cấu hình cài đặt thông báo và cảnh báo.';
+
+  @override
+  String get printerSettingsDescription => 'Cài đặt kết nối và thiết kế mẫu in.';
+
+  @override
+  String get adminCenterDescription => 'Quản lý toàn bộ hệ thống cho admin cấp cao.';
+
+  @override
+  String get aboutDeveloperDescription => 'Thông tin về nhà phát triển và ứng dụng.';
+
+  @override
+  String get needSyncData => '⚠️ Cần đồng bộ dữ liệu';
+
+  @override
+  String get netProfitFormula => '= Thu - Chi - Giá vốn';
+
+  @override
+  String get viewDetailedGuideForEachFeature => 'Xem hướng dẫn chi tiết từng tính năng trong app';
+
+  @override
+  String get devicesExpiringWarranty => 'máy sắp hết hạn bảo hành. Xem ngay!';
+
+  @override
+  String get dataSyncedFully => '✅ Dữ liệu đồng bộ hoàn toàn';
+
+  @override
+  String get localCloudMatched => 'Local và Cloud đã khớp 100%';
+
+  @override
+  String get exitApp => 'Thoát ứng dụng?';
 }

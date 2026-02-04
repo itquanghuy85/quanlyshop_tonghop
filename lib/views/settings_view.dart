@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../services/user_service.dart';
 import '../theme/app_text_styles.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../services/encryption_service.dart';
-import '../services/first_time_guide_service.dart';
 import '../data/db_helper.dart';
 import '../services/sync_service.dart';
-import '../widgets/unified_sync_button.dart';
 import '../utils/app_info.dart';
 import 'help_center_view.dart';
 import 'user_guide_view.dart';
-import 'staff_permissions_view.dart';
-import 'shop_selector_view.dart'; // Màn hình chọn shop cho super admin
+// Màn hình chọn shop cho super admin
 
 class SettingsView extends StatefulWidget {
   final void Function(Locale)? setLocale;
@@ -33,6 +31,9 @@ class _SettingsViewState extends State<SettingsView> {
   List<Map<String, dynamic>> _allShops = [];
   String? _selectedShopId;
   bool _loadingShops = false;
+  
+  // Current selected locale
+  Locale _selectedLocale = const Locale('vi');
 
   @override
   void initState() {
@@ -40,6 +41,22 @@ class _SettingsViewState extends State<SettingsView> {
     _versionFuture = AppInfo.getVersion();
     _loadRole();
     _loadShopsForAdmin();
+    _loadSavedLocale();
+  }
+  
+  /// Load ngôn ngữ đã lưu
+  Future<void> _loadSavedLocale() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final languageCode = prefs.getString('app_language') ?? 'vi';
+      if (mounted) {
+        setState(() {
+          _selectedLocale = Locale(languageCode);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading saved locale: $e');
+    }
   }
 
   /// Load danh sách shops cho super admin
@@ -284,15 +301,112 @@ class _SettingsViewState extends State<SettingsView> {
               padding: const EdgeInsets.all(16),
               children: [
                 _buildSection(localizations.languageAndInterface),
-                ListTile(
-                  leading: const Icon(Icons.language, color: Colors.blue),
-                  title: Text(localizations.languageApp),
-                  trailing: Text(localizations.vietnamese),
-                  onTap: () {
-                    if (widget.setLocale != null) {
-                      widget.setLocale!(const Locale('vi'));
-                    }
-                  },
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.language, color: Colors.blue),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                localizations.languageApp,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                localizations.selectLanguage,
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                          ),
+                          child: DropdownButton<Locale>(
+                            value: _selectedLocale,
+                            underline: const SizedBox(),
+                            isDense: true,
+                            icon: const Icon(Icons.arrow_drop_down, color: Colors.blue),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue,
+                              fontSize: 14,
+                            ),
+                            items: [
+                              DropdownMenuItem(
+                                value: const Locale('vi'),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text('🇻🇳 ', style: TextStyle(fontSize: 18)),
+                                    Text(
+                                      localizations.vietnamese,
+                                      style: const TextStyle(color: Colors.blue),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: const Locale('en'),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text('🇺🇸 ', style: TextStyle(fontSize: 18)),
+                                    Text(
+                                      localizations.english,
+                                      style: const TextStyle(color: Colors.blue),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            onChanged: (locale) {
+                              if (locale != null) {
+                                setState(() => _selectedLocale = locale);
+                                widget.setLocale?.call(locale);
+                                // Lưu vào SharedPreferences
+                                SharedPreferences.getInstance().then(
+                                  (prefs) => prefs.setString('app_language', locale.languageCode),
+                                );
+                                NotificationService.showSnackBar(
+                                  locale.languageCode == 'vi' 
+                                    ? 'Đã chuyển sang Tiếng Việt' 
+                                    : 'Changed to English',
+                                  color: Colors.green,
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 
                 const SizedBox(height: 16),

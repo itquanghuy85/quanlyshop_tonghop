@@ -17,6 +17,7 @@ import '../models/sale_order_model.dart';
 import '../widgets/gradient_fab.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
+import '../core/utils/money_utils.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
@@ -1825,7 +1826,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                             if (_selectedRole == 'owner' ||
                                 _selectedRole == 'manager')
                               Padding(
-                                padding: EdgeInsets.all(10),
+                                padding: const EdgeInsets.all(10),
                                 child: Text(
                                   "Tài khoản CHỦ SHOP/QUẢN LÝ luôn được xem đầy đủ mọi nội dung trong hệ thống.",
                                   style: TextStyle(
@@ -2170,21 +2171,117 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: list.length,
-      itemBuilder: (ctx, i) => ListTile(
-        title: Text(
-          list[i].model,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
-        ),
-        subtitle: Text(
-          "KH: ${list[i].customerName} | ${DateFormat('dd/MM').format(DateTime.fromMillisecondsSinceEpoch(list[i].createdAt))}",
-        ),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => RepairDetailView(repair: list[i])),
-        ),
-      ),
+      itemBuilder: (ctx, i) {
+        final r = list[i];
+        final statusLabel = _repairStatusLabel(r.status);
+        final statusColor = _repairStatusColor(r.status);
+        final deliveredAt = r.deliveredAt ?? 0;
+        final time = deliveredAt > 0 ? deliveredAt : r.createdAt;
+        final dateStr = DateFormat('dd/MM HH:mm')
+          .format(DateTime.fromMillisecondsSinceEpoch(time));
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: statusColor.withOpacity(0.35)),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => RepairDetailView(repair: r)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              r.model,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: AppTextStyles.headline5.fontSize,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${r.customerName} • ${r.phone}',
+                              style: TextStyle(
+                                fontSize: AppTextStyles.body1.fontSize,
+                                color: Colors.grey.shade700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              statusLabel,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: AppTextStyles.overlineSize,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            dateStr,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.caption.fontSize,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      if (r.issue.isNotEmpty)
+                        _infoChip('🛠️ ${r.issue}', Colors.orange.shade100),
+                      if ((r.imei ?? '').trim().isNotEmpty)
+                        _infoChip('🔎 ${r.imei}', Colors.blue.shade100),
+                      _infoChip(
+                        '💰 ${MoneyUtils.formatVND(r.price)}đ',
+                        Colors.green.shade100,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -2197,20 +2294,200 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
         ),
       );
     }
+    final fmt = NumberFormat('#,###');
     return ListView.builder(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       itemCount: list.length,
-      itemBuilder: (ctx, i) => ListTile(
-        title: Text(
-          list[i].productNames,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
+      itemBuilder: (ctx, i) {
+        final s = list[i];
+        final isPaid = s.isPaid;
+        final remain = s.remainingDebt;
+        final date = DateFormat('dd/MM HH:mm')
+            .format(DateTime.fromMillisecondsSinceEpoch(s.soldAt));
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.green.withOpacity(0.25)),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => SaleDetailView(sale: s)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              s.productNames,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: AppTextStyles.headline5.fontSize,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${s.customerName} • ${s.phone}',
+                              style: TextStyle(
+                                fontSize: AppTextStyles.body1.fontSize,
+                                color: Colors.grey.shade700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isPaid ? Colors.green : Colors.orange,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              isPaid ? 'ĐÃ THU' : 'CÒN NỢ',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: AppTextStyles.overlineSize,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            date,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.caption.fontSize,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      _saleInfoChip(
+                        '💰 ${fmt.format(s.finalPrice)}đ',
+                        Colors.blue.shade100,
+                      ),
+                      if (s.downPayment > 0)
+                        _saleInfoChip(
+                          '✅ ${fmt.format(s.downPayment)}đ',
+                          Colors.green.shade100,
+                        ),
+                      if (remain > 0)
+                        _saleInfoChip(
+                          '⚠️ Nợ ${fmt.format(remain)}đ',
+                          Colors.red.shade100,
+                        ),
+                      _saleInfoChip(
+                        '💳 ${s.paymentMethod}',
+                        _getPayColor(s.paymentMethod).withAlpha(40),
+                      ),
+                      _saleInfoChip(
+                        '👤 ${s.sellerName}',
+                        Colors.purple.shade100,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _repairStatusLabel(int status) {
+    switch (status) {
+      case 1:
+        return 'ĐÃ NHẬN';
+      case 2:
+        return 'ĐANG SỬA';
+      case 3:
+        return 'ĐÃ XONG';
+      case 4:
+        return 'ĐÃ GIAO';
+      default:
+        return 'KHÁC';
+    }
+  }
+
+  Color _repairStatusColor(int status) {
+    switch (status) {
+      case 1:
+        return Colors.blue;
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.green;
+      case 4:
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getPayColor(String m) {
+    if (m.contains("TIỀN MẶT")) return AppColors.success;
+    if (m.contains("CHUYỂN KHOẢN")) return AppColors.primary;
+    if (m.contains("TRẢ GÓP")) return AppColors.warning;
+    return AppColors.error;
+  }
+
+  Widget _infoChip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: AppTextStyles.caption.fontSize,
+          fontWeight: FontWeight.w600,
         ),
-        subtitle: Text(
-          "KH: ${list[i].customerName} | ${NumberFormat('#,###').format(list[i].totalPrice)} đ",
-        ),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => SaleDetailView(sale: list[i])),
+      ),
+    );
+  }
+
+  Widget _saleInfoChip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: AppTextStyles.caption.fontSize,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -2286,8 +2563,8 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.calendar_today, color: Colors.purple),
-                        SizedBox(width: 8),
+                        const Icon(Icons.calendar_today, color: Colors.purple),
+                        const SizedBox(width: 8),
                         Text(
                           "Ngày làm việc: Thứ 2 - Thứ 7",
                           style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),

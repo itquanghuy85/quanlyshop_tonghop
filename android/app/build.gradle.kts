@@ -50,8 +50,32 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            // PRODUCTION OPTIMIZATIONS
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            // Disable debug logging in release
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
+        }
+        debug {
             isMinifyEnabled = false
             isShrinkResources = false
+        }
+    }
+
+    // Split APKs by ABI - ONLY for APK builds, NOT for App Bundle
+    // App Bundle handles this automatically via Play Store
+    splits {
+        abi {
+            isEnable = false  // Disable for bundle, enable for APK
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = true
         }
     }
 }

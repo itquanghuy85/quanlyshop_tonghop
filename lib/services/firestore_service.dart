@@ -182,6 +182,7 @@ class FirestoreService {
       final docId = r.firestoreId ?? "rep_${r.createdAt}_${r.phone}";
       final docRef = _db.collection('repairs').doc(docId);
       Map<String, dynamic> data = r.toMap();
+      data['updatedAt'] = FieldValue.serverTimestamp();
       data['shopId'] = shopId;
       data['firestoreId'] = docRef.id;
       // Mã hóa dữ liệu nhạy cảm trước khi upload
@@ -212,11 +213,13 @@ class FirestoreService {
         debugPrint('❌ upsertRepair: MoneyValidationService failed: $e');
         return;
       }
-      final data = EncryptionService.encryptMap(r.toMap());
+      final data = r.toMap();
+      data['updatedAt'] = FieldValue.serverTimestamp();
+      final encryptedData = EncryptionService.encryptMap(data);
       await _db
           .collection('repairs')
           .doc(r.firestoreId)
-          .set(data, SetOptions(merge: true));
+          .set(encryptedData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsertRepair error: $e');
     }
@@ -226,6 +229,7 @@ class FirestoreService {
     try {
       await _db.collection('repairs').doc(firestoreId).update({
         'deleted': true,
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
       debugPrint('Firestore deleteRepair error: $e');

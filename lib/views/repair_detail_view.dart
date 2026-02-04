@@ -34,6 +34,8 @@ import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import 'parts_inventory_view.dart';
 import 'repair_partner_view.dart';
+import 'repair_invoice_template_view.dart';
+import 'repair_invoice_preview_view.dart';
 
 class RepairDetailView extends StatefulWidget {
   final Repair repair;
@@ -979,6 +981,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           operation: SyncOperation.update,
           data: r.toMap(),
         );
+
+        // Đẩy sync ngay để trạng thái/lệnh lưu phản chiếu lên thiết bị khác
+        // ignore: unawaited_futures
+        SyncOrchestrator().syncAll();
       }
 
       // Update debt if payment method is debt and repair is delivered
@@ -1649,8 +1655,37 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             icon: const Icon(Icons.share_rounded, color: Colors.white),
           ),
           IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RepairInvoicePreviewView(
+                    repair: r,
+                    shopInfo: {
+                      'shopName': _shopName,
+                      'shopAddr': _shopAddr,
+                      'shopPhone': _shopPhone,
+                    },
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.preview, color: Colors.white),
+          ),
+          IconButton(
             onPressed: _printReceipt,
             icon: const Icon(Icons.print_rounded, color: Colors.white),
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const RepairInvoiceTemplateView(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.design_services, color: Colors.white),
           ),
         ],
       ),
@@ -3047,7 +3082,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       decoration: const InputDecoration(
                         labelText: "Đối tác (tùy chọn)",
                       ),
-                      value: selectedPartner,
+                      initialValue: selectedPartner,
                       items: [
                         const DropdownMenuItem(
                           value: null,
@@ -3068,7 +3103,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         labelText: "Phương thức TT đối tác *",
                         prefixIcon: Icon(Icons.payment, size: 20),
                       ),
-                      value: selectedPaymentMethod,
+                      initialValue: selectedPaymentMethod,
                       items: paymentMethods
                           .map(
                             (m) => DropdownMenuItem(value: m, child: Text(m)),

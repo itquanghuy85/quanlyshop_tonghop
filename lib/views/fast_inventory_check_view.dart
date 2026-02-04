@@ -26,6 +26,8 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     formats: [BarcodeFormat.all],
   );
 
+  double _zoomScale = 0.0; // 0.0 - 1.0 (platform dependent)
+
   // Inventory data
   List<Product> _expectedPhones = [];
   List<Product> _expectedAccessories = [];
@@ -75,6 +77,17 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   // Delay trước khi bắt đầu scan (2 giây để user chuẩn bị)
   bool _isScanReady = false;
   DateTime? _scanStartTime;
+
+  Future<void> _setZoom(double value) async {
+    final clamped = value.clamp(0.0, 1.0);
+    if (clamped == _zoomScale) return;
+    setState(() => _zoomScale = clamped);
+    try {
+      await _scannerController.setZoomScale(clamped);
+    } catch (_) {
+      // Ignore if device does not support zoom
+    }
+  }
 
   @override
   void initState() {
@@ -1086,9 +1099,90 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                   child: Stack(
                     children: [
                       _isScanning
-                          ? MobileScanner(
-                              controller: _scannerController,
-                              onDetect: _onQRDetected,
+                          ? LayoutBuilder(
+                              builder: (context, constraints) {
+                                final scanWindow = Rect.fromCenter(
+                                  center: Offset(
+                                    constraints.maxWidth / 2,
+                                    constraints.maxHeight / 2,
+                                  ),
+                                  width: constraints.maxWidth * 0.72,
+                                  height: constraints.maxHeight * 0.38,
+                                );
+
+                                return Stack(
+                                  children: [
+                                    MobileScanner(
+                                      controller: _scannerController,
+                                      onDetect: _onQRDetected,
+                                      scanWindow: scanWindow,
+                                    ),
+                                    Positioned.fromRect(
+                                      rect: scanWindow,
+                                      child: IgnorePointer(
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: Colors.greenAccent,
+                                              width: 2,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 12,
+                                      bottom: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.6),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              onPressed: () => _setZoom(
+                                                (_zoomScale + 0.1).clamp(0.0, 1.0),
+                                              ),
+                                              icon: const Icon(Icons.add),
+                                              color: Colors.white,
+                                              tooltip: 'Zoom +',
+                                            ),
+                                            SizedBox(
+                                              height: 120,
+                                              child: RotatedBox(
+                                                quarterTurns: 3,
+                                                child: Slider(
+                                                  value: _zoomScale,
+                                                  min: 0.0,
+                                                  max: 1.0,
+                                                  onChanged: (v) => _setZoom(v),
+                                                  activeColor: Colors.white,
+                                                  inactiveColor:
+                                                      Colors.white24,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: () => _setZoom(
+                                                (_zoomScale - 0.1).clamp(0.0, 1.0),
+                                              ),
+                                              icon: const Icon(Icons.remove),
+                                              color: Colors.white,
+                                              tooltip: 'Zoom -',
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             )
                           : Center(
                               child: Column(

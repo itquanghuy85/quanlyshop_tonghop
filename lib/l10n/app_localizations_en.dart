@@ -15,7 +15,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get login => 'Login';
 
   @override
-  String get logout => 'Logout';
+  String get logout => 'LOGOUT';
 
   @override
   String get settings => 'Settings';
@@ -66,7 +66,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get parts => 'Parts';
 
   @override
-  String get sales => 'Sales';
+  String get sales => 'sales';
 
   @override
   String get customers => 'Customers';
@@ -126,13 +126,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboard => 'DASHBOARD';
 
   @override
-  String get repair => 'REPAIR';
+  String get repair => 'repair';
 
   @override
   String get warranty => 'WARRANTY';
 
   @override
-  String get printer => 'PRINTER';
+  String get printer => 'Printer';
 
   @override
   String get auditLog => 'AUDIT LOG';
@@ -147,7 +147,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get payroll => 'PAYROLL';
 
   @override
-  String get debt => 'DEBT';
+  String get debt => 'Debt';
 
   @override
   String get quickActions => 'QUICK ACCESS';
@@ -237,7 +237,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quickStats => 'Quick stats';
 
   @override
-  String get pendingRepairs => 'In progress';
+  String get pendingRepairs => 'Pending repairs';
 
   @override
   String get completedToday => 'Done/Delivered today';
@@ -393,7 +393,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appDescription => 'Phone repair shop management';
 
   @override
-  String get version => 'Version 10.0.0';
+  String get version => 'Version 10.0.1';
 
   @override
   String get versionNumber => '2.6.0';
@@ -998,7 +998,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get uploadingData => 'Syncing data...';
 
   @override
-  String get downloadSuccess => 'All shop data downloaded!';
+  String get downloadSuccess => 'Shop data downloaded successfully!';
 
   @override
   String get uploadSuccess => 'Data synced to cloud!';
@@ -2063,6 +2063,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shopDataDownloaded => 'Shop data downloaded!';
 
   @override
+  String get quickAccess => 'QUICK ACCESS';
+
+  @override
+  String get salesOrder => 'Sales';
+
+  @override
+  String get salesOrderList => 'List';
+
+  @override
+  String get repairOrderTitle => 'Repairs';
+
+  @override
+  String get repairOrderList => 'Repair order list';
+
+  @override
   String get pendingStockShort => 'Pending Stock';
 
   @override
@@ -2138,9 +2153,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createNewRepairOrder => 'CREATE NEW REPAIR ORDER';
 
   @override
-  String get repairOrderList => 'Repair order list';
-
-  @override
   String get viewSearchTrackRepairs => 'View, search and track all repair orders.';
 
   @override
@@ -2153,10 +2165,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stockInNew => 'STOCK IN NEW';
 
   @override
+  String get stockInNewGuide => 'Stock in with full information:\n\n✅ Support: Phones, Accessories, Parts\n✅ Save temp: Input when info is incomplete\n✅ Confirm: Stock officially enters inventory\n\n📌 Use when: Inputting new stock from supplier, need full IMEI/SKU, cost price, supplier...';
+
+  @override
   String get fullInformation => 'Full information';
 
   @override
+  String get quickStockInGuide => 'Super fast stock in - just scan:\n\n⚡ Scan barcode/QR continuously\n⚡ Auto-fill info from library\n⚡ Suitable for large quantities\n\n📌 Use when: Quick input of accessories, parts already in system.';
+
+  @override
   String get continuousScan => 'Continuous scan';
+
+  @override
+  String get checkInventoryGuide => 'Check inventory by scanning:\n\n🔍 Scan QR/Barcode to check stock\n🔍 Compare actual vs system quantity\n🔍 Record discrepancies\n\n📌 Use when: Periodic inventory check, stock reconciliation.';
+
+  @override
+  String get contactOwnerForAccess => 'Contact shop owner for access';
 
   @override
   String get compareInventory => 'Compare inventory';
@@ -2312,7 +2336,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logoutConfirmTitle => 'Logout?';
 
   @override
-  String get logoutConfirmMessage => 'Are you sure you want to logout?';
+  String get logoutConfirmMessage => 'Are you sure you want to logout from this account?';
 
   @override
   String get checkingSync => 'Checking sync...';
@@ -2327,14 +2351,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localCloudMatch100 => 'Local and Cloud match 100%';
 
   @override
-  String get recheckingSync => 'Rechecking sync...';
+  String get recheckingSync => '🔄 Rechecking...';
 
   @override
   String get needsDataSync => 'Needs data sync';
 
   @override
   String recordsNotSynced(int count) {
-    return '$count records not synced. Tap to open Sync Center.';
+    return 'records not synced. Tap to open Sync Center.';
   }
 
   @override
@@ -2353,6 +2377,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get productsInStock => 'Products in stock';
+
+  @override
+  String get repairOrdersDataItem => 'Repair orders';
+
+  @override
+  String get saleOrdersDataItem => 'Sale orders';
+
+  @override
+  String get debtsAndExpensesDataItem => 'Debts & Expenses';
+
+  @override
+  String get customersAndSuppliersDataItem => 'Customers & Suppliers';
+
+  @override
+  String get fromCloudToThisDevice => 'from cloud to this device.';
+
+  @override
+  String get onlyDownloadThisShopData => 'Only download this shop\'s data, won\'t affect others.';
+
+  @override
+  String get processMayTakeFewMinutes => 'Process may take a few minutes depending on data size.';
+
+  @override
+  String downloadError(String error) {
+    return 'Error: $error';
+  }
 
   @override
   String get dataFullySynced => 'Data fully synced';
@@ -2795,4 +2845,73 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goToSalaryTable => 'GO TO SALARY TABLE';
+
+  @override
+  String get staffListLabel => 'Staff\nList';
+
+  @override
+  String get viewAttendanceAllStaff => 'View attendance of all staff by day/month.';
+
+  @override
+  String get personalAttendanceDescription => 'Check-in/out and view personal attendance history.';
+
+  @override
+  String get usageGuide => 'Usage guide';
+
+  @override
+  String get cashClosingToday => 'CASH CLOSING TODAY';
+
+  @override
+  String get reportAndAnalysis => 'REPORTS & ANALYSIS';
+
+  @override
+  String get debtManagementInOut => 'Debt Management (In/Out)';
+
+  @override
+  String get financialReportLabel => 'Financial Report';
+
+  @override
+  String get summarizeAllTransactions => 'Summarize all income/expense transactions.';
+
+  @override
+  String get financialActivityLog => 'Financial Activity Log';
+
+  @override
+  String get trackAllIncomeExpenseActivities => 'Track all income/expense activities.';
+
+  @override
+  String get shopSettingsDescription => 'Information, logo, location and shop member management.';
+
+  @override
+  String get notificationSettingsDescription => 'Configure notification and alert settings.';
+
+  @override
+  String get printerSettingsDescription => 'Setup connection and print template design.';
+
+  @override
+  String get adminCenterDescription => 'Manage entire system for super admin.';
+
+  @override
+  String get aboutDeveloperDescription => 'Information about developer and application.';
+
+  @override
+  String get needSyncData => '⚠️ Need data sync';
+
+  @override
+  String get netProfitFormula => '= Income - Expense - Cost';
+
+  @override
+  String get viewDetailedGuideForEachFeature => 'View detailed guide for each feature in app';
+
+  @override
+  String get devicesExpiringWarranty => 'devices expiring warranty soon. View now!';
+
+  @override
+  String get dataSyncedFully => '✅ Data synced fully';
+
+  @override
+  String get localCloudMatched => 'Local and Cloud matched 100%';
+
+  @override
+  String get exitApp => 'Exit app?';
 }

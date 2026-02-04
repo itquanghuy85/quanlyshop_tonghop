@@ -580,40 +580,38 @@ class SyncService {
 
     // 7. Đồng bộ SHOPS (subscribe trực tiếp vào document, không query by shopId)
     // Collection 'shops' sử dụng document ID = shopId, không có field 'shopId'
-    if (shopId != null) {
-      final shopSub = _db.collection('shops').doc(shopId).snapshots().listen((
-        snapshot,
-      ) async {
-        if (!snapshot.exists) return;
-        final data = snapshot.data();
-        if (data == null) return;
+    final shopSub = _db.collection('shops').doc(shopId).snapshots().listen((
+      snapshot,
+    ) async {
+      if (!snapshot.exists) return;
+      final data = snapshot.data();
+      if (data == null) return;
 
-        try {
-          debugPrint("📡 Shop data changed for shopId: $shopId");
+      try {
+        debugPrint("📡 Shop data changed for shopId: $shopId");
 
-          // Cập nhật SharedPreferences để các màn hình khác có thể đọc
-          final prefs = await SharedPreferences.getInstance();
-          final shopName = data['name']?.toString() ?? '';
-          final shopAddress = data['address']?.toString() ?? '';
-          final shopPhone = data['phone']?.toString() ?? '';
+        // Cập nhật SharedPreferences để các màn hình khác có thể đọc
+        final prefs = await SharedPreferences.getInstance();
+        final shopName = data['name']?.toString() ?? '';
+        final shopAddress = data['address']?.toString() ?? '';
+        final shopPhone = data['phone']?.toString() ?? '';
 
-          await prefs.setString('shop_name', shopName);
-          await prefs.setString('shop_address', shopAddress);
-          await prefs.setString('shop_phone', shopPhone);
+        await prefs.setString('shop_name', shopName);
+        await prefs.setString('shop_address', shopAddress);
+        await prefs.setString('shop_phone', shopPhone);
 
-          debugPrint(
-            "✅ Synced shop info to SharedPreferences: $shopName, $shopAddress, $shopPhone",
-          );
+        debugPrint(
+          "✅ Synced shop info to SharedPreferences: $shopName, $shopAddress, $shopPhone",
+        );
 
-          // Trigger UI update
-          onDataChanged();
-        } catch (e) {
-          debugPrint("Lỗi sync shop $shopId: $e");
-        }
-      }, onError: (e) => debugPrint("Sync error in shops/$shopId: $e"));
-      _subscriptions.add(shopSub);
-    }
-
+        // Trigger UI update
+        onDataChanged();
+      } catch (e) {
+        debugPrint("Lỗi sync shop $shopId: $e");
+      }
+    }, onError: (e) => debugPrint("Sync error in shops/$shopId: $e"));
+    _subscriptions.add(shopSub);
+  
     // 8. Đồng bộ ATTENDANCE
     try {
       _subscribeToCollection(
@@ -1018,6 +1016,37 @@ class SyncService {
       debugPrint("Lỗi khởi tạo purchase_orders sync: $e");
     }
 
+    // 22. Đồng bộ PAYMENT INTENTS (Yêu cầu thanh toán)
+    // FIX: Thêm real-time sync cho payment_intents để 2 máy cùng thấy các giao dịch chờ thanh toán
+    try {
+      _subscribeToCollection(
+        collection: 'payment_intents',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deletePaymentIntentByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertPaymentIntent(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync payment_intent $docId: $e");
+          }
+        },
+        onBatchDone: () {
+          onDataChanged();
+          // Emit event để PaymentIntentService reload data
+          EventBus().emit('payment_intents_changed');
+        },
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo payment_intents sync: $e");
+    }
+
     // Mark as initialized
     _isInitialized = true;
 
@@ -1139,6 +1168,9 @@ class SyncService {
           break;
         case 'repair_parts':
           await db.deleteRepairPartByFirestoreId(firestoreId);
+          break;
+        case 'payment_intents':
+          await db.deletePaymentIntentByFirestoreId(firestoreId);
           break;
       }
       debugPrint(
@@ -1625,6 +1657,100 @@ class SyncService {
         debugPrint("Lỗi sync repair partners collection: $e");
       }
 
+      // Đồng bộ Supplier Payments
+      try {
+        final supplierPayments = await dbHelper.getSupplierPaymentsForSync();
+        debugPrint(
+          "syncAllToCloud: có ${supplierPayments.length} supplier payments cần kiểm tra sync",
+        );
+        if (supplierPayments.isNotEmpty) {
+          final WriteBatch supplierPaymentBatch = _db.batch();
+          for (var paymentMap in supplierPayments) {
+            final firestoreId = paymentMap['firestoreId'];
+            final isSynced =
+                paymentMap['isSynced'] == 1 || paymentMap['isSynced'] == true;
+            if (firestoreId != null &&
+                firestoreId.toString().isNotEmpty &&
+                isSynced) {
+              continue;
+            }
+
+            try {
+              final data = Map<String, dynamic>.from(paymentMap);
+              data['shopId'] = shopId;
+              data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
+              data.remove('id');
+
+              final docId = firestoreId ??
+                  "sup_pay_${data['paidAt']}_${data['supplierId'] ?? 'sup'}";
+              supplierPaymentBatch.set(
+                _db.collection('supplier_payments').doc(docId),
+                data,
+                SetOptions(merge: true),
+              );
+
+              await dbHelper.updateSupplierPayment(
+                paymentMap['id'],
+                {'firestoreId': docId, 'isSynced': 1},
+              );
+            } catch (e) {
+              debugPrint("Lỗi sync supplier payment ${paymentMap['id']}: $e");
+            }
+          }
+          await supplierPaymentBatch.commit();
+        }
+      } catch (e) {
+        debugPrint("Lỗi sync supplier payments collection: $e");
+      }
+
+      // Đồng bộ Repair Partner Payments
+      try {
+        final partnerPayments = await dbHelper.getRepairPartnerPaymentsForSync();
+        debugPrint(
+          "syncAllToCloud: có ${partnerPayments.length} repair partner payments cần kiểm tra sync",
+        );
+        if (partnerPayments.isNotEmpty) {
+          final WriteBatch partnerPaymentBatch = _db.batch();
+          for (var paymentMap in partnerPayments) {
+            final firestoreId = paymentMap['firestoreId'];
+            final isSynced =
+                paymentMap['isSynced'] == 1 || paymentMap['isSynced'] == true;
+            if (firestoreId != null &&
+                firestoreId.toString().isNotEmpty &&
+                isSynced) {
+              continue;
+            }
+
+            try {
+              final data = Map<String, dynamic>.from(paymentMap);
+              data['shopId'] = shopId;
+              data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
+              data.remove('id');
+
+              final docId = firestoreId ??
+                  "part_pay_${data['paidAt']}_${data['partnerId'] ?? 'partner'}";
+              partnerPaymentBatch.set(
+                _db.collection('repair_partner_payments').doc(docId),
+                data,
+                SetOptions(merge: true),
+              );
+
+              await dbHelper.updateRepairPartnerPayment(
+                paymentMap['id'],
+                {'firestoreId': docId, 'isSynced': 1},
+              );
+            } catch (e) {
+              debugPrint(
+                "Lỗi sync repair partner payment ${paymentMap['id']}: $e",
+              );
+            }
+          }
+          await partnerPaymentBatch.commit();
+        }
+      } catch (e) {
+        debugPrint("Lỗi sync repair partner payments collection: $e");
+      }
+
       // Đồng bộ Debts (Công nợ)
       try {
         final debts = await dbHelper.getAllDebts();
@@ -1786,6 +1912,51 @@ class SyncService {
         debugPrint("Lỗi sync repair parts collection: $e");
       }
 
+      // Đồng bộ Payment Intents (Yêu cầu thanh toán)
+      // FIX: Thêm sync cho payment_intents để 2 máy cùng thấy các giao dịch chờ thanh toán
+      try {
+        final paymentIntents = await dbHelper.getPaymentIntentsForSync();
+        debugPrint(
+          "syncAllToCloud: có ${paymentIntents.length} payment intents cần sync",
+        );
+        if (paymentIntents.isNotEmpty) {
+          final WriteBatch intentBatch = _db.batch();
+          for (var intentMap in paymentIntents) {
+            final firestoreId = intentMap['firestoreId'];
+            final isSynced =
+                intentMap['isSynced'] == 1 || intentMap['isSynced'] == true;
+            if (firestoreId != null &&
+                firestoreId.toString().isNotEmpty &&
+                isSynced) {
+              continue;
+            }
+
+            try {
+              final data = Map<String, dynamic>.from(intentMap);
+              data['shopId'] = shopId;
+              data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
+              final localId = data['id'];
+              data.remove('id');
+
+              final docId = firestoreId ??
+                  "pi_${data['intentId'] ?? data['createdAt']}_${data['type'] ?? 'unknown'}";
+              intentBatch.set(
+                _db.collection('payment_intents').doc(docId),
+                data,
+                SetOptions(merge: true),
+              );
+
+              await dbHelper.updatePaymentIntentSynced(localId, docId);
+            } catch (e) {
+              debugPrint("Lỗi sync payment intent ${intentMap['id']}: $e");
+            }
+          }
+          await intentBatch.commit();
+        }
+      } catch (e) {
+        debugPrint("Lỗi sync payment intents collection: $e");
+      }
+
       debugPrint("Đã hoàn thành đồng bộ toàn bộ dữ liệu lên Cloud.");
     } catch (e) {
       debugPrint("Lỗi syncAllToCloud: $e");
@@ -1872,6 +2043,7 @@ class SyncService {
         'supplier_import_history',
         'supplier_product_prices',
         'audit_logs', // FIX: Thêm để device mới download được lịch sử thao tác
+        'payment_intents', // FIX: Thêm để đồng bộ các yêu cầu thanh toán giữa các máy
       ];
       // Lưu ý: 'users' và 'shops' không có shopId field nên không tải ở đây
 
@@ -1972,6 +2144,8 @@ class SyncService {
                     data['targetType'] ?? data['entityType'] ?? '';
                 data['targetId'] = data['targetId'] ?? data['entityId'] ?? '';
                 await db.upsertAuditLog(data);
+              } else if (col == 'payment_intents') {
+                await db.upsertPaymentIntent(data);
               }
               successCount++;
             } catch (e) {

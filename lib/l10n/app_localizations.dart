@@ -110,7 +110,7 @@ abstract class AppLocalizations {
   /// No description provided for @logout.
   ///
   /// In en, this message translates to:
-  /// **'Logout'**
+  /// **'LOGOUT'**
   String get logout;
 
   /// No description provided for @settings.
@@ -212,7 +212,7 @@ abstract class AppLocalizations {
   /// No description provided for @sales.
   ///
   /// In en, this message translates to:
-  /// **'Sales'**
+  /// **'sales'**
   String get sales;
 
   /// No description provided for @customers.
@@ -332,7 +332,7 @@ abstract class AppLocalizations {
   /// No description provided for @repair.
   ///
   /// In en, this message translates to:
-  /// **'REPAIR'**
+  /// **'repair'**
   String get repair;
 
   /// No description provided for @warranty.
@@ -344,7 +344,7 @@ abstract class AppLocalizations {
   /// No description provided for @printer.
   ///
   /// In en, this message translates to:
-  /// **'PRINTER'**
+  /// **'Printer'**
   String get printer;
 
   /// No description provided for @auditLog.
@@ -374,7 +374,7 @@ abstract class AppLocalizations {
   /// No description provided for @debt.
   ///
   /// In en, this message translates to:
-  /// **'DEBT'**
+  /// **'Debt'**
   String get debt;
 
   /// No description provided for @quickActions.
@@ -554,7 +554,7 @@ abstract class AppLocalizations {
   /// No description provided for @pendingRepairs.
   ///
   /// In en, this message translates to:
-  /// **'In progress'**
+  /// **'Pending repairs'**
   String get pendingRepairs;
 
   /// No description provided for @completedToday.
@@ -866,7 +866,7 @@ abstract class AppLocalizations {
   /// No description provided for @version.
   ///
   /// In en, this message translates to:
-  /// **'Version 10.0.0'**
+  /// **'Version 10.0.1'**
   String get version;
 
   /// No description provided for @versionNumber.
@@ -2048,7 +2048,7 @@ abstract class AppLocalizations {
   /// No description provided for @downloadSuccess.
   ///
   /// In en, this message translates to:
-  /// **'All shop data downloaded!'**
+  /// **'Shop data downloaded successfully!'**
   String get downloadSuccess;
 
   /// No description provided for @uploadSuccess.
@@ -4091,6 +4091,36 @@ abstract class AppLocalizations {
   /// **'Shop data downloaded!'**
   String get shopDataDownloaded;
 
+  /// No description provided for @quickAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'QUICK ACCESS'**
+  String get quickAccess;
+
+  /// No description provided for @salesOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales'**
+  String get salesOrder;
+
+  /// No description provided for @salesOrderList.
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get salesOrderList;
+
+  /// No description provided for @repairOrderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Repairs'**
+  String get repairOrderTitle;
+
+  /// No description provided for @repairOrderList.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair order list'**
+  String get repairOrderList;
+
   /// No description provided for @pendingStockShort.
   ///
   /// In en, this message translates to:
@@ -4241,12 +4271,6 @@ abstract class AppLocalizations {
   /// **'CREATE NEW REPAIR ORDER'**
   String get createNewRepairOrder;
 
-  /// No description provided for @repairOrderList.
-  ///
-  /// In en, this message translates to:
-  /// **'Repair order list'**
-  String get repairOrderList;
-
   /// No description provided for @viewSearchTrackRepairs.
   ///
   /// In en, this message translates to:
@@ -4271,17 +4295,41 @@ abstract class AppLocalizations {
   /// **'STOCK IN NEW'**
   String get stockInNew;
 
+  /// No description provided for @stockInNewGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock in with full information:\n\n✅ Support: Phones, Accessories, Parts\n✅ Save temp: Input when info is incomplete\n✅ Confirm: Stock officially enters inventory\n\n📌 Use when: Inputting new stock from supplier, need full IMEI/SKU, cost price, supplier...'**
+  String get stockInNewGuide;
+
   /// No description provided for @fullInformation.
   ///
   /// In en, this message translates to:
   /// **'Full information'**
   String get fullInformation;
 
+  /// No description provided for @quickStockInGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Super fast stock in - just scan:\n\n⚡ Scan barcode/QR continuously\n⚡ Auto-fill info from library\n⚡ Suitable for large quantities\n\n📌 Use when: Quick input of accessories, parts already in system.'**
+  String get quickStockInGuide;
+
   /// No description provided for @continuousScan.
   ///
   /// In en, this message translates to:
   /// **'Continuous scan'**
   String get continuousScan;
+
+  /// No description provided for @checkInventoryGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Check inventory by scanning:\n\n🔍 Scan QR/Barcode to check stock\n🔍 Compare actual vs system quantity\n🔍 Record discrepancies\n\n📌 Use when: Periodic inventory check, stock reconciliation.'**
+  String get checkInventoryGuide;
+
+  /// No description provided for @contactOwnerForAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact shop owner for access'**
+  String get contactOwnerForAccess;
 
   /// No description provided for @compareInventory.
   ///
@@ -4592,7 +4640,7 @@ abstract class AppLocalizations {
   /// No description provided for @logoutConfirmMessage.
   ///
   /// In en, this message translates to:
-  /// **'Are you sure you want to logout?'**
+  /// **'Are you sure you want to logout from this account?'**
   String get logoutConfirmMessage;
 
   /// No description provided for @checkingSync.
@@ -4622,7 +4670,7 @@ abstract class AppLocalizations {
   /// No description provided for @recheckingSync.
   ///
   /// In en, this message translates to:
-  /// **'Rechecking sync...'**
+  /// **'🔄 Rechecking...'**
   String get recheckingSync;
 
   /// No description provided for @needsDataSync.
@@ -4634,7 +4682,7 @@ abstract class AppLocalizations {
   /// No description provided for @recordsNotSynced.
   ///
   /// In en, this message translates to:
-  /// **'{count} records not synced. Tap to open Sync Center.'**
+  /// **'records not synced. Tap to open Sync Center.'**
   String recordsNotSynced(int count);
 
   /// No description provided for @todayFinancialReport.
@@ -4666,6 +4714,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Products in stock'**
   String get productsInStock;
+
+  /// No description provided for @repairOrdersDataItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair orders'**
+  String get repairOrdersDataItem;
+
+  /// No description provided for @saleOrdersDataItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Sale orders'**
+  String get saleOrdersDataItem;
+
+  /// No description provided for @debtsAndExpensesDataItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Debts & Expenses'**
+  String get debtsAndExpensesDataItem;
+
+  /// No description provided for @customersAndSuppliersDataItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Customers & Suppliers'**
+  String get customersAndSuppliersDataItem;
+
+  /// No description provided for @fromCloudToThisDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'from cloud to this device.'**
+  String get fromCloudToThisDevice;
+
+  /// No description provided for @onlyDownloadThisShopData.
+  ///
+  /// In en, this message translates to:
+  /// **'Only download this shop\'s data, won\'t affect others.'**
+  String get onlyDownloadThisShopData;
+
+  /// No description provided for @processMayTakeFewMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'Process may take a few minutes depending on data size.'**
+  String get processMayTakeFewMinutes;
+
+  /// No description provided for @downloadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {error}'**
+  String downloadError(String error);
 
   /// No description provided for @dataFullySynced.
   ///
@@ -5518,6 +5614,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'GO TO SALARY TABLE'**
   String get goToSalaryTable;
+
+  /// No description provided for @staffListLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Staff\nList'**
+  String get staffListLabel;
+
+  /// No description provided for @viewAttendanceAllStaff.
+  ///
+  /// In en, this message translates to:
+  /// **'View attendance of all staff by day/month.'**
+  String get viewAttendanceAllStaff;
+
+  /// No description provided for @personalAttendanceDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Check-in/out and view personal attendance history.'**
+  String get personalAttendanceDescription;
+
+  /// No description provided for @usageGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage guide'**
+  String get usageGuide;
+
+  /// No description provided for @cashClosingToday.
+  ///
+  /// In en, this message translates to:
+  /// **'CASH CLOSING TODAY'**
+  String get cashClosingToday;
+
+  /// No description provided for @reportAndAnalysis.
+  ///
+  /// In en, this message translates to:
+  /// **'REPORTS & ANALYSIS'**
+  String get reportAndAnalysis;
+
+  /// No description provided for @debtManagementInOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Debt Management (In/Out)'**
+  String get debtManagementInOut;
+
+  /// No description provided for @financialReportLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial Report'**
+  String get financialReportLabel;
+
+  /// No description provided for @summarizeAllTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Summarize all income/expense transactions.'**
+  String get summarizeAllTransactions;
+
+  /// No description provided for @financialActivityLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Financial Activity Log'**
+  String get financialActivityLog;
+
+  /// No description provided for @trackAllIncomeExpenseActivities.
+  ///
+  /// In en, this message translates to:
+  /// **'Track all income/expense activities.'**
+  String get trackAllIncomeExpenseActivities;
+
+  /// No description provided for @shopSettingsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Information, logo, location and shop member management.'**
+  String get shopSettingsDescription;
+
+  /// No description provided for @notificationSettingsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure notification and alert settings.'**
+  String get notificationSettingsDescription;
+
+  /// No description provided for @printerSettingsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup connection and print template design.'**
+  String get printerSettingsDescription;
+
+  /// No description provided for @adminCenterDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage entire system for super admin.'**
+  String get adminCenterDescription;
+
+  /// No description provided for @aboutDeveloperDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Information about developer and application.'**
+  String get aboutDeveloperDescription;
+
+  /// No description provided for @needSyncData.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ Need data sync'**
+  String get needSyncData;
+
+  /// No description provided for @netProfitFormula.
+  ///
+  /// In en, this message translates to:
+  /// **'= Income - Expense - Cost'**
+  String get netProfitFormula;
+
+  /// No description provided for @viewDetailedGuideForEachFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'View detailed guide for each feature in app'**
+  String get viewDetailedGuideForEachFeature;
+
+  /// No description provided for @devicesExpiringWarranty.
+  ///
+  /// In en, this message translates to:
+  /// **'devices expiring warranty soon. View now!'**
+  String get devicesExpiringWarranty;
+
+  /// No description provided for @dataSyncedFully.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Data synced fully'**
+  String get dataSyncedFully;
+
+  /// No description provided for @localCloudMatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Local and Cloud matched 100%'**
+  String get localCloudMatched;
+
+  /// No description provided for @exitApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit app?'**
+  String get exitApp;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

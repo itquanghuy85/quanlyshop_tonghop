@@ -86,15 +86,6 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
 
     return PopScope(
       canPop: !_isProcessing,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop && !_isCompleted) {
-          // User backed out without completing - cancel the intent
-          PaymentIntentService.cancelIntent(
-            widget.intent.id,
-            reason: 'User backed out',
-          );
-        }
-      },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Thanh Toán'),
@@ -482,13 +473,7 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
   }
 
   void _handleCancel(BuildContext context) {
-    // Cancel the intent
-    PaymentIntentService.cancelIntent(
-      widget.intent.id,
-      reason: 'User cancelled',
-    );
-
-    // Return null to indicate cancellation
+    // Just exit without cancelling to avoid unintended auto-cancel
     Navigator.of(context).pop(null);
   }
 
