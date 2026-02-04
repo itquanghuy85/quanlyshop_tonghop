@@ -573,7 +573,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get customerName => 'Customer name';
 
   @override
-  String get phoneNumber => 'Phone Number';
+  String get phoneNumber => 'Phone number';
 
   @override
   String get customerAddress => 'CUSTOMER ADDRESS';
@@ -3264,4 +3264,96 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteRepairAction => 'DELETE REPAIR';
+
+  @override
+  String get orderPendingApproval => 'Order is pending approval from manager/owner';
+
+  @override
+  String deliveredDevice(String model, String customer, String warranty) {
+    return 'Delivered device $model to customer $customer. Warranty: $warranty';
+  }
+
+  @override
+  String repairOrderShare(String customer, String phone, String model, String price) {
+    return 'REPAIR ORDER - $customer - $phone - $model - $price';
+  }
+
+  @override
+  String statusUpdated(String status) {
+    return 'UPDATED: $status';
+  }
+
+  @override
+  String get orderWillBeSentForApproval => 'Order will be sent to manager for approval before delivery';
+
+  @override
+  String get sentDeliveryApprovalRequest => 'Sent delivery approval request';
+
+  @override
+  String approvedDelivery(String model, String customer, String warranty) {
+    return 'Approved delivery of $model to customer $customer. Warranty: $warranty';
+  }
+
+  @override
+  String get approvedAndCompletedDelivery => 'Approved and completed delivery';
+
+  @override
+  String get rejectedBackToRepairDone => 'Rejected - order returned to Repair Done status';
+
+  @override
+  String get editRepairAction => 'EDIT REPAIR';
+
+  @override
+  String get savedOrderChanges => 'SAVED ORDER CHANGES';
+
+  @override
+  String get orderHasParts2 => 'This order already has parts:';
+
+  @override
+  String addedPartsFromInventory(String parts) {
+    return 'Added parts from inventory: $parts\n(Cost already recorded when imported)';
+  }
+
+  @override
+  String get partsSupplier => 'Parts supplier';
+
+  @override
+  String addedPartsWithPayment(String method, String parts) {
+    return 'Added parts ($method): $parts';
+  }
+
+  @override
+  String get savedTechnicianNotes => 'Saved technician notes';
+
+  @override
+  String get phoneLabel => 'Phone';
+
+  @override
+  String get phoneRequired2 => 'Phone cannot be empty';
+
+  @override
+  String get addressLabel2 => 'Address';
+
+  @override
+  String get editButton => 'Edit';
+
+  @override
+  String partnerLabel(String name) {
+    return 'Partner: $name';
+  }
+
+  @override
+  String get orderPendingYourApproval => 'Order is pending your approval for delivery';
+
+  @override
+  String get waitingManagerApproval => 'Waiting for manager approval for delivery';
+
+  @override
+  String get repairDoneReadyForDelivery => 'Repair done - ready for delivery';
+
+  @override
+  String get repairingButton => 'REPAIRING';
+
+  @override
+  String get repairDoneButton => 'DONE';
 }

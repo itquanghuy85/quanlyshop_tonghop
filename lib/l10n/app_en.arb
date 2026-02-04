@@ -1531,5 +1531,69 @@
   "statusSelectMultiple": "STATUS (select multiple)",
   "timeFilter": "TIME",
   "partsWillReturn": "⚠️ Parts will be returned to inventory!",
-  "deleteRepairAction": "DELETE REPAIR"
+  "deleteRepairAction": "DELETE REPAIR",
+  "orderPendingApproval": "Order is pending approval from manager/owner",
+  "deliveredDevice": "Delivered device {model} to customer {customer}. Warranty: {warranty}",
+  "@deliveredDevice": {
+    "placeholders": {
+      "model": { "type": "String" },
+      "customer": { "type": "String" },
+      "warranty": { "type": "String" }
+    }
+  },
+  "repairOrderShare": "REPAIR ORDER - {customer} - {phone} - {model} - {price}",
+  "@repairOrderShare": {
+    "placeholders": {
+      "customer": { "type": "String" },
+      "phone": { "type": "String" },
+      "model": { "type": "String" },
+      "price": { "type": "String" }
+    }
+  },
+  "statusUpdated": "UPDATED: {status}",
+  "@statusUpdated": {
+    "placeholders": { "status": { "type": "String" } }
+  },
+  "orderWillBeSentForApproval": "Order will be sent to manager for approval before delivery",
+  "sentDeliveryApprovalRequest": "Sent delivery approval request",
+  "approvedDelivery": "Approved delivery of {model} to customer {customer}. Warranty: {warranty}",
+  "@approvedDelivery": {
+    "placeholders": {
+      "model": { "type": "String" },
+      "customer": { "type": "String" },
+      "warranty": { "type": "String" }
+    }
+  },
+  "approvedAndCompletedDelivery": "Approved and completed delivery",
+  "rejectedBackToRepairDone": "Rejected - order returned to Repair Done status",
+  "editRepairAction": "EDIT REPAIR",
+  "savedOrderChanges": "SAVED ORDER CHANGES",
+  "orderHasParts2": "This order already has parts:",
+  "addedPartsFromInventory": "Added parts from inventory: {parts}\n(Cost already recorded when imported)",
+  "@addedPartsFromInventory": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "partsSupplier": "Parts supplier",
+  "addedPartsWithPayment": "Added parts ({method}): {parts}",
+  "@addedPartsWithPayment": {
+    "placeholders": {
+      "method": { "type": "String" },
+      "parts": { "type": "String" }
+    }
+  },
+  "savedTechnicianNotes": "Saved technician notes",
+  "phoneLabel": "Phone",
+  "phoneRequired2": "Phone cannot be empty",
+  "addressLabel2": "Address",
+  "editButton": "Edit",
+  "partnerLabel": "Partner: {name}",
+  "@partnerLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "orderPendingYourApproval": "Order is pending your approval for delivery",
+  "waitingManagerApproval": "Waiting for manager approval for delivery",
+  "repairDoneReadyForDelivery": "Repair done - ready for delivery",
+  "repairingButton": "REPAIRING",
+  "repairDoneButton": "DONE",
+  "phoneNumber": "Phone number"
 }

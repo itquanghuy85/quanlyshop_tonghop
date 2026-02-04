@@ -3264,4 +3264,96 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get deleteRepairAction => 'XÓA ĐƠN SỬA';
+
+  @override
+  String get orderPendingApproval => 'Đơn đang chờ quản lý/chủ shop duyệt giao máy';
+
+  @override
+  String deliveredDevice(String model, String customer, String warranty) {
+    return 'Đã giao máy $model cho khách $customer. Bảo hành: $warranty';
+  }
+
+  @override
+  String repairOrderShare(String customer, String phone, String model, String price) {
+    return 'ĐƠN SỬA - $customer - $phone - $model - $price';
+  }
+
+  @override
+  String statusUpdated(String status) {
+    return 'ĐÃ CẬP NHẬT: $status';
+  }
+
+  @override
+  String get orderWillBeSentForApproval => 'Đơn sẽ được gửi cho quản lý duyệt trước khi hoàn tất giao máy';
+
+  @override
+  String get sentDeliveryApprovalRequest => 'Đã gửi yêu cầu duyệt giao máy';
+
+  @override
+  String approvedDelivery(String model, String customer, String warranty) {
+    return 'Đã duyệt giao máy $model cho khách $customer. Bảo hành: $warranty';
+  }
+
+  @override
+  String get approvedAndCompletedDelivery => 'Đã duyệt và hoàn tất giao máy';
+
+  @override
+  String get rejectedBackToRepairDone => 'Đã từ chối - đơn quay lại trạng thái Sửa xong';
+
+  @override
+  String get editRepairAction => 'SỬA ĐƠN SỬA';
+
+  @override
+  String get savedOrderChanges => 'ĐÃ LƯU THAY ĐỔI ĐƠN HÀNG';
+
+  @override
+  String get orderHasParts2 => 'Đơn này đã có phụ tùng:';
+
+  @override
+  String addedPartsFromInventory(String parts) {
+    return 'Đã thêm phụ tùng từ kho: $parts\n(Chi phí đã ghi nhận khi nhập kho)';
+  }
+
+  @override
+  String get partsSupplier => 'Nhà cung cấp phụ tùng';
+
+  @override
+  String addedPartsWithPayment(String method, String parts) {
+    return 'Đã thêm phụ tùng ($method): $parts';
+  }
+
+  @override
+  String get savedTechnicianNotes => 'Đã lưu ghi chú KTV';
+
+  @override
+  String get phoneLabel => 'SĐT';
+
+  @override
+  String get phoneRequired2 => 'SĐT không được trống';
+
+  @override
+  String get addressLabel2 => 'Địa chỉ';
+
+  @override
+  String get editButton => 'Sửa';
+
+  @override
+  String partnerLabel(String name) {
+    return 'ĐT: $name';
+  }
+
+  @override
+  String get orderPendingYourApproval => 'Đơn đang chờ bạn duyệt giao máy';
+
+  @override
+  String get waitingManagerApproval => 'Đang chờ quản lý duyệt giao máy';
+
+  @override
+  String get repairDoneReadyForDelivery => 'Đã sửa xong - sẵn sàng giao máy';
+
+  @override
+  String get repairingButton => 'ĐANG SỬA';
+
+  @override
+  String get repairDoneButton => 'ĐÃ XONG';
 }

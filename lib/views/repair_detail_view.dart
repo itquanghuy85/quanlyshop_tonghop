@@ -11,6 +11,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/app_localizations.dart';
 import '../models/repair_model.dart';
 import '../models/repair_service_model.dart';
 import '../models/repair_partner_model.dart';
@@ -55,6 +56,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   String _shopPhone = "";
   bool _hasPermission = false;
   List<RepairPartner> _partners = [];
+
+  AppLocalizations get loc => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -136,7 +139,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       if (!isManagerOrOwner) {
         if (r.pendingDeliveryApproval) {
           NotificationService.showSnackBar(
-            'Đơn đang chờ quản lý/chủ shop duyệt giao máy',
+            loc.orderPendingApproval,
             color: Colors.deepOrange,
           );
           return;
@@ -249,8 +252,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         action: "GIAO MÁY",
         type: "REPAIR",
         targetId: r.firestoreId,
-        desc:
-            "Đã giao máy ${r.model} cho khách ${r.customerName}. Bảo hành: $selectedWarranty",
+        desc: loc.deliveredDevice(r.model, r.customerName, selectedWarranty),
       );
 
       if (payMethod == "CÔNG NỢ") {
@@ -382,7 +384,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       final repairsAfter = await db.getAllRepairs();
       debugPrint('Repairs count after update: ${repairsAfter.length}');
       NotificationService.showSnackBar(
-        "ĐÃ CẬP NHẬT: ${_getStatusText(newStatus)}",
+        loc.statusUpdated(_getStatusText(newStatus)),
         color: AppColors.success,
       );
       EventBus().emit('repairs_changed');
@@ -393,8 +395,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           final user = FirebaseAuth.instance.currentUser;
           final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
           final key = r.firestoreId ?? "repair_${r.createdAt}";
-          final summary =
-              "ĐƠN SỬA - ${r.customerName} - ${r.phone} - ${r.model}";
+          final summary = loc.repairOrderShare(r.customerName, r.phone, r.model, '');
 
           String emoji = "";
           String statusMsg = "";
@@ -409,7 +410,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               break;
             case 3:
               emoji = "✔️";
-              statusMsg = "SỬA XONG";
+              statusMsg = loc.statusRepairDoneUpper;
               break;
           }
 
@@ -443,19 +444,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   String _getStatusText(int s, {bool pendingApproval = false}) {
     if (s == 3 && pendingApproval) {
-      return "CHỜ DUYỆT GIAO";
+      return loc.statusPendingApproval;
     }
     switch (s) {
       case 1:
-        return "TIẾP NHẬN";
+        return loc.statusReceivedUpper;
       case 2:
-        return "ĐANG SỬA";
+        return loc.statusRepairingUpper;
       case 3:
-        return "SỬA XONG";
+        return loc.statusRepairDoneUpper;
       case 4:
-        return "ĐÃ GIAO";
+        return loc.statusDeliveredUpper;
       default:
-        return "KHÁC";
+        return loc.statusOther;
     }
   }
 
@@ -511,7 +512,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Đơn sẽ được gửi cho quản lý duyệt trước khi hoàn tất giao máy',
+                        loc.orderWillBeSentForApproval,
                         style: AppTextStyles.caption.copyWith(
                           color: Colors.orange.shade700,
                         ),
@@ -653,7 +654,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
 
       NotificationService.showSnackBar(
-        "Đã gửi yêu cầu duyệt giao máy",
+        loc.sentDeliveryApprovalRequest,
         color: Colors.deepOrange,
       );
       EventBus().emit('repairs_changed');
@@ -872,14 +873,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         action: "DUYỆT GIAO MÁY",
         type: "REPAIR",
         targetId: r.firestoreId,
-        desc:
-            "Đã duyệt giao máy ${r.model} cho khách ${r.customerName}. Bảo hành: ${r.warranty}",
+        desc: loc.approvedDelivery(r.model, r.customerName, r.warranty),
       );
 
       // Chat notification
       final key = r.firestoreId ?? "repair_${r.createdAt}";
-      final summary =
-          "ĐƠN SỬA - ${r.customerName} - ${r.phone} - ${r.model} - ${MoneyUtils.formatCurrency(r.price)}đ";
+      final summary = loc.repairOrderShare(r.customerName, r.phone, r.model, "${MoneyUtils.formatCurrency(r.price)}đ");
       await FirestoreService.sendChat(
         message: "✅ ĐÃ DUYỆT GIAO MÁY: $summary",
         senderId: user?.uid ?? 'guest',
@@ -890,7 +889,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
 
       NotificationService.showSnackBar(
-        "Đã duyệt và hoàn tất giao máy",
+        loc.approvedAndCompletedDelivery,
         color: Colors.green,
       );
       EventBus().emit('repairs_changed');
@@ -940,7 +939,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
 
       NotificationService.showSnackBar(
-        "Đã từ chối - đơn quay lại trạng thái Sửa xong",
+        loc.rejectedBackToRepairDone,
         color: Colors.red,
       );
       EventBus().emit('repairs_changed');
@@ -965,7 +964,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       await db.logAction(
         userId: user?.uid ?? '0',
         userName: user?.email?.split('@').first.toUpperCase() ?? 'NV',
-        action: 'SỬA ĐƠN SỬA',
+        action: loc.editRepairAction,
         type: 'REPAIR',
         targetId: r.firestoreId,
         desc:
@@ -1020,7 +1019,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
 
       NotificationService.showSnackBar(
-        "ĐÃ LƯU THAY ĐỔI ĐƠN HÀNG",
+        loc.savedOrderChanges,
         color: AppColors.success,
       );
       EventBus().emit('repairs_changed');

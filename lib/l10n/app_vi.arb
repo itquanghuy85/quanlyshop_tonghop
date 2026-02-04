@@ -1531,5 +1531,69 @@
   "statusSelectMultiple": "TRẠNG THÁI (chọn nhiều)",
   "timeFilter": "THỜI GIAN",
   "partsWillReturn": "⚠️ Phụ tùng sẽ được hoàn trả về kho!",
-  "deleteRepairAction": "XÓA ĐƠN SỬA"
+  "deleteRepairAction": "XÓA ĐƠN SỬA",
+  "orderPendingApproval": "Đơn đang chờ quản lý/chủ shop duyệt giao máy",
+  "deliveredDevice": "Đã giao máy {model} cho khách {customer}. Bảo hành: {warranty}",
+  "@deliveredDevice": {
+    "placeholders": {
+      "model": { "type": "String" },
+      "customer": { "type": "String" },
+      "warranty": { "type": "String" }
+    }
+  },
+  "repairOrderShare": "ĐƠN SỬA - {customer} - {phone} - {model} - {price}",
+  "@repairOrderShare": {
+    "placeholders": {
+      "customer": { "type": "String" },
+      "phone": { "type": "String" },
+      "model": { "type": "String" },
+      "price": { "type": "String" }
+    }
+  },
+  "statusUpdated": "ĐÃ CẬP NHẬT: {status}",
+  "@statusUpdated": {
+    "placeholders": { "status": { "type": "String" } }
+  },
+  "orderWillBeSentForApproval": "Đơn sẽ được gửi cho quản lý duyệt trước khi hoàn tất giao máy",
+  "sentDeliveryApprovalRequest": "Đã gửi yêu cầu duyệt giao máy",
+  "approvedDelivery": "Đã duyệt giao máy {model} cho khách {customer}. Bảo hành: {warranty}",
+  "@approvedDelivery": {
+    "placeholders": {
+      "model": { "type": "String" },
+      "customer": { "type": "String" },
+      "warranty": { "type": "String" }
+    }
+  },
+  "approvedAndCompletedDelivery": "Đã duyệt và hoàn tất giao máy",
+  "rejectedBackToRepairDone": "Đã từ chối - đơn quay lại trạng thái Sửa xong",
+  "editRepairAction": "SỬA ĐƠN SỬA",
+  "savedOrderChanges": "ĐÃ LƯU THAY ĐỔI ĐƠN HÀNG",
+  "orderHasParts2": "Đơn này đã có phụ tùng:",
+  "addedPartsFromInventory": "Đã thêm phụ tùng từ kho: {parts}\n(Chi phí đã ghi nhận khi nhập kho)",
+  "@addedPartsFromInventory": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "partsSupplier": "Nhà cung cấp phụ tùng",
+  "addedPartsWithPayment": "Đã thêm phụ tùng ({method}): {parts}",
+  "@addedPartsWithPayment": {
+    "placeholders": {
+      "method": { "type": "String" },
+      "parts": { "type": "String" }
+    }
+  },
+  "savedTechnicianNotes": "Đã lưu ghi chú KTV",
+  "phoneLabel": "SĐT",
+  "phoneRequired2": "SĐT không được trống",
+  "addressLabel2": "Địa chỉ",
+  "editButton": "Sửa",
+  "partnerLabel": "ĐT: {name}",
+  "@partnerLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "orderPendingYourApproval": "Đơn đang chờ bạn duyệt giao máy",
+  "waitingManagerApproval": "Đang chờ quản lý duyệt giao máy",
+  "repairDoneReadyForDelivery": "Đã sửa xong - sẵn sàng giao máy",
+  "repairingButton": "ĐANG SỬA",
+  "repairDoneButton": "ĐÃ XONG",
+  "phoneNumber": "Số điện thoại"
 }

@@ -1226,7 +1226,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneNumber.
   ///
   /// In en, this message translates to:
-  /// **'Phone Number'**
+  /// **'Phone number'**
   String get phoneNumber;
 
   /// No description provided for @customerAddress.
@@ -6388,6 +6388,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'DELETE REPAIR'**
   String get deleteRepairAction;
+
+  /// No description provided for @orderPendingApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Order is pending approval from manager/owner'**
+  String get orderPendingApproval;
+
+  /// No description provided for @deliveredDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered device {model} to customer {customer}. Warranty: {warranty}'**
+  String deliveredDevice(String model, String customer, String warranty);
+
+  /// No description provided for @repairOrderShare.
+  ///
+  /// In en, this message translates to:
+  /// **'REPAIR ORDER - {customer} - {phone} - {model} - {price}'**
+  String repairOrderShare(String customer, String phone, String model, String price);
+
+  /// No description provided for @statusUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'UPDATED: {status}'**
+  String statusUpdated(String status);
+
+  /// No description provided for @orderWillBeSentForApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Order will be sent to manager for approval before delivery'**
+  String get orderWillBeSentForApproval;
+
+  /// No description provided for @sentDeliveryApprovalRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent delivery approval request'**
+  String get sentDeliveryApprovalRequest;
+
+  /// No description provided for @approvedDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved delivery of {model} to customer {customer}. Warranty: {warranty}'**
+  String approvedDelivery(String model, String customer, String warranty);
+
+  /// No description provided for @approvedAndCompletedDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved and completed delivery'**
+  String get approvedAndCompletedDelivery;
+
+  /// No description provided for @rejectedBackToRepairDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected - order returned to Repair Done status'**
+  String get rejectedBackToRepairDone;
+
+  /// No description provided for @editRepairAction.
+  ///
+  /// In en, this message translates to:
+  /// **'EDIT REPAIR'**
+  String get editRepairAction;
+
+  /// No description provided for @savedOrderChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'SAVED ORDER CHANGES'**
+  String get savedOrderChanges;
+
+  /// No description provided for @orderHasParts2.
+  ///
+  /// In en, this message translates to:
+  /// **'This order already has parts:'**
+  String get orderHasParts2;
+
+  /// No description provided for @addedPartsFromInventory.
+  ///
+  /// In en, this message translates to:
+  /// **'Added parts from inventory: {parts}\n(Cost already recorded when imported)'**
+  String addedPartsFromInventory(String parts);
+
+  /// No description provided for @partsSupplier.
+  ///
+  /// In en, this message translates to:
+  /// **'Parts supplier'**
+  String get partsSupplier;
+
+  /// No description provided for @addedPartsWithPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Added parts ({method}): {parts}'**
+  String addedPartsWithPayment(String method, String parts);
+
+  /// No description provided for @savedTechnicianNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved technician notes'**
+  String get savedTechnicianNotes;
+
+  /// No description provided for @phoneLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get phoneLabel;
+
+  /// No description provided for @phoneRequired2.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone cannot be empty'**
+  String get phoneRequired2;
+
+  /// No description provided for @addressLabel2.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get addressLabel2;
+
+  /// No description provided for @editButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get editButton;
+
+  /// No description provided for @partnerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Partner: {name}'**
+  String partnerLabel(String name);
+
+  /// No description provided for @orderPendingYourApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Order is pending your approval for delivery'**
+  String get orderPendingYourApproval;
+
+  /// No description provided for @waitingManagerApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for manager approval for delivery'**
+  String get waitingManagerApproval;
+
+  /// No description provided for @repairDoneReadyForDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair done - ready for delivery'**
+  String get repairDoneReadyForDelivery;
+
+  /// No description provided for @repairingButton.
+  ///
+  /// In en, this message translates to:
+  /// **'REPAIRING'**
+  String get repairingButton;
+
+  /// No description provided for @repairDoneButton.
+  ///
+  /// In en, this message translates to:
+  /// **'DONE'**
+  String get repairDoneButton;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
