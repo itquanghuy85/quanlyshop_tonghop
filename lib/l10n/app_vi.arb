@@ -1280,5 +1280,53 @@
   "localCloudMatched": "Local và Cloud đã khớp 100%",
   "recheckingSync": "🔄 Đang kiểm tra lại...",
   "exitApp": "Thoát ứng dụng?",
-  "exit": "THOÁT"
+  "exit": "THOÁT",
+  "emailAlreadyInUse": "Email này đã được đăng ký bởi người khác.",
+  "weakPassword": "Mật khẩu quá yếu, ít nhất 6 ký tự.",
+  "invalidEmailAddress": "Địa chỉ email không đúng định dạng.",
+  "networkError": "Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.",
+  "tooManyRequests": "Quá nhiều yêu cầu. Vui lòng thử lại sau.",
+  "pleaseEnterShopName": "Vui lòng nhập tên cửa hàng.",
+  "pleaseEnterFullName": "Vui lòng nhập họ và tên.",
+  "pleaseEnterRequiredFields": "Vui lòng điền các thông tin bắt buộc.",
+  "passwordMismatch": "Mật khẩu xác nhận không khớp.",
+  "invalidOrExpiredInviteCode": "Mã mời không chính xác hoặc đã hết hạn.",
+  "loadingShopData": "Đang tải dữ liệu shop...",
+  "switchedToShop": "Đã chuyển sang shop: {shopName}",
+  "@switchedToShop": {
+    "placeholders": {
+      "shopName": {"type": "String"}
+    }
+  },
+  "errorSwitchingShop": "Lỗi khi chuyển shop: {error}",
+  "@errorSwitchingShop": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "onlySuperAdminCanDelete": "CHỈ SUPER ADMIN MỚI ĐƯỢC XÓA DỮ LIỆU SHOP!",
+  "dangerWarning": "⚠️ CẢNH BÁO NGUY HIỂM",
+  "deleteAllDataWarning": "Hành động này sẽ xóa sạch 100% dữ liệu Đơn hàng, Kho, Nợ và Nhật ký của Shop trên cả Đám mây và Máy này. KHÔNG THỂ KHÔI PHỤC!",
+  "typeToConfirm": "Nhập chữ 'XOA HET' để xác nhận:",
+  "deleteAllPlaceholder": "XOA HET",
+  "confirmDeleteAll": "XÁC NHẬN XÓA SẠCH",
+  "shopDataDeleted": "ĐÃ XÓA SẠCH DỮ LIỆU SHOP!",
+  "errorDeletingCloudData": "LỖI KHI XÓA DỮ LIỆU ĐÁM MÂY: {error}",
+  "@errorDeletingCloudData": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "userGuideSection": "📚 Hướng dẫn sử dụng",
+  "userGuideTitle": "Hướng dẫn sử dụng",
+  "userGuideDesc": "Hướng dẫn chi tiết từng bước cho mọi tính năng trong app.",
+  "inventoryFeature": "📦 Kho hàng",
+  "salesFeature": "🛒 Bán hàng",
+  "repairFeature": "🔧 Sửa chữa",
+  "reportFeature": "📊 Báo cáo",
+  "reviewUserGuide": "Xem lại hướng dẫn sử dụng",
+  "resetGuidesDesc": "Reset để hiển thị lại các hướng dẫn lần đầu",
+  "guidesReset": "Đã reset! Hướng dẫn sẽ hiển thị lại khi vào các màn hình.",
+  "changedToVietnamese": "Đã chuyển sang Tiếng Việt",
+  "changedToEnglish": "Changed to English"
 }

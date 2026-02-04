@@ -2060,7 +2060,7 @@ abstract class AppLocalizations {
   /// No description provided for @dangerWarning.
   ///
   /// In en, this message translates to:
-  /// **'DANGER WARNING'**
+  /// **'⚠️ DANGER WARNING'**
   String get dangerWarning;
 
   /// No description provided for @confirmResetShop.
@@ -3224,7 +3224,7 @@ abstract class AppLocalizations {
   /// No description provided for @typeToConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Type \'XOA HET\' to confirm:'**
+  /// **'Type \'DELETE ALL\' to confirm:'**
   String get typeToConfirm;
 
   /// No description provided for @resetCloudError.
@@ -5752,6 +5752,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exit app?'**
   String get exitApp;
+
+  /// No description provided for @emailAlreadyInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'This email is already registered by someone else.'**
+  String get emailAlreadyInUse;
+
+  /// No description provided for @weakPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password too weak, at least 6 characters required.'**
+  String get weakPassword;
+
+  /// No description provided for @invalidEmailAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid email address format.'**
+  String get invalidEmailAddress;
+
+  /// No description provided for @networkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Network connection error. Please check your internet and try again.'**
+  String get networkError;
+
+  /// No description provided for @tooManyRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Please try again later.'**
+  String get tooManyRequests;
+
+  /// No description provided for @pleaseEnterShopName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter shop name.'**
+  String get pleaseEnterShopName;
+
+  /// No description provided for @pleaseEnterFullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter full name.'**
+  String get pleaseEnterFullName;
+
+  /// No description provided for @pleaseEnterRequiredFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Please fill in required fields.'**
+  String get pleaseEnterRequiredFields;
+
+  /// No description provided for @passwordMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Password confirmation does not match.'**
+  String get passwordMismatch;
+
+  /// No description provided for @invalidOrExpiredInviteCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite code is incorrect or expired.'**
+  String get invalidOrExpiredInviteCode;
+
+  /// No description provided for @deleteAllDataWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This action will delete 100% of Orders, Inventory, Debts and Logs of the Shop on both Cloud and this Device. CANNOT BE RECOVERED!'**
+  String get deleteAllDataWarning;
+
+  /// No description provided for @deleteAllPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'DELETE ALL'**
+  String get deleteAllPlaceholder;
+
+  /// No description provided for @confirmDeleteAll.
+  ///
+  /// In en, this message translates to:
+  /// **'CONFIRM DELETE ALL'**
+  String get confirmDeleteAll;
+
+  /// No description provided for @errorDeletingCloudData.
+  ///
+  /// In en, this message translates to:
+  /// **'ERROR DELETING CLOUD DATA: {error}'**
+  String errorDeletingCloudData(String error);
+
+  /// No description provided for @userGuideSection.
+  ///
+  /// In en, this message translates to:
+  /// **'📚 User Guide'**
+  String get userGuideSection;
+
+  /// No description provided for @userGuideTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'User Guide'**
+  String get userGuideTitle;
+
+  /// No description provided for @userGuideDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Detailed step-by-step guide for every feature in the app.'**
+  String get userGuideDesc;
+
+  /// No description provided for @inventoryFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'📦 Inventory'**
+  String get inventoryFeature;
+
+  /// No description provided for @salesFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'🛒 Sales'**
+  String get salesFeature;
+
+  /// No description provided for @repairFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'🔧 Repair'**
+  String get repairFeature;
+
+  /// No description provided for @reportFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'📊 Reports'**
+  String get reportFeature;
+
+  /// No description provided for @reviewUserGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Review User Guide'**
+  String get reviewUserGuide;
+
+  /// No description provided for @resetGuidesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to show first-time guides again'**
+  String get resetGuidesDesc;
+
+  /// No description provided for @guidesReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Done! Guides will show again when entering screens.'**
+  String get guidesReset;
+
+  /// No description provided for @changedToVietnamese.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed to Vietnamese'**
+  String get changedToVietnamese;
+
+  /// No description provided for @changedToEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed to English'**
+  String get changedToEnglish;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -1004,7 +1004,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get uploadSuccess => 'Data synced to cloud!';
 
   @override
-  String get dangerWarning => 'DANGER WARNING';
+  String get dangerWarning => '⚠️ DANGER WARNING';
 
   @override
   String get confirmResetShop => 'Type \'XOA HET\' to confirm';
@@ -1600,7 +1600,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetShopWarning => 'This action will permanently delete 100% of Orders, Inventory, Debts and Logs from both Cloud and this Device. CANNOT BE UNDONE!';
 
   @override
-  String get typeToConfirm => 'Type \'XOA HET\' to confirm:';
+  String get typeToConfirm => 'Type \'DELETE ALL\' to confirm:';
 
   @override
   String resetCloudError(String error) {
@@ -2914,4 +2914,84 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exitApp => 'Exit app?';
+
+  @override
+  String get emailAlreadyInUse => 'This email is already registered by someone else.';
+
+  @override
+  String get weakPassword => 'Password too weak, at least 6 characters required.';
+
+  @override
+  String get invalidEmailAddress => 'Invalid email address format.';
+
+  @override
+  String get networkError => 'Network connection error. Please check your internet and try again.';
+
+  @override
+  String get tooManyRequests => 'Too many requests. Please try again later.';
+
+  @override
+  String get pleaseEnterShopName => 'Please enter shop name.';
+
+  @override
+  String get pleaseEnterFullName => 'Please enter full name.';
+
+  @override
+  String get pleaseEnterRequiredFields => 'Please fill in required fields.';
+
+  @override
+  String get passwordMismatch => 'Password confirmation does not match.';
+
+  @override
+  String get invalidOrExpiredInviteCode => 'Invite code is incorrect or expired.';
+
+  @override
+  String get deleteAllDataWarning => 'This action will delete 100% of Orders, Inventory, Debts and Logs of the Shop on both Cloud and this Device. CANNOT BE RECOVERED!';
+
+  @override
+  String get deleteAllPlaceholder => 'DELETE ALL';
+
+  @override
+  String get confirmDeleteAll => 'CONFIRM DELETE ALL';
+
+  @override
+  String errorDeletingCloudData(String error) {
+    return 'ERROR DELETING CLOUD DATA: $error';
+  }
+
+  @override
+  String get userGuideSection => '📚 User Guide';
+
+  @override
+  String get userGuideTitle => 'User Guide';
+
+  @override
+  String get userGuideDesc => 'Detailed step-by-step guide for every feature in the app.';
+
+  @override
+  String get inventoryFeature => '📦 Inventory';
+
+  @override
+  String get salesFeature => '🛒 Sales';
+
+  @override
+  String get repairFeature => '🔧 Repair';
+
+  @override
+  String get reportFeature => '📊 Reports';
+
+  @override
+  String get reviewUserGuide => 'Review User Guide';
+
+  @override
+  String get resetGuidesDesc => 'Reset to show first-time guides again';
+
+  @override
+  String get guidesReset => 'Done! Guides will show again when entering screens.';
+
+  @override
+  String get changedToVietnamese => 'Changed to Vietnamese';
+
+  @override
+  String get changedToEnglish => 'Changed to English';
 }

@@ -10,9 +10,12 @@ import '../services/encryption_service.dart';
 import '../data/db_helper.dart';
 import '../services/sync_service.dart';
 import '../utils/app_info.dart';
+import '../services/first_time_guide_service.dart';
+import '../widgets/unified_sync_button.dart';
 import 'help_center_view.dart';
 import 'user_guide_view.dart';
-// Màn hình chọn shop cho super admin
+import 'shop_selector_view.dart';
+import 'staff_permissions_view.dart';
 
 class SettingsView extends StatefulWidget {
   final void Function(Locale)? setLocale;
@@ -23,6 +26,9 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
+  // Localization getter
+  AppLocalizations get loc => AppLocalizations.of(context)!;
+  
   String _role = 'user';
   bool _loading = true;
   late final Future<String> _versionFuture;
@@ -88,7 +94,7 @@ class _SettingsViewState extends State<SettingsView> {
 
     // Hiển thị loading
     NotificationService.showSnackBar(
-      "Đang tải dữ liệu shop...",
+      loc.loadingShopData,
       color: Colors.blue,
     );
 
@@ -115,13 +121,13 @@ class _SettingsViewState extends State<SettingsView> {
           shopId;
 
       NotificationService.showSnackBar(
-        "Đã chuyển sang shop: $shopName",
+        loc.switchedToShop(shopName),
         color: Colors.green,
       );
     } catch (e) {
       debugPrint('Error switching shop: $e');
       NotificationService.showSnackBar(
-        "Lỗi khi chuyển shop: $e",
+        loc.errorSwitchingShop(e.toString()),
         color: Colors.red,
       );
     }
@@ -189,7 +195,7 @@ class _SettingsViewState extends State<SettingsView> {
     // Chỉ super admin mới được xóa dữ liệu shop
     if (!UserService.isCurrentUserSuperAdmin()) {
       NotificationService.showSnackBar(
-        "CHỈ SUPER ADMIN MỚI ĐƯỢC XÓA DỮ LIỆU SHOP!",
+        loc.onlySuperAdminCanDelete,
         color: Colors.red,
       );
       return;
@@ -199,24 +205,22 @@ class _SettingsViewState extends State<SettingsView> {
     final bool? result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          "⚠️ CẢNH BÁO NGUY HIỂM",
-          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+        title: Text(
+          loc.dangerWarning,
+          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              "Hành động này sẽ xóa sạch 100% dữ liệu Đơn hàng, Kho, Nợ và Nhật ký của Shop trên cả Đám mây và Máy này. KHÔNG THỂ KHÔI PHỤC!",
-            ),
+            Text(loc.deleteAllDataWarning),
             const SizedBox(height: 15),
-            const Text(
-              "Nhập chữ 'XOA HET' để xác nhận:",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            Text(
+              loc.typeToConfirm,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             ),
             TextField(
               controller: confirmTextC,
-              decoration: const InputDecoration(hintText: "XOA HET"),
+              decoration: InputDecoration(hintText: loc.deleteAllPlaceholder),
               textAlign: TextAlign.center,
             ),
           ],
@@ -224,15 +228,15 @@ class _SettingsViewState extends State<SettingsView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("HỦY"),
+            child: Text(loc.cancel.toUpperCase()),
           ),
           ElevatedButton(
             onPressed: () =>
                 Navigator.pop(ctx, confirmTextC.text.trim() == "XOA HET"),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text(
-              "XÁC NHẬN XÓA SẠCH",
-              style: TextStyle(color: Colors.white),
+            child: Text(
+              loc.confirmDeleteAll,
+              style: const TextStyle(color: Colors.white),
             ),
           ),
         ],
@@ -246,12 +250,12 @@ class _SettingsViewState extends State<SettingsView> {
 
       if (errorMessage == null) {
         NotificationService.showSnackBar(
-          "ĐÃ XÓA SẠCH DỮ LIỆU SHOP!",
+          loc.shopDataDeleted,
           color: Colors.green,
         );
       } else {
         NotificationService.showSnackBar(
-          "LỖI KHI XÓA DỮ LIỆU ĐÁM MÂY: $errorMessage",
+          loc.errorDeletingCloudData(errorMessage),
           color: Colors.red,
         );
       }
@@ -396,8 +400,8 @@ class _SettingsViewState extends State<SettingsView> {
                                 );
                                 NotificationService.showSnackBar(
                                   locale.languageCode == 'vi' 
-                                    ? 'Đã chuyển sang Tiếng Việt' 
-                                    : 'Changed to English',
+                                    ? loc.changedToVietnamese
+                                    : loc.changedToEnglish,
                                   color: Colors.green,
                                 );
                               }
@@ -412,7 +416,7 @@ class _SettingsViewState extends State<SettingsView> {
                 const SizedBox(height: 16),
                 
                 // ====== HƯỚNG DẪN SỬ DỤNG - MOVE LÊN ĐẦU ĐỂ DỄ TÌM ======
-                _buildSection('📚 Hướng dẫn sử dụng'),
+                _buildSection(loc.userGuideSection),
                 
                 // Card chính: Hướng dẫn sử dụng đầy đủ
                 Card(
@@ -446,9 +450,9 @@ class _SettingsViewState extends State<SettingsView> {
                         size: 28,
                       ),
                     ),
-                    title: const Text(
-                      'Hướng dẫn sử dụng',
-                      style: TextStyle(
+                    title: Text(
+                      loc.userGuideTitle,
+                      style: const TextStyle(
                         color: Colors.purple,
                         fontWeight: FontWeight.bold,
                         fontSize: 17,
@@ -459,7 +463,7 @@ class _SettingsViewState extends State<SettingsView> {
                       children: [
                         const SizedBox(height: 6),
                         Text(
-                          'Hướng dẫn chi tiết từng bước cho mọi tính năng trong app.',
+                          loc.userGuideDesc,
                           style: TextStyle(
                             fontSize: AppTextStyles.body1.fontSize,
                             color: Colors.purple.shade800,
@@ -470,10 +474,10 @@ class _SettingsViewState extends State<SettingsView> {
                           spacing: 6,
                           runSpacing: 6,
                           children: [
-                            _buildFeatureChip('📦 Kho hàng', Colors.blue),
-                            _buildFeatureChip('🛒 Bán hàng', Colors.orange),
-                            _buildFeatureChip('🔧 Sửa chữa', Colors.purple),
-                            _buildFeatureChip('📊 Báo cáo', Colors.pink),
+                            _buildFeatureChip(loc.inventoryFeature, Colors.blue),
+                            _buildFeatureChip(loc.salesFeature, Colors.orange),
+                            _buildFeatureChip(loc.repairFeature, Colors.purple),
+                            _buildFeatureChip(loc.reportFeature, Colors.pink),
                           ],
                         ),
                       ],
@@ -496,7 +500,7 @@ class _SettingsViewState extends State<SettingsView> {
                 
                 const SizedBox(height: 16),
                 
-                const Divider();
+                const Divider(),
                 _buildSection(localizations.accountAndSecurity),
                 ListTile(
                   leading: const Icon(Icons.person_pin, color: Colors.teal),
@@ -878,15 +882,15 @@ class _SettingsViewState extends State<SettingsView> {
                         Icons.replay,
                         color: Colors.blue,
                       ),
-                      title: const Text(
-                        'Xem lại hướng dẫn sử dụng',
-                        style: TextStyle(
+                      title: Text(
+                        loc.reviewUserGuide,
+                        style: const TextStyle(
                           color: Colors.blue,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
-                        'Reset để hiển thị lại các hướng dẫn lần đầu',
+                        loc.resetGuidesDesc,
                         style: TextStyle(
                           fontSize: AppTextStyles.body1.fontSize,
                         ),
@@ -895,7 +899,7 @@ class _SettingsViewState extends State<SettingsView> {
                         await FirstTimeGuideService.resetAllGuides();
                         if (mounted) {
                           NotificationService.showSnackBar(
-                            'Đã reset! Hướng dẫn sẽ hiển thị lại khi vào các màn hình.',
+                            loc.guidesReset,
                             color: Colors.green,
                           );
                         }

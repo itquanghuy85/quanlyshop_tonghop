@@ -1280,5 +1280,53 @@
   "localCloudMatched": "Local and Cloud matched 100%",
   "recheckingSync": "🔄 Rechecking...",
   "exitApp": "Exit app?",
-  "exit": "EXIT"
+  "exit": "EXIT",
+  "emailAlreadyInUse": "This email is already registered by someone else.",
+  "weakPassword": "Password too weak, at least 6 characters required.",
+  "invalidEmailAddress": "Invalid email address format.",
+  "networkError": "Network connection error. Please check your internet and try again.",
+  "tooManyRequests": "Too many requests. Please try again later.",
+  "pleaseEnterShopName": "Please enter shop name.",
+  "pleaseEnterFullName": "Please enter full name.",
+  "pleaseEnterRequiredFields": "Please fill in required fields.",
+  "passwordMismatch": "Password confirmation does not match.",
+  "invalidOrExpiredInviteCode": "Invite code is incorrect or expired.",
+  "loadingShopData": "Loading shop data...",
+  "switchedToShop": "Switched to shop: {shopName}",
+  "@switchedToShop": {
+    "placeholders": {
+      "shopName": {"type": "String"}
+    }
+  },
+  "errorSwitchingShop": "Error switching shop: {error}",
+  "@errorSwitchingShop": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "onlySuperAdminCanDelete": "ONLY SUPER ADMIN CAN DELETE SHOP DATA!",
+  "dangerWarning": "⚠️ DANGER WARNING",
+  "deleteAllDataWarning": "This action will delete 100% of Orders, Inventory, Debts and Logs of the Shop on both Cloud and this Device. CANNOT BE RECOVERED!",
+  "typeToConfirm": "Type 'DELETE ALL' to confirm:",
+  "deleteAllPlaceholder": "DELETE ALL",
+  "confirmDeleteAll": "CONFIRM DELETE ALL",
+  "shopDataDeleted": "SHOP DATA DELETED!",
+  "errorDeletingCloudData": "ERROR DELETING CLOUD DATA: {error}",
+  "@errorDeletingCloudData": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "userGuideSection": "📚 User Guide",
+  "userGuideTitle": "User Guide",
+  "userGuideDesc": "Detailed step-by-step guide for every feature in the app.",
+  "inventoryFeature": "📦 Inventory",
+  "salesFeature": "🛒 Sales",
+  "repairFeature": "🔧 Repair",
+  "reportFeature": "📊 Reports",
+  "reviewUserGuide": "Review User Guide",
+  "resetGuidesDesc": "Reset to show first-time guides again",
+  "guidesReset": "Done! Guides will show again when entering screens.",
+  "changedToVietnamese": "Changed to Vietnamese",
+  "changedToEnglish": "Changed to English"
 }

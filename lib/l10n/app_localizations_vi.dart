@@ -1004,7 +1004,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get uploadSuccess => 'Đã đồng bộ dữ liệu lên đám mây!';
 
   @override
-  String get dangerWarning => 'CẢNH BÁO NGUY HIỂM';
+  String get dangerWarning => '⚠️ CẢNH BÁO NGUY HIỂM';
 
   @override
   String get confirmResetShop => 'Nhập chữ \'XOA HET\' để xác nhận';
@@ -2914,4 +2914,84 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get exitApp => 'Thoát ứng dụng?';
+
+  @override
+  String get emailAlreadyInUse => 'Email này đã được đăng ký bởi người khác.';
+
+  @override
+  String get weakPassword => 'Mật khẩu quá yếu, ít nhất 6 ký tự.';
+
+  @override
+  String get invalidEmailAddress => 'Địa chỉ email không đúng định dạng.';
+
+  @override
+  String get networkError => 'Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.';
+
+  @override
+  String get tooManyRequests => 'Quá nhiều yêu cầu. Vui lòng thử lại sau.';
+
+  @override
+  String get pleaseEnterShopName => 'Vui lòng nhập tên cửa hàng.';
+
+  @override
+  String get pleaseEnterFullName => 'Vui lòng nhập họ và tên.';
+
+  @override
+  String get pleaseEnterRequiredFields => 'Vui lòng điền các thông tin bắt buộc.';
+
+  @override
+  String get passwordMismatch => 'Mật khẩu xác nhận không khớp.';
+
+  @override
+  String get invalidOrExpiredInviteCode => 'Mã mời không chính xác hoặc đã hết hạn.';
+
+  @override
+  String get deleteAllDataWarning => 'Hành động này sẽ xóa sạch 100% dữ liệu Đơn hàng, Kho, Nợ và Nhật ký của Shop trên cả Đám mây và Máy này. KHÔNG THỂ KHÔI PHỤC!';
+
+  @override
+  String get deleteAllPlaceholder => 'XOA HET';
+
+  @override
+  String get confirmDeleteAll => 'XÁC NHẬN XÓA SẠCH';
+
+  @override
+  String errorDeletingCloudData(String error) {
+    return 'LỖI KHI XÓA DỮ LIỆU ĐÁM MÂY: $error';
+  }
+
+  @override
+  String get userGuideSection => '📚 Hướng dẫn sử dụng';
+
+  @override
+  String get userGuideTitle => 'Hướng dẫn sử dụng';
+
+  @override
+  String get userGuideDesc => 'Hướng dẫn chi tiết từng bước cho mọi tính năng trong app.';
+
+  @override
+  String get inventoryFeature => '📦 Kho hàng';
+
+  @override
+  String get salesFeature => '🛒 Bán hàng';
+
+  @override
+  String get repairFeature => '🔧 Sửa chữa';
+
+  @override
+  String get reportFeature => '📊 Báo cáo';
+
+  @override
+  String get reviewUserGuide => 'Xem lại hướng dẫn sử dụng';
+
+  @override
+  String get resetGuidesDesc => 'Reset để hiển thị lại các hướng dẫn lần đầu';
+
+  @override
+  String get guidesReset => 'Đã reset! Hướng dẫn sẽ hiển thị lại khi vào các màn hình.';
+
+  @override
+  String get changedToVietnamese => 'Đã chuyển sang Tiếng Việt';
+
+  @override
+  String get changedToEnglish => 'Changed to English';
 }
