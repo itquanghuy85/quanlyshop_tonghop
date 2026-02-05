@@ -1,7 +1,7 @@
 # BÁO CÁO KIỂM TRA VÀ SỬA LỖI LUỒNG THANH TOÁN
 
 **Ngày thực hiện:** 2025-01-XX  
-**Phiên bản:** 10.0.1
+**Phiên bản:** 10.0.2
 
 ---
 

@@ -866,7 +866,7 @@ abstract class AppLocalizations {
   /// No description provided for @version.
   ///
   /// In en, this message translates to:
-  /// **'Version 10.0.1'**
+  /// **'Version 10.0.2'**
   String get version;
 
   /// No description provided for @versionNumber.
