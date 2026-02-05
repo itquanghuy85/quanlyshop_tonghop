@@ -7,6 +7,7 @@ import '../utils/money_utils.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/event_bus.dart';
+import '../l10n/app_localizations.dart';
 
 /// Trang báo cáo tài chính tổng hợp
 /// Hiển thị TẤT CẢ giao dịch liên quan đến tiền:
@@ -397,9 +398,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
             ),
           ),
         ),
-        title: const Text(
-          'Financial Report / Báo Cáo Tài Chính',
-          style: TextStyle(color: Colors.white, fontSize: 16),
+        title: Text(
+          AppLocalizations.of(context)?.financialReportLabel ?? 'Financial Report',
+          style: const TextStyle(color: Colors.white, fontSize: 16),
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
@@ -421,10 +422,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
-          tabs: const [
-            Tab(text: 'ALL / TẤT CẢ'),
-            Tab(text: 'INCOME / THU'),
-            Tab(text: 'EXPENSE / CHI'),
+          tabs: [
+            Tab(text: AppLocalizations.of(context)?.all ?? 'ALL'),
+            Tab(text: AppLocalizations.of(context)?.income ?? 'INCOME'),
+            Tab(text: AppLocalizations.of(context)?.expense ?? 'EXPENSE'),
           ],
           onTap: (index) {
             setState(() {

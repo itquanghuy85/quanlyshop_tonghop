@@ -2253,5 +2253,8 @@
   "zaloSupportLabel": "Zalo hỗ trợ",
   "contactZaloLabel": "Liên hệ Zalo hỗ trợ: 0901 234 567",
   "scheduleTrainingLabel": "Đặt lịch đào tạo",
-  "scheduleTrainingThisWeek": "Đặt lịch đào tạo trực tuyến tuần này."
+  "scheduleTrainingThisWeek": "Đặt lịch đào tạo trực tuyến tuần này.",
+  "history": "Lịch sử",
+  "stats": "Thống kê",
+  "defaultSettings": "Mặc định"
 }

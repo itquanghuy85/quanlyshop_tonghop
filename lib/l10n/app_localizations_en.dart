@@ -5172,4 +5172,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scheduleTrainingThisWeek => 'Schedule online training this week.';
+
+  @override
+  String get history => 'History';
+
+  @override
+  String get stats => 'Stats';
+
+  @override
+  String get defaultSettings => 'Default';
 }

@@ -9892,6 +9892,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Schedule online training this week.'**
   String get scheduleTrainingThisWeek;
+
+  /// No description provided for @history.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get history;
+
+  /// No description provided for @stats.
+  ///
+  /// In en, this message translates to:
+  /// **'Stats'**
+  String get stats;
+
+  /// No description provided for @defaultSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultSettings;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

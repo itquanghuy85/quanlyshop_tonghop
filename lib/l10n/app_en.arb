@@ -2388,5 +2388,8 @@
   "zaloSupportLabel": "Zalo Support",
   "contactZaloLabel": "Contact Zalo Support: 0901 234 567",
   "scheduleTrainingLabel": "Schedule Training",
-  "scheduleTrainingThisWeek": "Schedule online training this week."
+  "scheduleTrainingThisWeek": "Schedule online training this week.",
+  "history": "History",
+  "stats": "Stats",
+  "defaultSettings": "Default"
 }
