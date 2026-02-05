@@ -57,17 +57,31 @@ service cloud.firestore {
              : get(/databases/$(database)/documents/users/$(request.auth.uid)).data.shopId;
     }
     
+    // Check if user owns a specific shop (for multi-shop owners)
+    function isShopOwner(shopId) {
+      return exists(/databases/$(database)/documents/shops/$(shopId)) &&
+             get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid == uid();
+    }
+    
     function belongsTo(shopId) {
-      return isSuperAdmin() || myShopId() == shopId;
+      // Allow if: super admin, claims match, OR user owns this shop
+      return isSuperAdmin() || 
+             myShopId() == shopId || 
+             isShopOwner(shopId);
     }
     
     function docInMyShop() {
       return isSuperAdmin() || 
-             ('shopId' in resource.data && resource.data.shopId == myShopId());
+             ('shopId' in resource.data && (
+               resource.data.shopId == myShopId() || 
+               isShopOwner(resource.data.shopId)
+             ));
     }
     
     function newDocInMyShop() {
-      return isSuperAdmin() || request.resource.data.shopId == myShopId();
+      return isSuperAdmin() || 
+             request.resource.data.shopId == myShopId() ||
+             isShopOwner(request.resource.data.shopId);
     }
 
     // ═══════════ 1.4 ROLE-BASED ACCESS ═══════════
@@ -754,6 +768,30 @@ service cloud.firestore {
       allow update: if isAuth() && docInMyShop();
       
       allow delete: if false;
+    }
+
+    // ═══════════ 8.3 CHAT_ONLINE (presence) ═══════════
+    match /chat_online/{onlineId} {
+      allow read: if isAuth();
+      
+      // CREATE/UPDATE: User can set their own online status
+      allow create, update: if isAuth() && 
+                               onlineId.matches('.*' + uid() + '.*');
+      
+      // DELETE: Own record only
+      allow delete: if isAuth() && onlineId.matches('.*' + uid() + '.*');
+    }
+
+    // ═══════════ 8.4 CHAT_TYPING (presence) ═══════════
+    match /chat_typing/{typingId} {
+      allow read: if isAuth();
+      
+      // CREATE/UPDATE: User can set their own typing status  
+      allow create, update: if isAuth() && 
+                               typingId.matches('.*' + uid() + '.*');
+      
+      // DELETE: Own record only
+      allow delete: if isAuth() && typingId.matches('.*' + uid() + '.*');
     }
 
     // ┌──────────────────────────────────────────────────────────────────┐
