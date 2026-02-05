@@ -4892,4 +4892,13 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get scheduleTrainingThisWeek => 'Đặt lịch đào tạo trực tuyến tuần này.';
+
+  @override
+  String get history => 'Lịch sử';
+
+  @override
+  String get stats => 'Thống kê';
+
+  @override
+  String get defaultSettings => 'Mặc định';
 }

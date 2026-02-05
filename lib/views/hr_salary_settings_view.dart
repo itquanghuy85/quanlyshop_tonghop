@@ -7,6 +7,7 @@ import '../services/firestore_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../l10n/app_localizations.dart';
 
 /// Trang quản lý cài đặt lương và hoa hồng nhân viên
 /// Tích hợp: lương cơ bản, hoa hồng bán hàng, hoa hồng sửa chữa, phụ cấp, thưởng doanh số
@@ -262,10 +263,10 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             Text(
-              'SALARY SETTINGS / CÀI ĐẶT LƯƠNG',
-              style: TextStyle(
+              AppLocalizations.of(context)?.salarySettings ?? 'SALARY SETTINGS',
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -283,9 +284,15 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(icon: Icon(Icons.tune, size: 18), text: 'MẶC ĐỊNH'),
-            Tab(icon: Icon(Icons.people, size: 18), text: 'NHÂN VIÊN'),
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.tune, size: 18),
+              text: AppLocalizations.of(context)?.defaultSettings ?? 'DEFAULT',
+            ),
+            Tab(
+              icon: const Icon(Icons.people, size: 18),
+              text: AppLocalizations.of(context)?.staff ?? 'STAFF',
+            ),
           ],
         ),
         actions: [

@@ -13,6 +13,7 @@ import '../services/storage_service.dart';
 import 'work_schedule_settings_view.dart'; // Import màn hình cài đặt lịch
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../l10n/app_localizations.dart';
 
 class AttendanceView extends StatefulWidget {
   const AttendanceView({super.key});
@@ -346,11 +347,12 @@ class _AttendanceViewState extends State<AttendanceView>
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
           elevation: 0,
-          title: const Text("CHẤM CÔNG NHÂN VIÊN"),
+          title: Text(AppLocalizations.of(context)?.attendance ?? "ATTENDANCE"),
         ),
         body: Center(
           child: Text(
-            "Bạn không có quyền truy cập tính năng này",
+            AppLocalizations.of(context)?.noAccessPermission ??
+                "You don't have access to this feature",
             style: AppTextStyles.body1.copyWith(color: AppColors.inactive),
           ),
         ),
@@ -376,14 +378,15 @@ class _AttendanceViewState extends State<AttendanceView>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "CHẤM CÔNG NHÂN VIÊN",
+              AppLocalizations.of(context)?.attendance ?? "ATTENDANCE",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: AppTextStyles.headline2.fontSize,
               ),
             ),
             Text(
-              "Employee Attendance / Quản lý giờ làm việc",
+              AppLocalizations.of(context)?.attendanceManagement ??
+                  "Manage work hours",
               style: TextStyle(
                 fontSize: AppTextStyles.body1.fontSize,
                 color: Colors.white70,
@@ -398,10 +401,10 @@ class _AttendanceViewState extends State<AttendanceView>
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
           tabs: [
-            const Tab(text: "HÔM NAY / TODAY"),
-            const Tab(text: "LỊCH SỬ / HISTORY"),
+            Tab(text: AppLocalizations.of(context)?.today ?? "TODAY"),
+            Tab(text: AppLocalizations.of(context)?.history ?? "HISTORY"),
             if (_role == 'owner' || _role == 'manager')
-              const Tab(text: "THỐNG KÊ / STATS"),
+              Tab(text: AppLocalizations.of(context)?.stats ?? "STATS"),
           ],
         ),
       ),
