@@ -21,4 +21,9 @@ class EventBus {
   void off(StreamSubscription<String> subscription) {
     subscription.cancel();
   }
+
+  // ===== Event Constants =====
+  static const String shopChanged = 'SHOP_CHANGED';
+  static const String dataRefresh = 'DATA_REFRESH';
+  static const String syncComplete = 'SYNC_COMPLETE';
 }

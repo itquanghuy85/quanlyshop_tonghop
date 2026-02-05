@@ -1528,7 +1528,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get selectOtherShop => 'CHỌN SHOP KHÁC';
 
   @override
-  String get currentShop => 'Shop hiện tại';
+  String get currentShop => 'Cửa hàng hiện tại';
 
   @override
   String get logoutFromApp => 'Đăng xuất khỏi ứng dụng';
@@ -4901,4 +4901,35 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get defaultSettings => 'Mặc định';
+
+  @override
+  String get income => 'Thu';
+
+  @override
+  String get expense => 'Chi';
+
+  @override
+  String get switchShop => 'Chuyển cửa hàng';
+
+  @override
+  String shopSwitched(Object shopName) {
+    return 'Đã chuyển sang: $shopName';
+  }
+
+  @override
+  String get cannotSwitchShop => 'Không thể chuyển cửa hàng';
+
+  @override
+  String get createNewBranch => 'Tạo chi nhánh mới';
+
+  @override
+  String get branchName => 'Tên chi nhánh';
+
+  @override
+  String branchCreated(Object name) {
+    return 'Đã tạo chi nhánh: $name';
+  }
+
+  @override
+  String get errorCreatingBranch => 'Lỗi tạo chi nhánh';
 }

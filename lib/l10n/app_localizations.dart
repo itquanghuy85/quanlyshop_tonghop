@@ -3092,7 +3092,7 @@ abstract class AppLocalizations {
   /// No description provided for @currentShop.
   ///
   /// In en, this message translates to:
-  /// **'Current shop'**
+  /// **'Current Shop'**
   String get currentShop;
 
   /// No description provided for @logoutFromApp.
@@ -9394,6 +9394,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Default'**
   String get defaultSettings;
+
+  /// No description provided for @income.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get income;
+
+  /// No description provided for @expense.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get expense;
+
+  /// No description provided for @switchShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch shop'**
+  String get switchShop;
+
+  /// No description provided for @shopSwitched.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched to: {shopName}'**
+  String shopSwitched(Object shopName);
+
+  /// No description provided for @cannotSwitchShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot switch shop'**
+  String get cannotSwitchShop;
+
+  /// No description provided for @createNewBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Create new branch'**
+  String get createNewBranch;
+
+  /// No description provided for @branchName.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch name'**
+  String get branchName;
+
+  /// No description provided for @branchCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch created: {name}'**
+  String branchCreated(Object name);
+
+  /// No description provided for @errorCreatingBranch.
+  ///
+  /// In en, this message translates to:
+  /// **'Error creating branch'**
+  String get errorCreatingBranch;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

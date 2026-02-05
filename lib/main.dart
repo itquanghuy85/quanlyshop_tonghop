@@ -25,6 +25,7 @@ import 'services/sync_orchestrator.dart'; // Quản lý đồng bộ local -> cl
 import 'services/cash_closing_notifier.dart'; // Realtime notify chốt quỹ
 import 'services/claims_service.dart'; // Custom claims management
 import 'services/payment_intent_service.dart'; // Payment intents management
+import 'services/current_shop_service.dart'; // Multi-shop support
 import 'data/db_helper.dart'; // Local database helper
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'widgets/loading_intro_screen.dart'; // Loading intro animation
@@ -297,6 +298,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     try {
       await UserService.syncUserInfo(uid, email);
       debugPrint('✅ _getRoleAfterSync: syncUserInfo completed');
+      
+      // Initialize CurrentShopService for multi-shop support
+      await CurrentShopService().init();
+      debugPrint('✅ _getRoleAfterSync: CurrentShopService initialized');
     } catch (e) {
       debugPrint('❌ syncUserInfo error: $e');
       // Nếu syncUserInfo thất bại hoàn toàn, vẫn thử tiếp để xem có cache không
@@ -455,6 +460,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
             }
             if (roleSnap.hasError || !roleSnap.hasData) {
               UserService.clearCache(); // Xóa cache khi có lỗi
+              CurrentShopService().clear(); // Clear multi-shop cache
               _resetCache();
               FirebaseAuth.instance.signOut();
               return LoginView(setLocale: widget.setLocale);
