@@ -2391,5 +2391,15 @@
   "scheduleTrainingThisWeek": "Schedule online training this week.",
   "history": "History",
   "stats": "Stats",
-  "defaultSettings": "Default"
+  "defaultSettings": "Default",
+  "income": "Income",
+  "expense": "Expense",
+  "switchShop": "Switch shop",
+  "currentShop": "Current Shop",
+  "shopSwitched": "Switched to: {shopName}",
+  "cannotSwitchShop": "Cannot switch shop",
+  "createNewBranch": "Create new branch",
+  "branchName": "Branch name",
+  "branchCreated": "Branch created: {name}",
+  "errorCreatingBranch": "Error creating branch"
 }

@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/utils/money_utils.dart';
 import '../l10n/app_localizations.dart';
 import '../services/event_bus.dart';
+import '../services/current_shop_service.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
 import 'order_list_view.dart';
@@ -59,6 +60,7 @@ import '../widgets/unified_sync_button.dart';
 import '../widgets/notification_badge.dart';
 import '../widgets/perpetual_calendar.dart';
 import '../widgets/simple_sync_indicator.dart';
+import '../widgets/shop_switcher_widget.dart';
 import '../services/sync_service.dart';
 import '../services/sync_health_check.dart';
 import '../services/user_service.dart';
@@ -119,6 +121,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             mounted) {
           debugPrint('HomeView: Loading stats for event: $event');
           _debouncedLoadStats();
+        }
+        // Handle shop change event - reload everything
+        if (event == EventBus.shopChanged && mounted) {
+          debugPrint('HomeView: Shop changed, reloading all data');
+          _initialSetup();
+          _debouncedLoadStats();
+          setState(() {
+            _rebuildCounter++; // Force rebuild tabs
+          });
         }
       }, onError: (e) => debugPrint('HomeView: EventBus error: $e'));
 
@@ -1614,9 +1625,34 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               const Icon(Icons.store_rounded, color: Colors.white, size: 22),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  _getTabTitle(_currentIndex),
-                  style: AppTextStyles.headline6.copyWith(color: Colors.white),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _getTabTitle(_currentIndex),
+                      style: AppTextStyles.headline6.copyWith(color: Colors.white),
+                    ),
+                    // Shop name indicator for multi-shop owners
+                    FutureBuilder<Map<String, dynamic>?>(
+                      future: CurrentShopService().getActiveShopInfo(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data == null) {
+                          return const SizedBox.shrink();
+                        }
+                        final shopName = snapshot.data!['name'] as String?;
+                        if (shopName == null) return const SizedBox.shrink();
+                        return Text(
+                          shopName,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1669,6 +1705,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 await SyncService.cancelAllSubscriptions();
                 EncryptionService.reset(); // Reset mã hóa khi đăng xuất
                 UserService.clearCache(); // Xóa cache shopId
+                CurrentShopService().clear(); // Clear multi-shop cache
                 UserService.setAdminSelectedShop(
                   null,
                 ); // Xóa shop đã chọn của admin
@@ -4738,6 +4775,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             style: AppTextStyles.headline5.copyWith(color: AppColors.onSurface),
           ),
           const SizedBox(height: 20),
+
+          // ====== SHOP SWITCHER (Owner với nhiều shop) ======
+          ShopSwitcherWidget(
+            onShopChanged: () {
+              // Reload data when shop changes
+              _loadStats();
+              _loadUserAndShopInfo();
+            },
+          ),
 
           Card(
             shape: RoundedRectangleBorder(

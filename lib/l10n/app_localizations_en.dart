@@ -1525,7 +1525,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectOtherShop => 'SELECT OTHER SHOP';
 
   @override
-  String get currentShop => 'Current shop';
+  String get currentShop => 'Current Shop';
 
   @override
   String get logoutFromApp => 'Logout from app';
@@ -5181,4 +5181,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get defaultSettings => 'Default';
+
+  @override
+  String get income => 'Income';
+
+  @override
+  String get expense => 'Expense';
+
+  @override
+  String get switchShop => 'Switch shop';
+
+  @override
+  String shopSwitched(Object shopName) {
+    return 'Switched to: $shopName';
+  }
+
+  @override
+  String get cannotSwitchShop => 'Cannot switch shop';
+
+  @override
+  String get createNewBranch => 'Create new branch';
+
+  @override
+  String get branchName => 'Branch name';
+
+  @override
+  String branchCreated(Object name) {
+    return 'Branch created: $name';
+  }
+
+  @override
+  String get errorCreatingBranch => 'Error creating branch';
 }

@@ -25,6 +25,9 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
 
   bool _loading = true;
   bool _isAdmin = false;
+  bool _loadingShops = false;
+  List<Map<String, dynamic>> _allShops = [];
+  String? _selectedShopId;
 
   // Danh sách nhân viên
   List<Map<String, dynamic>> _staffList = [];
@@ -55,6 +58,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _checkPermission();
+    _initAdminShopSelector();
     _loadData();
   }
 
@@ -72,6 +76,52 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
       // Cho phép admin hoặc owner (chủ shop) có quyền cài đặt
       setState(() => _isAdmin = role == 'admin' || role == 'owner');
     }
+  }
+
+  void _initAdminShopSelector() {
+    if (!UserService.isCurrentUserSuperAdmin()) return;
+    _selectedShopId = UserService.getAdminSelectedShop();
+    _loadShopsForAdmin();
+  }
+
+  Future<void> _loadShopsForAdmin() async {
+    if (!UserService.isCurrentUserSuperAdmin()) return;
+    setState(() => _loadingShops = true);
+    try {
+      final shops = await UserService.getAllShops();
+      if (!mounted) return;
+      setState(() {
+        _allShops = shops;
+        if (_selectedShopId != null &&
+            !_allShops.any((s) => s['id'] == _selectedShopId)) {
+          _selectedShopId = null;
+        }
+        _loadingShops = false;
+      });
+    } catch (e) {
+      debugPrint('❌ Error loading shops for admin: $e');
+      if (mounted) setState(() => _loadingShops = false);
+    }
+  }
+
+  Future<void> _onAdminShopSelected(String? shopId) async {
+    if (shopId == null || !UserService.isCurrentUserSuperAdmin()) return;
+    setState(() => _selectedShopId = shopId);
+    UserService.setAdminSelectedShop(shopId);
+    await _loadData();
+
+    if (!mounted) return;
+    final loc = AppLocalizations.of(context);
+    final shopName = _allShops.firstWhere(
+      (s) => s['id'] == shopId,
+      orElse: () => {'name': shopId},
+    )['name'];
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(loc?.switchedToShop('$shopName') ?? 'Đã chuyển shop'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   Future<void> _loadData() async {
@@ -305,10 +355,117 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [_buildShopDefaultsTab(), _buildEmployeeSettingsTab()],
+          : Column(
+              children: [
+                if (UserService.isCurrentUserSuperAdmin())
+                  _buildAdminShopSelectorCard(),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildShopDefaultsTab(),
+                      _buildEmployeeSettingsTab(),
+                    ],
+                  ),
+                ),
+              ],
             ),
+    );
+  }
+
+  Widget _buildAdminShopSelectorCard() {
+    final loc = AppLocalizations.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.store, color: Colors.blue.shade700),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  loc?.selectShopToViewData ?? 'Chọn shop để xem dữ liệu',
+                  style: TextStyle(
+                    color: Colors.blue.shade700,
+                    fontWeight: FontWeight.bold,
+                    fontSize: AppTextStyles.headline4.fontSize,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh, size: 18),
+                onPressed: _loadingShops ? null : _loadShopsForAdmin,
+                tooltip: 'Tải lại danh sách shop',
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            loc?.viewShopAsAdmin ??
+                'Super Admin có thể chọn shop để xem dữ liệu',
+            style: TextStyle(
+              fontSize: AppTextStyles.subtitle1.fontSize,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (_loadingShops)
+            const Center(child: CircularProgressIndicator())
+          else if (_allShops.isEmpty)
+            Text(
+              loc?.noShops ?? 'Không có shop nào',
+              style: const TextStyle(color: Colors.grey),
+            )
+          else
+            DropdownButtonFormField<String>(
+              initialValue: _selectedShopId,
+              decoration: InputDecoration(
+                labelText: loc?.selectShopLabel ?? 'Chọn shop',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              hint: Text(loc?.selectShopPlaceholder ?? '-- Chọn shop --'),
+              items: _allShops.map((shop) {
+                final shopName = shop['name'] ?? 'Shop ${shop['id']}';
+                final ownerEmail = shop['ownerEmail'] ?? '';
+                return DropdownMenuItem<String>(
+                  value: shop['id'],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        shopName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      if (ownerEmail.toString().isNotEmpty)
+                        Text(
+                          ownerEmail,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.body1.fontSize,
+                            color: Colors.grey,
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: _onAdminShopSelected,
+            ),
+        ],
+      ),
     );
   }
 

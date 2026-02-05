@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../services/user_service.dart';
+import '../services/current_shop_service.dart';
 import '../theme/app_text_styles.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
@@ -12,6 +13,7 @@ import '../services/sync_service.dart';
 import '../utils/app_info.dart';
 import '../services/first_time_guide_service.dart';
 import '../widgets/unified_sync_button.dart';
+import '../widgets/shop_switcher_widget.dart';
 import 'help_center_view.dart';
 import 'user_guide_view.dart';
 import 'shop_selector_view.dart';
@@ -262,6 +264,7 @@ class _SettingsViewState extends State<SettingsView> {
       await SyncService.cancelAllSubscriptions();
       EncryptionService.reset(); // Reset mã hóa khi xóa dữ liệu
       UserService.clearCache(); // Xóa cache shopId
+      CurrentShopService().clear(); // Clear multi-shop cache
       try {
         await FirebaseAuth.instance.signOut();
       } catch (e) {
@@ -414,6 +417,15 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
                 
                 const SizedBox(height: 16),
+                
+                // ====== SHOP SWITCHER (Owner với nhiều shop) ======
+                ShopSwitcherWidget(
+                  onShopChanged: () {
+                    // Reload settings when shop changes
+                    _loadRole();
+                    _loadShopsForAdmin();
+                  },
+                ),
                 
                 // ====== HƯỚNG DẪN SỬ DỤNG - MOVE LÊN ĐẦU ĐỂ DỄ TÌM ======
                 _buildSection(loc.userGuideSection),

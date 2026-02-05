@@ -2256,5 +2256,15 @@
   "scheduleTrainingThisWeek": "Đặt lịch đào tạo trực tuyến tuần này.",
   "history": "Lịch sử",
   "stats": "Thống kê",
-  "defaultSettings": "Mặc định"
+  "defaultSettings": "Mặc định",
+  "income": "Thu",
+  "expense": "Chi",
+  "switchShop": "Chuyển cửa hàng",
+  "currentShop": "Cửa hàng hiện tại",
+  "shopSwitched": "Đã chuyển sang: {shopName}",
+  "cannotSwitchShop": "Không thể chuyển cửa hàng",
+  "createNewBranch": "Tạo chi nhánh mới",
+  "branchName": "Tên chi nhánh",
+  "branchCreated": "Đã tạo chi nhánh: {name}",
+  "errorCreatingBranch": "Lỗi tạo chi nhánh"
 }

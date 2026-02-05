@@ -109,25 +109,29 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       steps: const [
         GuideStep(
           title: '📋 Danh sách cần kiểm',
-          description: 'Hệ thống hiển thị tất cả sản phẩm trong kho. Quét để đánh dấu đã kiểm.',
+          description:
+              'Hệ thống hiển thị tất cả sản phẩm trong kho. Quét để đánh dấu đã kiểm.',
           icon: Icons.checklist,
           iconColor: Colors.blue,
         ),
         GuideStep(
           title: '📷 Quét IMEI/Barcode',
-          description: 'Nhấn "Bắt đầu quét" và đưa camera vào mã. Hệ thống tự nhận diện và check.',
+          description:
+              'Nhấn "Bắt đầu quét" và đưa camera vào mã. Hệ thống tự nhận diện và check.',
           icon: Icons.qr_code_scanner,
           iconColor: Colors.purple,
         ),
         GuideStep(
           title: '✅ Đã kiểm vs ❌ Thiếu',
-          description: 'Màu xanh = đã quét thấy. Màu đỏ = chưa quét hoặc thiếu. Dễ dàng phát hiện hàng mất.',
+          description:
+              'Màu xanh = đã quét thấy. Màu đỏ = chưa quét hoặc thiếu. Dễ dàng phát hiện hàng mất.',
           icon: Icons.compare_arrows,
           iconColor: Colors.orange,
         ),
         GuideStep(
           title: '📊 Báo cáo kiểm kê',
-          description: 'Sau khi quét xong, xem báo cáo tổng hợp: Đã kiểm, Thiếu, Thừa (không có trong hệ thống).',
+          description:
+              'Sau khi quét xong, xem báo cáo tổng hợp: Đã kiểm, Thiếu, Thừa (không có trong hệ thống).',
           icon: Icons.assessment,
           iconColor: Colors.teal,
         ),
@@ -264,15 +268,12 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
 
     if (capture.barcodes.isEmpty) return;
 
-    final barcode = capture.barcodes.firstWhere(
-      (b) {
-        final raw = b.rawValue?.trim();
-        final display = b.displayValue?.trim();
-        return (raw != null && raw.isNotEmpty) ||
-            (display != null && display.isNotEmpty);
-      },
-      orElse: () => capture.barcodes.first,
-    );
+    final barcode = capture.barcodes.firstWhere((b) {
+      final raw = b.rawValue?.trim();
+      final display = b.displayValue?.trim();
+      return (raw != null && raw.isNotEmpty) ||
+          (display != null && display.isNotEmpty);
+    }, orElse: () => capture.barcodes.first);
 
     final qrData = (barcode.rawValue ?? barcode.displayValue ?? '').trim();
     if (qrData.isEmpty) return;
@@ -437,7 +438,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
           _totalScanned++;
         });
         _provideScanFeedback(isSuccess: true);
-        final imeiSuffix = storedImei.length >= 5 ? storedImei.substring(storedImei.length - 5) : storedImei;
+        final imeiSuffix = storedImei.length >= 5
+            ? storedImei.substring(storedImei.length - 5)
+            : storedImei;
         NotificationService.showSnackBar(
           '✅ ${expectedProduct.name} ($imeiSuffix)',
         );
@@ -446,28 +449,21 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         _updateZoneProgress(storedImei, 1);
 
         // Add to checklist
-        _addToChecklist(
-          '📱',
-          expectedProduct.name,
-          imeiSuffix,
-        );
+        _addToChecklist('📱', expectedProduct.name, imeiSuffix);
       }
     } else {
       // Unexpected phone
       _provideScanFeedback(isSuccess: false);
-      final extraImeiSuffix = imei.length >= 5 ? imei.substring(imei.length - 5) : imei;
+      final extraImeiSuffix = imei.length >= 5
+          ? imei.substring(imei.length - 5)
+          : imei;
       NotificationService.showSnackBar(
         '🚨 Thừa: $extraImeiSuffix',
         color: Colors.red,
       );
 
       // Add to checklist as extra
-      _addToChecklist(
-        '📱',
-        'Thừa: $extraImeiSuffix',
-        imei,
-        status: '🚨',
-      );
+      _addToChecklist('📱', 'Thừa: $extraImeiSuffix', imei, status: '🚨');
     }
   }
 
@@ -540,7 +536,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         return;
       }
     }
-    
+
     // Handle QR từ tem in: check_product:ID
     if (qrData.startsWith('check_product:')) {
       final productId = qrData.substring('check_product:'.length);
@@ -556,7 +552,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       _handlePhoneScan(qrMap);
       return;
     }
-    
+
     // Case 1b: Has id key only (format: id=XXXXX) - lookup product by firestoreId
     if (qrMap.containsKey('id') && qrMap['id']!.isNotEmpty) {
       debugPrint('✅ Found id key: ${qrMap['id']}');
@@ -597,7 +593,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       _handlePhoneScan(legacyQrMap);
       return;
     }
-    
+
     // Nếu không phải số thuần, check qrMap empty rồi xử lý như text
     if (qrMap.isEmpty && qrData.isNotEmpty) {
       final legacyQrMap = {'code': qrData, 'type': 'PHỤ KIỆN'};
@@ -618,16 +614,16 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     try {
       final db = DBHelper();
       Product? product;
-      
+
       // Thử tìm theo SQLite id (số nguyên)
       final intId = int.tryParse(productId);
       if (intId != null && intId > 0) {
         product = await db.getProductById(intId);
       }
-      
+
       // Nếu không tìm thấy, thử tìm theo firestoreId (chuỗi)
       product ??= await db.getProductByFirestoreId(productId);
-      
+
       if (product == null) {
         HapticFeedback.vibrate();
         NotificationService.showSnackBar(
@@ -716,7 +712,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                   const SizedBox(height: 16),
                   Text(
                     '⚡ Mẹo: Giữ khoảng cách 20-30cm với QR code\n⏱️ Thời gian chờ giữa các lần scan: 1.5 giây\n🚫 Tránh scan cùng mã quá nhanh',
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      color: Colors.grey,
+                    ),
                   ),
                 ],
               ),
@@ -731,6 +730,164 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         );
       },
     );
+  }
+
+  /// Dialog nhập IMEI thủ công khi QR bị mờ/rách
+  void _showManualInputDialog() {
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.keyboard, color: Colors.purple),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text('NHẬP IMEI THỦ CÔNG', style: TextStyle(fontSize: 16)),
+            ),
+          ],
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: Colors.blue.shade700,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Dùng khi QR bị mờ hoặc rách.\nNhập IMEI in trên máy để check.',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    labelText: 'IMEI / Mã sản phẩm',
+                    hintText: 'Ví dụ: 353456789012345',
+                    prefixIcon: const Icon(Icons.phone_android, size: 20),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    isDense: true,
+                    helperText: 'IMEI thường có 15 số',
+                    helperStyle: const TextStyle(fontSize: 11),
+                  ),
+                  style: const TextStyle(fontSize: 14),
+                  keyboardType: TextInputType.number,
+                  autofocus: true,
+                  onSubmitted: (value) {
+                    if (value.trim().isNotEmpty) {
+                      Navigator.pop(ctx);
+                      _processManualInput(value.trim());
+                    }
+                  },
+                ),
+                // Quick buttons for recent scans - only show if space available
+                if (_scannedItems.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Đã scan gần đây:',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: _scannedItems.take(2).map((item) {
+                      final id = item['identifier'] as String;
+                      return ActionChip(
+                        padding: EdgeInsets.zero,
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                        visualDensity: VisualDensity.compact,
+                        label: Text(
+                          id.length > 8
+                              ? '...${id.substring(id.length - 8)}'
+                              : id,
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                        onPressed: () {
+                          controller.text = id;
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('HỦY'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.pop(ctx);
+                _processManualInput(controller.text.trim());
+              }
+            },
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('CHECK VÀO LIST'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Xử lý IMEI nhập thủ công
+  void _processManualInput(String input) {
+    // Normalize input - remove spaces and dashes
+    final normalized = input.replaceAll(RegExp(r'[\s\-]'), '');
+
+    // Check if it's a number (IMEI) or text (product code)
+    final isNumber = RegExp(r'^\d+$').hasMatch(normalized);
+
+    if (isNumber && normalized.length >= 4) {
+      // Treat as IMEI for phone
+      final qrMap = {'imei': normalized, 'type': 'DIEN_THOAI'};
+      _handlePhoneScan(qrMap);
+    } else if (normalized.isNotEmpty) {
+      // Treat as product code for accessory
+      final qrMap = {'code': normalized, 'type': 'PHỤ KIỆN'};
+      _handleAccessoryScan(qrMap);
+    } else {
+      NotificationService.showSnackBar(
+        '⚠️ Vui lòng nhập IMEI hoặc mã sản phẩm hợp lệ',
+        color: Colors.orange,
+      );
+    }
   }
 
   void _resetCheck() {
@@ -828,7 +985,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   Widget _buildPendingItemsList() {
     // Gộp điện thoại và phụ kiện thành 1 list
     final allItems = <Map<String, dynamic>>[];
-    
+
     // Thêm điện thoại
     for (final phone in _expectedPhones) {
       final isChecked = _checkedPhoneImeis.contains(phone.imei);
@@ -836,7 +993,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       String imeiSuffix = '';
       if (phone.imei != null && phone.imei!.isNotEmpty) {
         final imeiLen = phone.imei!.length;
-        imeiSuffix = imeiLen >= 5 ? phone.imei!.substring(imeiLen - 5) : phone.imei!;
+        imeiSuffix = imeiLen >= 5
+            ? phone.imei!.substring(imeiLen - 5)
+            : phone.imei!;
       }
       allItems.add({
         'type': '📱',
@@ -845,7 +1004,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         'isChecked': isChecked,
       });
     }
-    
+
     // Thêm phụ kiện
     for (final acc in _expectedAccessories) {
       final code = acc.firestoreId ?? acc.id.toString();
@@ -858,7 +1017,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         'isChecked': scanned >= expected,
       });
     }
-    
+
     if (allItems.isEmpty) {
       return Center(
         child: Padding(
@@ -871,59 +1030,202 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         ),
       );
     }
-    
+
     return ListView.builder(
       itemCount: allItems.length,
       itemBuilder: (context, index) {
         final item = allItems[index];
         final isChecked = item['isChecked'] as bool;
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: isChecked ? Colors.green.shade50 : null,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade200),
+        final isPhone = item['type'] == '📱';
+
+        return InkWell(
+          // Cho phép nhấn để check thủ công (khi QR mờ/rách)
+          onTap: isChecked ? null : () => _showQuickCheckConfirm(item, isPhone),
+          onLongPress: () => _showQuickCheckConfirm(item, isPhone),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isChecked ? Colors.green.shade50 : null,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
             ),
-          ),
-          child: Row(
-            children: [
-              Text(
-                isChecked ? '✅' : '⏳',
-                style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${item['type']} ${item['name']}',
-                      style: TextStyle(
-                        fontSize: AppTextStyles.body1.fontSize,
-                        fontWeight: FontWeight.w500,
-                        color: isChecked ? Colors.green.shade700 : null,
-                        decoration: isChecked ? TextDecoration.lineThrough : null,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      item['identifier'],
-                      style: TextStyle(
-                        fontSize: AppTextStyles.overlineSize,
-                        color: Colors.grey[600],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+            child: Row(
+              children: [
+                Text(
+                  isChecked ? '✅' : '⏳',
+                  style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
                 ),
-              ),
-            ],
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${item['type']} ${item['name']}',
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                          fontWeight: FontWeight.w500,
+                          color: isChecked ? Colors.green.shade700 : null,
+                          decoration: isChecked
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        item['identifier'],
+                        style: TextStyle(
+                          fontSize: AppTextStyles.overlineSize,
+                          color: Colors.grey[600],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                // Icon gợi ý có thể nhấn để check
+                if (!isChecked)
+                  Icon(Icons.touch_app, size: 14, color: Colors.grey.shade400),
+              ],
+            ),
           ),
         );
       },
     );
+  }
+
+  /// Confirm dialog để check thủ công 1 item
+  void _showQuickCheckConfirm(Map<String, dynamic> item, bool isPhone) {
+    final name = item['name'] as String;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              isPhone ? Icons.phone_android : Icons.inventory_2,
+              color: Colors.purple,
+            ),
+            const SizedBox(width: 8),
+            const Expanded(child: Text('CHECK THỦ CÔNG')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Đánh dấu đã kiểm cho:',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    item['type'] as String,
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          item['identifier'] as String,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber,
+                    color: Colors.orange.shade700,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Dùng khi QR bị mờ/rách và đã xác nhận bằng mắt',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('HỦY'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _manualCheckItem(item, isPhone);
+            },
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('XÁC NHẬN ĐÃ KIỂM'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Check thủ công 1 item từ pending list
+  void _manualCheckItem(Map<String, dynamic> item, bool isPhone) {
+    if (isPhone) {
+      // Tìm điện thoại trong danh sách expected
+      final phone = _expectedPhones.firstWhere(
+        (p) => p.name == item['name'],
+        orElse: () => _expectedPhones.first,
+      );
+      if (phone.imei != null && phone.imei!.isNotEmpty) {
+        final qrMap = {'imei': phone.imei!, 'type': 'DIEN_THOAI'};
+        _handlePhoneScan(qrMap);
+      }
+    } else {
+      // Tìm phụ kiện trong danh sách expected
+      final acc = _expectedAccessories.firstWhere(
+        (a) => a.name == item['name'],
+        orElse: () => _expectedAccessories.first,
+      );
+      final code = acc.firestoreId ?? acc.id.toString();
+      final qrMap = {'code': code, 'type': 'PHỤ KIỆN'};
+      _handleAccessoryScan(qrMap);
+    }
   }
 
   /// Add scanned item to checklist (smart grouping for accessories)
@@ -992,7 +1294,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             ),
           ),
         ),
-        title: const Text('KIỂM KHO NHANH', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: const Text(
+          'KIỂM KHO NHANH',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -1007,7 +1312,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             ),
             label: Text(
               _currentZone?.name ?? 'Chọn Zone',
-              style: TextStyle(color: Colors.white, fontSize: AppTextStyles.headline4.fontSize),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: AppTextStyles.headline4.fontSize,
+              ),
             ),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1019,6 +1327,12 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             ),
             onPressed: () => setState(() => _showChecklist = !_showChecklist),
             tooltip: _showChecklist ? 'Ẩn checklist' : 'Hiện checklist',
+          ),
+          // NÚT NHẬP IMEI THỦ CÔNG - cho trường hợp QR bị mờ/rách
+          IconButton(
+            icon: const Icon(Icons.keyboard),
+            onPressed: _showManualInputDialog,
+            tooltip: 'Nhập IMEI thủ công',
           ),
           IconButton(
             icon: const Icon(Icons.settings),
@@ -1124,55 +1438,97 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                                               color: Colors.greenAccent,
                                               width: 2,
                                             ),
-                                            borderRadius:
-                                                BorderRadius.circular(8),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                     Positioned(
-                                      right: 12,
-                                      bottom: 12,
+                                      right: 8,
+                                      bottom: 8,
                                       child: Container(
-                                        padding: const EdgeInsets.all(8),
+                                        padding: const EdgeInsets.all(4),
                                         decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.6),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
+                                          color: Colors.black.withOpacity(0.5),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            IconButton(
-                                              onPressed: () => _setZoom(
-                                                (_zoomScale + 0.1).clamp(0.0, 1.0),
-                                              ),
-                                              icon: const Icon(Icons.add),
-                                              color: Colors.white,
-                                              tooltip: 'Zoom +',
-                                            ),
+                                            // Nút zoom + nhỏ gọn
                                             SizedBox(
-                                              height: 120,
+                                              width: 32,
+                                              height: 32,
+                                              child: IconButton(
+                                                onPressed: () => _setZoom(
+                                                  (_zoomScale + 0.15).clamp(
+                                                    0.0,
+                                                    1.0,
+                                                  ),
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.add,
+                                                  size: 16,
+                                                ),
+                                                color: Colors.white,
+                                                tooltip: 'Zoom +',
+                                                padding: EdgeInsets.zero,
+                                              ),
+                                            ),
+                                            // Slider dọc nhỏ gọn
+                                            SizedBox(
+                                              height: 80,
+                                              width: 28,
                                               child: RotatedBox(
                                                 quarterTurns: 3,
-                                                child: Slider(
-                                                  value: _zoomScale,
-                                                  min: 0.0,
-                                                  max: 1.0,
-                                                  onChanged: (v) => _setZoom(v),
-                                                  activeColor: Colors.white,
-                                                  inactiveColor:
-                                                      Colors.white24,
+                                                child: SliderTheme(
+                                                  data: SliderThemeData(
+                                                    trackHeight: 3,
+                                                    thumbShape:
+                                                        const RoundSliderThumbShape(
+                                                          enabledThumbRadius: 6,
+                                                        ),
+                                                    overlayShape:
+                                                        const RoundSliderOverlayShape(
+                                                          overlayRadius: 12,
+                                                        ),
+                                                  ),
+                                                  child: Slider(
+                                                    value: _zoomScale,
+                                                    min: 0.0,
+                                                    max: 1.0,
+                                                    onChanged: (v) =>
+                                                        _setZoom(v),
+                                                    activeColor: Colors.white,
+                                                    inactiveColor:
+                                                        Colors.white24,
+                                                  ),
                                                 ),
                                               ),
                                             ),
-                                            IconButton(
-                                              onPressed: () => _setZoom(
-                                                (_zoomScale - 0.1).clamp(0.0, 1.0),
+                                            // Nút zoom - nhỏ gọn
+                                            SizedBox(
+                                              width: 32,
+                                              height: 32,
+                                              child: IconButton(
+                                                onPressed: () => _setZoom(
+                                                  (_zoomScale - 0.15).clamp(
+                                                    0.0,
+                                                    1.0,
+                                                  ),
+                                                ),
+                                                icon: const Icon(
+                                                  Icons.remove,
+                                                  size: 16,
+                                                ),
+                                                color: Colors.white,
+                                                tooltip: 'Zoom -',
+                                                padding: EdgeInsets.zero,
                                               ),
-                                              icon: const Icon(Icons.remove),
-                                              color: Colors.white,
-                                              tooltip: 'Zoom -',
                                             ),
                                           ],
                                         ),
@@ -1195,7 +1551,8 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                                   Text(
                                     'Nhấn nút scan để bắt đầu kiểm kho',
                                     style: TextStyle(
-                                      fontSize: AppTextStyles.headline2.fontSize,
+                                      fontSize:
+                                          AppTextStyles.headline2.fontSize,
                                       color: Colors.grey,
                                     ),
                                     textAlign: TextAlign.center,
@@ -1268,9 +1625,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  _scannedItems.isEmpty 
-                                    ? 'Chờ kiểm (${_expectedPhones.length + _expectedAccessories.length})'
-                                    : 'Đã scan (${_scannedItems.length})',
+                                  _scannedItems.isEmpty
+                                      ? 'Chờ kiểm (${_expectedPhones.length + _expectedAccessories.length})'
+                                      : 'Đã scan (${_scannedItems.length})',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: AppTextStyles.subtitle1.fontSize,
@@ -1290,62 +1647,71 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
 
                         // Items List - hiện đã scan hoặc danh sách chờ kiểm
                         Expanded(
-                          child: _scannedItems.isNotEmpty 
-                            ? ListView.builder(
-                                itemCount: _scannedItems.length,
-                                itemBuilder: (context, index) {
-                                  final item = _scannedItems[index];
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: Colors.grey.shade200,
-                                        ),
+                          child: _scannedItems.isNotEmpty
+                              ? ListView.builder(
+                                  itemCount: _scannedItems.length,
+                                  itemBuilder: (context, index) {
+                                    final item = _scannedItems[index];
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
                                       ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Text(
-                                          item['status'],
-                                          style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                '${item['type']} ${item['name']}',
-                                                style: TextStyle(
-                                                  fontSize: AppTextStyles.body1.fontSize,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              Text(
-                                                item['identifier'],
-                                                style: TextStyle(
-                                                  fontSize: AppTextStyles.overlineSize,
-                                                  color: Colors.grey[600],
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: Colors.grey.shade200,
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              )
-                            : _buildPendingItemsList(),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            item['status'],
+                                            style: TextStyle(
+                                              fontSize: AppTextStyles
+                                                  .caption
+                                                  .fontSize,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  '${item['type']} ${item['name']}',
+                                                  style: TextStyle(
+                                                    fontSize: AppTextStyles
+                                                        .body1
+                                                        .fontSize,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                                Text(
+                                                  item['identifier'],
+                                                  style: TextStyle(
+                                                    fontSize: AppTextStyles
+                                                        .overlineSize,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                )
+                              : _buildPendingItemsList(),
                         ),
                       ],
                     ),
@@ -1364,11 +1730,17 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                 children: [
                   Text(
                     'Đã scan: $_totalScanned',
-                    style: TextStyle(color: Colors.white, fontSize: AppTextStyles.headline3.fontSize),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: AppTextStyles.headline3.fontSize,
+                    ),
                   ),
                   Text(
                     'Giữ yên QR trước camera',
-                    style: TextStyle(color: Colors.white70, fontSize: AppTextStyles.subtitle1.fontSize),
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                    ),
                   ),
                 ],
               ),
@@ -1391,7 +1763,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         ),
         Text(
           label,
-          style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: color),
+          style: TextStyle(
+            fontSize: AppTextStyles.caption.fontSize,
+            color: color,
+          ),
           textAlign: TextAlign.center,
         ),
       ],
@@ -1545,7 +1920,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                     ),
                     Text(
                       zone.description,
-                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                        color: Colors.grey[600],
+                      ),
                     ),
                   ],
                 ),
