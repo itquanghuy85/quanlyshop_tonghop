@@ -1377,19 +1377,23 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
       int totalIn = salesIncome + repairsIncome;
 
-      // K5: Tính thu nợ khách hàng - CHỈ DÙNG CHO HIỂN THỊ (KHÔNG cộng vào doanh thu)
-      // Vì với accrual basis, doanh thu đã được tính ở K3 (lúc bán nợ)
-      // Thu nợ chỉ ảnh hưởng quỹ tiền mặt/NH, không ảnh hưởng lợi nhuận
+      // K5: Tính thu nợ khách hàng VÀ trả nợ NCC
+      // Thu nợ chỉ ảnh hưởng quỹ tiền mặt/NH, không ảnh hưởng lợi nhuận (accrual)
+      // Nhưng trả nợ NCC cần hiển thị trong "Chi phí hôm nay" (cash flow)
       int debtCollected = 0;
+      int debtPaidToSupplier = 0; // Tiền trả nợ NCC hôm nay
       for (final p in debtPayments) {
         final paidAt = (p['paidAt'] as num?)?.toInt();
         if (paidAt == null) continue;
         if (!_isSameDay(paidAt)) continue;
-        if (p['debtType'] == 'SHOP_OWES') {
-          continue; // SHOP_OWES là trả nợ NCC, không phải thu nợ KH
-        }
         final amount = (p['amount'] as num?)?.toInt() ?? 0;
-        debtCollected += amount;
+        if (p['debtType'] == 'SHOP_OWES') {
+          // SHOP_OWES = trả nợ NCC → tính vào chi tiền thực
+          debtPaidToSupplier += amount;
+        } else {
+          // CUSTOMER_OWES = thu nợ khách
+          debtCollected += amount;
+        }
       }
 
       // KHÔNG cộng debtCollected vào totalIn vì doanh thu đã tính ở K3 (accrual basis)
@@ -1429,6 +1433,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         }
       }
 
+      // Chi phí hôm nay = expenses + trả nợ NCC (cash flow thực)
+      // Lợi nhuận vẫn dùng totalOut (accrual basis, không có trả nợ NCC)
+      final todayCashOut = totalOut + debtPaidToSupplier;
+
       // Debug log
       debugPrint('=== TÍNH LỢI NHUẬN (HOME) - ACCRUAL BASIS ===');
       debugPrint('salesIncome=$salesIncome (bao gồm công nợ: $salesDebt)');
@@ -1440,9 +1448,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         'debtCollected=$debtCollected (chỉ ảnh hưởng quỹ, không ảnh hưởng lợi nhuận)',
       );
       debugPrint(
-        'totalIn=$totalIn (doanh thu đã bao gồm công nợ), totalOut=$totalOut',
+        'debtPaidToSupplier=$debtPaidToSupplier (trả nợ NCC - hiển thị trong chi phí)',
       );
-      debugPrint('profit = $totalIn - $totalOut - $salesCost - $repairsCost');
+      debugPrint(
+        'totalIn=$totalIn, totalOut=$totalOut, todayCashOut=$todayCashOut',
+      );
+      debugPrint('profit = $totalIn - $totalOut - $salesCost - $repairsCost (accrual, không trừ trả nợ NCC)');
 
       // LỢI NHUẬN RÒNG = DOANH THU - CHI PHÍ - GIÁ VỐN (ACCRUAL BASIS)
       // Với accrual basis, lợi nhuận được tính ngay khi giao dịch xảy ra
@@ -1535,12 +1546,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           todaySaleCount = soldT;
           revenueToday = profit; // Keep for backward compatibility
           todayNewRepairs = newRT;
-          todayExpense = totalOut;
+          todayExpense = todayCashOut; // Chi phí = expenses + trả nợ NCC (cash flow)
           totalDebtRemain = debtR;
           expiringWarranties = expW;
           // New accurate financial variables
           _todayTotalIn = totalIn;
-          _todayTotalOut = totalOut;
+          _todayTotalOut = todayCashOut; // Hiển thị tiền chi thực (bao gồm trả nợ NCC)
           _todayNetProfit = profit;
           _todayRepairCount = fRepairs.length;
           _todaySaleOrderCount = fSales.length;

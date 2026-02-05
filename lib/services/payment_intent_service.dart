@@ -474,11 +474,13 @@ class PaymentIntentService {
         if (intent.metadata != null && intent.metadata!['debtId'] != null) {
           final debtId = intent.metadata!['debtId'];
           final debtFirestoreId = intent.metadata!['debtFirestoreId'];
+          final debtType = intent.metadata!['debtType'] as String? ?? 'SHOP_OWES';
           
           await _db.insertDebtPayment({
             'firestoreId': 'dp_${intent.id}',
             'debtId': debtId,
             'debtFirestoreId': debtFirestoreId,
+            'debtType': debtType, // FIX: Add debtType for proper filtering
             'amount': intent.amount,
             'paymentMethod': paymentMethod.code,
             'paidAt': now,
@@ -530,11 +532,13 @@ class PaymentIntentService {
         if (intent.metadata != null && intent.metadata!['debtId'] != null) {
           final debtId = intent.metadata!['debtId'];
           final debtFirestoreId = intent.metadata!['debtFirestoreId'];
+          final debtType = intent.metadata!['debtType'] as String? ?? 'CUSTOMER_OWES';
           
           await _db.insertDebtPayment({
             'firestoreId': 'dp_${intent.id}',
             'debtId': debtId,
             'debtFirestoreId': debtFirestoreId,
+            'debtType': debtType, // FIX: Add debtType for proper filtering
             'amount': intent.amount,
             'paymentMethod': paymentMethod.code,
             'paidAt': now,

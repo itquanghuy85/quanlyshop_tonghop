@@ -10,6 +10,7 @@ import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
 import '../services/chat_service.dart';
 import '../services/user_service.dart';
+import '../services/event_bus.dart';
 import '../data/db_helper.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -53,6 +54,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   StreamSubscription? _pinnedSubscription;
   StreamSubscription? _typingSubscription;
   StreamSubscription? _onlineSubscription;
+  StreamSubscription? _shopChangedSubscription;
 
   // Emoji reactions
   final List<String> _reactions = [
@@ -72,21 +74,33 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     WidgetsBinding.instance.addObserver(this);
     _initChat();
     _msgCtrl.addListener(_onTyping);
+    
+    // Listen for shop changes to reinitialize chat
+    _shopChangedSubscription = EventBus().on(EventBus.shopChanged, (_) {
+      debugPrint('🔄 AdvancedChatView: Shop changed, reinitializing chat...');
+      _cancelSubscriptions();
+      _initChat();
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _messagesSubscription?.cancel();
-    _pinnedSubscription?.cancel();
-    _typingSubscription?.cancel();
-    _onlineSubscription?.cancel();
+    _cancelSubscriptions();
+    _shopChangedSubscription?.cancel();
     _msgCtrl.removeListener(_onTyping);
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     _focusNode.dispose();
     ChatService.cleanup();
     super.dispose();
+  }
+  
+  void _cancelSubscriptions() {
+    _messagesSubscription?.cancel();
+    _pinnedSubscription?.cancel();
+    _typingSubscription?.cancel();
+    _onlineSubscription?.cancel();
   }
 
   @override

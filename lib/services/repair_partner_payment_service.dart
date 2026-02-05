@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../data/db_helper.dart';
 import '../models/repair_partner_payment_model.dart';
 import '../services/user_service.dart';
 import '../services/repair_partner_service.dart';
+import '../services/financial_activity_service.dart';
 
 class RepairPartnerPaymentService {
   final DBHelper _db = DBHelper();
@@ -133,7 +135,22 @@ class RepairPartnerPaymentService {
       shopId: shopId,
     );
     final paymentId = await addPartnerPayment(payment);
-    // NOTE: FinancialActivityService.logSupplierPayment REMOVED - ledger handled by PaymentIntentService
+    
+    // Log to financial activity
+    try {
+      await FinancialActivityService.logSupplierPayment(
+        firestoreId: payment.firestoreId ?? 'rpp_$paymentId',
+        amount: amount,
+        paymentMethod: paymentMethod,
+        supplierName: partnerName,
+        createdAt: now,
+        createdBy: userName,
+        note: note,
+      );
+      debugPrint('📝 Logged partner payment to financial activity');
+    } catch (e) {
+      debugPrint('⚠️ Failed to log partner payment: $e');
+    }
     
     return paymentId;
   }

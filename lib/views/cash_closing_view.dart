@@ -49,6 +49,7 @@ class _CashClosingViewState extends State<CashClosingView>
   List<Map<String, dynamic>> _supplierImports = [];
   List<Map<String, dynamic>> _supplierPayments = [];
   List<Map<String, dynamic>> _repairPartnerPayments = []; // FIX: Thêm thanh toán đối tác sửa chữa
+  Map<String, String> _debtTypeMap = {}; // FIX: Map từ debtId/firestoreId -> debtType
   Map<String, dynamic>? _previousDayClosing;
   Map<String, dynamic>? _todayClosing;
 
@@ -232,6 +233,11 @@ class _CashClosingViewState extends State<CashClosingView>
             .collection('repair_partner_payments')
             .where('shopId', isEqualTo: shopId)
             .get(),
+        // FIX: debts - để lookup debtType cho debt_payments
+        firestore
+            .collection('debts')
+            .where('shopId', isEqualTo: shopId)
+            .get(),
       ]);
 
       // Parse sales - filter deleted
@@ -311,6 +317,21 @@ class _CashClosingViewState extends State<CashClosingView>
         debugPrint('  - ${p['partnerName']}: ${p['amount']}đ, paidAt: ${p['paidAt']}, method: ${p['paymentMethod']}');
       }
 
+      // FIX: Parse debts để tạo lookup map cho debtType
+      final debtTypeMap = <String, String>{};
+      for (var doc in results[6].docs) {
+        final data = doc.data();
+        final firestoreId = doc.id;
+        final debtType = data['type'] as String? ?? data['debtType'] as String? ?? '';
+        if (debtType.isNotEmpty) {
+          debtTypeMap[firestoreId] = debtType;
+          // Also map by local id if available
+          final localId = data['id']?.toString();
+          if (localId != null) debtTypeMap[localId] = debtType;
+        }
+      }
+      debugPrint('=== DEBT TYPE MAP BUILT: ${debtTypeMap.length} entries ===');
+
       // FIX BUG-007: Load supplier imports từ Firestore thay vì SQLite
       // Để đảm bảo sync giữa các thiết bị (Device A == Device B)
       final supplierImportsSnapshot = await firestore
@@ -367,6 +388,7 @@ class _CashClosingViewState extends State<CashClosingView>
           _supplierImports = supplierImports;
           _supplierPayments = supplierPayments.cast<Map<String, dynamic>>();
           _repairPartnerPayments = repairPartnerPayments.cast<Map<String, dynamic>>(); // FIX: Lưu thanh toán đối tác
+          _debtTypeMap = debtTypeMap; // FIX: Lưu lookup map để xác định debtType
           _previousDayClosing = previousClosing;
           _todayClosing = todayClosing;
           _isLoading = false;
@@ -426,6 +448,7 @@ class _CashClosingViewState extends State<CashClosingView>
         _debtPayments = debtPayments;
         _supplierImports = supplierImports;
         _supplierPayments = supplierPayments;
+        _debtTypeMap = {}; // Local DB already has debtType from JOIN
         _previousDayClosing = previousClosing;
         _todayClosing = todayClosing;
         _isLoading = false;
@@ -2322,10 +2345,18 @@ class _CashClosingViewState extends State<CashClosingView>
         'amount': r.price,
       });
     }
-    for (var p in _debtPayments.where(
-      (p) =>
-          _isSameDay(p['paidAt'] as int, date) && _isCustomerOwesDebt(p['debtType'] as String?),
-    )) {
+    for (var p in _debtPayments.where((p) {
+      if (p['paidAt'] == null) return false;
+      if (!_isSameDay(p['paidAt'] as int, date)) return false;
+      // FIX: Lookup debtType from payment record, or fallback to _debtTypeMap
+      var debtType = p['debtType'] as String?;
+      if (debtType == null || debtType.isEmpty) {
+        final debtFirestoreId = p['debtFirestoreId'] as String?;
+        final debtId = p['debtId']?.toString();
+        debtType = _debtTypeMap[debtFirestoreId] ?? _debtTypeMap[debtId];
+      }
+      return _isCustomerOwesDebt(debtType);
+    })) {
       list.add({
         'icon': '💳',
         'title': 'Thu nợ khách hàng',
@@ -2359,7 +2390,8 @@ class _CashClosingViewState extends State<CashClosingView>
 
     // Chi phí thường
     for (var e in _expenses) {
-      final expenseDate = e['date'] as int?;
+      // FIX: Check both 'date' and 'createdAt' as fallback
+      final expenseDate = (e['date'] ?? e['createdAt']) as int?;
       if (expenseDate == null) {
         debugPrint('Skipping expense with null date: ${e['category']}');
         continue;
@@ -2469,7 +2501,15 @@ class _CashClosingViewState extends State<CashClosingView>
     for (var p in _debtPayments.where((p) {
       final paidAt = p['paidAt'];
       if (paidAt == null) return false;
-      return _isSameDay(paidAt as int, date) && _isShopOwesDebt(p['debtType'] as String?);
+      if (!_isSameDay(paidAt as int, date)) return false;
+      // FIX: Lookup debtType from payment record, or fallback to _debtTypeMap
+      var debtType = p['debtType'] as String?;
+      if (debtType == null || debtType.isEmpty) {
+        final debtFirestoreId = p['debtFirestoreId'] as String?;
+        final debtId = p['debtId']?.toString();
+        debtType = _debtTypeMap[debtFirestoreId] ?? _debtTypeMap[debtId];
+      }
+      return _isShopOwesDebt(debtType);
     })) {
       list.add({
         'icon': '🏭',
@@ -2578,9 +2618,11 @@ class _CashClosingViewState extends State<CashClosingView>
     }
 
     // ===== EXPENSES =====
-    for (var e in _expenses.where(
-      (e) => e['date'] != null && _isSameDay(e['date'] as int, now),
-    )) {
+    // FIX: Check both 'date' and 'createdAt' as fallback (some expenses use createdAt)
+    for (var e in _expenses.where((e) {
+      final expenseDate = (e['date'] ?? e['createdAt']) as int?;
+      return expenseDate != null && _isSameDay(expenseDate, now);
+    })) {
       final amount = e['amount'] as int? ?? 0;
       final method = e['paymentMethod'] as String? ?? 'TIỀN MẶT';
       final category = (e['category'] ?? '').toString().toUpperCase();
@@ -2683,7 +2725,16 @@ class _CashClosingViewState extends State<CashClosingView>
       final amount = p['amount'] as int? ?? 0;
       final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
 
-      if (_isShopOwesDebt(p['debtType'] as String?)) {
+      // FIX: Lookup debtType from payment record, or fallback to _debtTypeMap
+      var debtType = p['debtType'] as String?;
+      if (debtType == null || debtType.isEmpty) {
+        // Try to lookup from debtFirestoreId or debtId
+        final debtFirestoreId = p['debtFirestoreId'] as String?;
+        final debtId = p['debtId']?.toString();
+        debtType = _debtTypeMap[debtFirestoreId] ?? _debtTypeMap[debtId];
+      }
+
+      if (_isShopOwesDebt(debtType)) {
         // K6: Thanh toán NCC (SHOP_OWES, OTHER_SHOP_OWES) - tính vào chi tiền
         supplierPaid += amount;
         if (method == 'TIỀN MẶT') {

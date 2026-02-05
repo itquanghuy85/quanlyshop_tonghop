@@ -393,7 +393,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get appDescription => 'Quản lý cửa hàng sửa chữa điện thoại';
 
   @override
-  String get version => 'Phiên bản 10.0.2';
+  String get version => 'Phiên bản 10.0.3';
 
   @override
   String get versionNumber => '2.6.0';
@@ -1138,7 +1138,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get checkBluetoothOn => 'Kiểm tra Bluetooth có bật...';
 
   @override
-  String get appVersion => 'Phiên bản 10.0.2';
+  String get appVersion => 'Phiên bản 10.0.3';
 
   @override
   String get saving => 'Đang lưu...';

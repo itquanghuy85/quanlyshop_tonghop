@@ -393,7 +393,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appDescription => 'Phone repair shop management';
 
   @override
-  String get version => 'Version 10.0.2';
+  String get version => 'Version 10.0.3';
 
   @override
   String get versionNumber => '2.6.0';

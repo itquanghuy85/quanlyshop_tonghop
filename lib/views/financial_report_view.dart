@@ -199,21 +199,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
             );
           }
 
-          // Chi phí vốn hàng bán
-          if (sale.totalCost > 0) {
-            allTransactions.add(
-              TransactionItem(
-                id: 'sale_cost_${sale.id}',
-                timestamp: soldAt,
-                type: 'EXPENSE',
-                category: 'Giá vốn',
-                description:
-                    'Vốn: ${sale.customerName.isNotEmpty ? sale.customerName : "Khách lẻ"}',
-                amount: sale.totalCost,
-                isIncome: false,
-              ),
-            );
-          }
+          // NOTE: Không tính "giá vốn" ở đây để tránh double-counting với:
+          // - Chi phí nhập hàng (nếu trả tiền mặt)
+          // - Trả nợ NCC (nếu nhập công nợ)
+          // Lợi nhuận thực = Doanh thu bán hàng - Chi phí nhập hàng/Trả nợ NCC
         }
       }
 
@@ -239,20 +228,11 @@ class _FinancialReportViewState extends State<FinancialReportView>
             ),
           );
 
-          // Chi phí linh kiện
-          if (repair.cost > 0) {
-            allTransactions.add(
-              TransactionItem(
-                id: 'repair_cost_${repair.id}',
-                timestamp: deliveredAt,
-                type: 'EXPENSE',
-                category: 'Chi phí linh kiện',
-                description: 'LK: ${repair.model}',
-                amount: repair.cost,
-                isIncome: false,
-              ),
-            );
-          }
+          // NOTE: Không tính "chi phí linh kiện" ở đây để tránh double-counting
+          // Chi phí linh kiện đã được ghi nhận khi:
+          // - Nhập linh kiện với tiền mặt (tạo expense)
+          // - Nhập linh kiện với công nợ rồi trả nợ (tạo debt_payment)
+          // Lợi nhuận sửa chữa = Phí sửa - Chi phí nhập linh kiện/Trả nợ NCC
         }
       }
 
@@ -338,21 +318,24 @@ class _FinancialReportViewState extends State<FinancialReportView>
       // Sắp xếp theo thời gian mới nhất
       allTransactions.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-      // Filter và tính summary
-      final filtered = _filterTransactions(allTransactions);
-      int income = 0, expense = 0;
-      for (final t in filtered) {
+      // Tính summary từ TẤT CẢ giao dịch (không bị ảnh hưởng bởi filter)
+      // để lợi nhuận luôn chính xác bất kể đang xem tab nào
+      int totalIncome = 0, totalExpense = 0;
+      for (final t in allTransactions) {
         if (t.isIncome) {
-          income += t.amount;
+          totalIncome += t.amount;
         } else {
-          expense += t.amount;
+          totalExpense += t.amount;
         }
       }
 
+      // Filter chỉ để hiển thị trong list, không ảnh hưởng summary
+      final filtered = _filterTransactions(allTransactions);
+
       setState(() {
         _transactions = filtered;
-        _totalIncome = income;
-        _totalExpense = expense;
+        _totalIncome = totalIncome;
+        _totalExpense = totalExpense;
         _loading = false;
       });
     } catch (e) {

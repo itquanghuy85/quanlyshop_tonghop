@@ -6,6 +6,7 @@ import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import '../services/sync_orchestrator.dart';
+import '../services/financial_activity_service.dart';
 import '../data/db_helper.dart';
 
 /// Service quản lý phiếu nhập kho (Staging Inventory)
@@ -591,6 +592,24 @@ class StockEntryService {
             debugPrint(
               '✅ confirmEntry: Created local EXPENSE for ${entry.paymentMethod}: $totalCost',
             );
+            
+            // Log to financial activity for reporting
+            try {
+              final productNames = entry.items.map((i) => '${i.name} x${i.quantity}').join(', ');
+              await FinancialActivityService.logPurchase(
+                firestoreId: 'stock_${entryId}_$now',
+                amount: totalCost,
+                paymentMethod: entry.paymentMethod ?? 'TIỀN MẶT',
+                productName: productNames,
+                supplierName: entry.supplierName ?? 'NCC',
+                quantity: entry.totalQuantity,
+                createdAt: now,
+                createdBy: userName,
+              );
+              debugPrint('📝 Logged stock entry to financial activity');
+            } catch (e) {
+              debugPrint('⚠️ Failed to log stock entry activity: $e');
+            }
             
             // KHÔNG tạo PaymentIntent cho TIỀN MẶT/CK vì:
             // 1. Expense record đã được ghi (đây là financial record chính)
