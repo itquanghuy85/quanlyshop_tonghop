@@ -340,8 +340,8 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(AppLocalizations.of(context)!.productLabelDesign, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.purple)),
-                      Text(AppLocalizations.of(context)!.customizeContentAndFontSize, style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text(AppLocalizations.of(context)!.productLabelDesign, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.purple)),
+                      Text(AppLocalizations.of(context)!.customizeContentAndFontSize, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -368,7 +368,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                   color: Colors.orange.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(AppLocalizations.of(context)!.hot, style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 10)),
+                child: Text(AppLocalizations.of(context)!.hot, style: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 10)),
               ),
               onTap: () => Navigator.push(
                 context,
@@ -493,7 +493,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               children: [
                 Icon(Icons.wifi, color: Colors.blue.shade600),
                 const SizedBox(width: 8),
-                Text(AppLocalizations.of(context)!.wifiPrinter, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(AppLocalizations.of(context)!.wifiPrinter, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
             const SizedBox(height: 16),
@@ -551,7 +551,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               children: [
                 Icon(Icons.bluetooth, color: Colors.indigo.shade600),
                 const SizedBox(width: 8),
-                Text(AppLocalizations.of(context)!.bluetoothPrinter, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(AppLocalizations.of(context)!.bluetoothPrinter, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
             const SizedBox(height: 12),
@@ -597,9 +597,9 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.grey),
-                    SizedBox(width: 12),
-                    Text(AppLocalizations.of(context)!.noBluetoothPrinterSelected, style: TextStyle(color: Colors.grey)),
+                    const Icon(Icons.info_outline, color: Colors.grey),
+                    const SizedBox(width: 12),
+                    Text(AppLocalizations.of(context)!.noBluetoothPrinterSelected, style: const TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),
@@ -656,7 +656,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               children: [
                 Icon(Icons.receipt_long, color: Colors.orange.shade600),
                 const SizedBox(width: 8),
-                Text(AppLocalizations.of(context)!.receiptSettings, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(AppLocalizations.of(context)!.receiptSettings, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
             const SizedBox(height: 12),

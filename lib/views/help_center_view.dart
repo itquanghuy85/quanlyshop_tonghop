@@ -283,7 +283,7 @@ class _HelpCenterViewState extends State<HelpCenterView> {
               if (categoryName != null) ...[
                 Text(
                   categoryName,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: AppTextStyles.overlineSize,
                     color: Colors.purple,
                     fontWeight: FontWeight.bold,

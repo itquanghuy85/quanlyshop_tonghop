@@ -7,6 +7,7 @@ import '../services/sync_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/global_search_bar.dart';
+import '../l10n/app_localizations.dart';
 
 class CustomerManagementView extends StatefulWidget {
   const CustomerManagementView({super.key});
@@ -48,7 +49,7 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải danh sách khách hàng: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.errorLoadingCustomers(e.toString()))),
         );
       }
     }
@@ -82,7 +83,7 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
 
   Future<void> _editCustomer(Customer customer) async {
     // Verify owner password first
-    if (!await _verifyOwnerPassword('chỉnh sửa khách hàng')) return;
+    if (!await _verifyOwnerPassword(AppLocalizations.of(context)!.editCustomerAction)) return;
 
     final result = await showDialog<Customer>(
       context: context,
@@ -97,22 +98,22 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
 
   Future<void> _deleteCustomer(Customer customer) async {
     // Verify owner password first
-    if (!await _verifyOwnerPassword('xóa khách hàng')) return;
+    if (!await _verifyOwnerPassword(AppLocalizations.of(context)!.deleteCustomerAction)) return;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc muốn xóa khách hàng "${customer.name}"?'),
+        title: Text(AppLocalizations.of(context)!.confirmDeleteTitle),
+        content: Text(AppLocalizations.of(context)!.confirmDeleteCustomer(customer.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Xóa'),
+            child: Text(AppLocalizations.of(context)!.deleteButton),
           ),
         ],
       ),
@@ -130,27 +131,27 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Xác nhận $action'),
+        title: Text(AppLocalizations.of(context)!.confirmActionTitle(action)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Chỉ chủ shop được phép thực hiện.\nNhập mật khẩu tài khoản để xác nhận:'),
+            Text(AppLocalizations.of(context)!.ownerPasswordRequired),
             const SizedBox(height: 10),
             TextField(
               obscureText: true,
               onChanged: (value) => password = value,
-              decoration: const InputDecoration(
-                hintText: 'Mật khẩu',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(context)!.password,
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.cancel)),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, password),
-            child: const Text('Xác nhận'),
+            child: Text(AppLocalizations.of(context)!.confirmBtn),
           ),
         ],
       ),
@@ -164,7 +165,7 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng đăng nhập lại')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.pleaseLoginAgain)),
       );
       return false;
     }
@@ -179,7 +180,7 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mật khẩu không đúng!')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.incorrectPassword)),
         );
       }
       return false;
@@ -213,7 +214,7 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
             ),
           ),
         ),
-        title: const Text('Quản lý khách hàng', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(AppLocalizations.of(context)!.customerManagement, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -221,7 +222,7 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: _addCustomer,
-            tooltip: 'Thêm khách hàng',
+            tooltip: AppLocalizations.of(context)!.addCustomer,
           ),
         ],
       ),
@@ -231,7 +232,7 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: GlobalSearchBar(
-              hintText: 'Tìm kiếm khách hàng...',
+              hintText: AppLocalizations.of(context)!.searchCustomers,
               onSearch: _filterCustomers,
             ),
           ),
@@ -253,8 +254,8 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
                             const SizedBox(height: 16),
                             Text(
                               _searchQuery.isEmpty
-                                  ? 'Chưa có khách hàng nào'
-                                  : 'Không tìm thấy khách hàng',
+                                  ? AppLocalizations.of(context)!.noCustomersYet
+                                  : AppLocalizations.of(context)!.customerNotFound,
                               style: AppTextStyles.body1.copyWith(
                                 color: Colors.grey.shade600,
                               ),

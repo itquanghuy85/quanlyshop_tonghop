@@ -593,7 +593,7 @@ class _ExpenseViewState extends State<ExpenseView> {
               context,
               MaterialPageRoute(builder: (_) => const FastStockInView()),
             ),
-            icon: Icon(Icons.inventory_2_outlined, color: AppBarAccents.staff),
+            icon: const Icon(Icons.inventory_2_outlined, color: AppBarAccents.staff),
             tooltip: 'Nhập kho',
           ),
           Row(
@@ -941,7 +941,7 @@ class _ExpenseViewState extends State<ExpenseView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: Colors.white60, fontSize: AppTextStyles.overlineSize)),
+        Text(label, style: const TextStyle(color: Colors.white60, fontSize: AppTextStyles.overlineSize)),
         Text(
           MoneyUtils.formatCurrency(val),
           style: TextStyle(
@@ -1005,7 +1005,7 @@ class _ExpenseViewState extends State<ExpenseView> {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: AppTextStyles.headline4.fontSize,
-            color: Color(0xFF1A237E),
+            color: const Color(0xFF1A237E),
           ),
         ),
         subtitle: Column(

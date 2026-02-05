@@ -183,7 +183,7 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
               ),
               value: _active,
               onChanged: (v) => setState(() => _active = v),
-              activeColor: AppColors.success,
+              activeThumbColor: AppColors.success,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/utils/money_utils.dart';
@@ -149,9 +150,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   // Tab configurations with permissions
-  late List<Map<String, dynamic>> _tabConfigs;
-  late List<BottomNavigationBarItem> _navItems;
-  late List<Widget> _tabWidgets;
+  List<Map<String, dynamic>> _tabConfigs = [];
+  List<BottomNavigationBarItem> _navItems = [];
+  List<Widget> _tabWidgets = [];
 
   int _rebuildCounter = 0; // Force rebuild counter
   bool _isLoadingStats = false; // Guard chống load nhiều lần
@@ -1012,8 +1013,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       _updatePermissions(); // Không await - chạy song song
       _loadStats(); // Không await - chạy song song
       
-      // 2. Load user info ở background (chậm hơn vì cần Firestore)
-      _loadUserAndShopInfo(); // Không await
+      // 2. Load user info NGAY (quan trọng cho lời chào)
+      await _loadUserAndShopInfo(); // AWAIT để đảm bảo có data trước khi render
 
       final prefs = await SharedPreferences.getInstance();
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -1061,12 +1062,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   Future<void> _loadUserAndShopInfo() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      debugPrint('_loadUserAndShopInfo: START, user=${user?.email}');
+      if (user == null) {
+        debugPrint('_loadUserAndShopInfo: No user, returning');
+        return;
+      }
 
       // ====== TỐI ƯU: Load từ cache trước, hiện UI ngay ======
       final prefs = await SharedPreferences.getInstance();
       final cachedUserName = prefs.getString('cached_userName_${user.uid}');
       final cachedShopName = prefs.getString('cached_shopName_${user.uid}');
+      debugPrint('_loadUserAndShopInfo: Cache - userName=$cachedUserName, shopName=$cachedShopName');
       
       // Hiển thị cache ngay lập tức (nếu có)
       if (cachedUserName != null || cachedShopName != null) {
@@ -1075,10 +1081,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             if (cachedUserName != null) _userName = cachedUserName;
             if (cachedShopName != null) _shopName = cachedShopName;
           });
+          debugPrint('_loadUserAndShopInfo: Set state from cache - userName=$_userName, shopName=$_shopName');
         }
       }
 
       // Lấy tên hiển thị từ Firestore (background)
+      debugPrint('_loadUserAndShopInfo: Fetching user doc from Firestore...');
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -1086,7 +1094,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
       String displayName = '';
       if (userDoc.exists) {
-        displayName = userDoc.data()?['displayName'] ?? '';
+        final data = userDoc.data();
+        debugPrint('_loadUserAndShopInfo: User doc data=$data');
+        displayName = data?['displayName'] ?? data?['name'] ?? '';
+        debugPrint('_loadUserAndShopInfo: displayName from Firestore=$displayName');
+      } else {
+        debugPrint('_loadUserAndShopInfo: User doc does NOT exist');
       }
 
       // Fallback: dùng phần trước @ của email
@@ -1096,27 +1109,38 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         if (displayName.isNotEmpty) {
           displayName = displayName[0].toUpperCase() + displayName.substring(1);
         }
+        debugPrint('_loadUserAndShopInfo: Using email fallback displayName=$displayName');
       }
 
       // Lấy tên shop
+      debugPrint('_loadUserAndShopInfo: Getting shopId...');
       final shopId = await UserService.getCurrentShopId();
+      debugPrint('_loadUserAndShopInfo: shopId=$shopId');
       String shopName = '';
       if (shopId != null) {
+        debugPrint('_loadUserAndShopInfo: Fetching shop doc from Firestore...');
         final shopDoc = await FirebaseFirestore.instance
             .collection('shops')
             .doc(shopId)
             .get();
         if (shopDoc.exists) {
-          shopName = shopDoc.data()?['name'] ?? '';
+          final shopData = shopDoc.data();
+          debugPrint('_loadUserAndShopInfo: Shop doc data=$shopData');
+          shopName = shopData?['name'] ?? '';
+          debugPrint('_loadUserAndShopInfo: shopName from Firestore=$shopName');
+        } else {
+          debugPrint('_loadUserAndShopInfo: Shop doc does NOT exist');
         }
       }
 
       // ====== Cache lại để load nhanh lần sau ======
       if (displayName.isNotEmpty) {
         await prefs.setString('cached_userName_${user.uid}', displayName);
+        debugPrint('_loadUserAndShopInfo: Cached userName=$displayName');
       }
       if (shopName.isNotEmpty) {
         await prefs.setString('cached_shopName_${user.uid}', shopName);
+        debugPrint('_loadUserAndShopInfo: Cached shopName=$shopName');
       }
 
       if (mounted) {
@@ -1124,9 +1148,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _userName = displayName;
           _shopName = shopName;
         });
+        debugPrint('_loadUserAndShopInfo: FINAL setState - userName=$_userName, shopName=$_shopName');
       }
     } catch (e) {
-      debugPrint('Error loading user info: $e');
+      debugPrint('_loadUserAndShopInfo ERROR: $e');
+      debugPrint('_loadUserAndShopInfo STACK: ${StackTrace.current}');
     }
   }
 
@@ -1209,83 +1235,116 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     _isLoadingStats = true;
 
     try {
-      // ====== TỐI ƯU: Chạy song song tất cả queries ======
-      final results = await Future.wait([
-        db.getAllRepairs(),
-        db.getAllSales(),
-        db.getAllDebts(),
-        db.getAllExpenses(),
-        db.getAllDebtPaymentsWithDetails(),
-      ]);
-
-      final repairs = results[0] as List<Repair>;
-      final sales = results[1] as List<SaleOrder>;
-      final debtsRaw = results[2] as List<Map<String, dynamic>>;
-      final debts = debtsRaw.where((d) => (d['deleted'] ?? 0) != 1).toList();
-      final expenses = results[3] as List<Map<String, dynamic>>;
-      final debtPayments = results[4] as List<Map<String, dynamic>>;
-
-      int pendingR = repairs
-          .where((r) => r.status == 1 || r.status == 2)
-          .length;
-      int doneT = 0, soldT = 0, newRT = 0, debtR = 0, expW = 0;
       final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final todayEnd = todayStart.add(const Duration(days: 1));
+      final startMs = todayStart.millisecondsSinceEpoch;
+      final endMs = todayEnd.millisecondsSinceEpoch;
+      final dbConn = await db.database;
+
+      final pendingR =
+          (Sqflite.firstIntValue(
+            await dbConn.rawQuery(
+              'SELECT COUNT(*) FROM repairs WHERE status IN (1, 2)',
+            ),
+          )) ??
+          0;
+
+      final newRT =
+          (Sqflite.firstIntValue(
+            await dbConn.rawQuery(
+              'SELECT COUNT(*) FROM repairs WHERE createdAt >= ? AND createdAt < ?',
+              [startMs, endMs],
+            ),
+          )) ??
+          0;
+
+      final fSales = await dbConn.query(
+        'sales',
+        columns: [
+          'totalPrice',
+          'totalCost',
+          'paymentMethod',
+          'isInstallment',
+          'downPayment',
+          'settlementReceivedAt',
+          'settlementAmount',
+          'loanAmount',
+          'loanAmount2',
+          'soldAt',
+          'warranty',
+        ],
+        where: 'soldAt >= ? AND soldAt < ?',
+        whereArgs: [startMs, endMs],
+      );
+
+      final fRepairs = await dbConn.query(
+        'repairs',
+        columns: ['price', 'cost', 'paymentMethod', 'deliveredAt', 'warranty'],
+        where:
+            'status = 4 AND deliveredAt IS NOT NULL AND deliveredAt >= ? AND deliveredAt < ?',
+        whereArgs: [startMs, endMs],
+      );
+
+      final fExpenses = await dbConn.query(
+        'expenses',
+        columns: ['amount', 'category', 'description', 'title', 'date'],
+        where: 'date >= ? AND date < ?',
+        whereArgs: [startMs, endMs],
+      );
+
+      final debtPayments = await dbConn.query(
+        'debt_payments',
+        columns: ['amount', 'paidAt', 'debtType'],
+        where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ?',
+        whereArgs: [startMs, endMs],
+      );
+
+      int doneT = 0, soldT = 0, debtR = 0, expW = 0;
 
       // === TÍNH TOÁN CHÍNH XÁC NHƯ REVENUE_VIEW.DART ===
-      // Lọc sales hôm nay
-      final fSales = sales.where((s) => _isSameDay(s.soldAt)).toList();
-
-      // Lọc repairs đã giao (status == 4) và deliveredAt hôm nay
-      final fRepairs = repairs
-          .where(
-            (r) =>
-                r.status == 4 &&
-                r.deliveredAt != null &&
-                _isSameDay(r.deliveredAt!),
-          )
-          .toList();
-
-      // Lọc expenses hôm nay
-      final fExpenses = expenses
-          .where((e) => _isSameDay(e['date'] as int))
-          .toList();
-
       // THU HÔM NAY - Tính theo ACCRUAL BASIS (cơ sở dồn tích)
       // K3: Bán nợ VẪN PHẢI tính vào doanh thu và giá vốn, chỉ KHÔNG tăng quỹ tiền mặt/NH
       // Tính tổng DOANH THU và GIÁ VỐN từ sales (bao gồm cả công nợ)
       int salesIncome = 0; // Doanh thu = tổng giá bán (cả công nợ)
       int salesCost = 0; // Giá vốn = tổng giá vốn (cả công nợ)
       int salesDebt = 0; // Công nợ = số tiền chưa thu (để hiển thị riêng)
-      for (var s in fSales) {
-        if (s.paymentMethod == 'CÔNG NỢ') {
+      for (final s in fSales) {
+        final paymentMethod = (s['paymentMethod'] ?? '').toString();
+        final totalPrice = (s['totalPrice'] as num?)?.toInt() ?? 0;
+        final totalCost = (s['totalCost'] as num?)?.toInt() ?? 0;
+        final isInstallment = (s['isInstallment'] == 1 || s['isInstallment'] == true);
+        if (paymentMethod == 'CÔNG NỢ') {
           // K3: Công nợ - VẪN TÍNH doanh thu và giá vốn (accrual basis)
           // Nhưng KHÔNG tăng quỹ tiền mặt/ngân hàng
-          salesIncome += s.totalPrice;
-          salesCost += s.totalCost;
-          salesDebt += s.totalPrice; // Track công nợ riêng
+          salesIncome += totalPrice;
+          salesCost += totalCost;
+          salesDebt += totalPrice; // Track công nợ riêng
           continue;
         }
-        if (s.isInstallment) {
+        if (isInstallment) {
           // Trả góp: tính theo số tiền ĐÃ THU ĐƯỢC (down + settlement)
           // Vì ngân hàng giải ngân phần còn lại, phải track riêng
-          final downPaid = s.downPayment;
+          final downPaid = (s['downPayment'] as num?)?.toInt() ?? 0;
+          final settlementReceivedAt = (s['settlementReceivedAt'] as num?)?.toInt();
+          final settlementAmount = (s['settlementAmount'] as num?)?.toInt() ?? 0;
+          final loanAmount = (s['loanAmount'] as num?)?.toInt() ?? 0;
           final settlementPaid =
-              (s.settlementReceivedAt != null &&
-                  _isSameDay(s.settlementReceivedAt!))
-              ? s.settlementAmount.clamp(0, s.loanAmount)
-              : 0;
+              (settlementReceivedAt != null && _isSameDay(settlementReceivedAt))
+                  ? settlementAmount.clamp(0, loanAmount)
+                  : 0;
           final totalPaid = downPaid + settlementPaid;
 
           // Doanh thu = số tiền đã nhận được (down + settlement)
           salesIncome += totalPaid;
 
           // Giá vốn tính theo tỷ lệ đã thu
-          final ratio = s.totalPrice > 0 ? totalPaid / s.totalPrice : 0.0;
-          salesCost += (s.totalCost * ratio).round();
+          final ratio = totalPrice > 0 ? totalPaid / totalPrice : 0.0;
+          salesCost += (totalCost * ratio).round();
         } else {
           // Bán thường (tiền mặt/chuyển khoản)
-          salesIncome += s.totalPrice;
-          salesCost += s.totalCost;
+          salesIncome += totalPrice;
+          salesCost += totalCost;
         }
       }
 
@@ -1293,12 +1352,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       int repairsIncome = 0;
       int repairsCost = 0;
       int repairsDebt = 0; // Track công nợ sửa chữa riêng
-      for (var r in fRepairs) {
+      for (final r in fRepairs) {
+        final price = (r['price'] as num?)?.toInt() ?? 0;
+        final cost = (r['cost'] as num?)?.toInt() ?? 0;
+        final paymentMethod = (r['paymentMethod'] ?? '').toString();
         // Accrual basis: tính cả công nợ vào doanh thu và giá vốn
-        repairsIncome += r.price;
-        repairsCost += r.totalCost;
-        if (r.paymentMethod == 'CÔNG NỢ') {
-          repairsDebt += r.price;
+        repairsIncome += price;
+        repairsCost += cost;
+        if (paymentMethod == 'CÔNG NỢ') {
+          repairsDebt += price;
         }
       }
 
@@ -1308,14 +1370,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       // Vì với accrual basis, doanh thu đã được tính ở K3 (lúc bán nợ)
       // Thu nợ chỉ ảnh hưởng quỹ tiền mặt/NH, không ảnh hưởng lợi nhuận
       int debtCollected = 0;
-      for (var p in debtPayments) {
-        final paidAt = p['paidAt'] as int?;
+      for (final p in debtPayments) {
+        final paidAt = (p['paidAt'] as num?)?.toInt();
         if (paidAt == null) continue;
         if (!_isSameDay(paidAt)) continue;
         if (p['debtType'] == 'SHOP_OWES') {
           continue; // SHOP_OWES là trả nợ NCC, không phải thu nợ KH
         }
-        final amount = p['amount'] as int? ?? 0;
+        final amount = (p['amount'] as num?)?.toInt() ?? 0;
         debtCollected += amount;
       }
 
@@ -1324,11 +1386,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
       // CHI HÔM NAY = tổng expenses (LOẠI TRỪ nhập hàng/linh kiện/purchase vì đã tính trong giá vốn)
       int totalOut = 0;
-      for (var e in fExpenses) {
+      for (final e in fExpenses) {
         final category = (e['category'] as String? ?? '').toUpperCase();
         final description = (e['description'] as String? ?? '').toUpperCase();
         final title = (e['title'] as String? ?? '').toUpperCase();
-        final amount = e['amount'] as int;
+        final amount = (e['amount'] as num?)?.toInt() ?? 0;
 
         // Loại trừ các chi phí nhập hàng/linh kiện/purchase vì sẽ được tính qua giá vốn khi bán/sửa
         // Kiểm tra cả category, description và title để đảm bảo không bỏ sót
@@ -1382,49 +1444,56 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       soldT = fSales.length;
 
       // Tính toán các số liệu khác
-      for (var r in repairs) {
-        if (_isSameDay(r.createdAt)) newRT++;
-        // Kiểm tra bảo hành sắp hết
-        if (r.deliveredAt != null &&
-            r.warranty.isNotEmpty &&
-            r.warranty != "KO BH") {
-          int m = int.tryParse(r.warranty.split(' ').first) ?? 0;
-          if (m > 0) {
-            DateTime d = DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!);
-            DateTime e = DateTime(d.year, d.month + m, d.day);
-            if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
-          }
-        }
-      }
+      final repairsWarranty = await dbConn.query(
+        'repairs',
+        columns: ['deliveredAt', 'warranty'],
+        where:
+            "deliveredAt IS NOT NULL AND warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'",
+      );
 
-      // Kiểm tra bảo hành sắp hết cho sales
-      for (var s in sales) {
-        if (s.warranty.isNotEmpty && s.warranty != "KO BH") {
-          int m = int.tryParse(s.warranty.split(' ').first) ?? 12;
-          DateTime d = DateTime.fromMillisecondsSinceEpoch(s.soldAt);
+      for (final r in repairsWarranty) {
+        final deliveredAt = (r['deliveredAt'] as num?)?.toInt();
+        final warranty = (r['warranty'] ?? '').toString();
+        if (deliveredAt == null) continue;
+        int m = int.tryParse(warranty.split(' ').first) ?? 0;
+        if (m > 0) {
+          DateTime d = DateTime.fromMillisecondsSinceEpoch(deliveredAt);
           DateTime e = DateTime(d.year, d.month + m, d.day);
           if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
         }
       }
 
-      // Tính tổng nợ còn lại (chỉ tính nợ chưa thanh toán hết và chưa hủy)
-      for (var d in debts) {
-        final status = d['status']?.toString().toUpperCase() ?? '';
-        // Bỏ qua nếu đã thanh toán hoặc đã hủy
-        if (status == 'PAID' || status == 'CANCELLED') continue;
+      final salesWarranty = await dbConn.query(
+        'sales',
+        columns: ['soldAt', 'warranty'],
+        where:
+            "warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'",
+      );
 
-        final int totalAmount = (d['totalAmount'] ?? 0) as int;
-        final int paidAmount = (d['paidAmount'] ?? 0) as int;
-        final int remain = totalAmount - paidAmount;
-        if (remain > 0 && totalAmount > 0) debtR += remain;
+      // Kiểm tra bảo hành sắp hết cho sales
+      for (final s in salesWarranty) {
+        final soldAt = (s['soldAt'] as num?)?.toInt() ?? 0;
+        final warranty = (s['warranty'] ?? '').toString();
+        int m = int.tryParse(warranty.split(' ').first) ?? 12;
+        DateTime d = DateTime.fromMillisecondsSinceEpoch(soldAt);
+        DateTime e = DateTime(d.year, d.month + m, d.day);
+        if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
       }
+
+      final debtRemainRow = await dbConn.rawQuery(
+        "SELECT SUM(CASE WHEN totalAmount > paidAmount THEN (totalAmount - paidAmount) ELSE 0 END) as remain "
+        "FROM debts WHERE (deleted IS NULL OR deleted != 1) AND (status IS NULL OR UPPER(status) NOT IN ('PAID','CANCELLED'))",
+      );
+      debtR = (debtRemainRow.first['remain'] as num?)?.toInt() ?? 0;
 
       // FIX: Tính thêm nợ đối tác sửa chữa (repair partners)
       try {
         final partnerService = RepairPartnerService();
         final partners = await partnerService.getRepairPartners();
-        for (final partner in partners) {
-          final stats = await partnerService.getPartnerRepairStats(partner.id!);
+        final statsList = await Future.wait(
+          partners.map((p) => partnerService.getPartnerRepairStats(p.id!)),
+        );
+        for (final stats in statsList) {
           if (stats != null) {
             final totalCost = (stats['totalCost'] ?? 0) as int;
             final totalPaid = (stats['totalPaid'] ?? 0) as int;
@@ -1437,8 +1506,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       }
 
       // Tính tổng số dữ liệu local (để biết máy mới hay không)
-      final products = await db.getAllProducts();
-      final totalRecords = repairs.length + sales.length + products.length;
+      final repairsCount = await db.getRepairsCount();
+      final salesCount = await db.getSalesCount();
+      final productsCount = await db.getProductsCount();
+      final totalRecords = repairsCount + salesCount + productsCount;
 
       // Load unread chat count và tin nhắn mới nhất TRƯỚC khi setState
       final unread = await UserService.getUnreadChatCount(
@@ -4924,7 +4995,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 subtitle: Text(
-                  "$mismatchCount ${loc.recordsNotSynced}",
+                  loc.recordsNotSynced(mismatchCount),
                   style: AppTextStyles.caption.copyWith(color: Colors.red),
                 ),
                 trailing: IconButton(

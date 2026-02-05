@@ -9,6 +9,7 @@
 /// - Nếu product có supplierId và supplier_debts có record → paymentMethod = 'CÔNG NỢ'
 /// - Nếu product có stockEntryId → lấy paymentMethod từ stock_entries
 /// - Mặc định → 'TIỀN MẶT'
+library;
 
 /*
 // JavaScript code để chạy trong Cloud Functions hoặc Node.js script

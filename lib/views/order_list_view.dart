@@ -60,7 +60,13 @@ class OrderListViewState extends State<OrderListView> {
   bool get canDelete => widget.role == 'admin' || widget.role == 'owner';
   
   /// Check if we need full data (for filtering)
-  bool get _needsFullData => true; // Luôn lấy full data để sort đúng
+  bool get _needsFullData =>
+      _currentSearch.isNotEmpty ||
+      _timeFilter != 'all' ||
+      _statusFilters.isNotEmpty ||
+      _filterPendingApproval ||
+      widget.todayOnly ||
+      (widget.statusFilter?.isNotEmpty ?? false);
 
   // Ưu tiên: Tiếp nhận -> Đang sửa -> Đã xong -> Chờ duyệt giao -> Giao máy
   int _compareRepairs(Repair a, Repair b) {
@@ -114,8 +120,25 @@ class OrderListViewState extends State<OrderListView> {
   }
   
   Future<void> _loadMoreIfNeeded() async {
-    // Không dùng phân trang khi cần sort toàn bộ
-    return;
+    if (_isLoadingMore || !_hasMore || _needsFullData) return;
+
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final newData = await db.getRepairsPaged(_pageSize, _currentOffset);
+      if (!mounted) return;
+      setState(() {
+        _allLoadedRepairs.addAll(newData);
+        _displayedRepairs = List<Repair>.from(_allLoadedRepairs)
+          ..sort(_compareRepairs);
+        _currentOffset += _pageSize;
+        _isLoadingMore = false;
+        _hasMore = newData.length >= _pageSize;
+      });
+    } catch (e) {
+      debugPrint('OrderListView: Error loading more: $e');
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
   }
 
   Future<void> _loadInitialData() async {
@@ -123,19 +146,35 @@ class OrderListViewState extends State<OrderListView> {
       _isLoading = true;
       _currentOffset = 0;
       _allLoadedRepairs = [];
-      _hasMore = false;
+      _hasMore = true;
       _isLoadingMore = false;
     });
 
-    final all = await db.getAllRepairs();
+    if (_needsFullData) {
+      final all = await db.getAllRepairs();
+      if (!mounted) return;
+
+      final filtered = _applyFilters(all)..sort(_compareRepairs);
+      setState(() {
+        _allLoadedRepairs = filtered;
+        _displayedRepairs = List<Repair>.from(filtered);
+        _currentOffset = filtered.length;
+        _isLoading = false;
+        _hasMore = false;
+      });
+      return;
+    }
+
+    final firstPage = await db.getRepairsPaged(_pageSize, 0);
     if (!mounted) return;
 
-    final filtered = _applyFilters(all)..sort(_compareRepairs);
+    final sorted = List<Repair>.from(firstPage)..sort(_compareRepairs);
     setState(() {
-      _allLoadedRepairs = filtered;
-      _displayedRepairs = List<Repair>.from(filtered);
-      _currentOffset = filtered.length;
+      _allLoadedRepairs = sorted;
+      _displayedRepairs = sorted;
+      _currentOffset = _pageSize;
       _isLoading = false;
+      _hasMore = firstPage.length >= _pageSize;
     });
   }
 

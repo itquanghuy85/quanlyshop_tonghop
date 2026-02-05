@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/db_helper.dart';
 import '../models/quick_input_code_model.dart';
 import '../services/sync_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_orchestrator.dart';
+import '../services/event_bus.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -25,11 +27,27 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
   bool _isLoading = true;
   QuickInputFilter _currentFilter = QuickInputFilter.all;
   bool _isSyncing = false;
+  
+  // EventBus subscription for real-time sync
+  StreamSubscription<String>? _eventSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadCodes();
+    
+    // Subscribe to quick_input_codes_changed event for real-time sync
+    _eventSubscription = EventBus().stream.listen((event) {
+      if (event == 'quick_input_codes_changed') {
+        _loadCodes();
+      }
+    });
+  }
+  
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadCodes() async {
@@ -380,7 +398,7 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
                       color: Colors.orange[100],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.sync_problem, size: 10, color: Colors.orange),
@@ -399,7 +417,7 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
+                    child: const Text(
                       'TẮT',
                       style: TextStyle(fontSize: AppTextStyles.overlineSize, color: Colors.grey),
                     ),
@@ -550,7 +568,7 @@ class _QuickInputLibraryViewState extends State<QuickInputLibraryView> {
       ),
       child: Text(
         '$label: ${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-        style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
+        style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: const Color(0xFF2E7D32), fontWeight: FontWeight.bold),
       ),
     );
   }

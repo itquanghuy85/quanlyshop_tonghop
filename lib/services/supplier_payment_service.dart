@@ -1,9 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import '../data/db_helper.dart';
 import '../models/supplier_payment_model.dart';
 import '../services/user_service.dart';
-import '../services/financial_activity_service.dart';
 
 class SupplierPaymentService {
   final DBHelper _db = DBHelper();

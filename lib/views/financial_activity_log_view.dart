@@ -20,7 +20,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     with SingleTickerProviderStateMixin {
   final db = DBHelper();
   late TabController _tabController;
-  
+
   // Tab Tài chính
   List<FinancialActivity> _activities = [];
   Map<String, dynamic> _summary = {};
@@ -28,7 +28,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   bool _hasMore = true;
   int _offset = 0;
   final int _limit = 50;
-  
+
   // Tab Hệ thống
   List<Map<String, dynamic>> _auditLogs = [];
   bool _auditLoading = true;
@@ -65,7 +65,11 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTab);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTab,
+    );
     _tabController.addListener(() {
       if (_tabController.index == 1 && _auditLogs.isEmpty) {
         _loadAuditLogs();
@@ -85,7 +89,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     _scrollController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _loadAuditLogs() async {
     setState(() => _auditLoading = true);
     final data = await db.getAuditLogs();
@@ -207,160 +211,174 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     // Lưu giá trị tạm để có thể cancel
     String? tempType = _selectedType;
     String? tempDirection = _selectedDirection;
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Bộ lọc',
-                  style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
-                ),
-                TextButton(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Bộ lọc',
+                    style: TextStyle(
+                      fontSize: AppTextStyles.headline2.fontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setSheetState(() {
+                        tempType = null;
+                        tempDirection = null;
+                      });
+                      setState(() {
+                        _startDate = DateTime.now().subtract(
+                          const Duration(days: 30),
+                        );
+                        _endDate = DateTime.now();
+                        _selectedType = null;
+                        _selectedDirection = null;
+                        _searchQuery = '';
+                        _searchController.clear();
+                      });
+                      Navigator.pop(ctx);
+                      _loadData();
+                    },
+                    child: const Text('Đặt lại'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Khoảng thời gian
+              const Text(
+                '📅 Khoảng thời gian',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _selectDate(true),
+                      icon: const Icon(Icons.calendar_today, size: 16),
+                      label: Text(DateFormat('dd/MM/yyyy').format(_startDate)),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('→'),
+                  ),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _selectDate(false),
+                      icon: const Icon(Icons.calendar_today, size: 16),
+                      label: Text(DateFormat('dd/MM/yyyy').format(_endDate)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Loại hoạt động
+              const Text(
+                '📊 Loại hoạt động',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _activityTypes.map((t) {
+                  final isSelected = (tempType ?? '') == t['value'];
+                  return ChoiceChip(
+                    label: Text(
+                      t['label']!,
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
+                    ),
+                    selected: isSelected,
+                    onSelected: (_) =>
+                        setSheetState(() => tempType = t['value']),
+                    selectedColor: Colors.blue.shade100,
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+
+              // Hướng tiền
+              const Text(
+                '💵 Hướng tiền',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _directions.map((d) {
+                  final isSelected = (tempDirection ?? '') == d['value'];
+                  return ChoiceChip(
+                    label: Text(
+                      d['label']!,
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
+                    ),
+                    selected: isSelected,
+                    onSelected: (_) =>
+                        setSheetState(() => tempDirection = d['value']),
+                    selectedColor: Colors.green.shade100,
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+
+              // Nút áp dụng
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
                   onPressed: () {
-                    setSheetState(() {
-                      tempType = null;
-                      tempDirection = null;
-                    });
+                    // Áp dụng filter
                     setState(() {
-                      _startDate = DateTime.now().subtract(
-                        const Duration(days: 30),
-                      );
-                      _endDate = DateTime.now();
-                      _selectedType = null;
-                      _selectedDirection = null;
-                      _searchQuery = '';
-                      _searchController.clear();
+                      _selectedType = tempType;
+                      _selectedDirection = tempDirection;
                     });
                     Navigator.pop(ctx);
                     _loadData();
                   },
-                  child: const Text('Đặt lại'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Khoảng thời gian
-            const Text(
-              '📅 Khoảng thời gian',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _selectDate(true),
-                    icon: const Icon(Icons.calendar_today, size: 16),
-                    label: Text(DateFormat('dd/MM/yyyy').format(_startDate)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2962FF),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('→'),
-                ),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _selectDate(false),
-                    icon: const Icon(Icons.calendar_today, size: 16),
-                    label: Text(DateFormat('dd/MM/yyyy').format(_endDate)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Loại hoạt động
-            const Text(
-              '📊 Loại hoạt động',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _activityTypes.map((t) {
-                final isSelected = (tempType ?? '') == t['value'];
-                return ChoiceChip(
-                  label: Text(t['label']!, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
-                  selected: isSelected,
-                  onSelected: (_) => setSheetState(() => tempType = t['value']),
-                  selectedColor: Colors.blue.shade100,
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-
-            // Hướng tiền
-            const Text(
-              '💵 Hướng tiền',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _directions.map((d) {
-                final isSelected = (tempDirection ?? '') == d['value'];
-                return ChoiceChip(
-                  label: Text(d['label']!, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
-                  selected: isSelected,
-                  onSelected: (_) =>
-                      setSheetState(() => tempDirection = d['value']),
-                  selectedColor: Colors.green.shade100,
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 24),
-
-            // Nút áp dụng
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // Áp dụng filter
-                  setState(() {
-                    _selectedType = tempType;
-                    _selectedDirection = tempDirection;
-                  });
-                  Navigator.pop(ctx);
-                  _loadData();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2962FF),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'ÁP DỤNG BỘ LỌC',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                  child: const Text(
+                    'ÁP DỤNG BỘ LỌC',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
-            ),
-            SizedBox(height: MediaQuery.of(ctx).padding.bottom + 10),
-          ],
+              SizedBox(height: MediaQuery.of(ctx).padding.bottom + 10),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -391,8 +409,8 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: CustomAppBar.build(
         title: 'NHẬT KÝ',
-        subtitle: _tabController.index == 0 
-            ? '${_activities.length} hoạt động tài chính' 
+        subtitle: _tabController.index == 0
+            ? '${_activities.length} hoạt động tài chính'
             : '${_auditLogs.length} log hệ thống',
         accentColor: AppBarAccents.finance,
         actions: [
@@ -404,7 +422,11 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                     _selectedType != null ||
                     _selectedDirection != null ||
                     _searchQuery.isNotEmpty,
-                child: Icon(Icons.filter_list_rounded, size: 22, color: AppBarAccents.finance),
+                child: const Icon(
+                  Icons.filter_list_rounded,
+                  size: 22,
+                  color: AppBarAccents.finance,
+                ),
               ),
               tooltip: 'Bộ lọc',
               splashRadius: 20,
@@ -418,7 +440,11 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                 _loadAuditLogs();
               }
             },
-            icon: Icon(Icons.refresh_rounded, size: 22, color: AppBarAccents.finance),
+            icon: const Icon(
+              Icons.refresh_rounded,
+              size: 22,
+              color: AppBarAccents.finance,
+            ),
             tooltip: 'Làm mới',
             splashRadius: 20,
           ),
@@ -436,10 +462,19 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: AppBarAccents.finance,
                   indicatorWeight: 3,
-                  labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
-                  unselectedLabelStyle: TextStyle(fontWeight: FontWeight.normal, fontSize: AppTextStyles.headline5.fontSize),
+                  labelStyle: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: AppTextStyles.headline5.fontSize,
+                  ),
+                  unselectedLabelStyle: TextStyle(
+                    fontWeight: FontWeight.normal,
+                    fontSize: AppTextStyles.headline5.fontSize,
+                  ),
                   tabs: const [
-                    Tab(icon: Icon(Icons.account_balance_wallet, size: 18), text: 'Tài chính'),
+                    Tab(
+                      icon: Icon(Icons.account_balance_wallet, size: 18),
+                      text: 'Tài chính',
+                    ),
                     Tab(icon: Icon(Icons.history, size: 18), text: 'Hệ thống'),
                   ],
                   onTap: (_) => setState(() {}),
@@ -462,15 +497,29 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                         _searchQuery = v.trim();
                         _loadData();
                       },
-                      style: TextStyle(color: CustomAppBar.kTextPrimary, fontSize: AppTextStyles.headline4.fontSize),
+                      style: TextStyle(
+                        color: CustomAppBar.kTextPrimary,
+                        fontSize: AppTextStyles.headline4.fontSize,
+                      ),
                       cursorColor: AppBarAccents.finance,
                       decoration: InputDecoration(
                         hintText: 'Tìm theo tên, SĐT, mô tả...',
-                        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: AppTextStyles.headline5.fontSize),
-                        prefixIcon: Icon(Icons.search_rounded, color: AppBarAccents.finance, size: 18),
+                        hintStyle: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: AppTextStyles.headline5.fontSize,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: AppBarAccents.finance,
+                          size: 18,
+                        ),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                                icon: Icon(Icons.close_rounded, color: Colors.grey.shade500, size: 18),
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  color: Colors.grey.shade500,
+                                  size: 18,
+                                ),
                                 onPressed: () {
                                   _searchController.clear();
                                   _searchQuery = '';
@@ -480,7 +529,10 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                               )
                             : null,
                         border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                       ),
                     ),
                   ),
@@ -491,14 +543,11 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildFinancialTab(),
-          _buildAuditLogTab(),
-        ],
+        children: [_buildFinancialTab(), _buildAuditLogTab()],
       ),
     );
   }
-  
+
   /// Tab Tài chính
   Widget _buildFinancialTab() {
     return Column(
@@ -515,12 +564,18 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
               const SizedBox(width: 6),
               Text(
                 '${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
-                style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.subtitle1.fontSize),
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: AppTextStyles.subtitle1.fontSize,
+                ),
               ),
               const Spacer(),
               Text(
                 '${_activities.length} hoạt động',
-                style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.subtitle1.fontSize),
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: AppTextStyles.subtitle1.fontSize,
+                ),
               ),
             ],
           ),
@@ -552,7 +607,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
       ],
     );
   }
-  
+
   /// Tab Nhật ký hệ thống
   Widget _buildAuditLogTab() {
     if (_auditLoading) {
@@ -563,9 +618,16 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.history_toggle_off_rounded, size: 80, color: Colors.grey[300]),
+            Icon(
+              Icons.history_toggle_off_rounded,
+              size: 80,
+              color: Colors.grey[300],
+            ),
             const SizedBox(height: 10),
-            const Text("Chưa có ghi chép hoạt động nào", style: TextStyle(color: Colors.grey)),
+            const Text(
+              "Chưa có ghi chép hoạt động nào",
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       );
@@ -573,42 +635,303 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: _auditLogs.length,
-      itemBuilder: (ctx, i) => _buildAuditLogCard(_auditLogs[i]),
+      itemBuilder: (ctx, i) => _buildAuditLogCard(_auditLogs[i], i + 1),
     );
   }
-  
-  Widget _buildAuditLogCard(Map<String, dynamic> log) {
+
+  Widget _buildAuditLogCard(Map<String, dynamic> log, int index) {
     final DateTime date = DateTime.fromMillisecondsSinceEpoch(log['createdAt']);
     final Color actionColor = _getAuditActionColor(log['action']);
+    final String entityType = log['targetType'] ?? log['entityType'] ?? '';
+    final String entityId = log['targetId'] ?? log['entityId'] ?? '';
+    final String description = log['description'] ?? log['summary'] ?? '';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 5)],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: actionColor.withAlpha(25), shape: BoxShape.circle),
-          child: Icon(_getAuditActionIcon(log['action']), color: actionColor, size: 20),
-        ),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(log['userName'] ?? 'Unknown', style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize, color: Colors.blueGrey)),
-            Text(DateFormat('HH:mm - dd/MM').format(date), style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey)),
+    return GestureDetector(
+      onTap: () => _showAuditLogDetail(log),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(10),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row: STT + Action + Time
+            Row(
+              children: [
+                // STT badge
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: actionColor.withAlpha(30),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$index',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.body1.fontSize,
+                        fontWeight: FontWeight.bold,
+                        color: actionColor,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Icon
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: actionColor.withAlpha(25),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _getAuditActionIcon(log['action']),
+                    color: actionColor,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Action name
+                Expanded(
+                  child: Text(
+                    log['action'] ?? '',
+                    style: TextStyle(
+                      color: actionColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppTextStyles.body1.fontSize,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                // Time badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    DateFormat('HH:mm').format(date),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.caption.fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Content row: Description
+            if (description.isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: AppTextStyles.body1.fontSize,
+                    color: Colors.black87,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            const SizedBox(height: 10),
+            // Footer row: User, EntityType, Date
+            Row(
+              children: [
+                // User badge
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.person_outline,
+                        size: 14,
+                        color: Colors.blue.shade700,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        log['userName'] ?? 'Unknown',
+                        style: TextStyle(
+                          fontSize: AppTextStyles.caption.fontSize,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // EntityType badge
+                if (entityType.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getEntityTypeColor(entityType).withAlpha(25),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _getEntityTypeName(entityType),
+                      style: TextStyle(
+                        fontSize: AppTextStyles.caption.fontSize,
+                        fontWeight: FontWeight.bold,
+                        color: _getEntityTypeColor(entityType),
+                      ),
+                    ),
+                  ),
+                const Spacer(),
+                // Date
+                Text(
+                  DateFormat('dd/MM/yyyy').format(date),
+                  style: TextStyle(
+                    fontSize: AppTextStyles.caption.fontSize,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: Colors.grey.shade400,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAuditLogDetail(Map<String, dynamic> log) {
+    final DateTime date = DateTime.fromMillisecondsSinceEpoch(log['createdAt']);
+    final Color actionColor = _getAuditActionColor(log['action']);
+    final String entityType = log['targetType'] ?? log['entityType'] ?? '';
+    final String entityId = log['targetId'] ?? log['entityId'] ?? '';
+    final String description = log['description'] ?? log['summary'] ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(log['action'] ?? '', style: TextStyle(color: actionColor, fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize)),
-              const SizedBox(height: 2),
-              Text(log['description'] ?? "", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87)),
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: actionColor.withAlpha(25),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      _getAuditActionIcon(log['action']),
+                      color: actionColor,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          log['action'] ?? '',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: AppTextStyles.headline2.fontSize,
+                            color: actionColor,
+                          ),
+                        ),
+                        Text(
+                          DateFormat('HH:mm - dd/MM/yyyy').format(date),
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: AppTextStyles.body1.fontSize,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 12),
+              // Details
+              _buildAuditDetailRow(
+                'Người thực hiện',
+                log['userName'] ?? 'Unknown',
+              ),
+              if (log['email'] != null && log['email'].toString().isNotEmpty)
+                _buildAuditDetailRow('Email', log['email'].toString()),
+              if (log['role'] != null && log['role'].toString().isNotEmpty)
+                _buildAuditDetailRow('Vai trò', log['role'].toString()),
+              if (entityType.isNotEmpty)
+                _buildAuditDetailRow(
+                  'Loại đối tượng',
+                  _getEntityTypeName(entityType),
+                ),
+              if (entityId.isNotEmpty)
+                _buildAuditDetailRow('ID đối tượng', entityId),
+              if (description.isNotEmpty)
+                _buildAuditDetailRow('Mô tả', description),
+              SizedBox(height: MediaQuery.of(ctx).padding.bottom + 16),
             ],
           ),
         ),
@@ -616,11 +939,84 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     );
   }
 
+  Widget _buildAuditDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: AppTextStyles.body1.fontSize,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: AppTextStyles.body1.fontSize,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getEntityTypeColor(String entityType) {
+    switch (entityType.toUpperCase()) {
+      case 'PRODUCT':
+        return Colors.indigo;
+      case 'SALE':
+        return Colors.pink;
+      case 'SUPPLIER':
+        return Colors.teal;
+      case 'STAFF':
+        return Colors.orange;
+      case 'EXPENSE':
+        return Colors.red;
+      case 'REPAIR':
+        return Colors.blue;
+      case 'CASH_CLOSE':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getEntityTypeName(String entityType) {
+    switch (entityType.toUpperCase()) {
+      case 'PRODUCT':
+        return 'Sản phẩm';
+      case 'SALE':
+        return 'Đơn bán';
+      case 'SUPPLIER':
+        return 'NCC';
+      case 'STAFF':
+        return 'Nhân viên';
+      case 'EXPENSE':
+        return 'Chi phí';
+      case 'REPAIR':
+        return 'Sửa chữa';
+      case 'CASH_CLOSE':
+        return 'Chốt sổ';
+      default:
+        return entityType;
+    }
+  }
+
   Color _getAuditActionColor(String? action) {
     if (action == null) return Colors.blue;
     if (action.contains("XÓA")) return Colors.red;
     if (action.contains("NHẬP") || action.contains("THÊM")) return Colors.green;
-    if (action.contains("SỬA") || action.contains("CẬP NHẬT")) return Colors.orange;
+    if (action.contains("SỬA") || action.contains("CẬP NHẬT"))
+      return Colors.orange;
     if (action.contains("BÁN")) return Colors.pink;
     return Colors.blue;
   }
@@ -702,12 +1098,17 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
               children: [
                 Text(
                   '💵 Lãi thực: ',
-                  style: TextStyle(color: Colors.white.withAlpha(200), fontSize: AppTextStyles.subtitle1.fontSize),
+                  style: TextStyle(
+                    color: Colors.white.withAlpha(200),
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                  ),
                 ),
                 Text(
                   _formatMoney(totalIn - totalOut),
                   style: TextStyle(
-                    color: (totalIn - totalOut) >= 0 ? Colors.greenAccent : Colors.redAccent,
+                    color: (totalIn - totalOut) >= 0
+                        ? Colors.greenAccent
+                        : Colors.redAccent,
                     fontWeight: FontWeight.bold,
                     fontSize: AppTextStyles.headline4.fontSize,
                   ),
@@ -715,7 +1116,10 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                 const SizedBox(width: 20),
                 Text(
                   '📊 $totalCount giao dịch',
-                  style: TextStyle(color: Colors.white.withAlpha(200), fontSize: AppTextStyles.subtitle1.fontSize),
+                  style: TextStyle(
+                    color: Colors.white.withAlpha(200),
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                  ),
                 ),
               ],
             ),
@@ -745,7 +1149,10 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
         ),
         Text(
           label,
-          style: TextStyle(color: Colors.white.withAlpha(200), fontSize: AppTextStyles.body1.fontSize),
+          style: TextStyle(
+            color: Colors.white.withAlpha(200),
+            fontSize: AppTextStyles.body1.fontSize,
+          ),
         ),
       ],
     );
@@ -760,12 +1167,18 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
           const SizedBox(height: 16),
           Text(
             'Chưa có hoạt động tài chính',
-            style: TextStyle(color: Colors.grey[500], fontSize: AppTextStyles.headline3.fontSize),
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: AppTextStyles.headline3.fontSize,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Các giao dịch sẽ được ghi lại tự động',
-            style: TextStyle(color: Colors.grey[400], fontSize: AppTextStyles.headline5.fontSize),
+            style: TextStyle(
+              color: Colors.grey[400],
+              fontSize: AppTextStyles.headline5.fontSize,
+            ),
           ),
         ],
       ),
@@ -907,7 +1320,11 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                               ),
                               const SizedBox(width: 2),
                               Text(
-                                '${activity.direction == 'OUT' ? '-' : activity.direction == 'IN' ? '+' : ''}${_formatMoney(activity.amount)}',
+                                '${activity.direction == 'OUT'
+                                    ? '-'
+                                    : activity.direction == 'IN'
+                                    ? '+'
+                                    : ''}${_formatMoney(activity.amount)}',
                                 style: TextStyle(
                                   color: directionColor,
                                   fontWeight: FontWeight.bold,
@@ -1001,7 +1418,9 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                   ),
                   child: Text(
                     activity.icon,
-                    style: TextStyle(fontSize: AppTextStyles.headline1.fontSize),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.headline1.fontSize,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1018,7 +1437,10 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                       ),
                       Text(
                         DateFormat('HH:mm - dd/MM/yyyy').format(date),
-                        style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.headline5.fontSize),
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: AppTextStyles.headline5.fontSize,
+                        ),
                       ),
                     ],
                   ),
@@ -1095,13 +1517,19 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
             width: 120,
             child: Text(
               label,
-              style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.headline5.fontSize),
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: AppTextStyles.headline5.fontSize,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(fontWeight: FontWeight.w500, fontSize: AppTextStyles.headline5.fontSize),
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: AppTextStyles.headline5.fontSize,
+              ),
             ),
           ),
         ],
@@ -1152,6 +1580,6 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
       final formatter = NumberFormat('#,###', 'vi_VN');
       return '${formatter.format(amount)}đ';
     }
-    return '${amount}đ';
+    return '$amountđ';
   }
 }

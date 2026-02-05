@@ -1677,5 +1677,716 @@
   "priceLabel": "PRICE",
   "costLabel": "COST",
   "chargeCustomerLabel": "Customer charge",
-  "partsLabel": "Parts"
+  "partsLabel": "Parts",
+  "profitLabel": "PROFIT",
+  "expectedProfit": "Expected profit",
+  "partsUsedLabel": "Parts: {parts}",
+  "@partsUsedLabel": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "servicesCount": "SERVICES ({count})",
+  "@servicesCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "repairServices": "REPAIR SERVICES",
+  "imagesCount": "IMAGES ({count})",
+  "@imagesCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "receivedImages": "RECEIVED DEVICE IMAGES",
+  "noImages": "No images",
+  "statusReceivedMsg": "RECEIVED DEVICE",
+  "statusStartRepairMsg": "START REPAIR",
+  "debtNoteRepair": "Debt for repair: {model}",
+  "@debtNoteRepair": {
+    "placeholders": { "model": { "type": "String" } }
+  },
+  "pendingDeliveryApproval": "Pending delivery approval - {customer}",
+  "@pendingDeliveryApproval": {
+    "placeholders": { "customer": { "type": "String" } }
+  },
+  "requestDeliveryApprovalDesc": "Request delivery approval for {model} - customer {customer}",
+  "@requestDeliveryApprovalDesc": {
+    "placeholders": { "model": { "type": "String" }, "customer": { "type": "String" } }
+  },
+  "notifRequestDeliveryApproval": "📋 DELIVERY APPROVAL REQUEST",
+  "chatRequestDeliveryApproval": "📋 DELIVERY REQUEST: {model} - {customer} - {price}đ",
+  "@chatRequestDeliveryApproval": {
+    "placeholders": { "model": { "type": "String" }, "customer": { "type": "String" }, "price": { "type": "String" } }
+  },
+  "defaultShopName": "SHOP NEW",
+  "defaultShopDesc": "Smartphone Specialist",
+  "defaultShopPhone": "0123.456.789",
+  "techNotesTitle": "TECHNICIAN NOTES",
+  "repairProcessNotes": "Repair process notes:",
+  "techNotesHint": "Ex: Replace power IC, check mainboard, replace charging cable...",
+  "trackRepairProgress": "Track repair progress and update status.",
+  "repairOrderDetail": "REPAIR ORDER DETAIL",
+  "partsShort": "PT: {parts}",
+  "@partsShort": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "noServicesYet": "No services yet",
+  "totalServices": "Total SVC:",
+  "notesLabel": "Notes",
+  "deliveryLabel": "Delivery",
+  "approveDelivery": "APPROVE DELIVERY",
+  "deliverDevice": "DELIVER",
+  "sendDeliveryRequest": "SEND DELIVERY REQUEST",
+  "addServiceButton": "ADD SERVICE",
+  "noServicesMessage": "No services added",
+  "totalServiceCost": "Total service cost",
+  "customerLabel": "Customer",
+  "phoneNumberLabel": "Phone number",
+  "issueLabel": "Device issue",
+  "accessoriesLabel": "Accessories",
+  "noAccessories": "None",
+  "errorSaving": "Error saving: {error}",
+  "@errorSaving": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "rejectDeliveryDesc": "Reject delivery approval for {model}",
+  "@rejectDeliveryDesc": {
+    "placeholders": { "model": { "type": "String" } }
+  },
+  "customerInfo": "Customer: {name}",
+  "@customerInfo": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "deviceInfo": "Device: {model}",
+  "@deviceInfo": {
+    "placeholders": { "model": { "type": "String" } }
+  },
+  "priceInfo": "Price: {price}đ",
+  "@priceInfo": {
+    "placeholders": { "price": { "type": "String" } }
+  },
+  "paymentInfo": "Payment: {method}",
+  "@paymentInfo": {
+    "placeholders": { "method": { "type": "String" } }
+  },
+  "selectWarrantyNote": "Select warranty (can change before approval):",
+  "confirmApproveDelivery": "Confirm approve delivery and complete transaction?",
+  "reject": "REJECT",
+  "chatApprovedDelivery": "✅ APPROVED DELIVERY: {summary}",
+  "@chatApprovedDelivery": {
+    "placeholders": { "summary": { "type": "String" } }
+  },
+  "noneYet": "Not yet",
+  "deliveryDate": "Delivery date",
+  "approve": "APPROVE",
+  "shareRepairReceipt": "🌟 REPAIR/WARRANTY RECEIPT 🌟\n----------------------------\nShop: {shopName}\nModel: {model}\nCustomer: {customerName} - {phone}\nIssue: {issue}\nWarranty: {warranty}\nTotal: {total}\n----------------------------\nThank you for your trust!",
+  "@shareRepairReceipt": {
+    "placeholders": {
+      "shopName": {"type": "String"},
+      "model": {"type": "String"},
+      "customerName": {"type": "String"},
+      "phone": {"type": "String"},
+      "issue": {"type": "String"},
+      "warranty": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
+  "actionDeliverDevice": "DELIVER DEVICE",
+  "actionRequestDeliveryApproval": "REQUEST DELIVERY APPROVAL",
+  "debtNoteForRepair": "Debt for repair: {model}",
+  "@debtNoteForRepair": {
+    "placeholders": {
+      "model": {"type": "String"}
+    }
+  },
+  "repairOrderSummary": "REPAIR ORDER - {customerName} - {phone} - {model} - {total}",
+  "@repairOrderSummary": {
+    "placeholders": {
+      "customerName": {"type": "String"},
+      "phone": {"type": "String"},
+      "model": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
+  "chatDeviceDelivered": "✅ DEVICE DELIVERED: {summary}",
+  "@chatDeviceDelivered": {
+    "placeholders": {
+      "summary": {"type": "String"}
+    }
+  },
+  "partsPaymentTitle": "PARTS PAYMENT",
+  "totalPartsAmount": "TOTAL PARTS AMOUNT",
+  "partsDesc": "Parts: {parts}",
+  "@partsDesc": {
+    "placeholders": {
+      "parts": {"type": "String"}
+    }
+  },
+  "supplierOptional": "Supplier (optional)",
+  "supplierHint": "e.g.: Parts ABC",
+  "paymentMethodLabel": "PAYMENT METHOD:",
+  "debtWarning": "Debt will be recorded in Debt Management",
+  "defaultPartsSupplier": "Parts supplier",
+  "recordDebt": "RECORD DEBT",
+  "viewRepairPartners": "View repair partners",
+  "serviceNameRequired": "Service name *",
+  "pleaseEnterServiceName": "Please enter service name",
+  "costVnd": "Cost (VND)",
+  "costField": "Cost",
+  "partnerPaymentMethodRequired": "Partner payment method *",
+  "pleaseSelectPaymentMethod": "Please select payment method",
+  "selectPartsTitle": "SELECT PARTS / COMPONENTS",
+  "searchPartOrSupplier": "Search by name or supplier",
+  "noPartsFound": "No matching parts found",
+  "mainWarehouse": "Main warehouse",
+  "oldWarehouse": "Old stock",
+  "stockQty": "Stock: {qty}",
+  "@stockQty": {
+    "placeholders": {
+      "qty": {"type": "int"}
+    }
+  },
+  "costPrice": "Cost: {price}",
+  "@costPrice": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "sellPrice": "Sell: {price}",
+  "@sellPrice": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "outOfStock": "OUT OF STOCK",
+  "confirmQty": "CONFIRM ({qty})",
+  "@confirmQty": {
+    "placeholders": {
+      "qty": {"type": "int"}
+    }
+  },
+  "confirmBtn": "CONFIRM",
+  "invoiceTemplateTitle": "CREATE INVOICE TEMPLATE",
+  "invoiceTemplateSaved": "Invoice template saved",
+  "headerLabel": "Header:",
+  "invoiceHeaderHint": "INVOICE HEADER",
+  "bodyLabelWithPlaceholders": "Body (use placeholders like customerName, total):",
+  "invoiceBodyHint": "MAIN CONTENT",
+  "footerLabel": "Footer:",
+  "invoiceFooterHint": "INVOICE FOOTER",
+  "previewLabel": "Preview:",
+  "generateQrSampleOrder": "CREATE QR FOR SAMPLE ORDER",
+  "qrCodeScanInfo": "QR Code (scan to view order info):",
+  "workScheduleSettingsTitle": "WORK SCHEDULE SETTINGS",
+  "generalSettingsTab": "General",
+  "staffTab": "Staff",
+  "workScheduleSaved": "Work schedule settings saved",
+  "staffSalarySaved": "Staff salary saved",
+  "saveErrorMsg": "Error saving: {error}",
+  "@saveErrorMsg": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "staffScheduleSavedFor": "Saved work schedule for {name}",
+  "@staffScheduleSavedFor": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "loadingStaffList": "Loading staff list...",
+  "noStaffData": "No staff data",
+  "tapToRefresh": "Tap reload to refresh",
+  "reload": "Reload",
+  "staffCountLabel": "Staff count: {count}",
+  "@staffCountLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "staffWorkSchedule": "Individual staff schedules",
+  "scheduleNotSet": "Schedule not set",
+  "workHoursLabel": "Work Hours",
+  "startTimeLabel": "Start",
+  "endTimeLabel": "End",
+  "lunchBreakLabel": "Lunch break",
+  "maxOvertimeLabel": "Max OT",
+  "workDaysLabel": "Work Days",
+  "holidaysLabel": "Holidays:",
+  "addBtn": "Add",
+  "overtimeRateLabel": "Overtime Rate",
+  "weekdayLabel": "Weekday",
+  "weekendLabel": "Weekend",
+  "holidayLabel": "Holiday",
+  "saveSettingsBtn": "SAVE SETTINGS",
+  "noStaffFoundMsg": "No staff found",
+  "addStaffFirstHint": "Please add staff in \"Staff Management\" first",
+  "salarySettingsLabel": "Salary Settings",
+  "selectStaffHint": "Select staff",
+  "baseSalaryVnd": "Base salary (VND)",
+  "attendanceLookupLabel": "Attendance Lookup",
+  "noAttendanceDataFor": "No attendance data for {date}",
+  "@noAttendanceDataFor": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "checkInLabel": "In:",
+  "checkOutLabel": "Out:",
+  "approvedStatus": "Approved",
+  "rejectedStatus": "Rejected",
+  "pendingStatus": "Pending",
+  "selectStaffToViewAttendance": "Select staff to view attendance",
+  "displayError": "Display Error",
+  "errorMsg": "Error: {error}",
+  "@errorMsg": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "noStaffHint": "No staff yet. Tap \"Reload\" below or add staff in Staff Management.",
+  "staffScheduleFor": "Work schedule: {name}",
+  "@staffScheduleFor": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "workTimeSettings": "Work Time Settings",
+  "startTimeFieldLabel": "Start time",
+  "endTimeFieldLabel": "End time",
+  "lunchBreakHours": "Lunch break (hours)",
+  "maxOvertimePerDay": "Max overtime per day",
+  "selectTimeLabel": "Select time",
+  "workDaysSettings": "Work Days Settings",
+  "workDaysInWeek": "Work days in week:",
+  "addHolidayBtn": "Add holiday",
+  "holidayListLabel": "Holiday list:",
+  "overtimeSettingsLabel": "Overtime Settings",
+  "weekdayOvertimeRate": "Weekday overtime (% of salary/hour)",
+  "weekendOvertimeRate": "Weekend overtime (% of salary/hour)",
+  "holidayOvertimeRate": "Holiday overtime (% of salary/hour)",
+  "staffSalarySettingsLabel": "Staff Salary Settings",
+  "addUpdateSalary": "Add/Update Salary",
+  "saveSalary": "Save salary",
+  "currentSalaryList": "Current salary list:",
+  "manageStaffAttendance": "Manage Staff Attendance",
+  "selectDateLabel": "Select date",
+  "attendanceInfoLabel": "Attendance Info",
+  "staffNameLabel": "Staff:",
+  "checkInTimeLabel": "Check-in:",
+  "checkOutTimeLabel": "Check-out:",
+  "selectStaffForAttendance": "Please select staff to view attendance info",
+
+  "aboutDeveloper": "About Developer",
+  "hulucaStoreDongNai": "HULUCA STORE DONG NAI",
+  "professionalStoreManagementApp": "Professional store management application",
+  "developerAndDesigner": "Developer & Designer",
+  "hulucaStore": "HULUCA STORE",
+  "dongNai": "DONG NAI",
+  "professionalPhoneRepairShop": "Professional phone repair shop",
+  "hotlineAndZalo": "Hotline & Zalo",
+  "shopManagerApp": "Shop Manager App",
+  "versionLabel": "Version {version}",
+  "@versionLabel": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "appFullDescription": "A comprehensive phone repair shop management app with real-time sync features.",
+
+  "attendanceTracking": "ATTENDANCE TRACKING",
+  "viewByMonth": "View by month",
+  "viewByDay": "View by day",
+  "attendanceForDate": "ATTENDANCE {date}",
+  "@attendanceForDate": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "monthLabel": "MONTH {month}",
+  "@monthLabel": {
+    "placeholders": {
+      "month": {"type": "String"}
+    }
+  },
+  "present": "Present",
+  "lateArrival": "Late",
+  "absent": "Absent",
+  "totalStaff": "Total Staff",
+  "checkedInStatus": "Checked in",
+  "todayLabel": "Today",
+  "noStaffYet": "No staff yet",
+  "notCheckedIn": "Not checked in",
+  "completedStatus": "Completed",
+  "workingStatus": "Working",
+  "workDaysCount": "Work days",
+  "workHoursCount": "Work hours",
+  "roleOwnerShort": "Owner",
+  "roleManagerShort": "Mgr",
+  "roleTechnicianShort": "Tech",
+  "roleEmployeeShort": "Staff",
+  "noAttendanceData": "No attendance data",
+  "dateLabel": "Date",
+  "checkInTimeShort": "Check-in",
+  "checkOutTimeShort": "Check-out",
+  "earlyLeave": "Early leave",
+  "locationLabel": "Location",
+  "attendancePhotos": "Attendance photos:",
+  "checkInPhoto": "In",
+  "checkOutPhoto": "Out",
+  "hasPhoto": "Yes",
+  "noPhoto": "No",
+  "monthYearFormat": "Month {monthYear}",
+  "@monthYearFormat": {
+    "placeholders": {
+      "monthYear": {"type": "String"}
+    }
+  },
+
+  "errorLoadingCustomers": "Error loading customers: {error}",
+  "@errorLoadingCustomers": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "editCustomerAction": "edit customer",
+  "deleteCustomerAction": "delete customer",
+  "confirmDeleteTitle": "Confirm delete",
+  "confirmDeleteCustomer": "Are you sure you want to delete customer \"{name}\"?",
+  "@confirmDeleteCustomer": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "confirmActionTitle": "Confirm {action}",
+  "@confirmActionTitle": {
+    "placeholders": {
+      "action": {"type": "String"}
+    }
+  },
+  "ownerPasswordRequired": "Only shop owner can perform this action.\nEnter account password to confirm:",
+  "pleaseLoginAgain": "Please login again",
+  "incorrectPassword": "Incorrect password!",
+  "customerManagement": "Customer Management",
+  "addCustomer": "Add customer",
+  "searchCustomers": "Search customers...",
+  "noCustomersYet": "No customers yet",
+  "customerNotFound": "Customer not found",
+  "notePrefix": "Note: {note}",
+  "@notePrefix": {
+    "placeholders": {
+      "note": {"type": "String"}
+    }
+  },
+  "totalPurchasedAmount": "Purchased: {amount}",
+  "@totalPurchasedAmount": {
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "repairCountLabel": "Repairs: {count} times",
+  "@repairCountLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "historyTab": "History",
+  "editAction": "Edit",
+  "addCustomerTitle": "Add customer",
+  "editCustomerTitle": "Edit customer",
+  "customerNameRequired": "Customer name *",
+  "enterCustomerName": "Enter customer name",
+  "pleaseEnterCustomerName": "Please enter customer name",
+  "phoneNumberRequired": "Phone number *",
+  "enterPhoneNumber": "Enter phone number",
+  "pleaseEnterPhoneNumber": "Please enter phone number",
+  "enterEmailOptional": "Enter email (optional)",
+  "addressLabel": "Address",
+  "enterAddressOptional": "Enter address (optional)",
+  "notesLabel": "Notes",
+  "enterNotesOptional": "Enter notes (optional)",
+  "totalPurchasesLabel": "Total purchases",
+  "totalRepairsLabel": "Total repairs",
+  "noHistoryYet": "No history yet",
+
+  "fastInventoryCheck": "Fast Inventory Check",
+  "checklistTitle": "📋 Checklist",
+  "checklistDescription": "System displays all products in stock. Scan QR code of each product to mark as checked.",
+  "scanImeiBarcode": "📷 Scan IMEI/Barcode",
+  "scanInstructions": "Press \"Start scan\" and point camera to QR/barcode to begin checking.",
+  "checkedVsMissing": "✅ Checked vs ❌ Missing",
+  "checkStatusDescription": "Green = scanned and found. Red = not yet scanned. Report shows checked vs missing.",
+  "inventoryReport": "📊 Inventory Report",
+  "reportDescription": "After scanning, view summary report to know missing and excess items.",
+  "errorLoadingInventory": "Error loading inventory: {error}",
+  "@errorLoadingInventory": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "phonesCategory": "Phones",
+  "checkAllPhones": "Check all phones in stock",
+  "accessoriesCategory": "Accessories",
+  "checkAllAccessories": "Check all accessories",
+  "specialCategory": "Special",
+  "specialProductsCheck": "Special products need separate check",
+  "duplicateScanWarning": "Scanned this code recently! Wait 3 seconds before scanning again",
+  "phoneMissingImei": "Phone QR missing IMEI",
+  "notInStockError": "Not in stock",
+  "accessoryMissingCode": "Accessory QR missing code",
+  "unknownAccessory": "Unknown accessory",
+  "invalidQrForInventory": "Invalid QR for inventory check: {error}",
+  "@invalidQrForInventory": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "productNotFoundById": "Product not found with ID: {id}",
+  "@productNotFoundById": {
+    "placeholders": {
+      "id": {"type": "String"}
+    }
+  },
+  "productNotSupportedForInventory": "Product not supported for inventory: {type}",
+  "@productNotSupportedForInventory": {
+    "placeholders": {
+      "type": {"type": "String"}
+    }
+  },
+  "errorCheckingProduct": "Error checking product: {error}",
+  "@errorCheckingProduct": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "qrScanSettings": "QR SCAN SETTINGS",
+  "soundFeedback": "Sound feedback",
+  "playSoundOnScan": "Play sound when scan",
+  "hapticFeedback": "Haptic feedback",
+  "vibrateOnScan": "Vibrate device when scan",
+  "scanTips": "Tip: Keep 20-30cm distance from QR code for best results",
+  "closeButton": "CLOSE",
+  "fastInventoryCheckTitle": "FAST INVENTORY CHECK",
+  "selectZone": "Select Zone",
+  "hideChecklist": "Hide checklist",
+  "showChecklist": "Show checklist",
+  "scanSettingsButton": "Scan settings",
+  "stopScan": "Stop scan",
+  "startScan": "Start scan",
+  "toggleFlash": "Toggle flash",
+  "phonesChecked": "📱 Checked",
+  "phonesMissing": "📱 Missing",
+  "phonesExtra": "📱 Extra",
+  "accessoriesChecked": "🔧 Checked",
+  "accessoriesMissing": "🔧 Missing",
+  "accessoriesExtra": "🔧 Extra",
+  "pressToStartScan": "Press scan button to start inventory check",
+  "scanInstructionsShort": "Phones: scan IMEI\nAccessories: scan each item",
+  "processingLabel": "Processing...",
+  "pendingCheckCount": "Pending ({count})",
+  "@pendingCheckCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "scannedCount": "Scanned ({count})",
+  "@scannedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "noProductsInStockMsg": "No products in stock",
+  "scannedLabel": "Scanned: {count}",
+  "@scannedLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "holdQrSteady": "Hold QR steady in front of camera",
+  "selectCheckArea": "Select check area",
+  "completedExclamation": "Completed!",
+  "switchedToZone": "Switched to zone: {zone}",
+  "@switchedToZone": {
+    "placeholders": {
+      "zone": {"type": "String"}
+    }
+  },
+
+  "labelSettings": "Product Label Settings",
+  "labelTemplates": "Label Templates",
+  "labelDisplayInfo": "Information displayed on label",
+  "shopNameLabel": "Shop Name",
+  "shopNameExample": "Ex: HULUCA MOBILE",
+  "hotlineLabel": "Hotline",
+  "hotlineExample": "Ex: 0909 123 456",
+  "sloganLabel": "Slogan",
+  "sloganExample": "Ex: Best price guaranteed",
+  "addressOptional": "Address (optional)",
+  "addressExample": "Ex: 123 ABC Street, District 1, HCM",
+  "cpkPriceSettings": "CPK Price Settings",
+  "cpkFormulaTitle": "📌 CPK Price Formula (With Accessories):",
+  "formulaLabel": "Formula",
+  "formulaExample": "price + 500000 or price * 1.05",
+  "formulaHint": "Ex: \"price + 500000\" = Selling price + 500k for with-accessories price",
+  "fixedLabelContent": "Fixed content on label",
+  "fixedLabelContentHint": "These text lines will display by default on all labels",
+  "line1Label": "Line 1",
+  "line2Label": "Line 2",
+  "line3Label": "Line 3",
+  "line1Example": "Ex: 100% Authentic guaranteed",
+  "line2Example": "Ex: 7-day return policy",
+  "line3Example": "Ex: 0% installment support",
+  "savingLabel": "Saving...",
+  "saveSettingsButton": "SAVE SETTINGS",
+  "labelSettingsSaved": "✅ Label settings saved!",
+  "errorPrefixLabel": "❌ Error: {error}",
+  "@errorPrefixLabel": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "defaultLabel": "Default",
+  "deleteTemplateQuestion": "Delete template?",
+  "confirmDeleteTemplate": "Are you sure you want to delete template \"{name}\"?",
+  "@confirmDeleteTemplate": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "cancelButton": "CANCEL",
+  "deleteButton": "DELETE",
+  "editTemplateTitle": "Edit label template",
+  "templateNameLabel": "Template name",
+  "labelSizeLabel": "Label size",
+  "cpkPriceFormulaLabel": "CPK price formula",
+  "productInfoLabel": "Product Info",
+  "productNameField": "Product name",
+  "productCodeField": "Product code",
+  "qrCodeField": "QR Code",
+  "imeiSerialField": "IMEI/Serial",
+  "capacityField": "Capacity",
+  "colorField": "Color",
+  "conditionField": "Condition",
+  "priceInfoLabel": "Price Info",
+  "priceKpkField": "KPK Price (no accessories)",
+  "priceCpkField": "CPK Price (with accessories)",
+  "originalPriceField": "Original price (strikethrough)",
+  "discountPercentField": "Discount %",
+  "shopInfoLabel": "Shop Info",
+  "otherInfoLabel": "Other",
+  "warrantyField": "Warranty",
+  "supplierField": "Supplier",
+  "importDateField": "Import date",
+  "pleaseEnterTemplateName": "Please enter template name",
+  "saveTemplateButton": "SAVE TEMPLATE",
+  "templateUpdated": "✅ Updated template \"{name}\"",
+  "@templateUpdated": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
+  "productNameLabelShort": "Product",
+  "detailsLabel": "Details",
+  "labelInfoTitle": "Label Info",
+  "priceKpkLabel": "KPK Price",
+  "priceCpkLabel": "CPK Price",
+  "imeiLabel": "IMEI",
+  "qrLabel": "QR",
+  "shopLabel": "Shop",
+  "labelDesignSaved": "✅ Label design saved!",
+  "resetToDefaultQuestion": "Reset to default?",
+  "layoutWillReset": "Label layout will be reset to original settings.",
+  "resetButton": "Reset",
+  "labelDesignTitle": "LABEL DESIGN",
+  "layoutTab": "Layout",
+  "ptyDesignerTab": "PTY 1:1 Designer",
+  "paperTypeLabel": "Paper type:",
+  "rollMmLabel": "Roll (mm)",
+  "stickerCmLabel": "Sticker (cm)",
+  "rollPaperSizeLabel": "Roll paper size (mm):",
+  "customPaperSizeLabel": "Custom paper size (mm)",
+  "stickerSizeLabel": "Sticker size (cm):",
+  "widthCmLabel": "Width (cm)",
+  "heightCmLabel": "Height (cm)",
+  "codeTypeLabel": "Code type:",
+  "offOption": "Off",
+  "qrOption": "QR",
+  "barcodeOption": "Barcode",
+  "designInstructions": "👆 Tap element on template to edit...",
+  "zoomPreviewLabel": "Zoom preview:",
+  "labelPreviewTitle": "LABEL PREVIEW",
+  "tapToSelect": "Tap to select",
+  "displayOption": "Display",
+  "spacingLabel": "Spacing:",
+  "boldOption": "Bold",
+  "fontStyleLabel": "Font style:",
+
+  "roleOwner": "Shop Owner",
+  "roleManager": "Manager",
+  "roleTechnician": "Technician",
+  "roleCashier": "Cashier",
+  "roleAdmin": "Admin",
+  "helpCenterTitle": "Help Center",
+  "searchByKeyword": "Search by keyword, feature...",
+  "suggestionsLabel": "Suggestions",
+  "feedbackContact": "Have feature suggestions? Contact support@huluca.com",
+  "feedbackSupport": "Feedback / Support",
+  "noGuideFound": "No guide found matching keyword.",
+  "otherTopics": "Other topics",
+  "stepsCountLabel": "{count} steps",
+  "@stepsCountLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "tipsCountLabel": "{count} tips",
+  "@tipsCountLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "quickGuide": "Quick Guide",
+  "quickGuideDescription": "Select a topic or enter keyword...",
+  "contentStandard": "All content is prepared according to Shopmanager standards.",
+  "forRoleLabel": "For {role}",
+  "@forRoleLabel": {
+    "placeholders": {
+      "role": {"type": "String"}
+    }
+  },
+  "estimatedTimeLabel": "Estimated time: {time}",
+  "@estimatedTimeLabel": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
+  "difficultyLabel": "Difficulty: {level}",
+  "@difficultyLabel": {
+    "placeholders": {
+      "level": {"type": "String"}
+    }
+  },
+  "prerequisitesLabel": "Prerequisites",
+  "stepsLabel": "Steps",
+  "tipsAndNotesLabel": "Tips & Notes",
+  "watchVideoLabel": "Watch video tutorial",
+  "attachmentsLabel": "Attachments",
+  "relatedLabel": "Related",
+  "needHelpLabel": "Need help? Contact support team: support@huluca.com",
+  "understoodGuide": "I understood this guide",
+  "markedAsViewed": "Marked this guide as viewed.",
+  "videoGuideLabel": "Video Guide",
+  "videosBeingUpdated": "Video tutorials are being updated.",
+  "contactSupportLabel": "Contact Support",
+  "sendEmailForHelp": "Send email to support@huluca.com for quick assistance.",
+  "suggestImprovementLabel": "Suggest Improvement",
+  "feedbackHelps": "Your feedback helps make documentation better!",
+  "filteredByRole": "Filtered guides matching your role.",
+  "featuredLabel": "Featured",
+  "quickLabel": "Quick",
+  "needMoreHelpLabel": "Need more help?",
+  "hulucaTeamSupport": "Huluca team is ready to support via email, Zalo or direct training.",
+  "emailSupportLabel": "Email support@huluca.com",
+  "emailCopied": "Copied email support@huluca.com",
+  "zaloSupportLabel": "Zalo Support",
+  "contactZaloLabel": "Contact Zalo Support: 0901 234 567",
+  "scheduleTrainingLabel": "Schedule Training",
+  "scheduleTrainingThisWeek": "Schedule online training this week."
 }

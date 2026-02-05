@@ -181,8 +181,8 @@ class _PurchaseOrderListViewState extends State<PurchaseOrderListView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
+              const Icon(Icons.lock, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
               Text(
                 "Bạn không có quyền xem đơn nhập hàng",
                 style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, color: Colors.grey),

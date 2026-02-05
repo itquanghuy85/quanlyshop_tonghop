@@ -589,7 +589,7 @@ class _RevenueViewState extends State<RevenueView>
                   ),
                   child: Text(
                     _getFilterLabel(),
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: AppTextStyles.overlineSize,
                       fontWeight: FontWeight.bold,
@@ -2030,11 +2030,11 @@ class _RevenueViewState extends State<RevenueView>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               "Bạn có chắc muốn mở khóa ngày hôm nay?",
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
               "• Các giao dịch sẽ được phép thêm/sửa/xóa\n"
               "• Bạn cần chốt quỹ lại sau khi hoàn tất\n"

@@ -27,7 +27,7 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
   bool _bluetoothCompat = true;
   int _paddingLines = 1;
   String _qrSize = 'medium';
-  int _columns = 1;
+  final int _columns = 1;
   String _codeType = 'qr';
   List<Product> _allItems = [];
   List<Product> _filteredItems = [];
@@ -252,22 +252,22 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
                                 const SizedBox(width: 8),
                                 DropdownButton<String>(
                                   value: _qrSize,
-                                  items: [
+                                  items: const [
                                     DropdownMenuItem(
                                       value: 'xsmall',
-                                      child: const Text('Rất nhỏ'),
+                                      child: Text('Rất nhỏ'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'small',
-                                      child: const Text('Nhỏ'),
+                                      child: Text('Nhỏ'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'medium',
-                                      child: const Text('Vừa'),
+                                      child: Text('Vừa'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'large',
-                                      child: const Text('Lớn'),
+                                      child: Text('Lớn'),
                                     ),
                                   ],
                                   onChanged: (v) {

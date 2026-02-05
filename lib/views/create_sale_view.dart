@@ -658,7 +658,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           ? phoneCtrl.text
           : (nameCtrl.text.isNotEmpty ? nameCtrl.text.trim().toUpperCase() : 'walkin');
         final String uniqueId =
-          widget.editSale?.firestoreId ?? "sale_${now}_${safeTail}";
+          widget.editSale?.firestoreId ?? "sale_${now}_$safeTail";
       String seller =
           FirebaseAuth.instance.currentUser?.email
               ?.split('@')
@@ -1653,7 +1653,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         // Số tiền thu thực tế
         _moneyInput(
           downPaymentCtrl,
-          _isInstallment ? "KHÁCH TRẢ TRƯỚC" : "SỐ TIỀN THU",
+          _isInstallment ? "KHÁCH TRẢ" : "SỐ TIỀN",
           AppColors.secondary,
         ),
 
@@ -1785,9 +1785,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               value: _hasSecondBank,
                               onChanged: (v) => setState(() {
                                 _hasSecondBank = v ?? false;
-                                if (_hasSecondBank)
+                                if (_hasSecondBank) {
                                   _calculateBank2Loan();
-                                else {
+                                } else {
                                   bankCtrl2.clear();
                                   loanAmountCtrl2.text = "0";
                                   _calculateInstallment();
@@ -1864,22 +1864,20 @@ class _CreateSaleViewState extends State<CreateSaleView> {
 
         const Divider(height: 12),
 
-        // Bảo hành + Ghi chú: dùng Wrap để tránh tràn ngang
-        Wrap(
-          spacing: 12,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.start,
+        // Bảo hành + Ghi chú: dùng Row flexible để tránh tràn ngang
+        Row(
           children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 140),
+            SizedBox(
+              width: 130,
               child: DropdownButtonFormField<String>(
                 value: _saleWarranty,
+                isExpanded: true,
                 decoration: const InputDecoration(
-                  labelText: "BẢO HÀNH",
+                  labelText: "B.HÀNH",
                   prefixIcon: Icon(Icons.verified_user, size: 16),
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: 6,
                     vertical: 6,
                   ),
                 ),
@@ -1887,15 +1885,19 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                     .map(
                       (e) => DropdownMenuItem(
                         value: e,
-                        child: Text(e, style: AppTextStyles.caption),
+                        child: Text(
+                          e,
+                          style: AppTextStyles.caption,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     )
                     .toList(),
                 onChanged: (v) => setState(() => _saleWarranty = v ?? "KO BH"),
               ),
             ),
-            SizedBox(
-              width: MediaQuery.of(context).size.width - 172, // phần còn lại
+            const SizedBox(width: 12),
+            Expanded(
               child: TextFormField(
                 controller: noteCtrl,
                 maxLines: 1,
@@ -2173,7 +2175,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         const Divider(height: 30),
         // KHÔI PHỤC TAB BẢO HÀNH: Cho phép chọn bảo hành bất kể trạng thái nợ
         DropdownButtonFormField<String>(
-          initialValue: _saleWarranty,
+          value: _saleWarranty,
+          isExpanded: true,
           decoration: const InputDecoration(
             labelText: "CHỌN THỜI GIAN BẢO HÀNH",
             prefixIcon: Icon(Icons.verified_user),
@@ -2184,7 +2187,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             "3 THÁNG",
             "6 THÁNG",
             "12 THÁNG",
-          ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          ].map((e) => DropdownMenuItem(
+            value: e,
+            child: Text(e, overflow: TextOverflow.ellipsis),
+          )).toList(),
           onChanged: (v) => setState(() => _saleWarranty = v ?? "KO BH"),
         ),
         const SizedBox(height: 15),

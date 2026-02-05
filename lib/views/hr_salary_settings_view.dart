@@ -29,7 +29,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
   List<Map<String, dynamic>> _staffList = [];
 
   // Cài đặt lương cho từng nhân viên: staffId -> EmployeeSalarySettings
-  Map<String, EmployeeSalarySettings> _employeeSettings = {};
+  final Map<String, EmployeeSalarySettings> _employeeSettings = {};
 
   // Cài đặt mặc định của shop
   Map<String, dynamic> _shopDefaults = {
@@ -259,9 +259,19 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
           onPressed: () => Navigator.of(context).pop(),
           tooltip: 'Quay lại',
         ),
-        title: const Text(
-          'CÀI ĐẶT LƯƠNG',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Text(
+              'SALARY SETTINGS / CÀI ĐẶT LƯƠNG',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ],
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
@@ -303,7 +313,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildInfoCard(
-            'Cài đặt mặc định áp dụng cho nhân viên mới hoặc chưa được cấu hình riêng.',
+            'Default settings apply to new staff or those without custom config. / Cài đặt mặc định áp dụng cho nhân viên mới hoặc chưa được cấu hình riêng.',
             Colors.blue,
             Icons.info_outline,
           ),
@@ -311,7 +321,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
 
           // LƯƠNG CƠ BẢN
           _buildSectionCard(
-            title: '💰 LƯƠNG CƠ BẢN',
+            title: '💰 BASE SALARY / LƯƠNG CƠ BẢN',
             color: Colors.green,
             children: [
               _buildDropdownField(
@@ -342,7 +352,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
 
           // HOA HỒNG BÁN HÀNG
           _buildSectionCard(
-            title: '🛒 HOA HỒNG BÁN HÀNG',
+            title: '🛒 SALES COMMISSION / HOA HỒNG BÁN HÀNG',
             color: Colors.orange,
             children: [
               _buildDropdownField(
@@ -527,14 +537,17 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
       itemBuilder: (context, index) {
         final staff = _staffList[index];
         final staffId = staff['uid'] ?? staff['id'] ?? '';
-        final staffName = staff['name'] ?? staff['displayName'] ?? 'Chưa có tên';
+        final staffName =
+            staff['name'] ?? staff['displayName'] ?? 'Chưa có tên';
         final hasSettings = _employeeSettings.containsKey(staffId);
 
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: hasSettings ? Colors.green : Colors.grey.shade300,
+              backgroundColor: hasSettings
+                  ? Colors.green
+                  : Colors.grey.shade300,
               child: Text(
                 staffName.isNotEmpty ? staffName[0].toUpperCase() : '?',
                 style: TextStyle(
@@ -559,7 +572,11 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                 if (hasSettings)
                   const Icon(Icons.check_circle, color: Colors.green, size: 20)
                 else
-                  const Icon(Icons.settings_outlined, color: Colors.grey, size: 20),
+                  const Icon(
+                    Icons.settings_outlined,
+                    color: Colors.grey,
+                    size: 20,
+                  ),
                 const SizedBox(width: 4),
                 const Icon(Icons.chevron_right, color: Colors.grey),
               ],
@@ -590,11 +607,14 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
           saleCommType: _shopDefaults['saleCommType'] ?? 'percent',
           saleCommValue: (_shopDefaults['saleCommValue'] ?? 1.0).toDouble(),
           repairCommType: _shopDefaults['repairCommType'] ?? 'percent',
-          repairCommValue: (_shopDefaults['repairCommValue'] ?? 10.0).toDouble(),
-          transportAllowance: (_shopDefaults['transportAllowance'] ?? 0).toDouble(),
+          repairCommValue: (_shopDefaults['repairCommValue'] ?? 10.0)
+              .toDouble(),
+          transportAllowance: (_shopDefaults['transportAllowance'] ?? 0)
+              .toDouble(),
           mealAllowance: (_shopDefaults['mealAllowance'] ?? 0).toDouble(),
           phoneAllowance: (_shopDefaults['phoneAllowance'] ?? 0).toDouble(),
-          standardHoursPerDay: (_shopDefaults['standardHoursPerDay'] ?? 8.0).toDouble(),
+          standardHoursPerDay: (_shopDefaults['standardHoursPerDay'] ?? 8.0)
+              .toDouble(),
           overtimeRate: (_shopDefaults['overtimeRate'] ?? 150).toDouble(),
         );
 
@@ -632,8 +652,13 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                       CircleAvatar(
                         backgroundColor: AppColors.primary,
                         child: Text(
-                          staffName.isNotEmpty ? staffName[0].toUpperCase() : '?',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          staffName.isNotEmpty
+                              ? staffName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -644,7 +669,9 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                             Text(staffName, style: AppTextStyles.headline3),
                             Text(
                               staff['email'] ?? staffId,
-                              style: AppTextStyles.caption.copyWith(color: Colors.grey),
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.grey,
+                              ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
@@ -658,18 +685,37 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                               staffId: staffId,
                               staffName: staffName,
                               shopId: shopId,
-                              baseSalary: (_shopDefaults['baseSalary'] ?? 0).toDouble(),
-                              dailyRate: (_shopDefaults['dailyRate'] ?? 0).toDouble(),
-                              salaryType: _shopDefaults['salaryType'] ?? 'monthly',
-                              saleCommType: _shopDefaults['saleCommType'] ?? 'percent',
-                              saleCommValue: (_shopDefaults['saleCommValue'] ?? 1.0).toDouble(),
-                              repairCommType: _shopDefaults['repairCommType'] ?? 'percent',
-                              repairCommValue: (_shopDefaults['repairCommValue'] ?? 10.0).toDouble(),
-                              transportAllowance: (_shopDefaults['transportAllowance'] ?? 0).toDouble(),
-                              mealAllowance: (_shopDefaults['mealAllowance'] ?? 0).toDouble(),
-                              phoneAllowance: (_shopDefaults['phoneAllowance'] ?? 0).toDouble(),
-                              standardHoursPerDay: (_shopDefaults['standardHoursPerDay'] ?? 8.0).toDouble(),
-                              overtimeRate: (_shopDefaults['overtimeRate'] ?? 150).toDouble(),
+                              baseSalary: (_shopDefaults['baseSalary'] ?? 0)
+                                  .toDouble(),
+                              dailyRate: (_shopDefaults['dailyRate'] ?? 0)
+                                  .toDouble(),
+                              salaryType:
+                                  _shopDefaults['salaryType'] ?? 'monthly',
+                              saleCommType:
+                                  _shopDefaults['saleCommType'] ?? 'percent',
+                              saleCommValue:
+                                  (_shopDefaults['saleCommValue'] ?? 1.0)
+                                      .toDouble(),
+                              repairCommType:
+                                  _shopDefaults['repairCommType'] ?? 'percent',
+                              repairCommValue:
+                                  (_shopDefaults['repairCommValue'] ?? 10.0)
+                                      .toDouble(),
+                              transportAllowance:
+                                  (_shopDefaults['transportAllowance'] ?? 0)
+                                      .toDouble(),
+                              mealAllowance:
+                                  (_shopDefaults['mealAllowance'] ?? 0)
+                                      .toDouble(),
+                              phoneAllowance:
+                                  (_shopDefaults['phoneAllowance'] ?? 0)
+                                      .toDouble(),
+                              standardHoursPerDay:
+                                  (_shopDefaults['standardHoursPerDay'] ?? 8.0)
+                                      .toDouble(),
+                              overtimeRate:
+                                  (_shopDefaults['overtimeRate'] ?? 150)
+                                      .toDouble(),
                             );
                           });
                         },
@@ -695,9 +741,18 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                             label: 'Loại lương',
                             value: settings.salaryType,
                             items: const [
-                              DropdownMenuItem(value: 'monthly', child: Text('Theo tháng')),
-                              DropdownMenuItem(value: 'daily', child: Text('Theo ngày')),
-                              DropdownMenuItem(value: 'hourly', child: Text('Theo giờ')),
+                              DropdownMenuItem(
+                                value: 'monthly',
+                                child: Text('Theo tháng'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'daily',
+                                child: Text('Theo ngày'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'hourly',
+                                child: Text('Theo giờ'),
+                              ),
                             ],
                             onChanged: (v) => setDialogState(() {
                               settings = settings.copyWith(salaryType: v);
@@ -708,8 +763,8 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                             label: settings.salaryType == 'daily'
                                 ? 'Lương/ngày (đ)'
                                 : settings.salaryType == 'hourly'
-                                    ? 'Lương/giờ (đ)'
-                                    : 'Lương cơ bản/tháng (đ)',
+                                ? 'Lương/giờ (đ)'
+                                : 'Lương cơ bản/tháng (đ)',
                             value: settings.baseSalary,
                             onChanged: (v) => setDialogState(() {
                               settings = settings.copyWith(baseSalary: v);
@@ -728,8 +783,14 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                             label: 'Loại tính',
                             value: settings.saleCommType,
                             items: const [
-                              DropdownMenuItem(value: 'percent', child: Text('% Doanh số')),
-                              DropdownMenuItem(value: 'fixed_per_order', child: Text('Tiền cố định/đơn')),
+                              DropdownMenuItem(
+                                value: 'percent',
+                                child: Text('% Doanh số'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'fixed_per_order',
+                                child: Text('Tiền cố định/đơn'),
+                              ),
                             ],
                             onChanged: (v) => setDialogState(() {
                               settings = settings.copyWith(saleCommType: v);
@@ -765,8 +826,14 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                             label: 'Loại tính',
                             value: settings.repairCommType,
                             items: const [
-                              DropdownMenuItem(value: 'percent', child: Text('% Lợi nhuận')),
-                              DropdownMenuItem(value: 'fixed_per_order', child: Text('Tiền cố định/đơn')),
+                              DropdownMenuItem(
+                                value: 'percent',
+                                child: Text('% Lợi nhuận'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'fixed_per_order',
+                                child: Text('Tiền cố định/đơn'),
+                              ),
                             ],
                             onChanged: (v) => setDialogState(() {
                               settings = settings.copyWith(repairCommType: v);
@@ -778,7 +845,9 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                               label: '% Hoa hồng lợi nhuận',
                               value: settings.repairCommValue,
                               onChanged: (v) => setDialogState(() {
-                                settings = settings.copyWith(repairCommValue: v);
+                                settings = settings.copyWith(
+                                  repairCommValue: v,
+                                );
                               }),
                             )
                           else
@@ -786,7 +855,9 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                               label: 'Tiền/đơn sửa (đ)',
                               value: settings.repairCommValue,
                               onChanged: (v) => setDialogState(() {
-                                settings = settings.copyWith(repairCommValue: v);
+                                settings = settings.copyWith(
+                                  repairCommValue: v,
+                                );
                               }),
                             ),
                         ],
@@ -802,7 +873,9 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                             label: 'Phụ cấp xăng xe/tháng (đ)',
                             value: settings.transportAllowance,
                             onChanged: (v) => setDialogState(() {
-                              settings = settings.copyWith(transportAllowance: v);
+                              settings = settings.copyWith(
+                                transportAllowance: v,
+                              );
                             }),
                           ),
                           const SizedBox(height: 12),
@@ -850,7 +923,9 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                             label: '% Thưởng khi đạt mục tiêu',
                             value: settings.targetBonusPercent,
                             onChanged: (v) => setDialogState(() {
-                              settings = settings.copyWith(targetBonusPercent: v);
+                              settings = settings.copyWith(
+                                targetBonusPercent: v,
+                              );
                             }),
                           ),
                         ],
@@ -866,7 +941,9 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                             label: 'Giờ chuẩn/ngày',
                             value: settings.standardHoursPerDay,
                             onChanged: (v) => setDialogState(() {
-                              settings = settings.copyWith(standardHoursPerDay: v);
+                              settings = settings.copyWith(
+                                standardHoursPerDay: v,
+                              );
                             }),
                             suffix: 'giờ',
                           ),
@@ -1083,7 +1160,10 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
           Expanded(
             child: Text(
               text,
-              style: TextStyle(color: color.withOpacity(0.8), fontSize: AppTextStyles.headline5.fontSize),
+              style: TextStyle(
+                color: color.withOpacity(0.8),
+                fontSize: AppTextStyles.headline5.fontSize,
+              ),
             ),
           ),
         ],
@@ -1151,7 +1231,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
     required ValueChanged<T?> onChanged,
   }) {
     return DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
@@ -1263,7 +1343,9 @@ class _CurrencyFieldWidgetState extends State<_CurrencyFieldWidget> {
       _controller.text = widget.currencyFormat.format(_currentValue);
     } else {
       // When gaining focus, show raw number for easier editing
-      _controller.text = _currentValue > 0 ? _currentValue.toStringAsFixed(0) : '';
+      _controller.text = _currentValue > 0
+          ? _currentValue.toStringAsFixed(0)
+          : '';
       _controller.selection = TextSelection(
         baseOffset: 0,
         extentOffset: _controller.text.length,

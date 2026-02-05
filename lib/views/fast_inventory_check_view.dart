@@ -626,9 +626,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       }
       
       // Nếu không tìm thấy, thử tìm theo firestoreId (chuỗi)
-      if (product == null) {
-        product = await db.getProductByFirestoreId(productId);
-      }
+      product ??= await db.getProductByFirestoreId(productId);
       
       if (product == null) {
         HapticFeedback.vibrate();
@@ -1220,12 +1218,12 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                CircularProgressIndicator(
+                                const CircularProgressIndicator(
                                   valueColor: AlwaysStoppedAnimation<Color>(
                                     Colors.white,
                                   ),
                                 ),
-                                SizedBox(height: 16),
+                                const SizedBox(height: 16),
                                 Text(
                                   'Đang xử lý...',
                                   style: TextStyle(

@@ -120,11 +120,12 @@ class _WarrantyViewState extends State<WarrantyView> {
     results.sort(
       (a, b) => (a['expiry'] as DateTime).compareTo(b['expiry'] as DateTime),
     );
-    if (mounted)
+    if (mounted) {
       setState(() {
         _warrantyList = results;
         _isLoading = false;
       });
+    }
   }
 
   @override
@@ -304,7 +305,7 @@ class _WarrantyViewState extends State<WarrantyView> {
                               ),
                               child: Text(
                                 isSale ? 'BÁN' : 'SỬA',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: AppTextStyles.overlineSize,
                                   fontWeight: FontWeight.bold,
@@ -317,7 +318,7 @@ class _WarrantyViewState extends State<WarrantyView> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: AppTextStyles.subtitle1.fontSize,
-                                  color: Color(0xFF1A237E),
+                                  color: const Color(0xFF1A237E),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -393,7 +394,7 @@ class _WarrantyViewState extends State<WarrantyView> {
               Row(
                 children: [
                   Text(
-                    '${DateFormat('dd/MM').format(startDate)}',
+                    DateFormat('dd/MM').format(startDate),
                     style: TextStyle(fontSize: AppTextStyles.overlineSize, color: Colors.grey.shade500),
                   ),
                   const SizedBox(width: 6),
@@ -410,7 +411,7 @@ class _WarrantyViewState extends State<WarrantyView> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    '${DateFormat('dd/MM').format(expDate)}',
+                    DateFormat('dd/MM').format(expDate),
                     style: TextStyle(
                       fontSize: AppTextStyles.overlineSize,
                       color: urgentColor,

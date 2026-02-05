@@ -1,5 +1,6 @@
 /// Model cho mẫu tem sản phẩm
 /// Hỗ trợ nhiều loại tem: kiểm kho, bán hàng, khuyến mãi, bảo hành, tùy chỉnh
+library;
 
 class LabelTemplate {
   final String id;
@@ -107,7 +108,7 @@ class LabelTemplate {
         name: 'Kiểm kho',
         type: LabelType.inventory,
         size: LabelSize.small,
-        fields: LabelFieldSettings(
+        fields: const LabelFieldSettings(
           showProductName: true,
           showProductCode: true,
           showQrCode: true,
@@ -121,7 +122,7 @@ class LabelTemplate {
           showSupplier: false,
           showImportDate: false,
         ),
-        shopInfo: ShopInfoSettings(
+        shopInfo: const ShopInfoSettings(
           showShopName: false,
           showHotline: false,
           showLogo: false,
@@ -136,7 +137,7 @@ class LabelTemplate {
         name: 'Bán hàng',
         type: LabelType.sales,
         size: LabelSize.medium,
-        fields: LabelFieldSettings(
+        fields: const LabelFieldSettings(
           showProductName: true,
           showProductCode: true,
           showQrCode: true,
@@ -150,7 +151,7 @@ class LabelTemplate {
           showSupplier: false,
           showImportDate: false,
         ),
-        shopInfo: ShopInfoSettings(
+        shopInfo: const ShopInfoSettings(
           showShopName: true,
           showHotline: true,
           showLogo: false,
@@ -166,7 +167,7 @@ class LabelTemplate {
         name: 'Khuyến mãi',
         type: LabelType.promotion,
         size: LabelSize.large,
-        fields: LabelFieldSettings(
+        fields: const LabelFieldSettings(
           showProductName: true,
           showProductCode: true,
           showQrCode: true,
@@ -182,7 +183,7 @@ class LabelTemplate {
           showSupplier: false,
           showImportDate: false,
         ),
-        shopInfo: ShopInfoSettings(
+        shopInfo: const ShopInfoSettings(
           showShopName: true,
           showHotline: true,
           showLogo: false,
@@ -197,7 +198,7 @@ class LabelTemplate {
         name: 'Bảo hành',
         type: LabelType.warranty,
         size: LabelSize.small,
-        fields: LabelFieldSettings(
+        fields: const LabelFieldSettings(
           showProductName: true,
           showProductCode: true,
           showQrCode: true,
@@ -213,7 +214,7 @@ class LabelTemplate {
           showSupplier: false,
           showImportDate: false,
         ),
-        shopInfo: ShopInfoSettings(
+        shopInfo: const ShopInfoSettings(
           showShopName: true,
           showHotline: true,
           showLogo: false,

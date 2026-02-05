@@ -56,193 +56,193 @@ class HelpTopic {
 /// Static repository for help content. This can later be moved to Firestore.
 class HelpCenterRepository {
   static final List<HelpCategory> categories = [
-    HelpCategory(
+    const HelpCategory(
       id: 'inventory',
       title: 'Quản lý kho',
       description: 'Nhập hàng, kiểm kho, in tem và đồng bộ số lượng giữa các thiết bị.',
       icon: Icons.inventory_2,
-      audience: const ['all'],
+      audience: ['all'],
     ),
-    HelpCategory(
+    const HelpCategory(
       id: 'repairs',
       title: 'Đơn sửa chữa',
       description: 'Quy trình tạo đơn, cập nhật trạng thái, bàn giao và hạch toán đơn sửa chữa.',
       icon: Icons.build_circle,
-      audience: const ['technician', 'manager', 'owner'],
+      audience: ['technician', 'manager', 'owner'],
     ),
-    HelpCategory(
+    const HelpCategory(
       id: 'sales',
       title: 'Bán hàng và công nợ',
       description: 'Tạo hóa đơn bán lẻ, thu công nợ, in phiếu và xem báo cáo doanh thu.',
       icon: Icons.point_of_sale,
-      audience: const ['manager', 'owner', 'cashier'],
+      audience: ['manager', 'owner', 'cashier'],
     ),
-    HelpCategory(
+    const HelpCategory(
       id: 'finance',
       title: 'Tài chính & báo cáo',
       description: 'Tổng quan lời lỗ, dòng tiền, quỹ và nhật ký chi tiêu.',
       icon: Icons.analytics_outlined,
-      audience: const ['owner', 'manager'],
+      audience: ['owner', 'manager'],
     ),
-    HelpCategory(
+    const HelpCategory(
       id: 'setup',
       title: 'Thiết lập hệ thống',
       description: 'Tài khoản, phân quyền, đồng bộ dữ liệu và sao lưu.',
       icon: Icons.settings_suggest,
-      audience: const ['owner', 'admin'],
+      audience: ['owner', 'admin'],
     ),
   ];
 
   static final List<HelpTopic> topics = [
-    HelpTopic(
+    const HelpTopic(
       id: 'inventory-fast-check',
       categoryId: 'inventory',
       title: 'Kiểm kho nhanh bằng QR',
       summary: 'Chuẩn bị thiết bị, in tem và quét mã để kiểm tra tồn kho.',
-      steps: const [
+      steps: [
         'Vào Kho > Kiểm kho nhanh và chọn khu vực cần kiểm.',
         'In tem QR nếu sản phẩm chưa có mã bằng nút In tem trong chi tiết sản phẩm.',
         'Nhấn Bắt đầu quét và đưa camera vào mã (hỗ trợ mã ngắn 4-5 số hoặc IMEI).',
         'Quan sát checklist bên phải: hàng thiếu sẽ được đánh dấu đỏ.',
         'Sau khi hoàn tất, nhấn Xuất báo cáo để lưu kết quả.',
       ],
-      tips: const [
+      tips: [
         'Có thể bật âm thanh và rung để phản hồi mỗi khi mã được quét.',
         'Nếu thiếu ánh sáng, bật đèn flash ngay trong màn hình quét.',
       ],
-      tags: const ['qr', 'inventory', 'scan'],
-      audience: const ['all'],
+      tags: ['qr', 'inventory', 'scan'],
+      audience: ['all'],
       difficulty: 'Cơ bản',
       estimatedTime: '5 phút',
-      prerequisites: const [
+      prerequisites: [
         'Máy có camera hoạt động tốt',
         'Đã dán tem QR cho sản phẩm',
       ],
-      resources: const [
+      resources: [
         'Video demo thao tác trên kho mẫu',
         'Checklist kiểm kho chuẩn PDF',
       ],
-      relatedTopicIds: const ['inventory-print-label', 'setup-sync-data'],
+      relatedTopicIds: ['inventory-print-label', 'setup-sync-data'],
       isFeatured: true,
       videoUrl: 'https://youtu.be/dummy-fast-check',
     ),
-    HelpTopic(
+    const HelpTopic(
       id: 'inventory-print-label',
       categoryId: 'inventory',
       title: 'In tem sản phẩm',
       summary: 'Tạo tem QR với giá bán, bảo hành và mã sản phẩm.',
-      steps: const [
+      steps: [
         'Từ màn hình Kho, chọn sản phẩm và nhấn nút In tem.',
         'Chọn mẫu tem phù hợp (Kiểm kho, Bán hàng, Khuyến mãi, Bảo hành).',
         'Điền số lượng cần in, xem trước nội dung tem.',
         'Nếu cần tùy chỉnh, mở mục "Tùy chỉnh nội dung tem" để bật/tắt các trường.',
         'Kết nối máy in bluetooth và nhấn In.',
       ],
-      tips: const [
+      tips: [
         'Tem kiểm kho dùng mã "check_product:" nên có thể quét lại trong tính năng Kiểm kho.',
         'Giá CPK có thể cấu hình trong phần Cài đặt tem để tự động tính theo hệ số.',
       ],
-      tags: const ['label', 'printing'],
-      audience: const ['all'],
+      tags: ['label', 'printing'],
+      audience: ['all'],
       difficulty: 'Trung bình',
       estimatedTime: '7 phút',
-      prerequisites: const [
+      prerequisites: [
         'Máy in nhiệt bluetooth đã ghép đôi',
         'Đã thiết lập mẫu tem trong phần Thiết kế tem',
       ],
-      resources: const [
+      resources: [
         'Tài liệu hướng dẫn cài đặt máy in SUNMI',
         'Template Excel nhập nhanh dữ liệu tem',
       ],
-      relatedTopicIds: const ['inventory-fast-check', 'sales-create-invoice'],
+      relatedTopicIds: ['inventory-fast-check', 'sales-create-invoice'],
       isFeatured: true,
     ),
-    HelpTopic(
+    const HelpTopic(
       id: 'repairs-create-order',
       categoryId: 'repairs',
       title: 'Tạo đơn sửa mới',
       summary: 'Lập đơn nhận máy, ghi nhận tình trạng và phụ tùng dự kiến.',
-      steps: const [
+      steps: [
         'Vào tab Sửa chữa > nhấn dấu + để tạo đơn mới.',
         'Nhập thông tin khách hàng, thiết bị, tình trạng ban đầu và ghi chú hẹn.',
         'Chọn nhân viên kỹ thuật phụ trách và tải ảnh biên bản nếu có.',
         'Lưu đơn để hệ thống cấp mã và đưa vào danh sách chờ sửa.',
       ],
-      tips: const [
+      tips: [
         'Có thể quét QR/IMEI để tự động điền thông tin thiết bị.',
         'Khi hoàn tất sửa chữa, chuyển trạng thái để kích hoạt thông báo cho khách.',
       ],
-      tags: const ['repair', 'order'],
-      audience: const ['technician', 'manager'],
+      tags: ['repair', 'order'],
+      audience: ['technician', 'manager'],
       difficulty: 'Cơ bản',
       estimatedTime: '4 phút',
-      prerequisites: const [
+      prerequisites: [
         'Đã bật đồng bộ khách hàng với Cloud',
       ],
-      resources: const [
+      resources: [
         'Biểu mẫu biên nhận bàn giao PDF',
       ],
-      relatedTopicIds: const ['setup-sync-data'],
+      relatedTopicIds: ['setup-sync-data'],
       isFeatured: true,
     ),
-    HelpTopic(
+    const HelpTopic(
       id: 'sales-create-invoice',
       categoryId: 'sales',
       title: 'Tạo hóa đơn bán lẻ',
       summary: 'Chọn hàng hóa, phụ kiện và in hóa đơn bán hàng.',
-      steps: const [
+      steps: [
         'Vào tab Bán hàng > nhấn nút Tạo hóa đơn.',
         'Tìm sản phẩm bằng tên, mã, IMEI hoặc quét QR.',
         'Chọn số lượng, giá bán và ghi chú bảo hành nếu cần.',
         'Nhập thông tin khách hàng và hình thức thanh toán.',
         'Hoàn tất để lưu hóa đơn, có thể in tem và gửi hóa đơn qua Zalo/SMS.',
       ],
-      tips: const [
+      tips: [
         'Sử dụng công nợ khi khách thanh toán một phần và cần theo dõi thu sau.',
         'Sau khi bán có thể tự động trừ tồn kho nếu sản phẩm được liên kết kho.',
       ],
-      tags: const ['sales', 'invoice'],
-      audience: const ['cashier', 'manager'],
+      tags: ['sales', 'invoice'],
+      audience: ['cashier', 'manager'],
       difficulty: 'Trung bình',
       estimatedTime: '6 phút',
-      prerequisites: const [
+      prerequisites: [
         'Đã liên kết máy in hóa đơn',
       ],
-      resources: const [
+      resources: [
         'Video thao tác tạo hóa đơn trên Android',
         'Checklist thu ngân ca tối',
       ],
-      relatedTopicIds: const ['inventory-print-label'],
+      relatedTopicIds: ['inventory-print-label'],
       isFeatured: false,
     ),
-    HelpTopic(
+    const HelpTopic(
       id: 'setup-sync-data',
       categoryId: 'setup',
       title: 'Đồng bộ dữ liệu giữa nhiều máy',
       summary: 'Kiểm tra trạng thái sync và xử lý khi bị treo.',
-      steps: const [
+      steps: [
         'Ở tab Cài đặt, kiểm tra mục Đồng bộ xem đã đăng nhập cùng Shop chưa.',
         'Nhấn "Đồng bộ ngay" để đẩy dữ liệu lên cloud.',
         'Nếu máy phụ không lên dữ liệu, vào mục "Tải lại dữ liệu từ cloud".',
         'Đảm bảo kết nối internet ổn định trong suốt quá trình sync.',
       ],
-      tips: const [
+      tips: [
         'Super admin có thể đổi sang shop khác bằng nút "Chọn shop khác".',
         'Kiểm tra nhật ký sync trong SYNC_SYSTEM_GUIDE.md nếu cần debug sâu.',
       ],
-      tags: const ['sync', 'cloud'],
-      audience: const ['owner', 'admin', 'manager'],
+      tags: ['sync', 'cloud'],
+      audience: ['owner', 'admin', 'manager'],
       difficulty: 'Nâng cao',
       estimatedTime: '10 phút',
-      prerequisites: const [
+      prerequisites: [
         'Đã đăng nhập cùng tài khoản trên các thiết bị',
         'Kết nối internet ổn định',
       ],
-      resources: const [
+      resources: [
         'Bảng kiểm tra sự cố đồng bộ',
         'Video hướng dẫn đồng bộ lần đầu',
       ],
-      relatedTopicIds: const ['inventory-fast-check'],
+      relatedTopicIds: ['inventory-fast-check'],
       isFeatured: true,
     ),
   ];

@@ -101,7 +101,7 @@ class _IntroViewState extends State<IntroView> {
             top: 50, right: 20,
             child: TextButton(
               onPressed: _completeIntro, 
-              child: Text(AppLocalizations.of(context)!.skip, style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))
+              child: Text(AppLocalizations.of(context)!.skip, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))
             ),
           ),
 

@@ -360,7 +360,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get brandInfoSection => 'BRAND INFO';
 
   @override
-  String get shopNameLabel => 'Shop name (CAPS)';
+  String get shopNameLabel => 'Shop Name';
 
   @override
   String get shopPhoneLabel => 'Contact phone';
@@ -663,7 +663,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imeiNumber => 'IMEI number (if any)';
 
   @override
-  String get costPrice => 'Cost price';
+  String costPrice(String price) {
+    return 'Cost: $price';
+  }
 
   @override
   String get capacity => 'Capacity (e.g.: 64GB, 128GB)';
@@ -1840,7 +1842,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String issueLabel(String issue) {
-    return 'Issue: $issue';
+    return 'Device issue';
   }
 
   @override
@@ -1856,7 +1858,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get isActive => 'Active';
 
   @override
-  String get confirmDeleteTitle => 'CONFIRM DELETE';
+  String get confirmDeleteTitle => 'Confirm delete';
 
   @override
   String get confirmButton => 'CONFIRM';
@@ -2234,7 +2236,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reports => 'REPORTS';
 
   @override
-  String get attendanceTracking => 'Attendance tracking';
+  String get attendanceTracking => 'ATTENDANCE TRACKING';
 
   @override
   String get viewAllStaffAttendance => 'View all staff attendance by day/month.';
@@ -2573,7 +2575,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get customizeContentAndFontSize => 'Customize content and font size';
 
   @override
-  String get labelDesignTitle => 'Label design';
+  String get labelDesignTitle => 'LABEL DESIGN';
 
   @override
   String get layoutShopInfoFormula => 'Layout, shop info, CPK formula';
@@ -3023,7 +3025,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backCover => 'BACK COVER';
 
   @override
-  String get noAccessories => 'NO ACCESSORIES';
+  String get noAccessories => 'None';
 
   @override
   String get walkInCustomerNoSave => 'Walk-in customer - not saved to contacts';
@@ -3170,7 +3172,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String addressLabel(String address) {
-    return 'Address: $address';
+    return 'Address';
   }
 
   @override
@@ -3442,7 +3444,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get costVnd => 'Cost (VND)';
 
   @override
-  String get paymentMethodLabel => 'Payment method';
+  String get paymentMethodLabel => 'PAYMENT METHOD:';
 
   @override
   String get chargeCustomerVnd => 'Charge customer (VND)';
@@ -3463,7 +3465,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editInfoTitle => 'EDIT INFO';
 
   @override
-  String get techNotesTitle => 'Technician notes';
+  String get techNotesTitle => 'TECHNICIAN NOTES';
 
   @override
   String get partsInventoryShort => 'Parts Inv';
@@ -3510,7 +3512,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get twelveMonths => '12 MONTHS';
 
   @override
-  String get techNotesHint => 'E.g.: Replaced power IC, re-soldered main board, replaced charging cable...';
+  String get techNotesHint => 'Ex: Replace power IC, check mainboard, replace charging cable...';
 
   @override
   String get financeTitleUpper => 'FINANCE';
@@ -3536,4 +3538,1358 @@ class AppLocalizationsEn extends AppLocalizations {
   String addedPartsFromInventoryMsg(String parts) {
     return 'Added parts from inventory: $parts\n(Cost already recorded when imported)';
   }
+
+  @override
+  String get priceLabel => 'PRICE';
+
+  @override
+  String get costLabel => 'COST';
+
+  @override
+  String get chargeCustomerLabel => 'Customer charge';
+
+  @override
+  String get partsLabel => 'Parts';
+
+  @override
+  String get profitLabel => 'PROFIT';
+
+  @override
+  String get expectedProfit => 'Expected profit';
+
+  @override
+  String partsUsedLabel(String parts) {
+    return 'Parts: $parts';
+  }
+
+  @override
+  String servicesCount(int count) {
+    return 'SERVICES ($count)';
+  }
+
+  @override
+  String get repairServices => 'REPAIR SERVICES';
+
+  @override
+  String imagesCount(int count) {
+    return 'IMAGES ($count)';
+  }
+
+  @override
+  String get receivedImages => 'RECEIVED DEVICE IMAGES';
+
+  @override
+  String get noImages => 'No images';
+
+  @override
+  String get statusReceivedMsg => 'RECEIVED DEVICE';
+
+  @override
+  String get statusStartRepairMsg => 'START REPAIR';
+
+  @override
+  String debtNoteRepair(String model) {
+    return 'Debt for repair: $model';
+  }
+
+  @override
+  String pendingDeliveryApproval(String customer) {
+    return 'Pending delivery approval - $customer';
+  }
+
+  @override
+  String requestDeliveryApprovalDesc(String model, String customer) {
+    return 'Request delivery approval for $model - customer $customer';
+  }
+
+  @override
+  String get notifRequestDeliveryApproval => '📋 DELIVERY APPROVAL REQUEST';
+
+  @override
+  String chatRequestDeliveryApproval(String model, String customer, String price) {
+    return '📋 DELIVERY REQUEST: $model - $customer - $priceđ';
+  }
+
+  @override
+  String get defaultShopName => 'SHOP NEW';
+
+  @override
+  String get defaultShopDesc => 'Smartphone Specialist';
+
+  @override
+  String get defaultShopPhone => '0123.456.789';
+
+  @override
+  String get repairProcessNotes => 'Repair process notes:';
+
+  @override
+  String get trackRepairProgress => 'Track repair progress and update status.';
+
+  @override
+  String get repairOrderDetail => 'REPAIR ORDER DETAIL';
+
+  @override
+  String partsShort(String parts) {
+    return 'PT: $parts';
+  }
+
+  @override
+  String get noServicesYet => 'No services yet';
+
+  @override
+  String get totalServices => 'Total SVC:';
+
+  @override
+  String get deliveryLabel => 'Delivery';
+
+  @override
+  String get approveDelivery => 'APPROVE DELIVERY';
+
+  @override
+  String get deliverDevice => 'DELIVER';
+
+  @override
+  String get sendDeliveryRequest => 'SEND DELIVERY REQUEST';
+
+  @override
+  String get addServiceButton => 'ADD SERVICE';
+
+  @override
+  String get noServicesMessage => 'No services added';
+
+  @override
+  String get totalServiceCost => 'Total service cost';
+
+  @override
+  String get customerLabel => 'Customer';
+
+  @override
+  String get phoneNumberLabel => 'Phone number';
+
+  @override
+  String get accessoriesLabel => 'Accessories';
+
+  @override
+  String errorSaving(String error) {
+    return 'Error saving: $error';
+  }
+
+  @override
+  String rejectDeliveryDesc(String model) {
+    return 'Reject delivery approval for $model';
+  }
+
+  @override
+  String customerInfo(String name) {
+    return 'Customer: $name';
+  }
+
+  @override
+  String deviceInfo(String model) {
+    return 'Device: $model';
+  }
+
+  @override
+  String priceInfo(String price) {
+    return 'Price: $priceđ';
+  }
+
+  @override
+  String paymentInfo(String method) {
+    return 'Payment: $method';
+  }
+
+  @override
+  String get selectWarrantyNote => 'Select warranty (can change before approval):';
+
+  @override
+  String get confirmApproveDelivery => 'Confirm approve delivery and complete transaction?';
+
+  @override
+  String get reject => 'REJECT';
+
+  @override
+  String chatApprovedDelivery(String summary) {
+    return '✅ APPROVED DELIVERY: $summary';
+  }
+
+  @override
+  String get noneYet => 'Not yet';
+
+  @override
+  String get deliveryDate => 'Delivery date';
+
+  @override
+  String get approve => 'APPROVE';
+
+  @override
+  String shareRepairReceipt(String shopName, String model, String customerName, String phone, String issue, String warranty, String total) {
+    return '🌟 REPAIR/WARRANTY RECEIPT 🌟\n----------------------------\nShop: $shopName\nModel: $model\nCustomer: $customerName - $phone\nIssue: $issue\nWarranty: $warranty\nTotal: $total\n----------------------------\nThank you for your trust!';
+  }
+
+  @override
+  String get actionDeliverDevice => 'DELIVER DEVICE';
+
+  @override
+  String get actionRequestDeliveryApproval => 'REQUEST DELIVERY APPROVAL';
+
+  @override
+  String debtNoteForRepair(String model) {
+    return 'Debt for repair: $model';
+  }
+
+  @override
+  String repairOrderSummary(String customerName, String phone, String model, String total) {
+    return 'REPAIR ORDER - $customerName - $phone - $model - $total';
+  }
+
+  @override
+  String chatDeviceDelivered(String summary) {
+    return '✅ DEVICE DELIVERED: $summary';
+  }
+
+  @override
+  String get partsPaymentTitle => 'PARTS PAYMENT';
+
+  @override
+  String get totalPartsAmount => 'TOTAL PARTS AMOUNT';
+
+  @override
+  String partsDesc(String parts) {
+    return 'Parts: $parts';
+  }
+
+  @override
+  String get supplierOptional => 'Supplier (optional)';
+
+  @override
+  String get supplierHint => 'e.g.: Parts ABC';
+
+  @override
+  String get debtWarning => 'Debt will be recorded in Debt Management';
+
+  @override
+  String get defaultPartsSupplier => 'Parts supplier';
+
+  @override
+  String get recordDebt => 'RECORD DEBT';
+
+  @override
+  String get costField => 'Cost';
+
+  @override
+  String get partnerPaymentMethodRequired => 'Partner payment method *';
+
+  @override
+  String get selectPartsTitle => 'SELECT PARTS / COMPONENTS';
+
+  @override
+  String get searchPartOrSupplier => 'Search by name or supplier';
+
+  @override
+  String get noPartsFound => 'No matching parts found';
+
+  @override
+  String get mainWarehouse => 'Main warehouse';
+
+  @override
+  String get oldWarehouse => 'Old stock';
+
+  @override
+  String stockQty(int qty) {
+    return 'Stock: $qty';
+  }
+
+  @override
+  String sellPrice(String price) {
+    return 'Sell: $price';
+  }
+
+  @override
+  String get outOfStock => 'OUT OF STOCK';
+
+  @override
+  String confirmQty(int qty) {
+    return 'CONFIRM ($qty)';
+  }
+
+  @override
+  String get confirmBtn => 'CONFIRM';
+
+  @override
+  String get invoiceTemplateTitle => 'CREATE INVOICE TEMPLATE';
+
+  @override
+  String get invoiceTemplateSaved => 'Invoice template saved';
+
+  @override
+  String get headerLabel => 'Header:';
+
+  @override
+  String get invoiceHeaderHint => 'INVOICE HEADER';
+
+  @override
+  String get bodyLabelWithPlaceholders => 'Body (use placeholders like customerName, total):';
+
+  @override
+  String get invoiceBodyHint => 'MAIN CONTENT';
+
+  @override
+  String get footerLabel => 'Footer:';
+
+  @override
+  String get invoiceFooterHint => 'INVOICE FOOTER';
+
+  @override
+  String get previewLabel => 'Preview:';
+
+  @override
+  String get generateQrSampleOrder => 'CREATE QR FOR SAMPLE ORDER';
+
+  @override
+  String get qrCodeScanInfo => 'QR Code (scan to view order info):';
+
+  @override
+  String get workScheduleSettingsTitle => 'WORK SCHEDULE SETTINGS';
+
+  @override
+  String get generalSettingsTab => 'General';
+
+  @override
+  String get workScheduleSaved => 'Work schedule settings saved';
+
+  @override
+  String get staffSalarySaved => 'Staff salary saved';
+
+  @override
+  String saveErrorMsg(String error) {
+    return 'Error saving: $error';
+  }
+
+  @override
+  String staffScheduleSavedFor(String name) {
+    return 'Saved work schedule for $name';
+  }
+
+  @override
+  String get loadingStaffList => 'Loading staff list...';
+
+  @override
+  String get noStaffData => 'No staff data';
+
+  @override
+  String get tapToRefresh => 'Tap reload to refresh';
+
+  @override
+  String get reload => 'Reload';
+
+  @override
+  String staffCountLabel(int count) {
+    return 'Staff count: $count';
+  }
+
+  @override
+  String get staffWorkSchedule => 'Individual staff schedules';
+
+  @override
+  String get scheduleNotSet => 'Schedule not set';
+
+  @override
+  String get workHoursLabel => 'Work Hours';
+
+  @override
+  String get startTimeLabel => 'Start';
+
+  @override
+  String get endTimeLabel => 'End';
+
+  @override
+  String get lunchBreakLabel => 'Lunch break';
+
+  @override
+  String get maxOvertimeLabel => 'Max OT';
+
+  @override
+  String get workDaysLabel => 'Work Days';
+
+  @override
+  String get holidaysLabel => 'Holidays:';
+
+  @override
+  String get addBtn => 'Add';
+
+  @override
+  String get overtimeRateLabel => 'Overtime Rate';
+
+  @override
+  String get weekdayLabel => 'Weekday';
+
+  @override
+  String get weekendLabel => 'Weekend';
+
+  @override
+  String get holidayLabel => 'Holiday';
+
+  @override
+  String get saveSettingsBtn => 'SAVE SETTINGS';
+
+  @override
+  String get noStaffFoundMsg => 'No staff found';
+
+  @override
+  String get addStaffFirstHint => 'Please add staff in \"Staff Management\" first';
+
+  @override
+  String get salarySettingsLabel => 'Salary Settings';
+
+  @override
+  String get selectStaffHint => 'Select staff';
+
+  @override
+  String get baseSalaryVnd => 'Base salary (VND)';
+
+  @override
+  String get attendanceLookupLabel => 'Attendance Lookup';
+
+  @override
+  String noAttendanceDataFor(String date) {
+    return 'No attendance data for $date';
+  }
+
+  @override
+  String get checkInLabel => 'In:';
+
+  @override
+  String get checkOutLabel => 'Out:';
+
+  @override
+  String get approvedStatus => 'Approved';
+
+  @override
+  String get rejectedStatus => 'Rejected';
+
+  @override
+  String get pendingStatus => 'Pending';
+
+  @override
+  String get selectStaffToViewAttendance => 'Select staff to view attendance';
+
+  @override
+  String get displayError => 'Display Error';
+
+  @override
+  String errorMsg(String error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String get noStaffHint => 'No staff yet. Tap \"Reload\" below or add staff in Staff Management.';
+
+  @override
+  String staffScheduleFor(String name) {
+    return 'Work schedule: $name';
+  }
+
+  @override
+  String get workTimeSettings => 'Work Time Settings';
+
+  @override
+  String get startTimeFieldLabel => 'Start time';
+
+  @override
+  String get endTimeFieldLabel => 'End time';
+
+  @override
+  String get lunchBreakHours => 'Lunch break (hours)';
+
+  @override
+  String get maxOvertimePerDay => 'Max overtime per day';
+
+  @override
+  String get selectTimeLabel => 'Select time';
+
+  @override
+  String get workDaysSettings => 'Work Days Settings';
+
+  @override
+  String get workDaysInWeek => 'Work days in week:';
+
+  @override
+  String get addHolidayBtn => 'Add holiday';
+
+  @override
+  String get holidayListLabel => 'Holiday list:';
+
+  @override
+  String get overtimeSettingsLabel => 'Overtime Settings';
+
+  @override
+  String get weekdayOvertimeRate => 'Weekday overtime (% of salary/hour)';
+
+  @override
+  String get weekendOvertimeRate => 'Weekend overtime (% of salary/hour)';
+
+  @override
+  String get holidayOvertimeRate => 'Holiday overtime (% of salary/hour)';
+
+  @override
+  String get staffSalarySettingsLabel => 'Staff Salary Settings';
+
+  @override
+  String get addUpdateSalary => 'Add/Update Salary';
+
+  @override
+  String get saveSalary => 'Save salary';
+
+  @override
+  String get currentSalaryList => 'Current salary list:';
+
+  @override
+  String get manageStaffAttendance => 'Manage Staff Attendance';
+
+  @override
+  String get selectDateLabel => 'Select date';
+
+  @override
+  String get attendanceInfoLabel => 'Attendance Info';
+
+  @override
+  String get staffNameLabel => 'Staff:';
+
+  @override
+  String get checkInTimeLabel => 'Check-in:';
+
+  @override
+  String get checkOutTimeLabel => 'Check-out:';
+
+  @override
+  String get selectStaffForAttendance => 'Please select staff to view attendance info';
+
+  @override
+  String get hulucaStoreDongNai => 'HULUCA STORE DONG NAI';
+
+  @override
+  String get professionalStoreManagementApp => 'Professional store management application';
+
+  @override
+  String get developerAndDesigner => 'Developer & Designer';
+
+  @override
+  String get hulucaStore => 'HULUCA STORE';
+
+  @override
+  String get dongNai => 'DONG NAI';
+
+  @override
+  String get professionalPhoneRepairShop => 'Professional phone repair shop';
+
+  @override
+  String get hotlineAndZalo => 'Hotline & Zalo';
+
+  @override
+  String get shopManagerApp => 'Shop Manager App';
+
+  @override
+  String versionLabel(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String get appFullDescription => 'A comprehensive phone repair shop management app with real-time sync features.';
+
+  @override
+  String get viewByMonth => 'View by month';
+
+  @override
+  String get viewByDay => 'View by day';
+
+  @override
+  String attendanceForDate(String date) {
+    return 'ATTENDANCE $date';
+  }
+
+  @override
+  String monthLabel(String month) {
+    return 'MONTH $month';
+  }
+
+  @override
+  String get present => 'Present';
+
+  @override
+  String get lateArrival => 'Late';
+
+  @override
+  String get absent => 'Absent';
+
+  @override
+  String get totalStaff => 'Total Staff';
+
+  @override
+  String get checkedInStatus => 'Checked in';
+
+  @override
+  String get todayLabel => 'Today';
+
+  @override
+  String get noStaffYet => 'No staff yet';
+
+  @override
+  String get notCheckedIn => 'Not checked in';
+
+  @override
+  String get completedStatus => 'Completed';
+
+  @override
+  String get workingStatus => 'Working';
+
+  @override
+  String get workDaysCount => 'Work days';
+
+  @override
+  String get workHoursCount => 'Work hours';
+
+  @override
+  String get roleOwnerShort => 'Owner';
+
+  @override
+  String get roleManagerShort => 'Mgr';
+
+  @override
+  String get roleTechnicianShort => 'Tech';
+
+  @override
+  String get roleEmployeeShort => 'Staff';
+
+  @override
+  String get noAttendanceData => 'No attendance data';
+
+  @override
+  String get dateLabel => 'Date';
+
+  @override
+  String get checkInTimeShort => 'Check-in';
+
+  @override
+  String get checkOutTimeShort => 'Check-out';
+
+  @override
+  String get earlyLeave => 'Early leave';
+
+  @override
+  String get locationLabel => 'Location';
+
+  @override
+  String get attendancePhotos => 'Attendance photos:';
+
+  @override
+  String get checkInPhoto => 'In';
+
+  @override
+  String get checkOutPhoto => 'Out';
+
+  @override
+  String get hasPhoto => 'Yes';
+
+  @override
+  String get noPhoto => 'No';
+
+  @override
+  String monthYearFormat(String monthYear) {
+    return 'Month $monthYear';
+  }
+
+  @override
+  String errorLoadingCustomers(String error) {
+    return 'Error loading customers: $error';
+  }
+
+  @override
+  String get editCustomerAction => 'edit customer';
+
+  @override
+  String get deleteCustomerAction => 'delete customer';
+
+  @override
+  String confirmDeleteCustomer(String name) {
+    return 'Are you sure you want to delete customer \"$name\"?';
+  }
+
+  @override
+  String confirmActionTitle(String action) {
+    return 'Confirm $action';
+  }
+
+  @override
+  String get ownerPasswordRequired => 'Only shop owner can perform this action.\nEnter account password to confirm:';
+
+  @override
+  String get incorrectPassword => 'Incorrect password!';
+
+  @override
+  String get searchCustomers => 'Search customers...';
+
+  @override
+  String get noCustomersYet => 'No customers yet';
+
+  @override
+  String get customerNotFound => 'Customer not found';
+
+  @override
+  String notePrefix(String note) {
+    return 'Note: $note';
+  }
+
+  @override
+  String totalPurchasedAmount(String amount) {
+    return 'Purchased: $amount';
+  }
+
+  @override
+  String repairCountLabel(int count) {
+    return 'Repairs: $count times';
+  }
+
+  @override
+  String get historyTab => 'History';
+
+  @override
+  String get editAction => 'Edit';
+
+  @override
+  String get addCustomerTitle => 'Add customer';
+
+  @override
+  String get editCustomerTitle => 'Edit customer';
+
+  @override
+  String get customerNameRequired => 'Customer name *';
+
+  @override
+  String get enterCustomerName => 'Enter customer name';
+
+  @override
+  String get pleaseEnterCustomerName => 'Please enter customer name';
+
+  @override
+  String get phoneNumberRequired => 'Phone number *';
+
+  @override
+  String get enterPhoneNumber => 'Enter phone number';
+
+  @override
+  String get pleaseEnterPhoneNumber => 'Please enter phone number';
+
+  @override
+  String get enterEmailOptional => 'Enter email (optional)';
+
+  @override
+  String get enterAddressOptional => 'Enter address (optional)';
+
+  @override
+  String get enterNotesOptional => 'Enter notes (optional)';
+
+  @override
+  String get totalPurchasesLabel => 'Total purchases';
+
+  @override
+  String get totalRepairsLabel => 'Total repairs';
+
+  @override
+  String get noHistoryYet => 'No history yet';
+
+  @override
+  String get fastInventoryCheck => 'Fast Inventory Check';
+
+  @override
+  String get checklistTitle => '📋 Checklist';
+
+  @override
+  String get checklistDescription => 'System displays all products in stock. Scan QR code of each product to mark as checked.';
+
+  @override
+  String get scanImeiBarcode => '📷 Scan IMEI/Barcode';
+
+  @override
+  String get scanInstructions => 'Press \"Start scan\" and point camera to QR/barcode to begin checking.';
+
+  @override
+  String get checkedVsMissing => '✅ Checked vs ❌ Missing';
+
+  @override
+  String get checkStatusDescription => 'Green = scanned and found. Red = not yet scanned. Report shows checked vs missing.';
+
+  @override
+  String get inventoryReport => '📊 Inventory Report';
+
+  @override
+  String get reportDescription => 'After scanning, view summary report to know missing and excess items.';
+
+  @override
+  String errorLoadingInventory(String error) {
+    return 'Error loading inventory: $error';
+  }
+
+  @override
+  String get phonesCategory => 'Phones';
+
+  @override
+  String get checkAllPhones => 'Check all phones in stock';
+
+  @override
+  String get accessoriesCategory => 'Accessories';
+
+  @override
+  String get checkAllAccessories => 'Check all accessories';
+
+  @override
+  String get specialCategory => 'Special';
+
+  @override
+  String get specialProductsCheck => 'Special products need separate check';
+
+  @override
+  String get duplicateScanWarning => 'Scanned this code recently! Wait 3 seconds before scanning again';
+
+  @override
+  String get phoneMissingImei => 'Phone QR missing IMEI';
+
+  @override
+  String get notInStockError => 'Not in stock';
+
+  @override
+  String get accessoryMissingCode => 'Accessory QR missing code';
+
+  @override
+  String get unknownAccessory => 'Unknown accessory';
+
+  @override
+  String invalidQrForInventory(String error) {
+    return 'Invalid QR for inventory check: $error';
+  }
+
+  @override
+  String productNotFoundById(String id) {
+    return 'Product not found with ID: $id';
+  }
+
+  @override
+  String productNotSupportedForInventory(String type) {
+    return 'Product not supported for inventory: $type';
+  }
+
+  @override
+  String errorCheckingProduct(String error) {
+    return 'Error checking product: $error';
+  }
+
+  @override
+  String get soundFeedback => 'Sound feedback';
+
+  @override
+  String get playSoundOnScan => 'Play sound when scan';
+
+  @override
+  String get hapticFeedback => 'Haptic feedback';
+
+  @override
+  String get vibrateOnScan => 'Vibrate device when scan';
+
+  @override
+  String get scanTips => 'Tip: Keep 20-30cm distance from QR code for best results';
+
+  @override
+  String get closeButton => 'CLOSE';
+
+  @override
+  String get fastInventoryCheckTitle => 'FAST INVENTORY CHECK';
+
+  @override
+  String get selectZone => 'Select Zone';
+
+  @override
+  String get hideChecklist => 'Hide checklist';
+
+  @override
+  String get showChecklist => 'Show checklist';
+
+  @override
+  String get scanSettingsButton => 'Scan settings';
+
+  @override
+  String get stopScan => 'Stop scan';
+
+  @override
+  String get startScan => 'Start scan';
+
+  @override
+  String get toggleFlash => 'Toggle flash';
+
+  @override
+  String get phonesChecked => '📱 Checked';
+
+  @override
+  String get phonesMissing => '📱 Missing';
+
+  @override
+  String get phonesExtra => '📱 Extra';
+
+  @override
+  String get accessoriesChecked => '🔧 Checked';
+
+  @override
+  String get accessoriesMissing => '🔧 Missing';
+
+  @override
+  String get accessoriesExtra => '🔧 Extra';
+
+  @override
+  String get pressToStartScan => 'Press scan button to start inventory check';
+
+  @override
+  String get scanInstructionsShort => 'Phones: scan IMEI\nAccessories: scan each item';
+
+  @override
+  String get processingLabel => 'Processing...';
+
+  @override
+  String pendingCheckCount(int count) {
+    return 'Pending ($count)';
+  }
+
+  @override
+  String scannedCount(int count) {
+    return 'Scanned ($count)';
+  }
+
+  @override
+  String get noProductsInStockMsg => 'No products in stock';
+
+  @override
+  String scannedLabel(int count) {
+    return 'Scanned: $count';
+  }
+
+  @override
+  String get holdQrSteady => 'Hold QR steady in front of camera';
+
+  @override
+  String get selectCheckArea => 'Select check area';
+
+  @override
+  String get completedExclamation => 'Completed!';
+
+  @override
+  String switchedToZone(String zone) {
+    return 'Switched to zone: $zone';
+  }
+
+  @override
+  String get labelTemplates => 'Label Templates';
+
+  @override
+  String get labelDisplayInfo => 'Information displayed on label';
+
+  @override
+  String get shopNameExample => 'Ex: HULUCA MOBILE';
+
+  @override
+  String get hotlineLabel => 'Hotline';
+
+  @override
+  String get hotlineExample => 'Ex: 0909 123 456';
+
+  @override
+  String get sloganLabel => 'Slogan';
+
+  @override
+  String get sloganExample => 'Ex: Best price guaranteed';
+
+  @override
+  String get addressExample => 'Ex: 123 ABC Street, District 1, HCM';
+
+  @override
+  String get cpkFormulaTitle => '📌 CPK Price Formula (With Accessories):';
+
+  @override
+  String get formulaLabel => 'Formula';
+
+  @override
+  String get formulaExample => 'price + 500000 or price * 1.05';
+
+  @override
+  String get formulaHint => 'Ex: \"price + 500000\" = Selling price + 500k for with-accessories price';
+
+  @override
+  String get fixedLabelContent => 'Fixed content on label';
+
+  @override
+  String get fixedLabelContentHint => 'These text lines will display by default on all labels';
+
+  @override
+  String get line1Label => 'Line 1';
+
+  @override
+  String get line2Label => 'Line 2';
+
+  @override
+  String get line3Label => 'Line 3';
+
+  @override
+  String get line1Example => 'Ex: 100% Authentic guaranteed';
+
+  @override
+  String get line2Example => 'Ex: 7-day return policy';
+
+  @override
+  String get line3Example => 'Ex: 0% installment support';
+
+  @override
+  String get savingLabel => 'Saving...';
+
+  @override
+  String get saveSettingsButton => 'SAVE SETTINGS';
+
+  @override
+  String errorPrefixLabel(String error) {
+    return '❌ Error: $error';
+  }
+
+  @override
+  String get defaultLabel => 'Default';
+
+  @override
+  String get deleteTemplateQuestion => 'Delete template?';
+
+  @override
+  String confirmDeleteTemplate(String name) {
+    return 'Are you sure you want to delete template \"$name\"?';
+  }
+
+  @override
+  String get deleteButton => 'DELETE';
+
+  @override
+  String get editTemplateTitle => 'Edit label template';
+
+  @override
+  String get templateNameLabel => 'Template name';
+
+  @override
+  String get labelSizeLabel => 'Label size';
+
+  @override
+  String get cpkPriceFormulaLabel => 'CPK price formula';
+
+  @override
+  String get productInfoLabel => 'Product Info';
+
+  @override
+  String get productNameField => 'Product name';
+
+  @override
+  String get productCodeField => 'Product code';
+
+  @override
+  String get qrCodeField => 'QR Code';
+
+  @override
+  String get imeiSerialField => 'IMEI/Serial';
+
+  @override
+  String get capacityField => 'Capacity';
+
+  @override
+  String get colorField => 'Color';
+
+  @override
+  String get conditionField => 'Condition';
+
+  @override
+  String get priceInfoLabel => 'Price Info';
+
+  @override
+  String get priceKpkField => 'KPK Price (no accessories)';
+
+  @override
+  String get priceCpkField => 'CPK Price (with accessories)';
+
+  @override
+  String get originalPriceField => 'Original price (strikethrough)';
+
+  @override
+  String get discountPercentField => 'Discount %';
+
+  @override
+  String get shopInfoLabel => 'Shop Info';
+
+  @override
+  String get otherInfoLabel => 'Other';
+
+  @override
+  String get warrantyField => 'Warranty';
+
+  @override
+  String get supplierField => 'Supplier';
+
+  @override
+  String get importDateField => 'Import date';
+
+  @override
+  String get saveTemplateButton => 'SAVE TEMPLATE';
+
+  @override
+  String templateUpdated(String name) {
+    return '✅ Updated template \"$name\"';
+  }
+
+  @override
+  String get productNameLabelShort => 'Product';
+
+  @override
+  String get detailsLabel => 'Details';
+
+  @override
+  String get labelInfoTitle => 'Label Info';
+
+  @override
+  String get priceKpkLabel => 'KPK Price';
+
+  @override
+  String get priceCpkLabel => 'CPK Price';
+
+  @override
+  String get imeiLabel => 'IMEI';
+
+  @override
+  String get qrLabel => 'QR';
+
+  @override
+  String get shopLabel => 'Shop';
+
+  @override
+  String get labelDesignSaved => '✅ Label design saved!';
+
+  @override
+  String get resetToDefaultQuestion => 'Reset to default?';
+
+  @override
+  String get layoutWillReset => 'Label layout will be reset to original settings.';
+
+  @override
+  String get resetButton => 'Reset';
+
+  @override
+  String get layoutTab => 'Layout';
+
+  @override
+  String get ptyDesignerTab => 'PTY 1:1 Designer';
+
+  @override
+  String get paperTypeLabel => 'Paper type:';
+
+  @override
+  String get rollMmLabel => 'Roll (mm)';
+
+  @override
+  String get stickerCmLabel => 'Sticker (cm)';
+
+  @override
+  String get rollPaperSizeLabel => 'Roll paper size (mm):';
+
+  @override
+  String get customPaperSizeLabel => 'Custom paper size (mm)';
+
+  @override
+  String get stickerSizeLabel => 'Sticker size (cm):';
+
+  @override
+  String get widthCmLabel => 'Width (cm)';
+
+  @override
+  String get heightCmLabel => 'Height (cm)';
+
+  @override
+  String get codeTypeLabel => 'Code type:';
+
+  @override
+  String get offOption => 'Off';
+
+  @override
+  String get qrOption => 'QR';
+
+  @override
+  String get barcodeOption => 'Barcode';
+
+  @override
+  String get designInstructions => '👆 Tap element on template to edit...';
+
+  @override
+  String get zoomPreviewLabel => 'Zoom preview:';
+
+  @override
+  String get labelPreviewTitle => 'LABEL PREVIEW';
+
+  @override
+  String get tapToSelect => 'Tap to select';
+
+  @override
+  String get displayOption => 'Display';
+
+  @override
+  String get spacingLabel => 'Spacing:';
+
+  @override
+  String get boldOption => 'Bold';
+
+  @override
+  String get fontStyleLabel => 'Font style:';
+
+  @override
+  String get roleOwner => 'Shop Owner';
+
+  @override
+  String get roleManager => 'Manager';
+
+  @override
+  String get roleTechnician => 'Technician';
+
+  @override
+  String get roleCashier => 'Cashier';
+
+  @override
+  String get roleAdmin => 'Admin';
+
+  @override
+  String get helpCenterTitle => 'Help Center';
+
+  @override
+  String get searchByKeyword => 'Search by keyword, feature...';
+
+  @override
+  String get suggestionsLabel => 'Suggestions';
+
+  @override
+  String get feedbackContact => 'Have feature suggestions? Contact support@huluca.com';
+
+  @override
+  String get feedbackSupport => 'Feedback / Support';
+
+  @override
+  String get noGuideFound => 'No guide found matching keyword.';
+
+  @override
+  String get otherTopics => 'Other topics';
+
+  @override
+  String stepsCountLabel(int count) {
+    return '$count steps';
+  }
+
+  @override
+  String tipsCountLabel(int count) {
+    return '$count tips';
+  }
+
+  @override
+  String get quickGuide => 'Quick Guide';
+
+  @override
+  String get quickGuideDescription => 'Select a topic or enter keyword...';
+
+  @override
+  String get contentStandard => 'All content is prepared according to Shopmanager standards.';
+
+  @override
+  String forRoleLabel(String role) {
+    return 'For $role';
+  }
+
+  @override
+  String estimatedTimeLabel(String time) {
+    return 'Estimated time: $time';
+  }
+
+  @override
+  String difficultyLabel(String level) {
+    return 'Difficulty: $level';
+  }
+
+  @override
+  String get prerequisitesLabel => 'Prerequisites';
+
+  @override
+  String get stepsLabel => 'Steps';
+
+  @override
+  String get tipsAndNotesLabel => 'Tips & Notes';
+
+  @override
+  String get watchVideoLabel => 'Watch video tutorial';
+
+  @override
+  String get attachmentsLabel => 'Attachments';
+
+  @override
+  String get relatedLabel => 'Related';
+
+  @override
+  String get needHelpLabel => 'Need help? Contact support team: support@huluca.com';
+
+  @override
+  String get understoodGuide => 'I understood this guide';
+
+  @override
+  String get markedAsViewed => 'Marked this guide as viewed.';
+
+  @override
+  String get videoGuideLabel => 'Video Guide';
+
+  @override
+  String get videosBeingUpdated => 'Video tutorials are being updated.';
+
+  @override
+  String get contactSupportLabel => 'Contact Support';
+
+  @override
+  String get sendEmailForHelp => 'Send email to support@huluca.com for quick assistance.';
+
+  @override
+  String get suggestImprovementLabel => 'Suggest Improvement';
+
+  @override
+  String get feedbackHelps => 'Your feedback helps make documentation better!';
+
+  @override
+  String get filteredByRole => 'Filtered guides matching your role.';
+
+  @override
+  String get featuredLabel => 'Featured';
+
+  @override
+  String get quickLabel => 'Quick';
+
+  @override
+  String get needMoreHelpLabel => 'Need more help?';
+
+  @override
+  String get hulucaTeamSupport => 'Huluca team is ready to support via email, Zalo or direct training.';
+
+  @override
+  String get emailSupportLabel => 'Email support@huluca.com';
+
+  @override
+  String get emailCopied => 'Copied email support@huluca.com';
+
+  @override
+  String get zaloSupportLabel => 'Zalo Support';
+
+  @override
+  String get contactZaloLabel => 'Contact Zalo Support: 0901 234 567';
+
+  @override
+  String get scheduleTrainingLabel => 'Schedule Training';
+
+  @override
+  String get scheduleTrainingThisWeek => 'Schedule online training this week.';
 }

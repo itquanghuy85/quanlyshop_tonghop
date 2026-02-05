@@ -129,16 +129,16 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                             children: [
                               Text(
                                 AppLocalizations.of(context)!.userGuide,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              SizedBox(height: 4),
+                              const SizedBox(height: 4),
                               Text(
                                 AppLocalizations.of(context)!.learnHowToUseApp,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 14,
                                 ),
@@ -467,7 +467,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
           ),
           child: Text(
             AppLocalizations.of(context)!.newLabel,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.green,
               fontSize: 11,
               fontWeight: FontWeight.bold,
@@ -691,7 +691,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                             ),
                             child: Text(
                               AppLocalizations.of(context)!.newLabel,
-                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                             ),
                           ),
                       ],
@@ -833,7 +833,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
               const SizedBox(width: 12),
               Text(
                 AppLocalizations.of(context)!.needMoreHelp,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -1121,7 +1121,7 @@ class _SectionDetailPage extends StatelessWidget {
                       children: [
                         Text(
                           AppLocalizations.of(context)!.wasArticleHelpful,
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         const SizedBox(height: 16),
                         Row(

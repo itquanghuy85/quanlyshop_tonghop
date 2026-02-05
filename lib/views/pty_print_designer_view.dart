@@ -602,12 +602,12 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
         children: [
           // Canvas area
           Expanded(
-            flex: 3,
+            flex: 2,
             child: _buildCanvasArea(colorScheme),
           ),
           // Control panel
           Expanded(
-            flex: 2,
+            flex: 3,
             child: _buildControlPanel(colorScheme),
           ),
         ],
@@ -652,16 +652,27 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
   }
 
   Widget _buildCanvasArea(ColorScheme colorScheme) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      child: TabBarView(
-        controller: _tabController,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          _buildDesignCanvas(colorScheme),
-          _buildPreviewCanvas(colorScheme),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Tính height có thể dùng
+        final availableHeight = constraints.maxHeight;
+        return SingleChildScrollView(
+          child: SizedBox(
+            height: availableHeight,
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              child: TabBarView(
+                controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildDesignCanvas(colorScheme),
+                  _buildPreviewCanvas(colorScheme),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1228,10 +1239,15 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                 fontSize: 11,
                 color: colorScheme.onSurfaceVariant,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             Row(
               children: [
-                const Text('Kích thước:'),
+                const SizedBox(
+                  width: 70,
+                  child: Text('Kích thước:'),
+                ),
                 Expanded(
                   child: Slider(
                     value: _overflowMm,
@@ -1245,7 +1261,13 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                     },
                   ),
                 ),
-                Text('${_overflowMm.toInt()}mm'),
+                SizedBox(
+                  width: 40,
+                  child: Text(
+                    '${_overflowMm.toInt()}mm',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
               ],
             ),
           ],
@@ -1974,42 +1996,57 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
             const SizedBox(height: 8),
             Row(
               children: [
-                const Text('W'),
+                const SizedBox(
+                  width: 20,
+                  child: Text('W', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Slider(
-                    value: el.widthMm.clamp(4, _labelWidthMm - 4),
-                    min: 4,
-                    max: _labelWidthMm - 4,
-                    divisions: (((_labelWidthMm - 8)) * 2).toInt(),
-                    onChanged: (v) => _updateElement(el, (e) => e.widthMm = v),
+                  child: TextField(
+                    controller: TextEditingController(
+                      text: el.widthMm.toStringAsFixed(1),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      suffixText: 'mm',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                    onSubmitted: (v) {
+                      final val = double.tryParse(v) ?? el.widthMm;
+                      _updateElement(el, (e) => e.widthMm = val.clamp(4, _labelWidthMm - 4));
+                    },
                   ),
                 ),
-                SizedBox(
-                  width: 50,
-                  child: Text(
-                    '${el.widthMm.toStringAsFixed(1)}mm',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                const SizedBox(width: 12),
+                const SizedBox(
+                  width: 20,
+                  child: Text('H', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-              ],
-            ),
-            Row(
-              children: [
-                const Text('H'),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Slider(
-                    value: el.heightMm.clamp(4, _labelHeightMm - 4),
-                    min: 4,
-                    max: _labelHeightMm - 4,
-                    divisions: (((_labelHeightMm - 8)) * 2).toInt(),
-                    onChanged: (v) => _updateElement(el, (e) => e.heightMm = v),
-                  ),
-                ),
-                SizedBox(
-                  width: 50,
-                  child: Text(
-                    '${el.heightMm.toStringAsFixed(1)}mm',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  child: TextField(
+                    controller: TextEditingController(
+                      text: el.heightMm.toStringAsFixed(1),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      suffixText: 'mm',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                    onSubmitted: (v) {
+                      final val = double.tryParse(v) ?? el.heightMm;
+                      _updateElement(el, (e) => e.heightMm = val.clamp(4, _labelHeightMm - 4));
+                    },
                   ),
                 ),
               ],

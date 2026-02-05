@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
@@ -5,6 +6,7 @@ import '../core/utils/money_utils.dart' as core_money;
 import '../utils/money_utils.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../services/event_bus.dart';
 
 /// Trang báo cáo tài chính tổng hợp
 /// Hiển thị TẤT CẢ giao dịch liên quan đến tiền:
@@ -58,7 +60,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
   // Filters
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _endDate = DateTime.now();
-  Set<String> _selectedTypes = {};
+  final Set<String> _selectedTypes = {};
   bool _showIncomeOnly = false;
   bool _showExpenseOnly = false;
   String _searchQuery = '';
@@ -108,15 +110,30 @@ class _FinancialReportViewState extends State<FinancialReportView>
     },
   ];
 
+  // EventBus subscriptions for real-time sync
+  StreamSubscription<String>? _eventSubscription;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadData();
+
+    // Subscribe to data change events for real-time sync
+    _eventSubscription = EventBus().stream.listen((event) {
+      if (event == 'sales_changed' ||
+          event == 'repairs_changed' ||
+          event == 'expenses_changed' ||
+          event == 'debts_changed' ||
+          event == 'debt_payments_changed') {
+        _loadData();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _eventSubscription?.cancel();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -381,8 +398,8 @@ class _FinancialReportViewState extends State<FinancialReportView>
           ),
         ),
         title: const Text(
-          'Báo Cáo Tài Chính',
-          style: TextStyle(color: Colors.white),
+          'Financial Report / Báo Cáo Tài Chính',
+          style: TextStyle(color: Colors.white, fontSize: 16),
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
@@ -405,9 +422,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
           tabs: const [
-            Tab(text: 'TẤT CẢ'),
-            Tab(text: 'THU VÀO'),
-            Tab(text: 'CHI RA'),
+            Tab(text: 'ALL / TẤT CẢ'),
+            Tab(text: 'INCOME / THU'),
+            Tab(text: 'EXPENSE / CHI'),
           ],
           onTap: (index) {
             setState(() {

@@ -130,7 +130,7 @@ class CurrencyTextField extends StatefulWidget {
 /// - getRawValue(): int không dấu
 /// - setRawValue(int): set và format hiển thị
 class MoneyInputController extends TextEditingController {
-  MoneyInputController({String? text}) : super(text: text);
+  MoneyInputController({super.text});
 
   int get rawValue => MoneyInputFormatter.parseRaw(text);
 

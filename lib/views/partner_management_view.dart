@@ -19,7 +19,6 @@ import '../services/user_service.dart';
 import '../widgets/validated_text_field.dart';
 import '../constants/partner_constants.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
 
 class PartnerManagementView extends StatefulWidget {
   const PartnerManagementView({super.key});

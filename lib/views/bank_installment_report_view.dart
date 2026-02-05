@@ -4,7 +4,6 @@ import '../data/db_helper.dart';
 import '../models/sale_order_model.dart';
 import '../utils/money_utils.dart';
 import '../services/event_bus.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'sale_detail_view.dart';
 

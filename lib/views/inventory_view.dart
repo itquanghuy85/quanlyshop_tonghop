@@ -1635,8 +1635,8 @@ class _InventoryViewState extends State<InventoryView>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.inventory_2, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
+              const Icon(Icons.inventory_2, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
               Text(
                 "Bạn không có quyền truy cập\nmàn hình quản lý kho",
                 textAlign: TextAlign.center,
@@ -1664,7 +1664,7 @@ class _InventoryViewState extends State<InventoryView>
                 MaterialPageRoute(builder: (_) => const CreateSaleView()),
               ).then((_) => _refresh());
             },
-            icon: Icon(
+            icon: const Icon(
               Icons.shopping_cart_checkout_rounded,
               color: AppBarAccents.inventory,
               size: 22,
@@ -1679,7 +1679,7 @@ class _InventoryViewState extends State<InventoryView>
                 builder: (_) => GlobalSearchView(role: widget.role),
               ),
             ),
-            icon: Icon(
+            icon: const Icon(
               Icons.search_rounded,
               color: AppBarAccents.inventory,
               size: 22,
@@ -1689,7 +1689,7 @@ class _InventoryViewState extends State<InventoryView>
           ),
           IconButton(
             onPressed: _refresh,
-            icon: Icon(
+            icon: const Icon(
               Icons.refresh_rounded,
               color: AppBarAccents.inventory,
               size: 22,
@@ -1702,7 +1702,7 @@ class _InventoryViewState extends State<InventoryView>
               context,
               MaterialPageRoute(builder: (_) => const PtyPrintDesignerView()),
             ),
-            icon: Icon(
+            icon: const Icon(
               Icons.qr_code_2_rounded,
               color: AppBarAccents.inventory,
               size: 22,
@@ -3555,7 +3555,7 @@ class _InventoryViewState extends State<InventoryView>
 
                   // Nhà cung cấp dropdown
                   DropdownButtonFormField<String>(
-                    value: _suppliers.any((s) => s['name'] == selectedSupplier)
+                    initialValue: _suppliers.any((s) => s['name'] == selectedSupplier)
                         ? selectedSupplier
                         : null,
                     decoration: const InputDecoration(
@@ -3575,7 +3575,7 @@ class _InventoryViewState extends State<InventoryView>
 
                   // Phương thức thanh toán
                   DropdownButtonFormField<String>(
-                    value: selectedPaymentMethod,
+                    initialValue: selectedPaymentMethod,
                     decoration: const InputDecoration(
                       labelText: 'THANH TOÁN',
                       prefixIcon: Icon(Icons.payment),

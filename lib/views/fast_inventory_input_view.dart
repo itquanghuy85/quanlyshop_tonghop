@@ -671,8 +671,8 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.qr_code_scanner, color: Colors.green),
-                    SizedBox(width: 8),
+                    const Icon(Icons.qr_code_scanner, color: Colors.green),
+                    const SizedBox(width: 8),
                     Text(
                       'QUÉT QR/BARCODE IMEI',
                       style: TextStyle(
@@ -697,8 +697,8 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
             color: Colors.blue.shade50,
             child: Row(
               children: [
-                Icon(Icons.info_outline, size: 20, color: Colors.blue),
-                SizedBox(width: 8),
+                const Icon(Icons.info_outline, size: 20, color: Colors.blue),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Hỗ trợ QR nhiều dòng (Apple, Samsung...).\n'
@@ -770,18 +770,18 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.center_focus_weak,
                           size: 40,
                           color: Colors.green,
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           'Đưa mã QR/Barcode vào khung',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: AppTextStyles.subtitle1.fontSize,
-                            shadows: [
+                            shadows: const [
                               Shadow(color: Colors.black, blurRadius: 4),
                             ],
                           ),
@@ -799,8 +799,8 @@ class _IMEIScannerSheetState extends State<_IMEIScannerSheet> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          CircularProgressIndicator(color: Colors.white),
-                          SizedBox(height: 16),
+                          const CircularProgressIndicator(color: Colors.white),
+                          const SizedBox(height: 16),
                           Text(
                             'Đang xử lý...',
                             style: TextStyle(color: Colors.white, fontSize: AppTextStyles.headline4.fontSize),

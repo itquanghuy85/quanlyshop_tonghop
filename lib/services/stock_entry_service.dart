@@ -2,11 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/stock_entry_model.dart';
-import '../models/payment_intent_model.dart';
-import '../constants/financial_constants.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
-import '../services/payment_intent_service.dart';
 import '../services/event_bus.dart';
 import '../services/sync_orchestrator.dart';
 import '../data/db_helper.dart';
@@ -291,11 +288,13 @@ class StockEntryService {
 
         // 3. Tạo products từ items
         final userId = _auth.currentUser?.uid;
+        final Map<String, String> partFirestoreIds = {}; // Lưu firestoreId của linh kiện
 
         for (final item in entry.items) {
           // === XỬ LÝ LINH KIỆN: Lưu vào repair_parts thay vì products ===
           if (item.productType == 'LINH_KIEN') {
             final partRef = _firestore.collection('repair_parts').doc();
+            partFirestoreIds[item.name] = partRef.id; // Lưu ID để dùng sau
             final now = DateTime.now().millisecondsSinceEpoch;
             final userName =
                 _auth.currentUser?.email?.split('@').first.toUpperCase() ??
@@ -502,6 +501,7 @@ class StockEntryService {
           'totalCost': totalCost,
           'direction': direction,
           'userId': userId,
+          'partFirestoreIds': partFirestoreIds, // Map item.name -> firestoreId
         };
       });
 
@@ -511,6 +511,7 @@ class StockEntryService {
         final entry = result['entry'] as StockEntry;
         final totalCost = (result['totalCost'] as double).toInt();
         final direction = result['direction'] as String;
+        final partFirestoreIds = result['partFirestoreIds'] as Map<String, String>;
         final userName =
             _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
         final now = DateTime.now().millisecondsSinceEpoch;
@@ -596,6 +597,33 @@ class StockEntryService {
             // 2. PaymentIntentService.createIntent() chỉ chấp nhận status=pending
             debugPrint('✅ confirmEntry: Expense created, no PaymentIntent needed');
           }
+
+          // === GHI LINH KIỆN VÀO LOCAL repair_parts ===
+          for (final item in entry.items) {
+            if (item.productType == 'LINH_KIEN') {
+              final firestoreId = partFirestoreIds[item.name];
+              if (firestoreId == null) {
+                debugPrint('⚠️ Missing firestoreId for part: ${item.name}');
+                continue;
+              }
+              await db.upsertRepairPart({
+                'firestoreId': firestoreId,
+                'partName': item.name,
+                'compatibleModels': item.model ?? '',
+                'cost': (item.cost ?? 0).toInt(),
+                'price': (item.price ?? 0).toInt(),
+                'quantity': item.quantity,
+                'paymentMethod': entry.paymentMethod,
+                'createdBy': userName,
+                'createdAt': now,
+                'updatedAt': now,
+                'shopId': entry.shopId,
+                'isSynced': 1,
+                'deleted': 0,
+              });
+              debugPrint('✅ confirmEntry: Local repair_part saved for ${item.name} with firestoreId=$firestoreId');
+            }
+          }
         } catch (e) {
           debugPrint(
             '⚠️ confirmEntry: Failed to create local financial records: $e',
@@ -654,32 +682,7 @@ class StockEntryService {
           // NOTE: Không ghi supplier_import_history vào local DB ở đây
           // Để sync_service tự đồng bộ từ Firestore để tránh duplicate records
           // (trước đây firestoreId local != firestoreId từ Firestore => duplicate)
-
-          for (final item in entry.items) {
-            // === NẾU LÀ LINH KIỆN, GHI VÀO LOCAL repair_parts ===
-            if (item.productType == 'LINH_KIEN') {
-              await db.upsertRepairPart({
-                'firestoreId': 'part_${now}_${item.name.hashCode}',
-                'partName': item.name,
-                'compatibleModels': item.model ?? '',
-                'cost': (item.cost ?? 0).toInt(),
-                'price': (item.price ?? 0).toInt(),
-                'quantity': item.quantity,
-                'supplierId': supplierLocalId,
-                'paymentMethod': entry.paymentMethod,
-                'createdBy': userName,
-                'createdAt': now,
-                'updatedAt': now,
-                'shopId': entry.shopId,
-                'isSynced': 1,
-                'deleted': 0,
-              });
-              debugPrint(
-                '✅ confirmEntry: Local repair_part saved for ${item.name}',
-              );
-            }
-          }
-          debugPrint('✅ confirmEntry: Local repair_parts saved (supplier_import_history synced from Firestore)');
+          debugPrint('✅ confirmEntry: Local supplier_import_history synced from Firestore');
         } catch (e) {
           debugPrint('⚠️ confirmEntry: Failed to save local data: $e');
           // Không fail cả flow, chỉ log warning

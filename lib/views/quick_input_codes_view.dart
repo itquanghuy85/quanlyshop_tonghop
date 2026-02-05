@@ -1513,7 +1513,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                       const SizedBox(height: 8),
                       // Nhà cung cấp - Dropdown từ danh sách NCC
                       DropdownButtonFormField<String>(
-                        value: _selectedSupplier,
+                        initialValue: _selectedSupplier,
                         decoration: InputDecoration(
                           labelText: 'Nhà cung cấp',
                           border: OutlineInputBorder(

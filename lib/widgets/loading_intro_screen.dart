@@ -205,17 +205,17 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
                     children: [
                       Text(
                         AppLocalizations.of(context)!.hulucaShop,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                           letterSpacing: 2,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         AppLocalizations.of(context)!.phoneRepairShopManagement,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Colors.white70,
                         ),

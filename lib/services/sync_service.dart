@@ -411,7 +411,11 @@ class SyncService {
           debugPrint("SYNC_TRACE: Error syncing sale $docId: $e");
         }
       },
-      onBatchDone: onDataChanged,
+      onBatchDone: () {
+        onDataChanged();
+        // Emit event để cập nhật UI bán hàng
+        EventBus().emit('sales_changed');
+      },
     );
 
     // 3. Đồng bộ PRODUCTS
@@ -494,7 +498,11 @@ class SyncService {
           debugPrint("Lỗi sync expense $docId: $e");
         }
       },
-      onBatchDone: onDataChanged,
+      onBatchDone: () {
+        onDataChanged();
+        // Emit event để cập nhật UI chi phí
+        EventBus().emit('expenses_changed');
+      },
     );
 
     // 5. Đồng bộ DEBTS
@@ -677,7 +685,11 @@ class SyncService {
             debugPrint("Lỗi sync quick_input_code $docId: $e");
           }
         },
-        onBatchDone: onDataChanged,
+        onBatchDone: () {
+          onDataChanged();
+          // Emit event để cập nhật UI quick_input_codes
+          EventBus().emit('quick_input_codes_changed');
+        },
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo quick_input_codes sync: $e");

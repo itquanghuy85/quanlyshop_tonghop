@@ -149,7 +149,7 @@ class CustomAppBar {
           ? PreferredSize(
               preferredSize: bottom.preferredSize,
               child: Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   border: Border(bottom: BorderSide(color: kDivider, width: 1)),
                 ),
                 child: bottom,
@@ -195,7 +195,7 @@ class CustomAppBar {
             )
           : Text(
               title,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: kTitleFontSize,
                 color: kTextPrimary,
@@ -445,7 +445,7 @@ class CustomAppBar {
         const SizedBox(height: 2),
         Text(
           subtitle,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: kSubtitleFontSize,
             fontWeight: FontWeight.w400,
             color: kTextSecondary,
@@ -482,12 +482,12 @@ class CustomAppBar {
             color: kTextSecondary,
             fontSize: AppTextStyles.headline5.fontSize,
           ),
-          prefixIcon: Icon(
+          prefixIcon: const Icon(
             Icons.search_rounded,
             color: kTextSecondary,
             size: 18,
           ),
-          prefixIconConstraints: BoxConstraints(minWidth: 36),
+          prefixIconConstraints: const BoxConstraints(minWidth: 36),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
@@ -585,7 +585,7 @@ class CustomTabBar {
     final accent = accentColor ?? CustomAppBar.kPrimaryColor;
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: CustomAppBar.kSurfaceWhite,
         border: Border(
           bottom: BorderSide(color: CustomAppBar.kDivider, width: 1),

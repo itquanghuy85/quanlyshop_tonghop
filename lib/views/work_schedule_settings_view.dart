@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../l10n/app_localizations.dart';
 import '../data/db_helper.dart';
 import '../models/attendance_model.dart';
 import '../services/user_service.dart';
@@ -18,6 +19,7 @@ class WorkScheduleSettingsView extends StatefulWidget {
 }
 
 class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
+  AppLocalizations get loc => AppLocalizations.of(context)!;
   String _getShortRoleName(String role) {
     switch (role) {
       case 'owner':
@@ -585,10 +587,10 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       }
 
       messenger.showSnackBar(
-        const SnackBar(content: Text('Đã lưu cài đặt lịch làm việc')),
+        SnackBar(content: Text(loc.workScheduleSaved)),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Lỗi khi lưu: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(loc.saveErrorMsg(e.toString()))));
     }
   }
 
@@ -614,10 +616,10 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       setState(() {});
 
       messenger.showSnackBar(
-        const SnackBar(content: Text('Đã lưu lương nhân viên')),
+        SnackBar(content: Text(loc.staffSalarySaved)),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Lỗi khi lưu: $e')));
+      messenger.showSnackBar(SnackBar(content: Text(loc.saveErrorMsg(e.toString()))));
     }
   }
 
@@ -660,7 +662,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('CÀI ĐẶT LỊCH LÀM VIỆC'),
+          title: Text(loc.workScheduleSettingsTitle),
           automaticallyImplyLeading: true,
           flexibleSpace: Container(
             decoration: const BoxDecoration(
@@ -674,10 +676,10 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
           iconTheme: const IconThemeData(color: Colors.white),
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: [
-              Tab(text: 'Cài đặt chung'),
-              Tab(text: 'Nhân viên'),
+              Tab(text: loc.generalSettingsTab),
+              Tab(text: loc.staffTab),
             ],
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
@@ -720,25 +722,25 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                 const CircularProgressIndicator(),
                 const SizedBox(height: 16),
                 Text(
-                  'Đang tải danh sách nhân viên...',
+                  loc.loadingStaffList,
                   style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
                 ),
               ] else ...[
                 const Icon(Icons.people_outline, size: 64, color: Colors.grey),
                 const SizedBox(height: 16),
                 Text(
-                  'Chưa có dữ liệu nhân viên',
+                  loc.noStaffData,
                   style: TextStyle(fontSize: AppTextStyles.headline2.fontSize),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Bấm tải lại để cập nhật',
+                  loc.tapToRefresh,
                   style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Tải lại'),
+                  label: Text(loc.reload),
                   onPressed: _autoLoadStaff,
                 ),
               ],
@@ -765,7 +767,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                     const Icon(Icons.people, color: Colors.blue),
                     const SizedBox(width: 12),
                     Text(
-                      'Số nhân viên: ${staffList.length}',
+                      loc.staffCountLabel(staffList.length),
                       style: TextStyle(
                         fontSize: AppTextStyles.headline3.fontSize,
                         fontWeight: FontWeight.bold,
@@ -785,7 +787,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                   Icon(Icons.schedule, size: 20, color: Colors.blue.shade700),
                   const SizedBox(width: 8),
                   Text(
-                    'Lịch làm việc từng nhân viên',
+                    loc.staffWorkSchedule,
                     style: TextStyle(
                       fontSize: AppTextStyles.headline3.fontSize,
                       fontWeight: FontWeight.bold,
@@ -829,7 +831,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                       ),
                     )
                   : Text(
-                      'Chưa cài đặt lịch',
+                      loc.scheduleNotSet,
                       style: TextStyle(
                         fontSize: AppTextStyles.subtitle1.fontSize,
                         color: Colors.orange.shade700,
@@ -856,13 +858,13 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // === SECTION: Giờ làm việc ===
-          _buildSectionTitle('Giờ làm việc', Icons.access_time),
+          _buildSectionTitle(loc.workHoursLabel, Icons.access_time),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildCompactTimeCard('Bắt đầu', startTimeCtrl)),
+              Expanded(child: _buildCompactTimeCard(loc.startTimeLabel, startTimeCtrl)),
               const SizedBox(width: 12),
-              Expanded(child: _buildCompactTimeCard('Kết thúc', endTimeCtrl)),
+              Expanded(child: _buildCompactTimeCard(loc.endTimeLabel, endTimeCtrl)),
             ],
           ),
           const SizedBox(height: 12),
@@ -870,7 +872,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
             children: [
               Expanded(
                 child: _buildCompactNumberCard(
-                  'Nghỉ trưa',
+                  loc.lunchBreakLabel,
                   breakTimeCtrl,
                   'giờ',
                 ),
@@ -878,7 +880,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildCompactNumberCard(
-                  'OT tối đa',
+                  loc.maxOvertimeLabel,
                   maxOtHoursCtrl,
                   'giờ',
                 ),
@@ -889,7 +891,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
           const SizedBox(height: 24),
 
           // === SECTION: Ngày làm việc ===
-          _buildSectionTitle('Ngày làm việc', Icons.calendar_today),
+          _buildSectionTitle(loc.workDaysLabel, Icons.calendar_today),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -914,14 +916,14 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
             children: [
               Expanded(
                 child: Text(
-                  'Ngày nghỉ lễ:',
+                  loc.holidaysLabel,
                   style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, fontWeight: FontWeight.w500),
                 ),
               ),
               TextButton.icon(
                 onPressed: _addHoliday,
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Thêm'),
+                label: Text(loc.addBtn),
               ),
             ],
           ),
@@ -942,13 +944,13 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
           const SizedBox(height: 24),
 
           // === SECTION: Tăng ca ===
-          _buildSectionTitle('Hệ số tăng ca', Icons.timer),
+          _buildSectionTitle(loc.overtimeRateLabel, Icons.timer),
           const SizedBox(height: 12),
-          _buildCompactNumberCard('Ngày thường', weekdayOtRateCtrl, '%'),
+          _buildCompactNumberCard(loc.weekdayLabel, weekdayOtRateCtrl, '%'),
           const SizedBox(height: 8),
-          _buildCompactNumberCard('Cuối tuần', weekendOtRateCtrl, '%'),
+          _buildCompactNumberCard(loc.weekendLabel, weekendOtRateCtrl, '%'),
           const SizedBox(height: 8),
-          _buildCompactNumberCard('Ngày lễ', holidayOtRateCtrl, '%'),
+          _buildCompactNumberCard(loc.holidayLabel, holidayOtRateCtrl, '%'),
 
           const SizedBox(height: 32),
           SizedBox(
@@ -956,7 +958,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
             child: ElevatedButton.icon(
               onPressed: _saveWorkSchedule,
               icon: const Icon(Icons.save),
-              label: Text('LƯU CÀI ĐẶT', style: TextStyle(fontSize: AppTextStyles.headline3.fontSize)),
+              label: Text(loc.saveSettingsBtn, style: TextStyle(fontSize: AppTextStyles.headline3.fontSize)),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 backgroundColor: Colors.blue,
@@ -1067,7 +1069,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                     child: Column(
                       children: [
                         DropdownButtonFormField<String>(
-                          value: selectedStaff,
+                          initialValue: selectedStaff,
                           decoration: const InputDecoration(
                             labelText: 'Chọn nhân viên',
                             border: OutlineInputBorder(),
@@ -1202,7 +1204,7 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: selectedStaffForAttendance,
+                  initialValue: selectedStaffForAttendance,
                   decoration: const InputDecoration(
                     labelText: 'Nhân viên',
                     border: OutlineInputBorder(),

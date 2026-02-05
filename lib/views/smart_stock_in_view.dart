@@ -218,10 +218,12 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       _nameCtrl.text = item.name;
       _quantityCtrl.text = item.quantity.toString();
       // Hiển thị giá trị VNĐ đã lưu (không chia 1000)
-      if (item.cost != null)
+      if (item.cost != null) {
         _costCtrl.text = CurrencyTextField.formatDisplay(item.cost!.toInt());
-      if (item.price != null)
+      }
+      if (item.price != null) {
         _priceCtrl.text = CurrencyTextField.formatDisplay(item.price!.toInt());
+      }
 
       if (_productType == 'DIEN_THOAI') {
         _imeiCtrl.text = item.imei ?? '';
@@ -761,7 +763,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedBrand,
+                    initialValue: _selectedBrand,
                     decoration: const InputDecoration(
                       labelText: 'Hãng',
                       border: OutlineInputBorder(),
@@ -811,7 +813,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedCapacity,
+                    initialValue: _selectedCapacity,
                     decoration: const InputDecoration(
                       labelText: 'Dung lượng',
                       border: OutlineInputBorder(),
@@ -838,7 +840,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedColor,
+                    initialValue: _selectedColor,
                     decoration: const InputDecoration(
                       labelText: 'Màu sắc',
                       border: OutlineInputBorder(),
@@ -871,7 +873,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedCondition,
+                    initialValue: _selectedCondition,
                     decoration: const InputDecoration(
                       labelText: 'Tình trạng',
                       border: OutlineInputBorder(),
@@ -1052,7 +1054,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedUnit ?? 'Cái',
+                    initialValue: _selectedUnit ?? 'Cái',
                     decoration: const InputDecoration(
                       labelText: 'Đơn vị',
                       border: OutlineInputBorder(),
@@ -1163,7 +1165,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value:
+                    initialValue:
                         _selectedSupplier != null &&
                             _suppliers.any(
                               (s) => s['name'] == _selectedSupplier,

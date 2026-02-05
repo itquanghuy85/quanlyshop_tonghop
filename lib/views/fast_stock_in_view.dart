@@ -1899,8 +1899,8 @@ class _SmartIMEIScannerSheetState extends State<_SmartIMEIScannerSheet> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.qr_code_scanner, color: Colors.green),
-                    SizedBox(width: 8),
+                    const Icon(Icons.qr_code_scanner, color: Colors.green),
+                    const SizedBox(width: 8),
                     Text(
                       'QUÉT QR/BARCODE IMEI',
                       style: TextStyle(
@@ -1925,8 +1925,8 @@ class _SmartIMEIScannerSheetState extends State<_SmartIMEIScannerSheet> {
             color: Colors.blue.shade50,
             child: Row(
               children: [
-                Icon(Icons.info_outline, size: 20, color: Colors.blue),
-                SizedBox(width: 8),
+                const Icon(Icons.info_outline, size: 20, color: Colors.blue),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Hỗ trợ QR nhiều dòng (Apple, Samsung...).\n'

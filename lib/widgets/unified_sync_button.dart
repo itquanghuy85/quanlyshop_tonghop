@@ -109,7 +109,7 @@ class _UnifiedSyncButtonState extends State<UnifiedSyncButton>
       iconWidget = Badge(
         label: Text(
           _pendingCount > 99 ? '99+' : '$_pendingCount',
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: AppTextStyles.overlineSize,
             fontWeight: FontWeight.bold,
           ),
@@ -296,7 +296,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                           const SizedBox(height: 16),
 
                           // Main actions
-                          Text(
+                          const Text(
                             'THAO TÁC ĐỒNG BỘ',
                             style: TextStyle(
                               fontSize: AppTextStyles.subtitle1Size,
@@ -354,7 +354,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                           const SizedBox(height: 16),
 
                           // Advanced actions
-                          Text(
+                          const Text(
                             'NÂNG CAO',
                             style: TextStyle(
                               fontSize: AppTextStyles.subtitle1Size,
