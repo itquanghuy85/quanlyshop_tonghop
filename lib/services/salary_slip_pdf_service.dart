@@ -1131,7 +1131,7 @@ class SalarySlipPdfService {
         styles: const PosStyles(align: PosAlign.center, bold: true),
       );
       bytes += generator.text(
-        '${_formatCurrency(data.totalSalary)}',
+        _formatCurrency(data.totalSalary),
         styles: const PosStyles(
           align: PosAlign.center,
           bold: true,

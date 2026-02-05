@@ -6,6 +6,7 @@ import '../models/attendance_model.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../l10n/app_localizations.dart';
 
 /// Trang theo dõi chấm công nhân viên cho quản lý/chủ shop
 /// Hiển thị tổng quan chấm công của tất cả nhân viên
@@ -23,8 +24,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
   DateTime _selectedMonth = DateTime.now();
   
   List<Map<String, dynamic>> _staffList = [];
-  Map<String, List<Attendance>> _staffAttendance = {};
-  Map<String, Map<String, dynamic>> _monthlyStats = {};
+  final Map<String, List<Attendance>> _staffAttendance = {};
+  final Map<String, Map<String, dynamic>> _monthlyStats = {};
   
   String? _currentShopId;
   
@@ -220,7 +221,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
             ),
           ),
         ),
-        title: const Text('THEO DÕI CHẤM CÔNG', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(AppLocalizations.of(context)!.attendanceTracking, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -228,7 +229,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
           // Toggle view mode
           IconButton(
             icon: Icon(_viewMode == 'day' ? Icons.calendar_month : Icons.calendar_today),
-            tooltip: _viewMode == 'day' ? 'Xem theo tháng' : 'Xem theo ngày',
+            tooltip: _viewMode == 'day' ? AppLocalizations.of(context)!.viewByMonth : AppLocalizations.of(context)!.viewByDay,
             onPressed: () {
               setState(() {
                 _viewMode = _viewMode == 'day' ? 'month' : 'day';
@@ -276,7 +277,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
     
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.primaryDark, AppColors.primary],
           begin: Alignment.topLeft,
@@ -287,8 +288,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
         children: [
           Text(
             _viewMode == 'day' 
-                ? 'CHẤM CÔNG NGÀY ${DateFormat('dd/MM/yyyy').format(_selectedDate)}'
-                : 'THÁNG ${DateFormat('MM/yyyy').format(_selectedMonth)}',
+                ? AppLocalizations.of(context)!.attendanceForDate(DateFormat('dd/MM/yyyy').format(_selectedDate))
+                : AppLocalizations.of(context)!.monthLabel(DateFormat('MM/yyyy').format(_selectedMonth)),
             style: TextStyle(
               color: Colors.white70,
               fontSize: AppTextStyles.subtitle1.fontSize,
@@ -300,18 +301,18 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _summaryItem('Có mặt', presentToday, Colors.greenAccent),
-                _summaryItem('Đi muộn', lateToday, Colors.orangeAccent),
-                _summaryItem('Vắng', absentToday, Colors.redAccent),
-                _summaryItem('Tổng NV', _staffList.length, Colors.white),
+                _summaryItem(AppLocalizations.of(context)!.present, presentToday, Colors.greenAccent),
+                _summaryItem(AppLocalizations.of(context)!.lateArrival, lateToday, Colors.orangeAccent),
+                _summaryItem(AppLocalizations.of(context)!.absent, absentToday, Colors.redAccent),
+                _summaryItem(AppLocalizations.of(context)!.totalStaff, _staffList.length, Colors.white),
               ],
             )
           else
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _summaryItem('Tổng NV', _staffList.length, Colors.white),
-                _summaryItem('Đã chấm công', _staffAttendance.values.where((v) => v.isNotEmpty).length, Colors.greenAccent),
+                _summaryItem(AppLocalizations.of(context)!.totalStaff, _staffList.length, Colors.white),
+                _summaryItem(AppLocalizations.of(context)!.checkedInStatus, _staffAttendance.values.where((v) => v.isNotEmpty).length, Colors.greenAccent),
               ],
             ),
         ],
@@ -400,7 +401,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
               });
               _loadAttendanceData().then((_) => setState(() {}));
             },
-            child: const Text('Hôm nay'),
+            child: Text(AppLocalizations.of(context)!.todayLabel),
           ),
         ],
       ),
@@ -437,13 +438,13 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
 
   Widget _buildStaffAttendanceList() {
     if (_staffList.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('Chưa có nhân viên', style: TextStyle(color: Colors.grey)),
+            const Icon(Icons.people_outline, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(AppLocalizations.of(context)!.noStaffYet, style: const TextStyle(color: Colors.grey)),
           ],
         ),
       );
@@ -478,16 +479,16 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
     final isEarly = records.isNotEmpty && records.first.isEarlyLeave == 1;
     
     Color statusColor = Colors.grey;
-    String statusText = 'Chưa chấm công';
+    String statusText = AppLocalizations.of(context)!.notCheckedIn;
     IconData statusIcon = Icons.remove_circle_outline;
     
     if (hasCheckedIn && hasCheckedOut) {
       statusColor = isLate || isEarly ? Colors.orange : Colors.green;
-      statusText = 'Hoàn thành';
+      statusText = AppLocalizations.of(context)!.completedStatus;
       statusIcon = Icons.check_circle;
     } else if (hasCheckedIn) {
       statusColor = isLate ? Colors.orange : Colors.blue;
-      statusText = 'Đang làm việc';
+      statusText = AppLocalizations.of(context)!.workingStatus;
       statusIcon = Icons.work;
     }
     
@@ -566,7 +567,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              'Đi muộn',
+                              AppLocalizations.of(context)!.lateArrival,
                               style: TextStyle(color: Colors.orange, fontSize: AppTextStyles.caption.fontSize),
                             ),
                           ),
@@ -582,12 +583,12 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                 children: [
                   if (hasCheckedIn)
                     Text(
-                      'Vào: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkInAt!))}',
+                      '${AppLocalizations.of(context)!.checkInTimeShort}: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkInAt!))}',
                       style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.green),
                     ),
                   if (hasCheckedOut)
                     Text(
-                      'Ra: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkOutAt!))}',
+                      '${AppLocalizations.of(context)!.checkOutTimeShort}: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkOutAt!))}',
                       style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.red),
                     ),
                   if (!hasCheckedIn)
@@ -652,9 +653,9 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _monthStatItem('Ngày công', '$totalDays', Colors.blue),
-                  _monthStatItem('Đi muộn', '$lateDays', Colors.orange),
-                  _monthStatItem('Giờ làm', '${totalHours}h', Colors.green),
+                  _monthStatItem(AppLocalizations.of(context)!.workDaysCount, '$totalDays', Colors.blue),
+                  _monthStatItem(AppLocalizations.of(context)!.lateArrival, '$lateDays', Colors.orange),
+                  _monthStatItem(AppLocalizations.of(context)!.workHoursCount, '${totalHours}h', Colors.green),
                 ],
               ),
             ],
@@ -689,19 +690,19 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
     
     switch (role) {
       case 'owner':
-        label = 'Chủ';
+        label = AppLocalizations.of(context)!.roleOwnerShort;
         color = Colors.purple;
         break;
       case 'manager':
-        label = 'QL';
+        label = AppLocalizations.of(context)!.roleManagerShort;
         color = Colors.blue;
         break;
       case 'technician':
-        label = 'KT';
+        label = AppLocalizations.of(context)!.roleTechnicianShort;
         color = Colors.teal;
         break;
       default:
-        label = 'NV';
+        label = AppLocalizations.of(context)!.roleEmployeeShort;
         color = Colors.grey;
     }
     
@@ -734,7 +735,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
   void _showStaffDetail(Map<String, dynamic> staff, List<Attendance> records) {
     if (records.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chưa có dữ liệu chấm công')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.noAttendanceData)),
       );
       return;
     }
@@ -787,23 +788,23 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
             const Divider(height: 24),
             
             // Attendance info
-            _detailRow('Ngày', DateFormat('dd/MM/yyyy').format(_selectedDate)),
-            _detailRow('Giờ vào', record.checkInAt != null 
+            _detailRow(AppLocalizations.of(context)!.dateLabel, DateFormat('dd/MM/yyyy').format(_selectedDate)),
+            _detailRow(AppLocalizations.of(context)!.checkInTimeShort, record.checkInAt != null 
                 ? DateFormat('HH:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(record.checkInAt!))
                 : '--'),
-            _detailRow('Giờ ra', record.checkOutAt != null 
+            _detailRow(AppLocalizations.of(context)!.checkOutTimeShort, record.checkOutAt != null 
                 ? DateFormat('HH:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!))
                 : '--'),
-            _detailRow('Đi muộn', record.isLate == 1 ? 'Có' : 'Không'),
-            _detailRow('Về sớm', record.isEarlyLeave == 1 ? 'Có' : 'Không'),
+            _detailRow(AppLocalizations.of(context)!.lateArrival, record.isLate == 1 ? AppLocalizations.of(context)!.yes : AppLocalizations.of(context)!.no),
+            _detailRow(AppLocalizations.of(context)!.earlyLeave, record.isEarlyLeave == 1 ? AppLocalizations.of(context)!.yes : AppLocalizations.of(context)!.no),
             if (record.location != null)
-              _detailRow('Vị trí', record.location!),
+              _detailRow(AppLocalizations.of(context)!.locationLabel, record.location!),
             
             const SizedBox(height: 16),
             
             // Photos
             if (record.photoIn != null || record.photoOut != null) ...[
-              const Text('Ảnh chấm công:', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(AppLocalizations.of(context)!.attendancePhotos, style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -825,7 +826,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text('Vào', style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
+                          Text(AppLocalizations.of(context)!.checkInPhoto, style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                         ],
                       ),
                     ),
@@ -849,7 +850,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text('Ra', style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
+                          Text(AppLocalizations.of(context)!.checkOutPhoto, style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                         ],
                       ),
                     ),
@@ -895,7 +896,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(staff['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize)),
-                      Text('Tháng ${DateFormat('MM/yyyy').format(_selectedMonth)}', style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize)),
+                      Text(AppLocalizations.of(context)!.monthYearFormat(DateFormat('MM/yyyy').format(_selectedMonth)), style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize)),
                     ],
                   ),
                 ),
@@ -910,7 +911,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
             // List of days
             Expanded(
               child: records.isEmpty
-                  ? const Center(child: Text('Chưa có dữ liệu chấm công'))
+                  ? Center(child: Text(AppLocalizations.of(context)!.noAttendanceData))
                   : ListView.builder(
                       itemCount: records.length,
                       itemBuilder: (context, index) {

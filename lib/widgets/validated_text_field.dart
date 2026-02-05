@@ -21,6 +21,8 @@ class ValidatedTextField extends StatefulWidget {
   final Function(String)? onChanged;
   final bool autoValidate;
   final bool uppercase; // New parameter for uppercase conversion
+  final FocusNode? focusNode;
+  final VoidCallback? onTap;
 
   const ValidatedTextField({
     super.key,
@@ -40,6 +42,8 @@ class ValidatedTextField extends StatefulWidget {
     this.onChanged,
     this.autoValidate = false,
     this.uppercase = false, // Default to false
+    this.focusNode,
+    this.onTap,
   });
 
   @override
@@ -114,6 +118,8 @@ class _ValidatedTextFieldState extends State<ValidatedTextField> {
       },
       child: TextField(
         controller: widget.controller,
+        focusNode: widget.focusNode,
+        onTap: widget.onTap,
         keyboardType: widget.keyboardType,
         obscureText: widget.obscureText,
         inputFormatters: widget.inputFormatters,

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/app_info.dart';
+import '../l10n/app_localizations.dart';
 
 class AboutDeveloperView extends StatelessWidget {
   const AboutDeveloperView({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -15,7 +17,7 @@ class AboutDeveloperView extends StatelessWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Về Nhà Phát Triển'),
+        title: Text(loc.aboutDeveloper),
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.white,
@@ -37,7 +39,7 @@ class AboutDeveloperView extends StatelessWidget {
             child: Column(
               children: [
                 // Header Section
-                _buildHeader(),
+                _buildHeader(loc),
 
                 // Main Content
                 Container(
@@ -47,22 +49,22 @@ class AboutDeveloperView extends StatelessWidget {
                       const SizedBox(height: 30),
 
                       // Developer Card
-                      _buildDeveloperCard(),
+                      _buildDeveloperCard(loc),
 
                       const SizedBox(height: 20),
 
                       // Store Card
-                      _buildStoreCard(),
+                      _buildStoreCard(loc),
 
                       const SizedBox(height: 20),
 
                       // Contact Card
-                      _buildContactCard(),
+                      _buildContactCard(loc),
 
                       const SizedBox(height: 20),
 
                       // App Info Card
-                      _buildAppInfoCard(),
+                      _buildAppInfoCard(loc),
 
                       const SizedBox(height: 40),
                     ],
@@ -76,7 +78,7 @@ class AboutDeveloperView extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AppLocalizations loc) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
       child: Column(
@@ -128,7 +130,7 @@ class AboutDeveloperView extends StatelessWidget {
           const SizedBox(height: 24),
 
           Text(
-            'HULUCA STORE ĐỒNG NAI',
+            loc.hulucaStoreDongNai,
             style: TextStyle(
               fontSize: AppTextStyles.headline1.fontSize,
               fontWeight: FontWeight.bold,
@@ -148,7 +150,7 @@ class AboutDeveloperView extends StatelessWidget {
           const SizedBox(height: 12),
 
           Text(
-            'Về Nhà Phát Triển',
+            loc.aboutDeveloper,
             style: TextStyle(
               fontSize: AppTextStyles.headline1.fontSize,
               fontWeight: FontWeight.w500,
@@ -168,7 +170,7 @@ class AboutDeveloperView extends StatelessWidget {
           const SizedBox(height: 8),
 
           Text(
-            'Ứng dụng quản lý cửa hàng chuyên nghiệp',
+            loc.professionalStoreManagementApp,
             style: TextStyle(
               fontSize: AppTextStyles.headline3.fontSize,
               color: Colors.white.withOpacity(0.95),
@@ -188,7 +190,7 @@ class AboutDeveloperView extends StatelessWidget {
     );
   }
 
-  Widget _buildDeveloperCard() {
+  Widget _buildDeveloperCard(AppLocalizations loc) {
     return Card(
       elevation: 8,
       shape: RoundedRectangleBorder(
@@ -253,7 +255,7 @@ class AboutDeveloperView extends StatelessWidget {
             const SizedBox(height: 8),
 
             Text(
-              'Nhà Phát Triển & Thiết Kế',
+              loc.developerAndDesigner,
               style: TextStyle(
                 fontSize: AppTextStyles.headline3.fontSize,
                 color: Colors.grey[600],
@@ -287,7 +289,7 @@ class AboutDeveloperView extends StatelessWidget {
     );
   }
 
-  Widget _buildStoreCard() {
+  Widget _buildStoreCard(AppLocalizations loc) {
     return Card(
       elevation: 8,
       shape: RoundedRectangleBorder(
@@ -340,7 +342,7 @@ class AboutDeveloperView extends StatelessWidget {
             const SizedBox(height: 16),
 
             Text(
-              'HULUCA STORE',
+              loc.hulucaStore,
               style: TextStyle(
                 fontSize: AppTextStyles.headline1.fontSize,
                 fontWeight: FontWeight.bold,
@@ -352,7 +354,7 @@ class AboutDeveloperView extends StatelessWidget {
             const SizedBox(height: 8),
 
             Text(
-              'ĐỒNG NAI',
+              loc.dongNai,
               style: TextStyle(
                 fontSize: AppTextStyles.headline2.fontSize,
                 fontWeight: FontWeight.w600,
@@ -364,7 +366,7 @@ class AboutDeveloperView extends StatelessWidget {
             const SizedBox(height: 12),
 
             Text(
-              'Cửa hàng sửa chữa điện thoại chuyên nghiệp',
+              loc.professionalPhoneRepairShop,
               style: TextStyle(
                 fontSize: AppTextStyles.headline4.fontSize,
                 color: Colors.grey[600],
@@ -378,7 +380,7 @@ class AboutDeveloperView extends StatelessWidget {
     );
   }
 
-  Widget _buildContactCard() {
+  Widget _buildContactCard(AppLocalizations loc) {
     return Card(
       elevation: 8,
       shape: RoundedRectangleBorder(
@@ -424,12 +426,12 @@ class AboutDeveloperView extends StatelessWidget {
                         style: TextStyle(
                           fontSize: AppTextStyles.headline2.fontSize,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF2D3748),
+                          color: const Color(0xFF2D3748),
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'Hotline & Zalo',
+                        loc.hotlineAndZalo,
                         style: TextStyle(
                           fontSize: AppTextStyles.headline4.fontSize,
                           color: Colors.grey,
@@ -531,7 +533,7 @@ class AboutDeveloperView extends StatelessWidget {
     );
   }
 
-  Widget _buildAppInfoCard() {
+  Widget _buildAppInfoCard(AppLocalizations loc) {
     return Card(
       elevation: 8,
       shape: RoundedRectangleBorder(
@@ -584,7 +586,7 @@ class AboutDeveloperView extends StatelessWidget {
             const SizedBox(height: 16),
 
             Text(
-              'Shop Manager App',
+              loc.shopManagerApp,
               style: TextStyle(
                 fontSize: AppTextStyles.headline1.fontSize,
                 fontWeight: FontWeight.bold,
@@ -597,7 +599,7 @@ class AboutDeveloperView extends StatelessWidget {
             FutureBuilder<String>(
               future: AppInfo.getVersion(),
               builder: (context, snapshot) {
-                final versionText = snapshot.data != null ? 'Phiên bản ${snapshot.data}' : 'Phiên bản ...';
+                final versionText = snapshot.data != null ? loc.versionLabel(snapshot.data!) : loc.versionLabel('...');
                 return Text(
                   versionText,
                   style: TextStyle(
@@ -633,7 +635,7 @@ class AboutDeveloperView extends StatelessWidget {
             const SizedBox(height: 12),
 
             Text(
-              'Ứng dụng quản lý cửa hàng sửa chữa điện thoại toàn diện với tính năng đồng bộ thời gian thực.',
+              loc.appFullDescription,
               style: TextStyle(
                 fontSize: AppTextStyles.headline4.fontSize,
                 color: Colors.grey[600],

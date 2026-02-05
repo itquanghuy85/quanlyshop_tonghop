@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "C:/FlutterProjects/quanlyshop/linux"
+    "cmake.sourceDirectory": "C:/FlutterProjects/quanlyshop/linux",
+    "chat.agent.maxRequests": 500
 }

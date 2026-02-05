@@ -1428,7 +1428,7 @@ class _DebtViewState extends State<DebtView>
     children: [
       Text(
         l,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: AppTextStyles.overlineSize,
           fontWeight: FontWeight.bold,
           color: Colors.grey,
@@ -1554,7 +1554,7 @@ class _DebtViewState extends State<DebtView>
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                Text(
+                                const Text(
                                   "(Khách nợ shop)",
                                   style: TextStyle(
                                     fontSize: AppTextStyles.overlineSize,
@@ -1607,7 +1607,7 @@ class _DebtViewState extends State<DebtView>
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                Text(
+                                const Text(
                                   "(Shop nợ người khác)",
                                   style: TextStyle(
                                     fontSize: AppTextStyles.overlineSize,

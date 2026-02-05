@@ -3,6 +3,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../widgets/validated_text_field.dart';
+import '../l10n/app_localizations.dart';
 
 class InvoiceTemplateView extends StatefulWidget {
   const InvoiceTemplateView({super.key});
@@ -12,6 +13,7 @@ class InvoiceTemplateView extends StatefulWidget {
 }
 
 class _InvoiceTemplateViewState extends State<InvoiceTemplateView> {
+  AppLocalizations get loc => AppLocalizations.of(context)!;
   final _headerController = TextEditingController();
   final _bodyController = TextEditingController();
   final _footerController = TextEditingController();
@@ -50,7 +52,7 @@ class _InvoiceTemplateViewState extends State<InvoiceTemplateView> {
     await prefs.setString('invoice_body', _bodyController.text);
     await prefs.setString('invoice_footer', _footerController.text);
     messenger.showSnackBar(
-      const SnackBar(content: Text('Đã lưu mẫu hóa đơn')),
+      SnackBar(content: Text(loc.invoiceTemplateSaved)),
     );
   }
 
@@ -91,7 +93,7 @@ class _InvoiceTemplateViewState extends State<InvoiceTemplateView> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text('TẠO MẪU HÓA ĐƠN'),
+        title: Text(loc.invoiceTemplateTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
@@ -108,34 +110,34 @@ class _InvoiceTemplateViewState extends State<InvoiceTemplateView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Header:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(loc.headerLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
                     ValidatedTextField(
                       controller: _headerController,
-                      label: "HEADER HÓA ĐƠN",
+                      label: loc.invoiceHeaderHint,
                       maxLength: 500,
                       uppercase: true,
                       onChanged: (_) => _updatePreview(),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Body (sử dụng placeholders như {customerName}, {total}):', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(loc.bodyLabelWithPlaceholders, style: const TextStyle(fontWeight: FontWeight.bold)),
                     ValidatedTextField(
                       controller: _bodyController,
-                      label: "NỘI DUNG CHÍNH",
+                      label: loc.invoiceBodyHint,
                       maxLength: 2000,
                       uppercase: true,
                       onChanged: (_) => _updatePreview(),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Footer:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(loc.footerLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
                     ValidatedTextField(
                       controller: _footerController,
-                      label: "FOOTER HÓA ĐƠN",
+                      label: loc.invoiceFooterHint,
                       maxLength: 500,
                       uppercase: true,
                       onChanged: (_) => _updatePreview(),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Preview:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(loc.previewLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -150,11 +152,11 @@ class _InvoiceTemplateViewState extends State<InvoiceTemplateView> {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _generateQR,
-                      child: const Text('TẠO QR CHO ĐƠN HÀNG MẪU'),
+                      child: Text(loc.generateQrSampleOrder),
                     ),
                     if (_qrData.isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      const Text('QR Code (quét để xem thông tin đơn hàng):', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(loc.qrCodeScanInfo, style: const TextStyle(fontWeight: FontWeight.bold)),
                       Center(
                         child: QrImageView(
                           data: _qrData,

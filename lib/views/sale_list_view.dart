@@ -159,11 +159,13 @@ class _SaleListViewState extends State<SaleListView> {
           if (saleDate.isBefore(monthStart)) return false;
           break;
         case 'custom':
-          if (_customStartDate != null && saleDate.isBefore(_customStartDate!))
+          if (_customStartDate != null && saleDate.isBefore(_customStartDate!)) {
             return false;
+          }
           if (_customEndDate != null &&
-              saleDate.isAfter(_customEndDate!.add(const Duration(days: 1))))
+              saleDate.isAfter(_customEndDate!.add(const Duration(days: 1)))) {
             return false;
+          }
           break;
       }
 
@@ -432,7 +434,7 @@ class _SaleListViewState extends State<SaleListView> {
               context,
               MaterialPageRoute(builder: (_) => const CreateSaleView()),
             ).then((_) => _refresh()),
-            icon: Icon(
+            icon: const Icon(
               Icons.add_shopping_cart_rounded,
               color: AppBarAccents.sales,
             ),
@@ -442,7 +444,7 @@ class _SaleListViewState extends State<SaleListView> {
             children: [
               IconButton(
                 onPressed: _showFilterSheet,
-                icon: Icon(
+                icon: const Icon(
                   Icons.filter_list_rounded,
                   color: AppBarAccents.sales,
                 ),
@@ -472,7 +474,7 @@ class _SaleListViewState extends State<SaleListView> {
           ),
           IconButton(
             onPressed: _refresh,
-            icon: Icon(Icons.refresh_rounded, color: AppBarAccents.sales),
+            icon: const Icon(Icons.refresh_rounded, color: AppBarAccents.sales),
           ),
         ],
         bottom: PreferredSize(
@@ -486,7 +488,7 @@ class _SaleListViewState extends State<SaleListView> {
               decoration: InputDecoration(
                 hintText: "Tìm theo tên khách, máy hoặc IMEI...",
                 hintStyle: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade500),
-                prefixIcon: Icon(
+                prefixIcon: const Icon(
                   Icons.search_rounded,
                   color: AppBarAccents.sales,
                   size: 20,
@@ -732,7 +734,7 @@ class _SaleListViewState extends State<SaleListView> {
                                                 ),
                                                 child: Text(
                                                   isPaid ? 'ĐÃ THU' : 'CÒN NỢ',
-                                                  style: TextStyle(
+                                                  style: const TextStyle(
                                                     color: Colors.white,
                                                     fontSize: AppTextStyles.overlineSize,
                                                     fontWeight: FontWeight.bold,

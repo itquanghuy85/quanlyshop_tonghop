@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../services/user_service.dart';
 import '../theme/app_text_styles.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../services/encryption_service.dart';
-import '../services/first_time_guide_service.dart';
 import '../data/db_helper.dart';
 import '../services/sync_service.dart';
-import '../widgets/unified_sync_button.dart';
 import '../utils/app_info.dart';
+import '../services/first_time_guide_service.dart';
+import '../widgets/unified_sync_button.dart';
 import 'help_center_view.dart';
 import 'user_guide_view.dart';
+import 'shop_selector_view.dart';
 import 'staff_permissions_view.dart';
-import 'shop_selector_view.dart'; // Màn hình chọn shop cho super admin
 
 class SettingsView extends StatefulWidget {
   final void Function(Locale)? setLocale;
@@ -25,6 +26,9 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
+  // Localization getter
+  AppLocalizations get loc => AppLocalizations.of(context)!;
+  
   String _role = 'user';
   bool _loading = true;
   late final Future<String> _versionFuture;
@@ -33,6 +37,9 @@ class _SettingsViewState extends State<SettingsView> {
   List<Map<String, dynamic>> _allShops = [];
   String? _selectedShopId;
   bool _loadingShops = false;
+  
+  // Current selected locale
+  Locale _selectedLocale = const Locale('vi');
 
   @override
   void initState() {
@@ -40,6 +47,22 @@ class _SettingsViewState extends State<SettingsView> {
     _versionFuture = AppInfo.getVersion();
     _loadRole();
     _loadShopsForAdmin();
+    _loadSavedLocale();
+  }
+  
+  /// Load ngôn ngữ đã lưu
+  Future<void> _loadSavedLocale() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final languageCode = prefs.getString('app_language') ?? 'vi';
+      if (mounted) {
+        setState(() {
+          _selectedLocale = Locale(languageCode);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading saved locale: $e');
+    }
   }
 
   /// Load danh sách shops cho super admin
@@ -71,7 +94,7 @@ class _SettingsViewState extends State<SettingsView> {
 
     // Hiển thị loading
     NotificationService.showSnackBar(
-      "Đang tải dữ liệu shop...",
+      loc.loadingShopData,
       color: Colors.blue,
     );
 
@@ -98,13 +121,13 @@ class _SettingsViewState extends State<SettingsView> {
           shopId;
 
       NotificationService.showSnackBar(
-        "Đã chuyển sang shop: $shopName",
+        loc.switchedToShop(shopName),
         color: Colors.green,
       );
     } catch (e) {
       debugPrint('Error switching shop: $e');
       NotificationService.showSnackBar(
-        "Lỗi khi chuyển shop: $e",
+        loc.errorSwitchingShop(e.toString()),
         color: Colors.red,
       );
     }
@@ -172,7 +195,7 @@ class _SettingsViewState extends State<SettingsView> {
     // Chỉ super admin mới được xóa dữ liệu shop
     if (!UserService.isCurrentUserSuperAdmin()) {
       NotificationService.showSnackBar(
-        "CHỈ SUPER ADMIN MỚI ĐƯỢC XÓA DỮ LIỆU SHOP!",
+        loc.onlySuperAdminCanDelete,
         color: Colors.red,
       );
       return;
@@ -182,24 +205,22 @@ class _SettingsViewState extends State<SettingsView> {
     final bool? result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text(
-          "⚠️ CẢNH BÁO NGUY HIỂM",
-          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+        title: Text(
+          loc.dangerWarning,
+          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              "Hành động này sẽ xóa sạch 100% dữ liệu Đơn hàng, Kho, Nợ và Nhật ký của Shop trên cả Đám mây và Máy này. KHÔNG THỂ KHÔI PHỤC!",
-            ),
+            Text(loc.deleteAllDataWarning),
             const SizedBox(height: 15),
-            const Text(
-              "Nhập chữ 'XOA HET' để xác nhận:",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            Text(
+              loc.typeToConfirm,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             ),
             TextField(
               controller: confirmTextC,
-              decoration: const InputDecoration(hintText: "XOA HET"),
+              decoration: InputDecoration(hintText: loc.deleteAllPlaceholder),
               textAlign: TextAlign.center,
             ),
           ],
@@ -207,15 +228,15 @@ class _SettingsViewState extends State<SettingsView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("HỦY"),
+            child: Text(loc.cancel.toUpperCase()),
           ),
           ElevatedButton(
             onPressed: () =>
                 Navigator.pop(ctx, confirmTextC.text.trim() == "XOA HET"),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text(
-              "XÁC NHẬN XÓA SẠCH",
-              style: TextStyle(color: Colors.white),
+            child: Text(
+              loc.confirmDeleteAll,
+              style: const TextStyle(color: Colors.white),
             ),
           ),
         ],
@@ -229,12 +250,12 @@ class _SettingsViewState extends State<SettingsView> {
 
       if (errorMessage == null) {
         NotificationService.showSnackBar(
-          "ĐÃ XÓA SẠCH DỮ LIỆU SHOP!",
+          loc.shopDataDeleted,
           color: Colors.green,
         );
       } else {
         NotificationService.showSnackBar(
-          "LỖI KHI XÓA DỮ LIỆU ĐÁM MÂY: $errorMessage",
+          loc.errorDeletingCloudData(errorMessage),
           color: Colors.red,
         );
       }
@@ -284,21 +305,118 @@ class _SettingsViewState extends State<SettingsView> {
               padding: const EdgeInsets.all(16),
               children: [
                 _buildSection(localizations.languageAndInterface),
-                ListTile(
-                  leading: const Icon(Icons.language, color: Colors.blue),
-                  title: Text(localizations.languageApp),
-                  trailing: Text(localizations.vietnamese),
-                  onTap: () {
-                    if (widget.setLocale != null) {
-                      widget.setLocale!(const Locale('vi'));
-                    }
-                  },
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.language, color: Colors.blue),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                localizations.languageApp,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                localizations.selectLanguage,
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                          ),
+                          child: DropdownButton<Locale>(
+                            value: _selectedLocale,
+                            underline: const SizedBox(),
+                            isDense: true,
+                            icon: const Icon(Icons.arrow_drop_down, color: Colors.blue),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue,
+                              fontSize: 14,
+                            ),
+                            items: [
+                              DropdownMenuItem(
+                                value: const Locale('vi'),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text('🇻🇳 ', style: TextStyle(fontSize: 18)),
+                                    Text(
+                                      localizations.vietnamese,
+                                      style: const TextStyle(color: Colors.blue),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: const Locale('en'),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text('🇺🇸 ', style: TextStyle(fontSize: 18)),
+                                    Text(
+                                      localizations.english,
+                                      style: const TextStyle(color: Colors.blue),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            onChanged: (locale) {
+                              if (locale != null) {
+                                setState(() => _selectedLocale = locale);
+                                widget.setLocale?.call(locale);
+                                // Lưu vào SharedPreferences
+                                SharedPreferences.getInstance().then(
+                                  (prefs) => prefs.setString('app_language', locale.languageCode),
+                                );
+                                NotificationService.showSnackBar(
+                                  locale.languageCode == 'vi' 
+                                    ? loc.changedToVietnamese
+                                    : loc.changedToEnglish,
+                                  color: Colors.green,
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 
                 const SizedBox(height: 16),
                 
                 // ====== HƯỚNG DẪN SỬ DỤNG - MOVE LÊN ĐẦU ĐỂ DỄ TÌM ======
-                _buildSection('📚 Hướng dẫn sử dụng'),
+                _buildSection(loc.userGuideSection),
                 
                 // Card chính: Hướng dẫn sử dụng đầy đủ
                 Card(
@@ -332,9 +450,9 @@ class _SettingsViewState extends State<SettingsView> {
                         size: 28,
                       ),
                     ),
-                    title: const Text(
-                      'Hướng dẫn sử dụng',
-                      style: TextStyle(
+                    title: Text(
+                      loc.userGuideTitle,
+                      style: const TextStyle(
                         color: Colors.purple,
                         fontWeight: FontWeight.bold,
                         fontSize: 17,
@@ -345,7 +463,7 @@ class _SettingsViewState extends State<SettingsView> {
                       children: [
                         const SizedBox(height: 6),
                         Text(
-                          'Hướng dẫn chi tiết từng bước cho mọi tính năng trong app.',
+                          loc.userGuideDesc,
                           style: TextStyle(
                             fontSize: AppTextStyles.body1.fontSize,
                             color: Colors.purple.shade800,
@@ -356,10 +474,10 @@ class _SettingsViewState extends State<SettingsView> {
                           spacing: 6,
                           runSpacing: 6,
                           children: [
-                            _buildFeatureChip('📦 Kho hàng', Colors.blue),
-                            _buildFeatureChip('🛒 Bán hàng', Colors.orange),
-                            _buildFeatureChip('🔧 Sửa chữa', Colors.purple),
-                            _buildFeatureChip('📊 Báo cáo', Colors.pink),
+                            _buildFeatureChip(loc.inventoryFeature, Colors.blue),
+                            _buildFeatureChip(loc.salesFeature, Colors.orange),
+                            _buildFeatureChip(loc.repairFeature, Colors.purple),
+                            _buildFeatureChip(loc.reportFeature, Colors.pink),
                           ],
                         ),
                       ],
@@ -382,7 +500,7 @@ class _SettingsViewState extends State<SettingsView> {
                 
                 const SizedBox(height: 16),
                 
-                const Divider();
+                const Divider(),
                 _buildSection(localizations.accountAndSecurity),
                 ListTile(
                   leading: const Icon(Icons.person_pin, color: Colors.teal),
@@ -764,15 +882,15 @@ class _SettingsViewState extends State<SettingsView> {
                         Icons.replay,
                         color: Colors.blue,
                       ),
-                      title: const Text(
-                        'Xem lại hướng dẫn sử dụng',
-                        style: TextStyle(
+                      title: Text(
+                        loc.reviewUserGuide,
+                        style: const TextStyle(
                           color: Colors.blue,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
-                        'Reset để hiển thị lại các hướng dẫn lần đầu',
+                        loc.resetGuidesDesc,
                         style: TextStyle(
                           fontSize: AppTextStyles.body1.fontSize,
                         ),
@@ -781,7 +899,7 @@ class _SettingsViewState extends State<SettingsView> {
                         await FirstTimeGuideService.resetAllGuides();
                         if (mounted) {
                           NotificationService.showSnackBar(
-                            'Đã reset! Hướng dẫn sẽ hiển thị lại khi vào các màn hình.',
+                            loc.guidesReset,
                             color: Colors.green,
                           );
                         }

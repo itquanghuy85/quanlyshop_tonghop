@@ -269,6 +269,7 @@
   "deleteFromInventory": "Delete from inventory",
   "deleteSelected": "Delete selected",
   "addNewProduct": "Add new product",
+  "modelRequired": "Please enter device model",
   "issueRequired": "Please enter device issue",
   "orderCreatedSuccessfully": "Repair order created successfully!",
   "createNewOrderQuestion": "Do you want to create a new repair order?",
@@ -855,6 +856,11 @@
   "downloadingShopData": "Downloading shop data...",
   "pleaseWait": "Please wait",
   "shopDataDownloaded": "Shop data downloaded!",
+  "quickAccess": "QUICK ACCESS",
+  "salesOrder": "Sales",
+  "salesOrderList": "List",
+  "repairOrderTitle": "Repairs",
+  "repairOrderList": "List",
   "pendingStockShort": "Pending Stock",
   "temporaryImport": "Temp Import",
   "payment": "Payment",
@@ -888,9 +894,13 @@
   "inventoryManagement": "INVENTORY MANAGEMENT",
   "holdForDetailedGuide": "Hold for detailed guide",
   "stockInNew": "STOCK IN NEW",
+  "stockInNewGuide": "Stock in with full information:\n\n✅ Support: Phones, Accessories, Parts\n✅ Save temp: Input when info is incomplete\n✅ Confirm: Stock officially enters inventory\n\n📌 Use when: Inputting new stock from supplier, need full IMEI/SKU, cost price, supplier...",
   "fullInformation": "Full information",
   "quickStockIn": "QUICK STOCK IN",
+  "quickStockInGuide": "Super fast stock in - just scan:\n\n⚡ Scan barcode/QR continuously\n⚡ Auto-fill info from library\n⚡ Suitable for large quantities\n\n📌 Use when: Quick input of accessories, parts already in system.",
   "continuousScan": "Continuous scan",
+  "checkInventoryGuide": "Check inventory by scanning:\n\n🔍 Scan QR/Barcode to check stock\n🔍 Compare actual vs system quantity\n🔍 Record discrepancies\n\n📌 Use when: Periodic inventory check, stock reconciliation.",
+  "contactOwnerForAccess": "Contact shop owner for access",
   "compareInventory": "Compare inventory",
   "pendingConfirmation": "Pending confirmation",
   "viewPendingStockList": "View pending stock confirmation list.",
@@ -972,6 +982,23 @@
     }
   },
   "productsInStock": "Products in stock",
+  "repairOrdersDataItem": "Repair orders",
+  "saleOrdersDataItem": "Sale orders",
+  "debtsAndExpensesDataItem": "Debts & Expenses",
+  "customersAndSuppliersDataItem": "Customers & Suppliers",
+  "downloadDataOf": "Download data of",
+  "fromCloudToThisDevice": "from cloud to this device.",
+  "onlyDownloadThisShopData": "Only download this shop's data, won't affect others.",
+  "processMayTakeFewMinutes": "Process may take a few minutes depending on data size.",
+  "downloadSuccess": "Shop data downloaded successfully!",
+  "downloadError": "Error: {error}",
+  "@downloadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "dataFullySynced": "Data fully synced",
   "localAndCloudMatched": "Local and cloud data matched",
   "syncNeeded": "Sync needed",
@@ -1172,91 +1199,6 @@
   "repairManagementDesc": "Track repair orders from receiving to delivery",
   "inventoryManagement": "Inventory Management",
   "inventoryManagementDesc": "Import goods, export inventory, check parts",
-  "printQrImeiInventory": "PRINT QR IMEI INVENTORY",
-  "designQrLabel": "Design QR label",
-  "searchImeiNameModel": "Search IMEI, device name, model...",
-  "labelCustomization": "Label customization",
-  "qrSize": "QR size",
-  "columns": "Columns",
-  "padding": "Padding",
-  "modelDetail": "Model/Detail",
-  "printAll": "PRINT ALL",
-  "printSelected": "PRINT SELECTED",
-  "openPrintPage": "OPEN PRINT PAGE",
-  "printQrImeiSuccess": "✅ Printed QR IMEI successfully",
-  "printQrImeiFail": "❌ Failed to print QR IMEI",
-  "imeiListLoadError": "Failed to load IMEI list: {error}",
-  "noImeiToPrint": "No IMEI to print",
-  "imeiTotalCount": "Total: {count} IMEI",
-  "imeiWithValue": "IMEI: {value}",
-  "qrSizeXSmall": "XS",
-  "qrSizeSmall": "S",
-  "qrSizeMedium": "M",
-  "qrSizeLarge": "L",
-  "defaultProductName": "PRODUCT",
-  "imeiPrefix": "IMEI: ",
-  "printLabelTitle": "PRINT LABEL",
-  "notAvailable": "N/A",
-  "productInfoTitle": "PRODUCT INFO",
-  "productNameLabel": "Name:",
-  "productDetailLabel": "Detail:",
-  "productDetailLabelPlain": "Detail",
-  "imeiLabelWithColon": "IMEI:",
-  "originalPriceLabel": "Original price:",
-  "labelModeAutoTitle": "AUTO",
-  "labelModeAutoSubtitle": "Use label designer settings",
-  "labelModeCustomTitle": "CUSTOM",
-  "labelModeCustomSubtitle": "Enter price & custom content",
-  "labelCustomContentTitle": "CUSTOM LABEL CONTENT",
-  "labelKpkExplain": "📌 KPK = No accessories (bare device price)",
-  "labelCpkExplain": "📌 CPK = With accessories (charger, cable, case, glass...)",
-  "labelElementName": "Name",
-  "labelElementDetail": "Detail",
-  "labelElementPriceKpk": "KPK price",
-  "labelElementPriceCpk": "CPK price",
-  "labelElementLabelNote": "Label note",
-  "labelElementImei": "IMEI",
-  "labelElementQr": "QR code",
-  "labelElementShop": "Shop info",
-  "priceKpkLabel": "KPK price:",
-  "priceCpkLabel": "CPK price:",
-  "priceKpkPrefix": "KPK: ",
-  "priceCpkPrefix": "CPK: ",
-  "currencySymbol": "₫",
-  "deviceNameLabel": "Device name",
-  "qrCodeLabel": "QR Code",
-  "addCustomLinesLabel": "Add custom lines (for large paper)",
-  "customLine1Hint": "Line 1: e.g. 12 MONTH WARRANTY",
-  "customLine2Hint": "Line 2: e.g. 7-DAY RETURN",
-  "customLine3Hint": "Line 3: e.g. HOTLINE: 0123.456.789",
-  "printQuantityLabel": "Print quantity:",
-  "labelPreviewTitle": "LABEL PREVIEW",
-  "labelPreviewKpk": "KPK PRICE: {price}",
-  "labelPreviewCpk": "CPK PRICE: {price}",
-  "printingLabel": "PRINTING...",
-  "printLabelQuantity": "PRINT {count} LABELS",
-  "printLabelSuccess": "✅ Printed {count} label(s) successfully!",
-  "printLabelPartial": "⚠️ Printed {count}/{total} labels",
-  "printLabelError": "Print label error: {error}",
-  "printLabelFailed": "❌ Label print failed",
-  "confirmCostMoveToMainStock": "CONFIRM PRICE - MOVE TO MAIN STOCK",
-  "createOrder": "CREATE ORDER",
-  "nameRequired": "Name is required",
-  "phoneLengthInvalid": "Phone number must be 9-12 digits",
-  "imeiMinLength": "IMEI must be at least 4 digits",
-  "imeiLengthInvalid": "IMEI must be 4-5 digits (short code) or 15 digits (standard IMEI)",
-  "imeiDigitsOnly": "IMEI must contain digits only",
-  "modelRequired": "Model is required",
-  "modelMinLength": "Model must be at least 2 characters",
-  "modelMaxLength": "Model must be at most 50 characters",
-  "fieldRequired": "{field} is required",
-  "noNetworkMessage": "No network connection. Please check internet.",
-  "syncSuccessMessage": "Data synced successfully!",
-  "syncErrorMessage": "Sync error: {error}",
-  "onlineStatus": "Online",
-  "offlineStatus": "Offline",
-  "syncingLabel": "Syncing...",
-  "syncLabel": "Sync",
   "salesAndDebt": "Sales & Debt",
   "salesAndDebtDesc": "Fast sales, track customer debt",
   "supplierAndPartnerManagement": "Supplier & Partner Management",
@@ -1265,7 +1207,7 @@
   "reportsAndStatisticsDesc": "Revenue, profit, inventory over time",
   "cloudSync": "Cloud Sync",
   "cloudSyncDesc": "Safe data, access anytime, anywhere",
-  "version": "Version 10.0.0",
+  "version": "Version 10.0.1",
   "salaryCalculationGuide": "SALARY CALCULATION GUIDE",
   "accessSalaryTable": "Access salary table",
   "accessSalaryDesc": "Go to Staff tab → Press \"SALARY Calculate salary\" to view all employees' salary table.",
@@ -1281,6 +1223,1170 @@
   "taxAndInsuranceDesc": "💳 \"Deduction/Tax Settings\" icon:\n• Personal deduction: 11 million\n• SI 8%, HI 1.5%, UI 1%",
   "understood": "UNDERSTOOD",
   "goToSalaryTable": "GO TO SALARY TABLE",
-  "labelNoteFieldLabel": "Label note",
-  "labelNoteFieldHint": "Shown on the label (optional)"
+  "staffListLabel": "Staff\nList",
+  "viewAttendanceAllStaff": "View attendance of all staff by day/month.",
+  "personalAttendanceDescription": "Check-in/out and view personal attendance history.",
+  "usageGuide": "Usage guide",
+  "cashClosingToday": "CASH CLOSING TODAY",
+  "reportAndAnalysis": "REPORTS & ANALYSIS",
+  "manageAllTransactions": "Manage all income/expense transactions.",
+  "expenseManagement": "Expense Management",
+  "addTrackShopExpenses": "Add and track shop expenses.",
+  "debtManagementInOut": "Debt Management (In/Out)",
+  "recordPayDebts": "Record and pay debts.",
+  "financialReportLabel": "Financial Report",
+  "summarizeAllTransactions": "Summarize all income/expense transactions.",
+  "financialActivityLog": "Financial Activity Log",
+  "trackAllIncomeExpenseActivities": "Track all income/expense activities.",
+  "todayIncome": "TODAY INCOME",
+  "todayExpense": "TODAY EXPENSE",
+  "sales": "sales",
+  "repair": "repair",
+  "expenseItems": "expense items",
+  "todayNetProfit": "TODAY NET PROFIT",
+  "totalDebt": "TOTAL DEBT",
+  "shopSettings": "Shop Settings",
+  "shopSettingsDescription": "Information, logo, location and shop member management.",
+  "notifications": "Notifications",
+  "notificationSettingsDescription": "Configure notification and alert settings.",
+  "printer": "Printer",
+  "printerSettingsDescription": "Setup connection and print template design.",
+  "adminCenter": "Admin Center",
+  "adminCenterDescription": "Manage entire system for super admin.",
+  "aboutDeveloper": "About Developer",
+  "aboutDeveloperDescription": "Information about developer and application.",
+  "logout": "LOGOUT",
+  "logoutFromAccount": "Logout from account",
+  "logoutConfirmTitle": "Logout?",
+  "logoutConfirmMessage": "Are you sure you want to logout from this account?",
+  "needSyncData": "⚠️ Need data sync",
+  "recordsNotSynced": "records not synced. Tap to open Sync Center.",
+  "todayFinancialReport": "TODAY FINANCIAL REPORT",
+  "details": "Details",
+  "saleOrders": "sale orders",
+  "repairOrders": "repair orders",
+  "todayActivity": "TODAY ACTIVITY",
+  "pendingRepairs": "Pending repairs",
+  "delivered": "Delivered",
+  "debt": "Debt",
+  "netProfitFormula": "= Income - Expense - Cost",
+  "userGuide": "User Guide",
+  "viewDetailedGuideForEachFeature": "View detailed guide for each feature in app",
+  "warrantyReminder": "WARRANTY REMINDER",
+  "devicesExpiringWarranty": "devices expiring warranty soon. View now!",
+  "checkingSync": "Checking sync...",
+  "checkingLocalVsCloud": "Checking local vs cloud data",
+  "dataSyncedFully": "✅ Data synced fully",
+  "localCloudMatched": "Local and Cloud matched 100%",
+  "recheckingSync": "🔄 Rechecking...",
+  "exitApp": "Exit app?",
+  "exit": "EXIT",
+  "emailAlreadyInUse": "This email is already registered by someone else.",
+  "weakPassword": "Password too weak, at least 6 characters required.",
+  "invalidEmailAddress": "Invalid email address format.",
+  "networkError": "Network connection error. Please check your internet and try again.",
+  "tooManyRequests": "Too many requests. Please try again later.",
+  "pleaseEnterShopName": "Please enter shop name.",
+  "pleaseEnterFullName": "Please enter full name.",
+  "pleaseEnterRequiredFields": "Please fill in required fields.",
+  "passwordMismatch": "Password confirmation does not match.",
+  "invalidOrExpiredInviteCode": "Invite code is incorrect or expired.",
+  "loadingShopData": "Loading shop data...",
+  "switchedToShop": "Switched to shop: {shopName}",
+  "@switchedToShop": {
+    "placeholders": {
+      "shopName": {"type": "String"}
+    }
+  },
+  "errorSwitchingShop": "Error switching shop: {error}",
+  "@errorSwitchingShop": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "onlySuperAdminCanDelete": "ONLY SUPER ADMIN CAN DELETE SHOP DATA!",
+  "dangerWarning": "⚠️ DANGER WARNING",
+  "deleteAllDataWarning": "This action will delete 100% of Orders, Inventory, Debts and Logs of the Shop on both Cloud and this Device. CANNOT BE RECOVERED!",
+  "typeToConfirm": "Type 'DELETE ALL' to confirm:",
+  "deleteAllPlaceholder": "DELETE ALL",
+  "confirmDeleteAll": "CONFIRM DELETE ALL",
+  "shopDataDeleted": "SHOP DATA DELETED!",
+  "errorDeletingCloudData": "ERROR DELETING CLOUD DATA: {error}",
+  "@errorDeletingCloudData": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "userGuideSection": "📚 User Guide",
+  "userGuideTitle": "User Guide",
+  "userGuideDesc": "Detailed step-by-step guide for every feature in the app.",
+  "inventoryFeature": "📦 Inventory",
+  "salesFeature": "🛒 Sales",
+  "repairFeature": "🔧 Repair",
+  "reportFeature": "📊 Reports",
+  "reviewUserGuide": "Review User Guide",
+  "resetGuidesDesc": "Reset to show first-time guides again",
+  "guidesReset": "Done! Guides will show again when entering screens.",
+  "changedToVietnamese": "Changed to Vietnamese",
+  "changedToEnglish": "Changed to English",
+  "replacePin": "REPLACE PIN",
+  "pressGlass": "PRESS GLASS",
+  "replaceScreen": "REPLACE SCREEN",
+  "noPower": "NO POWER",
+  "speakerMic": "SPEAKER/MIC",
+  "charging": "CHARGING",
+  "software": "SOFTWARE",
+  "sim": "SIM",
+  "backCover": "BACK COVER",
+  "noAccessories": "NO ACCESSORIES",
+  "walkInCustomerNoSave": "Walk-in customer - not saved to contacts",
+  "pleaseEnterNameAndPhone": "Please enter both name and phone number",
+  "customerWithPhoneExists": "Customer with this phone already exists: {name}",
+  "@customerWithPhoneExists": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "customerAdded": "Customer added: {name}",
+  "@customerAdded": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "errorAddingCustomer": "Error adding customer: {error}",
+  "@errorAddingCustomer": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "pleaseEnterModel": "Please enter device Model",
+  "pleaseEnterPhoneAndModel": "Please enter Phone and device Model",
+  "syncingDataToServer": "Syncing data to server...",
+  "createRepairOrder": "CREATE REPAIR",
+  "repairOrderCreated": "Created repair order {model} for customer {customer}",
+  "@repairOrderCreated": {
+    "placeholders": {
+      "model": {"type": "String"},
+      "customer": {"type": "String"}
+    }
+  },
+  "orderSavedSuccess": "ORDER SAVED SUCCESSFULLY",
+  "sendingPrintCommand": "Sending print command...",
+  "partnerCost": "Partner: {partner} - Cost: {cost}",
+  "@partnerCost": {
+    "placeholders": {
+      "partner": {"type": "String"},
+      "cost": {"type": "String"}
+    }
+  },
+  "costOnly": "Cost: {cost}",
+  "@costOnly": {
+    "placeholders": {
+      "cost": {"type": "String"}
+    }
+  },
+  "totalCost": "Total cost: {amount}",
+  "@totalCost": {
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "addService": "ADD SERVICE",
+  "editService": "Edit service",
+  "addServiceTitle": "Add service",
+  "serviceName": "Service name *",
+  "costVND": "Cost (VND)",
+  "partnerOptional": "Partner (optional)",
+  "noPartner": "No partner",
+  "partnerPaymentMethod": "Partner payment method *",
+  "update": "Update",
+  "add": "Add",
+  "saveOrder": "SAVE ORDER",
+  "customerAndDevice": "CUSTOMER & DEVICE",
+  "phoneOptional": "Phone (optional)",
+  "phoneRequired": "Phone *",
+  "customerNameOptional": "Customer name (optional)",
+  "customerName": "Customer name",
+  "deviceModel": "DEVICE MODEL *",
+  "deviceIssue": "DEVICE ISSUE *",
+  "estimatedPrice": "ESTIMATED PRICE",
+  "services": "SERVICES",
+  "securityAccessories": "SECURITY & ACCESSORIES",
+  "screenPassword": "Screen password",
+  "otherAccessories": "Other accessories",
+  "notesAndImages": "NOTES & IMAGES",
+  "notesPlaceholder": "Notes...",
+  "walkInCustomer": "Walk-in customer (not saved to contacts)",
+  "walkInCustomerDesc": "Name/Phone only saved on receipt, phone not required",
+  "saveToContactsDesc": "Enter phone to save customer to contacts",
+  "walkInCustomerDefault": "WALK-IN CUSTOMER",
+  "createRepairOrderTitle": "CREATE REPAIR ORDER",
+  "fillCustomerAndDeviceInfo": "Fill customer and device info",
+  "selectCustomer": "Select customer",
+  "addCustomer": "Add customer",
+  "todayClosedNoRepair": "❌ Today is closed! Cannot create new repair order.",
+  "pleaseEnterServiceName": "Please enter service name",
+  "pleaseSelectPaymentMethod": "Please select payment method",
+  "selectCustomerTitle": "SELECT CUSTOMER",
+  "searchByNameOrPhone": "Search by name or phone...",
+  "noCustomerFound": "No customer found",
+  "addressLabel": "Address: {address}",
+  "@addressLabel": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "notesLabel": "Notes: {notes}",
+  "@notesLabel": {
+    "placeholders": {
+      "notes": {
+        "type": "String"
+      }
+    }
+  },
+  "repairInputAction": "CREATE REPAIR ORDER",
+  "repairInputDesc": "Created repair order {model} for customer {customer}",
+  "@repairInputDesc": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      }
+    }
+  },
+  "repairPartner": "Repair partner",
+  "resetAll": "Reset all",
+  "repairing": "Repairing",
+  "repairDone": "Repair done",
+  "delivered": "Delivered",
+  "received": "Received",
+  "selectedStatuses": "Selected: {count} statuses",
+  "@selectedStatuses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "apply": "APPLY",
+  "orderHasAccounting": "Order has accounting data:\n• Price: {price}\n• Cost: {cost}",
+  "@orderHasAccounting": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "orderHasParts": "Order has parts:",
+  "statusRepairing": "REPAIRING",
+  "statusRepairDone": "REPAIR DONE",
+  "statusDelivered": "DELIVERED",
+  "deletedRepairDesc": "Deleted repair {model} - {customer} - {phone}{partsInfo}",
+  "@deletedRepairDesc": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      },
+      "phone": {
+        "type": "String"
+      },
+      "partsInfo": {
+        "type": "String"
+      }
+    }
+  },
+  "returnedParts": " (returned parts: {parts})",
+  "@returnedParts": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
+  },
+  "displayedRepairs": "Displayed {count} repair orders",
+  "@displayedRepairs": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statusReceivedUpper": "RECEIVED",
+  "statusRepairingUpper": "REPAIRING",
+  "statusRepairDoneUpper": "REPAIR DONE",
+  "statusDeliveredUpper": "DELIVERED",
+  "statusPendingApproval": "PENDING APPROVAL",
+  "statusOther": "OTHER",
+  "all": "All",
+  "statusSelectMultiple": "STATUS (select multiple)",
+  "timeFilter": "TIME",
+  "partsWillReturn": "⚠️ Parts will be returned to inventory!",
+  "deleteRepairAction": "DELETE REPAIR",
+  "orderPendingApproval": "Order is pending approval from manager/owner",
+  "deliveredDevice": "Delivered device {model} to customer {customer}. Warranty: {warranty}",
+  "@deliveredDevice": {
+    "placeholders": {
+      "model": { "type": "String" },
+      "customer": { "type": "String" },
+      "warranty": { "type": "String" }
+    }
+  },
+  "repairOrderShare": "REPAIR ORDER - {customer} - {phone} - {model} - {price}",
+  "@repairOrderShare": {
+    "placeholders": {
+      "customer": { "type": "String" },
+      "phone": { "type": "String" },
+      "model": { "type": "String" },
+      "price": { "type": "String" }
+    }
+  },
+  "statusUpdated": "UPDATED: {status}",
+  "@statusUpdated": {
+    "placeholders": { "status": { "type": "String" } }
+  },
+  "orderWillBeSentForApproval": "Order will be sent to manager for approval before delivery",
+  "sentDeliveryApprovalRequest": "Sent delivery approval request",
+  "approvedDelivery": "Approved delivery of {model} to customer {customer}. Warranty: {warranty}",
+  "@approvedDelivery": {
+    "placeholders": {
+      "model": { "type": "String" },
+      "customer": { "type": "String" },
+      "warranty": { "type": "String" }
+    }
+  },
+  "approvedAndCompletedDelivery": "Approved and completed delivery",
+  "rejectedBackToRepairDone": "Rejected - order returned to Repair Done status",
+  "editRepairAction": "EDIT REPAIR",
+  "savedOrderChanges": "SAVED ORDER CHANGES",
+  "orderHasParts2": "This order already has parts:",
+  "addedPartsFromInventory": "Added parts from inventory: {parts}\n(Cost already recorded when imported)",
+  "@addedPartsFromInventory": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "partsSupplier": "Parts supplier",
+  "addedPartsWithPayment": "Added parts ({method}): {parts}",
+  "@addedPartsWithPayment": {
+    "placeholders": {
+      "method": { "type": "String" },
+      "parts": { "type": "String" }
+    }
+  },
+  "savedTechnicianNotes": "Saved technician notes",
+  "phoneLabel": "Phone",
+  "phoneRequired2": "Phone cannot be empty",
+  "addressLabel2": "Address",
+  "editButton": "Edit",
+  "partnerLabel": "Partner: {name}",
+  "@partnerLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "orderPendingYourApproval": "Order is pending your approval for delivery",
+  "waitingManagerApproval": "Waiting for manager approval for delivery",
+  "repairDoneReadyForDelivery": "Repair done - ready for delivery",
+  "repairingButton": "REPAIRING",
+  "repairDoneButton": "DONE",
+  "phoneNumber": "Phone number",
+  "orderAlreadyHasParts": "This order already has parts:",
+  "partsWillBeAddedAndDeducted": "If you continue, new parts will be ADDED and DEDUCTED FROM INVENTORY immediately.\n\nDo you want to continue?",
+  "continueAddMore": "CONTINUE ADDING",
+  "editPrice": "Edit price",
+  "editService": "Edit service",
+  "addServiceTitle": "Add service",
+  "partnerOptional2": "Partner (optional)",
+  "serviceUpdated": "SERVICE UPDATED",
+  "serviceAdded": "SERVICE ADDED",
+  "serviceDeleted": "SERVICE DELETED",
+  "preparingPrint": "Preparing print command...",
+  "printSuccess": "Printed successfully!",
+  "smartphoneSpecialist": "Smartphone Specialist",
+  "editOrderInfoTitle": "Edit order information",
+  "customerNameLabel": "Customer name",
+  "deviceModelLabel": "Device model",
+  "deviceIssueLabel": "Device issue",
+  "accessoriesIncludedLabel": "Accessories included",
+  "warrantyLabel2": "Warranty",
+  "notesLabel": "Notes",
+  "cancelButton": "CANCEL",
+  "saveButton": "SAVE",
+  "cancelButtonLower": "Cancel",
+  "enterModelRequired": "Enter device model",
+  "enterIssueRequired": "Enter issue description",
+  "editInfoTooltip": "Edit information",
+  "noPartnerOption": "No partner",
+  "viewRepairPartners": "View repair partners",
+  "enterServiceName": "Please enter service name",
+  "serviceNameRequired": "Service name *",
+  "costVnd": "Cost (VND)",
+  "paymentMethodLabel": "Payment method",
+  "chargeCustomerVnd": "Charge customer (VND)",
+  "partsCostVnd": "Parts cost (VND)",
+  "repairOrderFinance": "REPAIR ORDER FINANCE",
+  "customerCharge": "Customer charge",
+  "partsCost": "Parts cost",
+  "editInfoTitle": "EDIT INFO",
+  "techNotesTitle": "Technician notes",
+  "partsInventoryShort": "Parts Inv",
+  "techShort": "Tech",
+  "printFailed": "Print failed! Please check printer settings.",
+  "printError": "Print error: {error}",
+  "@printError": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "noAccessPermission": "You do not have permission to access this feature",
+  "repairDetailTitle": "REPAIR ORDER DETAIL",
+  "sendApprovalRequest": "SEND APPROVAL REQUEST",
+  "selectWarrantyPeriod": "Select warranty period:",
+  "selectPaymentMethod": "Select payment method:",
+  "confirmDeliveryAndPayment": "CONFIRM DELIVERY & PAYMENT",
+  "completeDelivery": "COMPLETE DELIVERY",
+  "noWarranty": "NO WARRANTY",
+  "oneMonth": "1 MONTH",
+  "threeMonths": "3 MONTHS",
+  "sixMonths": "6 MONTHS",
+  "twelveMonths": "12 MONTHS",
+  "cash": "CASH",
+  "bankTransfer": "BANK TRANSFER",
+  "debt": "DEBT",
+  "techNotesHint": "E.g.: Replaced power IC, re-soldered main board, replaced charging cable...",
+  "financeTitleUpper": "FINANCE",
+  "luuYTitle": "WARNING",
+  "partsInventoryEmpty": "Parts inventory empty. ",
+  "noProductsInInventory": "No products in inventory yet.",
+  "totalProductsLinhKien": "Total: {total}, PARTS: {parts}. ",
+  "@totalProductsLinhKien": {
+    "placeholders": { 
+      "total": { "type": "int" },
+      "parts": { "type": "int" }
+    }
+  },
+  "goToInventoryAddParts": "Go to Inventory → Add Product → Select type 'PARTS'",
+  "addedPartsFromInventoryMsg": "Added parts from inventory: {parts}\n(Cost already recorded when imported)",
+  "@addedPartsFromInventoryMsg": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "priceLabel": "PRICE",
+  "costLabel": "COST",
+  "chargeCustomerLabel": "Customer charge",
+  "partsLabel": "Parts",
+  "profitLabel": "PROFIT",
+  "expectedProfit": "Expected profit",
+  "partsUsedLabel": "Parts: {parts}",
+  "@partsUsedLabel": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "servicesCount": "SERVICES ({count})",
+  "@servicesCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "repairServices": "REPAIR SERVICES",
+  "imagesCount": "IMAGES ({count})",
+  "@imagesCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "receivedImages": "RECEIVED DEVICE IMAGES",
+  "noImages": "No images",
+  "statusReceivedMsg": "RECEIVED DEVICE",
+  "statusStartRepairMsg": "START REPAIR",
+  "debtNoteRepair": "Debt for repair: {model}",
+  "@debtNoteRepair": {
+    "placeholders": { "model": { "type": "String" } }
+  },
+  "pendingDeliveryApproval": "Pending delivery approval - {customer}",
+  "@pendingDeliveryApproval": {
+    "placeholders": { "customer": { "type": "String" } }
+  },
+  "requestDeliveryApprovalDesc": "Request delivery approval for {model} - customer {customer}",
+  "@requestDeliveryApprovalDesc": {
+    "placeholders": { "model": { "type": "String" }, "customer": { "type": "String" } }
+  },
+  "notifRequestDeliveryApproval": "📋 DELIVERY APPROVAL REQUEST",
+  "chatRequestDeliveryApproval": "📋 DELIVERY REQUEST: {model} - {customer} - {price}đ",
+  "@chatRequestDeliveryApproval": {
+    "placeholders": { "model": { "type": "String" }, "customer": { "type": "String" }, "price": { "type": "String" } }
+  },
+  "defaultShopName": "SHOP NEW",
+  "defaultShopDesc": "Smartphone Specialist",
+  "defaultShopPhone": "0123.456.789",
+  "techNotesTitle": "TECHNICIAN NOTES",
+  "repairProcessNotes": "Repair process notes:",
+  "techNotesHint": "Ex: Replace power IC, check mainboard, replace charging cable...",
+  "trackRepairProgress": "Track repair progress and update status.",
+  "repairOrderDetail": "REPAIR ORDER DETAIL",
+  "partsShort": "PT: {parts}",
+  "@partsShort": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "noServicesYet": "No services yet",
+  "totalServices": "Total SVC:",
+  "notesLabel": "Notes",
+  "deliveryLabel": "Delivery",
+  "approveDelivery": "APPROVE DELIVERY",
+  "deliverDevice": "DELIVER",
+  "sendDeliveryRequest": "SEND DELIVERY REQUEST",
+  "addServiceButton": "ADD SERVICE",
+  "noServicesMessage": "No services added",
+  "totalServiceCost": "Total service cost",
+  "customerLabel": "Customer",
+  "phoneNumberLabel": "Phone number",
+  "issueLabel": "Device issue",
+  "accessoriesLabel": "Accessories",
+  "noAccessories": "None",
+  "errorSaving": "Error saving: {error}",
+  "@errorSaving": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "rejectDeliveryDesc": "Reject delivery approval for {model}",
+  "@rejectDeliveryDesc": {
+    "placeholders": { "model": { "type": "String" } }
+  },
+  "customerInfo": "Customer: {name}",
+  "@customerInfo": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "deviceInfo": "Device: {model}",
+  "@deviceInfo": {
+    "placeholders": { "model": { "type": "String" } }
+  },
+  "priceInfo": "Price: {price}đ",
+  "@priceInfo": {
+    "placeholders": { "price": { "type": "String" } }
+  },
+  "paymentInfo": "Payment: {method}",
+  "@paymentInfo": {
+    "placeholders": { "method": { "type": "String" } }
+  },
+  "selectWarrantyNote": "Select warranty (can change before approval):",
+  "confirmApproveDelivery": "Confirm approve delivery and complete transaction?",
+  "reject": "REJECT",
+  "chatApprovedDelivery": "✅ APPROVED DELIVERY: {summary}",
+  "@chatApprovedDelivery": {
+    "placeholders": { "summary": { "type": "String" } }
+  },
+  "noneYet": "Not yet",
+  "deliveryDate": "Delivery date",
+  "approve": "APPROVE",
+  "shareRepairReceipt": "🌟 REPAIR/WARRANTY RECEIPT 🌟\n----------------------------\nShop: {shopName}\nModel: {model}\nCustomer: {customerName} - {phone}\nIssue: {issue}\nWarranty: {warranty}\nTotal: {total}\n----------------------------\nThank you for your trust!",
+  "@shareRepairReceipt": {
+    "placeholders": {
+      "shopName": {"type": "String"},
+      "model": {"type": "String"},
+      "customerName": {"type": "String"},
+      "phone": {"type": "String"},
+      "issue": {"type": "String"},
+      "warranty": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
+  "actionDeliverDevice": "DELIVER DEVICE",
+  "actionRequestDeliveryApproval": "REQUEST DELIVERY APPROVAL",
+  "debtNoteForRepair": "Debt for repair: {model}",
+  "@debtNoteForRepair": {
+    "placeholders": {
+      "model": {"type": "String"}
+    }
+  },
+  "repairOrderSummary": "REPAIR ORDER - {customerName} - {phone} - {model} - {total}",
+  "@repairOrderSummary": {
+    "placeholders": {
+      "customerName": {"type": "String"},
+      "phone": {"type": "String"},
+      "model": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
+  "chatDeviceDelivered": "✅ DEVICE DELIVERED: {summary}",
+  "@chatDeviceDelivered": {
+    "placeholders": {
+      "summary": {"type": "String"}
+    }
+  },
+  "partsPaymentTitle": "PARTS PAYMENT",
+  "totalPartsAmount": "TOTAL PARTS AMOUNT",
+  "partsDesc": "Parts: {parts}",
+  "@partsDesc": {
+    "placeholders": {
+      "parts": {"type": "String"}
+    }
+  },
+  "supplierOptional": "Supplier (optional)",
+  "supplierHint": "e.g.: Parts ABC",
+  "paymentMethodLabel": "PAYMENT METHOD:",
+  "debtWarning": "Debt will be recorded in Debt Management",
+  "defaultPartsSupplier": "Parts supplier",
+  "recordDebt": "RECORD DEBT",
+  "viewRepairPartners": "View repair partners",
+  "serviceNameRequired": "Service name *",
+  "pleaseEnterServiceName": "Please enter service name",
+  "costVnd": "Cost (VND)",
+  "costField": "Cost",
+  "partnerPaymentMethodRequired": "Partner payment method *",
+  "pleaseSelectPaymentMethod": "Please select payment method",
+  "selectPartsTitle": "SELECT PARTS / COMPONENTS",
+  "searchPartOrSupplier": "Search by name or supplier",
+  "noPartsFound": "No matching parts found",
+  "mainWarehouse": "Main warehouse",
+  "oldWarehouse": "Old stock",
+  "stockQty": "Stock: {qty}",
+  "@stockQty": {
+    "placeholders": {
+      "qty": {"type": "int"}
+    }
+  },
+  "costPrice": "Cost: {price}",
+  "@costPrice": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "sellPrice": "Sell: {price}",
+  "@sellPrice": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "outOfStock": "OUT OF STOCK",
+  "confirmQty": "CONFIRM ({qty})",
+  "@confirmQty": {
+    "placeholders": {
+      "qty": {"type": "int"}
+    }
+  },
+  "confirmBtn": "CONFIRM",
+  "invoiceTemplateTitle": "CREATE INVOICE TEMPLATE",
+  "invoiceTemplateSaved": "Invoice template saved",
+  "headerLabel": "Header:",
+  "invoiceHeaderHint": "INVOICE HEADER",
+  "bodyLabelWithPlaceholders": "Body (use placeholders like customerName, total):",
+  "invoiceBodyHint": "MAIN CONTENT",
+  "footerLabel": "Footer:",
+  "invoiceFooterHint": "INVOICE FOOTER",
+  "previewLabel": "Preview:",
+  "generateQrSampleOrder": "CREATE QR FOR SAMPLE ORDER",
+  "qrCodeScanInfo": "QR Code (scan to view order info):",
+  "workScheduleSettingsTitle": "WORK SCHEDULE SETTINGS",
+  "generalSettingsTab": "General",
+  "staffTab": "Staff",
+  "workScheduleSaved": "Work schedule settings saved",
+  "staffSalarySaved": "Staff salary saved",
+  "saveErrorMsg": "Error saving: {error}",
+  "@saveErrorMsg": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "staffScheduleSavedFor": "Saved work schedule for {name}",
+  "@staffScheduleSavedFor": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "loadingStaffList": "Loading staff list...",
+  "noStaffData": "No staff data",
+  "tapToRefresh": "Tap reload to refresh",
+  "reload": "Reload",
+  "staffCountLabel": "Staff count: {count}",
+  "@staffCountLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "staffWorkSchedule": "Individual staff schedules",
+  "scheduleNotSet": "Schedule not set",
+  "workHoursLabel": "Work Hours",
+  "startTimeLabel": "Start",
+  "endTimeLabel": "End",
+  "lunchBreakLabel": "Lunch break",
+  "maxOvertimeLabel": "Max OT",
+  "workDaysLabel": "Work Days",
+  "holidaysLabel": "Holidays:",
+  "addBtn": "Add",
+  "overtimeRateLabel": "Overtime Rate",
+  "weekdayLabel": "Weekday",
+  "weekendLabel": "Weekend",
+  "holidayLabel": "Holiday",
+  "saveSettingsBtn": "SAVE SETTINGS",
+  "noStaffFoundMsg": "No staff found",
+  "addStaffFirstHint": "Please add staff in \"Staff Management\" first",
+  "salarySettingsLabel": "Salary Settings",
+  "selectStaffHint": "Select staff",
+  "baseSalaryVnd": "Base salary (VND)",
+  "attendanceLookupLabel": "Attendance Lookup",
+  "noAttendanceDataFor": "No attendance data for {date}",
+  "@noAttendanceDataFor": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "checkInLabel": "In:",
+  "checkOutLabel": "Out:",
+  "approvedStatus": "Approved",
+  "rejectedStatus": "Rejected",
+  "pendingStatus": "Pending",
+  "selectStaffToViewAttendance": "Select staff to view attendance",
+  "displayError": "Display Error",
+  "errorMsg": "Error: {error}",
+  "@errorMsg": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "noStaffHint": "No staff yet. Tap \"Reload\" below or add staff in Staff Management.",
+  "staffScheduleFor": "Work schedule: {name}",
+  "@staffScheduleFor": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "workTimeSettings": "Work Time Settings",
+  "startTimeFieldLabel": "Start time",
+  "endTimeFieldLabel": "End time",
+  "lunchBreakHours": "Lunch break (hours)",
+  "maxOvertimePerDay": "Max overtime per day",
+  "selectTimeLabel": "Select time",
+  "workDaysSettings": "Work Days Settings",
+  "workDaysInWeek": "Work days in week:",
+  "addHolidayBtn": "Add holiday",
+  "holidayListLabel": "Holiday list:",
+  "overtimeSettingsLabel": "Overtime Settings",
+  "weekdayOvertimeRate": "Weekday overtime (% of salary/hour)",
+  "weekendOvertimeRate": "Weekend overtime (% of salary/hour)",
+  "holidayOvertimeRate": "Holiday overtime (% of salary/hour)",
+  "staffSalarySettingsLabel": "Staff Salary Settings",
+  "addUpdateSalary": "Add/Update Salary",
+  "saveSalary": "Save salary",
+  "currentSalaryList": "Current salary list:",
+  "manageStaffAttendance": "Manage Staff Attendance",
+  "selectDateLabel": "Select date",
+  "attendanceInfoLabel": "Attendance Info",
+  "staffNameLabel": "Staff:",
+  "checkInTimeLabel": "Check-in:",
+  "checkOutTimeLabel": "Check-out:",
+  "selectStaffForAttendance": "Please select staff to view attendance info",
+
+  "aboutDeveloper": "About Developer",
+  "hulucaStoreDongNai": "HULUCA STORE DONG NAI",
+  "professionalStoreManagementApp": "Professional store management application",
+  "developerAndDesigner": "Developer & Designer",
+  "hulucaStore": "HULUCA STORE",
+  "dongNai": "DONG NAI",
+  "professionalPhoneRepairShop": "Professional phone repair shop",
+  "hotlineAndZalo": "Hotline & Zalo",
+  "shopManagerApp": "Shop Manager App",
+  "versionLabel": "Version {version}",
+  "@versionLabel": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "appFullDescription": "A comprehensive phone repair shop management app with real-time sync features.",
+
+  "attendanceTracking": "ATTENDANCE TRACKING",
+  "viewByMonth": "View by month",
+  "viewByDay": "View by day",
+  "attendanceForDate": "ATTENDANCE {date}",
+  "@attendanceForDate": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "monthLabel": "MONTH {month}",
+  "@monthLabel": {
+    "placeholders": {
+      "month": {"type": "String"}
+    }
+  },
+  "present": "Present",
+  "lateArrival": "Late",
+  "absent": "Absent",
+  "totalStaff": "Total Staff",
+  "checkedInStatus": "Checked in",
+  "todayLabel": "Today",
+  "noStaffYet": "No staff yet",
+  "notCheckedIn": "Not checked in",
+  "completedStatus": "Completed",
+  "workingStatus": "Working",
+  "workDaysCount": "Work days",
+  "workHoursCount": "Work hours",
+  "roleOwnerShort": "Owner",
+  "roleManagerShort": "Mgr",
+  "roleTechnicianShort": "Tech",
+  "roleEmployeeShort": "Staff",
+  "noAttendanceData": "No attendance data",
+  "dateLabel": "Date",
+  "checkInTimeShort": "Check-in",
+  "checkOutTimeShort": "Check-out",
+  "earlyLeave": "Early leave",
+  "locationLabel": "Location",
+  "attendancePhotos": "Attendance photos:",
+  "checkInPhoto": "In",
+  "checkOutPhoto": "Out",
+  "hasPhoto": "Yes",
+  "noPhoto": "No",
+  "monthYearFormat": "Month {monthYear}",
+  "@monthYearFormat": {
+    "placeholders": {
+      "monthYear": {"type": "String"}
+    }
+  },
+
+  "errorLoadingCustomers": "Error loading customers: {error}",
+  "@errorLoadingCustomers": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "editCustomerAction": "edit customer",
+  "deleteCustomerAction": "delete customer",
+  "confirmDeleteTitle": "Confirm delete",
+  "confirmDeleteCustomer": "Are you sure you want to delete customer \"{name}\"?",
+  "@confirmDeleteCustomer": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "confirmActionTitle": "Confirm {action}",
+  "@confirmActionTitle": {
+    "placeholders": {
+      "action": {"type": "String"}
+    }
+  },
+  "ownerPasswordRequired": "Only shop owner can perform this action.\nEnter account password to confirm:",
+  "pleaseLoginAgain": "Please login again",
+  "incorrectPassword": "Incorrect password!",
+  "customerManagement": "Customer Management",
+  "addCustomer": "Add customer",
+  "searchCustomers": "Search customers...",
+  "noCustomersYet": "No customers yet",
+  "customerNotFound": "Customer not found",
+  "notePrefix": "Note: {note}",
+  "@notePrefix": {
+    "placeholders": {
+      "note": {"type": "String"}
+    }
+  },
+  "totalPurchasedAmount": "Purchased: {amount}",
+  "@totalPurchasedAmount": {
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "repairCountLabel": "Repairs: {count} times",
+  "@repairCountLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "historyTab": "History",
+  "editAction": "Edit",
+  "addCustomerTitle": "Add customer",
+  "editCustomerTitle": "Edit customer",
+  "customerNameRequired": "Customer name *",
+  "enterCustomerName": "Enter customer name",
+  "pleaseEnterCustomerName": "Please enter customer name",
+  "phoneNumberRequired": "Phone number *",
+  "enterPhoneNumber": "Enter phone number",
+  "pleaseEnterPhoneNumber": "Please enter phone number",
+  "enterEmailOptional": "Enter email (optional)",
+  "addressLabel": "Address",
+  "enterAddressOptional": "Enter address (optional)",
+  "notesLabel": "Notes",
+  "enterNotesOptional": "Enter notes (optional)",
+  "totalPurchasesLabel": "Total purchases",
+  "totalRepairsLabel": "Total repairs",
+  "noHistoryYet": "No history yet",
+
+  "fastInventoryCheck": "Fast Inventory Check",
+  "checklistTitle": "📋 Checklist",
+  "checklistDescription": "System displays all products in stock. Scan QR code of each product to mark as checked.",
+  "scanImeiBarcode": "📷 Scan IMEI/Barcode",
+  "scanInstructions": "Press \"Start scan\" and point camera to QR/barcode to begin checking.",
+  "checkedVsMissing": "✅ Checked vs ❌ Missing",
+  "checkStatusDescription": "Green = scanned and found. Red = not yet scanned. Report shows checked vs missing.",
+  "inventoryReport": "📊 Inventory Report",
+  "reportDescription": "After scanning, view summary report to know missing and excess items.",
+  "errorLoadingInventory": "Error loading inventory: {error}",
+  "@errorLoadingInventory": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "phonesCategory": "Phones",
+  "checkAllPhones": "Check all phones in stock",
+  "accessoriesCategory": "Accessories",
+  "checkAllAccessories": "Check all accessories",
+  "specialCategory": "Special",
+  "specialProductsCheck": "Special products need separate check",
+  "duplicateScanWarning": "Scanned this code recently! Wait 3 seconds before scanning again",
+  "phoneMissingImei": "Phone QR missing IMEI",
+  "notInStockError": "Not in stock",
+  "accessoryMissingCode": "Accessory QR missing code",
+  "unknownAccessory": "Unknown accessory",
+  "invalidQrForInventory": "Invalid QR for inventory check: {error}",
+  "@invalidQrForInventory": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "productNotFoundById": "Product not found with ID: {id}",
+  "@productNotFoundById": {
+    "placeholders": {
+      "id": {"type": "String"}
+    }
+  },
+  "productNotSupportedForInventory": "Product not supported for inventory: {type}",
+  "@productNotSupportedForInventory": {
+    "placeholders": {
+      "type": {"type": "String"}
+    }
+  },
+  "errorCheckingProduct": "Error checking product: {error}",
+  "@errorCheckingProduct": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "qrScanSettings": "QR SCAN SETTINGS",
+  "soundFeedback": "Sound feedback",
+  "playSoundOnScan": "Play sound when scan",
+  "hapticFeedback": "Haptic feedback",
+  "vibrateOnScan": "Vibrate device when scan",
+  "scanTips": "Tip: Keep 20-30cm distance from QR code for best results",
+  "closeButton": "CLOSE",
+  "fastInventoryCheckTitle": "FAST INVENTORY CHECK",
+  "selectZone": "Select Zone",
+  "hideChecklist": "Hide checklist",
+  "showChecklist": "Show checklist",
+  "scanSettingsButton": "Scan settings",
+  "stopScan": "Stop scan",
+  "startScan": "Start scan",
+  "toggleFlash": "Toggle flash",
+  "phonesChecked": "📱 Checked",
+  "phonesMissing": "📱 Missing",
+  "phonesExtra": "📱 Extra",
+  "accessoriesChecked": "🔧 Checked",
+  "accessoriesMissing": "🔧 Missing",
+  "accessoriesExtra": "🔧 Extra",
+  "pressToStartScan": "Press scan button to start inventory check",
+  "scanInstructionsShort": "Phones: scan IMEI\nAccessories: scan each item",
+  "processingLabel": "Processing...",
+  "pendingCheckCount": "Pending ({count})",
+  "@pendingCheckCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "scannedCount": "Scanned ({count})",
+  "@scannedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "noProductsInStockMsg": "No products in stock",
+  "scannedLabel": "Scanned: {count}",
+  "@scannedLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "holdQrSteady": "Hold QR steady in front of camera",
+  "selectCheckArea": "Select check area",
+  "completedExclamation": "Completed!",
+  "switchedToZone": "Switched to zone: {zone}",
+  "@switchedToZone": {
+    "placeholders": {
+      "zone": {"type": "String"}
+    }
+  },
+
+  "labelSettings": "Product Label Settings",
+  "labelTemplates": "Label Templates",
+  "labelDisplayInfo": "Information displayed on label",
+  "shopNameLabel": "Shop Name",
+  "shopNameExample": "Ex: HULUCA MOBILE",
+  "hotlineLabel": "Hotline",
+  "hotlineExample": "Ex: 0909 123 456",
+  "sloganLabel": "Slogan",
+  "sloganExample": "Ex: Best price guaranteed",
+  "addressOptional": "Address (optional)",
+  "addressExample": "Ex: 123 ABC Street, District 1, HCM",
+  "cpkPriceSettings": "CPK Price Settings",
+  "cpkFormulaTitle": "📌 CPK Price Formula (With Accessories):",
+  "formulaLabel": "Formula",
+  "formulaExample": "price + 500000 or price * 1.05",
+  "formulaHint": "Ex: \"price + 500000\" = Selling price + 500k for with-accessories price",
+  "fixedLabelContent": "Fixed content on label",
+  "fixedLabelContentHint": "These text lines will display by default on all labels",
+  "line1Label": "Line 1",
+  "line2Label": "Line 2",
+  "line3Label": "Line 3",
+  "line1Example": "Ex: 100% Authentic guaranteed",
+  "line2Example": "Ex: 7-day return policy",
+  "line3Example": "Ex: 0% installment support",
+  "savingLabel": "Saving...",
+  "saveSettingsButton": "SAVE SETTINGS",
+  "labelSettingsSaved": "✅ Label settings saved!",
+  "errorPrefixLabel": "❌ Error: {error}",
+  "@errorPrefixLabel": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "defaultLabel": "Default",
+  "deleteTemplateQuestion": "Delete template?",
+  "confirmDeleteTemplate": "Are you sure you want to delete template \"{name}\"?",
+  "@confirmDeleteTemplate": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "cancelButton": "CANCEL",
+  "deleteButton": "DELETE",
+  "editTemplateTitle": "Edit label template",
+  "templateNameLabel": "Template name",
+  "labelSizeLabel": "Label size",
+  "cpkPriceFormulaLabel": "CPK price formula",
+  "productInfoLabel": "Product Info",
+  "productNameField": "Product name",
+  "productCodeField": "Product code",
+  "qrCodeField": "QR Code",
+  "imeiSerialField": "IMEI/Serial",
+  "capacityField": "Capacity",
+  "colorField": "Color",
+  "conditionField": "Condition",
+  "priceInfoLabel": "Price Info",
+  "priceKpkField": "KPK Price (no accessories)",
+  "priceCpkField": "CPK Price (with accessories)",
+  "originalPriceField": "Original price (strikethrough)",
+  "discountPercentField": "Discount %",
+  "shopInfoLabel": "Shop Info",
+  "otherInfoLabel": "Other",
+  "warrantyField": "Warranty",
+  "supplierField": "Supplier",
+  "importDateField": "Import date",
+  "pleaseEnterTemplateName": "Please enter template name",
+  "saveTemplateButton": "SAVE TEMPLATE",
+  "templateUpdated": "✅ Updated template \"{name}\"",
+  "@templateUpdated": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+
+  "productNameLabelShort": "Product",
+  "detailsLabel": "Details",
+  "labelInfoTitle": "Label Info",
+  "priceKpkLabel": "KPK Price",
+  "priceCpkLabel": "CPK Price",
+  "imeiLabel": "IMEI",
+  "qrLabel": "QR",
+  "shopLabel": "Shop",
+  "labelDesignSaved": "✅ Label design saved!",
+  "resetToDefaultQuestion": "Reset to default?",
+  "layoutWillReset": "Label layout will be reset to original settings.",
+  "resetButton": "Reset",
+  "labelDesignTitle": "LABEL DESIGN",
+  "layoutTab": "Layout",
+  "ptyDesignerTab": "PTY 1:1 Designer",
+  "paperTypeLabel": "Paper type:",
+  "rollMmLabel": "Roll (mm)",
+  "stickerCmLabel": "Sticker (cm)",
+  "rollPaperSizeLabel": "Roll paper size (mm):",
+  "customPaperSizeLabel": "Custom paper size (mm)",
+  "stickerSizeLabel": "Sticker size (cm):",
+  "widthCmLabel": "Width (cm)",
+  "heightCmLabel": "Height (cm)",
+  "codeTypeLabel": "Code type:",
+  "offOption": "Off",
+  "qrOption": "QR",
+  "barcodeOption": "Barcode",
+  "designInstructions": "👆 Tap element on template to edit...",
+  "zoomPreviewLabel": "Zoom preview:",
+  "labelPreviewTitle": "LABEL PREVIEW",
+  "tapToSelect": "Tap to select",
+  "displayOption": "Display",
+  "spacingLabel": "Spacing:",
+  "boldOption": "Bold",
+  "fontStyleLabel": "Font style:",
+
+  "roleOwner": "Shop Owner",
+  "roleManager": "Manager",
+  "roleTechnician": "Technician",
+  "roleCashier": "Cashier",
+  "roleAdmin": "Admin",
+  "helpCenterTitle": "Help Center",
+  "searchByKeyword": "Search by keyword, feature...",
+  "suggestionsLabel": "Suggestions",
+  "feedbackContact": "Have feature suggestions? Contact support@huluca.com",
+  "feedbackSupport": "Feedback / Support",
+  "noGuideFound": "No guide found matching keyword.",
+  "otherTopics": "Other topics",
+  "stepsCountLabel": "{count} steps",
+  "@stepsCountLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "tipsCountLabel": "{count} tips",
+  "@tipsCountLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "quickGuide": "Quick Guide",
+  "quickGuideDescription": "Select a topic or enter keyword...",
+  "contentStandard": "All content is prepared according to Shopmanager standards.",
+  "forRoleLabel": "For {role}",
+  "@forRoleLabel": {
+    "placeholders": {
+      "role": {"type": "String"}
+    }
+  },
+  "estimatedTimeLabel": "Estimated time: {time}",
+  "@estimatedTimeLabel": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
+  "difficultyLabel": "Difficulty: {level}",
+  "@difficultyLabel": {
+    "placeholders": {
+      "level": {"type": "String"}
+    }
+  },
+  "prerequisitesLabel": "Prerequisites",
+  "stepsLabel": "Steps",
+  "tipsAndNotesLabel": "Tips & Notes",
+  "watchVideoLabel": "Watch video tutorial",
+  "attachmentsLabel": "Attachments",
+  "relatedLabel": "Related",
+  "needHelpLabel": "Need help? Contact support team: support@huluca.com",
+  "understoodGuide": "I understood this guide",
+  "markedAsViewed": "Marked this guide as viewed.",
+  "videoGuideLabel": "Video Guide",
+  "videosBeingUpdated": "Video tutorials are being updated.",
+  "contactSupportLabel": "Contact Support",
+  "sendEmailForHelp": "Send email to support@huluca.com for quick assistance.",
+  "suggestImprovementLabel": "Suggest Improvement",
+  "feedbackHelps": "Your feedback helps make documentation better!",
+  "filteredByRole": "Filtered guides matching your role.",
+  "featuredLabel": "Featured",
+  "quickLabel": "Quick",
+  "needMoreHelpLabel": "Need more help?",
+  "hulucaTeamSupport": "Huluca team is ready to support via email, Zalo or direct training.",
+  "emailSupportLabel": "Email support@huluca.com",
+  "emailCopied": "Copied email support@huluca.com",
+  "zaloSupportLabel": "Zalo Support",
+  "contactZaloLabel": "Contact Zalo Support: 0901 234 567",
+  "scheduleTrainingLabel": "Schedule Training",
+  "scheduleTrainingThisWeek": "Schedule online training this week."
 }

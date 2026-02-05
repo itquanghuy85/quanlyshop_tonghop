@@ -2625,8 +2625,9 @@ class _CashClosingViewState extends State<CashClosingView>
         final cat = (e['category'] ?? '').toString().toUpperCase();
         if (!cat.contains('NHẬP') &&
             !cat.contains('LINH KIỆN') &&
-            !cat.contains('PURCHASE'))
+            !cat.contains('PURCHASE')) {
           return false;
+        }
         final expAmount = e['amount'] as int? ?? 0;
         // Match nếu amount gần bằng (có thể có sai số nhỏ)
         return (expAmount - amount).abs() < 1000;

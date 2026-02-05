@@ -33,7 +33,7 @@ class UnifiedPaymentPage extends StatefulWidget {
   /// The payment intent to process
   final PaymentIntent intent;
 
-  const UnifiedPaymentPage({Key? key, required this.intent}) : super(key: key);
+  const UnifiedPaymentPage({super.key, required this.intent});
 
   /// Navigate to this page with a payment intent
   static Future<PaymentExecutionResult?> navigateWithIntent(
@@ -73,9 +73,9 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
   void initState() {
     super.initState();
     final presetMethod = widget.intent.paymentMethod;
-    final fallbackMethod = PaymentMethod.cash;
+    const fallbackMethod = PaymentMethod.cash;
     final hasPreset = presetMethod != null && _availableMethods.contains(presetMethod);
-    _selectedMethod = hasPreset ? presetMethod! : fallbackMethod;
+    _selectedMethod = hasPreset ? presetMethod : fallbackMethod;
     _methodLocked = hasPreset;
   }
 
@@ -86,15 +86,6 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
 
     return PopScope(
       canPop: !_isProcessing,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop && !_isCompleted) {
-          // User backed out without completing - cancel the intent
-          PaymentIntentService.cancelIntent(
-            widget.intent.id,
-            reason: 'User backed out',
-          );
-        }
-      },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Thanh Toán'),
@@ -482,13 +473,7 @@ class _UnifiedPaymentPageState extends State<UnifiedPaymentPage> {
   }
 
   void _handleCancel(BuildContext context) {
-    // Cancel the intent
-    PaymentIntentService.cancelIntent(
-      widget.intent.id,
-      reason: 'User cancelled',
-    );
-
-    // Return null to indicate cancellation
+    // Just exit without cancelling to avoid unintended auto-cancel
     Navigator.of(context).pop(null);
   }
 

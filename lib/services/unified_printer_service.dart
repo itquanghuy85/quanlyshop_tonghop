@@ -63,6 +63,135 @@ class _LabelElementConfig {
 }
 
 class UnifiedPrinterService {
+  static String _applyTemplate(String template, Map<String, String> data) {
+    var result = template;
+    data.forEach((key, value) {
+      result = result.replaceAll('{$key}', value);
+    });
+    return result;
+  }
+
+  static Future<bool> _printTextReceipt(
+    String text, {
+    PaperSize paper = PaperSize.mm80,
+    PrinterType? printerType,
+    dynamic bluetoothPrinter,
+    String? wifiIp,
+  }) async {
+    try {
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(paper, profile);
+      final bytes = <int>[];
+      bytes.addAll(generator.reset());
+
+      final lines = text.split('\n');
+      for (final line in lines) {
+        var working = line;
+        if (working.trim().isEmpty) {
+          bytes.addAll(generator.feed(1));
+          continue;
+        }
+
+        var align = PosAlign.left;
+        var bold = false;
+        var size = PosTextSize.size1;
+        var isQr = false;
+        var lineFeedOnly = false;
+
+        while (working.startsWith('[')) {
+          final end = working.indexOf(']');
+          if (end <= 0) break;
+          final tag = working.substring(1, end).toUpperCase().trim();
+          working = working.substring(end + 1);
+
+          switch (tag) {
+            case 'C':
+              align = PosAlign.center;
+              break;
+            case 'L':
+              align = PosAlign.left;
+              break;
+            case 'R':
+              align = PosAlign.right;
+              break;
+            case 'B':
+              bold = true;
+              break;
+            case 'S2':
+              size = PosTextSize.size2;
+              break;
+            case 'S1':
+              size = PosTextSize.size1;
+              break;
+            case 'QR':
+              isQr = true;
+              break;
+            case 'BR':
+              lineFeedOnly = true;
+              break;
+            default:
+              break;
+          }
+        }
+
+        if (lineFeedOnly && working.trim().isEmpty) {
+          bytes.addAll(generator.feed(1));
+          continue;
+        }
+
+        if (isQr) {
+          final qrData = working.trim();
+          if (qrData.isNotEmpty) {
+            bytes.addAll(generator.qrcode(qrData));
+          } else {
+            bytes.addAll(generator.feed(1));
+          }
+          continue;
+        }
+
+        final textLine = _removeDiacritics(working);
+        bytes.addAll(
+          generator.text(
+            textLine,
+            styles: PosStyles(
+              align: align,
+              bold: bold,
+              height: size,
+              width: size,
+            ),
+          ),
+        );
+      }
+
+      bytes.addAll(generator.feed(2));
+      bytes.addAll(generator.cut());
+
+      return _sendToPrinter(
+        bytes,
+        printerType: printerType,
+        bluetoothPrinter: bluetoothPrinter,
+        wifiIp: wifiIp,
+      );
+    } catch (e) {
+      print('PRINT_DEBUG: _printTextReceipt error: $e');
+      return false;
+    }
+  }
+
+  static String _repairStatusText(int status) {
+    switch (status) {
+      case 1:
+        return 'Tiếp nhận';
+      case 2:
+        return 'Đang sửa';
+      case 3:
+        return 'Sửa xong';
+      case 4:
+        return 'Đã giao';
+      default:
+        return 'Không xác định';
+    }
+  }
   /// Đọc cài đặt từng element từ Label Designer
   static Future<Map<String, _LabelElementConfig>>
   _loadLabelDesignerConfig() async {
@@ -904,6 +1033,9 @@ class UnifiedPrinterService {
     String? wifiIp,
     int feedLines = 2,
     bool cut = true,
+    String? qrData,
+    QRSize? qrSize,
+    String? barcodeData,
   }) async {
     try {
       print('PRINT_DEBUG: printLabelBitmap called');
@@ -970,6 +1102,36 @@ class UnifiedPrinterService {
         bytes.addAll(generator.image(decoded, align: PosAlign.center));
       }
       
+      if (qrData != null && qrData.trim().isNotEmpty) {
+        bytes.addAll(generator.feed(1));
+        _addQrCode(
+          generator: generator,
+          bytes: bytes,
+          data: qrData.trim(),
+          size: qrSize ?? QRSize.size4,
+          forceRaster: false,
+        );
+      }
+
+      if (barcodeData != null && barcodeData.trim().isNotEmpty) {
+        bytes.addAll(generator.feed(1));
+        try {
+          bytes.addAll(
+            generator.barcode(
+              Barcode.code128(barcodeData.trim().codeUnits),
+              align: PosAlign.center,
+            ),
+          );
+        } catch (e) {
+          bytes.addAll(
+            generator.text(
+              _removeDiacritics(barcodeData.trim()),
+              styles: const PosStyles(align: PosAlign.center, bold: true),
+            ),
+          );
+        }
+      }
+
       if (feedLines > 0) {
         bytes.addAll(generator.feed(feedLines));
       }
@@ -1002,6 +1164,63 @@ class UnifiedPrinterService {
     dynamic bluetoothPrinter,
     String? wifiIp,
   }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final useTemplate = prefs.getBool('repair_invoice_use_template') ?? false;
+    final templateHeader = prefs.getString('repair_invoice_header') ?? '';
+    final templateBody = prefs.getString('repair_invoice_body') ?? '';
+    final templateFooter = prefs.getString('repair_invoice_footer') ?? '';
+    final hasTemplate =
+        templateHeader.trim().isNotEmpty ||
+        templateBody.trim().isNotEmpty ||
+        templateFooter.trim().isNotEmpty;
+
+    if (useTemplate && hasTemplate) {
+      final createdAt = DateTime.fromMillisecondsSinceEpoch(repair.createdAt);
+      final data = <String, String>{
+        'shopName': shopInfo['shopName']?.toString() ?? 'SHOP NEW',
+        'shopAddr': shopInfo['shopAddr']?.toString() ?? '',
+        'shopPhone': shopInfo['shopPhone']?.toString() ?? '',
+        'code': repair.firestoreId?.toString() ?? repair.createdAt.toString(),
+        'date': DateFormat('dd/MM/yyyy').format(createdAt),
+        'time': DateFormat('HH:mm').format(createdAt),
+        'customerName': repair.customerName ?? '',
+        'customerPhone': repair.phone ?? '',
+        'model': repair.model ?? '',
+        'imei': repair.imei ?? '',
+        'issue': repair.issue ?? '',
+        'warranty': repair.warranty ?? '',
+        'accessories': repair.accessories ?? '',
+        'partsUsed': repair.partsUsed ?? '',
+        'color': repair.color ?? '',
+        'condition': repair.condition ?? '',
+        'notes': repair.notes ?? '',
+        'createdBy': repair.createdBy ?? '',
+        'repairedBy': repair.repairedBy ?? '',
+        'deliveredBy': repair.deliveredBy ?? '',
+        'services': repair.services.map((s) => s.serviceName).join(', '),
+        'price': MoneyUtils.formatVND(repair.price),
+        'paymentMethod': repair.paymentMethod ?? '',
+        'status': _repairStatusText(repair.status),
+        'qrData': 'repair_check:${repair.firestoreId ?? repair.createdAt}',
+      };
+
+      final templateText = [
+        templateHeader,
+        templateBody,
+        templateFooter,
+      ].where((s) => s.trim().isNotEmpty).join('\n');
+
+      final text = _applyTemplate(templateText, data);
+      final ok = await _printTextReceipt(
+        text,
+        paper: PaperSize.mm80,
+        printerType: printerType,
+        bluetoothPrinter: bluetoothPrinter,
+        wifiIp: wifiIp,
+      );
+      if (ok) return true;
+    }
+
     final profile = await CapabilityProfile.load();
     final generator = Generator(PaperSize.mm80, profile);
     List<int> bytes = [];
@@ -1070,8 +1289,9 @@ class UnifiedPrinterService {
         styles: const PosStyles(bold: true),
       ),
     );
-    if (repair.imei != null && repair.imei!.isNotEmpty)
+    if (repair.imei != null && repair.imei!.isNotEmpty) {
       bytes.addAll(generator.text("IMEI/SN: ${repair.imei}"));
+    }
     bytes.addAll(
       generator.text(_removeDiacritics("TINH TRANG: ${repair.issue}")),
     );
@@ -1079,13 +1299,14 @@ class UnifiedPrinterService {
     String subInfo = "";
     if (repair.color != null) subInfo += "Mau: ${repair.color} | ";
     if (repair.condition != null) subInfo += "Vo: ${repair.condition}";
-    if (subInfo.isNotEmpty)
+    if (subInfo.isNotEmpty) {
       bytes.addAll(
         generator.text(
           _removeDiacritics(subInfo),
           styles: const PosStyles(fontType: PosFontType.fontB),
         ),
       );
+    }
 
     bytes.addAll(
       generator.text(_removeDiacritics("PHU KIEN: ${repair.accessories}")),
@@ -1175,13 +1396,17 @@ class UnifiedPrinterService {
     String? customMac,
     PrinterType? printerType,
     String? wifiIp,
+    dynamic bluetoothPrinter,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
 
+      final resolvedBluetoothPrinter = bluetoothPrinter ??
+          (customMac != null ? {'macAddress': customMac} : null);
+
       final forceRasterQr = await _shouldForceRasterQr(
         printerType: printerType,
-        bluetoothPrinter: customMac != null ? {'macAddress': customMac} : null,
+        bluetoothPrinter: resolvedBluetoothPrinter,
       );
 
       // Đọc size giấy từ cài đặt THIẾT KẾ TEM
@@ -1212,11 +1437,14 @@ class UnifiedPrinterService {
       // ĐỌC CẤU HÌNH TỪ LABEL DESIGNER PRO (nếu có)
       final designerConfig = await _loadLabelDesignerConfig();
       final hasDesignerConfig = designerConfig.isNotEmpty;
+      final hasVisibleDesignerElements = designerConfig.values.any(
+        (e) => e.visible,
+      );
 
       // Nếu có cài đặt từ Label Designer và KHÔNG phải custom mode -> Dùng layout từ Designer
-      if (hasDesignerConfig && !isCustomMode) {
+      if (hasDesignerConfig && hasVisibleDesignerElements && !isCustomMode) {
         final service = UnifiedPrinterService();
-        return service._printLabelWithDesignerConfig(
+        final ok = await service._printLabelWithDesignerConfig(
           generator: generator,
           bytes: bytes,
           product: product,
@@ -1224,11 +1452,10 @@ class UnifiedPrinterService {
           customLines: [],
           printData: null,
           printerType: printerType,
-          bluetoothPrinter: customMac != null
-              ? {'macAddress': customMac}
-              : null,
+          bluetoothPrinter: resolvedBluetoothPrinter,
           wifiIp: wifiIp,
         );
+        if (ok) return true;
       }
 
       // ========== FALLBACK: In theo cách cũ nếu chưa có Label Designer config ==========
@@ -1452,10 +1679,12 @@ class UnifiedPrinterService {
         final labelService = LabelSettingsService();
         final shopSettings = await labelService.getShopLabelSettings();
         final shopInfoParts = <String>[];
-        if (shopSettings.shopName.isNotEmpty)
+        if (shopSettings.shopName.isNotEmpty) {
           shopInfoParts.add(shopSettings.shopName);
-        if (shopSettings.hotline.isNotEmpty)
+        }
+        if (shopSettings.hotline.isNotEmpty) {
           shopInfoParts.add(shopSettings.hotline);
+        }
         if (shopInfoParts.isNotEmpty) {
           final shopInfoLine = _labelSingleLine(
             shopInfoParts.join(' - '),
@@ -1857,6 +2086,113 @@ class UnifiedPrinterService {
     dynamic bluetoothPrinter,
     String? wifiIp,
   }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final useTemplate = prefs.getBool('sale_invoice_use_template') ?? false;
+    final templateHeader = prefs.getString('sale_invoice_header') ?? '';
+    final templateBody = prefs.getString('sale_invoice_body') ?? '';
+    final templateFooter = prefs.getString('sale_invoice_footer') ?? '';
+    final hasTemplate =
+        templateHeader.trim().isNotEmpty ||
+        templateBody.trim().isNotEmpty ||
+        templateFooter.trim().isNotEmpty;
+
+    if (useTemplate && hasTemplate) {
+      final soldAtRaw = saleData['soldAt'];
+      int soldAt = 0;
+      if (soldAtRaw != null) {
+        soldAt = soldAtRaw is int
+            ? soldAtRaw
+            : int.tryParse(soldAtRaw.toString()) ?? 0;
+      }
+      final soldAtDate = soldAt > 0
+          ? DateTime.fromMillisecondsSinceEpoch(soldAt)
+          : DateTime.now();
+
+      final productNames = saleData['productNames'];
+      final productImeis = saleData['productImeis'];
+      final names = productNames is List
+          ? productNames.map((e) => e?.toString() ?? 'N/A').toList()
+          : <String>[];
+      final imeis = productImeis is List
+          ? productImeis.map((e) => e?.toString() ?? '').toList()
+          : <String>[];
+
+      final totalPrice = saleData['totalPrice'];
+      final priceValue = totalPrice is num
+          ? totalPrice.toInt()
+          : int.tryParse(totalPrice?.toString() ?? '0') ?? 0;
+
+      final data = <String, String>{
+        'shopName': saleData['shopName']?.toString() ?? 'SHOP NEW',
+        'shopAddr': saleData['shopAddr']?.toString() ?? '',
+        'shopPhone': saleData['shopPhone']?.toString() ?? '',
+        'code': saleData['firestoreId']?.toString() ?? 'N/A',
+        'date': DateFormat('dd/MM/yyyy').format(soldAtDate),
+        'time': DateFormat('HH:mm').format(soldAtDate),
+        'customerName': saleData['customerName']?.toString() ?? 'Khach le',
+        'customerPhone': saleData['customerPhone']?.toString() ?? '',
+        'customerAddress': saleData['customerAddress']?.toString() ?? '',
+        'products': names.join(', '),
+        'imeis': imeis.where((e) => e.trim().isNotEmpty).join(', '),
+        'warranty': saleData['warranty']?.toString() ?? '',
+        'sellerName': saleData['sellerName']?.toString() ?? '',
+        'total': MoneyUtils.formatVND(priceValue),
+        'paymentMethod': saleData['paymentMethod']?.toString() ?? '',
+        'discount': MoneyUtils.formatVND(
+          saleData['discount'] is num
+              ? (saleData['discount'] as num).toInt()
+              : int.tryParse(saleData['discount']?.toString() ?? '0') ?? 0,
+        ),
+        'finalTotal': MoneyUtils.formatVND(
+          saleData['finalTotal'] is num
+              ? (saleData['finalTotal'] as num).toInt()
+              : int.tryParse(saleData['finalTotal']?.toString() ?? '0') ??
+                  priceValue,
+        ),
+        'downPayment': MoneyUtils.formatVND(
+          saleData['downPayment'] is num
+              ? (saleData['downPayment'] as num).toInt()
+              : int.tryParse(saleData['downPayment']?.toString() ?? '0') ?? 0,
+        ),
+        'downPaymentMethod': saleData['downPaymentMethod']?.toString() ?? '',
+        'loanAmount': MoneyUtils.formatVND(
+          saleData['loanAmount'] is num
+              ? (saleData['loanAmount'] as num).toInt()
+              : int.tryParse(saleData['loanAmount']?.toString() ?? '0') ?? 0,
+        ),
+        'loanAmount2': MoneyUtils.formatVND(
+          saleData['loanAmount2'] is num
+              ? (saleData['loanAmount2'] as num).toInt()
+              : int.tryParse(saleData['loanAmount2']?.toString() ?? '0') ?? 0,
+        ),
+        'installmentTerm': saleData['installmentTerm']?.toString() ?? '',
+        'bankName': saleData['bankName']?.toString() ?? '',
+        'bankName2': saleData['bankName2']?.toString() ?? '',
+        'remainingDebt': MoneyUtils.formatVND(
+          saleData['remainingDebt'] is num
+              ? (saleData['remainingDebt'] as num).toInt()
+              : int.tryParse(saleData['remainingDebt']?.toString() ?? '0') ?? 0,
+        ),
+        'qrData': 'sale_check:${saleData['firestoreId']?.toString() ?? 'N/A'}',
+      };
+
+      final templateText = [
+        templateHeader,
+        templateBody,
+        templateFooter,
+      ].where((s) => s.trim().isNotEmpty).join('\n');
+
+      final text = _applyTemplate(templateText, data);
+      final ok = await _printTextReceipt(
+        text,
+        paper: paper,
+        printerType: printerType,
+        bluetoothPrinter: bluetoothPrinter,
+        wifiIp: wifiIp,
+      );
+      if (ok) return true;
+    }
+
     final profile = await CapabilityProfile.load();
     final generator = Generator(paper, profile);
     List<int> bytes = [];
@@ -1967,9 +2303,21 @@ class UnifiedPrinterService {
 
     if (productNames is List) {
       names = productNames.map((e) => e?.toString() ?? 'N/A').toList();
+      } else if (productNames is String) {
+        names = productNames
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
     }
     if (productImeis is List) {
       imeis = productImeis.map((e) => e?.toString() ?? '').toList();
+      } else if (productImeis is String) {
+        imeis = productImeis
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
     }
 
     for (int i = 0; i < names.length; i++) {
@@ -2311,6 +2659,7 @@ class UnifiedPrinterService {
         return printProductQRLabel(
           printData,
           printerType: printerType,
+          bluetoothPrinter: bluetoothPrinter,
           customMac: bluetoothPrinter is Map
               ? bluetoothPrinter['macAddress']
               : null,
@@ -2321,13 +2670,16 @@ class UnifiedPrinterService {
       // === ĐỌC CÀI ĐẶT TỪ THIẾT KẾ TEM (LABEL DESIGNER) ===
       final designerConfig = await _loadLabelDesignerConfig();
       final hasDesignerConfig = designerConfig.isNotEmpty;
+      final hasVisibleDesignerElements = designerConfig.values.any(
+        (e) => e.visible,
+      );
 
       // LabelPrintData từ model mới
       final product = printData.product as Map<String, dynamic>;
       final customLines = printData.additionalLines as List<String>? ?? [];
 
       // Nếu có cài đặt từ Label Designer, sử dụng nó!
-      if (hasDesignerConfig) {
+      if (hasDesignerConfig && hasVisibleDesignerElements) {
         return _printLabelWithDesignerConfig(
           generator: generator,
           bytes: bytes,
@@ -2405,12 +2757,15 @@ class UnifiedPrinterService {
 
       // === THÔNG SỐ: Dung lượng | Màu | Tình trạng ===
       final specs = <String>[];
-      if (fields.showStorage && product['capacity'] != null)
+      if (fields.showStorage && product['capacity'] != null) {
         specs.add(product['capacity']);
-      if (fields.showColor && product['color'] != null)
+      }
+      if (fields.showColor && product['color'] != null) {
         specs.add(product['color']);
-      if (fields.showCondition && product['condition'] != null)
+      }
+      if (fields.showCondition && product['condition'] != null) {
         specs.add(product['condition']);
+      }
       if (specs.isNotEmpty) {
         bytes.addAll(
           generator.text(

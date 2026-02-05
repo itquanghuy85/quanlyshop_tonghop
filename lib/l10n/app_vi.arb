@@ -269,6 +269,7 @@
   "deleteFromInventory": "Xóa khỏi kho",
   "deleteSelected": "Xóa đã chọn",
   "addNewProduct": "Thêm sản phẩm mới",
+  "modelRequired": "Vui lòng nhập model máy",
   "issueRequired": "Vui lòng nhập lỗi máy",
   "orderCreatedSuccessfully": "Đã tạo đơn sửa chữa thành công!",
   "createNewOrderQuestion": "Bạn có muốn tạo đơn sửa chữa mới không?",
@@ -419,7 +420,7 @@
   "bluetoothPrinterTest": "KIỂM TRA MÁY IN BLUETOOTH",
   "checkBluetoothPermission": "Kiểm tra quyền Bluetooth chi tiết...",
   "checkBluetoothOn": "Kiểm tra Bluetooth có bật...",
-  "appVersion": "Phiên bản 10.0.0",
+  "appVersion": "Phiên bản 10.0.1",
   "saving": "Đang lưu...",
   "saveSettings": "LƯU CÀI ĐẶT",
   "deleteTemplate": "Xóa mẫu tem?",
@@ -855,6 +856,11 @@
   "downloadingShopData": "Đang tải dữ liệu shop...",
   "pleaseWait": "Vui lòng đợi trong giây lát",
   "shopDataDownloaded": "Đã tải xong dữ liệu shop!",
+  "quickAccess": "TRUY CẬP NHANH",
+  "salesOrder": "Đơn bán",
+  "salesOrderList": "Danh sách",
+  "repairOrderTitle": "Đơn sửa",
+  "repairOrderList": "Danh sách",
   "pendingStockShort": "Hàng chờ XN",
   "temporaryImport": "Nhập tạm",
   "payment": "Thanh toán",
@@ -888,9 +894,13 @@
   "inventoryManagement": "QUẢN LÝ KHO",
   "holdForDetailedGuide": "Nhấn giữ để xem hướng dẫn chi tiết",
   "stockInNew": "NHẬP MỚI",
+  "stockInNewGuide": "Nhập hàng vào kho với đầy đủ thông tin:\n\n✅ Hỗ trợ: Điện thoại, Phụ kiện, Linh kiện\n✅ Lưu tạm: Nhập khi chưa có đầy đủ thông tin\n✅ Xác nhận: Hàng chính thức vào kho\n\n📌 Dùng khi: Nhập hàng mới từ NCC, cần ghi đầy đủ IMEI/SKU, giá vốn, NCC...",
   "fullInformation": "Đầy đủ thông tin",
   "quickStockIn": "NHẬP NHANH",
+  "quickStockInGuide": "Nhập hàng siêu tốc - chỉ cần quét mã:\n\n⚡ Quét barcode/QR liên tục\n⚡ Tự động điền thông tin từ thư viện\n⚡ Phù hợp nhập số lượng lớn\n\n📌 Dùng khi: Nhập nhanh phụ kiện, linh kiện đã có sẵn mã trong hệ thống.",
   "continuousScan": "Quét mã liên tục",
+  "checkInventoryGuide": "Kiểm tra tồn kho bằng quét mã:\n\n🔍 Quét QR/Barcode để kiểm hàng\n🔍 So sánh số lượng thực tế vs hệ thống\n🔍 Ghi nhận chênh lệch\n\n📌 Dùng khi: Kiểm kê định kỳ, đối chiếu hàng tồn.",
+  "contactOwnerForAccess": "Liên hệ chủ shop để được cấp quyền",
   "compareInventory": "Đối chiếu tồn kho",
   "pendingConfirmation": "Hàng chờ xác nhận",
   "viewPendingStockList": "Xem danh sách hàng nhập tạm chưa xác nhận.",
@@ -972,6 +982,23 @@
     }
   },
   "productsInStock": "Sản phẩm trong kho",
+  "repairOrdersDataItem": "Đơn sửa chữa",
+  "saleOrdersDataItem": "Đơn bán hàng",
+  "debtsAndExpensesDataItem": "Công nợ & Chi phí",
+  "customersAndSuppliersDataItem": "Khách hàng & NCC",
+  "downloadDataOf": "Tải dữ liệu của",
+  "fromCloudToThisDevice": "từ đám mây về máy này.",
+  "onlyDownloadThisShopData": "Chỉ tải dữ liệu của shop này, không ảnh hưởng shop khác.",
+  "processMayTakeFewMinutes": "Quá trình có thể mất vài phút tùy lượng dữ liệu.",
+  "downloadSuccess": "Đã tải xong dữ liệu shop!",
+  "downloadError": "Lỗi: {error}",
+  "@downloadError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "dataFullySynced": "Dữ liệu đã đồng bộ hoàn toàn",
   "localAndCloudMatched": "Dữ liệu thiết bị và cloud khớp nhau",
   "syncNeeded": "Cần đồng bộ dữ liệu",
@@ -1154,24 +1181,6 @@
   "repairDesc": "Theo dõi tiến độ sửa chữa, quản lý linh kiện, cập nhật trạng thái đơn hàng và xử lý bảo hành hiệu quả.",
   "smartInventoryManagement": "Quản lý kho thông minh",
   "inventoryDesc": "Nhập kho siêu tốc bằng mã QR và IMEI. Kiểm soát hàng hóa chính xác 100% với hệ thống kiểm kho tự động.",
-  "printQrImeiInventory": "IN QR IMEI KHO HÀNG",
-  "designQrLabel": "Thiết kế tem QR",
-  "refresh": "Làm mới",
-  "searchImeiNameModel": "Tìm IMEI, tên máy, model...",
-  "total": "Tổng",
-  "selectAll": "Chọn tất cả",
-  "clearSelection": "Bỏ chọn",
-  "labelCustomization": "Tùy chỉnh tem",
-  "qrSize": "Cỡ QR",
-  "columns": "Cột",
-  "padding": "Padding",
-  "productName": "Tên máy",
-  "modelDetail": "Model/Chi tiết",
-  "printAll": "IN TẤT CẢ",
-  "printSelected": "IN ĐÃ CHỌN",
-  "openPrintPage": "MỞ TRANG IN",
-  "printQrImeiSuccess": "✅ In QR IMEI thành công",
-  "printQrImeiFail": "❌ Lỗi khi in QR IMEI",
   "staffAndAttendance": "Nhân sự & Chấm công",
   "staffDesc": "Quản lý nhân viên, theo dõi chấm công bằng selfie, tính lương và đánh giá hiệu suất làm việc.",
   "financeAndReports": "Tài chính & Báo cáo",
@@ -1190,78 +1199,6 @@
   "repairManagementDesc": "Theo dõi đơn sửa chữa từ nhận máy đến giao máy",
   "inventoryManagement": "Quản lý kho hàng",
   "inventoryManagementDesc": "Nhập hàng, xuất kho, kiểm kê linh kiện",
-  "imeiListLoadError": "Lỗi tải danh sách IMEI: {error}",
-  "noImeiToPrint": "Không có IMEI để in",
-  "imeiTotalCount": "Tổng: {count} IMEI",
-  "imeiWithValue": "IMEI: {value}",
-  "qrSizeXSmall": "XS",
-  "qrSizeSmall": "S",
-  "qrSizeMedium": "M",
-  "qrSizeLarge": "L",
-  "defaultProductName": "SẢN PHẨM",
-  "imeiPrefix": "IMEI: ",
-  "printLabelTitle": "IN TEM",
-  "notAvailable": "N/A",
-  "productInfoTitle": "THÔNG TIN SẢN PHẨM",
-  "productNameLabel": "Tên:",
-  "productDetailLabel": "Chi tiết:",
-  "productDetailLabelPlain": "Chi tiết",
-  "imeiLabelWithColon": "IMEI:",
-  "originalPriceLabel": "Giá bán gốc:",
-  "labelModeAutoTitle": "TỰ ĐỘNG",
-  "labelModeAutoSubtitle": "Dùng cấu hình thiết kế tem",
-  "labelModeCustomTitle": "TÙY CHỈNH",
-  "labelModeCustomSubtitle": "Nhập giá & nội dung riêng",
-  "labelCustomContentTitle": "TÙY CHỈNH NỘI DUNG TEM",
-  "labelKpkExplain": "📌 KPK = Không Phụ Kiện (giá máy trần)",
-  "labelCpkExplain": "📌 CPK = Có Phụ Kiện (sạc, cáp, ốp, kính...)",
-  "labelElementName": "Tên máy",
-  "labelElementDetail": "Chi tiết",
-  "labelElementPriceKpk": "Giá KPK",
-  "labelElementPriceCpk": "Giá CPK",
-  "labelElementLabelNote": "Thông tin in trên tem",
-  "labelElementImei": "IMEI",
-  "labelElementQr": "Mã QR",
-  "labelElementShop": "Thông tin shop",
-  "priceKpkLabel": "Giá KPK:",
-  "priceCpkLabel": "Giá CPK:",
-  "priceKpkPrefix": "GIÁ KPK: ",
-  "priceCpkPrefix": "GIÁ CPK: ",
-  "currencySymbol": "đ",
-  "deviceNameLabel": "Tên máy",
-  "qrCodeLabel": "QR Code",
-  "addCustomLinesLabel": "Thêm nội dung tùy biến (cho giấy lớn)",
-  "customLine1Hint": "Dòng 1: VD: BẢO HÀNH 12 THÁNG",
-  "customLine2Hint": "Dòng 2: VD: ĐỔI TRẢ 7 NGÀY",
-  "customLine3Hint": "Dòng 3: VD: HOTLINE: 0123.456.789",
-  "printQuantityLabel": "Số lượng in:",
-  "labelPreviewTitle": "XEM TRƯỚC TEM",
-  "labelPreviewKpk": "GIÁ KPK: {price}",
-  "labelPreviewCpk": "GIÁ CPK: {price}",
-  "printingLabel": "ĐANG IN...",
-  "printLabelQuantity": "IN {count} TEM",
-  "printLabelSuccess": "✅ Đã in thành công {count} tem!",
-  "printLabelPartial": "⚠️ Đã in {count}/{total} tem",
-  "printLabelError": "Lỗi in tem: {error}",
-  "printLabelFailed": "❌ Lỗi khi in tem",
-  "confirmCostMoveToMainStock": "XÁC NHẬN GIÁ - CHUYỂN KHO CHÍNH",
-  "createOrder": "TẠO ĐƠN HÀNG",
-  "nameRequired": "Tên không được để trống",
-  "phoneLengthInvalid": "Số điện thoại phải có 9-12 chữ số",
-  "imeiMinLength": "IMEI phải có ít nhất 4 chữ số",
-  "imeiLengthInvalid": "IMEI phải là 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)",
-  "imeiDigitsOnly": "IMEI chỉ được chứa số",
-  "modelRequired": "Model không được để trống",
-  "modelMinLength": "Model phải có ít nhất 2 ký tự",
-  "modelMaxLength": "Model không được quá 50 ký tự",
-  "fieldRequired": "{field} không được để trống",
-  "noNetworkMessage": "Không có kết nối mạng. Vui lòng kiểm tra internet.",
-  "syncSuccessMessage": "Đồng bộ dữ liệu thành công!",
-  "syncErrorMessage": "Lỗi đồng bộ: {error}",
-  "onlineStatus": "Trực tuyến",
-  "offlineStatus": "Ngoại tuyến",
-  "syncingLabel": "Đồng bộ...",
-  "syncLabel": "Đồng bộ",
   "salesAndDebt": "Bán hàng & Công nợ",
   "salesAndDebtDesc": "Bán hàng nhanh, theo dõi công nợ khách hàng",
   "supplierAndPartnerManagement": "Quản lý NCC & Đối tác",
@@ -1270,7 +1207,7 @@
   "reportsAndStatisticsDesc": "Doanh thu, lợi nhuận, tồn kho theo thời gian",
   "cloudSync": "Đồng bộ Cloud",
   "cloudSyncDesc": "Dữ liệu an toàn, truy cập mọi lúc mọi nơi",
-  "version": "Phiên bản 10.0.0",
+  "version": "Phiên bản 10.0.1",
   "salaryCalculationGuide": "HƯỚNG DẪN TÍNH LƯƠNG",
   "accessSalaryTable": "Truy cập bảng lương",
   "accessSalaryDesc": "Vào tab Nhân sự → Nhấn \"LƯƠNG Tính lương\" để xem bảng lương toàn bộ nhân viên.",
@@ -1286,6 +1223,1035 @@
   "taxAndInsuranceDesc": "Icon 💳 \"Cài đặt Khấu trừ/Thuế\":\n• Giảm trừ cá nhân: 11 triệu\n• BHXH 8%, BHYT 1.5%, BHTN 1%",
   "understood": "ĐÃ HIỂU",
   "goToSalaryTable": "ĐI ĐẾN BẢNG LƯƠNG",
-  "labelNoteFieldLabel": "Thông tin in trên tem",
-  "labelNoteFieldHint": "In trên tem (không bắt buộc)"
+  "staffListLabel": "Danh sách\nNhân viên",
+  "viewAttendanceAllStaff": "Xem chấm công tất cả nhân viên theo ngày/tháng.",
+  "personalAttendanceDescription": "Check-in/out và xem lịch sử chấm công cá nhân.",
+  "usageGuide": "Hướng dẫn sử dụng",
+  "cashClosingToday": "CHỐT QUỸ HÔM NAY",
+  "reportAndAnalysis": "BÁO CÁO & PHÂN TÍCH",
+  "manageAllTransactions": "Quản lý tất cả các giao dịch thu/chi.",
+  "expenseManagement": "Quản lý chi phí",
+  "addTrackShopExpenses": "Thêm và theo dõi các khoản chi phí của cửa hàng.",
+  "debtManagementInOut": "Quản lý nợ (Thu/Chi)",
+  "recordPayDebts": "Ghi nhận và thanh toán các khoản nợ.",
+  "financialReportLabel": "Báo cáo tài chính",
+  "summarizeAllTransactions": "Tổng hợp tất cả giao dịch thu chi.",
+  "financialActivityLog": "Nhật ký tài chính",
+  "trackAllIncomeExpenseActivities": "Theo dõi mọi hoạt động thu chi.",
+  "todayIncome": "THU HÔM NAY",
+  "todayExpense": "CHI HÔM NAY",
+  "sales": "bán",
+  "repair": "sửa",
+  "expenseItems": "khoản chi",
+  "todayNetProfit": "LỢI NHUẬN RÒNG HÔM NAY",
+  "totalDebt": "TỔNG CÔNG NỢ",
+  "shopSettings": "Cài đặt cửa hàng",
+  "shopSettingsDescription": "Thông tin, logo, vị trí và quản lý thành viên shop.",
+  "notifications": "Thông báo",
+  "notificationSettingsDescription": "Cấu hình cài đặt thông báo và cảnh báo.",
+  "printer": "Máy in",
+  "printerSettingsDescription": "Cài đặt kết nối và thiết kế mẫu in.",
+  "adminCenter": "Trung tâm Admin",
+  "adminCenterDescription": "Quản lý toàn bộ hệ thống cho admin cấp cao.",
+  "aboutDeveloper": "Về nhà phát triển",
+  "aboutDeveloperDescription": "Thông tin về nhà phát triển và ứng dụng.",
+  "logout": "ĐĂNG XUẤT",
+  "logoutFromAccount": "Đăng xuất khỏi tài khoản",
+  "logoutConfirmTitle": "Đăng xuất?",
+  "logoutConfirmMessage": "Bạn có chắc muốn đăng xuất khỏi tài khoản?",
+  "needSyncData": "⚠️ Cần đồng bộ dữ liệu",
+  "recordsNotSynced": "bản ghi chưa đồng bộ. Bấm để mở Trung tâm đồng bộ.",
+  "todayFinancialReport": "BÁO CÁO TÀI CHÍNH HÔM NAY",
+  "details": "Chi tiết",
+  "saleOrders": "đơn bán",
+  "repairOrders": "đơn sửa",
+  "todayActivity": "HOẠT ĐỘNG HÔM NAY",
+  "pendingRepairs": "Đơn sửa chờ",
+  "delivered": "Đã giao",
+  "debt": "Công nợ",
+  "netProfitFormula": "= Thu - Chi - Giá vốn",
+  "userGuide": "Hướng dẫn sử dụng",
+  "viewDetailedGuideForEachFeature": "Xem hướng dẫn chi tiết từng tính năng trong app",
+  "warrantyReminder": "NHẮC LỊCH BẢO HÀNH",
+  "devicesExpiringWarranty": "máy sắp hết hạn bảo hành. Xem ngay!",
+  "checkingSync": "Đang kiểm tra đồng bộ...",
+  "checkingLocalVsCloud": "Kiểm tra dữ liệu local vs cloud",
+  "dataSyncedFully": "✅ Dữ liệu đồng bộ hoàn toàn",
+  "localCloudMatched": "Local và Cloud đã khớp 100%",
+  "recheckingSync": "🔄 Đang kiểm tra lại...",
+  "exitApp": "Thoát ứng dụng?",
+  "exit": "THOÁT",
+  "emailAlreadyInUse": "Email này đã được đăng ký bởi người khác.",
+  "weakPassword": "Mật khẩu quá yếu, ít nhất 6 ký tự.",
+  "invalidEmailAddress": "Địa chỉ email không đúng định dạng.",
+  "networkError": "Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.",
+  "tooManyRequests": "Quá nhiều yêu cầu. Vui lòng thử lại sau.",
+  "pleaseEnterShopName": "Vui lòng nhập tên cửa hàng.",
+  "pleaseEnterFullName": "Vui lòng nhập họ và tên.",
+  "pleaseEnterRequiredFields": "Vui lòng điền các thông tin bắt buộc.",
+  "passwordMismatch": "Mật khẩu xác nhận không khớp.",
+  "invalidOrExpiredInviteCode": "Mã mời không chính xác hoặc đã hết hạn.",
+  "loadingShopData": "Đang tải dữ liệu shop...",
+  "switchedToShop": "Đã chuyển sang shop: {shopName}",
+  "@switchedToShop": {
+    "placeholders": {
+      "shopName": {"type": "String"}
+    }
+  },
+  "errorSwitchingShop": "Lỗi khi chuyển shop: {error}",
+  "@errorSwitchingShop": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "onlySuperAdminCanDelete": "CHỈ SUPER ADMIN MỚI ĐƯỢC XÓA DỮ LIỆU SHOP!",
+  "dangerWarning": "⚠️ CẢNH BÁO NGUY HIỂM",
+  "deleteAllDataWarning": "Hành động này sẽ xóa sạch 100% dữ liệu Đơn hàng, Kho, Nợ và Nhật ký của Shop trên cả Đám mây và Máy này. KHÔNG THỂ KHÔI PHỤC!",
+  "typeToConfirm": "Nhập chữ 'XOA HET' để xác nhận:",
+  "deleteAllPlaceholder": "XOA HET",
+  "confirmDeleteAll": "XÁC NHẬN XÓA SẠCH",
+  "shopDataDeleted": "ĐÃ XÓA SẠCH DỮ LIỆU SHOP!",
+  "errorDeletingCloudData": "LỖI KHI XÓA DỮ LIỆU ĐÁM MÂY: {error}",
+  "@errorDeletingCloudData": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "userGuideSection": "📚 Hướng dẫn sử dụng",
+  "userGuideTitle": "Hướng dẫn sử dụng",
+  "userGuideDesc": "Hướng dẫn chi tiết từng bước cho mọi tính năng trong app.",
+  "inventoryFeature": "📦 Kho hàng",
+  "salesFeature": "🛒 Bán hàng",
+  "repairFeature": "🔧 Sửa chữa",
+  "reportFeature": "📊 Báo cáo",
+  "reviewUserGuide": "Xem lại hướng dẫn sử dụng",
+  "resetGuidesDesc": "Reset để hiển thị lại các hướng dẫn lần đầu",
+  "guidesReset": "Đã reset! Hướng dẫn sẽ hiển thị lại khi vào các màn hình.",
+  "changedToVietnamese": "Đã chuyển sang Tiếng Việt",
+  "changedToEnglish": "Changed to English",
+  "replacePin": "THAY PIN",
+  "pressGlass": "ÉP KÍNH",
+  "replaceScreen": "THAY MÀN",
+  "noPower": "MẤT NGUỒN",
+  "speakerMic": "LOA/MIC",
+  "charging": "SẠC",
+  "software": "PHẦN MỀM",
+  "sim": "SIM",
+  "backCover": "ỐP LƯNG",
+  "noAccessories": "KO PHỤ KIỆN",
+  "walkInCustomerNoSave": "Khách vãng lai không lưu danh bạ",
+  "pleaseEnterNameAndPhone": "Vui lòng nhập đủ tên và số điện thoại",
+  "customerWithPhoneExists": "Khách hàng với SĐT này đã tồn tại: {name}",
+  "@customerWithPhoneExists": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "customerAdded": "Đã thêm khách hàng: {name}",
+  "@customerAdded": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "errorAddingCustomer": "Lỗi thêm khách hàng: {error}",
+  "@errorAddingCustomer": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "pleaseEnterModel": "Vui lòng nhập Model máy",
+  "pleaseEnterPhoneAndModel": "Vui lòng nhập SĐT và Model máy",
+  "syncingDataToServer": "Đang đồng bộ dữ liệu lên server...",
+  "createRepairOrder": "NHẬP ĐƠN SỬA",
+  "repairOrderCreated": "Đã nhập đơn sửa {model} cho khách {customer}",
+  "@repairOrderCreated": {
+    "placeholders": {
+      "model": {"type": "String"},
+      "customer": {"type": "String"}
+    }
+  },
+  "orderSavedSuccess": "ĐÃ LƯU ĐƠN THÀNH CÔNG",
+  "sendingPrintCommand": "Đang gửi lệnh in phiếu...",
+  "partnerCost": "Đối tác: {partner} - Chi phí: {cost}",
+  "@partnerCost": {
+    "placeholders": {
+      "partner": {"type": "String"},
+      "cost": {"type": "String"}
+    }
+  },
+  "costOnly": "Chi phí: {cost}",
+  "@costOnly": {
+    "placeholders": {
+      "cost": {"type": "String"}
+    }
+  },
+  "totalCost": "Tổng chi phí: {amount}",
+  "@totalCost": {
+    "placeholders": {
+      "amount": {"type": "String"}
+    }
+  },
+  "addService": "THÊM DỊCH VỤ",
+  "editService": "Sửa dịch vụ",
+  "addServiceTitle": "Thêm dịch vụ",
+  "serviceName": "Tên dịch vụ *",
+  "costVND": "Chi phí (VNĐ)",
+  "partnerOptional": "Đối tác (tùy chọn)",
+  "noPartner": "Không có đối tác",
+  "partnerPaymentMethod": "Phương thức TT đối tác *",
+  "update": "Cập nhật",
+  "add": "Thêm",
+  "saveOrder": "LƯU ĐƠN",
+  "customerAndDevice": "KHÁCH HÀNG & MÁY",
+  "phoneOptional": "SĐT (không bắt buộc)",
+  "phoneRequired": "SĐT *",
+  "customerNameOptional": "Tên KH (tùy chọn)",
+  "customerName": "Tên KH",
+  "deviceModel": "MODEL MÁY *",
+  "deviceIssue": "LỖI MÁY *",
+  "estimatedPrice": "GIÁ DỰ KIẾN",
+  "services": "DỊCH VỤ",
+  "securityAccessories": "BẢO MẬT & PHỤ KIỆN",
+  "screenPassword": "Mật khẩu màn hình",
+  "otherAccessories": "Phụ kiện khác",
+  "notesAndImages": "GHI CHÚ & HÌNH ẢNH",
+  "notesPlaceholder": "Ghi chú...",
+  "walkInCustomer": "Khách vãng lai (không lưu danh bạ)",
+  "walkInCustomerDesc": "Tên/SĐT chỉ lưu trên phiếu, không bắt buộc SĐT",
+  "saveToContactsDesc": "Nhập SĐT để lưu khách vào danh bạ",
+  "walkInCustomerDefault": "KHÁCH VÃNG LAI",
+  "createRepairOrderTitle": "NHẬP ĐƠN SỬA CHỮA",
+  "fillCustomerAndDeviceInfo": "Điền thông tin khách và máy",
+  "selectCustomer": "Chọn khách",
+  "addCustomer": "Thêm khách",
+  "todayClosedNoRepair": "❌ Ngày hôm nay đã chốt quỹ! Không thể tạo phiếu sửa mới.",
+  "pleaseEnterServiceName": "Vui lòng nhập tên dịch vụ",
+  "pleaseSelectPaymentMethod": "Vui lòng chọn phương thức TT",
+  "selectCustomerTitle": "CHỌN KHÁCH HÀNG",
+  "searchByNameOrPhone": "Tìm theo tên hoặc số điện thoại...",
+  "noCustomerFound": "Không tìm thấy khách hàng",
+  "addressLabel": "Địa chỉ: {address}",
+  "@addressLabel": {
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "notesLabel": "Ghi chú: {notes}",
+  "@notesLabel": {
+    "placeholders": {
+      "notes": {
+        "type": "String"
+      }
+    }
+  },
+  "repairInputAction": "NHẬP ĐƠN SỬA",
+  "repairInputDesc": "Đã nhập đơn sửa {model} cho khách {customer}",
+  "@repairInputDesc": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      }
+    }
+  },
+  "repairPartner": "Đối tác sửa chữa",
+  "resetAll": "Đặt lại tất cả",
+  "repairing": "Đang sửa",
+  "repairDone": "Sửa xong",
+  "delivered": "Đã giao",
+  "received": "Tiếp nhận",
+  "selectedStatuses": "Đã chọn: {count} trạng thái",
+  "@selectedStatuses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "apply": "ÁP DỤNG",
+  "orderHasAccounting": "Đơn có số liệu kế toán:\n• Giá: {price}\n• Chi phí: {cost}",
+  "@orderHasAccounting": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
+    }
+  },
+  "orderHasParts": "Đơn có phụ tùng:",
+  "statusRepairing": "ĐANG SỬA",
+  "statusRepairDone": "SỬA XONG",
+  "statusDelivered": "ĐÃ GIAO",
+  "deletedRepairDesc": "Đã xóa đơn sửa {model} - {customer} - {phone}{partsInfo}",
+  "@deletedRepairDesc": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      },
+      "phone": {
+        "type": "String"
+      },
+      "partsInfo": {
+        "type": "String"
+      }
+    }
+  },
+  "returnedParts": " (đã hoàn trả phụ tùng: {parts})",
+  "@returnedParts": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
+  },
+  "displayedRepairs": "Đã hiển thị {count} đơn sửa",
+  "@displayedRepairs": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statusReceivedUpper": "TIẾP NHẬN",
+  "statusRepairingUpper": "ĐANG SỬA",
+  "statusRepairDoneUpper": "SỬA XONG",
+  "statusDeliveredUpper": "ĐÃ GIAO",
+  "statusPendingApproval": "CHỜ DUYỆT",
+  "statusOther": "KHÁC",
+  "all": "Tất cả",
+  "statusSelectMultiple": "TRẠNG THÁI (chọn nhiều)",
+  "timeFilter": "THỜI GIAN",
+  "partsWillReturn": "⚠️ Phụ tùng sẽ được hoàn trả về kho!",
+  "deleteRepairAction": "XÓA ĐƠN SỬA",
+  "orderPendingApproval": "Đơn đang chờ quản lý/chủ shop duyệt giao máy",
+  "deliveredDevice": "Đã giao máy {model} cho khách {customer}. Bảo hành: {warranty}",
+  "@deliveredDevice": {
+    "placeholders": {
+      "model": { "type": "String" },
+      "customer": { "type": "String" },
+      "warranty": { "type": "String" }
+    }
+  },
+  "repairOrderShare": "ĐƠN SỬA - {customer} - {phone} - {model} - {price}",
+  "@repairOrderShare": {
+    "placeholders": {
+      "customer": { "type": "String" },
+      "phone": { "type": "String" },
+      "model": { "type": "String" },
+      "price": { "type": "String" }
+    }
+  },
+  "statusUpdated": "ĐÃ CẬP NHẬT: {status}",
+  "@statusUpdated": {
+    "placeholders": { "status": { "type": "String" } }
+  },
+  "orderWillBeSentForApproval": "Đơn sẽ được gửi cho quản lý duyệt trước khi hoàn tất giao máy",
+  "sentDeliveryApprovalRequest": "Đã gửi yêu cầu duyệt giao máy",
+  "approvedDelivery": "Đã duyệt giao máy {model} cho khách {customer}. Bảo hành: {warranty}",
+  "@approvedDelivery": {
+    "placeholders": {
+      "model": { "type": "String" },
+      "customer": { "type": "String" },
+      "warranty": { "type": "String" }
+    }
+  },
+  "approvedAndCompletedDelivery": "Đã duyệt và hoàn tất giao máy",
+  "rejectedBackToRepairDone": "Đã từ chối - đơn quay lại trạng thái Sửa xong",
+  "editRepairAction": "SỬA ĐƠN SỬA",
+  "savedOrderChanges": "ĐÃ LƯU THAY ĐỔI ĐƠN HÀNG",
+  "orderHasParts2": "Đơn này đã có phụ tùng:",
+  "addedPartsFromInventory": "Đã thêm phụ tùng từ kho: {parts}\n(Chi phí đã ghi nhận khi nhập kho)",
+  "@addedPartsFromInventory": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "partsSupplier": "Nhà cung cấp phụ tùng",
+  "addedPartsWithPayment": "Đã thêm phụ tùng ({method}): {parts}",
+  "@addedPartsWithPayment": {
+    "placeholders": {
+      "method": { "type": "String" },
+      "parts": { "type": "String" }
+    }
+  },
+  "savedTechnicianNotes": "Đã lưu ghi chú KTV",
+  "phoneLabel": "SĐT",
+  "phoneRequired2": "SĐT không được trống",
+  "addressLabel2": "Địa chỉ",
+  "editButton": "Sửa",
+  "partnerLabel": "ĐT: {name}",
+  "@partnerLabel": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "orderPendingYourApproval": "Đơn đang chờ bạn duyệt giao máy",
+  "waitingManagerApproval": "Đang chờ quản lý duyệt giao máy",
+  "repairDoneReadyForDelivery": "Đã sửa xong - sẵn sàng giao máy",
+  "repairingButton": "ĐANG SỬA",
+  "repairDoneButton": "ĐÃ XONG",
+  "phoneNumber": "Số điện thoại",
+  "orderAlreadyHasParts": "Đơn này đã có phụ tùng:",
+  "partsWillBeAddedAndDeducted": "Nếu tiếp tục chọn, phụ tùng mới sẽ được THÊM VÀO và TRỪ KHO ngay lập tức.\n\nBạn có muốn tiếp tục không?",
+  "continueAddMore": "TIẾP TỤC CHỌN THÊM",
+  "editPrice": "Sửa giá",
+  "editService": "Sửa dịch vụ",
+  "addServiceTitle": "Thêm dịch vụ",
+  "partnerOptional2": "Đối tác (tùy chọn)",
+  "serviceUpdated": "ĐÃ CẬP NHẬT DỊCH VỤ",
+  "serviceAdded": "ĐÃ THÊM DỊCH VỤ",
+  "serviceDeleted": "ĐÃ XÓA DỊCH VỤ",
+  "preparingPrint": "Đang chuẩn bị lệnh in...",
+  "printSuccess": "Đã in phiếu thành công!",
+  "smartphoneSpecialist": "Chuyên gia Smartphone",
+  "editOrderInfoTitle": "Chỉnh sửa thông tin đơn sửa",
+  "customerNameLabel": "Tên khách",
+  "deviceModelLabel": "Model máy",
+  "deviceIssueLabel": "Lỗi máy",
+  "accessoriesIncludedLabel": "Phụ kiện kèm",
+  "warrantyLabel2": "Bảo hành",
+  "notesLabel": "Ghi chú",
+  "cancelButton": "HỦY",
+  "saveButton": "LƯU",
+  "cancelButtonLower": "Hủy",
+  "enterModelRequired": "Nhập model máy",
+  "enterIssueRequired": "Nhập tình trạng lỗi",
+  "editInfoTooltip": "Chỉnh sửa thông tin",
+  "noPartnerOption": "Không có đối tác",
+  "viewRepairPartners": "Xem đối tác sửa chữa",
+  "enterServiceName": "Vui lòng nhập tên dịch vụ",
+  "serviceNameRequired": "Tên dịch vụ *",
+  "costVnd": "Chi phí (VNĐ)",
+  "paymentMethodLabel": "Phương thức thanh toán",
+  "chargeCustomerVnd": "Giá thu khách (VNĐ)",
+  "partsCostVnd": "Giá vốn linh kiện (VNĐ)",
+  "repairOrderFinance": "TÀI CHÍNH ĐƠN SỬA",
+  "customerCharge": "Giá thu khách",
+  "partsCost": "Giá vốn",
+  "editInfoTitle": "SỬA THÔNG TIN",
+  "techNotesTitle": "Ghi chú kỹ thuật viên",
+  "partsInventoryShort": "Kho LK",
+  "techShort": "KTV",
+  "printFailed": "In thất bại! Vui lòng kiểm tra cài đặt máy in.",
+  "printError": "Lỗi khi in: {error}",
+  "@printError": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "noAccessPermission": "Bạn không có quyền truy cập tính năng này",
+  "repairDetailTitle": "CHI TIẾT ĐƠN SỬA",
+  "sendApprovalRequest": "GỬI YÊU CẦU DUYỆT",
+  "selectWarrantyPeriod": "Chọn thời gian bảo hành:",
+  "selectPaymentMethod": "Chọn phương thức thanh toán:",
+  "confirmDeliveryAndPayment": "XÁC NHẬN GIAO MÁY & THANH TOÁN",
+  "completeDelivery": "HOÀN TẤT GIAO MÁY",
+  "noWarranty": "KO BH",
+  "oneMonth": "1 THÁNG",
+  "threeMonths": "3 THÁNG",
+  "sixMonths": "6 THÁNG",
+  "twelveMonths": "12 THÁNG",
+  "cash": "TIỀN MẶT",
+  "bankTransfer": "CHUYỂN KHOẢN",
+  "debt": "CÔNG NỢ",
+  "techNotesHint": "VD: KT thay IC nguồn, sàng main, thay cáp sạc...",
+  "financeTitleUpper": "TÀI CHÍNH",
+  "luuYTitle": "LƯU Ý",
+  "partsInventoryEmpty": "Kho Linh Kiện trống. ",
+  "noProductsInInventory": "Chưa có sản phẩm nào trong kho.",
+  "totalProductsLinhKien": "Tổng: {total}, LINH KIỆN: {parts}. ",
+  "@totalProductsLinhKien": {
+    "placeholders": { 
+      "total": { "type": "int" },
+      "parts": { "type": "int" }
+    }
+  },
+  "goToInventoryAddParts": "Vào Kho → Nhập SP → Chọn loại 'LINH KIỆN'",
+  "addedPartsFromInventoryMsg": "Đã thêm phụ tùng từ kho: {parts}\n(Chi phí đã ghi nhận khi nhập kho)",
+  "@addedPartsFromInventoryMsg": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "priceLabel": "GIÁ THU",
+  "costLabel": "GIÁ VỐN",
+  "chargeCustomerLabel": "Giá thu khách",
+  "partsLabel": "Phụ tùng",
+  "profitLabel": "LỢI NHUẬN",
+  "expectedProfit": "Lợi nhuận dự kiến",
+  "partsUsedLabel": "Phụ tùng: {parts}",
+  "@partsUsedLabel": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "servicesCount": "DỊCH VỤ ({count})",
+  "@servicesCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "repairServices": "DỊCH VỤ SỬA CHỮA",
+  "imagesCount": "HÌNH ẢNH ({count})",
+  "@imagesCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "receivedImages": "HÌNH ẢNH LÚC NHẬN MÁY",
+  "noImages": "Không có hình ảnh",
+  "statusReceivedMsg": "NHẬN MÁY",
+  "statusStartRepairMsg": "BẮT ĐẦU SỬA",
+  "debtNoteRepair": "Nợ tiền sửa máy: {model}",
+  "@debtNoteRepair": {
+    "placeholders": { "model": { "type": "String" } }
+  },
+  "pendingDeliveryApproval": "Chờ duyệt giao - {customer}",
+  "@pendingDeliveryApproval": {
+    "placeholders": { "customer": { "type": "String" } }
+  },
+  "requestDeliveryApprovalDesc": "Yêu cầu duyệt giao máy {model} cho khách {customer}",
+  "@requestDeliveryApprovalDesc": {
+    "placeholders": { "model": { "type": "String" }, "customer": { "type": "String" } }
+  },
+  "notifRequestDeliveryApproval": "📋 YÊU CẦU DUYỆT GIAO MÁY",
+  "chatRequestDeliveryApproval": "📋 YÊU CẦU DUYỆT GIAO: {model} - {customer} - {price}đ",
+  "@chatRequestDeliveryApproval": {
+    "placeholders": { "model": { "type": "String" }, "customer": { "type": "String" }, "price": { "type": "String" } }
+  },
+  "defaultShopName": "SHOP NEW",
+  "defaultShopDesc": "Chuyên Smartphone",
+  "defaultShopPhone": "0123.456.789",
+  "techNotesTitle": "GHI CHÚ KỸ THUẬT VIÊN",
+  "repairProcessNotes": "Ghi chú quá trình sửa chữa:",
+  "techNotesHint": "VD: KT thay IC nguồn, sàng main, thay cáp sạc...",
+  "trackRepairProgress": "Theo dõi tiến độ sửa chữa và cập nhật trạng thái.",
+  "repairOrderDetail": "CHI TIẾT ĐƠN SỬA",
+  "partsShort": "PT: {parts}",
+  "@partsShort": {
+    "placeholders": { "parts": { "type": "String" } }
+  },
+  "noServicesYet": "Chưa có dịch vụ",
+  "totalServices": "Tổng DV:",
+  "notesLabel": "Ghi chú",
+  "deliveryLabel": "Giao",
+  "approveDelivery": "DUYỆT GIAO MÁY",
+  "deliverDevice": "GIAO MÁY",
+  "sendDeliveryRequest": "GỬI YÊU CẦU GIAO",
+  "addServiceButton": "THÊM DỊCH VỤ",
+  "noServicesMessage": "Chưa có dịch vụ nào",
+  "totalServiceCost": "Tổng chi phí dịch vụ",
+  "customerLabel": "Khách hàng",
+  "phoneNumberLabel": "Số điện thoại",
+  "issueLabel": "Tình trạng lỗi",
+  "accessoriesLabel": "Phụ kiện kèm",
+  "noAccessories": "Không có",
+  "errorSaving": "Lỗi khi lưu: {error}",
+  "@errorSaving": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "rejectDeliveryDesc": "Từ chối duyệt giao máy {model}",
+  "@rejectDeliveryDesc": {
+    "placeholders": { "model": { "type": "String" } }
+  },
+  "customerInfo": "Khách: {name}",
+  "@customerInfo": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "deviceInfo": "Máy: {model}",
+  "@deviceInfo": {
+    "placeholders": { "model": { "type": "String" } }
+  },
+  "priceInfo": "Giá: {price}đ",
+  "@priceInfo": {
+    "placeholders": { "price": { "type": "String" } }
+  },
+  "paymentInfo": "Thanh toán: {method}",
+  "@paymentInfo": {
+    "placeholders": { "method": { "type": "String" } }
+  },
+  "selectWarrantyNote": "Chọn bảo hành (có thể đổi trước khi duyệt):",
+  "confirmApproveDelivery": "Xác nhận duyệt giao máy và hoàn tất giao dịch?",
+  "reject": "TỪ CHỐI",
+  "chatApprovedDelivery": "✅ ĐÃ DUYỆT GIAO MÁY: {summary}",
+  "@chatApprovedDelivery": {
+    "placeholders": { "summary": { "type": "String" } }
+  },
+  "noneYet": "Chưa có",
+  "deliveryDate": "Ngày giao",
+  "approve": "DUYỆT",
+  "shareRepairReceipt": "🌟 PHIẾU SỬA CHỮA/BẢO HÀNH 🌟\n----------------------------\nShop: {shopName}\nModel: {model}\nKhách: {customerName} - {phone}\nLỗi: {issue}\nBảo hành: {warranty}\nTổng cộng: {total}\n----------------------------\nCảm ơn quý khách đã tin tưởng!",
+  "@shareRepairReceipt": {
+    "placeholders": {
+      "shopName": {"type": "String"},
+      "model": {"type": "String"},
+      "customerName": {"type": "String"},
+      "phone": {"type": "String"},
+      "issue": {"type": "String"},
+      "warranty": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
+  "actionDeliverDevice": "GIAO MÁY",
+  "actionRequestDeliveryApproval": "YÊU CẦU DUYỆT GIAO",
+  "debtNoteForRepair": "Nợ tiền sửa máy: {model}",
+  "@debtNoteForRepair": {
+    "placeholders": {
+      "model": {"type": "String"}
+    }
+  },
+  "repairOrderSummary": "ĐƠN SỬA - {customerName} - {phone} - {model} - {total}",
+  "@repairOrderSummary": {
+    "placeholders": {
+      "customerName": {"type": "String"},
+      "phone": {"type": "String"},
+      "model": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
+  "chatDeviceDelivered": "✅ ĐÃ GIAO MÁY: {summary}",
+  "@chatDeviceDelivered": {
+    "placeholders": {
+      "summary": {"type": "String"}
+    }
+  },
+  "partsPaymentTitle": "THANH TOÁN PHỤ TÙNG",
+  "totalPartsAmount": "TỔNG TIỀN PHỤ TÙNG",
+  "partsDesc": "Phụ tùng: {parts}",
+  "@partsDesc": {
+    "placeholders": {
+      "parts": {"type": "String"}
+    }
+  },
+  "supplierOptional": "Nhà cung cấp (tùy chọn)",
+  "supplierHint": "VD: Linh kiện ABC",
+  "paymentMethodLabel": "PHƯƠNG THỨC THANH TOÁN:",
+  "debtWarning": "Khoản nợ sẽ được ghi vào Quản lý công nợ",
+  "defaultPartsSupplier": "Nhà cung cấp phụ tùng",
+  "recordDebt": "GHI NỢ",
+  "viewRepairPartners": "Xem đối tác sửa chữa",
+  "serviceNameRequired": "Tên dịch vụ *",
+  "pleaseEnterServiceName": "Vui lòng nhập tên dịch vụ",
+  "costVnd": "Chi phí (VNĐ)",
+  "costField": "Chi phí",
+  "partnerPaymentMethodRequired": "Phương thức TT đối tác *",
+  "pleaseSelectPaymentMethod": "Vui lòng chọn phương thức TT",
+  "selectPartsTitle": "CHỌN PHỤ TÙNG / LINH KIỆN",
+  "searchPartOrSupplier": "Tìm theo tên hoặc nhà cung cấp",
+  "noPartsFound": "Không tìm thấy phụ tùng phù hợp",
+  "mainWarehouse": "Kho tổng",
+  "oldWarehouse": "Kho cũ",
+  "stockQty": "Tồn: {qty}",
+  "@stockQty": {
+    "placeholders": {
+      "qty": {"type": "int"}
+    }
+  },
+  "costPrice": "Vốn: {price}",
+  "@costPrice": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "sellPrice": "Bán: {price}",
+  "@sellPrice": {
+    "placeholders": {
+      "price": {"type": "String"}
+    }
+  },
+  "outOfStock": "HẾT HÀNG",
+  "confirmQty": "XÁC NHẬN ({qty})",
+  "@confirmQty": {
+    "placeholders": {
+      "qty": {"type": "int"}
+    }
+  },
+  "confirmBtn": "XÁC NHẬN",
+  "invoiceTemplateTitle": "TẠO MẪU HÓA ĐƠN",
+  "invoiceTemplateSaved": "Đã lưu mẫu hóa đơn",
+  "headerLabel": "Header:",
+  "invoiceHeaderHint": "HEADER HÓA ĐƠN",
+  "bodyLabelWithPlaceholders": "Body (sử dụng placeholders như customerName, total):",
+  "invoiceBodyHint": "NỘI DUNG CHÍNH",
+  "footerLabel": "Footer:",
+  "invoiceFooterHint": "FOOTER HÓA ĐƠN",
+  "previewLabel": "Preview:",
+  "generateQrSampleOrder": "TẠO QR CHO ĐƠN HÀNG MẪU",
+  "qrCodeScanInfo": "QR Code (quét để xem thông tin đơn hàng):",
+  "workScheduleSettingsTitle": "CÀI ĐẶT LỊCH LÀM VIỆC",
+  "generalSettingsTab": "Cài đặt chung",
+  "staffTab": "Nhân viên",
+  "workScheduleSaved": "Đã lưu cài đặt lịch làm việc",
+  "staffSalarySaved": "Đã lưu lương nhân viên",
+  "saveErrorMsg": "Lỗi khi lưu: {error}",
+  "@saveErrorMsg": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "staffScheduleSavedFor": "Đã lưu lịch làm việc cho {name}",
+  "@staffScheduleSavedFor": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "loadingStaffList": "Đang tải danh sách nhân viên...",
+  "noStaffData": "Chưa có dữ liệu nhân viên",
+  "tapToRefresh": "Bấm tải lại để cập nhật",
+  "reload": "Tải lại",
+  "staffCountLabel": "Số nhân viên: {count}",
+  "@staffCountLabel": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "staffWorkSchedule": "Lịch làm việc từng nhân viên",
+  "scheduleNotSet": "Chưa cài đặt lịch",
+  "workHoursLabel": "Giờ làm việc",
+  "startTimeLabel": "Bắt đầu",
+  "endTimeLabel": "Kết thúc",
+  "lunchBreakLabel": "Nghỉ trưa",
+  "maxOvertimeLabel": "OT tối đa",
+  "workDaysLabel": "Ngày làm việc",
+  "holidaysLabel": "Ngày nghỉ lễ:",
+  "addBtn": "Thêm",
+  "overtimeRateLabel": "Hệ số tăng ca",
+  "weekdayLabel": "Ngày thường",
+  "weekendLabel": "Cuối tuần",
+  "holidayLabel": "Ngày lễ",
+  "saveSettingsBtn": "LƯU CÀI ĐẶT",
+  "noStaffFoundMsg": "Chưa có nhân viên nào",
+  "addStaffFirstHint": "Vui lòng thêm nhân viên trong phần\n\"Quản lý nhân sự\" trước",
+  "salarySettingsLabel": "Cài đặt lương",
+  "selectStaffHint": "Chọn nhân viên",
+  "baseSalaryVnd": "Lương cơ bản (VNĐ)",
+  "attendanceLookupLabel": "Tra cứu chấm công",
+  "noAttendanceDataFor": "Không có dữ liệu chấm công ngày {date}",
+  "@noAttendanceDataFor": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "checkInLabel": "Vào:",
+  "checkOutLabel": "Ra:",
+  "approvedStatus": "Đã duyệt",
+  "rejectedStatus": "Từ chối",
+  "pendingStatus": "Chờ duyệt",
+  "selectStaffToViewAttendance": "Chọn nhân viên để xem chấm công",
+  "displayError": "Lỗi hiển thị",
+  "errorMsg": "Lỗi: {error}",
+  "@errorMsg": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "noStaffHint": "Chưa có nhân viên. Nhấn \"Tải lại\" phía dưới hoặc thêm nhân viên trong Quản lý nhân sự.",
+  "staffScheduleFor": "Lịch làm việc: {name}",
+  "@staffScheduleFor": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "workTimeSettings": "Cài đặt giờ làm việc",
+  "startTimeFieldLabel": "Giờ bắt đầu",
+  "endTimeFieldLabel": "Giờ kết thúc",
+  "lunchBreakHours": "Giờ nghỉ trưa (tiếng)",
+  "maxOvertimePerDay": "Giờ tăng ca tối đa/ngày",
+  "selectTimeLabel": "Chọn giờ",
+  "workDaysSettings": "Cài đặt ngày làm việc",
+  "workDaysInWeek": "Ngày làm việc trong tuần:",
+  "addHolidayBtn": "Thêm ngày nghỉ",
+  "holidayListLabel": "Danh sách ngày nghỉ:",
+  "overtimeSettingsLabel": "Cài đặt tăng ca",
+  "weekdayOvertimeRate": "Tăng ca ngày thường (% lương/giờ)",
+  "weekendOvertimeRate": "Tăng ca cuối tuần (% lương/giờ)",
+  "holidayOvertimeRate": "Tăng ca ngày lễ (% lương/giờ)",
+  "staffSalarySettingsLabel": "Cài đặt lương nhân viên",
+  "addUpdateSalary": "Thêm/Cập nhật lương",
+  "saveSalary": "Lưu lương",
+  "currentSalaryList": "Danh sách lương hiện tại:",
+  "manageStaffAttendance": "Quản lý chấm công nhân viên",
+  "selectDateLabel": "Chọn ngày",
+  "attendanceInfoLabel": "Thông tin chấm công",
+  "staffNameLabel": "Nhân viên:",
+  "checkInTimeLabel": "Check-in:",
+  "checkOutTimeLabel": "Check-out:",
+  "selectStaffForAttendance": "Vui lòng chọn nhân viên để xem thông tin chấm công",
+
+  "aboutDeveloper": "Về nhà phát triển",
+  "hulucaStoreDongNai": "HULUCA STORE ĐỒNG NAI",
+  "professionalStoreManagementApp": "Ứng dụng quản lý cửa hàng chuyên nghiệp",
+  "developerAndDesigner": "Phát triển & Thiết kế",
+  "hulucaStore": "HULUCA STORE",
+  "dongNai": "ĐỒNG NAI",
+  "professionalPhoneRepairShop": "Cửa hàng sửa chữa điện thoại chuyên nghiệp",
+  "hotlineAndZalo": "Hotline & Zalo",
+  "shopManagerApp": "Shop Manager App",
+  "versionLabel": "Phiên bản {version}",
+  "appFullDescription": "Ứng dụng quản lý cửa hàng sửa chữa điện thoại toàn diện với tính năng đồng bộ thời gian thực.",
+
+  "attendanceTracking": "QUẢN LÝ CHẤM CÔNG",
+  "viewByMonth": "Xem theo tháng",
+  "viewByDay": "Xem theo ngày",
+  "attendanceForDate": "CHẤM CÔNG {date}",
+  "monthLabel": "THÁNG {month}",
+  "present": "Có mặt",
+  "lateArrival": "Đi muộn",
+  "absent": "Vắng mặt",
+  "totalStaff": "Tổng nhân viên",
+  "checkedInStatus": "Đã check-in",
+  "todayLabel": "Hôm nay",
+  "noStaffYet": "Chưa có nhân viên",
+  "notCheckedIn": "Chưa check-in",
+  "completedStatus": "Đã hoàn thành",
+  "workingStatus": "Đang làm việc",
+  "workDaysCount": "Ngày công",
+  "workHoursCount": "Giờ công",
+  "roleOwnerShort": "Chủ",
+  "roleManagerShort": "QL",
+  "roleTechnicianShort": "KTV",
+  "roleEmployeeShort": "NV",
+  "noAttendanceData": "Không có dữ liệu chấm công",
+  "dateLabel": "Ngày",
+  "checkInTimeShort": "Giờ vào",
+  "checkOutTimeShort": "Giờ ra",
+  "earlyLeave": "Về sớm",
+  "locationLabel": "Vị trí",
+  "attendancePhotos": "Ảnh chấm công:",
+  "checkInPhoto": "Vào",
+  "checkOutPhoto": "Ra",
+  "hasPhoto": "Có",
+  "noPhoto": "Không",
+  "monthYearFormat": "Tháng {monthYear}",
+
+  "errorLoadingCustomers": "Lỗi tải khách hàng: {error}",
+  "editCustomerAction": "sửa khách hàng",
+  "deleteCustomerAction": "xóa khách hàng",
+  "confirmDeleteTitle": "Xác nhận xóa",
+  "confirmDeleteCustomer": "Bạn có chắc muốn xóa khách hàng \"{name}\"?",
+  "confirmActionTitle": "Xác nhận {action}",
+  "ownerPasswordRequired": "Chỉ chủ cửa hàng mới được thực hiện thao tác này.\nNhập mật khẩu tài khoản để xác nhận:",
+  "pleaseLoginAgain": "Vui lòng đăng nhập lại",
+  "incorrectPassword": "Mật khẩu không đúng!",
+  "customerManagement": "Quản lý khách hàng",
+  "addCustomer": "Thêm khách hàng",
+  "searchCustomers": "Tìm kiếm khách hàng...",
+  "noCustomersYet": "Chưa có khách hàng",
+  "customerNotFound": "Không tìm thấy khách hàng",
+  "notePrefix": "Ghi chú: {note}",
+  "totalPurchasedAmount": "Đã mua: {amount}",
+  "repairCountLabel": "Sửa chữa: {count} lần",
+  "historyTab": "Lịch sử",
+  "editAction": "Sửa",
+  "addCustomerTitle": "Thêm khách hàng",
+  "editCustomerTitle": "Sửa khách hàng",
+  "customerNameRequired": "Tên khách hàng *",
+  "enterCustomerName": "Nhập tên khách hàng",
+  "pleaseEnterCustomerName": "Vui lòng nhập tên khách hàng",
+  "phoneNumberRequired": "Số điện thoại *",
+  "enterPhoneNumber": "Nhập số điện thoại",
+  "pleaseEnterPhoneNumber": "Vui lòng nhập số điện thoại",
+  "enterEmailOptional": "Nhập email (tùy chọn)",
+  "addressLabel": "Địa chỉ",
+  "enterAddressOptional": "Nhập địa chỉ (tùy chọn)",
+  "notesLabel": "Ghi chú",
+  "enterNotesOptional": "Nhập ghi chú (tùy chọn)",
+  "totalPurchasesLabel": "Tổng mua hàng",
+  "totalRepairsLabel": "Tổng sửa chữa",
+  "noHistoryYet": "Chưa có lịch sử",
+
+  "fastInventoryCheck": "Kiểm kê nhanh",
+  "checklistTitle": "📋 Danh sách kiểm",
+  "checklistDescription": "Hệ thống hiển thị tất cả sản phẩm tồn kho. Quét mã QR của từng sản phẩm để đánh dấu đã kiểm.",
+  "scanImeiBarcode": "📷 Quét IMEI/Barcode",
+  "scanInstructions": "Nhấn \"Bắt đầu quét\" và hướng camera vào mã QR/barcode để bắt đầu kiểm.",
+  "checkedVsMissing": "✅ Đã kiểm vs ❌ Thiếu",
+  "checkStatusDescription": "Xanh = đã quét và tìm thấy. Đỏ = chưa quét. Báo cáo hiển thị đã kiểm vs thiếu.",
+  "inventoryReport": "📊 Báo cáo kiểm kê",
+  "reportDescription": "Sau khi quét, xem báo cáo tổng kết để biết hàng thiếu và thừa.",
+  "errorLoadingInventory": "Lỗi tải kho hàng: {error}",
+  "phonesCategory": "Điện thoại",
+  "checkAllPhones": "Kiểm tra tất cả điện thoại tồn kho",
+  "accessoriesCategory": "Phụ kiện",
+  "checkAllAccessories": "Kiểm tra tất cả phụ kiện",
+  "specialCategory": "Đặc biệt",
+  "specialProductsCheck": "Sản phẩm đặc biệt cần kiểm riêng",
+  "duplicateScanWarning": "Đã quét mã này gần đây! Đợi 3 giây trước khi quét lại",
+  "phoneMissingImei": "Mã QR điện thoại thiếu IMEI",
+  "notInStockError": "Không có trong kho",
+  "accessoryMissingCode": "Mã QR phụ kiện thiếu mã",
+  "unknownAccessory": "Phụ kiện không xác định",
+  "invalidQrForInventory": "QR không hợp lệ cho kiểm kê: {error}",
+  "productNotFoundById": "Không tìm thấy sản phẩm với ID: {id}",
+  "productNotSupportedForInventory": "Sản phẩm không hỗ trợ kiểm kê: {type}",
+  "errorCheckingProduct": "Lỗi kiểm tra sản phẩm: {error}",
+  "qrScanSettings": "CÀI ĐẶT QUÉT QR",
+  "soundFeedback": "Phản hồi âm thanh",
+  "playSoundOnScan": "Phát âm thanh khi quét",
+  "hapticFeedback": "Phản hồi rung",
+  "vibrateOnScan": "Rung thiết bị khi quét",
+  "scanTips": "Mẹo: Giữ khoảng cách 20-30cm từ mã QR để có kết quả tốt nhất",
+  "closeButton": "ĐÓNG",
+  "fastInventoryCheckTitle": "KIỂM KÊ NHANH",
+  "selectZone": "Chọn khu vực",
+  "hideChecklist": "Ẩn danh sách",
+  "showChecklist": "Hiện danh sách",
+  "scanSettingsButton": "Cài đặt quét",
+  "stopScan": "Dừng quét",
+  "startScan": "Bắt đầu quét",
+  "toggleFlash": "Bật/tắt đèn",
+  "phonesChecked": "📱 Đã kiểm",
+  "phonesMissing": "📱 Thiếu",
+  "phonesExtra": "📱 Thừa",
+  "accessoriesChecked": "🔧 Đã kiểm",
+  "accessoriesMissing": "🔧 Thiếu",
+  "accessoriesExtra": "🔧 Thừa",
+  "pressToStartScan": "Nhấn nút quét để bắt đầu kiểm kê",
+  "scanInstructionsShort": "Điện thoại: quét IMEI\nPhụ kiện: quét từng món",
+  "processingLabel": "Đang xử lý...",
+  "pendingCheckCount": "Chờ kiểm ({count})",
+  "scannedCount": "Đã quét ({count})",
+  "noProductsInStockMsg": "Không có sản phẩm tồn kho",
+  "scannedLabel": "Đã quét: {count}",
+  "holdQrSteady": "Giữ mã QR ổn định trước camera",
+  "selectCheckArea": "Chọn khu vực kiểm",
+  "completedExclamation": "Hoàn thành!",
+  "switchedToZone": "Đã chuyển sang khu vực: {zone}",
+
+  "labelSettings": "Cài đặt tem nhãn",
+  "labelTemplates": "Mẫu tem nhãn",
+  "labelDisplayInfo": "Thông tin hiển thị trên tem",
+  "shopNameLabel": "Tên cửa hàng",
+  "shopNameExample": "VD: HULUCA MOBILE",
+  "hotlineLabel": "Hotline",
+  "hotlineExample": "VD: 0909 123 456",
+  "sloganLabel": "Slogan",
+  "sloganExample": "VD: Cam kết giá tốt nhất",
+  "addressOptional": "Địa chỉ (tùy chọn)",
+  "addressExample": "VD: 123 Đường ABC, Quận 1, HCM",
+  "cpkPriceSettings": "Cài đặt giá CPK",
+  "cpkFormulaTitle": "📌 Công thức giá CPK (Có phụ kiện):",
+  "formulaLabel": "Công thức",
+  "formulaExample": "price + 500000 hoặc price * 1.05",
+  "formulaHint": "VD: \"price + 500000\" = Giá bán + 500k cho giá có phụ kiện",
+  "fixedLabelContent": "Nội dung cố định trên tem",
+  "fixedLabelContentHint": "Các dòng chữ này sẽ hiển thị mặc định trên tất cả tem",
+  "line1Label": "Dòng 1",
+  "line2Label": "Dòng 2",
+  "line3Label": "Dòng 3",
+  "line1Example": "VD: Cam kết chính hãng 100%",
+  "line2Example": "VD: Chính sách đổi trả 7 ngày",
+  "line3Example": "VD: Hỗ trợ trả góp 0%",
+  "savingLabel": "Đang lưu...",
+  "saveSettingsButton": "LƯU CÀI ĐẶT",
+  "labelSettingsSaved": "✅ Đã lưu cài đặt tem nhãn!",
+  "errorPrefixLabel": "❌ Lỗi: {error}",
+  "defaultLabel": "Mặc định",
+  "deleteTemplateQuestion": "Xóa mẫu?",
+  "confirmDeleteTemplate": "Bạn có chắc muốn xóa mẫu \"{name}\"?",
+  "cancelButton": "HỦY",
+  "deleteButton": "XÓA",
+  "editTemplateTitle": "Sửa mẫu tem nhãn",
+  "templateNameLabel": "Tên mẫu",
+  "labelSizeLabel": "Kích thước tem",
+  "cpkPriceFormulaLabel": "Công thức giá CPK",
+  "productInfoLabel": "Thông tin sản phẩm",
+  "productNameField": "Tên sản phẩm",
+  "productCodeField": "Mã sản phẩm",
+  "qrCodeField": "Mã QR",
+  "imeiSerialField": "IMEI/Serial",
+  "capacityField": "Dung lượng",
+  "colorField": "Màu sắc",
+  "conditionField": "Tình trạng",
+  "priceInfoLabel": "Thông tin giá",
+  "priceKpkField": "Giá KPK (không phụ kiện)",
+  "priceCpkField": "Giá CPK (có phụ kiện)",
+  "originalPriceField": "Giá gốc (gạch ngang)",
+  "discountPercentField": "Giảm giá %",
+  "shopInfoLabel": "Thông tin shop",
+  "otherInfoLabel": "Khác",
+  "warrantyField": "Bảo hành",
+  "supplierField": "Nhà cung cấp",
+  "importDateField": "Ngày nhập",
+  "pleaseEnterTemplateName": "Vui lòng nhập tên mẫu",
+  "saveTemplateButton": "LƯU MẪU",
+  "templateUpdated": "✅ Đã cập nhật mẫu \"{name}\"",
+
+  "productNameLabelShort": "Sản phẩm",
+  "detailsLabel": "Chi tiết",
+  "labelInfoTitle": "Thông tin tem",
+  "priceKpkLabel": "Giá KPK",
+  "priceCpkLabel": "Giá CPK",
+  "imeiLabel": "IMEI",
+  "qrLabel": "QR",
+  "shopLabel": "Shop",
+  "labelDesignSaved": "✅ Đã lưu thiết kế tem!",
+  "resetToDefaultQuestion": "Đặt lại mặc định?",
+  "layoutWillReset": "Bố cục tem sẽ được đặt lại về cài đặt gốc.",
+  "resetButton": "Đặt lại",
+  "labelDesignTitle": "THIẾT KẾ TEM NHÃN",
+  "layoutTab": "Bố cục",
+  "ptyDesignerTab": "PTY 1:1 Designer",
+  "paperTypeLabel": "Loại giấy:",
+  "rollMmLabel": "Cuộn (mm)",
+  "stickerCmLabel": "Sticker (cm)",
+  "rollPaperSizeLabel": "Kích thước giấy cuộn (mm):",
+  "customPaperSizeLabel": "Kích thước giấy tùy chỉnh (mm)",
+  "stickerSizeLabel": "Kích thước sticker (cm):",
+  "widthCmLabel": "Rộng (cm)",
+  "heightCmLabel": "Cao (cm)",
+  "codeTypeLabel": "Loại mã:",
+  "offOption": "Tắt",
+  "qrOption": "QR",
+  "barcodeOption": "Barcode",
+  "designInstructions": "👆 Chạm vào phần tử trên mẫu để chỉnh sửa...",
+  "zoomPreviewLabel": "Phóng to xem trước:",
+  "labelPreviewTitle": "XEM TRƯỚC TEM",
+  "tapToSelect": "Chạm để chọn",
+  "displayOption": "Hiển thị",
+  "spacingLabel": "Khoảng cách:",
+  "boldOption": "Đậm",
+  "fontStyleLabel": "Kiểu chữ:",
+
+  "roleOwner": "Chủ cửa hàng",
+  "roleManager": "Quản lý",
+  "roleTechnician": "Kỹ thuật viên",
+  "roleCashier": "Thu ngân",
+  "roleAdmin": "Admin",
+  "helpCenterTitle": "Trung tâm trợ giúp",
+  "searchByKeyword": "Tìm theo từ khóa, tính năng...",
+  "suggestionsLabel": "Gợi ý",
+  "feedbackContact": "Có góp ý tính năng? Liên hệ support@huluca.com",
+  "feedbackSupport": "Góp ý / Hỗ trợ",
+  "noGuideFound": "Không tìm thấy hướng dẫn phù hợp với từ khóa.",
+  "otherTopics": "Chủ đề khác",
+  "stepsCountLabel": "{count} bước",
+  "tipsCountLabel": "{count} mẹo",
+  "quickGuide": "Hướng dẫn nhanh",
+  "quickGuideDescription": "Chọn chủ đề hoặc nhập từ khóa...",
+  "contentStandard": "Tất cả nội dung được chuẩn bị theo tiêu chuẩn Shopmanager.",
+  "forRoleLabel": "Dành cho {role}",
+  "estimatedTimeLabel": "Thời gian ước tính: {time}",
+  "difficultyLabel": "Độ khó: {level}",
+  "prerequisitesLabel": "Điều kiện tiên quyết",
+  "stepsLabel": "Các bước",
+  "tipsAndNotesLabel": "Mẹo & Ghi chú",
+  "watchVideoLabel": "Xem video hướng dẫn",
+  "attachmentsLabel": "Tệp đính kèm",
+  "relatedLabel": "Liên quan",
+  "needHelpLabel": "Cần trợ giúp? Liên hệ đội hỗ trợ: support@huluca.com",
+  "understoodGuide": "Tôi đã hiểu hướng dẫn này",
+  "markedAsViewed": "Đã đánh dấu hướng dẫn này là đã xem.",
+  "videoGuideLabel": "Video hướng dẫn",
+  "videosBeingUpdated": "Video hướng dẫn đang được cập nhật.",
+  "contactSupportLabel": "Liên hệ hỗ trợ",
+  "sendEmailForHelp": "Gửi email đến support@huluca.com để được hỗ trợ nhanh.",
+  "suggestImprovementLabel": "Góp ý cải thiện",
+  "feedbackHelps": "Góp ý của bạn giúp tài liệu tốt hơn!",
+  "filteredByRole": "Đã lọc hướng dẫn phù hợp với vai trò của bạn.",
+  "featuredLabel": "Nổi bật",
+  "quickLabel": "Nhanh",
+  "needMoreHelpLabel": "Cần thêm trợ giúp?",
+  "hulucaTeamSupport": "Đội ngũ Huluca sẵn sàng hỗ trợ qua email, Zalo hoặc đào tạo trực tiếp.",
+  "emailSupportLabel": "Email support@huluca.com",
+  "emailCopied": "Đã sao chép email support@huluca.com",
+  "zaloSupportLabel": "Zalo hỗ trợ",
+  "contactZaloLabel": "Liên hệ Zalo hỗ trợ: 0901 234 567",
+  "scheduleTrainingLabel": "Đặt lịch đào tạo",
+  "scheduleTrainingThisWeek": "Đặt lịch đào tạo trực tuyến tuần này."
 }

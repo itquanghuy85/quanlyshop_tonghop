@@ -69,8 +69,9 @@ class _LoginViewState extends State<LoginView> {
       }
       await _saveAccount();
     } on FirebaseAuthException {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = AppLocalizations.of(context)!.loginError);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

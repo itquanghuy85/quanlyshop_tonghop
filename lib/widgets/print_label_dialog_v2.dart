@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../core/utils/money_utils.dart';
 import '../models/label_template_model.dart';
 import '../models/printer_types.dart';
-import '../services/bluetooth_printer_service.dart';
 import '../services/label_settings_service.dart';
 import '../services/unified_printer_service.dart';
 import '../theme/app_text_styles.dart';

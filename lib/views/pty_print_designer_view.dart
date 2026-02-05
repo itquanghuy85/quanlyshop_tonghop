@@ -342,6 +342,11 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
         _labelWidthMm = (data['labelWidthMm'] as num?)?.toDouble() ?? 50;
         _labelHeightMm = (data['labelHeightMm'] as num?)?.toDouble() ?? 30;
         _dpi = (data['dpi'] as num?)?.toDouble() ?? 203;
+
+        // Guard against corrupted settings (0 or negative values)
+        if (_labelWidthMm <= 0) _labelWidthMm = 50;
+        if (_labelHeightMm <= 0) _labelHeightMm = 30;
+        if (_dpi <= 0) _dpi = 203;
         _marginLeftMm = (data['marginLeftMm'] as num?)?.toDouble() ?? 2;
         _marginTopMm = (data['marginTopMm'] as num?)?.toDouble() ?? 2;
         _marginRightMm = (data['marginRightMm'] as num?)?.toDouble() ?? 2;
@@ -467,6 +472,52 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
   double _mmToPx(double mm) => mm * _dpi / 25.4;
   Size get _labelPxSize => Size(_mmToPx(_labelWidthMm), _mmToPx(_labelHeightMm));
 
+  Widget _sizeStepButton(IconData icon, VoidCallback onPressed) {
+    return SizedBox(
+      height: 22,
+      width: 28,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          side: BorderSide(color: Colors.grey.shade300),
+        ),
+        onPressed: onPressed,
+        child: Icon(icon, size: 16),
+      ),
+    );
+  }
+
+  Future<double> _computePxPerMmForPrint(double labelWidthMm) async {
+    // Trả về px/mm khớp khổ giấy để tránh bị resize sau khi render
+    final basePxPerMm = _mmToPx(1);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final paperSizeStr = prefs.getString('label_paper_size') ?? '80';
+      int? maxDots;
+      switch (paperSizeStr) {
+        case '50':
+        case '58':
+          maxDots = 384;
+          break;
+        case '72':
+          maxDots = 512;
+          break;
+        default:
+          maxDots = 576;
+      }
+      if (labelWidthMm > 0 && maxDots != null && maxDots > 0) {
+        final fitPxPerMm = maxDots / labelWidthMm;
+        // Không phóng to quá DPI gốc; chỉ thu nhỏ để khớp khổ giấy
+        return fitPxPerMm < basePxPerMm ? fitPxPerMm : basePxPerMm;
+      }
+    } catch (e) {
+      debugPrint('PTY_PRINT: _computePxPerMmForPrint error: $e');
+    }
+    return basePxPerMm; // fallback dùng DPI hiện tại
+  }
+
   void _selectElement(LabelElement? el) {
     if (_selectedElement?.id != el?.id) {
       HapticFeedback.selectionClick();
@@ -551,12 +602,12 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
         children: [
           // Canvas area
           Expanded(
-            flex: 3,
+            flex: 2,
             child: _buildCanvasArea(colorScheme),
           ),
           // Control panel
           Expanded(
-            flex: 2,
+            flex: 3,
             child: _buildControlPanel(colorScheme),
           ),
         ],
@@ -601,16 +652,27 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
   }
 
   Widget _buildCanvasArea(ColorScheme colorScheme) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      child: TabBarView(
-        controller: _tabController,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          _buildDesignCanvas(colorScheme),
-          _buildPreviewCanvas(colorScheme),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Tính height có thể dùng
+        final availableHeight = constraints.maxHeight;
+        return SingleChildScrollView(
+          child: SizedBox(
+            height: availableHeight,
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              child: TabBarView(
+                controller: _tabController,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildDesignCanvas(colorScheme),
+                  _buildPreviewCanvas(colorScheme),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1177,10 +1239,15 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                 fontSize: 11,
                 color: colorScheme.onSurfaceVariant,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             Row(
               children: [
-                const Text('Kích thước:'),
+                const SizedBox(
+                  width: 70,
+                  child: Text('Kích thước:'),
+                ),
                 Expanded(
                   child: Slider(
                     value: _overflowMm,
@@ -1194,7 +1261,13 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                     },
                   ),
                 ),
-                Text('${_overflowMm.toInt()}mm'),
+                SizedBox(
+                  width: 40,
+                  child: Text(
+                    '${_overflowMm.toInt()}mm',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
               ],
             ),
           ],
@@ -1293,11 +1366,11 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
-                title: Row(
+                title: const Row(
                   children: [
-                    const Icon(Icons.qr_code_2, size: 20),
-                    const SizedBox(width: 8),
-                    const Text('QR Code'),
+                    Icon(Icons.qr_code_2, size: 20),
+                    SizedBox(width: 8),
+                    Text('QR Code'),
                   ],
                 ),
                 value: qrElement.visible,
@@ -1310,11 +1383,11 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
-                title: Row(
+                title: const Row(
                   children: [
-                    const Icon(Icons.view_week, size: 20),
-                    const SizedBox(width: 8),
-                    const Text('Barcode'),
+                    Icon(Icons.view_week, size: 20),
+                    SizedBox(width: 8),
+                    Text('Barcode'),
                   ],
                 ),
                 value: barcodeElement.visible,
@@ -1355,54 +1428,110 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _widthCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      labelText: 'Rộng (mm)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _widthCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            labelText: 'Rộng (mm)',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          onChanged: (v) {
+                            final val = double.tryParse(v);
+                            if (val != null && val > 0 && val <= 100) {
+                              setState(() => _labelWidthMm = val);
+                              _scheduleAutoSave();
+                            }
+                          },
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                      const SizedBox(width: 6),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _sizeStepButton(Icons.keyboard_arrow_up, () {
+                            final next = (_labelWidthMm + 1).clamp(10, 100);
+                            setState(() {
+                              _labelWidthMm = next.toDouble();
+                              _widthCtrl.text = next.toStringAsFixed(0);
+                            });
+                            _scheduleAutoSave();
+                          }),
+                          _sizeStepButton(Icons.keyboard_arrow_down, () {
+                            final next = (_labelWidthMm - 1).clamp(10, 100);
+                            setState(() {
+                              _labelWidthMm = next.toDouble();
+                              _widthCtrl.text = next.toStringAsFixed(0);
+                            });
+                            _scheduleAutoSave();
+                          }),
+                        ],
                       ),
-                    ),
-                    onChanged: (v) {
-                      final val = double.tryParse(v);
-                      if (val != null && val > 0 && val <= 100) {
-                        setState(() => _labelWidthMm = val);
-                        _scheduleAutoSave();
-                      }
-                    },
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
                 const Text('×'),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: TextField(
-                    controller: _heightCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      labelText: 'Cao (mm)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _heightCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            labelText: 'Cao (mm)',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          onChanged: (v) {
+                            final val = double.tryParse(v);
+                            if (val != null && val > 0 && val <= 100) {
+                              setState(() => _labelHeightMm = val);
+                              _scheduleAutoSave();
+                            }
+                          },
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                      const SizedBox(width: 6),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _sizeStepButton(Icons.keyboard_arrow_up, () {
+                            final next = (_labelHeightMm + 1).clamp(10, 100);
+                            setState(() {
+                              _labelHeightMm = next.toDouble();
+                              _heightCtrl.text = next.toStringAsFixed(0);
+                            });
+                            _scheduleAutoSave();
+                          }),
+                          _sizeStepButton(Icons.keyboard_arrow_down, () {
+                            final next = (_labelHeightMm - 1).clamp(10, 100);
+                            setState(() {
+                              _labelHeightMm = next.toDouble();
+                              _heightCtrl.text = next.toStringAsFixed(0);
+                            });
+                            _scheduleAutoSave();
+                          }),
+                        ],
                       ),
-                    ),
-                    onChanged: (v) {
-                      final val = double.tryParse(v);
-                      if (val != null && val > 0 && val <= 100) {
-                        setState(() => _labelHeightMm = val);
-                        _scheduleAutoSave();
-                      }
-                    },
+                    ],
                   ),
                 ),
               ],
@@ -1867,42 +1996,57 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
             const SizedBox(height: 8),
             Row(
               children: [
-                const Text('W'),
+                const SizedBox(
+                  width: 20,
+                  child: Text('W', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Slider(
-                    value: el.widthMm.clamp(4, _labelWidthMm - 4),
-                    min: 4,
-                    max: _labelWidthMm - 4,
-                    divisions: (((_labelWidthMm - 8)) * 2).toInt(),
-                    onChanged: (v) => _updateElement(el, (e) => e.widthMm = v),
+                  child: TextField(
+                    controller: TextEditingController(
+                      text: el.widthMm.toStringAsFixed(1),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      suffixText: 'mm',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                    onSubmitted: (v) {
+                      final val = double.tryParse(v) ?? el.widthMm;
+                      _updateElement(el, (e) => e.widthMm = val.clamp(4, _labelWidthMm - 4));
+                    },
                   ),
                 ),
-                SizedBox(
-                  width: 50,
-                  child: Text(
-                    '${el.widthMm.toStringAsFixed(1)}mm',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                const SizedBox(width: 12),
+                const SizedBox(
+                  width: 20,
+                  child: Text('H', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-              ],
-            ),
-            Row(
-              children: [
-                const Text('H'),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Slider(
-                    value: el.heightMm.clamp(4, _labelHeightMm - 4),
-                    min: 4,
-                    max: _labelHeightMm - 4,
-                    divisions: (((_labelHeightMm - 8)) * 2).toInt(),
-                    onChanged: (v) => _updateElement(el, (e) => e.heightMm = v),
-                  ),
-                ),
-                SizedBox(
-                  width: 50,
-                  child: Text(
-                    '${el.heightMm.toStringAsFixed(1)}mm',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  child: TextField(
+                    controller: TextEditingController(
+                      text: el.heightMm.toStringAsFixed(1),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      suffixText: 'mm',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                    onSubmitted: (v) {
+                      final val = double.tryParse(v) ?? el.heightMm;
+                      _updateElement(el, (e) => e.heightMm = val.clamp(4, _labelHeightMm - 4));
+                    },
                   ),
                 ),
               ],
@@ -2417,11 +2561,18 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
     int failed = 0;
     String? lastError;
 
+    // Tính px/mm dựa trên khổ giấy máy in để tránh bị co giãn sau khi render
+    final pxPerMm = await _computePxPerMmForPrint(_labelWidthMm);
+
     for (int i = 0; i < items.length; i++) {
       final product = items[i];
       try {
         print('PTY_PRINT: [$i/${items.length}] Exporting bitmap for: ${product.name}');
-        final png = await _exportBitmap(product);
+        final png = await _exportBitmap(
+          product,
+          includeCodes: true,
+          pxPerMm: pxPerMm,
+        );
         print('PTY_PRINT: [$i] Bitmap exported, size: ${png.length} bytes');
         
         if (png.isEmpty) {
@@ -2497,8 +2648,17 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
     );
   }
 
-  Future<Uint8List> _exportBitmap(Product product) async {
-    final labelPxSize = _labelPxSize;
+  Future<Uint8List> _exportBitmap(
+    Product product, {
+    bool includeCodes = true,
+    double? pxPerMm,
+  }) async {
+    final safeWidthMm = (_labelWidthMm <= 0 ? 50 : _labelWidthMm).toDouble();
+    final safeHeightMm = (_labelHeightMm <= 0 ? 30 : _labelHeightMm).toDouble();
+
+    // Ưu tiên vẽ đúng độ rộng tối đa của khổ giấy để không bị resize mờ nét
+    final effectivePxPerMm = pxPerMm ?? await _computePxPerMmForPrint(safeWidthMm);
+    final labelPxSize = Size(effectivePxPerMm * safeWidthMm, effectivePxPerMm * safeHeightMm);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
@@ -2510,7 +2670,10 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
 
     // Draw only visible elements
     for (final el in _elements.where((e) => e.visible)) {
-      await _drawElementToCanvas(canvas, el, product);
+      if (!includeCodes && (el.type == LabelElementType.qr || el.type == LabelElementType.barcode)) {
+        continue;
+      }
+      await _drawElementToCanvas(canvas, el, product, effectivePxPerMm);
     }
 
     final picture = recorder.endRecording();
@@ -2526,12 +2689,13 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
     Canvas canvas,
     LabelElement el,
     Product product,
+    double pxPerMm,
   ) async {
     final rect = Rect.fromLTWH(
-      _mmToPx(el.xMm),
-      _mmToPx(el.yMm),
-      _mmToPx(el.widthMm),
-      _mmToPx(el.heightMm),
+      pxPerMm * el.xMm,
+      pxPerMm * el.yMm,
+      pxPerMm * el.widthMm,
+      pxPerMm * el.heightMm,
     );
 
     canvas.save();
@@ -2546,7 +2710,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
             text: _resolveText(el.text, product, prefix: el.prefix),
             style: TextStyle(
               color: Colors.black,
-              fontSize: _mmToPx(el.fontSizeMm) * 0.28,
+              fontSize: pxPerMm * el.fontSizeMm * 0.28,
               fontWeight: el.bold ? FontWeight.bold : FontWeight.normal,
             ),
           ),
@@ -2571,7 +2735,9 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
           qrUi,
           Rect.fromLTWH(0, 0, qrUi.width.toDouble(), qrUi.height.toDouble()),
           rect,
-          Paint(),
+          Paint()
+            ..filterQuality = FilterQuality.none
+            ..isAntiAlias = false,
         );
         break;
 
@@ -2596,7 +2762,9 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
           barUi,
           Rect.fromLTWH(0, 0, barUi.width.toDouble(), barUi.height.toDouble()),
           rect,
-          Paint(),
+          Paint()
+            ..filterQuality = FilterQuality.none
+            ..isAntiAlias = false,
         );
         break;
     }
@@ -2606,11 +2774,21 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
 
   img.Image _buildQrImage(String data, int sizePx) {
     final qr = bc.Barcode.qrCode(
-      errorCorrectLevel: bc.BarcodeQRCorrectionLevel.medium,
+      errorCorrectLevel: bc.BarcodeQRCorrectionLevel.high,
     );
     final image = img.Image(width: sizePx, height: sizePx);
     img.fill(image, color: img.ColorRgb8(255, 255, 255));
-    drawBarcode(image, qr, data, x: 0, y: 0, width: sizePx, height: sizePx);
+    final pad = max(4, (sizePx * 0.1).round());
+    final inner = max(1, sizePx - pad * 2);
+    drawBarcode(
+      image,
+      qr,
+      data,
+      x: pad,
+      y: pad,
+      width: inner,
+      height: inner,
+    );
     return image;
   }
 

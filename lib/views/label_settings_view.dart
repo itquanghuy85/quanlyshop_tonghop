@@ -721,7 +721,7 @@ class _EditTemplateDialogState extends State<_EditTemplateDialog> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.purple,
+            activeThumbColor: Colors.purple,
           ),
         ],
       ),

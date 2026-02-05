@@ -34,7 +34,7 @@ class _MyProfileViewState extends State<MyProfileView> {
     if (user == null) return;
     try {
       final data = await UserService.getUserInfo(user.uid);
-      if (data != null && mounted) {
+      if (mounted) {
         setState(() {
           nameCtrl.text = data['name'] ?? '';
           phoneCtrl.text = data['phone'] ?? '';

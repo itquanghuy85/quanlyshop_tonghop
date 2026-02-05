@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/utils/money_utils.dart';
@@ -86,20 +87,76 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   int _currentIndex = 0; // Bottom navigation index
   int _totalLocalRecords =
       0; // Tổng số dữ liệu local (để biết máy mới hay không)
+  
+  /// Getter for localization - dùng chung cho tất cả methods
+  AppLocalizations get loc => AppLocalizations.of(context)!;
 
   _HomeViewState() {
     debugPrint('HomeView: _HomeViewState constructor called');
   }
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkNotificationStatus();
+      _initialSetup();
+      SyncService.initRealTimeSync(() {
+        _debouncedLoadStats();
+      });
+      _autoSyncTimer = Timer.periodic(
+        const Duration(seconds: 60),
+        (_) => _syncNow(silent: true),
+      );
+
+      EventBus().stream.listen((event) {
+        debugPrint('HomeView: Received event: $event');
+        if ((event == 'debts_changed' ||
+                event == 'sales_changed' ||
+                event == 'repairs_changed' ||
+                event == 'expenses_changed' ||
+                event == 'products_changed') &&
+            mounted) {
+          debugPrint('HomeView: Loading stats for event: $event');
+          _debouncedLoadStats();
+        }
+      }, onError: (e) => debugPrint('HomeView: EventBus error: $e'));
+
+      NotificationService.listenToNotifications((title, body) {
+        if (mounted) {
+          NotificationService.showSnackBar('$title: $body');
+        }
+      });
+
+      Future.delayed(const Duration(seconds: 5), () {
+        if (mounted && _permissions.isEmpty) {
+          debugPrint('Permissions not loaded, forcing update');
+          _updatePermissions();
+        }
+      });
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Localizations.localeOf(context);
+    // Re-initialize tabs when locale changes
+    if (_currentLocale.languageCode != locale.languageCode || !_tabsInitialized) {
+      _currentLocale = locale;
+      _initializeTabConfigs();
+      _tabsInitialized = true;
+    }
+  }
+
   // Tab configurations with permissions
-  late List<Map<String, dynamic>> _tabConfigs;
-  late List<BottomNavigationBarItem> _navItems;
-  late List<Widget> _tabWidgets;
+  List<Map<String, dynamic>> _tabConfigs = [];
+  List<BottomNavigationBarItem> _navItems = [];
+  List<Widget> _tabWidgets = [];
 
   int _rebuildCounter = 0; // Force rebuild counter
   bool _isLoadingStats = false; // Guard chống load nhiều lần
 
-  // Missing variable declarations
   Timer? _autoSyncTimer;
   Timer? _statsDebounceTimer; // Add debounce timer
   Map<String, bool> _permissions = {};
@@ -127,66 +184,83 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   bool get hasFullAccess =>
       widget.role == 'admin' || widget.role == 'owner' || _isSuperAdmin;
 
-  @override
-  void initState() {
-    super.initState();
-    debugPrint('HomeView: initState STARTED - instance created');
-
-    // Delay các tác vụ nặng sau khi UI render xong để tránh treo máy yếu
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkNotificationStatus(); // Kiểm tra trạng thái thông báo
-      _initialSetup();
-      SyncService.initRealTimeSync(() {
-        _debouncedLoadStats();
-      });
-      _autoSyncTimer = Timer.periodic(
-        const Duration(seconds: 60),
-        (_) => _syncNow(silent: true),
-      );
-
-      // Listen to debt changes to update stats
-      EventBus().stream.listen((event) {
-        debugPrint('HomeView: Received event: $event');
-        if ((event == 'debts_changed' ||
-                event == 'sales_changed' ||
-                event == 'repairs_changed' ||
-                event == 'expenses_changed' ||
-                event == 'products_changed') &&
-            mounted) {
-          debugPrint('HomeView: Loading stats for event: $event');
-          _debouncedLoadStats();
-        }
-      }, onError: (e) => debugPrint('HomeView: EventBus error: $e'));
-
-      // Listen to notifications for snackbars
-      NotificationService.listenToNotifications((title, body) {
-        if (mounted) {
-          NotificationService.showSnackBar('$title: $body');
-        }
-      });
-
-      // Fallback: if permissions not loaded after 5 seconds, force update
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted && _permissions.isEmpty) {
-          debugPrint('Permissions not loaded, forcing update');
-          _updatePermissions();
-        }
-      });
-    });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final locale = Localizations.localeOf(context);
-    if (_currentLocale.languageCode != locale.languageCode) {
-      _currentLocale = locale;
-    }
-
-    if (!_tabsInitialized) {
-      _initializeTabConfigs();
-      _tabsInitialized = true;
-    }
+  void _initializeTabConfigs() {
+    final loc = AppLocalizations.of(context)!;
+    _tabConfigs = [
+      {
+        'permission': null, // Home always accessible
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.home_outlined),
+          activeIcon: const Icon(Icons.home_rounded),
+          label: loc.homeTab,
+        ),
+        'widget': _buildHomeTab(),
+      },
+      {
+        'permission': 'allowViewSales',
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.shopping_cart_outlined),
+          activeIcon: const Icon(Icons.shopping_cart_rounded),
+          label: loc.salesTab,
+        ),
+        'widget': _buildSalesTab(),
+      },
+      {
+        'permission': 'allowViewRepairs',
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.build_outlined),
+          activeIcon: const Icon(Icons.build_rounded),
+          label: loc.repairsTab,
+        ),
+        'widget': _buildRepairsTab(),
+      },
+      {
+        'permission': 'allowViewInventory',
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.inventory_2_outlined),
+          activeIcon: const Icon(Icons.inventory_2_rounded),
+          label: loc.inventoryTab,
+        ),
+        'widget': _buildInventoryTab(),
+      },
+      {
+        'permission':
+            'allowManageStaff', // Staff tab requires manage staff permission
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.people_outline),
+          activeIcon: const Icon(Icons.people_rounded),
+          label: loc.staffTab,
+        ),
+        'widget': _buildStaffTab(),
+      },
+      {
+        'permission':
+            'allowViewRevenue', // Finance tab requires revenue permission
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.account_balance_wallet_outlined),
+          activeIcon: const Icon(Icons.account_balance_wallet_rounded),
+          label: loc.financeTab,
+        ),
+        'widget': _buildFinanceTab(),
+      },
+      {
+        'permission':
+            null, // Settings always open for all, only Super Admin can lock
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.settings_outlined),
+          activeIcon: const Icon(Icons.settings_rounded),
+          label: loc.settingsTab,
+        ),
+        'widget': _buildSettingsTab(),
+      },
+    ];
+    // Initially show all tabs until permissions are loaded
+    _navItems = _tabConfigs
+        .map((config) => config['item'] as BottomNavigationBarItem)
+        .toList();
+    _tabWidgets = _tabConfigs
+        .map((config) => config['widget'] as Widget)
+        .toList();
   }
 
   void _changeLanguage(Locale locale) {
@@ -223,84 +297,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         ),
       ),
     );
-  }
-
-  void _initializeTabConfigs() {
-    _tabConfigs = [
-      {
-        'permission': null, // Home always accessible
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home_rounded),
-          label: 'Home',
-        ),
-        'widget': _buildHomeTab(),
-      },
-      {
-        'permission': 'allowViewSales',
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart_outlined),
-          activeIcon: Icon(Icons.shopping_cart_rounded),
-          label: 'Bán hàng',
-        ),
-        'widget': _buildSalesTab(),
-      },
-      {
-        'permission': 'allowViewRepairs',
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.build_outlined),
-          activeIcon: Icon(Icons.build_rounded),
-          label: 'Sửa chữa',
-        ),
-        'widget': _buildRepairsTab(),
-      },
-      {
-        'permission': 'allowViewInventory',
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.inventory_2_outlined),
-          activeIcon: Icon(Icons.inventory_2_rounded),
-          label: 'Kho',
-        ),
-        'widget': _buildInventoryTab(),
-      },
-      {
-        'permission':
-            'allowManageStaff', // Staff tab requires manage staff permission
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.people_outline),
-          activeIcon: Icon(Icons.people_rounded),
-          label: 'Nhân sự',
-        ),
-        'widget': _buildStaffTab(),
-      },
-      {
-        'permission':
-            'allowViewRevenue', // Finance tab requires revenue permission
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.account_balance_wallet_outlined),
-          activeIcon: Icon(Icons.account_balance_wallet_rounded),
-          label: 'Tài chính',
-        ),
-        'widget': _buildFinanceTab(),
-      },
-      {
-        'permission':
-            null, // Cài đặt luôn mở cho tất cả, chỉ Super Admin mới khóa được
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.settings_outlined),
-          activeIcon: Icon(Icons.settings_rounded),
-          label: 'Cài đặt',
-        ),
-        'widget': _buildSettingsTab(),
-      },
-    ];
-    // Initially show all tabs until permissions are loaded
-    _navItems = _tabConfigs
-        .map((config) => config['item'] as BottomNavigationBarItem)
-        .toList();
-    _tabWidgets = _tabConfigs
-        .map((config) => config['widget'] as Widget)
-        .toList();
   }
 
   /// Widget hiển thị thông báo chức năng bị khóa - giao diện chuyên nghiệp
@@ -1017,8 +1013,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       _updatePermissions(); // Không await - chạy song song
       _loadStats(); // Không await - chạy song song
       
-      // 2. Load user info ở background (chậm hơn vì cần Firestore)
-      _loadUserAndShopInfo(); // Không await
+      // 2. Load user info NGAY (quan trọng cho lời chào)
+      await _loadUserAndShopInfo(); // AWAIT để đảm bảo có data trước khi render
 
       final prefs = await SharedPreferences.getInstance();
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -1066,12 +1062,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   Future<void> _loadUserAndShopInfo() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      debugPrint('_loadUserAndShopInfo: START, user=${user?.email}');
+      if (user == null) {
+        debugPrint('_loadUserAndShopInfo: No user, returning');
+        return;
+      }
 
       // ====== TỐI ƯU: Load từ cache trước, hiện UI ngay ======
       final prefs = await SharedPreferences.getInstance();
       final cachedUserName = prefs.getString('cached_userName_${user.uid}');
       final cachedShopName = prefs.getString('cached_shopName_${user.uid}');
+      debugPrint('_loadUserAndShopInfo: Cache - userName=$cachedUserName, shopName=$cachedShopName');
       
       // Hiển thị cache ngay lập tức (nếu có)
       if (cachedUserName != null || cachedShopName != null) {
@@ -1080,10 +1081,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             if (cachedUserName != null) _userName = cachedUserName;
             if (cachedShopName != null) _shopName = cachedShopName;
           });
+          debugPrint('_loadUserAndShopInfo: Set state from cache - userName=$_userName, shopName=$_shopName');
         }
       }
 
       // Lấy tên hiển thị từ Firestore (background)
+      debugPrint('_loadUserAndShopInfo: Fetching user doc from Firestore...');
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -1091,7 +1094,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
       String displayName = '';
       if (userDoc.exists) {
-        displayName = userDoc.data()?['displayName'] ?? '';
+        final data = userDoc.data();
+        debugPrint('_loadUserAndShopInfo: User doc data=$data');
+        displayName = data?['displayName'] ?? data?['name'] ?? '';
+        debugPrint('_loadUserAndShopInfo: displayName from Firestore=$displayName');
+      } else {
+        debugPrint('_loadUserAndShopInfo: User doc does NOT exist');
       }
 
       // Fallback: dùng phần trước @ của email
@@ -1101,27 +1109,38 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         if (displayName.isNotEmpty) {
           displayName = displayName[0].toUpperCase() + displayName.substring(1);
         }
+        debugPrint('_loadUserAndShopInfo: Using email fallback displayName=$displayName');
       }
 
       // Lấy tên shop
+      debugPrint('_loadUserAndShopInfo: Getting shopId...');
       final shopId = await UserService.getCurrentShopId();
+      debugPrint('_loadUserAndShopInfo: shopId=$shopId');
       String shopName = '';
       if (shopId != null) {
+        debugPrint('_loadUserAndShopInfo: Fetching shop doc from Firestore...');
         final shopDoc = await FirebaseFirestore.instance
             .collection('shops')
             .doc(shopId)
             .get();
         if (shopDoc.exists) {
-          shopName = shopDoc.data()?['name'] ?? '';
+          final shopData = shopDoc.data();
+          debugPrint('_loadUserAndShopInfo: Shop doc data=$shopData');
+          shopName = shopData?['name'] ?? '';
+          debugPrint('_loadUserAndShopInfo: shopName from Firestore=$shopName');
+        } else {
+          debugPrint('_loadUserAndShopInfo: Shop doc does NOT exist');
         }
       }
 
       // ====== Cache lại để load nhanh lần sau ======
       if (displayName.isNotEmpty) {
         await prefs.setString('cached_userName_${user.uid}', displayName);
+        debugPrint('_loadUserAndShopInfo: Cached userName=$displayName');
       }
       if (shopName.isNotEmpty) {
         await prefs.setString('cached_shopName_${user.uid}', shopName);
+        debugPrint('_loadUserAndShopInfo: Cached shopName=$shopName');
       }
 
       if (mounted) {
@@ -1129,9 +1148,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _userName = displayName;
           _shopName = shopName;
         });
+        debugPrint('_loadUserAndShopInfo: FINAL setState - userName=$_userName, shopName=$_shopName');
       }
     } catch (e) {
-      debugPrint('Error loading user info: $e');
+      debugPrint('_loadUserAndShopInfo ERROR: $e');
+      debugPrint('_loadUserAndShopInfo STACK: ${StackTrace.current}');
     }
   }
 
@@ -1214,83 +1235,116 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     _isLoadingStats = true;
 
     try {
-      // ====== TỐI ƯU: Chạy song song tất cả queries ======
-      final results = await Future.wait([
-        db.getAllRepairs(),
-        db.getAllSales(),
-        db.getAllDebts(),
-        db.getAllExpenses(),
-        db.getAllDebtPaymentsWithDetails(),
-      ]);
-
-      final repairs = results[0] as List<Repair>;
-      final sales = results[1] as List<SaleOrder>;
-      final debtsRaw = results[2] as List<Map<String, dynamic>>;
-      final debts = debtsRaw.where((d) => (d['deleted'] ?? 0) != 1).toList();
-      final expenses = results[3] as List<Map<String, dynamic>>;
-      final debtPayments = results[4] as List<Map<String, dynamic>>;
-
-      int pendingR = repairs
-          .where((r) => r.status == 1 || r.status == 2)
-          .length;
-      int doneT = 0, soldT = 0, newRT = 0, debtR = 0, expW = 0;
       final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final todayEnd = todayStart.add(const Duration(days: 1));
+      final startMs = todayStart.millisecondsSinceEpoch;
+      final endMs = todayEnd.millisecondsSinceEpoch;
+      final dbConn = await db.database;
+
+      final pendingR =
+          (Sqflite.firstIntValue(
+            await dbConn.rawQuery(
+              'SELECT COUNT(*) FROM repairs WHERE status IN (1, 2)',
+            ),
+          )) ??
+          0;
+
+      final newRT =
+          (Sqflite.firstIntValue(
+            await dbConn.rawQuery(
+              'SELECT COUNT(*) FROM repairs WHERE createdAt >= ? AND createdAt < ?',
+              [startMs, endMs],
+            ),
+          )) ??
+          0;
+
+      final fSales = await dbConn.query(
+        'sales',
+        columns: [
+          'totalPrice',
+          'totalCost',
+          'paymentMethod',
+          'isInstallment',
+          'downPayment',
+          'settlementReceivedAt',
+          'settlementAmount',
+          'loanAmount',
+          'loanAmount2',
+          'soldAt',
+          'warranty',
+        ],
+        where: 'soldAt >= ? AND soldAt < ?',
+        whereArgs: [startMs, endMs],
+      );
+
+      final fRepairs = await dbConn.query(
+        'repairs',
+        columns: ['price', 'cost', 'paymentMethod', 'deliveredAt', 'warranty'],
+        where:
+            'status = 4 AND deliveredAt IS NOT NULL AND deliveredAt >= ? AND deliveredAt < ?',
+        whereArgs: [startMs, endMs],
+      );
+
+      final fExpenses = await dbConn.query(
+        'expenses',
+        columns: ['amount', 'category', 'description', 'title', 'date'],
+        where: 'date >= ? AND date < ?',
+        whereArgs: [startMs, endMs],
+      );
+
+      final debtPayments = await dbConn.query(
+        'debt_payments',
+        columns: ['amount', 'paidAt', 'debtType'],
+        where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ?',
+        whereArgs: [startMs, endMs],
+      );
+
+      int doneT = 0, soldT = 0, debtR = 0, expW = 0;
 
       // === TÍNH TOÁN CHÍNH XÁC NHƯ REVENUE_VIEW.DART ===
-      // Lọc sales hôm nay
-      final fSales = sales.where((s) => _isSameDay(s.soldAt)).toList();
-
-      // Lọc repairs đã giao (status == 4) và deliveredAt hôm nay
-      final fRepairs = repairs
-          .where(
-            (r) =>
-                r.status == 4 &&
-                r.deliveredAt != null &&
-                _isSameDay(r.deliveredAt!),
-          )
-          .toList();
-
-      // Lọc expenses hôm nay
-      final fExpenses = expenses
-          .where((e) => _isSameDay(e['date'] as int))
-          .toList();
-
       // THU HÔM NAY - Tính theo ACCRUAL BASIS (cơ sở dồn tích)
       // K3: Bán nợ VẪN PHẢI tính vào doanh thu và giá vốn, chỉ KHÔNG tăng quỹ tiền mặt/NH
       // Tính tổng DOANH THU và GIÁ VỐN từ sales (bao gồm cả công nợ)
       int salesIncome = 0; // Doanh thu = tổng giá bán (cả công nợ)
       int salesCost = 0; // Giá vốn = tổng giá vốn (cả công nợ)
       int salesDebt = 0; // Công nợ = số tiền chưa thu (để hiển thị riêng)
-      for (var s in fSales) {
-        if (s.paymentMethod == 'CÔNG NỢ') {
+      for (final s in fSales) {
+        final paymentMethod = (s['paymentMethod'] ?? '').toString();
+        final totalPrice = (s['totalPrice'] as num?)?.toInt() ?? 0;
+        final totalCost = (s['totalCost'] as num?)?.toInt() ?? 0;
+        final isInstallment = (s['isInstallment'] == 1 || s['isInstallment'] == true);
+        if (paymentMethod == 'CÔNG NỢ') {
           // K3: Công nợ - VẪN TÍNH doanh thu và giá vốn (accrual basis)
           // Nhưng KHÔNG tăng quỹ tiền mặt/ngân hàng
-          salesIncome += s.totalPrice;
-          salesCost += s.totalCost;
-          salesDebt += s.totalPrice; // Track công nợ riêng
+          salesIncome += totalPrice;
+          salesCost += totalCost;
+          salesDebt += totalPrice; // Track công nợ riêng
           continue;
         }
-        if (s.isInstallment) {
+        if (isInstallment) {
           // Trả góp: tính theo số tiền ĐÃ THU ĐƯỢC (down + settlement)
           // Vì ngân hàng giải ngân phần còn lại, phải track riêng
-          final downPaid = s.downPayment;
+          final downPaid = (s['downPayment'] as num?)?.toInt() ?? 0;
+          final settlementReceivedAt = (s['settlementReceivedAt'] as num?)?.toInt();
+          final settlementAmount = (s['settlementAmount'] as num?)?.toInt() ?? 0;
+          final loanAmount = (s['loanAmount'] as num?)?.toInt() ?? 0;
           final settlementPaid =
-              (s.settlementReceivedAt != null &&
-                  _isSameDay(s.settlementReceivedAt!))
-              ? s.settlementAmount.clamp(0, s.loanAmount)
-              : 0;
+              (settlementReceivedAt != null && _isSameDay(settlementReceivedAt))
+                  ? settlementAmount.clamp(0, loanAmount)
+                  : 0;
           final totalPaid = downPaid + settlementPaid;
 
           // Doanh thu = số tiền đã nhận được (down + settlement)
           salesIncome += totalPaid;
 
           // Giá vốn tính theo tỷ lệ đã thu
-          final ratio = s.totalPrice > 0 ? totalPaid / s.totalPrice : 0.0;
-          salesCost += (s.totalCost * ratio).round();
+          final ratio = totalPrice > 0 ? totalPaid / totalPrice : 0.0;
+          salesCost += (totalCost * ratio).round();
         } else {
           // Bán thường (tiền mặt/chuyển khoản)
-          salesIncome += s.totalPrice;
-          salesCost += s.totalCost;
+          salesIncome += totalPrice;
+          salesCost += totalCost;
         }
       }
 
@@ -1298,12 +1352,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       int repairsIncome = 0;
       int repairsCost = 0;
       int repairsDebt = 0; // Track công nợ sửa chữa riêng
-      for (var r in fRepairs) {
+      for (final r in fRepairs) {
+        final price = (r['price'] as num?)?.toInt() ?? 0;
+        final cost = (r['cost'] as num?)?.toInt() ?? 0;
+        final paymentMethod = (r['paymentMethod'] ?? '').toString();
         // Accrual basis: tính cả công nợ vào doanh thu và giá vốn
-        repairsIncome += r.price;
-        repairsCost += r.totalCost;
-        if (r.paymentMethod == 'CÔNG NỢ') {
-          repairsDebt += r.price;
+        repairsIncome += price;
+        repairsCost += cost;
+        if (paymentMethod == 'CÔNG NỢ') {
+          repairsDebt += price;
         }
       }
 
@@ -1313,13 +1370,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       // Vì với accrual basis, doanh thu đã được tính ở K3 (lúc bán nợ)
       // Thu nợ chỉ ảnh hưởng quỹ tiền mặt/NH, không ảnh hưởng lợi nhuận
       int debtCollected = 0;
-      for (var p in debtPayments) {
-        final paidAt = p['paidAt'] as int?;
+      for (final p in debtPayments) {
+        final paidAt = (p['paidAt'] as num?)?.toInt();
         if (paidAt == null) continue;
         if (!_isSameDay(paidAt)) continue;
-        if (p['debtType'] == 'SHOP_OWES')
+        if (p['debtType'] == 'SHOP_OWES') {
           continue; // SHOP_OWES là trả nợ NCC, không phải thu nợ KH
-        final amount = p['amount'] as int? ?? 0;
+        }
+        final amount = (p['amount'] as num?)?.toInt() ?? 0;
         debtCollected += amount;
       }
 
@@ -1328,11 +1386,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
       // CHI HÔM NAY = tổng expenses (LOẠI TRỪ nhập hàng/linh kiện/purchase vì đã tính trong giá vốn)
       int totalOut = 0;
-      for (var e in fExpenses) {
+      for (final e in fExpenses) {
         final category = (e['category'] as String? ?? '').toUpperCase();
         final description = (e['description'] as String? ?? '').toUpperCase();
         final title = (e['title'] as String? ?? '').toUpperCase();
-        final amount = e['amount'] as int;
+        final amount = (e['amount'] as num?)?.toInt() ?? 0;
 
         // Loại trừ các chi phí nhập hàng/linh kiện/purchase vì sẽ được tính qua giá vốn khi bán/sửa
         // Kiểm tra cả category, description và title để đảm bảo không bỏ sót
@@ -1386,49 +1444,56 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       soldT = fSales.length;
 
       // Tính toán các số liệu khác
-      for (var r in repairs) {
-        if (_isSameDay(r.createdAt)) newRT++;
-        // Kiểm tra bảo hành sắp hết
-        if (r.deliveredAt != null &&
-            r.warranty.isNotEmpty &&
-            r.warranty != "KO BH") {
-          int m = int.tryParse(r.warranty.split(' ').first) ?? 0;
-          if (m > 0) {
-            DateTime d = DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!);
-            DateTime e = DateTime(d.year, d.month + m, d.day);
-            if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
-          }
-        }
-      }
+      final repairsWarranty = await dbConn.query(
+        'repairs',
+        columns: ['deliveredAt', 'warranty'],
+        where:
+            "deliveredAt IS NOT NULL AND warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'",
+      );
 
-      // Kiểm tra bảo hành sắp hết cho sales
-      for (var s in sales) {
-        if (s.warranty.isNotEmpty && s.warranty != "KO BH") {
-          int m = int.tryParse(s.warranty.split(' ').first) ?? 12;
-          DateTime d = DateTime.fromMillisecondsSinceEpoch(s.soldAt);
+      for (final r in repairsWarranty) {
+        final deliveredAt = (r['deliveredAt'] as num?)?.toInt();
+        final warranty = (r['warranty'] ?? '').toString();
+        if (deliveredAt == null) continue;
+        int m = int.tryParse(warranty.split(' ').first) ?? 0;
+        if (m > 0) {
+          DateTime d = DateTime.fromMillisecondsSinceEpoch(deliveredAt);
           DateTime e = DateTime(d.year, d.month + m, d.day);
           if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
         }
       }
 
-      // Tính tổng nợ còn lại (chỉ tính nợ chưa thanh toán hết và chưa hủy)
-      for (var d in debts) {
-        final status = d['status']?.toString().toUpperCase() ?? '';
-        // Bỏ qua nếu đã thanh toán hoặc đã hủy
-        if (status == 'PAID' || status == 'CANCELLED') continue;
+      final salesWarranty = await dbConn.query(
+        'sales',
+        columns: ['soldAt', 'warranty'],
+        where:
+            "warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'",
+      );
 
-        final int totalAmount = (d['totalAmount'] ?? 0) as int;
-        final int paidAmount = (d['paidAmount'] ?? 0) as int;
-        final int remain = totalAmount - paidAmount;
-        if (remain > 0 && totalAmount > 0) debtR += remain;
+      // Kiểm tra bảo hành sắp hết cho sales
+      for (final s in salesWarranty) {
+        final soldAt = (s['soldAt'] as num?)?.toInt() ?? 0;
+        final warranty = (s['warranty'] ?? '').toString();
+        int m = int.tryParse(warranty.split(' ').first) ?? 12;
+        DateTime d = DateTime.fromMillisecondsSinceEpoch(soldAt);
+        DateTime e = DateTime(d.year, d.month + m, d.day);
+        if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
       }
+
+      final debtRemainRow = await dbConn.rawQuery(
+        "SELECT SUM(CASE WHEN totalAmount > paidAmount THEN (totalAmount - paidAmount) ELSE 0 END) as remain "
+        "FROM debts WHERE (deleted IS NULL OR deleted != 1) AND (status IS NULL OR UPPER(status) NOT IN ('PAID','CANCELLED'))",
+      );
+      debtR = (debtRemainRow.first['remain'] as num?)?.toInt() ?? 0;
 
       // FIX: Tính thêm nợ đối tác sửa chữa (repair partners)
       try {
         final partnerService = RepairPartnerService();
         final partners = await partnerService.getRepairPartners();
-        for (final partner in partners) {
-          final stats = await partnerService.getPartnerRepairStats(partner.id!);
+        final statsList = await Future.wait(
+          partners.map((p) => partnerService.getPartnerRepairStats(p.id!)),
+        );
+        for (final stats in statsList) {
           if (stats != null) {
             final totalCost = (stats['totalCost'] ?? 0) as int;
             final totalPaid = (stats['totalPaid'] ?? 0) as int;
@@ -1441,8 +1506,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       }
 
       // Tính tổng số dữ liệu local (để biết máy mới hay không)
-      final products = await db.getAllProducts();
-      final totalRecords = repairs.length + sales.length + products.length;
+      final repairsCount = await db.getRepairsCount();
+      final salesCount = await db.getSalesCount();
+      final productsCount = await db.getProductsCount();
+      final totalRecords = repairsCount + salesCount + productsCount;
 
       // Load unread chat count và tin nhắn mới nhất TRƯỚC khi setState
       final unread = await UserService.getUnreadChatCount(
@@ -1498,6 +1565,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     debugPrint(
       'HomeView: Building with revenueToday=$revenueToday, todaySaleCount=$todaySaleCount',
     );
@@ -1511,15 +1579,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         final ok = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text("Thoát ứng dụng?"),
+            title: Text(loc.exitApp),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text("HỦY"),
+                child: Text(loc.cancel),
               ),
               TextButton(
                 onPressed: () => SystemNavigator.pop(),
-                child: const Text("THOÁT"),
+                child: Text(loc.exit),
               ),
             ],
           ),
@@ -1568,8 +1636,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       : Colors.white70,
                 ),
                 tooltip: _notificationWorking
-                    ? 'Thông báo (đang hoạt động)'
-                    : 'Thông báo (chưa kích hoạt)',
+                    ? loc.notificationActive
+                    : loc.notificationInactive,
               ),
             ),
             IconButton(
@@ -1592,7 +1660,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
               icon: const Icon(Icons.search, color: Colors.white, size: 28),
-              tooltip: 'Tìm kiếm toàn app',
+              tooltip: loc.searchWholeApp,
             ),
             // Simple sync indicator - tự động sync, tap để force sync
             const SimpleSyncIndicator(),
@@ -1757,8 +1825,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 side: BorderSide(color: Colors.red.shade200),
               ),
               child: ListTile(
-                leading: Icon(Icons.lock, color: Colors.red),
-                title: Text(
+                leading: const Icon(Icons.lock, color: Colors.red),
+                title: const Text(
                   "CỬA HÀNG BỊ KHÓA",
                   style: TextStyle(
                     color: Colors.red,
@@ -1771,9 +1839,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
             ),
-          // Banner cho nhân viên mới - CHỈ HIỆN KHI MÁY CÓ ÍT HƠN 5 RECORDS (máy mới/đổi máy)
-          if (_totalLocalRecords < 5) _buildNewStaffBannerSimple(),
-
           // LỜI CHÀO NGƯỜI DÙNG
           _buildGreetingCard(),
 
@@ -1812,18 +1877,19 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   /// Widget lời chào người dùng - hiển thị tên và vai trò
   Widget _buildGreetingCard() {
+    final loc = AppLocalizations.of(context)!;
     // Xác định lời chào theo thời gian
     final hour = DateTime.now().hour;
     String greeting;
     IconData greetingIcon;
     if (hour < 12) {
-      greeting = 'Chào buổi sáng';
+      greeting = loc.goodMorning;
       greetingIcon = Icons.wb_sunny_outlined;
     } else if (hour < 18) {
-      greeting = 'Chào buổi chiều';
+      greeting = loc.goodAfternoon;
       greetingIcon = Icons.wb_sunny;
     } else {
-      greeting = 'Chào buổi tối';
+      greeting = loc.goodEvening;
       greetingIcon = Icons.nightlight_outlined;
     }
 
@@ -1832,19 +1898,19 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     Color roleColor;
     IconData roleIcon;
     if (_isSuperAdmin) {
-      roleText = 'Quản trị viên hệ thống';
+      roleText = loc.adminRole;
       roleColor = Colors.purple;
       roleIcon = Icons.admin_panel_settings;
     } else if (widget.role == 'owner') {
-      roleText = 'Chủ cửa hàng';
+      roleText = loc.ownerRole;
       roleColor = Colors.orange;
       roleIcon = Icons.store;
     } else if (widget.role == 'admin') {
-      roleText = 'Quản lý';
+      roleText = loc.managerRole;
       roleColor = Colors.blue;
       roleIcon = Icons.manage_accounts;
     } else {
-      roleText = 'Nhân viên';
+      roleText = loc.employeeRole;
       roleColor = Colors.green;
       roleIcon = Icons.person;
     }
@@ -1920,7 +1986,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _userName.isNotEmpty ? _userName : 'Người dùng',
+                      _userName.isNotEmpty ? _userName : loc.userLabel,
                       style: AppTextStyles.headline1.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -1981,6 +2047,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Widget _buildNewStaffBannerSimple() {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -2015,15 +2082,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Chào mừng nhân viên mới!',
+                  loc.welcomeNewStaff,
                   style: AppTextStyles.headline3.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Vào Cài đặt Shop → Tải dữ liệu shop để đồng bộ dữ liệu',
+                  loc.newStaffSyncGuide,
                   style: AppTextStyles.subtitle1.copyWith(
                     color: Colors.white70,
                   ),
@@ -2039,6 +2106,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   // Giữ lại _buildNewStaffBanner cũ nhưng không dùng - có thể xóa sau
   Widget _buildNewStaffBanner() {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -2080,15 +2148,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Chào mừng nhân viên mới!',
+                      loc.welcomeNewStaff,
                       style: AppTextStyles.headline3.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Tải dữ liệu shop về máy để bắt đầu làm việc',
+                      loc.downloadShopDataToStart,
                       style: AppTextStyles.subtitle1.copyWith(
                         color: Colors.white70,
                       ),
@@ -2104,9 +2172,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             child: ElevatedButton.icon(
               onPressed: _showDownloadDataDialog,
               icon: const Icon(Icons.cloud_download, size: 20),
-              label: const Text(
-                'TẢI DỮ LIỆU SHOP',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              label: Text(
+                loc.downloadShopDataTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
@@ -2124,6 +2192,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Future<void> _showDownloadDataDialog() async {
+    final loc = AppLocalizations.of(context)!;
     // Lấy tên shop để hiển thị
     final shopId = await UserService.getCurrentShopId();
     String shopName = "shop hiện tại";
@@ -2146,10 +2215,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           children: [
             Icon(Icons.cloud_download, color: Colors.blue.shade600),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
-                "TẢI DỮ LIỆU SHOP",
-                style: TextStyle(fontWeight: FontWeight.bold),
+                loc.downloadShopDataTitle,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -2162,7 +2231,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               text: TextSpan(
                 style: AppTextStyles.headline4.copyWith(color: Colors.black87),
                 children: [
-                  const TextSpan(text: 'Tải dữ liệu của '),
+                  TextSpan(text: '${loc.downloadDataOf} '),
                   TextSpan(
                     text: '"$shopName"',
                     style: const TextStyle(
@@ -2170,7 +2239,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       color: Colors.blue,
                     ),
                   ),
-                  const TextSpan(text: ' từ đám mây về máy này.'),
+                  TextSpan(text: ' ${loc.fromCloudToThisDevice}'),
                 ],
               ),
             ),
@@ -2184,11 +2253,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildDataItem(Icons.build, 'Đơn sửa chữa'),
-                  _buildDataItem(Icons.shopping_cart, 'Đơn bán hàng'),
-                  _buildDataItem(Icons.inventory, 'Sản phẩm trong kho'),
-                  _buildDataItem(Icons.receipt, 'Công nợ & Chi phí'),
-                  _buildDataItem(Icons.people, 'Khách hàng & NCC'),
+                  _buildDataItem(Icons.build, loc.repairOrdersDataItem),
+                  _buildDataItem(Icons.shopping_cart, loc.saleOrdersDataItem),
+                  _buildDataItem(Icons.inventory, loc.productsInStock),
+                  _buildDataItem(Icons.receipt, loc.debtsAndExpensesDataItem),
+                  _buildDataItem(Icons.people, loc.customersAndSuppliersDataItem),
                 ],
               ),
             ),
@@ -2210,7 +2279,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Chỉ tải dữ liệu của shop này, không ảnh hưởng shop khác.',
+                      loc.onlyDownloadThisShopData,
                       style: AppTextStyles.body1.copyWith(
                         color: Colors.orange.shade800,
                       ),
@@ -2221,7 +2290,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 8),
             Text(
-              "Quá trình có thể mất vài phút tùy lượng dữ liệu.",
+              loc.processMayTakeFewMinutes,
               style: AppTextStyles.body1.copyWith(
                 fontStyle: FontStyle.italic,
                 color: Colors.grey,
@@ -2232,12 +2301,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("HỦY"),
+            child: Text(loc.cancel.toUpperCase()),
           ),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(ctx, true),
             icon: const Icon(Icons.download, size: 18),
-            label: const Text("BẮT ĐẦU TẢI"),
+            label: Text(loc.startDownload),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
           ),
         ],
@@ -2249,21 +2318,21 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (ctx) => WillPopScope(
-          onWillPop: () async => false,
+        builder: (ctx) => PopScope(
+          canPop: false,
           child: AlertDialog(
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const CircularProgressIndicator(),
                 const SizedBox(height: 16),
-                const Text(
-                  'Đang tải dữ liệu shop...',
-                  style: TextStyle(fontWeight: FontWeight.w500),
+                Text(
+                  loc.downloadingShopData,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Vui lòng đợi trong giây lát',
+                  loc.pleaseWait,
                   style: AppTextStyles.subtitle1.copyWith(
                     color: Colors.grey.shade600,
                   ),
@@ -2283,12 +2352,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         }
         if (mounted) Navigator.of(context).pop(); // Close loading dialog
         NotificationService.showSnackBar(
-          "✅ Đã tải xong dữ liệu shop!",
+          "✅ ${loc.downloadSuccess}",
           color: Colors.green,
         );
       } catch (e) {
         if (mounted) Navigator.of(context).pop(); // Close loading dialog
-        NotificationService.showSnackBar("❌ Lỗi: $e", color: Colors.red);
+        NotificationService.showSnackBar("❌ ${loc.downloadError(e.toString())}", color: Colors.red);
       }
     }
   }
@@ -2454,6 +2523,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   /// Widget hiển thị 2 lối tắt quan trọng: Hàng chờ xác nhận & Thanh toán
   Widget _buildPinnedShortcutsSection() {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -2467,7 +2537,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 Icon(Icons.push_pin, size: 14, color: Colors.grey.shade600),
                 const SizedBox(width: 6),
                 Text(
-                  'TRUY CẬP NHANH',
+                  loc.quickAccess,
                   style: AppTextStyles.body1.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey.shade600,
@@ -2477,15 +2547,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ],
             ),
           ),
-          // Two cards in a row
+          // Two rows of pinned cards
           Row(
             children: [
               // Hàng chờ xác nhận
               Expanded(
                 child: _buildPinnedCard(
                   icon: Icons.pending_actions,
-                  title: 'Hàng chờ XN',
-                  subtitle: 'Nhập tạm',
+                  title: loc.pendingStockShort,
+                  subtitle: loc.stockIn,
                   color: Colors.orange,
                   onTap: () => Navigator.push(
                     context,
@@ -2500,13 +2570,49 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               Expanded(
                 child: _buildPinnedCard(
                   icon: Icons.account_balance_wallet,
-                  title: 'Thanh toán',
-                  subtitle: 'Thu/Chi',
+                  title: loc.payment,
+                  subtitle: loc.incomeExpense,
                   color: Colors.green,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const PendingPaymentsListView(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              // Danh sách đơn bán
+              Expanded(
+                child: _buildPinnedCard(
+                  icon: Icons.receipt_long,
+                  title: loc.salesOrder,
+                  subtitle: loc.salesOrderList,
+                  color: Colors.blue,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SaleListView(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Danh sách đơn sửa
+              Expanded(
+                child: _buildPinnedCard(
+                  icon: Icons.build_circle,
+                  title: loc.repairOrderTitle,
+                  subtitle: loc.repairOrderList,
+                  color: Colors.deepPurple,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const OrderListView(),
                     ),
                   ),
                 ),
@@ -2656,6 +2762,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   /// Quick Actions mới theo style Settings
   Widget _buildQuickActionsNew() {
+    final loc = AppLocalizations.of(context)!;
     return Column(
       children: [
         // BÁN HÀNG
@@ -2678,15 +2785,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 size: 24,
               ),
             ),
-            title: const Text(
-              "TẠO ĐƠN BÁN HÀNG",
-              style: TextStyle(
+            title: Text(
+              loc.createSaleOrder,
+              style: const TextStyle(
                 color: Colors.green,
                 fontWeight: FontWeight.bold,
               ),
             ),
             subtitle: Text(
-              "Bán sản phẩm nhanh chóng",
+              loc.sellProductsQuickly,
               style: AppTextStyles.body1,
             ),
             trailing: const Icon(
@@ -2722,12 +2829,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 size: 24,
               ),
             ),
-            title: const Text(
-              "TẠO ĐƠN SỬA CHỮA",
-              style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+            title: Text(
+              loc.createRepairOrder,
+              style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              "Tiếp nhận máy sửa chữa",
+              loc.receiveDeviceForRepair,
               style: AppTextStyles.body1,
             ),
             trailing: const Icon(
@@ -2779,14 +2886,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          "+ NHẬP KHO",
+                          loc.addStock,
                           style: AppTextStyles.subtitle1.copyWith(
                             color: Colors.green,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
-                          "Nhập kho mới",
+                          loc.newStockIn,
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.grey,
                           ),
@@ -2831,14 +2938,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          "KIỂM KHO",
+                          loc.checkInventory,
                           style: AppTextStyles.subtitle1.copyWith(
                             color: Colors.purple,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
-                          "Quét mã kiểm tra",
+                          loc.scanToCheck,
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.grey,
                           ),
@@ -2887,14 +2994,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          "BÁO CÁO",
+                          loc.report,
                           style: AppTextStyles.subtitle1.copyWith(
                             color: Colors.indigo,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
-                          "Doanh thu",
+                          loc.revenue,
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.grey,
                           ),
@@ -2937,14 +3044,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          "CHẤM CÔNG",
+                          loc.attendance,
                           style: AppTextStyles.subtitle1.copyWith(
                             color: Colors.teal,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         Text(
-                          "Check in/out",
+                          loc.checkInOut,
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.grey,
                           ),
@@ -3002,6 +3109,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Widget _buildQuickActions() {
+    final loc = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -3010,7 +3118,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           children: [
             Expanded(
               child: _quickActionButton(
-                "Tạo đơn bán",
+                loc.createSale,
                 Icons.add_shopping_cart,
                 AppColors.secondary,
                 () => Navigator.push(
@@ -3022,7 +3130,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             const SizedBox(width: 8),
             Expanded(
               child: _quickActionButton(
-                "Tạo đơn sửa",
+                loc.createRepair,
                 Icons.build_circle,
                 AppColors.primary,
                 () => Navigator.push(
@@ -3040,7 +3148,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           children: [
             Expanded(
               child: _quickActionButton(
-                "Nhập kho",
+                loc.stockIn,
                 Icons.inventory,
                 AppColors.success,
                 () => Navigator.push(
@@ -3054,7 +3162,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             const SizedBox(width: 8),
             Expanded(
               child: _quickActionButton(
-                "Kiểm kho",
+                loc.checkInventory,
                 Icons.qr_code_scanner,
                 AppColors.warning,
                 () => Navigator.push(
@@ -3072,7 +3180,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           children: [
             Expanded(
               child: _quickActionButton(
-                "Báo cáo DT",
+                loc.revenueReport,
                 Icons.bar_chart,
                 AppColors.primaryDark,
                 () => Navigator.push(
@@ -3084,7 +3192,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             const SizedBox(width: 8),
             Expanded(
               child: _quickActionButton(
-                "Chấm công",
+                loc.attendance,
                 Icons.access_time,
                 AppColors.info,
                 () => Navigator.push(
@@ -3191,17 +3299,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Widget _buildSalesTab() {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // Header Section
-          _buildTabHeader("BÁN HÀNG", Icons.shopping_cart, Colors.green),
+          _buildTabHeader(loc.sales.toUpperCase(), Icons.shopping_cart, Colors.green),
           const SizedBox(height: 20),
 
           // Quick Action - Tạo đơn bán
-          _buildSectionHeader("THAO TÁC NHANH"),
+          _buildSectionHeader(loc.quickActions),
           Card(
             color: Colors.green.shade50,
             shape: RoundedRectangleBorder(
@@ -3221,15 +3330,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   size: 28,
                 ),
               ),
-              title: const Text(
-                "TẠO ĐƠN BÁN MỚI",
-                style: TextStyle(
+              title: Text(
+                loc.createNewSaleOrder,
+                style: const TextStyle(
                   color: Colors.green,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               subtitle: Text(
-                "Tạo đơn bán hàng nhanh chóng",
+                loc.createSaleOrderQuickly,
                 style: AppTextStyles.body1,
               ),
               trailing: const Icon(
@@ -3245,36 +3354,36 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ),
 
           const SizedBox(height: 20),
-          _buildSectionHeader("QUẢN LÝ"),
+          _buildSectionHeader(loc.management),
           _tabMenuItem(
-            "Danh sách đơn bán",
+            loc.saleOrderList,
             Icons.list_alt,
             Colors.blue,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SaleListView()),
             ),
-            subtitle: "Xem, tìm kiếm và theo dõi tất cả đơn bán hàng.",
+            subtitle: loc.viewSearchTrackSales,
           ),
           _tabMenuItem(
-            "Quản lý khách hàng",
+            loc.customerManagement,
             Icons.people,
             Colors.purple,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const CustomerManagementView()),
             ),
-            subtitle: "Thêm, sửa và xem thông tin khách hàng.",
+            subtitle: loc.addEditViewCustomers,
           ),
           _tabMenuItem(
-            "Bảo hành",
+            loc.warranty,
             Icons.verified_user,
             Colors.orange,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const WarrantyView()),
             ),
-            subtitle: "Xem và xử lý các yêu cầu bảo hành sản phẩm.",
+            subtitle: loc.viewProcessWarrantyRequests,
           ),
         ],
       ),
@@ -3288,11 +3397,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         padding: const EdgeInsets.all(16),
         children: [
           // Header Section
-          _buildTabHeader("SỬA CHỮA", Icons.build, Colors.blue),
-          const SizedBox(height: 20),
-
-          // Quick Action - Tạo đơn sửa
-          _buildSectionHeader("THAO TÁC NHANH"),
+          _buildTabHeader(loc.repairsTab.toUpperCase(), Icons.build, Colors.blue),
+          const SizedBox(height: 20),          // Quick Action - Tạo đơn sửa
+          _buildSectionHeader(loc.quickActions),
           Card(
             color: Colors.blue.shade50,
             shape: RoundedRectangleBorder(
@@ -3312,15 +3419,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   size: 28,
                 ),
               ),
-              title: const Text(
-                "TẠO ĐƠN SỬA MỚI",
-                style: TextStyle(
+              title: Text(
+                loc.createNewRepairOrder,
+                style: const TextStyle(
                   color: Colors.blue,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               subtitle: Text(
-                "Tiếp nhận máy sửa chữa",
+                loc.receiveDeviceForRepair,
                 style: AppTextStyles.body1,
               ),
               trailing: const Icon(
@@ -3338,9 +3445,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ),
 
           const SizedBox(height: 20),
-          _buildSectionHeader("QUẢN LÝ"),
+          _buildSectionHeader(loc.management),
           _tabMenuItem(
-            "Danh sách đơn sửa",
+            loc.repairOrderList,
             Icons.list_alt,
             Colors.indigo,
             () => Navigator.push(
@@ -3349,7 +3456,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 builder: (_) => OrderListView(role: widget.role),
               ),
             ),
-            subtitle: "Xem, tìm kiếm và theo dõi tất cả đơn sửa chữa.",
+            subtitle: loc.viewSearchTrackRepairs,
           ),
           // Kho Phụ Tùng đã được chuyển vào tab Linh kiện trong QUẢN LÝ KHO
         ],
@@ -3364,7 +3471,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         padding: const EdgeInsets.all(16),
         children: [
           // Header Section
-          _buildTabHeader("QUẢN LÝ KHO", Icons.inventory_2, Colors.orange),
+          _buildTabHeader(loc.inventoryManagement, Icons.inventory_2, Colors.orange),
           const SizedBox(height: 12),
 
           // Pending Payments Widget (Thanh toán chờ xử lý)
@@ -3376,7 +3483,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           const SizedBox(height: 12),
 
           // Quick Actions
-          _buildSectionHeader("THAO TÁC NHANH"),
+          _buildSectionHeader(loc.quickActions),
           // Dòng hướng dẫn cho người mới
           Padding(
             padding: const EdgeInsets.only(bottom: 8, left: 4),
@@ -3385,7 +3492,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 Icon(Icons.info_outline, size: 14, color: Colors.grey.shade600),
                 const SizedBox(width: 4),
                 Text(
-                  'Nhấn giữ để xem hướng dẫn chi tiết',
+                  loc.holdForDetailedGuide,
                   style: AppTextStyles.body1.copyWith(
                     color: Colors.grey.shade600,
                     fontStyle: FontStyle.italic,
@@ -3412,12 +3519,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       ),
                     ),
                     onLongPress: () => _showFeatureGuide(
-                      'NHẬP MỚI',
-                      'Nhập hàng vào kho với đầy đủ thông tin:\n\n'
-                          '✅ Hỗ trợ: Điện thoại, Phụ kiện, Linh kiện\n'
-                          '✅ Lưu tạm: Nhập khi chưa có đầy đủ thông tin\n'
-                          '✅ Xác nhận: Hàng chính thức vào kho\n\n'
-                          '📌 Dùng khi: Nhập hàng mới từ NCC, cần ghi đầy đủ IMEI/SKU, giá vốn, NCC...',
+                      loc.stockInNew,
+                      loc.stockInNewGuide,
                       Icons.add_box,
                       Colors.green,
                     ),
@@ -3440,14 +3543,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            "NHẬP MỚI",
+                            loc.stockInNew,
                             style: AppTextStyles.subtitle1.copyWith(
                               color: Colors.green,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
-                            "Đầy đủ thông tin",
+                            loc.fullInformation,
                             style: AppTextStyles.overline.copyWith(
                               color: Colors.grey.shade600,
                             ),
@@ -3475,12 +3578,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       ),
                     ),
                     onLongPress: () => _showFeatureGuide(
-                      'NHẬP NHANH',
-                      'Nhập hàng siêu tốc - chỉ cần quét mã:\n\n'
-                          '⚡ Quét barcode/QR liên tục\n'
-                          '⚡ Tự động điền thông tin từ thư viện\n'
-                          '⚡ Phù hợp nhập số lượng lớn\n\n'
-                          '📌 Dùng khi: Nhập nhanh phụ kiện, linh kiện đã có sẵn mã trong hệ thống.',
+                      loc.quickStockIn,
+                      loc.quickStockInGuide,
                       Icons.flash_on,
                       Colors.orange,
                     ),
@@ -3503,14 +3602,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            "NHẬP NHANH",
+                            loc.quickStockIn,
                             style: AppTextStyles.subtitle1.copyWith(
                               color: Colors.orange,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
-                            "Quét mã liên tục",
+                            loc.continuousScan,
                             style: AppTextStyles.overline.copyWith(
                               color: Colors.grey.shade600,
                             ),
@@ -3537,12 +3636,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       ),
                     ),
                     onLongPress: () => _showFeatureGuide(
-                      'KIỂM KHO',
-                      'Kiểm tra tồn kho bằng quét mã:\n\n'
-                          '🔍 Quét QR/Barcode để kiểm hàng\n'
-                          '🔍 So sánh số lượng thực tế vs hệ thống\n'
-                          '🔍 Ghi nhận chênh lệch\n\n'
-                          '📌 Dùng khi: Kiểm kê định kỳ, đối chiếu hàng tồn.',
+                      loc.checkInventory,
+                      loc.checkInventoryGuide,
                       Icons.qr_code_scanner,
                       Colors.purple,
                     ),
@@ -3565,14 +3660,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            "KIỂM KHO",
+                            loc.checkInventory,
                             style: AppTextStyles.subtitle1.copyWith(
                               color: Colors.purple,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
-                            "Đối chiếu tồn kho",
+                            loc.compareInventory,
                             style: AppTextStyles.overline.copyWith(
                               color: Colors.grey.shade600,
                             ),
@@ -3587,19 +3682,19 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ),
 
           const SizedBox(height: 20),
-          _buildSectionHeader("QUẢN LÝ"),
+          _buildSectionHeader(loc.management),
           _tabMenuItem(
-            "Hàng chờ xác nhận",
+            loc.pendingConfirmation,
             Icons.pending_actions,
             Colors.orange,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const PendingStockListView()),
             ),
-            subtitle: "Xem danh sách hàng nhập tạm chưa xác nhận.",
+            subtitle: loc.viewPendingStockList,
           ),
           _tabMenuItem(
-            "Danh sách sản phẩm",
+            loc.productList,
             Icons.inventory,
             Colors.blue,
             () => Navigator.push(
@@ -3608,27 +3703,27 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 builder: (_) => InventoryView(role: widget.role),
               ),
             ),
-            subtitle: "Xem và quản lý danh sách sản phẩm trong kho.",
+            subtitle: loc.viewManageProducts,
           ),
           _tabMenuItem(
-            "Nhà cung cấp - Đối tác",
+            loc.suppliersPartners,
             Icons.business_center,
             Colors.teal,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SupplierListView()),
             ),
-            subtitle: "Quản lý NCC, đối tác sửa chữa và công nợ.",
+            subtitle: loc.manageSupplierPartnerDebt,
           ),
           _tabMenuItem(
-            "Danh sách mã nhập nhanh",
+            loc.quickInputCodeList,
             Icons.qr_code,
             Colors.indigo,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const QuickInputCodesView()),
             ),
-            subtitle: "Xem và quản lý danh sách mã nhập nhanh đã tạo.",
+            subtitle: loc.viewManageQuickInputCodes,
           ),
         ],
       ),
@@ -3646,14 +3741,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               Icon(Icons.lock_person, size: 64, color: Colors.orange.shade300),
               const SizedBox(height: 16),
               Text(
-                "Không có quyền truy cập",
+                loc.noAccessPermission,
                 style: AppTextStyles.headline3.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                "Liên hệ chủ shop để được cấp quyền",
+                loc.contactOwnerForAccess,
                 style: AppTextStyles.subtitle1.copyWith(color: Colors.grey),
               ),
             ],
@@ -3667,11 +3762,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         padding: const EdgeInsets.all(16),
         children: [
           // Header Section
-          _buildTabHeader("QUẢN LÝ NHÂN SỰ", Icons.people, Colors.teal),
+          _buildTabHeader(loc.staffManagement, Icons.people, Colors.teal),
           const SizedBox(height: 20),
 
           // Quick Action - Chấm công
-          _buildSectionHeader("THAO TÁC NHANH"),
+          _buildSectionHeader(loc.quickActions),
           Card(
             color: Colors.teal.shade50,
             shape: RoundedRectangleBorder(
@@ -3691,15 +3786,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   size: 28,
                 ),
               ),
-              title: const Text(
-                "CHẤM CÔNG",
-                style: TextStyle(
+              title: Text(
+                loc.attendance,
+                style: const TextStyle(
                   color: Colors.teal,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               subtitle: Text(
-                "Ghi nhận giờ làm việc",
+                loc.recordWorkingHours,
                 style: AppTextStyles.body1,
               ),
               trailing: const Icon(
@@ -3715,7 +3810,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ),
 
           const SizedBox(height: 20),
-          _buildSectionHeader("QUẢN LÝ NHÂN VIÊN"),
+          _buildSectionHeader(loc.staffManagement),
 
           // Grid 2x2 cho các chức năng chính
           GridView.count(
@@ -3727,7 +3822,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             childAspectRatio: 1.5,
             children: [
               _staffQuickCard(
-                "Danh sách\nNhân viên",
+                loc.staffListLabel,
                 Icons.people,
                 Colors.blue,
                 () => Navigator.push(
@@ -3736,7 +3831,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
               _staffQuickCardWithHelp(
-                "LƯƠNG\nTính lương",
+                loc.salaryCalculation,
                 Icons.bar_chart,
                 Colors.orange,
                 () => Navigator.push(
@@ -3748,7 +3843,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 _showSalaryHelpDialog,
               ),
               _staffQuickCard(
-                "Lịch làm\nViệc",
+                loc.workSchedule,
                 Icons.schedule,
                 Colors.purple,
                 () => Navigator.push(
@@ -3759,7 +3854,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
               _staffQuickCard(
-                "Cài đặt\nLương & Hoa hồng",
+                loc.salaryCommissionSettings,
                 Icons.account_balance_wallet,
                 Colors.green,
                 () => Navigator.push(
@@ -3773,9 +3868,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ),
 
           const SizedBox(height: 20),
-          _buildSectionHeader("BÁO CÁO"),
+          _buildSectionHeader(loc.report),
           _tabMenuItem(
-            "Theo dõi chấm công",
+            loc.attendanceTracking,
             Icons.people_outline,
             Colors.teal,
             () => Navigator.push(
@@ -3784,17 +3879,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 builder: (_) => const AttendanceManagementView(),
               ),
             ),
-            subtitle: "Xem chấm công tất cả nhân viên theo ngày/tháng.",
+            subtitle: loc.viewAttendanceAllStaff,
           ),
           _tabMenuItem(
-            "Chấm công cá nhân",
+            loc.personalAttendance,
             Icons.history,
             Colors.indigo,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AttendanceView()),
             ),
-            subtitle: "Check-in/out và xem lịch sử chấm công cá nhân.",
+            subtitle: loc.personalAttendanceDescription,
           ),
         ],
       ),
@@ -3898,7 +3993,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     child: Icon(Icons.help_outline, color: color, size: 16),
                   ),
                   onPressed: onHelpTap,
-                  tooltip: 'Hướng dẫn sử dụng',
+                  tooltip: loc.usageGuide,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
@@ -3961,7 +4056,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             Expanded(
               child: Text(
                 AppLocalizations.of(context)!.salaryCalculationGuide,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: AppTextStyles.h3,
                   fontWeight: FontWeight.bold,
                   color: Colors.orange,
@@ -4013,7 +4108,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             onPressed: () => Navigator.pop(ctx),
             child: Text(
               AppLocalizations.of(context)!.understood,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.orange,
                 fontWeight: FontWeight.bold,
               ),
@@ -4083,20 +4178,20 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           children: [
             // Header Section
             _buildTabHeader(
-              "QUẢN LÝ TÀI CHÍNH",
+              loc.financialManagement,
               Icons.account_balance_wallet,
               Colors.indigo,
             ),
             const SizedBox(height: 20),
 
             // Financial Overview Cards
-            _buildSectionHeader("TỔNG QUAN HÔM NAY"),
+            _buildSectionHeader(loc.todayOverview),
             _financeOverviewSection(),
 
             const SizedBox(height: 20),
 
             // THAO TÁC NHANH - Chốt quỹ
-            _buildSectionHeader("THAO TÁC NHANH"),
+            _buildSectionHeader(loc.quickActions),
             Card(
               color: Colors.green.shade50,
               shape: RoundedRectangleBorder(
@@ -4116,15 +4211,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     size: 28,
                   ),
                 ),
-                title: const Text(
-                  "CHỐT QUỸ HÔM NAY",
-                  style: TextStyle(
+                title: Text(
+                  loc.cashClosingToday,
+                  style: const TextStyle(
                     color: Colors.green,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 subtitle: Text(
-                  "Đối soát tiền mặt & ngân hàng",
+                  loc.reconcileCashAndBank,
                   style: AppTextStyles.body1,
                 ),
                 trailing: const Icon(
@@ -4140,7 +4235,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
 
             const SizedBox(height: 20),
-            _buildSectionHeader("BÁO CÁO & PHÂN TÍCH"),
+            _buildSectionHeader(loc.reportAndAnalysis),
 
             // Grid 2x2 cho các chức năng chính
             GridView.count(
@@ -4152,7 +4247,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               childAspectRatio: 1.5,
               children: [
                 _financeQuickCard(
-                  "Tổng quan\nDoanh thu",
+                  loc.revenueOverview,
                   Icons.trending_up,
                   Colors.blue,
                   () => Navigator.push(
@@ -4161,7 +4256,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 _financeQuickCard(
-                  "Báo cáo\nTài chính",
+                  loc.financialReport,
                   Icons.assessment,
                   Colors.purple,
                   () => Navigator.push(
@@ -4172,7 +4267,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 _financeQuickCard(
-                  "Quản lý\nCông nợ",
+                  loc.debtManagement,
                   Icons.account_balance,
                   Colors.orange,
                   () => Navigator.push(
@@ -4181,7 +4276,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 _financeQuickCard(
-                  "Thống kê\nTrả góp NH",
+                  loc.bankInstallmentStats,
                   Icons.account_balance_wallet,
                   Colors.indigo,
                   () => Navigator.push(
@@ -4205,7 +4300,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               childAspectRatio: 1.5,
               children: [
                 _financeQuickCard(
-                  "Theo dõi\nBảo hành",
+                  loc.warrantyTracking,
                   Icons.verified_user,
                   Colors.teal,
                   () => Navigator.push(
@@ -4217,9 +4312,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
 
             const SizedBox(height: 20),
-            _buildSectionHeader("QUẢN LÝ"),
+            _buildSectionHeader(loc.management),
             _tabMenuItem(
-              "Thanh toán",
+              loc.payment,
               Icons.account_balance_wallet,
               Colors.green,
               () => Navigator.push(
@@ -4228,40 +4323,40 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   builder: (_) => const PendingPaymentsListView(),
                 ),
               ),
-              subtitle: "Quản lý tất cả các giao dịch thu/chi.",
+              subtitle: loc.manageAllTransactions,
             ),
             _tabMenuItem(
-              "Quản lý chi phí",
+              loc.expenseManagement,
               Icons.money_off,
               Colors.red,
               () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ExpenseView()),
               ),
-              subtitle: "Thêm và theo dõi các khoản chi phí của cửa hàng.",
+              subtitle: loc.addTrackShopExpenses,
             ),
             _tabMenuItem(
-              "Quản lý nợ (Thu/Chi)",
+              loc.debtManagementInOut,
               Icons.swap_horiz,
               Colors.amber.shade700,
               () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const DebtView()),
               ),
-              subtitle: "Ghi nhận và thanh toán các khoản nợ.",
+              subtitle: loc.recordPayDebts,
             ),
             _tabMenuItem(
-              "Báo cáo tài chính",
+              loc.financialReportLabel,
               Icons.assessment,
               Colors.teal,
               () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const FinancialReportView()),
               ),
-              subtitle: "Tổng hợp tất cả giao dịch thu chi.",
+              subtitle: loc.summarizeAllTransactions,
             ),
             _tabMenuItem(
-              "Nhật ký tài chính",
+              loc.financialActivityLog,
               Icons.receipt_long,
               Colors.indigo,
               () => Navigator.push(
@@ -4270,7 +4365,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   builder: (_) => const FinancialActivityLogView(),
                 ),
               ),
-              subtitle: "Theo dõi mọi hoạt động thu chi.",
+              subtitle: loc.trackAllIncomeExpenseActivities,
             ),
           ],
         ),
@@ -4411,20 +4506,20 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               Expanded(
                 child: _financeStatCard(
                   icon: Icons.arrow_circle_down_rounded,
-                  label: "THU HÔM NAY",
+                  label: loc.todayIncome,
                   value: _todayTotalIn,
                   color: AppColors.success,
-                  detail: "$_todaySaleOrderCount bán + $_todayRepairCount sửa",
+                  detail: "$_todaySaleOrderCount ${loc.sales} + $_todayRepairCount ${loc.repair}",
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _financeStatCard(
                   icon: Icons.arrow_circle_up_rounded,
-                  label: "CHI HÔM NAY",
+                  label: loc.todayExpense,
                   value: _todayTotalOut,
                   color: AppColors.error,
-                  detail: "$_todayExpenseCount khoản chi",
+                  detail: "$_todayExpenseCount ${loc.expenseItems}",
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const ExpenseView()),
@@ -4479,7 +4574,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "LỢI NHUẬN RÒNG HÔM NAY",
+                        loc.todayNetProfit,
                         style: AppTextStyles.caption.copyWith(
                           color: Colors.white70,
                           fontWeight: FontWeight.w600,
@@ -4532,7 +4627,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "TỔNG CÔNG NỢ",
+                          loc.totalDebt,
                           style: AppTextStyles.caption.copyWith(
                             color: AppColors.warning,
                             fontWeight: FontWeight.w600,
@@ -4639,7 +4734,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            "CÀI ĐẶT",
+            loc.settings,
             style: AppTextStyles.headline5.copyWith(color: AppColors.onSurface),
           ),
           const SizedBox(height: 20),
@@ -4661,14 +4756,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           // CÀI ĐẶT CỬA HÀNG - Đưa ra ngoài đầu tiên
           if (hasFullAccess)
             _tabMenuItem(
-              "Cài đặt cửa hàng",
+              loc.shopSettings,
               Icons.store,
               Colors.purple,
               () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ShopSettingsView()),
               ),
-              subtitle: "Thông tin, logo, vị trí và quản lý thành viên shop.",
+              subtitle: loc.shopSettingsDescription,
             ),
 
           // SYNC HEALTH STATUS CARD - Chỉ còn 1 nút đồng bộ duy nhất
@@ -4676,7 +4771,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           const SizedBox(height: 10),
 
           _tabMenuItem(
-            "Thông báo",
+            loc.notifications,
             Icons.notifications,
             AppColors.primary,
             () => Navigator.push(
@@ -4685,10 +4780,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 builder: (_) => const NotificationSettingsView(),
               ),
             ),
-            subtitle: "Cấu hình cài đặt thông báo và cảnh báo.",
+            subtitle: loc.notificationSettingsDescription,
           ),
           _tabMenuItem(
-            "Máy in",
+            loc.printer,
             Icons.print,
             AppColors.success,
             () => Navigator.push(
@@ -4697,11 +4792,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 builder: (_) => const PrinterSettingsView(),
               ),
             ),
-            subtitle: "Cài đặt kết nối và thiết kế mẫu in.",
+            subtitle: loc.printerSettingsDescription,
           ),
           if (_isSuperAdmin)
             _tabMenuItem(
-              "Trung tâm Admin",
+              loc.adminCenter,
               Icons.admin_panel_settings,
               AppColors.error,
               () => Navigator.push(
@@ -4710,18 +4805,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   builder: (_) => const admin_view.SuperAdminView(),
                 ),
               ),
-              subtitle: "Quản lý toàn bộ hệ thống cho admin cấp cao.",
+              subtitle: loc.adminCenterDescription,
             ),
           // Nhật ký hệ thống đã chuyển vào tab "Hệ thống" trong Nhật ký tài chính
           _tabMenuItem(
-            "Về nhà phát triển",
+            loc.aboutDeveloper,
             Icons.info,
             AppColors.secondary,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AboutDeveloperView()),
             ),
-            subtitle: "Thông tin về nhà phát triển và ứng dụng.",
+            subtitle: loc.aboutDeveloperDescription,
           ),
 
           // Đăng xuất ở cuối
@@ -4741,28 +4836,28 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       ),
       child: ListTile(
         leading: const Icon(Icons.logout, color: Colors.red),
-        title: const Text(
-          "ĐĂNG XUẤT",
-          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+        title: Text(
+          loc.logout,
+          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
         ),
-        subtitle: Text("Đăng xuất khỏi tài khoản", style: AppTextStyles.body1),
+        subtitle: Text(loc.logoutFromAccount, style: AppTextStyles.body1),
         onTap: () async {
           final confirm = await showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: const Text("Đăng xuất?"),
-              content: const Text("Bạn có chắc muốn đăng xuất khỏi tài khoản?"),
+              title: Text(loc.logoutConfirmTitle),
+              content: Text(loc.logoutConfirmMessage),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text("HỦY"),
+                  child: Text(loc.cancel),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(ctx, true),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text(
-                    "ĐĂNG XUẤT",
-                    style: TextStyle(color: Colors.white),
+                  child: Text(
+                    loc.logout,
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ),
               ],
@@ -4800,17 +4895,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   side: BorderSide(color: Colors.grey.shade300),
                 ),
                 child: ListTile(
-                  leading: SizedBox(
+                  leading: const SizedBox(
                     width: 30,
                     height: 30,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                   title: Text(
-                    "Đang kiểm tra đồng bộ...",
+                    loc.checkingSync,
                     style: AppTextStyles.headline5,
                   ),
                   subtitle: Text(
-                    "Kiểm tra dữ liệu local vs cloud",
+                    loc.checkingLocalVsCloud,
                     style: AppTextStyles.caption,
                   ),
                 ),
@@ -4839,14 +4934,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     ),
                   ),
                   title: Text(
-                    "✅ Dữ liệu đồng bộ hoàn toàn",
+                    loc.dataSyncedFully,
                     style: AppTextStyles.headline5.copyWith(
                       color: Colors.green,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   subtitle: Text(
-                    "Local và Cloud đã khớp 100%",
+                    loc.localCloudMatched,
                     style: AppTextStyles.caption,
                   ),
                   trailing: IconButton(
@@ -4854,7 +4949,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     onPressed: () {
                       SyncHealthCheck.runFullCheck();
                       NotificationService.showSnackBar(
-                        "🔄 Đang kiểm tra lại...",
+                        loc.recheckingSync,
                         color: Colors.blue,
                       );
                     },
@@ -4893,14 +4988,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 title: Text(
-                  "⚠️ Cần đồng bộ dữ liệu",
+                  loc.needSyncData,
                   style: AppTextStyles.headline5.copyWith(
                     color: Colors.red,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 subtitle: Text(
-                  "$mismatchCount bản ghi chưa đồng bộ. Bấm để mở Trung tâm đồng bộ.",
+                  loc.recordsNotSynced(mismatchCount),
                   style: AppTextStyles.caption.copyWith(color: Colors.red),
                 ),
                 trailing: IconButton(
@@ -5045,7 +5140,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "BÁO CÁO TÀI CHÍNH HÔM NAY",
+                        loc.todayFinancialReport,
                         style: AppTextStyles.body1.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -5081,7 +5176,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          "Chi tiết",
+                          loc.details,
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.white,
                           ),
@@ -5111,21 +5206,21 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     Expanded(
                       child: _financeMetricCard(
                         icon: Icons.arrow_downward_rounded,
-                        label: "THU HÔM NAY",
+                        label: loc.todayIncome,
                         value: _todayTotalIn,
                         color: AppColors.success,
                         subLabel:
-                            "$_todaySaleOrderCount đơn bán + $_todayRepairCount đơn sửa",
+                            "$_todaySaleOrderCount ${loc.saleOrders} + $_todayRepairCount ${loc.repairOrders}",
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _financeMetricCard(
                         icon: Icons.arrow_upward_rounded,
-                        label: "CHI HÔM NAY",
+                        label: loc.todayExpense,
                         value: _todayTotalOut,
                         color: AppColors.error,
-                        subLabel: "$_todayExpenseCount khoản chi",
+                        subLabel: "$_todayExpenseCount ${loc.expenseItems}",
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -5147,7 +5242,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
                 // Quick Stats Grid
                 Text(
-                  "HOẠT ĐỘNG HÔM NAY",
+                  loc.todayActivity,
                   style: AppTextStyles.caption.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.onSurface.withOpacity(0.5),
@@ -5161,7 +5256,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     Expanded(
                       child: _activityCard(
                         icon: Icons.build_circle,
-                        label: "Đơn sửa chờ",
+                        label: loc.pendingRepairs,
                         value: totalPendingRepair.toString(),
                         color: AppColors.primary,
                         onTap: () => Navigator.push(
@@ -5178,7 +5273,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     Expanded(
                       child: _activityCard(
                         icon: Icons.check_circle,
-                        label: "Đã giao",
+                        label: loc.delivered,
                         value: todayRepairDone.toString(),
                         color: AppColors.info,
                         onTap: () => Navigator.push(
@@ -5196,7 +5291,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     Expanded(
                       child: _activityCard(
                         icon: Icons.shopping_cart,
-                        label: "Đơn bán",
+                        label: loc.saleOrders,
                         value: todaySaleCount.toString(),
                         color: AppColors.success,
                         onTap: () => Navigator.push(
@@ -5210,7 +5305,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     Expanded(
                       child: _activityCard(
                         icon: Icons.receipt_long,
-                        label: "Công nợ",
+                        label: loc.debt,
                         value: MoneyUtils.formatCompact(totalDebtRemain),
                         color: AppColors.warning,
                         onTap: () => Navigator.push(
@@ -5339,7 +5434,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
               const SizedBox(width: 8),
               Text(
-                "LỢI NHUẬN RÒNG HÔM NAY",
+                loc.todayNetProfit,
                 style: AppTextStyles.caption.copyWith(
                   color: Colors.white.withOpacity(0.9),
                   fontWeight: FontWeight.w600,
@@ -5358,7 +5453,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 4),
           Text(
-            "= Thu - Chi - Giá vốn",
+            loc.netProfitFormula,
             style: AppTextStyles.overline.copyWith(color: Colors.white70),
           ),
         ],
@@ -5459,9 +5554,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '📚 Hướng dẫn sử dụng',
-                      style: TextStyle(
+                    Text(
+                      '📚 ${loc.userGuide}',
+                      style: const TextStyle(
                         color: Colors.purple,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -5469,7 +5564,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Xem hướng dẫn chi tiết từng tính năng trong app',
+                      loc.viewDetailedGuideForEachFeature,
                       style: TextStyle(
                         color: Colors.purple.shade700,
                         fontSize: 13,
@@ -5520,14 +5615,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "NHẮC LỊCH BẢO HÀNH",
+                    loc.warrantyReminder,
                     style: AppTextStyles.body1.copyWith(
                       color: AppColors.onError,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
-                    "Có $expiringWarranties máy sắp hết hạn bảo hành. Xem ngay!",
+                    "$expiringWarranties ${loc.devicesExpiringWarranty}",
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.onError.withOpacity(0.8),
                     ),

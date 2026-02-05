@@ -218,7 +218,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
   Widget _buildMonthHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.primaryDark, AppColors.primary],
         ),
@@ -291,7 +291,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
         children: [
           Row(
             children: [
-              Icon(Icons.people, color: AppColors.primary),
+              const Icon(Icons.people, color: AppColors.primary),
               const SizedBox(width: 8),
               Text(
                 '${_salaryReports.length} NHÂN VIÊN',
@@ -416,7 +416,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             backgroundColor: AppColors.primary.withOpacity(0.1),
             child: Text(
               data.staffName.isNotEmpty ? data.staffName[0].toUpperCase() : '?',
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary,
               ),
@@ -468,7 +468,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
+              const Text(
                 'THỰC NHẬN',
                 style: TextStyle(
                   fontSize: AppTextStyles.overlineSize,

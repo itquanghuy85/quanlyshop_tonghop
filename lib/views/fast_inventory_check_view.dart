@@ -23,8 +23,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   final MobileScannerController _scannerController = MobileScannerController(
     detectionSpeed: DetectionSpeed.normal,
     detectionTimeoutMs: 1000,
-    formats: [BarcodeFormat.qrCode, BarcodeFormat.code128, BarcodeFormat.ean13, BarcodeFormat.ean8],
+    formats: [BarcodeFormat.all],
   );
+
+  double _zoomScale = 0.0; // 0.0 - 1.0 (platform dependent)
 
   // Inventory data
   List<Product> _expectedPhones = [];
@@ -75,6 +77,17 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   // Delay trước khi bắt đầu scan (2 giây để user chuẩn bị)
   bool _isScanReady = false;
   DateTime? _scanStartTime;
+
+  Future<void> _setZoom(double value) async {
+    final clamped = value.clamp(0.0, 1.0);
+    if (clamped == _zoomScale) return;
+    setState(() => _zoomScale = clamped);
+    try {
+      await _scannerController.setZoomScale(clamped);
+    } catch (_) {
+      // Ignore if device does not support zoom
+    }
+  }
 
   @override
   void initState() {
@@ -249,10 +262,19 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       return;
     }
 
-    final barcode = capture.barcodes.first;
-    if (barcode.rawValue == null) return;
+    if (capture.barcodes.isEmpty) return;
 
-    final qrData = barcode.rawValue!.trim();
+    final barcode = capture.barcodes.firstWhere(
+      (b) {
+        final raw = b.rawValue?.trim();
+        final display = b.displayValue?.trim();
+        return (raw != null && raw.isNotEmpty) ||
+            (display != null && display.isNotEmpty);
+      },
+      orElse: () => capture.barcodes.first,
+    );
+
+    final qrData = (barcode.rawValue ?? barcode.displayValue ?? '').trim();
     if (qrData.isEmpty) return;
 
     // Check if this QR was processed recently (within 3 seconds)
@@ -389,7 +411,6 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       );
       return;
     }
-
     // Check if this IMEI exists in expected inventory
     final expectedProduct = _expectedPhones.firstWhere(
       (p) {
@@ -416,8 +437,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
           _totalScanned++;
         });
         _provideScanFeedback(isSuccess: true);
+        final imeiSuffix = storedImei.length >= 5 ? storedImei.substring(storedImei.length - 5) : storedImei;
         NotificationService.showSnackBar(
-          '✅ ${expectedProduct.name} (${storedImei.substring(storedImei.length - 5)})',
+          '✅ ${expectedProduct.name} ($imeiSuffix)',
         );
 
         // Update zone progress
@@ -427,21 +449,22 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         _addToChecklist(
           '📱',
           expectedProduct.name,
-          storedImei.substring(storedImei.length - 5),
+          imeiSuffix,
         );
       }
     } else {
       // Unexpected phone
       _provideScanFeedback(isSuccess: false);
+      final extraImeiSuffix = imei.length >= 5 ? imei.substring(imei.length - 5) : imei;
       NotificationService.showSnackBar(
-        '🚨 Thừa: ${imei.substring(imei.length - 5)}',
+        '🚨 Thừa: $extraImeiSuffix',
         color: Colors.red,
       );
 
       // Add to checklist as extra
       _addToChecklist(
         '📱',
-        'Thừa: ${imei.substring(imei.length - 5)}',
+        'Thừa: $extraImeiSuffix',
         imei,
         status: '🚨',
       );
@@ -496,6 +519,19 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
 
   /// Handle legacy QR codes that don't have type field
   Future<void> _handleLegacyQR(String qrData, Map<String, String> qrMap) async {
+    // Normalize common IMEI prefix formats (e.g., "IMEI:12345")
+    final imeiPrefixMatch = RegExp(
+      r'imei\s*[:\-]?\s*(\d{4,})',
+      caseSensitive: false,
+    ).firstMatch(qrData);
+    if (imeiPrefixMatch != null) {
+      final imei = imeiPrefixMatch.group(1);
+      if (imei != null && imei.isNotEmpty) {
+        _handlePhoneScan({'imei': imei, 'type': 'DIEN_THOAI'});
+        return;
+      }
+    }
+
     // Handle legacy inventory check format: check_inv:ID hoặc check_product:ID
     if (qrData.startsWith('check_inv:')) {
       final productId = qrData.substring('check_inv:'.length);
@@ -514,9 +550,17 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       }
     }
 
-    // Case 1: Has imei key
+    // Case 1: Has imei key (format: imei=XXXXX hoặc imei=XXXXX&id=YYY)
     if (qrMap.containsKey('imei') && qrMap['imei']!.isNotEmpty) {
+      debugPrint('✅ Found imei key: ${qrMap['imei']}');
       _handlePhoneScan(qrMap);
+      return;
+    }
+    
+    // Case 1b: Has id key only (format: id=XXXXX) - lookup product by firestoreId
+    if (qrMap.containsKey('id') && qrMap['id']!.isNotEmpty) {
+      debugPrint('✅ Found id key: ${qrMap['id']}');
+      await _handleLegacyInventoryCheck(qrMap['id']!);
       return;
     }
 
@@ -582,9 +626,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       }
       
       // Nếu không tìm thấy, thử tìm theo firestoreId (chuỗi)
-      if (product == null) {
-        product = await db.getProductByFirestoreId(productId);
-      }
+      product ??= await db.getProductByFirestoreId(productId);
       
       if (product == null) {
         HapticFeedback.vibrate();
@@ -1055,9 +1097,90 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                   child: Stack(
                     children: [
                       _isScanning
-                          ? MobileScanner(
-                              controller: _scannerController,
-                              onDetect: _onQRDetected,
+                          ? LayoutBuilder(
+                              builder: (context, constraints) {
+                                final scanWindow = Rect.fromCenter(
+                                  center: Offset(
+                                    constraints.maxWidth / 2,
+                                    constraints.maxHeight / 2,
+                                  ),
+                                  width: constraints.maxWidth * 0.72,
+                                  height: constraints.maxHeight * 0.38,
+                                );
+
+                                return Stack(
+                                  children: [
+                                    MobileScanner(
+                                      controller: _scannerController,
+                                      onDetect: _onQRDetected,
+                                      scanWindow: scanWindow,
+                                    ),
+                                    Positioned.fromRect(
+                                      rect: scanWindow,
+                                      child: IgnorePointer(
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: Colors.greenAccent,
+                                              width: 2,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 12,
+                                      bottom: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.6),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              onPressed: () => _setZoom(
+                                                (_zoomScale + 0.1).clamp(0.0, 1.0),
+                                              ),
+                                              icon: const Icon(Icons.add),
+                                              color: Colors.white,
+                                              tooltip: 'Zoom +',
+                                            ),
+                                            SizedBox(
+                                              height: 120,
+                                              child: RotatedBox(
+                                                quarterTurns: 3,
+                                                child: Slider(
+                                                  value: _zoomScale,
+                                                  min: 0.0,
+                                                  max: 1.0,
+                                                  onChanged: (v) => _setZoom(v),
+                                                  activeColor: Colors.white,
+                                                  inactiveColor:
+                                                      Colors.white24,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: () => _setZoom(
+                                                (_zoomScale - 0.1).clamp(0.0, 1.0),
+                                              ),
+                                              icon: const Icon(Icons.remove),
+                                              color: Colors.white,
+                                              tooltip: 'Zoom -',
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             )
                           : Center(
                               child: Column(
@@ -1095,12 +1218,12 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                CircularProgressIndicator(
+                                const CircularProgressIndicator(
                                   valueColor: AlwaysStoppedAnimation<Color>(
                                     Colors.white,
                                   ),
                                 ),
-                                SizedBox(height: 16),
+                                const SizedBox(height: 16),
                                 Text(
                                   'Đang xử lý...',
                                   style: TextStyle(

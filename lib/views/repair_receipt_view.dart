@@ -7,7 +7,6 @@ import '../services/event_bus.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/unified_printer_service.dart';
-import '../services/user_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';

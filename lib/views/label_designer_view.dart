@@ -455,12 +455,15 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
 
       // Save shop settings
       final fixedLines = <String>[];
-      if (_fixedLine1Ctrl.text.trim().isNotEmpty)
+      if (_fixedLine1Ctrl.text.trim().isNotEmpty) {
         fixedLines.add(_fixedLine1Ctrl.text.trim());
-      if (_fixedLine2Ctrl.text.trim().isNotEmpty)
+      }
+      if (_fixedLine2Ctrl.text.trim().isNotEmpty) {
         fixedLines.add(_fixedLine2Ctrl.text.trim());
-      if (_fixedLine3Ctrl.text.trim().isNotEmpty)
+      }
+      if (_fixedLine3Ctrl.text.trim().isNotEmpty) {
         fixedLines.add(_fixedLine3Ctrl.text.trim());
+      }
 
       final newSettings = ShopLabelSettings(
         shopName: _shopNameCtrl.text.trim(),
@@ -641,15 +644,17 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                           backgroundColor: WidgetStateProperty.resolveWith((
                             states,
                           ) {
-                            if (states.contains(WidgetState.selected))
+                            if (states.contains(WidgetState.selected)) {
                               return Colors.orange;
+                            }
                             return null;
                           }),
                           foregroundColor: WidgetStateProperty.resolveWith((
                             states,
                           ) {
-                            if (states.contains(WidgetState.selected))
+                            if (states.contains(WidgetState.selected)) {
                               return Colors.white;
+                            }
                             return null;
                           }),
                         ),
@@ -693,14 +698,16 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                   style: ButtonStyle(
                     backgroundColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected) &&
-                          _paperMode == 'roll')
+                          _paperMode == 'roll') {
                         return Colors.orange;
+                      }
                       return null;
                     }),
                     foregroundColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected) &&
-                          _paperMode == 'roll')
+                          _paperMode == 'roll') {
                         return Colors.white;
+                      }
                       return null;
                     }),
                   ),
@@ -764,14 +771,16 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                   style: ButtonStyle(
                     backgroundColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected) &&
-                          _paperMode == 'sticker')
+                          _paperMode == 'sticker') {
                         return Colors.orange;
+                      }
                       return null;
                     }),
                     foregroundColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected) &&
-                          _paperMode == 'sticker')
+                          _paperMode == 'sticker') {
                         return Colors.white;
+                      }
                       return null;
                     }),
                   ),
@@ -864,15 +873,17 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                       backgroundColor: WidgetStateProperty.resolveWith((
                         states,
                       ) {
-                        if (states.contains(WidgetState.selected))
+                        if (states.contains(WidgetState.selected)) {
                           return Colors.purple;
+                        }
                         return null;
                       }),
                       foregroundColor: WidgetStateProperty.resolveWith((
                         states,
                       ) {
-                        if (states.contains(WidgetState.selected))
+                        if (states.contains(WidgetState.selected)) {
                           return Colors.white;
+                        }
                         return null;
                       }),
                     ),
@@ -1220,8 +1231,8 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
         child: buildContent(isHover: false),
       ),
       child: DragTarget<String>(
-        onWillAccept: (data) => data != null && data != el.id,
-        onAccept: (data) => _swapElementPositions(data, el.id),
+        onWillAcceptWithDetails: (data) => data.data != el.id,
+        onAcceptWithDetails: (data) => _swapElementPositions(data.data, el.id),
         builder: (context, candidates, rejects) {
           final isHover = candidates.isNotEmpty;
           return GestureDetector(
@@ -1277,7 +1288,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
             contentPadding: EdgeInsets.zero,
             title: const Text('Hiển thị', style: TextStyle(fontSize: 14)),
             value: el.visible,
-            activeColor: Colors.green,
+            activeThumbColor: Colors.green,
             onChanged: (v) => _updateElement(el.id, visible: v),
           ),
 
@@ -1291,7 +1302,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
               const SizedBox(width: 8),
               Text(
                 '${el.fontSize.toStringAsFixed(1)}x',
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.purple,
                 ),
@@ -1315,7 +1326,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
               const SizedBox(width: 8),
               Text(
                 '${el.spacing.round()}px',
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.orange,
                 ),

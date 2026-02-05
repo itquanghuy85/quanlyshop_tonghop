@@ -428,7 +428,7 @@ void main() {
       // Đơn 3: 20tr * 33.33% = 6.67tr
       // Đơn 4 (tất toán): 10tr * (1 - 5/15) = 10tr * 66.67% = 6.67tr
       // Tổng ≈ 18.94tr (có làm tròn)
-      final expectedCost = 2100000 + 3500000 + 6666667 + 6666667; // ~18.93tr
+      const expectedCost = 2100000 + 3500000 + 6666667 + 6666667; // ~18.93tr
       expect(result['saleCost'], closeTo(expectedCost, 10), 
           reason: 'Giá vốn ≈ 18.93tr');
 

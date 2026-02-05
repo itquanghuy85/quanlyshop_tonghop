@@ -27,7 +27,7 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
   bool _bluetoothCompat = true;
   int _paddingLines = 1;
   String _qrSize = 'medium';
-  int _columns = 1;
+  final int _columns = 1;
   String _codeType = 'qr';
   List<Product> _allItems = [];
   List<Product> _filteredItems = [];
@@ -103,37 +103,48 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
       return;
     }
 
-    final printerConfig = await showPrinterSelectionDialog(context);
-    if (printerConfig == null) return;
-
-    final printerType = printerConfig['type'] as PrinterType?;
-    final bluetoothPrinter = printerConfig['bluetoothPrinter'];
-    final wifiIp = printerConfig['wifiIp'] as String?;
     setState(() => _isPrinting = true);
-    final ok = await UnifiedPrinterService.printImeiQrBatch(
-      items,
-      printerType: printerType,
-      bluetoothPrinter: bluetoothPrinter,
-      wifiIp: wifiIp,
-      showName: _showName,
-      showDetail: _showDetail,
-      showImei: _showImei,
-      paddingLines: _paddingLines,
-      qrSize: _qrSize,
-      columns: _columns,
-      codeType: _codeType,
-      defaultProductName: 'SẢN PHẨM',
-      imeiPrefix: 'IMEI: ',
-      imeiLabel: 'IMEI',
-      preferRasterForBluetooth: _bluetoothCompat,
-    );
-    if (!mounted) return;
-    setState(() => _isPrinting = false);
 
-    NotificationService.showSnackBar(
-      ok ? 'In QR IMEI thành công' : 'In QR IMEI thất bại',
-      color: ok ? Colors.green : Colors.red,
-    );
+    try {
+      final printerConfig = await showPrinterSelectionDialog(context);
+      if (printerConfig == null) return;
+
+      final printerType = printerConfig['type'] as PrinterType?;
+      final bluetoothPrinter = printerConfig['bluetoothPrinter'];
+      final wifiIp = printerConfig['wifiIp'] as String?;
+
+      final ok = await UnifiedPrinterService.printImeiQrBatch(
+        items,
+        printerType: printerType,
+        bluetoothPrinter: bluetoothPrinter,
+        wifiIp: wifiIp,
+        showName: _showName,
+        showDetail: _showDetail,
+        showImei: _showImei,
+        paddingLines: _paddingLines,
+        qrSize: _qrSize,
+        columns: _columns,
+        codeType: _codeType,
+        defaultProductName: 'SẢN PHẨM',
+        imeiPrefix: 'IMEI: ',
+        imeiLabel: 'IMEI',
+        preferRasterForBluetooth: _bluetoothCompat,
+      );
+      if (!mounted) return;
+
+      NotificationService.showSnackBar(
+        ok ? 'In QR IMEI thành công' : 'In QR IMEI thất bại',
+        color: ok ? Colors.green : Colors.red,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      NotificationService.showSnackBar(
+        'Lỗi in QR IMEI: $e',
+        color: Colors.red,
+      );
+    } finally {
+      if (mounted) setState(() => _isPrinting = false);
+    }
   }
 
   @override
@@ -241,22 +252,22 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
                                 const SizedBox(width: 8),
                                 DropdownButton<String>(
                                   value: _qrSize,
-                                  items: [
+                                  items: const [
                                     DropdownMenuItem(
                                       value: 'xsmall',
-                                      child: const Text('Rất nhỏ'),
+                                      child: Text('Rất nhỏ'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'small',
-                                      child: const Text('Nhỏ'),
+                                      child: Text('Nhỏ'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'medium',
-                                      child: const Text('Vừa'),
+                                      child: Text('Vừa'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'large',
-                                      child: const Text('Lớn'),
+                                      child: Text('Lớn'),
                                     ),
                                   ],
                                   onChanged: (v) {

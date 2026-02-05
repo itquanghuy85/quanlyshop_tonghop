@@ -681,8 +681,8 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.close, size: 14),
-                          SizedBox(width: 4),
+                          const Icon(Icons.close, size: 14),
+                          const SizedBox(width: 4),
                           Text('Hủy', style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                         ],
                       ),
@@ -702,8 +702,8 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.edit, size: 14),
-                          SizedBox(width: 4),
+                          const Icon(Icons.edit, size: 14),
+                          const SizedBox(width: 4),
                           Text('Sửa', style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                         ],
                       ),
@@ -729,8 +729,8 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check, size: 14),
-                          SizedBox(width: 4),
+                          const Icon(Icons.check, size: 14),
+                          const SizedBox(width: 4),
                           Text('OK', style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
                         ],
                       ),

@@ -41,6 +41,9 @@ class CreateRepairOrderView extends StatefulWidget {
 }
 
 class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
+  // Localization getter
+  AppLocalizations get loc => AppLocalizations.of(context)!;
+  
   // final NumberFormat currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
   final db = DBHelper();
   final customerService = CustomerService();
@@ -74,17 +77,17 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   bool _isWalkIn = false;
 
   final List<String> brands = ["IPHONE", "SAMSUNG", "OPPO", "REDMI", "VIVO"];
-  final List<String> commonIssues = [
-    "THAY PIN",
-    "ÉP KÍNH",
-    "THAY MÀN",
-    "MẤT NGUỒN",
-    "LOA/MIC",
-    "SẠC",
-    "PHẦN MỀM",
+  List<String> get commonIssues => [
+    loc.replacePin,
+    loc.pressGlass,
+    loc.replaceScreen,
+    loc.noPower,
+    loc.speakerMic,
+    loc.charging,
+    loc.software,
   ];
 
-  final List<String> quickAccs = ["SIM", "ỐP LƯNG", "KO PHỤ KIỆN"];
+  List<String> get quickAccs => [loc.sim, loc.backCover, loc.noAccessories];
   final Set<String> _selectedAccs = {};
 
   @override
@@ -239,7 +242,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   Future<void> _addCustomerQuick() async {
     if (_isWalkIn) {
       NotificationService.showSnackBar(
-        "Khách vãng lai không lưu danh bạ",
+        loc.walkInCustomerNoSave,
         color: Colors.blue,
       );
       return;
@@ -250,7 +253,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
     if (name.isEmpty || phone.isEmpty) {
       NotificationService.showSnackBar(
-        "Vui lòng nhập đủ tên và số điện thoại",
+        loc.pleaseEnterNameAndPhone,
         color: Colors.orange,
       );
       return;
@@ -275,7 +278,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
       if (existing.isNotEmpty) {
         NotificationService.showSnackBar(
-          "Khách hàng với SĐT này đã tồn tại: ${existing.first.name}",
+          loc.customerWithPhoneExists(existing.first.name),
           color: Colors.orange,
         );
         return;
@@ -290,13 +293,13 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       await customerService.addCustomer(newCustomer);
 
       NotificationService.showSnackBar(
-        "Đã thêm khách hàng: $name",
+        loc.customerAdded(name),
         color: Colors.green,
       );
       HapticFeedback.lightImpact();
     } catch (e) {
       NotificationService.showSnackBar(
-        "Lỗi thêm khách hàng: $e",
+        loc.errorAddingCustomer(e.toString()),
         color: Colors.red,
       );
     }
@@ -335,8 +338,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       );
       NotificationService.showSnackBar(
         _isWalkIn
-            ? "Vui lòng nhập Model máy"
-            : "Vui lòng nhập SĐT và Model máy",
+            ? loc.pleaseEnterModel
+            : loc.pleaseEnterPhoneAndModel,
         color: Colors.red,
       );
       return null;
@@ -346,7 +349,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
     setState(() {
       _saving = true;
-      _uploadStatus = "Đang đồng bộ dữ liệu lên server...";
+      _uploadStatus = loc.syncingDataToServer;
     });
     try {
       String cloudImagePaths = "";
@@ -373,7 +376,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       final normalizedPhone = phoneCtrl.text.trim();
       final docIdTail = normalizedPhone.isNotEmpty ? normalizedPhone : 'walkin';
       final r = Repair(
-        firestoreId: "rep_${now}_${docIdTail}",
+        firestoreId: "rep_${now}_$docIdTail",
         customerName: fallbackName,
         phone: normalizedPhone,
         isWalkIn: _isWalkIn,
@@ -455,11 +458,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       await db.logAction(
         userId: FirebaseAuth.instance.currentUser?.uid ?? "0",
         userName: r.createdBy ?? "NV",
-        action: "NHẬP ĐƠN SỬA",
+        action: loc.repairInputAction,
         type: "REPAIR",
         targetId: rWithCloudId.firestoreId,
-        desc:
-            "Đã nhập đơn sửa ${rWithCloudId.model} cho khách ${rWithCloudId.customerName}",
+        desc: loc.repairInputDesc(rWithCloudId.model, rWithCloudId.customerName),
       );
 
       // Handle partner outsourcing for services that have partners
@@ -493,7 +495,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 'firestoreId': debtFId,
                 'type': 'SHOP_OWES', // Shop nợ đối tác
                 'debtType': 'SHOP_OWES',
-                'personName': s.partnerName ?? 'Đối tác sửa chữa',
+                'personName': s.partnerName ?? loc.repairPartner,
                 'phone': '',
                 'totalAmount': s.cost,
                 'paidAmount': 0,
@@ -625,7 +627,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       debugPrint('🔧 _onlySave: Calling Navigator.pop...');
       if (mounted) Navigator.pop(context, true);
       NotificationService.showSnackBar(
-        "ĐÃ LƯU ĐƠN THÀNH CÔNG",
+        loc.orderSavedSuccess,
         color: Colors.green,
       );
     } else {
@@ -638,7 +640,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     if (r != null) {
       HapticFeedback.mediumImpact();
       NotificationService.showSnackBar(
-        "Đang gửi lệnh in phiếu...",
+        loc.sendingPrintCommand,
         color: Colors.blue,
       );
       await UnifiedPrinterService.printRepairReceiptFromRepair(r, {
@@ -666,10 +668,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                     title: Text(service.serviceName),
                     subtitle: service.partnerName != null
                         ? Text(
-                            "Đối tác: ${service.partnerName} - Chi phí: ${MoneyUtils.formatVND(service.cost.toInt())}₫",
+                            loc.partnerCost(service.partnerName!, "${MoneyUtils.formatVND(service.cost.toInt())}₫"),
                           )
                         : Text(
-                            "Chi phí: ${MoneyUtils.formatVND(service.cost.toInt())}₫",
+                            loc.costOnly("${MoneyUtils.formatVND(service.cost.toInt())}₫"),
                           ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete, color: Colors.red),
@@ -683,7 +685,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         ),
         const SizedBox(height: 10),
         Text(
-          "Tổng chi phí: ${MoneyUtils.formatVND(_services.fold(0, (sum, s) => sum + s.cost).toInt())} Vn₫",
+          loc.totalCost("${MoneyUtils.formatVND(_services.fold(0, (sum, s) => sum + s.cost).toInt())} VNĐ"),
           style: AppTextStyles.priceStyle,
         ),
         const SizedBox(height: 10),
@@ -691,7 +693,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       ElevatedButton.icon(
         onPressed: _showAddServiceDialog,
         icon: const Icon(Icons.add),
-        label: const Text("THÊM DỊCH VỤ"),
+        label: Text(loc.addService),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
@@ -730,7 +732,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          title: Text(editService != null ? "Sửa dịch vụ" : "Thêm dịch vụ"),
+          title: Text(editService != null ? loc.editService : loc.addServiceTitle),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -739,32 +741,32 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 children: [
                   TextFormField(
                     controller: serviceCtrl,
-                    decoration: const InputDecoration(labelText: "Tên dịch vụ *"),
+                    decoration: InputDecoration(labelText: loc.serviceName),
                     textCapitalization: TextCapitalization.characters,
                     validator: (v) => (v ?? '').trim().isEmpty
-                        ? 'Vui lòng nhập tên dịch vụ'
+                        ? loc.pleaseEnterServiceName
                         : null,
                   ),
                   const SizedBox(height: 10),
                   CurrencyTextField(
                     controller: costCtrl,
-                    label: "Chi phí (VNĐ)",
+                    label: loc.costVND,
                     validator: (v) => MoneyUtils.validateAmount(
                       v ?? '',
                       min: 1,
-                      fieldName: 'Chi phí',
+                      fieldName: loc.costVND,
                     ),
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<RepairPartner>(
-                    decoration: const InputDecoration(
-                      labelText: "Đối tác (tùy chọn)",
+                    decoration: InputDecoration(
+                      labelText: loc.partnerOptional,
                     ),
                     initialValue: selectedPartner,
                     items: [
-                      const DropdownMenuItem(
+                      DropdownMenuItem(
                         value: null,
-                        child: Text("Không có đối tác"),
+                        child: Text(loc.noPartner),
                       ),
                       ..._partners.map(
                         (p) => DropdownMenuItem(value: p, child: Text(p.name)),
@@ -776,11 +778,11 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   if (selectedPartner != null) ...[
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(
-                        labelText: "Phương thức TT đối tác *",
-                        prefixIcon: Icon(Icons.payment, size: 20),
+                      decoration: InputDecoration(
+                        labelText: loc.partnerPaymentMethod,
+                        prefixIcon: const Icon(Icons.payment, size: 20),
                       ),
-                      value: selectedPaymentMethod,
+                      initialValue: selectedPaymentMethod,
                       items: paymentMethods
                           .map(
                             (m) => DropdownMenuItem(value: m, child: Text(m)),
@@ -789,7 +791,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                       onChanged: (v) => setS(() => selectedPaymentMethod = v),
                       validator: (v) =>
                           selectedPartner != null && (v == null || v.isEmpty)
-                          ? 'Vui lòng chọn phương thức TT'
+                          ? loc.pleaseSelectPaymentMethod
                           : null,
                     ),
                   ],
@@ -800,7 +802,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text("Hủy"),
+              child: Text(loc.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -825,7 +827,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 EventBus().emit('repair_services_changed');
                 Navigator.pop(ctx);
               },
-              child: Text(editService != null ? "Cập nhật" : "Thêm"),
+              child: Text(editService != null ? loc.update : loc.add),
             ),
           ],
         ),
@@ -838,13 +840,13 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
       appBar: CustomAppBar.build(
-        title: 'NHẬP ĐƠN SỬA CHỮA',
-        subtitle: 'Điền thông tin khách và máy',
+        title: loc.createRepairOrderTitle,
+        subtitle: loc.fillCustomerAndDeviceInfo,
         accentColor: AppBarAccents.repairs,
         actions: [
           IconButton(
             onPressed: _saveAndPrint,
-            icon: Icon(Icons.print_rounded, color: AppBarAccents.repairs, size: 22),
+            icon: const Icon(Icons.print_rounded, color: AppBarAccents.repairs, size: 22),
             splashRadius: 20,
           ),
           const SizedBox(width: 4),
@@ -889,7 +891,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                     child: ElevatedButton.icon(
                       onPressed: _saving ? null : _onlySave,
                       icon: const Icon(Icons.save_rounded, size: 20),
-                      label: const Text("LƯU ĐƠN", style: TextStyle(fontWeight: FontWeight.bold)),
+                      label: Text(loc.saveOrder, style: const TextStyle(fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -916,14 +918,14 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
             // Header với icon tìm khách
             Row(
               children: [
-                Icon(Icons.person_outline, color: Colors.blue, size: 18),
+                const Icon(Icons.person_outline, color: Colors.blue, size: 18),
                 const SizedBox(width: 6),
-                Text("KHÁCH HÀNG & MÁY", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue)),
+                Text(loc.customerAndDevice, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue)),
                 const Spacer(),
                 IconButton(
                   onPressed: _selectCustomer,
                   icon: const Icon(Icons.search, size: 18),
-                  tooltip: 'Chọn khách',
+                  tooltip: loc.selectCustomer,
                   constraints: const BoxConstraints(),
                   padding: EdgeInsets.zero,
                   color: Colors.blue,
@@ -934,7 +936,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   IconButton(
                     onPressed: _addCustomerQuick,
                     icon: const Icon(Icons.person_add, size: 18, color: Colors.green),
-                    tooltip: 'Thêm khách',
+                    tooltip: loc.addCustomer,
                     constraints: const BoxConstraints(),
                     padding: const EdgeInsets.only(left: 8),
                   ),
@@ -944,11 +946,11 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
               dense: true,
-              title: const Text('Khách vãng lai (không lưu danh bạ)'),
+              title: Text(loc.walkInCustomer),
               subtitle: Text(
                 _isWalkIn
-                    ? 'Tên/SĐT chỉ lưu trên phiếu, không bắt buộc SĐT'
-                    : 'Nhập SĐT để lưu khách vào danh bạ',
+                    ? loc.walkInCustomerDesc
+                    : loc.saveToContactsDesc,
                 style: const TextStyle(fontSize: 12),
               ),
               value: _isWalkIn,
@@ -956,7 +958,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 setState(() {
                   _isWalkIn = v;
                   if (_isWalkIn && nameCtrl.text.trim().isEmpty) {
-                    nameCtrl.text = 'KHÁCH VÃNG LAI';
+                    nameCtrl.text = loc.walkInCustomerDefault;
                   }
                 });
               },
@@ -967,7 +969,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 Expanded(
                   child: _compactInput(
                     phoneCtrl,
-                    _isWalkIn ? "SĐT (không bắt buộc)" : "SĐT *",
+                    _isWalkIn ? loc.phoneOptional : loc.phoneRequired,
                     Icons.phone,
                     type: TextInputType.phone,
                   ),
@@ -976,7 +978,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 Expanded(
                   child: _compactInput(
                     nameCtrl,
-                    _isWalkIn ? "Tên KH (tùy chọn)" : "Tên KH",
+                    _isWalkIn ? loc.customerNameOptional : loc.customerName,
                     Icons.person,
                     caps: true,
                   ),
@@ -986,16 +988,16 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
             const SizedBox(height: 8),
             // Row 2: Quick brands + Model
             _quick(brands, modelCtrl, issueF),
-            _compactInput(modelCtrl, "MODEL MÁY *", Icons.phone_android, caps: true),
+            _compactInput(modelCtrl, loc.deviceModel, Icons.phone_android, caps: true),
             const SizedBox(height: 8),
             // Row 3: Quick issues + Lỗi
             _quick(commonIssues, issueCtrl, priceF),
-            _compactInput(issueCtrl, "LỖI MÁY *", Icons.build, caps: true),
+            _compactInput(issueCtrl, loc.deviceIssue, Icons.build, caps: true),
             const SizedBox(height: 8),
             // Row 4: Giá
             CurrencyTextField(
               controller: priceCtrl,
-              label: "GIÁ DỰ KIẾN",
+              label: loc.estimatedPrice,
               icon: Icons.monetization_on,
               onSubmitted: () => FocusScope.of(context).requestFocus(passF),
             ),
@@ -1012,10 +1014,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 12),
         dense: true,
-        leading: Icon(Icons.handyman, color: Colors.teal, size: 20),
+        leading: const Icon(Icons.handyman, color: Colors.teal, size: 20),
         title: Row(
           children: [
-            Text("DỊCH VỤ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(loc.services, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             if (_services.isNotEmpty) ...[
               const SizedBox(width: 8),
               Container(
@@ -1048,10 +1050,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         leading: Icon(Icons.lock_outline, color: Colors.red.shade400, size: 20),
         title: Row(
           children: [
-            Text("BẢO MẬT & PHỤ KIỆN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(loc.securityAccessories, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             if (hasContent) ...[
               const SizedBox(width: 8),
-              Icon(Icons.check_circle, color: Colors.green, size: 16),
+              const Icon(Icons.check_circle, color: Colors.green, size: 16),
             ],
           ],
         ),
@@ -1061,20 +1063,18 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             child: Column(
               children: [
-                _compactInput(passCtrl, "Mật khẩu màn hình", Icons.lock),
+                _compactInput(passCtrl, loc.screenPassword, Icons.lock),
                 const SizedBox(height: 8),
                 // Quick accs chips
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
-                  children: [
-                    _compactChip("SIM", _selectedAccs.contains("SIM"), () => _toggleAcc("SIM")),
-                    _compactChip("ỐP LƯNG", _selectedAccs.contains("ỐP LƯNG"), () => _toggleAcc("ỐP LƯNG")),
-                    _compactChip("KO PHỤ KIỆN", _selectedAccs.contains("KO PHỤ KIỆN"), () => _toggleAcc("KO PHỤ KIỆN")),
-                  ],
+                  children: quickAccs.map((acc) {
+                    return _compactChip(acc, _selectedAccs.contains(acc), () => _toggleAcc(acc));
+                  }).toList(),
                 ),
                 const SizedBox(height: 6),
-                _compactInput(accCtrl, "Phụ kiện khác", Icons.add_box_outlined, caps: true),
+                _compactInput(accCtrl, loc.otherAccessories, Icons.add_box_outlined, caps: true),
               ],
             ),
           ),
@@ -1112,13 +1112,13 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 12),
         dense: true,
-        leading: Icon(Icons.note_alt_outlined, color: Colors.blueGrey, size: 20),
+        leading: const Icon(Icons.note_alt_outlined, color: Colors.blueGrey, size: 20),
         title: Row(
           children: [
-            Text("GHI CHÚ & HÌNH ẢNH", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(loc.notesAndImages, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             if (_images.isNotEmpty || notesCtrl.text.isNotEmpty) ...[
               const SizedBox(width: 8),
-              Icon(Icons.check_circle, color: Colors.green, size: 16),
+              const Icon(Icons.check_circle, color: Colors.green, size: 16),
             ],
           ],
         ),
@@ -1132,7 +1132,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   maxLines: 2,
                   style: const TextStyle(fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: "Ghi chú...",
+                    hintText: loc.notesPlaceholder,
                     isDense: true,
                     contentPadding: const EdgeInsets.all(10),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1229,7 +1229,6 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     IconData i, {
     bool caps = false,
     TextInputType type = TextInputType.text,
-    FocusNode? f,
     FocusNode? next,
     int? maxLines,
   }) {
@@ -1347,6 +1346,8 @@ class CustomerSelectionDialog extends StatefulWidget {
 class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
   late List<Customer> _filteredCustomers;
 
+  AppLocalizations get loc => AppLocalizations.of(context)!;
+
   @override
   void initState() {
     super.initState();
@@ -1369,23 +1370,23 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('CHỌN KHÁCH HÀNG'),
+      title: Text(loc.selectCustomerTitle),
       content: SizedBox(
         width: double.maxFinite,
         height: 400,
         child: Column(
           children: [
             TextField(
-              decoration: const InputDecoration(
-                hintText: 'Tìm theo tên hoặc số điện thoại...',
-                prefixIcon: Icon(Icons.search),
+              decoration: InputDecoration(
+                hintText: loc.searchByNameOrPhone,
+                prefixIcon: const Icon(Icons.search),
               ),
               onChanged: _filterCustomers,
             ),
             const SizedBox(height: 10),
             Expanded(
               child: _filteredCustomers.isEmpty
-                  ? const Center(child: Text('Không tìm thấy khách hàng'))
+                  ? Center(child: Text(loc.noCustomerFound))
                   : ListView.builder(
                       itemCount: _filteredCustomers.length,
                       itemBuilder: (context, index) {
@@ -1399,7 +1400,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                               if (customer.address != null &&
                                   customer.address!.isNotEmpty)
                                 Text(
-                                  'Địa chỉ: ${customer.address}',
+                                  loc.addressLabel(customer.address!),
                                   style: AppTextStyles.caption.copyWith(
                                     color: Colors.grey,
                                   ),
@@ -1409,7 +1410,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                               if (customer.notes != null &&
                                   customer.notes!.isNotEmpty)
                                 Text(
-                                  'Ghi chú: ${customer.notes}',
+                                  loc.notesLabel(customer.notes!),
                                   style: AppTextStyles.caption.copyWith(
                                     color: Colors.blue,
                                     fontStyle: FontStyle.italic,
@@ -1435,7 +1436,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('HỦY'),
+          child: Text(loc.cancel.toUpperCase()),
         ),
       ],
     );

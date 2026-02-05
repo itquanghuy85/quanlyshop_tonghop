@@ -192,8 +192,9 @@ class _SupplierListViewState extends State<SupplierListView>
               : lastTx;
           final payments = await _db.getDebtPayments(d['id'] as int);
           for (final p in payments) {
-            if (p['paidAt'] != null && p['paidAt'] > lastTx)
+            if (p['paidAt'] != null && p['paidAt'] > lastTx) {
               lastTx = p['paidAt'];
+            }
             if (p['paidAt'] != null && p['paidAt'] >= monthStart) {
               paidMonth += p['amount'] as int? ?? 0;
             }

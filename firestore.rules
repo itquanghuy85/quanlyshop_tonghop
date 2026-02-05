@@ -497,6 +497,25 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ═══════════ 4.6 PAYMENT_INTENTS (yêu cầu thanh toán) ═══════════
+    // Lưu trữ các giao dịch chờ thanh toán để đồng bộ giữa các máy
+    match /payment_intents/{intentId} {
+      allow read: if isAuth() && docInMyShop() && isStaff();
+      
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['intentId', 'type', 'amount', 'shopId']) &&
+                       numGte0('amount');
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       isStaff() &&
+                       shopIdLocked();
+      
+      allow delete: if false;
+    }
+
     // ┌──────────────────────────────────────────────────────────────────┐
     // │                   SECTION 5: SUPPLIERS                           │
     // │   Collections: suppliers, supplier_payments, purchase_orders,    │

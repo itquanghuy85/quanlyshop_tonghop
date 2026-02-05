@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import '../../models/shop_deduction_settings.dart';
 import '../../theme/app_text_styles.dart';
 import '../../services/salary_calculation_service.dart';
-import '../../services/user_service.dart';
 
 /// Dialog để thêm khoản thưởng/trừ tùy chỉnh cho nhân viên
 class AddCustomAdjustmentDialog extends StatefulWidget {

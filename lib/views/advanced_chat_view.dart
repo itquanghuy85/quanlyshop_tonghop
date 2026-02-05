@@ -548,9 +548,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
             final s = sales[i];
             return Card(
               child: ListTile(
-                leading: CircleAvatar(
+                leading: const CircleAvatar(
                   backgroundColor: Colors.green,
-                  child: const Icon(
+                  child: Icon(
                     Icons.shopping_cart,
                     color: Colors.white,
                     size: 20,
@@ -764,7 +764,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                 decoration: InputDecoration(
                   hintText: 'Tìm tin nhắn...',
                   hintStyle: TextStyle(color: Colors.grey.shade500),
-                  prefixIcon: Icon(
+                  prefixIcon: const Icon(
                     Icons.search,
                     color: AppBarAccents.chat,
                     size: 20,
@@ -811,7 +811,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           splashRadius: 20,
         ),
         PopupMenuButton<String>(
-          icon: Icon(Icons.more_vert, size: 22, color: AppBarAccents.chat),
+          icon: const Icon(Icons.more_vert, size: 22, color: AppBarAccents.chat),
           splashRadius: 20,
           onSelected: (value) {
             switch (value) {
@@ -1087,7 +1087,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               decoration: BoxDecoration(
                 color: Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(8),
-                border: Border(left: BorderSide(color: Colors.blue, width: 3)),
+                border: const Border(left: BorderSide(color: Colors.blue, width: 3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

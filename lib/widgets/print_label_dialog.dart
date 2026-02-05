@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../core/utils/money_utils.dart';
 import '../services/unified_printer_service.dart';
 import '../services/bluetooth_printer_service.dart';
@@ -794,15 +793,29 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
     setState(() => _isPrinting = true);
 
     try {
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+
       // Chọn máy in
       final printerConfig = await showPrinterSelectionDialog(context);
       if (printerConfig == null) {
-        setState(() => _isPrinting = false);
         return;
       }
 
       final printerType = printerConfig['type'] as PrinterType?;
-      final bluetoothPrinter = printerConfig['bluetoothPrinter'] as BluetoothPrinterConfig?;
+      final rawBluetoothPrinter = printerConfig['bluetoothPrinter'];
+      BluetoothPrinterConfig? bluetoothPrinter;
+      if (rawBluetoothPrinter is BluetoothPrinterConfig) {
+        bluetoothPrinter = rawBluetoothPrinter;
+      } else if (rawBluetoothPrinter is Map) {
+        try {
+          bluetoothPrinter = BluetoothPrinterConfig.fromJson(
+            Map<String, dynamic>.from(rawBluetoothPrinter),
+          );
+        } catch (_) {
+          bluetoothPrinter = null;
+        }
+      }
       final wifiIp = printerConfig['wifiIp'] as String?;
 
       // Chuẩn bị dữ liệu in
@@ -848,6 +861,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
         final success = await UnifiedPrinterService.printProductQRLabel(
           printData,
           customMac: bluetoothPrinter?.macAddress,
+          bluetoothPrinter: bluetoothPrinter,
           printerType: printerType,
           wifiIp: wifiIp,
         );
@@ -860,8 +874,8 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
       }
 
       if (mounted) {
-        Navigator.pop(context, successCount > 0);
-        ScaffoldMessenger.of(context).showSnackBar(
+        navigator.pop(successCount > 0);
+        messenger.showSnackBar(
           SnackBar(
             content: Text(
               successCount == _quantity

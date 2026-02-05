@@ -107,7 +107,7 @@ class UserGuideRepository {
       icon: Icons.point_of_sale,
       color: Color(0xFFFF9800),
       order: 3,
-      targetRoles: const ['owner', 'manager', 'cashier'],
+      targetRoles: ['owner', 'manager', 'cashier'],
     ),
     const GuideModule(
       id: 'repairs',
@@ -116,7 +116,7 @@ class UserGuideRepository {
       icon: Icons.build_circle,
       color: Color(0xFF9C27B0),
       order: 4,
-      targetRoles: const ['owner', 'manager', 'technician'],
+      targetRoles: ['owner', 'manager', 'technician'],
     ),
     const GuideModule(
       id: 'customers',
@@ -133,7 +133,7 @@ class UserGuideRepository {
       icon: Icons.analytics,
       color: Color(0xFFE91E63),
       order: 6,
-      targetRoles: const ['owner', 'manager'],
+      targetRoles: ['owner', 'manager'],
     ),
     const GuideModule(
       id: 'staff',
@@ -142,7 +142,7 @@ class UserGuideRepository {
       icon: Icons.badge,
       color: Color(0xFF795548),
       order: 7,
-      targetRoles: const ['owner', 'manager'],
+      targetRoles: ['owner', 'manager'],
     ),
     const GuideModule(
       id: 'printing',
@@ -159,7 +159,7 @@ class UserGuideRepository {
       icon: Icons.settings,
       color: Color(0xFF9E9E9E),
       order: 9,
-      targetRoles: const ['owner', 'admin'],
+      targetRoles: ['owner', 'admin'],
     ),
   ];
 
@@ -470,7 +470,7 @@ class UserGuideRepository {
       description: 'Import danh sách sản phẩm từ file Excel',
       difficulty: 'Nâng cao',
       estimatedTime: '15 phút',
-      targetRoles: const ['owner', 'manager'],
+      targetRoles: ['owner', 'manager'],
       steps: [
         GuideStep(
           order: 1,
@@ -570,7 +570,7 @@ class UserGuideRepository {
       description: 'Theo dõi và thu công nợ khách hàng',
       difficulty: 'Trung bình',
       estimatedTime: '5 phút',
-      targetRoles: const ['owner', 'manager', 'cashier'],
+      targetRoles: ['owner', 'manager', 'cashier'],
       steps: [
         GuideStep(
           order: 1,
@@ -851,7 +851,7 @@ class UserGuideRepository {
       difficulty: 'Dễ',
       estimatedTime: '2 phút',
       isPopular: true,
-      targetRoles: const ['owner', 'manager'],
+      targetRoles: ['owner', 'manager'],
       steps: [
         GuideStep(
           order: 1,
@@ -883,7 +883,7 @@ class UserGuideRepository {
       description: 'Nhập các khoản chi: tiền điện, thuê mặt bằng, lương...',
       difficulty: 'Dễ',
       estimatedTime: '3 phút',
-      targetRoles: const ['owner', 'manager'],
+      targetRoles: ['owner', 'manager'],
       steps: [
         GuideStep(
           order: 1,
@@ -925,7 +925,7 @@ class UserGuideRepository {
       description: 'Theo dõi tiền mặt trong két, nộp/rút quỹ',
       difficulty: 'Trung bình',
       estimatedTime: '5 phút',
-      targetRoles: const ['owner', 'manager'],
+      targetRoles: ['owner', 'manager'],
       steps: [
         GuideStep(
           order: 1,
@@ -963,7 +963,7 @@ class UserGuideRepository {
       description: 'Tạo tài khoản cho nhân viên mới',
       difficulty: 'Trung bình',
       estimatedTime: '5 phút',
-      targetRoles: const ['owner'],
+      targetRoles: ['owner'],
       steps: [
         GuideStep(
           order: 1,
@@ -1003,7 +1003,7 @@ class UserGuideRepository {
       description: 'Ghi nhận giờ làm việc của nhân viên',
       difficulty: 'Dễ',
       estimatedTime: '3 phút',
-      targetRoles: const ['owner', 'manager'],
+      targetRoles: ['owner', 'manager'],
       steps: [
         GuideStep(
           order: 1,
@@ -1200,7 +1200,7 @@ class UserGuideRepository {
       difficulty: 'Trung bình',
       estimatedTime: '5 phút',
       isPopular: true,
-      targetRoles: const ['owner', 'admin'],
+      targetRoles: ['owner', 'admin'],
       steps: [
         GuideStep(
           order: 1,
@@ -1239,7 +1239,7 @@ class UserGuideRepository {
       description: 'Tạo bản sao lưu dự phòng dữ liệu shop',
       difficulty: 'Trung bình',
       estimatedTime: '5 phút',
-      targetRoles: const ['owner'],
+      targetRoles: ['owner'],
       steps: [
         GuideStep(
           order: 1,
@@ -1275,7 +1275,7 @@ class UserGuideRepository {
       description: 'Sửa tên shop, địa chỉ, hotline hiển thị trên hóa đơn',
       difficulty: 'Dễ',
       estimatedTime: '3 phút',
-      targetRoles: const ['owner'],
+      targetRoles: ['owner'],
       steps: [
         GuideStep(
           order: 1,

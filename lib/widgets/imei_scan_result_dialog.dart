@@ -91,7 +91,7 @@ class IMEIScanResultDialog extends StatelessWidget {
 
             // Danh sách IMEI candidates
             if (result.candidates.isNotEmpty) ...[
-              Text(
+              const Text(
                 'IMEI phát hiện:',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,

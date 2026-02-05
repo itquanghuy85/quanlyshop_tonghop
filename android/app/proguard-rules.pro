@@ -25,6 +25,12 @@
 -keep class com.google.android.play.core.splitcompat.** { *; }
 -keep class com.google.android.play.core.splitinstall.** { *; }
 -keep class com.google.android.play.core.tasks.** { *; }
+# Ignore missing Play Core classes (not used in this app)
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
+-dontwarn com.google.android.play.core.common.**
+-dontwarn com.google.android.play.core.listener.**
 
 # Flutter
 -keep class io.flutter.app.** { *; }
@@ -102,3 +108,24 @@
 # Keep all classes in packages that are used by Flutter plugins
 -keep class * extends io.flutter.embedding.engine.FlutterEngine { *; }
 -keep class * extends io.flutter.plugin.common.PluginRegistry { *; }
+
+# ============================================
+# PRODUCTION OPTIMIZATIONS
+# ============================================
+
+# Remove debug logs in release build
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}
+
+# Optimization passes
+-optimizationpasses 5
+-dontusemixedcaseclassnames
+-verbose
+-allowaccessmodification
+
+# Keep source file and line numbers for better crash reports
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

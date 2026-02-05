@@ -210,7 +210,7 @@ void main() {
             totalPrice: 10000000,
             totalCost: 8000000,
             products: [
-              SaleProductValidation(
+              const SaleProductValidation(
                 id: 'prod_1',
                 name: 'iPhone 15',
                 requestedQuantity: 1,
@@ -228,7 +228,7 @@ void main() {
             totalPrice: 10000000,
             totalCost: 8000000,
             products: [
-              SaleProductValidation(
+              const SaleProductValidation(
                 id: 'prod_1',
                 name: 'iPhone 15',
                 requestedQuantity: 3,
@@ -367,7 +367,7 @@ void main() {
             totalPrice: 10000000,
             totalCost: 8000000,
             products: [
-              SaleProductValidation(
+              const SaleProductValidation(
                 id: 'prod_1',
                 name: 'iPhone 15',
                 requestedQuantity: 1,
@@ -391,7 +391,7 @@ void main() {
             totalPrice: 10000000,
             totalCost: 8000000,
             products: [
-              SaleProductValidation(
+              const SaleProductValidation(
                 id: 'prod_1',
                 name: 'Galaxy S24',
                 requestedQuantity: 1,
@@ -415,7 +415,7 @@ void main() {
             totalPrice: 50000000,
             totalCost: 40000000,
             products: [
-              SaleProductValidation(
+              const SaleProductValidation(
                 id: 'prod_1',
                 name: 'MacBook Pro',
                 requestedQuantity: 10,
@@ -439,13 +439,13 @@ void main() {
             totalPrice: 30000000,
             totalCost: 25000000,
             products: [
-              SaleProductValidation(
+              const SaleProductValidation(
                 id: 'prod_1',
                 name: 'iPhone 15',
                 requestedQuantity: 1,
                 availableQuantity: 5,
               ),
-              SaleProductValidation(
+              const SaleProductValidation(
                 id: 'prod_2',
                 name: 'AirPods Pro',
                 requestedQuantity: 1,
@@ -469,7 +469,7 @@ void main() {
             totalPrice: 10000000,
             totalCost: 8000000,
             products: [
-              SaleProductValidation(
+              const SaleProductValidation(
                 id: 'prod_123',
                 name: 'iPhone 15 Pro Max',
                 requestedQuantity: 5,
@@ -962,7 +962,7 @@ void main() {
   // ==========================================================================
   group('toUserMessage', () {
     test('returns Vietnamese message for amountNegative', () {
-      final e = MoneyValidationException(
+      const e = MoneyValidationException(
         code: MoneyValidationErrorCode.amountNegative,
         message: 'test',
       );
@@ -970,7 +970,7 @@ void main() {
     });
 
     test('returns Vietnamese message for debtPaymentExceedsRemaining with context', () {
-      final e = MoneyValidationException(
+      const e = MoneyValidationException(
         code: MoneyValidationErrorCode.debtPaymentExceedsRemaining,
         message: 'test',
         context: {'remaining': 500000},
@@ -979,7 +979,7 @@ void main() {
     });
 
     test('returns Vietnamese message for saleProductOutOfStock with context', () {
-      final e = MoneyValidationException(
+      const e = MoneyValidationException(
         code: MoneyValidationErrorCode.saleProductOutOfStock,
         message: 'test',
         context: {'productName': 'iPhone 15'},

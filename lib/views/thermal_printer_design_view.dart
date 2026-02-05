@@ -346,12 +346,12 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
       child: Column(children: [
         if (_showRcLogo) const Icon(Icons.store, color: Colors.blue),
         const Text("SHOP NEW", style: TextStyle(fontWeight: FontWeight.bold)),
-        if (_showRcPhone) Text("0123.456.789", style: TextStyle(fontSize: AppTextStyles.overlineSize)),
+        if (_showRcPhone) const Text("0123.456.789", style: TextStyle(fontSize: AppTextStyles.overlineSize)),
         const Divider(),
         Text("HOA DON BAN HANG", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.caption.fontSize)),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text("Sản phẩm x1", style: TextStyle(fontSize: AppTextStyles.overlineSize)), Text("15.500", style: TextStyle(fontSize: AppTextStyles.overlineSize))]),
+        const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text("Sản phẩm x1", style: TextStyle(fontSize: AppTextStyles.overlineSize)), Text("15.500", style: TextStyle(fontSize: AppTextStyles.overlineSize))]),
         if (_showRcQR) const Icon(Icons.qr_code_scanner, size: 40),
-        Text(_rcNoteCtrl.text, style: TextStyle(fontSize: AppTextStyles.overlineSize, fontStyle: FontStyle.italic))
+        Text(_rcNoteCtrl.text, style: const TextStyle(fontSize: AppTextStyles.overlineSize, fontStyle: FontStyle.italic))
       ]),
     );
   }

@@ -29,6 +29,8 @@ import '../widgets/printer_selection_dialog.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'create_sale_view.dart';
+import 'sale_invoice_template_view.dart';
+import 'sale_invoice_preview_view.dart';
 
 class SaleDetailView extends StatefulWidget {
   final SaleOrder sale;
@@ -177,21 +179,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     final wifiIp = printerConfig['wifiIp'] as String?;
 
     try {
-      final saleData = {
-        'customerName': s.customerName,
-        'customerPhone': s.phone,
-        'customerAddress': s.address,
-        'productNames': s.productNames,
-        'productImeis': s.productImeis,
-        'warranty': s.warranty ?? 'KO BH',
-        'sellerName': s.sellerName,
-        'soldAt': s.soldAt,
-        'totalPrice': s.totalPrice,
-        'firestoreId': s.firestoreId ?? s.id.toString(),
-        'shopName': _shopName,
-        'shopAddr': _shopAddr,
-        'shopPhone': _shopPhone,
-      };
+      final saleData = _buildSalePrintData();
 
       final success = await UnifiedPrinterService.printSaleReceipt(
         saleData,
@@ -215,6 +203,38 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Lỗi khi in: $e')));
     }
+  }
+
+  Map<String, dynamic> _buildSalePrintData() {
+    final discount = s.discount;
+    final finalTotal = s.finalPrice;
+    return {
+      'customerName': s.customerName,
+      'customerPhone': s.phone,
+      'customerAddress': s.address,
+      'productNames': s.productNames,
+      'productImeis': s.productImeis,
+      'warranty': s.warranty ?? 'KO BH',
+      'sellerName': s.sellerName,
+      'soldAt': s.soldAt,
+      'totalPrice': s.totalPrice,
+      'discount': discount,
+      'finalTotal': finalTotal,
+      'firestoreId': s.firestoreId ?? s.id.toString(),
+      'shopName': _shopName,
+      'shopAddr': _shopAddr,
+      'shopPhone': _shopPhone,
+      'paymentMethod': s.paymentMethod,
+      'isInstallment': s.isInstallment,
+      'downPayment': s.downPayment,
+      'downPaymentMethod': s.downPaymentMethod,
+      'loanAmount': s.loanAmount,
+      'loanAmount2': s.loanAmount2,
+      'installmentTerm': s.installmentTerm,
+      'bankName': s.bankName,
+      'bankName2': s.bankName2,
+      'remainingDebt': s.remainingDebt,
+    };
   }
 
   Future<void> _openSettlementDialog() async {
@@ -1003,8 +1023,33 @@ class _SaleDetailViewState extends State<SaleDetailView> {
             ),
           ),
           IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SaleInvoicePreviewView(
+                    saleData: _buildSalePrintData(),
+                    paper: PaperSize.mm58,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.preview, color: Colors.white),
+          ),
+          IconButton(
             onPressed: _printWifi,
             icon: const Icon(Icons.print_rounded, color: Colors.white),
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SaleInvoiceTemplateView(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.design_services, color: Colors.white),
           ),
           IconButton(
             onPressed: _shareInvoice,

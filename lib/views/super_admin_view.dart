@@ -605,14 +605,14 @@ class _ShopsTabState extends State<ShopsTab> {
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.info_outline, color: Colors.blueAccent),
-                SizedBox(width: 8),
+                const Icon(Icons.info_outline, color: Colors.blueAccent),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Giới thiệu ứng dụng',
@@ -624,7 +624,7 @@ class _ShopsTabState extends State<ShopsTab> {
                 ),
               ],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               'Ứng dụng quản lý sửa chữa điện thoại HULUCA giúp cửa hàng theo dõi đơn sửa chữa, khách hàng, thu chi và tồn kho một cách đơn giản, có hỗ trợ làm việc cả khi offline và đồng bộ dữ liệu với Firebase.',
               style: TextStyle(
@@ -632,7 +632,7 @@ class _ShopsTabState extends State<ShopsTab> {
                 color: Colors.black87,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               'Ứng dụng được xây dựng và vận hành bởi HULUCA (admin@huluca.com) với mục tiêu hỗ trợ các cửa hàng sửa chữa điện thoại vừa và nhỏ quản lý công việc hiệu quả, minh bạch và chuyên nghiệp hơn.',
               style: TextStyle(

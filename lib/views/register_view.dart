@@ -14,6 +14,9 @@ class RegisterView extends StatefulWidget {
 }
 
 class _RegisterViewState extends State<RegisterView> {
+  // Localization getter
+  AppLocalizations get loc => AppLocalizations.of(context)!;
+  
   final _emailC = TextEditingController();
   final _passC = TextEditingController();
   final _confirmPassC = TextEditingController();
@@ -82,11 +85,11 @@ class _RegisterViewState extends State<RegisterView> {
 
   String _formatError(dynamic e) {
     final String err = e.toString();
-    if (err.contains('email-already-in-use')) return "Email này đã được đăng ký bởi người khác.";
-    if (err.contains('weak-password')) return "Mật khẩu quá yếu, ít nhất 6 ký tự.";
-    if (err.contains('invalid-email')) return "Địa chỉ email không đúng định dạng.";
-    if (err.contains('network-request-failed')) return "Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.";
-    if (err.contains('too-many-requests')) return "Quá nhiều yêu cầu. Vui lòng thử lại sau.";
+    if (err.contains('email-already-in-use')) return loc.emailAlreadyInUse;
+    if (err.contains('weak-password')) return loc.weakPassword;
+    if (err.contains('invalid-email')) return loc.invalidEmailAddress;
+    if (err.contains('network-request-failed')) return loc.networkError;
+    if (err.contains('too-many-requests')) return loc.tooManyRequests;
     return err.replaceAll("Exception: ", "").replaceAll("PlatformException(", "").replaceAll(")", "");
   }
 
@@ -98,16 +101,16 @@ class _RegisterViewState extends State<RegisterView> {
       final shopName = _shopNameC.text.trim();
       final name = _nameC.text.trim();
 
-      if (shopName.isEmpty) throw "Vui lòng nhập tên cửa hàng.";
-      if (name.isEmpty) throw "Vui lòng nhập họ và tên.";
-      if (email.isEmpty || pass.isEmpty) throw "Vui lòng điền các thông tin bắt buộc.";
-      if (pass != _confirmPassC.text.trim()) throw "Mật khẩu xác nhận không khớp.";
+      if (shopName.isEmpty) throw loc.pleaseEnterShopName;
+      if (name.isEmpty) throw loc.pleaseEnterFullName;
+      if (email.isEmpty || pass.isEmpty) throw loc.pleaseEnterRequiredFields;
+      if (pass != _confirmPassC.text.trim()) throw loc.passwordMismatch;
 
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: pass);
       if (cred.user != null) {
         if (_isJoinShop) {
           final success = await UserService.useInviteCode(_inviteCodeC.text.trim(), cred.user!.uid);
-          if (!success) throw "Mã mời không chính xác hoặc đã hết hạn.";
+          if (!success) throw loc.invalidOrExpiredInviteCode;
         } else {
           await UserService.syncUserInfo(cred.user!.uid, email, extra: {
             'displayName': name.toUpperCase(),
@@ -196,7 +199,7 @@ class _RegisterViewState extends State<RegisterView> {
           child: ElevatedButton(
             onPressed: () => setState(() => _currentStep = 1),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: Text(AppLocalizations.of(context)!.next, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(AppLocalizations.of(context)!.next, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ),
       ],

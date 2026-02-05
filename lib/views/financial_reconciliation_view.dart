@@ -4,7 +4,7 @@ import '../models/financial_activity_model.dart';
 import '../theme/app_text_styles.dart';
 
 class FinancialReconciliationView extends StatefulWidget {
-  const FinancialReconciliationView({Key? key}) : super(key: key);
+  const FinancialReconciliationView({super.key});
 
   @override
   State<FinancialReconciliationView> createState() =>

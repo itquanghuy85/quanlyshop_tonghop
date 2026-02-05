@@ -11,6 +11,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../l10n/app_localizations.dart';
 import '../models/repair_model.dart';
 import '../models/repair_service_model.dart';
 import '../models/repair_partner_model.dart';
@@ -34,7 +35,8 @@ import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import 'parts_inventory_view.dart';
 import 'repair_partner_view.dart';
-import '../l10n/app_localizations.dart';
+import 'repair_invoice_template_view.dart';
+import 'repair_invoice_preview_view.dart';
 
 class RepairDetailView extends StatefulWidget {
   final Repair repair;
@@ -54,6 +56,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   String _shopPhone = "";
   bool _hasPermission = false;
   List<RepairPartner> _partners = [];
+
+  AppLocalizations get loc => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -80,9 +84,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   Future<void> _loadShopInfo() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _shopName = prefs.getString('shop_name') ?? "SHOP NEW";
-      _shopAddr = prefs.getString('shop_address') ?? "Chuyên Smartphone";
-      _shopPhone = prefs.getString('shop_phone') ?? "0123.456.789";
+      _shopName = prefs.getString('shop_name') ?? loc.defaultShopName;
+      _shopAddr = prefs.getString('shop_address') ?? loc.defaultShopDesc;
+      _shopPhone = prefs.getString('shop_phone') ?? loc.defaultShopPhone;
     });
   }
 
@@ -135,7 +139,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       if (!isManagerOrOwner) {
         if (r.pendingDeliveryApproval) {
           NotificationService.showSnackBar(
-            'Đơn đang chờ quản lý/chủ shop duyệt giao máy',
+            loc.orderPendingApproval,
             color: Colors.deepOrange,
           );
           return;
@@ -154,83 +158,89 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     /*
     if (newStatus == 4) {
       // GIAO MÁY (DEAD CODE)
-      String payMethod = "TIỀN MẶT";
-      String selectedWarranty = r.warranty.isEmpty ? "1 THÁNG" : r.warranty;
+      String payMethod = loc.cash;
+      String selectedWarranty = r.warranty.isEmpty ? loc.month1 : r.warranty;
       final List<String> warrantyOptions = [
-        "KO BH",
-        "1 THÁNG",
-        "3 THÁNG",
-        "6 THÁNG",
-        "12 THÁNG",
+        loc.noWarranty,
+        loc.month1,
+        loc.month3,
+        loc.month6,
+        loc.month12,
       ];
 
       final confirm = await showDialog<bool>(
         context: context,
-        builder: (ctx) => StatefulBuilder(
-          builder: (ctx, setS) => AlertDialog(
-            title: const Text("XÁC NHẬN GIAO MÁY & THANH TOÁN"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Chọn thời gian bảo hành:",
-                  style: AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurface,
+        builder: (ctx) {
+          final dialogLoc = AppLocalizations.of(ctx)!;
+          return StatefulBuilder(
+            builder: (ctx, setS) => AlertDialog(
+              title: Text(dialogLoc.confirmDeliveryAndPayment),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dialogLoc.selectWarrantyPeriod,
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSurface,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: warrantyOptions
-                      .map(
-                        (opt) => ChoiceChip(
-                          label: Text(opt, style: AppTextStyles.caption),
-                          selected: selectedWarranty == opt,
-                          onSelected: (v) => setS(() => selectedWarranty = opt),
-                          selectedColor: AppColors.primary.withOpacity(0.2),
-                        ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  "Hình thức thanh toán:",
-                  style: AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurface,
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: warrantyOptions
+                        .map(
+                          (opt) => ChoiceChip(
+                            label: Text(opt, style: AppTextStyles.caption),
+                            selected: selectedWarranty == opt,
+                            onSelected: (v) =>
+                                setS(() => selectedWarranty = opt),
+                            selectedColor: AppColors.primary.withOpacity(0.2),
+                          ),
+                        )
+                        .toList(),
                   ),
+                  const SizedBox(height: 20),
+                  Text(
+                    dialogLoc.selectPaymentMethod,
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [dialogLoc.cash, dialogLoc.transfer, dialogLoc.debt]
+                        .map(
+                          (m) => ChoiceChip(
+                            label: Text(m, style: AppTextStyles.caption),
+                            selected: payMethod == m,
+                            onSelected: (v) => setS(() => payMethod = m),
+                            selectedColor:
+                                AppColors.secondary.withOpacity(0.2),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(dialogLoc.cancel),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: ["TIỀN MẶT", "CHUYỂN KHOẢN", "CÔNG NỢ"]
-                      .map(
-                        (m) => ChoiceChip(
-                          label: Text(m, style: AppTextStyles.caption),
-                          selected: payMethod == m,
-                          onSelected: (v) => setS(() => payMethod = m),
-                          selectedColor: AppColors.secondary.withOpacity(0.2),
-                        ),
-                      )
-                      .toList(),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: AppButtonStyles.elevatedButtonStyle,
+                  child: Text(dialogLoc.completeDelivery,
+                      style: AppTextStyles.button),
                 ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text("HỦY"),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: AppButtonStyles.elevatedButtonStyle,
-                child: Text("HOÀN TẤT GIAO MÁY", style: AppTextStyles.button),
-              ),
-            ],
-          ),
-        ),
+          );
+        },
       );
 
       if (confirm != true) return;
@@ -245,11 +255,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       await db.logAction(
         userId: user?.uid ?? "0",
         userName: userName,
-        action: "GIAO MÁY",
+        action: loc.actionDeliverDevice,
         type: "REPAIR",
         targetId: r.firestoreId,
-        desc:
-            "Đã giao máy ${r.model} cho khách ${r.customerName}. Bảo hành: $selectedWarranty",
+        desc: loc.deliveredDevice(r.model, r.customerName, selectedWarranty),
       );
 
       if (payMethod == "CÔNG NỢ") {
@@ -264,7 +273,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           'type': "CUSTOMER_OWES",
           'status': "ACTIVE",
           'createdAt': DateTime.now().millisecondsSinceEpoch,
-          'note': "Nợ tiền sửa máy: ${r.model}",
+          'note': loc.debtNoteForRepair(r.model),
           'linkedId': r.firestoreId,
           'firestoreId': debtFId, // Set firestoreId ngay từ đầu
         };
@@ -327,9 +336,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       // GHIM ĐƠN SỬA VÀO CHAT NỘI BỘ KHI GIAO MÁY
       final key = r.firestoreId ?? "repair_${r.createdAt}";
-      final summary =
-          "ĐƠN SỬA - ${r.customerName} - ${r.phone} - ${r.model} - ${MoneyUtils.formatCurrency(r.price)} đ";
-      final msg = "✅ ĐÃ GIAO MÁY: $summary";
+      final summary = loc.repairOrderSummary(
+          r.customerName, r.phone, r.model, '${MoneyUtils.formatCurrency(r.price)} đ');
+      final msg = loc.chatDeviceDelivered(summary);
       await FirestoreService.sendChat(
         message: msg,
         senderId: user?.uid ?? 'guest',
@@ -381,7 +390,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       final repairsAfter = await db.getAllRepairs();
       debugPrint('Repairs count after update: ${repairsAfter.length}');
       NotificationService.showSnackBar(
-        "ĐÃ CẬP NHẬT: ${_getStatusText(newStatus)}",
+        loc.statusUpdated(_getStatusText(newStatus)),
         color: AppColors.success,
       );
       EventBus().emit('repairs_changed');
@@ -392,23 +401,22 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           final user = FirebaseAuth.instance.currentUser;
           final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
           final key = r.firestoreId ?? "repair_${r.createdAt}";
-          final summary =
-              "ĐƠN SỬA - ${r.customerName} - ${r.phone} - ${r.model}";
+          final summary = loc.repairOrderShare(r.customerName, r.phone, r.model, '');
 
           String emoji = "";
           String statusMsg = "";
           switch (newStatus) {
             case 1:
               emoji = "📥";
-              statusMsg = "NHẬN MÁY";
+              statusMsg = loc.statusReceivedMsg;
               break;
             case 2:
               emoji = "🔧";
-              statusMsg = "BẮT ĐẦU SỬA";
+              statusMsg = loc.statusStartRepairMsg;
               break;
             case 3:
               emoji = "✔️";
-              statusMsg = "SỬA XONG";
+              statusMsg = loc.statusRepairDoneUpper;
               break;
           }
 
@@ -442,19 +450,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   String _getStatusText(int s, {bool pendingApproval = false}) {
     if (s == 3 && pendingApproval) {
-      return "CHỜ DUYỆT GIAO";
+      return loc.statusPendingApproval;
     }
     switch (s) {
       case 1:
-        return "TIẾP NHẬN";
+        return loc.statusReceivedUpper;
       case 2:
-        return "ĐANG SỬA";
+        return loc.statusRepairingUpper;
       case 3:
-        return "SỬA XONG";
+        return loc.statusRepairDoneUpper;
       case 4:
-        return "ĐÃ GIAO";
+        return loc.statusDeliveredUpper;
       default:
-        return "KHÁC";
+        return loc.statusOther;
     }
   }
 
@@ -478,111 +486,114 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   /// Nhân viên submit đơn chờ duyệt giao (pendingDeliveryApproval = true)
   Future<void> _submitForDeliveryApproval() async {
-    String payMethod = "TIỀN MẶT";
-    String selectedWarranty = r.warranty.isEmpty ? "1 THÁNG" : r.warranty;
+    String payMethod = loc.cash;
+    String selectedWarranty = r.warranty.isEmpty ? '1 tháng' : r.warranty;
     final List<String> warrantyOptions = [
-      "KO BH",
-      "1 THÁNG",
-      "3 THÁNG",
-      "6 THÁNG",
-      "12 THÁNG",
+      loc.noWarranty,
+      '1 tháng',
+      '3 tháng',
+      '6 tháng',
+      '12 tháng',
     ];
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: const Text("GỬI YÊU CẦU GIAO MÁY"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.orange.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Đơn sẽ được gửi cho quản lý duyệt trước khi hoàn tất giao máy',
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.orange.shade700,
+      builder: (ctx) {
+        final dialogLoc = AppLocalizations.of(ctx)!;
+        return StatefulBuilder(
+          builder: (ctx, setS) => AlertDialog(
+            title: Text(dialogLoc.sendApprovalRequest),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orange.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          dialogLoc.orderWillBeSentForApproval,
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.orange.shade700,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "Chọn thời gian bảo hành:",
-                style: AppTextStyles.caption.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurface,
+                const SizedBox(height: 16),
+                Text(
+                  dialogLoc.selectWarrantyPeriod,
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.onSurface,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: warrantyOptions
-                    .map(
-                      (opt) => ChoiceChip(
-                        label: Text(opt, style: AppTextStyles.caption),
-                        selected: selectedWarranty == opt,
-                        onSelected: (v) => setS(() => selectedWarranty = opt),
-                        selectedColor: AppColors.primary.withOpacity(0.2),
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                "Hình thức thanh toán:",
-                style: AppTextStyles.caption.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurface,
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: warrantyOptions
+                      .map(
+                        (opt) => ChoiceChip(
+                          label: Text(opt, style: AppTextStyles.caption),
+                          selected: selectedWarranty == opt,
+                          onSelected: (v) => setS(() => selectedWarranty = opt),
+                          selectedColor: AppColors.primary.withOpacity(0.2),
+                        ),
+                      )
+                      .toList(),
                 ),
+                const SizedBox(height: 20),
+                Text(
+                  dialogLoc.selectPaymentMethod,
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [dialogLoc.cash, dialogLoc.transfer, dialogLoc.debt]
+                      .map(
+                        (m) => ChoiceChip(
+                          label: Text(m, style: AppTextStyles.caption),
+                          selected: payMethod == m,
+                          onSelected: (v) => setS(() => payMethod = m),
+                          selectedColor: AppColors.secondary.withOpacity(0.2),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(dialogLoc.cancel),
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: ["TIỀN MẶT", "CHUYỂN KHOẢN", "CÔNG NỢ"]
-                    .map(
-                      (m) => ChoiceChip(
-                        label: Text(m, style: AppTextStyles.caption),
-                        selected: payMethod == m,
-                        onSelected: (v) => setS(() => payMethod = m),
-                        selectedColor: AppColors.secondary.withOpacity(0.2),
-                      ),
-                    )
-                    .toList(),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                ),
+                child: Text(
+                  dialogLoc.sendApprovalRequest,
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text("HỦY"),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepOrange,
-              ),
-              child: const Text(
-                "GỬI YÊU CẦU DUYỆT",
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
 
     if (confirm != true) return;
@@ -624,7 +635,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       // Gửi notification cho quản lý
       await NotificationService.sendCloudNotification(
-        title: '📋 YÊU CẦU DUYỆT GIAO MÁY',
+        title: loc.notifRequestDeliveryApproval,
         body:
             '${r.customerName} - ${r.model} (${MoneyUtils.formatCurrency(r.price)}đ)',
         type: 'approval_needed',
@@ -634,25 +645,25 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       await db.logAction(
         userId: user?.uid ?? "0",
         userName: userName,
-        action: "YÊU CẦU DUYỆT GIAO",
+        action: loc.actionRequestDeliveryApproval,
         type: "REPAIR",
         targetId: r.firestoreId,
-        desc: "Yêu cầu duyệt giao máy ${r.model} cho khách ${r.customerName}",
+        desc: loc.requestDeliveryApprovalDesc(r.model, r.customerName),
       );
 
       final key = r.firestoreId ?? "repair_${r.createdAt}";
       await FirestoreService.sendChat(
-        message:
-            "📋 YÊU CẦU DUYỆT GIAO: ${r.model} - ${r.customerName} - ${MoneyUtils.formatCurrency(r.price)}đ",
+        message: loc.chatRequestDeliveryApproval(
+            r.model, r.customerName, MoneyUtils.formatCurrency(r.price)),
         senderId: user?.uid ?? 'guest',
         senderName: userName,
         linkedType: 'repair',
         linkedKey: key,
-        linkedSummary: "Chờ duyệt giao - ${r.customerName}",
+        linkedSummary: loc.pendingDeliveryApproval(r.customerName),
       );
 
       NotificationService.showSnackBar(
-        "Đã gửi yêu cầu duyệt giao máy",
+        loc.sentDeliveryApprovalRequest,
         color: Colors.deepOrange,
       );
       EventBus().emit('repairs_changed');
@@ -675,83 +686,86 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: const Text('DUYỆT GIAO MÁY'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Khách: ${r.customerName}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text('Máy: ${r.model}'),
-                    Text('Giá: ${MoneyUtils.formatCurrency(r.price)}đ'),
-                    Text('Thanh toán: ${r.paymentMethod}'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Chọn bảo hành (có thể đổi trước khi duyệt):',
-                style: AppTextStyles.caption.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurface,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: warrantyOptions
-                    .map(
-                      (opt) => ChoiceChip(
-                        label: Text(opt, style: AppTextStyles.caption),
-                        selected: selectedWarranty == opt,
-                        onSelected: (_) => setS(() => selectedWarranty = opt),
-                        selectedColor: AppColors.primary.withOpacity(0.2),
+      builder: (ctx) {
+        final dialogLoc = AppLocalizations.of(ctx)!;
+        return StatefulBuilder(
+          builder: (ctx, setS) => AlertDialog(
+            title: Text(dialogLoc.approveDelivery),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        dialogLoc.customerInfo(r.customerName),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                    )
-                    .toList(),
+                      Text(dialogLoc.deviceInfo(r.model)),
+                      Text(dialogLoc.priceInfo(MoneyUtils.formatCurrency(r.price))),
+                      Text(dialogLoc.paymentInfo(r.paymentMethod)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  dialogLoc.selectWarrantyNote,
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: warrantyOptions
+                      .map(
+                        (opt) => ChoiceChip(
+                          label: Text(opt, style: AppTextStyles.caption),
+                          selected: selectedWarranty == opt,
+                          onSelected: (_) => setS(() => selectedWarranty = opt),
+                          selectedColor: AppColors.primary.withOpacity(0.2),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  dialogLoc.confirmApproveDelivery,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(dialogLoc.cancel),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Xác nhận duyệt giao máy và hoàn tất giao dịch?',
-                style: TextStyle(color: Colors.grey),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx, false);
+                  // Từ chối - quay lại status 3
+                  await _rejectDeliveryApproval();
+                },
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text(dialogLoc.reject),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: Text(dialogLoc.approve, style: const TextStyle(color: Colors.white)),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('HỦY'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(ctx, false);
-                // Từ chối - quay lại status 3
-                await _rejectDeliveryApproval();
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('TỪ CHỐI'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text('DUYỆT', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
 
     if (confirm != true) return;
@@ -785,7 +799,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           'type': "CUSTOMER_OWES",
           'status': "ACTIVE",
           'createdAt': DateTime.now().millisecondsSinceEpoch,
-          'note': "Nợ tiền sửa máy: ${r.model}",
+          'note': loc.debtNoteRepair(r.model),
           'linkedId': r.firestoreId,
           'firestoreId': debtFId,
         };
@@ -871,16 +885,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         action: "DUYỆT GIAO MÁY",
         type: "REPAIR",
         targetId: r.firestoreId,
-        desc:
-            "Đã duyệt giao máy ${r.model} cho khách ${r.customerName}. Bảo hành: ${r.warranty}",
+        desc: loc.approvedDelivery(r.model, r.customerName, r.warranty),
       );
 
       // Chat notification
       final key = r.firestoreId ?? "repair_${r.createdAt}";
-      final summary =
-          "ĐƠN SỬA - ${r.customerName} - ${r.phone} - ${r.model} - ${MoneyUtils.formatCurrency(r.price)}đ";
+      final summary = loc.repairOrderShare(r.customerName, r.phone, r.model, "${MoneyUtils.formatCurrency(r.price)}đ");
       await FirestoreService.sendChat(
-        message: "✅ ĐÃ DUYỆT GIAO MÁY: $summary",
+        message: loc.chatApprovedDelivery(summary),
         senderId: user?.uid ?? 'guest',
         senderName: userName,
         linkedType: 'repair',
@@ -889,7 +901,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
 
       NotificationService.showSnackBar(
-        "Đã duyệt và hoàn tất giao máy",
+        loc.approvedAndCompletedDelivery,
         color: Colors.green,
       );
       EventBus().emit('repairs_changed');
@@ -935,11 +947,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         action: "TỪ CHỐI GIAO",
         type: "REPAIR",
         targetId: r.firestoreId,
-        desc: "Từ chối duyệt giao máy ${r.model}",
+        desc: loc.rejectDeliveryDesc(r.model),
       );
 
       NotificationService.showSnackBar(
-        "Đã từ chối - đơn quay lại trạng thái Sửa xong",
+        loc.rejectedBackToRepairDone,
         color: Colors.red,
       );
       EventBus().emit('repairs_changed');
@@ -964,7 +976,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       await db.logAction(
         userId: user?.uid ?? '0',
         userName: user?.email?.split('@').first.toUpperCase() ?? 'NV',
-        action: 'SỬA ĐƠN SỬA',
+        action: loc.editRepairAction,
         type: 'REPAIR',
         targetId: r.firestoreId,
         desc:
@@ -980,6 +992,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           operation: SyncOperation.update,
           data: r.toMap(),
         );
+
+        // Đẩy sync ngay để trạng thái/lệnh lưu phản chiếu lên thiết bị khác
+        // ignore: unawaited_futures
+        SyncOrchestrator().syncAll();
       }
 
       // Update debt if payment method is debt and repair is delivered
@@ -1015,13 +1031,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
 
       NotificationService.showSnackBar(
-        "ĐÃ LƯU THAY ĐỔI ĐƠN HÀNG",
+        loc.savedOrderChanges,
         color: AppColors.success,
       );
       EventBus().emit('repairs_changed');
     } catch (e) {
       NotificationService.showSnackBar(
-        "Lỗi khi lưu: $e",
+        loc.errorSaving(e.toString()),
         color: AppColors.error,
       );
     }
@@ -1052,41 +1068,41 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       final proceed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange),
-              SizedBox(width: 8),
-              Text("LƯU Ý"),
+              const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+              const SizedBox(width: 8),
+              Text(loc.luuYTitle),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Đơn này đã có phụ tùng:",
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Text(
+                loc.orderAlreadyHasParts,
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(r.partsUsed, style: const TextStyle(color: Colors.purple)),
               const SizedBox(height: 16),
-              const Text(
-                "Nếu tiếp tục chọn, phụ tùng mới sẽ được THÊM VÀO và TRỪ KHO NGAY.\n\nBạn có muốn tiếp tục?",
-                style: TextStyle(fontSize: 12),
+              Text(
+                loc.partsWillBeAddedAndDeducted,
+                style: const TextStyle(fontSize: 12),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text("HỦY"),
+              child: Text(loc.cancelButton),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
-              child: const Text(
-                "TIẾP TỤC CHỌN THÊM",
-                style: TextStyle(color: Colors.white),
+              child: Text(
+                loc.continueAddMore,
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           ],
@@ -1107,14 +1123,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           .where((p) => p.type == 'PHỤ KIỆN')
           .toList();
 
-      String msg = "Kho Linh Kiện trống. ";
+      String msg = loc.partsInventoryEmpty;
       if (allProducts.isEmpty) {
-        msg += "Chưa có sản phẩm nào trong kho.";
+        msg += loc.noProductsInInventory;
       } else {
-        msg +=
-            "Tổng: ${allProducts.length}, LINH KIỆN: ${linhKienProducts.length}. ";
+        msg += loc.totalProductsLinhKien(allProducts.length, linhKienProducts.length);
         if (linhKienProducts.isEmpty) {
-          msg += "Vào Kho → Nhập SP → Chọn loại 'LINH KIỆN'";
+          msg += loc.goToInventoryAddParts;
         }
       }
 
@@ -1203,7 +1218,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         }
 
         NotificationService.showSnackBar(
-          'Đã thêm phụ tùng từ kho: ${usedParts.join(', ')}\n(Chi phí đã ghi nhận khi nhập kho)',
+          loc.addedPartsFromInventoryMsg(usedParts.join(', ')),
           color: Colors.green,
         );
 
@@ -1348,7 +1363,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       await _saveData();
 
       NotificationService.showSnackBar(
-        "Đã thêm phụ tùng ($paymentMethod): ${usedParts.join(', ')}",
+        loc.addedPartsWithPayment(paymentMethod, usedParts.join(', ')),
         color: Colors.green,
       );
     }
@@ -1364,9 +1379,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
+      builder: (ctx) {
+        final dialogLoc = AppLocalizations.of(ctx)!;
+        return StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text("TÀI CHÍNH ĐƠN SỬA"),
+          title: Text(dialogLoc.repairOrderFinance),
           content: Form(
             key: formKey,
             child: Column(
@@ -1374,21 +1391,21 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               children: [
                 CurrencyTextField(
                   controller: priceC,
-                  label: "Giá thu khách (VNĐ)",
+                  label: dialogLoc.chargeCustomerVnd,
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 0,
-                    fieldName: 'Giá thu khách',
+                    fieldName: dialogLoc.chargeCustomerLabel,
                   ),
                 ),
                 const SizedBox(height: 12),
                 CurrencyTextField(
                   controller: costC,
-                  label: "Giá vốn linh kiện (VNĐ)",
+                  label: dialogLoc.partsCostVnd,
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 0,
-                    fieldName: 'Giá vốn',
+                    fieldName: dialogLoc.partsCost,
                   ),
                 ),
               ],
@@ -1397,18 +1414,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text("HỦY"),
+              child: Text(dialogLoc.cancelButton),
             ),
             ElevatedButton(
               onPressed: () {
                 if (!(formKey.currentState?.validate() ?? false)) return;
                 Navigator.pop(ctx, true);
               },
-              child: const Text("LƯU"),
+              child: Text(dialogLoc.saveButton),
             ),
           ],
         ),
-      ),
+      );
+      },
     );
     if (result == true) {
       final oldCost = r.cost;
@@ -1430,36 +1448,38 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     final notesC = TextEditingController(text: r.notes ?? '');
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("GHI CHÚ KỸ THUẬT VIÊN"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Ghi chú quá trình sửa chữa:",
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: notesC,
-              maxLines: 4,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                hintText: "VD: KT thay IC nguồn, sàng main, thay cáp sạc...",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
+      builder: (ctx) {
+        final dialogLoc = AppLocalizations.of(ctx)!;
+        return AlertDialog(
+          title: Text(dialogLoc.techNotesTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                dialogLoc.repairProcessNotes,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
+              const SizedBox(height: 8),
+              TextField(
+                controller: notesC,
+                maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: dialogLoc.techNotesHint,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("HỦY"),
+            child: Text(dialogLoc.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -1467,10 +1487,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
             ),
-            child: const Text("LƯU"),
+            child: Text(dialogLoc.save),
           ),
         ],
-      ),
+        );
+      },
     );
     if (result == true) {
       setState(() {
@@ -1478,7 +1499,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       });
       _saveData();
       NotificationService.showSnackBar(
-        "Đã lưu ghi chú KTV",
+        loc.savedTechnicianNotes,
         color: Colors.green,
       );
     }
@@ -1499,8 +1520,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Chỉnh sửa thông tin đơn sửa'),
+      builder: (ctx) {
+        final dialogLoc = AppLocalizations.of(ctx)!;
+        return AlertDialog(
+        title: Text(dialogLoc.editOrderInfoTitle),
         content: SingleChildScrollView(
           child: Form(
             key: formKey,
@@ -1509,57 +1532,54 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               children: [
                 TextFormField(
                   controller: nameC,
-                  decoration: const InputDecoration(labelText: 'Tên khách'),
+                  decoration: InputDecoration(labelText: dialogLoc.customerNameLabel),
                   textCapitalization: TextCapitalization.characters,
                 ),
                 TextFormField(
                   controller: phoneC,
-                  decoration: const InputDecoration(labelText: 'SĐT'),
+                  decoration: InputDecoration(labelText: dialogLoc.phoneLabel),
                   keyboardType: TextInputType.phone,
                   validator: (v) {
                     final text = v?.trim() ?? '';
-                    if (text.isEmpty) return 'SĐT không được trống';
-                    final err = UserService.validatePhone(
-                      text,
-                      AppLocalizations.of(ctx)!,
-                    );
+                    if (text.isEmpty) return dialogLoc.phoneRequired2;
+                    final err = UserService.validatePhone(text);
                     return err;
                   },
                 ),
                 TextFormField(
                   controller: modelC,
-                  decoration: const InputDecoration(labelText: 'Model máy'),
+                  decoration: InputDecoration(labelText: dialogLoc.deviceModelLabel),
                   textCapitalization: TextCapitalization.characters,
                   validator: (v) => (v?.trim().isEmpty ?? true)
-                      ? 'Nhập model máy'
+                      ? dialogLoc.enterModelRequired
                       : null,
                 ),
                 TextFormField(
                   controller: issueC,
-                  decoration: const InputDecoration(labelText: 'Lỗi máy'),
+                  decoration: InputDecoration(labelText: dialogLoc.deviceIssueLabel),
                   textCapitalization: TextCapitalization.characters,
                   validator: (v) => (v?.trim().isEmpty ?? true)
-                      ? 'Nhập tình trạng lỗi'
+                      ? dialogLoc.enterIssueRequired
                       : null,
                 ),
                 TextFormField(
                   controller: accC,
-                  decoration: const InputDecoration(labelText: 'Phụ kiện kèm'),
+                  decoration: InputDecoration(labelText: dialogLoc.accessoriesIncludedLabel),
                   textCapitalization: TextCapitalization.characters,
                 ),
                 TextFormField(
                   controller: warrantyC,
-                  decoration: const InputDecoration(labelText: 'Bảo hành'),
+                  decoration: InputDecoration(labelText: dialogLoc.warrantyLabel2),
                   textCapitalization: TextCapitalization.characters,
                 ),
                 TextFormField(
                   controller: addressC,
-                  decoration: const InputDecoration(labelText: 'Địa chỉ'),
+                  decoration: InputDecoration(labelText: dialogLoc.addressLabel2),
                   textCapitalization: TextCapitalization.characters,
                 ),
                 TextFormField(
                   controller: notesC,
-                  decoration: const InputDecoration(labelText: 'Ghi chú'),
+                  decoration: InputDecoration(labelText: dialogLoc.note),
                   maxLines: 2,
                 ),
               ],
@@ -1569,17 +1589,18 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('HỦY'),
+            child: Text(dialogLoc.cancelButton),
           ),
           ElevatedButton(
             onPressed: () {
               if (!(formKey.currentState?.validate() ?? false)) return;
               Navigator.pop(ctx, true);
             },
-            child: const Text('LƯU'),
+            child: Text(dialogLoc.saveButton),
           ),
         ],
-      ),
+      );
+      },
     );
 
     if (confirmed == true) {
@@ -1601,10 +1622,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   Widget build(BuildContext context) {
     if (!_hasPermission) {
       return Scaffold(
-        appBar: AppBar(title: const Text("CHI TIẾT ĐƠN SỬA")),
+        appBar: AppBar(title: Text(loc.repairDetailTitle)),
         body: Center(
           child: Text(
-            "Bạn không có quyền truy cập tính năng này",
+            loc.noAccessPermission,
             style: AppTextStyles.body1.copyWith(
               color: AppColors.onSurface.withOpacity(0.6),
             ),
@@ -1631,13 +1652,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         title: Tooltip(
-          message: "Theo dõi tiến độ sửa chữa và cập nhật trạng thái.",
+          message: loc.trackRepairProgress,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "CHI TIẾT ĐƠN SỬA",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              Text(
+                loc.repairOrderDetail,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
               ),
               Text(
                 r.model,
@@ -1653,8 +1674,37 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             icon: const Icon(Icons.share_rounded, color: Colors.white),
           ),
           IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RepairInvoicePreviewView(
+                    repair: r,
+                    shopInfo: {
+                      'shopName': _shopName,
+                      'shopAddr': _shopAddr,
+                      'shopPhone': _shopPhone,
+                    },
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.preview, color: Colors.white),
+          ),
+          IconButton(
             onPressed: _printReceipt,
             icon: const Icon(Icons.print_rounded, color: Colors.white),
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const RepairInvoiceTemplateView(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.design_services, color: Colors.white),
           ),
         ],
       ),
@@ -1697,7 +1747,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          "TÀI CHÍNH",
+                          loc.financeTitleUpper,
                           style: AppTextStyles.caption.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.green.shade700,
@@ -1707,7 +1757,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         TextButton.icon(
                           onPressed: _editFinancials,
                           icon: const Icon(Icons.edit, size: 14),
-                          label: const Text("Sửa"),
+                          label: Text(loc.editButton),
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 8),
                             visualDensity: VisualDensity.compact,
@@ -1733,7 +1783,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "LỢI NHUẬN",
+                                  loc.profitLabel,
                                   style: AppTextStyles.overline.copyWith(
                                     color: AppColors.success,
                                   ),
@@ -1768,7 +1818,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              "PT: ${r.partsUsed}",
+                              loc.partsShort(r.partsUsed),
                               style: AppTextStyles.caption.copyWith(
                                 color: Colors.purple,
                               ),
@@ -1786,19 +1836,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         runSpacing: 4,
                         children: [
                           _quickAction(
-                            "Phụ tùng",
+                            loc.partsLabel,
                             Icons.inventory_2,
                             Colors.purple,
                             _selectPartsFromInventory,
                           ),
                           _quickAction(
-                            "Kho LK",
+                            loc.partsInventoryShort,
                             Icons.warehouse,
                             Colors.teal,
                             _navigateToPartsInventory,
                           ),
                           _quickAction(
-                            "KTV",
+                            loc.techShort,
                             Icons.note_add,
                             Colors.orange,
                             _editTechnicianNotes,
@@ -1818,7 +1868,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          "DỊCH VỤ (${r.services.length})",
+                          loc.servicesCount(r.services.length),
                           style: AppTextStyles.caption.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.teal.shade700,
@@ -1829,7 +1879,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           TextButton.icon(
                             onPressed: _showAddServiceDialog,
                             icon: const Icon(Icons.add, size: 14),
-                            label: const Text("Thêm"),
+                            label: Text(loc.add),
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -1841,7 +1891,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     ),
                     if (r.services.isEmpty)
                       Text(
-                        "Chưa có dịch vụ",
+                        loc.noServicesYet,
                         style: AppTextStyles.caption.copyWith(
                           color: AppColors.onSurface.withOpacity(0.5),
                           fontStyle: FontStyle.italic,
@@ -1858,7 +1908,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              "Tổng DV:",
+                              loc.totalServices,
                               style: AppTextStyles.caption.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1926,16 +1976,16 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Info rows compact
-                        _compactInfoRow("Lỗi", r.issue),
+                        _compactInfoRow(loc.deviceIssueLabel, r.issue),
                         if (r.accessories.isNotEmpty)
                           _compactInfoRow("PK", r.accessories),
                         if (r.warranty.isNotEmpty)
-                          _compactInfoRow("BH", r.warranty),
+                          _compactInfoRow(loc.warranty, r.warranty),
                         if (r.notes != null && r.notes!.isNotEmpty)
-                          _compactInfoRow("Ghi chú", r.notes!),
+                          _compactInfoRow(loc.note, r.notes!),
                         if (r.deliveredAt != null)
                           _compactInfoRow(
-                            "Giao",
+                            loc.deliveryLabel,
                             DateFormat('dd/MM/yyyy HH:mm').format(
                               DateTime.fromMillisecondsSinceEpoch(
                                 r.deliveredAt!,
@@ -1955,7 +2005,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                "HÌNH ẢNH (${r.receiveImages.length})",
+                                loc.imagesCount(r.receiveImages.length),
                                 style: AppTextStyles.caption.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.pink.shade700,
@@ -2154,7 +2204,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 ),
                 if (s.partnerName != null)
                   Text(
-                    "ĐT: ${s.partnerName}",
+                    loc.partnerLabel(s.partnerName!),
                     style: AppTextStyles.overline.copyWith(
                       color: Colors.purple,
                     ),
@@ -2303,8 +2353,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     Expanded(
                       child: Text(
                         isManager
-                            ? 'Đơn đang chờ bạn duyệt giao máy'
-                            : 'Đang chờ quản lý duyệt giao máy',
+                            ? loc.orderPendingYourApproval
+                            : loc.waitingManagerApproval,
                         style: TextStyle(
                           color: Colors.deepOrange.shade700,
                           fontWeight: FontWeight.w500,
@@ -2326,9 +2376,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    label: const Text(
-                      "DUYỆT GIAO MÁY",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                    label: Text(
+                      loc.approveDelivery,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -2363,7 +2413,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Đã sửa xong - sẵn sàng giao máy',
+                        loc.repairDoneReadyForDelivery,
                         style: TextStyle(
                           color: Colors.green.shade700,
                           fontWeight: FontWeight.w500,
@@ -2394,7 +2444,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   label: Text(
-                    isManager ? "GIAO MÁY" : "GỬI YÊU CẦU GIAO",
+                    isManager ? loc.deliverDevice : loc.sendDeliveryRequest,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -2421,7 +2471,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
                     ),
-                    label: Text("ĐANG SỬA", style: AppTextStyles.button),
+                    label: Text(loc.repairingButton, style: AppTextStyles.button),
                   ),
                 ),
               if (r.status == 1) const SizedBox(width: 10),
@@ -2434,7 +2484,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     backgroundColor: AppColors.success,
                     foregroundColor: AppColors.onSuccess,
                   ),
-                  label: Text("ĐÃ XONG", style: AppTextStyles.button),
+                  label: Text(loc.repairDoneButton, style: AppTextStyles.button),
                 ),
               ),
             ],
@@ -2450,7 +2500,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              "Lợi nhuận dự kiến",
+              loc.expectedProfit,
               style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold),
             ),
             Text(
@@ -2462,8 +2512,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         const Divider(height: 25),
         Row(
           children: [
-            _miniFin("GIÁ THU", r.price, AppColors.primary),
-            _miniFin("GIÁ VỐN", r.cost, AppColors.warning),
+            _miniFin(loc.priceLabel, r.price, AppColors.primary),
+            _miniFin(loc.costLabel, r.cost, AppColors.warning),
           ],
         ),
         const SizedBox(height: 10),
@@ -2476,7 +2526,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  "Phụ tùng: ${r.partsUsed}",
+                  loc.partsUsedLabel(r.partsUsed),
                   style: AppTextStyles.caption.copyWith(color: Colors.purple),
                 ),
               ),
@@ -2499,7 +2549,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   color: Colors.purple,
                 ),
                 label: Text(
-                  "Phụ tùng",
+                  loc.partsLabel,
                   style: AppTextStyles.caption.copyWith(color: Colors.purple),
                 ),
               ),
@@ -2508,7 +2558,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 onPressed: _navigateToPartsInventory,
                 icon: const Icon(Icons.warehouse, size: 14, color: Colors.teal),
                 label: Text(
-                  "Kho LK",
+                  loc.partsInventoryShort,
                   style: AppTextStyles.caption.copyWith(color: Colors.teal),
                 ),
               ),
@@ -2520,7 +2570,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   color: Colors.orange,
                 ),
                 label: Text(
-                  "KTV",
+                  loc.techShort,
                   style: AppTextStyles.caption.copyWith(color: Colors.orange),
                 ),
               ),
@@ -2542,7 +2592,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               onPressed: _showAddServiceDialog,
               icon: const Icon(Icons.add, size: 18, color: Colors.blue),
               label: Text(
-                "THÊM DỊCH VỤ",
+                loc.addServiceButton,
                 style: AppTextStyles.caption.copyWith(
                   color: Colors.blue,
                   fontWeight: FontWeight.bold,
@@ -2554,7 +2604,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              "Chưa có dịch vụ nào",
+              loc.noServicesMessage,
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.onSurface.withOpacity(0.5),
                 fontStyle: FontStyle.italic,
@@ -2591,7 +2641,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         ),
                         if (s.partnerName != null)
                           Text(
-                            "Đối tác: ${s.partnerName}",
+                            loc.partnerLabel(s.partnerName!),
                             style: AppTextStyles.caption.copyWith(
                               color: Colors.purple,
                             ),
@@ -2627,7 +2677,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Tổng chi phí dịch vụ",
+                loc.totalServiceCost,
                 style: AppTextStyles.body2.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -2650,7 +2700,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     final images = r.receiveImages;
     if (images.isEmpty) {
       return Text(
-        "Không có hình ảnh",
+        loc.noImages,
         style: AppTextStyles.caption.copyWith(
           color: AppColors.onSurface.withOpacity(0.5),
           fontStyle: FontStyle.italic,
@@ -2684,19 +2734,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   Widget _buildCustomerContent() {
     return Column(
       children: [
-        _infoRow("Khách hàng", r.customerName),
-        _phoneRow("Số điện thoại", r.phone),
-        _infoRow("Tình trạng lỗi", r.issue),
+        _infoRow(loc.customerLabel, r.customerName),
+        _phoneRow(loc.phoneNumberLabel, r.phone),
+        _infoRow(loc.deviceIssueLabel, r.issue),
         _infoRow(
-          "Phụ kiện kèm",
-          r.accessories.isEmpty ? "Không có" : r.accessories,
+          loc.accessoriesLabel,
+          r.accessories.isEmpty ? loc.noAccessories : r.accessories,
         ),
-        _infoRow("Bảo hành", r.warranty.isEmpty ? "Chưa có" : r.warranty),
+        _infoRow(loc.warranty, r.warranty.isEmpty ? loc.noneYet : r.warranty),
         if (r.notes != null && r.notes!.isNotEmpty)
-          _infoRow("Ghi chú", r.notes!),
+          _infoRow(loc.note, r.notes!),
         if (r.deliveredAt != null)
           _infoRow(
-            "Ngày giao",
+            loc.deliveryDate,
             DateFormat(
               'dd/MM/yyyy HH:mm',
             ).format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!)),
@@ -2718,7 +2768,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Lợi nhuận dự kiến",
+                loc.expectedProfit,
                 style: AppTextStyles.body1.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -2734,8 +2784,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           const Divider(height: 25),
           Row(
             children: [
-              _miniFin("GIÁ THU", r.price, AppColors.primary),
-              _miniFin("GIÁ VỐN", r.cost, AppColors.warning),
+              _miniFin(loc.priceLabel, r.price, AppColors.primary),
+              _miniFin(loc.costLabel, r.cost, AppColors.warning),
             ],
           ),
           const SizedBox(height: 10),
@@ -2748,7 +2798,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    "Phụ tùng: ${r.partsUsed}",
+                    loc.partsUsedLabel(r.partsUsed),
                     style: AppTextStyles.caption.copyWith(color: Colors.purple),
                   ),
                 ),
@@ -2771,7 +2821,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     color: Colors.purple,
                   ),
                   label: Text(
-                    "Phụ tùng",
+                    loc.partsLabel,
                     style: AppTextStyles.caption.copyWith(color: Colors.purple),
                   ),
                 ),
@@ -2784,14 +2834,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     color: Colors.teal,
                   ),
                   label: Text(
-                    "Kho LK",
+                    loc.partsInventoryShort,
                     style: AppTextStyles.caption.copyWith(color: Colors.teal),
                   ),
                 ),
                 TextButton.icon(
                   onPressed: _editFinancials,
                   icon: const Icon(Icons.edit, size: 14),
-                  label: Text("Sửa giá", style: AppTextStyles.caption),
+                  label: Text(loc.editPrice, style: AppTextStyles.caption),
                 ),
                 TextButton.icon(
                   onPressed: _editTechnicianNotes,
@@ -2801,7 +2851,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     color: Colors.orange,
                   ),
                   label: Text(
-                    "KTV",
+                    loc.techShort,
                     style: AppTextStyles.caption.copyWith(color: Colors.orange),
                   ),
                 ),
@@ -2848,7 +2898,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "DỊCH VỤ SỬA CHỮA",
+                loc.repairServices,
                 style: AppTextStyles.body1.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -2859,7 +2909,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   onPressed: _showAddServiceDialog,
                   icon: const Icon(Icons.add, size: 18, color: Colors.blue),
                   label: Text(
-                    "THÊM DỊCH VỤ",
+                    loc.addService,
                     style: AppTextStyles.caption.copyWith(
                       color: Colors.blue,
                       fontWeight: FontWeight.bold,
@@ -2873,7 +2923,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                "Chưa có dịch vụ nào",
+                loc.noServicesYet,
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.onSurface.withOpacity(0.5),
                   fontStyle: FontStyle.italic,
@@ -2914,7 +2964,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           ),
                           if (s.partnerName != null)
                             Text(
-                              "Đối tác: ${s.partnerName}",
+                              loc.partnerLabel(s.partnerName!),
                               style: AppTextStyles.caption.copyWith(
                                 color: Colors.purple,
                               ),
@@ -2951,7 +3001,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "Tổng chi phí dịch vụ",
+                  loc.totalServiceCost,
                   style: AppTextStyles.body2.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -3000,12 +3050,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
+      builder: (ctx) {
+        final dialogLoc = AppLocalizations.of(ctx)!;
+        return StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(editService != null ? "Sửa dịch vụ" : "Thêm dịch vụ"),
+              Text(editService != null ? dialogLoc.editService : dialogLoc.addServiceTitle),
               // Lối tắt vào Đối Tác Sửa Chữa
               IconButton(
                 onPressed: () {
@@ -3013,7 +3065,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   _navigateToRepairPartners();
                 },
                 icon: const Icon(Icons.group, color: Colors.teal, size: 20),
-                tooltip: 'Xem đối tác sửa chữa',
+                tooltip: dialogLoc.viewRepairPartners,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -3027,35 +3079,35 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 children: [
                   TextFormField(
                     controller: serviceCtrl,
-                    decoration: const InputDecoration(
-                      labelText: "Tên dịch vụ *",
+                    decoration: InputDecoration(
+                      labelText: dialogLoc.serviceNameRequired,
                     ),
                     textCapitalization: TextCapitalization.characters,
                     validator: (v) => (v ?? '').trim().isEmpty
-                        ? 'Vui lòng nhập tên dịch vụ'
+                        ? dialogLoc.pleaseEnterServiceName
                         : null,
                   ),
                   const SizedBox(height: 10),
                   CurrencyTextField(
                     controller: costCtrl,
-                    label: "Chi phí (VNĐ)",
+                    label: dialogLoc.costVnd,
                     validator: (v) => MoneyUtils.validateAmount(
                       v ?? '',
                       min: 1,
-                      fieldName: 'Chi phí',
+                      fieldName: dialogLoc.costField,
                     ),
                   ),
                   const SizedBox(height: 10),
                   if (_partners.isNotEmpty)
                     DropdownButtonFormField<RepairPartner?>(
-                      decoration: const InputDecoration(
-                        labelText: "Đối tác (tùy chọn)",
+                      decoration: InputDecoration(
+                        labelText: dialogLoc.partnerOptional2,
                       ),
-                      value: selectedPartner,
+                      initialValue: selectedPartner,
                       items: [
-                        const DropdownMenuItem(
+                        DropdownMenuItem(
                           value: null,
-                          child: Text("Không có đối tác"),
+                          child: Text(dialogLoc.noPartnerOption),
                         ),
                         ..._partners.map(
                           (p) =>
@@ -3068,11 +3120,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   if (selectedPartner != null) ...[
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(
-                        labelText: "Phương thức TT đối tác *",
-                        prefixIcon: Icon(Icons.payment, size: 20),
+                      decoration: InputDecoration(
+                        labelText: dialogLoc.partnerPaymentMethodRequired,
+                        prefixIcon: const Icon(Icons.payment, size: 20),
                       ),
-                      value: selectedPaymentMethod,
+                      initialValue: selectedPaymentMethod,
                       items: paymentMethods
                           .map(
                             (m) => DropdownMenuItem(value: m, child: Text(m)),
@@ -3081,7 +3133,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       onChanged: (v) => setS(() => selectedPaymentMethod = v),
                       validator: (v) =>
                           selectedPartner != null && (v == null || v.isEmpty)
-                          ? 'Vui lòng chọn phương thức TT'
+                          ? dialogLoc.pleaseSelectPaymentMethod
                           : null,
                     ),
                   ],
@@ -3096,11 +3148,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   Navigator.pop(ctx);
                   await _deleteService(editIndex!);
                 },
-                child: const Text("Xóa", style: TextStyle(color: Colors.red)),
+                child: Text(dialogLoc.delete, style: const TextStyle(color: Colors.red)),
               ),
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text("Hủy"),
+              child: Text(dialogLoc.cancel),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -3118,11 +3170,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 Navigator.pop(ctx);
                 await _saveService(service, editIndex);
               },
-              child: Text(editService != null ? "Cập nhật" : "Thêm"),
+              child: Text(editService != null ? dialogLoc.update : dialogLoc.add),
             ),
           ],
         ),
-      ),
+      );},
     );
   }
 
@@ -3267,12 +3319,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
 
       NotificationService.showSnackBar(
-        editIndex != null ? "ĐÃ CẬP NHẬT DỊCH VỤ" : "ĐÃ THÊM DỊCH VỤ",
+        editIndex != null ? loc.serviceUpdated : loc.serviceAdded,
         color: AppColors.success,
       );
       EventBus().emit('repair_services_changed');
     } catch (e) {
-      NotificationService.showSnackBar("Lỗi: $e", color: AppColors.error);
+      NotificationService.showSnackBar('${loc.error}: $e', color: AppColors.error);
     }
     setState(() => _isUpdating = false);
   }
@@ -3288,12 +3340,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       r.isSynced = false;
       await db.upsertRepair(r);
       NotificationService.showSnackBar(
-        "ĐÃ XÓA DỊCH VỤ",
+        loc.serviceDeleted,
         color: AppColors.warning,
       );
       EventBus().emit('repair_services_changed');
     } catch (e) {
-      NotificationService.showSnackBar("Lỗi: $e", color: AppColors.error);
+      NotificationService.showSnackBar('${loc.error}: $e', color: AppColors.error);
     }
     setState(() => _isUpdating = false);
   }
@@ -3305,7 +3357,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "HÌNH ẢNH LÚC NHẬN MÁY",
+          loc.receivedImages,
           style: AppTextStyles.caption.copyWith(
             fontWeight: FontWeight.bold,
             color: AppColors.onSurface,
@@ -3386,19 +3438,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       ),
       child: Column(
         children: [
-          _infoRow("Khách hàng", r.customerName),
-          _phoneRow("Số điện thoại", r.phone),
-          _infoRow("Tình trạng lỗi", r.issue),
+          _infoRow(loc.customerLabel, r.customerName),
+          _phoneRow(loc.phoneNumberLabel, r.phone),
+          _infoRow(loc.deviceIssueLabel, r.issue),
           _infoRow(
-            "Phụ kiện kèm",
-            r.accessories.isEmpty ? "Không có" : r.accessories,
+            loc.accessoriesLabel,
+            r.accessories.isEmpty ? loc.noAccessories : r.accessories,
           ),
-          _infoRow("Bảo hành", r.warranty.isEmpty ? "Chưa có" : r.warranty),
+          _infoRow(loc.warranty, r.warranty.isEmpty ? loc.noneYet : r.warranty),
           if (r.notes != null && r.notes!.isNotEmpty)
-            _infoRow("Ghi chú", r.notes!),
+            _infoRow(loc.note, r.notes!),
           if (r.deliveredAt != null)
             _infoRow(
-              "Ngày giao",
+              loc.deliveryDate,
               DateFormat(
                 'dd/MM/yyyy HH:mm',
               ).format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!)),
@@ -3570,8 +3622,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _shareToZalo() async {
-    final String content =
-        "🌟 PHIẾU SỬA CHỮA/BẢO HÀNH 🌟\n----------------------------\nShop: $_shopName\nModel: ${r.model.toUpperCase()}\nKhách: ${r.customerName} - ${r.phone}\nLỗi: ${r.issue}\nBảo hành: ${r.warranty}\nTổng cộng: ${MoneyUtils.formatCurrency(r.price)} đ\n----------------------------\nCảm ơn quý khách đã tin tưởng!";
+    final String content = loc.shareRepairReceipt(
+      _shopName,
+      r.model.toUpperCase(),
+      r.customerName,
+      r.phone,
+      r.issue,
+      r.warranty,
+      '${MoneyUtils.formatCurrency(r.price)} đ',
+    );
     await Share.share(content);
   }
 
@@ -3591,7 +3650,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     setState(() => _isPrinting = true);
     HapticFeedback.mediumImpact();
     NotificationService.showSnackBar(
-      "Đang chuẩn bị lệnh in...",
+      loc.preparingPrint,
       color: Colors.blue,
     );
 
@@ -3606,17 +3665,17 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       if (success) {
         NotificationService.showSnackBar(
-          "Đã in phiếu thành công!",
+          loc.printSuccess,
           color: Colors.green,
         );
       } else {
         NotificationService.showSnackBar(
-          "In thất bại! Vui lòng kiểm tra cài đặt máy in.",
+          loc.printFailed,
           color: Colors.red,
         );
       }
     } catch (e) {
-      NotificationService.showSnackBar("Lỗi khi in: $e", color: Colors.red);
+      NotificationService.showSnackBar(loc.printError(e.toString()), color: Colors.red);
     } finally {
       if (mounted) setState(() => _isPrinting = false);
     }
@@ -3634,6 +3693,7 @@ class _PartsSelectionDialog extends StatefulWidget {
 }
 
 class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
+  AppLocalizations get loc => AppLocalizations.of(context)!;
   final TextEditingController _searchCtrl = TextEditingController();
   final Map<String, int> selectedQuantities = {};
 
@@ -3664,7 +3724,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              "CHỌN PHỤ TÙNG / LINH KIỆN",
+              loc.selectPartsTitle,
               style: AppTextStyles.headline3,
             ),
           ),
@@ -3677,21 +3737,21 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
           children: [
             TextField(
               controller: _searchCtrl,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Tìm theo tên hoặc nhà cung cấp',
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: loc.searchPartOrSupplier,
                 isDense: true,
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
               ),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 10),
             Expanded(
               child: filteredParts.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        'Không tìm thấy phụ tùng phù hợp',
-                        style: TextStyle(color: Colors.grey),
+                        loc.noPartsFound,
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     )
                   : ListView.builder(
@@ -3749,7 +3809,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            isFromProducts ? "Kho tổng" : "Kho cũ",
+                            isFromProducts ? loc.mainWarehouse : loc.oldWarehouse,
                             style: AppTextStyles.caption.copyWith(
                               color: isFromProducts
                                   ? Colors.blue
@@ -3777,16 +3837,16 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                                 MaterialTapTargetSize.shrinkWrap,
                           ),
                         Text(
-                          "Tồn: $partQty",
+                          loc.stockQty(partQty),
                           style: AppTextStyles.body2
                               .copyWith(color: Colors.grey.shade700),
                         ),
                         Text(
-                          "Vốn: ${MoneyUtils.formatCurrency(partCost)}",
+                          loc.costPrice(MoneyUtils.formatCurrency(partCost)),
                           style: AppTextStyles.caption,
                         ),
                         Text(
-                          "Bán: ${MoneyUtils.formatCurrency(partPrice)}",
+                          loc.sellPrice(MoneyUtils.formatCurrency(partPrice)),
                           style: AppTextStyles.caption,
                         ),
                       ],
@@ -3878,9 +3938,9 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         alignment: Alignment.center,
-                        child: const Text(
-                          "HẾT HÀNG",
-                          style: TextStyle(
+                        child: Text(
+                          loc.outOfStock,
+                          style: const TextStyle(
                             color: Colors.red,
                             fontWeight: FontWeight.bold,
                           ),
@@ -3899,7 +3959,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, null),
-          child: const Text("HỦY"),
+          child: Text(loc.cancel),
         ),
         ElevatedButton(
           onPressed: totalSelected > 0
@@ -3913,7 +3973,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
             disabledBackgroundColor: Colors.grey.shade300,
           ),
           child: Text(
-            totalSelected > 0 ? "XÁC NHẬN ($totalSelected)" : "XÁC NHẬN",
+            totalSelected > 0 ? loc.confirmQty(totalSelected) : loc.confirmBtn,
             style: TextStyle(
               color: totalSelected > 0 ? Colors.white : Colors.grey,
             ),
@@ -3942,6 +4002,8 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
   String _selectedMethod = 'TIỀN MẶT';
   final _supplierController = TextEditingController();
 
+  AppLocalizations get loc => AppLocalizations.of(context)!;
+
   @override
   void dispose() {
     _supplierController.dispose();
@@ -3951,11 +4013,11 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.payment, color: Colors.green),
-          SizedBox(width: 10),
-          Text("THANH TOÁN PHỤ TÙNG", style: TextStyle(fontSize: 16)),
+          const Icon(Icons.payment, color: Colors.green),
+          const SizedBox(width: 10),
+          Text(loc.partsPaymentTitle, style: const TextStyle(fontSize: 16)),
         ],
       ),
       content: SingleChildScrollView(
@@ -3975,7 +4037,7 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
               child: Column(
                 children: [
                   Text(
-                    'TỔNG TIỀN PHỤ TÙNG',
+                    loc.totalPartsAmount,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.green.shade700,
@@ -3997,7 +4059,7 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
 
             // Mô tả phụ tùng
             Text(
-              'Phụ tùng: ${widget.partsDescription}',
+              loc.partsDesc(widget.partsDescription),
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 16),
@@ -4005,10 +4067,10 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
             // Nhập tên nhà cung cấp
             TextField(
               controller: _supplierController,
-              decoration: const InputDecoration(
-                labelText: 'Nhà cung cấp (tùy chọn)',
-                hintText: 'VD: Linh kiện ABC',
-                prefixIcon: Icon(Icons.store, size: 20),
+              decoration: InputDecoration(
+                labelText: loc.supplierOptional,
+                hintText: loc.supplierHint,
+                prefixIcon: const Icon(Icons.store, size: 20),
                 isDense: true,
               ),
               textCapitalization: TextCapitalization.characters,
@@ -4016,9 +4078,9 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
             const SizedBox(height: 16),
 
             // Chọn phương thức thanh toán
-            const Text(
-              'PHƯƠNG THỨC THANH TOÁN:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            Text(
+              loc.paymentMethodLabel,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 8),
 
@@ -4051,7 +4113,7 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Khoản nợ sẽ được ghi vào Quản lý công nợ',
+                        loc.debtWarning,
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.orange.shade700,
@@ -4067,14 +4129,14 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, null),
-          child: const Text('HỦY'),
+          child: Text(loc.cancel),
         ),
         ElevatedButton(
           onPressed: () {
             Navigator.pop(context, {
               'method': _selectedMethod,
               'supplier': _supplierController.text.trim().isEmpty
-                  ? 'Nhà cung cấp phụ tùng'
+                  ? loc.defaultPartsSupplier
                   : _supplierController.text.trim().toUpperCase(),
             });
           },
@@ -4084,7 +4146,7 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
                 : Colors.green,
           ),
           child: Text(
-            _selectedMethod == 'CÔNG NỢ' ? 'GHI NỢ' : 'XÁC NHẬN',
+            _selectedMethod == 'CÔNG NỢ' ? loc.recordDebt : loc.confirm,
             style: const TextStyle(color: Colors.white),
           ),
         ),

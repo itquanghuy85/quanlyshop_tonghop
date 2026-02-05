@@ -13,6 +13,8 @@ import '../theme/app_text_styles.dart';
 import 'label_designer_view.dart';
 import 'imei_qr_printer_view.dart';
 import 'pty_print_designer_view.dart';
+import 'repair_invoice_template_view.dart';
+import 'sale_invoice_template_view.dart';
 
 /// Màn hình cài đặt máy in - Đơn giản, tập trung vào kết nối
 class PrinterSettingsView extends StatefulWidget {
@@ -338,8 +340,8 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(AppLocalizations.of(context)!.productLabelDesign, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.purple)),
-                      Text(AppLocalizations.of(context)!.customizeContentAndFontSize, style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text(AppLocalizations.of(context)!.productLabelDesign, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.purple)),
+                      Text(AppLocalizations.of(context)!.customizeContentAndFontSize, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -366,7 +368,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                   color: Colors.orange.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(AppLocalizations.of(context)!.hot, style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 10)),
+                child: Text(AppLocalizations.of(context)!.hot, style: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 10)),
               ),
               onTap: () => Navigator.push(
                 context,
@@ -389,6 +391,67 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const PtyPrintDesignerView()),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.purple.shade100),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.receipt_long, color: Colors.purple.shade600, size: 18),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'MẪU IN HÓA ĐƠN',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    leading: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.build_circle, color: Colors.blue, size: 18),
+                    ),
+                    title: const Text('Mẫu phiếu sửa', style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: const Text('Chỉnh sửa mẫu in phiếu sửa chữa'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RepairInvoiceTemplateView()),
+                    ),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    leading: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.shopping_bag, color: Colors.green, size: 18),
+                    ),
+                    title: const Text('Mẫu hóa đơn bán', style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: const Text('Chỉnh sửa mẫu in hóa đơn bán hàng'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SaleInvoiceTemplateView()),
+                    ),
+                  ),
+                ],
               ),
             ),
             const Divider(height: 16),
@@ -430,7 +493,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               children: [
                 Icon(Icons.wifi, color: Colors.blue.shade600),
                 const SizedBox(width: 8),
-                Text(AppLocalizations.of(context)!.wifiPrinter, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(AppLocalizations.of(context)!.wifiPrinter, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
             const SizedBox(height: 16),
@@ -488,7 +551,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               children: [
                 Icon(Icons.bluetooth, color: Colors.indigo.shade600),
                 const SizedBox(width: 8),
-                Text(AppLocalizations.of(context)!.bluetoothPrinter, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(AppLocalizations.of(context)!.bluetoothPrinter, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
             const SizedBox(height: 12),
@@ -534,9 +597,9 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.grey),
-                    SizedBox(width: 12),
-                    Text(AppLocalizations.of(context)!.noBluetoothPrinterSelected, style: TextStyle(color: Colors.grey)),
+                    const Icon(Icons.info_outline, color: Colors.grey),
+                    const SizedBox(width: 12),
+                    Text(AppLocalizations.of(context)!.noBluetoothPrinterSelected, style: const TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),
@@ -593,7 +656,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               children: [
                 Icon(Icons.receipt_long, color: Colors.orange.shade600),
                 const SizedBox(width: 8),
-                Text(AppLocalizations.of(context)!.receiptSettings, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(AppLocalizations.of(context)!.receiptSettings, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
             const SizedBox(height: 12),

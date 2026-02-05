@@ -14,12 +14,14 @@
 // Created: 2026-01-22
 // Author: AI Assistant (Phase 7 - Centralized Payment Hub)
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/payment_intent_model.dart';
 import '../theme/app_text_styles.dart';
 import '../services/payment_intent_service.dart';
 import '../services/first_time_guide_service.dart';
+import '../services/event_bus.dart';
 import '../widgets/gradient_fab.dart';
 import 'unified_payment_page.dart';
 
@@ -43,6 +45,9 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
   // Filter
   String? _filterCategory; // 'income', 'expense', 'debt', null = all
 
+  // FIX: EventBus subscription để lắng nghe khi data từ cloud sync thay đổi
+  StreamSubscription? _eventSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -51,11 +56,20 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showFirstTimeGuide();
     });
+    
+    // FIX: Lắng nghe event khi payment_intents thay đổi từ sync
+    _eventSubscription = EventBus().stream.listen((event) {
+      if (event == 'payment_intents_changed') {
+        debugPrint('📡 PendingPaymentsListView: Received payment_intents_changed event, reloading...');
+        _loadData();
+      }
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _eventSubscription?.cancel();
     super.dispose();
   }
 
@@ -369,13 +383,13 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 ],
               ),
             ),
-            Tab(
+            const Tab(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.history, size: 16),
-                  const SizedBox(width: 4),
-                  const Text('SỬ', style: TextStyle(fontSize: 13)),
+                  Icon(Icons.history, size: 16),
+                  SizedBox(width: 4),
+                  Text('SỬ', style: TextStyle(fontSize: 13)),
                 ],
               ),
             ),
@@ -754,8 +768,8 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.close, size: 14),
-                        SizedBox(width: 4),
+                        const Icon(Icons.close, size: 14),
+                        const SizedBox(width: 4),
                         Text('Hủy', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
                       ],
                     ),
@@ -1091,7 +1105,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
             if (amount != null) ...[
               const SizedBox(height: 2),
               Text(
-                '${amount}đ',
+                '$amountđ',
                 style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: color),
               ),
             ],
