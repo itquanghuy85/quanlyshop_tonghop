@@ -76,10 +76,30 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     _msgCtrl.addListener(_onTyping);
     
     // Listen for shop changes to reinitialize chat
-    _shopChangedSubscription = EventBus().on(EventBus.shopChanged, (_) {
+    _shopChangedSubscription = EventBus().on(EventBus.shopChanged, (_) async {
       debugPrint('🔄 AdvancedChatView: Shop changed, reinitializing chat...');
+      
+      // 1. Cancel all existing subscriptions
       _cancelSubscriptions();
-      _initChat();
+      
+      // 2. Clear current data and show loading
+      if (mounted) {
+        setState(() {
+          _messages = [];
+          _pinnedMessages = [];
+          _typingUsers = [];
+          _onlineUsers = [];
+          _isLoading = true;
+        });
+      }
+      
+      // 3. Small delay to ensure cache is updated
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      // 4. Reinitialize with new shop
+      if (mounted) {
+        _initChat();
+      }
     });
   }
 
