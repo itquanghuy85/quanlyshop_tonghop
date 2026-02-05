@@ -174,6 +174,12 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
   // Overflow area - vùng giấy thừa cho phép kéo ra ngoài
   double _overflowMm = 10.0; // 10mm mỗi bên
 
+  // Zoom settings - tùy chỉnh phóng to/thu nhỏ
+  double _zoomScale = 1.0;
+  static const double _minZoom = 0.5;
+  static const double _maxZoom = 3.0;
+  final TransformationController _transformController = TransformationController();
+
   // Auto-save
   Timer? _saveTimer;
   static const String _settingsKey = 'pty_designer_settings_v2';
@@ -322,6 +328,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
     _widthCtrl.dispose();
     _heightCtrl.dispose();
     _dpiCtrl.dispose();
+    _transformController.dispose();
     super.dispose();
   }
 
@@ -712,42 +719,54 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
         );
         final pxPerMm = _mmToPx(1) * scale;
 
-        return SingleChildScrollView(
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Label info header
-                _buildLabelInfoHeader(colorScheme),
-                const SizedBox(height: 8),
-                // Canvas
-                Container(
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colorScheme.shadow.withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  child: GestureDetector(
-                    onTapDown: (_) => _selectElement(null),
-                    // Vùng bao gồm cả overflow (giấy thừa)
-                    child: Container(
-                      width: scaledSize.width + (_overflowMm * 2 * pxPerMm),
-                      height: scaledSize.height + (_overflowMm * 2 * pxPerMm),
-                      decoration: BoxDecoration(
-                        // Vùng giấy thừa - màu xám nhạt
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Label info header với zoom controls
+            _buildLabelInfoHeader(colorScheme),
+            const SizedBox(height: 8),
+            // Canvas với InteractiveViewer để zoom/pan
+            Expanded(
+              child: InteractiveViewer(
+                transformationController: _transformController,
+                minScale: _minZoom,
+                maxScale: _maxZoom,
+                boundaryMargin: const EdgeInsets.all(100),
+                onInteractionUpdate: (details) {
+                  // Sync zoom scale với slider
+                  final scale = _transformController.value.getMaxScaleOnAxis();
+                  if (scale != _zoomScale) {
+                    setState(() => _zoomScale = scale.clamp(_minZoom, _maxZoom));
+                  }
+                },
+                child: Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colorScheme.shadow.withOpacity(0.1),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: GestureDetector(
+                      onTapDown: (_) => _selectElement(null),
+                      // Vùng bao gồm cả overflow (giấy thừa)
+                      child: Container(
+                        width: scaledSize.width + (_overflowMm * 2 * pxPerMm),
+                        height: scaledSize.height + (_overflowMm * 2 * pxPerMm),
+                        decoration: BoxDecoration(
+                          // Vùng giấy thừa - màu xám nhạt
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
                           // Vùng in chính (label) - nằm giữa
                           Positioned(
                             left: _overflowMm * pxPerMm,
@@ -813,14 +832,15 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                                       pxPerMm, // offset for overflow area
                                 ),
                               ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         );
       },
     );
@@ -828,7 +848,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
 
   Widget _buildLabelInfoHeader(ColorScheme colorScheme) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withOpacity(0.3),
         borderRadius: BorderRadius.circular(20),
@@ -836,28 +856,93 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Label size info
           Icon(Icons.straighten, size: 16, color: colorScheme.primary),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           Text(
-            '${_labelWidthMm.toInt()} × ${_labelHeightMm.toInt()} mm',
+            '${_labelWidthMm.toInt()}×${_labelHeightMm.toInt()}mm',
             style: TextStyle(
               color: colorScheme.primary,
               fontWeight: FontWeight.w600,
+              fontSize: 12,
             ),
           ),
-          const SizedBox(width: 16),
-          Icon(Icons.print, size: 16, color: colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(
-            '${_dpi.toInt()} DPI',
-            style: TextStyle(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.w600,
+          Container(
+            height: 20,
+            width: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            color: colorScheme.primary.withOpacity(0.3),
+          ),
+          // Zoom controls
+          Icon(Icons.zoom_out, size: 16, color: colorScheme.primary),
+          SizedBox(
+            width: 100,
+            child: SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                activeTrackColor: colorScheme.primary,
+                inactiveTrackColor: colorScheme.primary.withOpacity(0.3),
+                thumbColor: colorScheme.primary,
+              ),
+              child: Slider(
+                value: _zoomScale,
+                min: _minZoom,
+                max: _maxZoom,
+                onChanged: (value) {
+                  setState(() {
+                    _zoomScale = value;
+                    _updateTransformController();
+                  });
+                },
+              ),
+            ),
+          ),
+          Icon(Icons.zoom_in, size: 16, color: colorScheme.primary),
+          const SizedBox(width: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '${(_zoomScale * 100).toInt()}%',
+              style: TextStyle(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          // Reset zoom button
+          InkWell(
+            onTap: () {
+              setState(() {
+                _zoomScale = 1.0;
+                _updateTransformController();
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              child: Icon(
+                Icons.fit_screen,
+                size: 16,
+                color: colorScheme.primary,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _updateTransformController() {
+    // Cập nhật TransformationController khi zoom thay đổi
+    _transformController.value = Matrix4.identity()..scale(_zoomScale);
   }
 
   Widget _buildDraggableElement(

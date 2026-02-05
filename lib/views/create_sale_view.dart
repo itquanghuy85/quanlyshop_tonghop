@@ -968,7 +968,29 @@ class _CreateSaleViewState extends State<CreateSaleView> {
 
       // Lưu sale vào local DB (cloud đã có từ transaction)
       await db.upsertSale(sale);
-      // NOTE: FinancialActivityService.logSale REMOVED - ledger handled by PaymentIntentService
+      
+      // Log sale vào nhật ký tài chính (nếu không phải công nợ)
+      if (_paymentMethod != 'CÔNG NỢ') {
+        try {
+          await FinancialActivityService.logSale(
+            firestoreId: sale.firestoreId ?? 'sale_${sale.soldAt}',
+            totalPrice: finalPrice,
+            paymentMethod: _paymentMethod,
+            customerName: sale.walkInName ?? sale.customerName,
+            phone: sale.walkInPhone ?? sale.phone,
+            productNames: sale.productNames,
+            sellerName: sale.sellerName,
+            soldAt: sale.soldAt,
+            isInstallment: _isInstallment,
+            downPayment: _parseCurrency(downPaymentCtrl.text),
+            downPaymentMethod: _downPaymentMethod,
+            bankName: bankCtrl.text.toUpperCase(),
+          );
+          debugPrint('📝 Logged sale to financial activity');
+        } catch (e) {
+          debugPrint('⚠️ Failed to log sale activity: $e');
+        }
+      }
 
       // === TẠO PAYMENTINTENT ĐỂ HIỂN THỊ TRÊN TRANG "THANH TOÁN" ===
       try {

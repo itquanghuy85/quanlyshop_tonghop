@@ -1207,7 +1207,7 @@
   "reportsAndStatisticsDesc": "Revenue, profit, inventory over time",
   "cloudSync": "Cloud Sync",
   "cloudSyncDesc": "Safe data, access anytime, anywhere",
-  "version": "Version 10.0.1",
+  "version": "Version 10.0.3",
   "salaryCalculationGuide": "SALARY CALCULATION GUIDE",
   "accessSalaryTable": "Access salary table",
   "accessSalaryDesc": "Go to Staff tab → Press \"SALARY Calculate salary\" to view all employees' salary table.",
