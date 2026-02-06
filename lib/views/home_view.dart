@@ -1236,6 +1236,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   int _todayRepairCount = 0; // Số đơn sửa chữa hoàn thành hôm nay
   int _todaySaleOrderCount = 0; // Số đơn bán hàng hôm nay
   int _todayExpenseCount = 0; // Số chi phí hôm nay
+  int _todayStockInCost = 0; // Chi phí nhập kho hôm nay (tiền mặt/CK)
 
   Future<void> _loadStats() async {
     // Guard chống load nhiều lần liên tiếp
@@ -1297,11 +1298,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         whereArgs: [startMs, endMs],
       );
 
+      final shopId = UserService.getShopIdSync();
       final fExpenses = await dbConn.query(
         'expenses',
         columns: ['amount', 'category', 'description', 'title', 'date'],
-        where: 'date >= ? AND date < ?',
-        whereArgs: [startMs, endMs],
+        where: shopId != null && shopId.isNotEmpty
+            ? '(date >= ? AND date < ?) AND (shopId = ? OR shopId IS NULL)'
+            : 'date >= ? AND date < ?',
+        whereArgs: shopId != null && shopId.isNotEmpty
+            ? [startMs, endMs, shopId]
+            : [startMs, endMs],
       );
 
       final debtPayments = await dbConn.query(
@@ -1401,6 +1407,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
       // CHI HÔM NAY = tổng expenses (LOẠI TRỪ nhập hàng/linh kiện/purchase vì đã tính trong giá vốn)
       int totalOut = 0;
+      int stockInCost = 0; // Chi phí nhập kho hôm nay (tiền mặt/CK)
       for (final e in fExpenses) {
         final category = (e['category'] as String? ?? '').toUpperCase();
         final description = (e['description'] as String? ?? '').toUpperCase();
@@ -1424,17 +1431,19 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             title.contains('NHẬP HÀNG');
 
         if (isImportExpense) {
+          stockInCost += amount; // Tính riêng chi phí nhập kho
           debugPrint(
-            'LOẠI TRỪ expense nhập hàng/linh kiện: category=$category, amount=$amount',
+            'CHI PHÍ NHẬP KHO: category=$category, amount=$amount',
           );
         } else {
           totalOut += amount;
-          debugPrint('TÍNH expense: category=$category, amount=$amount');
+          debugPrint('CHI PHÍ HOẠT ĐỘNG: category=$category, amount=$amount');
         }
       }
 
-      // Chi phí hôm nay = expenses + trả nợ NCC (cash flow thực)
-      // Lợi nhuận vẫn dùng totalOut (accrual basis, không có trả nợ NCC)
+      // Chi phí hôm nay = expenses hoạt động + trả nợ NCC (cash flow thực)
+      // Chi phí nhập kho tính riêng
+      // Lợi nhuận vẫn dùng totalOut (accrual basis, không có trả nợ NCC, không có nhập kho)
       final todayCashOut = totalOut + debtPaidToSupplier;
 
       // Debug log
@@ -1556,6 +1565,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _todayRepairCount = fRepairs.length;
           _todaySaleOrderCount = fSales.length;
           _todayExpenseCount = fExpenses.length;
+          _todayStockInCost = stockInCost; // Chi phí nhập kho hôm nay
           _totalLocalRecords = totalRecords; // Cập nhật tổng records
           unreadChatCount = unread; // Gộp vào 1 setState
           // Cập nhật tin nhắn mới nhất
@@ -4576,6 +4586,39 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
             ],
           ),
+          
+          // CHI PHÍ NHẬP KHO - Hiển thị riêng nếu có
+          if (_todayStockInCost > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.inventory_2_outlined, color: Colors.orange.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Chi nhập kho hôm nay: ',
+                    style: AppTextStyles.body1.copyWith(color: Colors.orange.shade800),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '${MoneyUtils.formatVND(_todayStockInCost)}đ',
+                      style: AppTextStyles.subtitle1.copyWith(
+                        color: Colors.orange.shade900,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
 
           // LỢI NHUẬN RÒNG

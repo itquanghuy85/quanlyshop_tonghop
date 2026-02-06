@@ -9,6 +9,7 @@ import '../services/audit_service.dart';
 import '../services/adjustment_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/payment_intent_service.dart';
+import '../services/financial_activity_service.dart';
 import '../models/payment_intent_model.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -39,6 +40,21 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   bool _showOutOfStock = false;
   String _sortBy = 'name'; // name, quantity, cost
   
+  // Navigation - filter by model category
+  String? _selectedModelCategory;
+  final ScrollController _scrollController = ScrollController();
+  bool _showScrollToTop = false;
+  
+  // Available model categories for quick navigation
+  static const List<String> _modelCategories = [
+    'IPHONE',
+    'SAMSUNG', 
+    'XIAOMI',
+    'OPPO',
+    'VIVO',
+    'REALME',
+  ];
+  
   // Theme colors - đồng bộ với InventoryView
   static const Color _primaryColor = Color(0xFF7B1FA2); // Purple 700
   static const Color _gradientStart = Color(0xFF6A1B9A);
@@ -55,6 +71,31 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     EventBus().stream.listen((event) {
       if (event == 'parts_changed' && mounted) _refreshParts();
     });
+    // Scroll controller listener for scroll-to-top button
+    _scrollController.addListener(_onScroll);
+  }
+  
+  void _onScroll() {
+    final showButton = _scrollController.offset > 200;
+    if (showButton != _showScrollToTop) {
+      setState(() => _showScrollToTop = showButton);
+    }
+  }
+  
+  void _scrollToTop() {
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOut,
+    );
+  }
+  
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPermissions() async {
@@ -90,7 +131,12 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       final qty = p['quantity'] as int? ?? 0;
       final matchStock = _showOutOfStock || qty > 0;
       
-      return matchSearch && matchStock;
+      // Lọc theo model category (navigation)
+      final matchCategory = _selectedModelCategory == null ||
+          (p['compatibleModels']?.toString().toUpperCase().contains(_selectedModelCategory!) ?? false) ||
+          (p['partName']?.toString().toUpperCase().contains(_selectedModelCategory!) ?? false);
+      
+      return matchSearch && matchStock && matchCategory;
     }).toList();
     
     // Sort
@@ -141,33 +187,136 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       color: _backgroundColor,
       child: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _primaryColor))
-          : Column(
+          : Stack(
               children: [
-                // Summary Card - đồng bộ style với Kho chính
-                _buildSummaryCard(totalTypes, totalQty, totalCost, lowStockCount),
-                
-                // Search & Filter Bar
-                _buildSearchFilterBar(),
-                
-                // Selection mode header
-                if (_isSelectionMode) _buildSelectionHeader(),
-                
-                // List
-                Expanded(
-                  child: _filteredParts.isEmpty
-                      ? _buildEmptyState()
-                      : RefreshIndicator(
-                          onRefresh: _refreshParts,
-                          color: _primaryColor,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
-                            itemCount: _filteredParts.length,
-                            itemBuilder: (ctx, i) => _buildPartCard(_filteredParts[i], i + 1),
+                Column(
+                  children: [
+                    // Summary Card - đồng bộ style với Kho chính
+                    _buildSummaryCard(totalTypes, totalQty, totalCost, lowStockCount),
+                    
+                    // Navigation chips - Quick filter by model
+                    _buildNavigationChips(),
+                    
+                    // Search & Filter Bar
+                    _buildSearchFilterBar(),
+                    
+                    // Selection mode header
+                    if (_isSelectionMode) _buildSelectionHeader(),
+                    
+                    // List
+                    Expanded(
+                      child: _filteredParts.isEmpty
+                          ? _buildEmptyState()
+                          : RefreshIndicator(
+                              onRefresh: _refreshParts,
+                              color: _primaryColor,
+                              child: ListView.builder(
+                                controller: _scrollController,
+                                padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
+                                itemCount: _filteredParts.length,
+                                itemBuilder: (ctx, i) => _buildPartCard(_filteredParts[i], i + 1),
                           ),
                         ),
+                    ),
+                  ],
                 ),
+                // Scroll to top button
+                if (_showScrollToTop)
+                  Positioned(
+                    bottom: 80,
+                    right: 16,
+                    child: FloatingActionButton.small(
+                      onPressed: _scrollToTop,
+                      backgroundColor: _primaryColor,
+                      child: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
+                    ),
+                  ),
               ],
             ),
+    );
+  }
+  
+  // Navigation chips for quick model filtering
+  Widget _buildNavigationChips() {
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          // "Tất cả" chip
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: Text(
+                'Tất cả',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: _selectedModelCategory == null ? FontWeight.bold : FontWeight.normal,
+                  color: _selectedModelCategory == null ? Colors.white : Colors.black87,
+                ),
+              ),
+              selected: _selectedModelCategory == null,
+              onSelected: (_) {
+                setState(() {
+                  _selectedModelCategory = null;
+                  _applyFilter();
+                });
+              },
+              selectedColor: _primaryColor,
+              backgroundColor: Colors.white,
+              checkmarkColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: _selectedModelCategory == null ? _primaryColor : Colors.grey.shade300,
+                ),
+              ),
+            ),
+          ),
+          // Model category chips
+          ..._modelCategories.map((category) {
+            final isSelected = _selectedModelCategory == category;
+            // Count parts matching this category
+            final count = _parts.where((p) =>
+              (p['compatibleModels']?.toString().toUpperCase().contains(category) ?? false) ||
+              (p['partName']?.toString().toUpperCase().contains(category) ?? false)
+            ).length;
+            
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: Text(
+                  '$category ($count)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? Colors.white : Colors.black87,
+                  ),
+                ),
+                selected: isSelected,
+                onSelected: (_) {
+                  setState(() {
+                    _selectedModelCategory = isSelected ? null : category;
+                    _applyFilter();
+                  });
+                },
+                selectedColor: _primaryColor,
+                backgroundColor: Colors.white,
+                checkmarkColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: isSelected ? _primaryColor : Colors.grey.shade300,
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -1258,12 +1407,13 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         EventBus().emit('suppliers_changed');
                       }
 
-                      // Tạo PaymentIntent cho nhập linh kiện
+                      // Xử lý thanh toán cho nhập linh kiện
                       final totalCost = cost * qty;
                       if (totalCost > 0) {
                         final user = FirebaseAuth.instance.currentUser;
+                        final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
                         if (paymentMethod == 'CÔNG NỢ') {
-                          // Công nợ NCC → Tạo debt record + PaymentIntent (CHỞ CHI)
+                          // Công nợ NCC → Tạo debt record + PaymentIntent (CHỜ CHI)
                           final debtFId = 'debt_part_${DateTime.now().millisecondsSinceEpoch}_${selectedSupplierId ?? 0}';
                           final debtData = {
                             'firestoreId': debtFId,
@@ -1277,6 +1427,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             'note': 'Nhập linh kiện: $partName x$qty',
                             'linkedId': null,
                             'isSynced': 0,
+                            'shopId': shopId,
                           };
                           final debtId = await db.insertDebt(debtData);
                           
@@ -1290,7 +1441,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             );
                           }
                           
-                          // Tạo PaymentIntent để trả nợ sau (CHỞ CHI)
+                          // Tạo PaymentIntent để trả nợ sau (CHỜ CHI)
                           final intent = PaymentIntent(
                             id: 'pi_part_debt_${DateTime.now().millisecondsSinceEpoch}_$partName',
                             type: PaymentIntentType.supplierDebt,
@@ -1313,25 +1464,44 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           debugPrint('💳 Created PaymentIntent for part debt: ${intent.id}');
                           EventBus().emit('debts_changed');
                         } else {
-                          // Tiền mặt/Chuyển khoản → Tạo PaymentIntent để xác nhận thanh toán (CHỞ CHI)
-                          final intent = PaymentIntent(
-                            id: 'pi_part_${DateTime.now().millisecondsSinceEpoch}_$partName',
-                            type: PaymentIntentType.supplierDebt,
+                          // TIỀN MẶT/CHUYỂN KHOẢN → Tạo expense record TRỰC TIẾP
+                          final expenseFirestoreId = 'exp_part_${DateTime.now().millisecondsSinceEpoch}_$partName';
+                          final expenseData = {
+                            'firestoreId': expenseFirestoreId,
+                            'title': 'Nhập linh kiện: $partName',
+                            'description': 'NCC: $supplierName - SL: $qty',
+                            'amount': totalCost,
+                            'category': 'NHẬP LINH KIỆN',
+                            'date': DateTime.now().millisecondsSinceEpoch,
+                            'note': 'Nhập từ kho linh kiện - $paymentMethod',
+                            'paymentMethod': paymentMethod,
+                            'createdAt': DateTime.now().millisecondsSinceEpoch,
+                            'shopId': shopId,
+                            'isSynced': 0,
+                          };
+                          final expenseId = await db.insertExpense(expenseData);
+                          if (expenseId > 0) {
+                            await SyncOrchestrator().enqueue(
+                              entityType: SyncEntityType.expense,
+                              entityId: expenseId,
+                              firestoreId: expenseFirestoreId,
+                              operation: SyncOperation.create,
+                              data: expenseData,
+                            );
+                          }
+                          
+                          // Log vào financial_activity_log để hiện trong Nhật ký tài chính
+                          await FinancialActivityService.logPurchase(
+                            firestoreId: expenseFirestoreId,
                             amount: totalCost,
-                            description: 'Chi nhập linh kiện: $partName - $supplierName',
-                            referenceId: null,
-                            referenceType: 'part',
-                            personName: supplierName,
-                            createdBy: user?.uid ?? 'unknown',
-                            createdAt: DateTime.now().millisecondsSinceEpoch,
-                            metadata: {
-                              'partName': partName,
-                              'quantity': qty,
-                              'paymentMethod': paymentMethod,
-                            },
+                            productName: partName,
+                            quantity: qty,
+                            paymentMethod: paymentMethod,
+                            supplierName: supplierName,
                           );
-                          await PaymentIntentService.createIntent(intent);
-                          debugPrint('💳 Created PaymentIntent for part payment: ${intent.id}');
+                          
+                          EventBus().emit('expenses_changed');
+                          debugPrint('PartsInventory: Created expense for $paymentMethod: $totalCost');
                         }
                       }
                     } else {

@@ -2,10 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:screenshot/screenshot.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,7 +24,6 @@ import '../constants/financial_constants.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import 'create_sale_view.dart';
 import 'sale_invoice_template_view.dart';
 import 'sale_invoice_preview_view.dart';
 
@@ -43,7 +38,6 @@ class SaleDetailView extends StatefulWidget {
 class _SaleDetailViewState extends State<SaleDetailView> {
   final db = DBHelper();
   late SaleOrder s;
-  final ScreenshotController screenshotController = ScreenshotController();
 
   String _shopName = "";
   String _shopAddr = "";
@@ -396,15 +390,6 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     final address = TextEditingController(text: s.address);
     final products = TextEditingController(text: s.productNames);
     final imeis = TextEditingController(text: s.productImeis);
-    final totalPrice = TextEditingController(
-      text: MoneyUtils.formatCurrency(s.totalPrice),
-    );
-    final totalCost = TextEditingController(
-      text: MoneyUtils.formatCurrency(s.totalCost),
-    );
-    final discount = TextEditingController(
-      text: MoneyUtils.formatCurrency(s.discount),
-    );
     final notes = TextEditingController(text: s.notes ?? "");
     final warranties = ["KO BH", "1 THÁNG", "3 THÁNG", "6 THÁNG", "12 THÁNG"];
     String warranty = s.warranty ?? "KO BH";
@@ -443,28 +428,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                   controller: imeis,
                   decoration: const InputDecoration(labelText: "IMEI/Serial"),
                 ),
-                CurrencyTextField(
-                  controller: totalPrice,
-                  label: "Tổng tiền (VNĐ)",
-                  validator: (v) => MoneyUtils.validateAmount(
-                    v ?? '',
-                    min: 1,
-                    fieldName: 'Tổng tiền',
-                  ),
-                ),
-                CurrencyTextField(
-                  controller: totalCost,
-                  label: "Giá vốn (VNĐ)",
-                  validator: (v) => MoneyUtils.validateAmount(
-                    v ?? '',
-                    min: 0,
-                    fieldName: 'Giá vốn',
-                  ),
-                ),
-                CurrencyTextField(
-                  controller: discount,
-                  label: "Giảm giá (VNĐ)",
-                ),
+                // Các trường số tiền đã bị vô hiệu hóa để bảo vệ dữ liệu tài chính
                 DropdownButtonFormField<String>(
                   initialValue: warranty,
                   decoration: const InputDecoration(labelText: "Bảo hành"),
@@ -521,12 +485,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       s.address = address.text.trim().toUpperCase();
       s.productNames = products.text.trim().toUpperCase();
       s.productImeis = imeis.text.trim().toUpperCase();
-      final parsedTotal = MoneyUtils.parseCurrency(totalPrice.text);
-      final parsedCost = MoneyUtils.parseCurrency(totalCost.text);
-      final parsedDiscount = MoneyUtils.parseCurrency(discount.text);
-      s.totalPrice = parsedTotal;
-      s.totalCost = parsedCost;
-      s.discount = parsedDiscount;
+      // Không cho phép sửa số tiền để bảo vệ dữ liệu tài chính
       s.warranty = warranty;
       s.paymentMethod = payment;
       if (payment != 'TRẢ GÓP (NH)') {
@@ -682,24 +641,6 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     }
   }
 
-  Future<void> _editSale() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => CreateSaleView(editSale: s)),
-    );
-    if (result == true && mounted) {
-      // Reload the sale data from database after successful edit
-      final updatedSale = await db.getSaleByFirestoreId(s.firestoreId!);
-      if (updatedSale != null) {
-        setState(() {
-          s = updatedSale;
-        });
-      }
-      // Also refresh the list view
-      Navigator.pop(context, true);
-    }
-  }
-
   Future<void> _deleteSale() async {
     if (s.id == null) return;
 
@@ -831,131 +772,6 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     }
   }
 
-  Future<void> _shareInvoice() async {
-    final directory = (await getApplicationDocumentsDirectory()).path;
-    String fileName = 'HOA_DON_${s.customerName.replaceAll(' ', '_')}.png';
-
-    final invoiceWidget = Container(
-      width: 480,
-      padding: const EdgeInsets.all(22),
-      color: Colors.white,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (_hasLogo) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    File(_logoPath),
-                    width: 60,
-                    height: 60,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(width: 12),
-              ],
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _shopName,
-                    style: TextStyle(
-                      fontSize: AppTextStyles.headline2.fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.pink,
-                    ),
-                  ),
-                  Text(
-                    "ĐC: $_shopAddr",
-                    style: TextStyle(
-                      fontSize: AppTextStyles.subtitle1.fontSize,
-                    ),
-                  ),
-                  Text(
-                    "SĐT: $_shopPhone",
-                    style: TextStyle(
-                      fontSize: AppTextStyles.subtitle1.fontSize,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(thickness: 2),
-          Center(
-            child: Text(
-              "HÓA ĐƠN BÁN LẺ",
-              style: TextStyle(
-                fontSize: AppTextStyles.headline1.fontSize,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          _row("KHÁCH HÀNG", s.customerName),
-          _row("SĐT", s.phone),
-          _row("ĐỊA CHỈ", s.address),
-          _row("SẢN PHẨM", s.productNames),
-          _row("IMEI", s.productImeis),
-          _row("BẢO HÀNH", s.warranty ?? "KO BH"),
-          _row("NHÂN VIÊN", s.sellerName),
-          _row("THỜI GIAN", _fmtDate(s.soldAt)),
-          if (s.discount > 0)
-            _row("GIẢM GIÁ", "-${MoneyUtils.formatCurrency(s.discount)} Đ"),
-          const Divider(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "TỔNG THANH TOÁN:",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                "${MoneyUtils.formatCurrency(s.finalPrice)} Đ",
-                style: TextStyle(
-                  fontSize: AppTextStyles.headline1.fontSize,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: QrImageView(
-              data: s.firestoreId ?? s.id.toString(),
-              size: 110,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Center(
-            child: Text(
-              "CẢM ƠN QUÝ KHÁCH!",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    await screenshotController.captureFromWidget(invoiceWidget).then((
-      image,
-    ) async {
-      final imagePath = '$directory/$fileName';
-      await File(imagePath).writeAsBytes(image);
-      await Share.shareXFiles([
-        XFile(imagePath),
-      ], text: 'HÓA ĐƠN SHOP $_shopName');
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1051,14 +867,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
             },
             icon: const Icon(Icons.design_services, color: Colors.white),
           ),
-          IconButton(
-            onPressed: _shareInvoice,
-            icon: const Icon(Icons.share_rounded, color: Colors.white),
-          ),
-          IconButton(
-            onPressed: _editSale,
-            icon: const Icon(Icons.edit_note_rounded, color: Colors.white),
-          ),
+          if (_managerUnlocked)
+            IconButton(
+              onPressed: _openEditSaleDialog,
+              tooltip: 'Sửa thông tin đơn',
+              icon: const Icon(Icons.edit_note_rounded, color: Colors.white),
+            ),
           if (_managerUnlocked)
             IconButton(
               onPressed: _deleteSale,
@@ -1090,23 +904,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 ),
               ),
             if (_isInstallmentNH) const SizedBox(height: 10),
-            if (_managerUnlocked)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _openEditSaleDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _accentColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(Icons.edit_note_outlined),
-                  label: const Text("SỬA THÔNG TIN ĐƠN"),
-                ),
-              ),
-            if (_managerUnlocked) const SizedBox(height: 10),
+
             _card("GIAO DỊCH", [
               _item("Khách hàng", s.customerName),
               _item("Số điện thoại", s.phone),

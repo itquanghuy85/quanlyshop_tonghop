@@ -17,7 +17,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/payment_intent_model.dart';
+import '../constants/financial_constants.dart';
 import '../theme/app_text_styles.dart';
 import '../services/payment_intent_service.dart';
 import '../services/first_time_guide_service.dart';
@@ -177,6 +179,37 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
 
     if (result != null && result.success) {
       _showSuccessDialog(intent);
+    }
+  }
+
+  /// Quick execute payment with default/suggested method (TIỀN MẶT)
+  Future<void> _quickExecutePayment(PaymentIntent intent) async {
+    // Use suggested method from metadata or default to cash
+    final suggestedStr = intent.metadata?['suggestedMethod'] as String? ?? 'TIỀN MẶT';
+    final method = suggestedStr == 'CHUYỂN KHOẢN' 
+        ? PaymentMethod.transfer 
+        : PaymentMethod.cash;
+    
+    final user = FirebaseAuth.instance.currentUser;
+    final result = await PaymentIntentService.executePayment(
+      intentId: intent.id,
+      paymentMethod: method,
+      executedBy: user?.displayName ?? user?.email ?? 'unknown',
+    );
+    
+    await _loadData();
+    
+    if (!mounted) return;
+    
+    if (result.success) {
+      _showSuccessDialog(intent);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.errorMessage ?? 'Có lỗi xảy ra'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -775,7 +808,26 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Pay button
+                  // Quick pay button (tiền mặt by default)
+                  OutlinedButton(
+                    onPressed: () => _quickExecutePayment(intent),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: accentColor,
+                      side: BorderSide(color: accentColor),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: const Size(0, 32),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.flash_on, size: 14),
+                        const SizedBox(width: 4),
+                        Text('Nhanh', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Pay button (with options)
                   ElevatedButton(
                     onPressed: () => _executePayment(intent),
                     style: ElevatedButton.styleFrom(

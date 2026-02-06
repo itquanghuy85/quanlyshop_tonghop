@@ -4,11 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/supplier_model.dart';
 import '../models/repair_partner_model.dart';
 import '../models/payment_intent_model.dart';
+import '../constants/financial_constants.dart';
 import '../services/supplier_service.dart';
 import '../services/repair_partner_service.dart';
 import '../services/repair_partner_payment_service.dart';
 import '../services/user_service.dart';
 import '../services/first_time_guide_service.dart';
+import '../services/payment_intent_service.dart';
 import '../data/db_helper.dart';
 import '../utils/money_utils.dart';
 import '../widgets/currency_text_field.dart';
@@ -25,7 +27,6 @@ import 'repair_partner_form_view.dart';
 import 'repair_partner_detail_view.dart';
 import 'create_sale_view.dart';
 import 'inventory_view.dart';
-import 'unified_payment_page.dart';
 
 class SupplierListView extends StatefulWidget {
   const SupplierListView({super.key});
@@ -931,7 +932,7 @@ class _SupplierListViewState extends State<SupplierListView>
   Future<void> _payDebt(
     _SupplierCardData d,
     int amount,
-    String method,
+    String methodStr,
     String note,
   ) async {
     try {
@@ -950,35 +951,49 @@ class _SupplierListViewState extends State<SupplierListView>
           ? (target['firestoreId'] as String? ?? 'debt_supplier_${d.supplier.id}')
           : 'debt_supplier_${d.supplier.id}';
       
-      // Tạo PaymentIntent và navigate đến UnifiedPaymentPage
+      // Convert payment method string to enum
+      final method = methodStr == 'CHUYỂN KHOẢN' 
+          ? PaymentMethod.transfer 
+          : PaymentMethod.cash;
+      
+      // Execute payment directly without navigation
       final user = FirebaseAuth.instance.currentUser;
-      final intent = PaymentIntent(
-        id: 'pi_supplier_pay_${DateTime.now().millisecondsSinceEpoch}_${d.supplier.id}',
+      final result = await PaymentIntentService.executePaymentDirect(
         type: PaymentIntentType.supplierDebt,
         amount: amount,
+        paymentMethod: method,
         description: 'Trả nợ NCC: ${d.supplier.name}',
+        executedBy: user?.displayName ?? user?.email ?? 'unknown',
         referenceId: debtFId,
         referenceType: 'supplier_debt',
         personName: d.supplier.name,
         personPhone: d.supplier.phone,
         notes: note.isNotEmpty ? note : null,
-        createdBy: user?.uid ?? 'unknown',
-        createdAt: DateTime.now().millisecondsSinceEpoch,
         metadata: {
           'supplierId': d.supplier.id,
           'supplierName': d.supplier.name,
           'debtId': target.isNotEmpty ? target['id'] : null,
           'debtFirestoreId': debtFId,
           'debtType': 'SHOP_OWES',
-          'suggestedMethod': method,
+          'suggestedMethod': methodStr,
         },
       );
       
-      // Navigate đến UnifiedPaymentPage để xác nhận thanh toán
-      if (mounted) {
-        await UnifiedPaymentPage.navigateWithIntent(context, intent);
-        // Reload data sau khi thanh toán
-        await _load();
+      if (result.success) {
+        if (mounted) {
+          NotificationService.showSnackBar(
+            'Đã thanh toán ${MoneyUtils.formatCurrency(amount)}đ!',
+            color: Colors.green,
+          );
+          await _load();
+        }
+      } else {
+        if (mounted) {
+          NotificationService.showSnackBar(
+            result.errorMessage ?? 'Có lỗi xảy ra',
+            color: Colors.red,
+          );
+        }
       }
     } catch (e) {
       NotificationService.showSnackBar('Lỗi: $e', color: Colors.red);

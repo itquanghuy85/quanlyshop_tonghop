@@ -2,7 +2,7 @@
 /// Đồng bộ giữa: NHẬP KHO MỚI, HÀNG CHỜ XÁC NHẬN, QUẢN LÝ KHO,
 /// THÊM MÃ NHẬP NHANH, NHẬP KHO NHANH
 class ProductConstants {
-  /// Danh sách màu sắc
+  /// Danh sách màu sắc (sử dụng tiếng Việt để đồng bộ)
   static const List<String> colors = [
     'ĐEN',
     'TRẮNG',
@@ -15,7 +15,6 @@ class ProductConstants {
     'XANH LÁ',
     'CAM',
     'XANH DƯƠNG',
-    'GOLD',
     'TITAN TỰ NHIÊN',
     'TITAN ĐEN',
     'TITAN TRẮNG',
@@ -240,13 +239,12 @@ class ProductConstants {
     if (colorUpper.contains('WHITE') || colorUpper.contains('TRẮNG')) return 'TRẮNG';
     if (colorUpper.contains('BLUE') || colorUpper.contains('XANH DƯƠNG')) return 'XANH DƯƠNG';
     if (colorUpper.contains('RED') || colorUpper.contains('ĐỎ')) return 'ĐỎ';
-    if (colorUpper.contains('YELLOW') || colorUpper.contains('VÀNG')) return 'VÀNG';
+    if (colorUpper.contains('YELLOW') || colorUpper.contains('VÀNG') || colorUpper.contains('GOLD')) return 'VÀNG';
     if (colorUpper.contains('PURPLE') || colorUpper.contains('TÍM')) return 'TÍM';
     if (colorUpper.contains('PINK') || colorUpper.contains('HỒNG')) return 'HỒNG';
     if (colorUpper.contains('SILVER') || colorUpper.contains('BẠC')) return 'BẠC';
     if (colorUpper.contains('GREEN') || colorUpper.contains('XANH LÁ')) return 'XANH LÁ';
     if (colorUpper.contains('ORANGE') || colorUpper.contains('CAM')) return 'CAM';
-    if (colorUpper.contains('GOLD')) return 'GOLD';
     if (colorUpper.contains('TITAN')) {
       if (colorUpper.contains('TỰ NHIÊN') || colorUpper.contains('NATURAL')) return 'TITAN TỰ NHIÊN';
       if (colorUpper.contains('ĐEN') || colorUpper.contains('BLACK')) return 'TITAN ĐEN';
@@ -255,5 +253,121 @@ class ProductConstants {
     }
 
     return 'KHÁC';
+  }
+
+  /// Map brand viết tắt về dạng chuẩn
+  static String mapBrand(String? brand) {
+    if (brand == null || brand.isEmpty) return 'KHÁC';
+    final brandUpper = brand.toUpperCase().trim();
+    
+    // Map các viết tắt
+    if (brandUpper == 'IP' || brandUpper.contains('IPHONE')) return 'IPHONE';
+    if (brandUpper == 'SS' || brandUpper.contains('SAMSUNG')) return 'SAMSUNG';
+    if (brandUpper.contains('XIAOMI') || brandUpper == 'MI') return 'XIAOMI';
+    
+    // Tìm trong danh sách chuẩn
+    for (final b in brands) {
+      if (b == brandUpper) return b;
+    }
+    
+    return 'KHÁC';
+  }
+
+  /// Map capacity về dạng chuẩn (có đuôi GB/TB)
+  static String mapCapacity(String? capacity) {
+    if (capacity == null || capacity.isEmpty) return '';
+    final capUpper = capacity.toUpperCase().trim();
+    
+    // Nếu đã có GB/TB thì giữ nguyên
+    if (capUpper.contains('GB') || capUpper.contains('TB')) {
+      return capUpper;
+    }
+    
+    // Thêm đuôi GB
+    final numOnly = capUpper.replaceAll(RegExp(r'[^0-9]'), '');
+    if (numOnly.isEmpty) return '';
+    
+    final num = int.tryParse(numOnly) ?? 0;
+    if (num >= 1000) {
+      return '${(num / 1000).round()}TB';
+    }
+    return '${num}GB';
+  }
+
+  /// Tạo tên sản phẩm chuẩn từ các field
+  /// Format: BRAND MODEL CAPACITY COLOR CONDITION
+  static String generateProductName({
+    String? brand,
+    String? model,
+    String? capacity,
+    String? color,
+    String? condition,
+  }) {
+    final parts = <String>[];
+    
+    // Brand - map về chuẩn
+    if (brand != null && brand.isNotEmpty) {
+      parts.add(mapBrand(brand));
+    }
+    
+    // Model
+    if (model != null && model.isNotEmpty) {
+      parts.add(model.toUpperCase().trim());
+    }
+    
+    // Capacity - map về chuẩn
+    if (capacity != null && capacity.isNotEmpty) {
+      parts.add(mapCapacity(capacity));
+    }
+    
+    // Color - map về chuẩn
+    if (color != null && color.isNotEmpty) {
+      parts.add(mapColor(color));
+    }
+    
+    // Condition - map về chuẩn
+    if (condition != null && condition.isNotEmpty) {
+      parts.add(mapConditionShort(condition));
+    }
+    
+    // Loại bỏ trùng lặp và chuẩn hóa
+    final rawName = parts.join(' ').trim().replaceAll(RegExp(r'\s+'), ' ');
+    return cleanProductName(rawName);
+  }
+
+  /// Làm sạch tên sản phẩm (loại bỏ thông tin trùng lặp)
+  static String cleanProductName(String name) {
+    if (name.isEmpty) return name;
+    
+    // Split thành các từ
+    final words = name.toUpperCase().split(RegExp(r'\s+'));
+    final seen = <String>{};
+    final result = <String>[];
+    
+    for (final word in words) {
+      // Bỏ qua từ rỗng
+      if (word.isEmpty) continue;
+      
+      // Kiểm tra duplicate
+      // Với capacity (32GB, 64GB...) - chuẩn hóa trước khi so sánh
+      final normalizedWord = _normalizeWord(word);
+      
+      if (!seen.contains(normalizedWord)) {
+        seen.add(normalizedWord);
+        result.add(word);
+      }
+    }
+    
+    return result.join(' ');
+  }
+
+  /// Chuẩn hóa từ để so sánh duplicate
+  static String _normalizeWord(String word) {
+    // Với số có/không có đuôi GB
+    final numOnly = word.replaceAll(RegExp(r'[^0-9]'), '');
+    if (numOnly.isNotEmpty && word.contains(RegExp(r'^\d+(GB|TB)?$', caseSensitive: false))) {
+      return numOnly; // So sánh chỉ phần số
+    }
+    return word;
   }
 }

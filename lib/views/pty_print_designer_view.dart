@@ -2081,6 +2081,10 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
         // Size controls
         _buildSizeControls(el, colorScheme),
         const SizedBox(height: 12),
+        
+        // Position navigation buttons - di chuyển nhanh
+        _buildPositionNavButtons(el, colorScheme),
+        const SizedBox(height: 12),
 
         // Rotation
         _buildRotationControls(el, colorScheme),
@@ -2191,6 +2195,249 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Nút điều hướng vị trí nhanh - di chuyển lên/xuống/trái/phải
+  Widget _buildPositionNavButtons(LabelElement el, ColorScheme colorScheme) {
+    const double step = 0.5; // Di chuyển 0.5mm mỗi lần bấm
+    const double bigStep = 2.0; // Di chuyển 2mm khi giữ
+    
+    Widget navButton({
+      required IconData icon,
+      required VoidCallback onPressed,
+      required String tooltip,
+    }) {
+      return Material(
+        color: colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onPressed();
+          },
+          onLongPress: () {
+            // Di chuyển nhanh khi giữ
+            HapticFeedback.mediumImpact();
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            child: Icon(
+              icon,
+              size: 20,
+              color: colorScheme.onPrimaryContainer,
+            ),
+          ),
+        ),
+      );
+    }
+    
+    return Card(
+      elevation: 0,
+      color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Di chuyển vị trí',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Control pad layout
+                Column(
+                  children: [
+                    // Lên
+                    navButton(
+                      icon: Icons.keyboard_arrow_up,
+                      tooltip: 'Lên',
+                      onPressed: () => _updateElement(
+                        el,
+                        (e) => e.yMm = (e.yMm - step).clamp(0, _labelHeightMm - e.heightMm),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Trái
+                        navButton(
+                          icon: Icons.keyboard_arrow_left,
+                          tooltip: 'Trái',
+                          onPressed: () => _updateElement(
+                            el,
+                            (e) => e.xMm = (e.xMm - step).clamp(0, _labelWidthMm - e.widthMm),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        // Nút căn giữa
+                        Material(
+                          color: colorScheme.secondary,
+                          borderRadius: BorderRadius.circular(8),
+                          child: InkWell(
+                            onTap: () {
+                              HapticFeedback.mediumImpact();
+                              // Căn giữa theo chiều ngang
+                              _updateElement(
+                                el,
+                                (e) => e.xMm = (_labelWidthMm - e.widthMm) / 2,
+                              );
+                            },
+                            onLongPress: () {
+                              HapticFeedback.heavyImpact();
+                              // Căn giữa cả hai chiều
+                              _updateElement(
+                                el,
+                                (e) {
+                                  e.xMm = (_labelWidthMm - e.widthMm) / 2;
+                                  e.yMm = (_labelHeightMm - e.heightMm) / 2;
+                                },
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              alignment: Alignment.center,
+                              child: Icon(
+                                Icons.center_focus_strong,
+                                size: 18,
+                                color: colorScheme.onSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        // Phải
+                        navButton(
+                          icon: Icons.keyboard_arrow_right,
+                          tooltip: 'Phải',
+                          onPressed: () => _updateElement(
+                            el,
+                            (e) => e.xMm = (e.xMm + step).clamp(0, _labelWidthMm - e.widthMm),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // Xuống
+                    navButton(
+                      icon: Icons.keyboard_arrow_down,
+                      tooltip: 'Xuống',
+                      onPressed: () => _updateElement(
+                        el,
+                        (e) => e.yMm = (e.yMm + step).clamp(0, _labelHeightMm - e.heightMm),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 24),
+                // Các nút căn lề nhanh
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Căn lề:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        // Căn trái
+                        _alignButton(
+                          icon: Icons.align_horizontal_left,
+                          tooltip: 'Căn trái',
+                          colorScheme: colorScheme,
+                          onPressed: () => _updateElement(el, (e) => e.xMm = 1),
+                        ),
+                        const SizedBox(width: 4),
+                        // Căn phải
+                        _alignButton(
+                          icon: Icons.align_horizontal_right,
+                          tooltip: 'Căn phải',
+                          colorScheme: colorScheme,
+                          onPressed: () => _updateElement(
+                            el,
+                            (e) => e.xMm = _labelWidthMm - e.widthMm - 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        // Căn trên
+                        _alignButton(
+                          icon: Icons.align_vertical_top,
+                          tooltip: 'Căn trên',
+                          colorScheme: colorScheme,
+                          onPressed: () => _updateElement(el, (e) => e.yMm = 1),
+                        ),
+                        const SizedBox(width: 4),
+                        // Căn dưới
+                        _alignButton(
+                          icon: Icons.align_vertical_bottom,
+                          tooltip: 'Căn dưới',
+                          colorScheme: colorScheme,
+                          onPressed: () => _updateElement(
+                            el,
+                            (e) => e.yMm = _labelHeightMm - e.heightMm - 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _alignButton({
+    required IconData icon,
+    required String tooltip,
+    required ColorScheme colorScheme,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onPressed();
+          },
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            child: Icon(
+              icon,
+              size: 18,
+              color: colorScheme.onTertiaryContainer,
+            ),
+          ),
         ),
       ),
     );

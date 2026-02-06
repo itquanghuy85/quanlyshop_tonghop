@@ -65,10 +65,11 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   List<Map<String, dynamic>> _suppliers = [];
 
   // Options - sử dụng constants để đồng bộ
+  // ĐỒNG BỘ: Dùng conditionsShort giống fast_stock_in_view để thống nhất dữ liệu
   List<String> get _brands => ProductConstants.brands;
   List<String> get _capacities => ProductConstants.capacities;
   List<String> get _colors => ProductConstants.colors;
-  List<String> get _conditions => ProductConstants.conditions;
+  List<String> get _conditions => ProductConstants.conditionsShort;
   final _units = ProductConstants.units;
   final _paymentMethods = ProductConstants.paymentMethods;
 
@@ -176,11 +177,23 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       if (code.capacity != null && _capacities.contains(code.capacity)) {
         _selectedCapacity = code.capacity;
       }
-      if (code.color != null && _colors.contains(code.color)) {
-        _selectedColor = code.color;
+      if (code.color != null) {
+        // Map color về dạng chuẩn nếu cần
+        final mappedColor = ProductConstants.mapColor(code.color);
+        if (_colors.contains(mappedColor)) {
+          _selectedColor = mappedColor;
+        } else if (_colors.contains(code.color)) {
+          _selectedColor = code.color;
+        }
       }
-      if (code.condition != null && _conditions.contains(code.condition)) {
-        _selectedCondition = code.condition;
+      if (code.condition != null) {
+        // Map condition về dạng short nếu cần (backward compatibility)
+        final mappedCondition = ProductConstants.mapConditionShort(code.condition!);
+        if (_conditions.contains(mappedCondition)) {
+          _selectedCondition = mappedCondition;
+        } else if (_conditions.contains(code.condition)) {
+          _selectedCondition = code.condition;
+        }
       }
     }
     // Phụ kiện không có unit trong QuickInputCode
@@ -237,12 +250,23 @@ class _SmartStockInViewState extends State<SmartStockInView> {
           _selectedCapacity = item.capacity;
         }
         // Validate color - chỉ set nếu có trong list
-        if (item.color != null && _colors.contains(item.color)) {
-          _selectedColor = item.color;
+        // Validate color - map về dạng chuẩn nếu cần
+        if (item.color != null) {
+          final mappedColor = ProductConstants.mapColor(item.color);
+          if (_colors.contains(mappedColor)) {
+            _selectedColor = mappedColor;
+          } else if (_colors.contains(item.color)) {
+            _selectedColor = item.color;
+          }
         }
-        // Validate condition - chỉ set nếu có trong list
-        if (item.condition != null && _conditions.contains(item.condition)) {
-          _selectedCondition = item.condition;
+        // Validate condition - map về dạng short nếu cần (backward compatibility)
+        if (item.condition != null) {
+          final mappedCondition = ProductConstants.mapConditionShort(item.condition!);
+          if (_conditions.contains(mappedCondition)) {
+            _selectedCondition = mappedCondition;
+          } else if (_conditions.contains(item.condition)) {
+            _selectedCondition = item.condition;
+          }
         }
       } else {
         _skuCtrl.text = item.sku ?? '';
@@ -361,8 +385,28 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       quantity = 1;
     }
 
+    // Tạo tên sản phẩm chuẩn nếu là điện thoại
+    String productName;
+    if (_isPhone && (_selectedBrand != null || _modelCtrl.text.trim().isNotEmpty)) {
+      // Ưu tiên dùng tên chuẩn từ các field
+      productName = ProductConstants.generateProductName(
+        brand: _selectedBrand,
+        model: _modelCtrl.text.trim(),
+        capacity: _selectedCapacity,
+        color: _selectedColor,
+        condition: _selectedCondition,
+      );
+      // Fallback nếu tên rỗng
+      if (productName.isEmpty) {
+        productName = _nameCtrl.text.trim().toUpperCase();
+      }
+    } else {
+      // Phụ kiện hoặc không có thông tin - dùng tên nhập tay
+      productName = _nameCtrl.text.trim().toUpperCase();
+    }
+
     return StockEntryItem(
-      name: _nameCtrl.text.trim().toUpperCase(),
+      name: productName,
       quantity: quantity,
       cost: cost,
       price: price,
@@ -739,22 +783,6 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               ],
-            ),
-            const SizedBox(height: 12),
-
-            TextFormField(
-              controller: _labelInfoCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Thông tin in trên tem',
-                hintText: 'VD: Bảo hành 6T, Máy đẹp 99%',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.local_offer_outlined, size: 20),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-              style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
             ),
             const SizedBox(height: 12),
 

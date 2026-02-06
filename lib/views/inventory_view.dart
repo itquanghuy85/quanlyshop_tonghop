@@ -6,6 +6,7 @@ import '../utils/money_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
+import '../constants/product_constants.dart';
 import '../models/product_model.dart';
 import '../models/inventory_check_model.dart';
 import '../models/debt_model.dart';
@@ -637,8 +638,11 @@ class _InventoryViewState extends State<InventoryView>
   }
 
   void _showEditProductDialog(Product p) {
-    final nameCtrl = TextEditingController(text: p.name);
-    final capacityCtrl = TextEditingController(text: p.capacity ?? '');
+    // Tách model riêng, brand riêng
+    String? selectedBrand = ProductConstants.mapBrand(p.brand);
+    final modelCtrl = TextEditingController(text: p.model ?? '');
+    final capacityCtrl = TextEditingController(text: ProductConstants.mapCapacity(p.capacity));
+    final colorCtrl = TextEditingController(text: ProductConstants.mapColor(p.color));
     final imeiCtrl = TextEditingController(text: p.imei ?? '');
     final supplierCtrl = TextEditingController(text: p.supplier ?? '');
     final costCtrl = TextEditingController(
@@ -655,23 +659,44 @@ class _InventoryViewState extends State<InventoryView>
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
         title: const Text('Chỉnh sửa sản phẩm'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Hãng
+              DropdownButtonFormField<String>(
+                value: ProductConstants.brands.contains(selectedBrand) ? selectedBrand : null,
+                decoration: const InputDecoration(
+                  labelText: "Hãng *",
+                  prefixIcon: Icon(Icons.business, size: 18),
+                  border: OutlineInputBorder(),
+                ),
+                items: ProductConstants.brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                onChanged: (v) => setS(() => selectedBrand = v),
+              ),
+              const SizedBox(height: 12),
+              // Model
               ValidatedTextField(
-                controller: nameCtrl,
-                label: 'Tên sản phẩm',
+                controller: modelCtrl,
+                label: 'Model (VD: 15 PRO MAX)',
                 uppercase: true,
                 customValidator: (val) =>
-                    val.isEmpty ? 'Vui lòng nhập tên sản phẩm' : null,
+                    val.isEmpty ? 'Vui lòng nhập model' : null,
               ),
               const SizedBox(height: 12),
               ValidatedTextField(
                 controller: capacityCtrl,
-                label: 'Chi tiết máy',
+                label: 'Dung lượng (VD: 256GB)',
+                uppercase: true,
+              ),
+              const SizedBox(height: 12),
+              ValidatedTextField(
+                controller: colorCtrl,
+                label: 'Màu sắc',
+                uppercase: true,
               ),
               const SizedBox(height: 12),
               ValidatedTextField(controller: imeiCtrl, label: 'IMEI/Serial'),
@@ -754,9 +779,21 @@ class _InventoryViewState extends State<InventoryView>
                 final shouldTransferToMainInventory =
                     p.isPending && newCost > 0;
 
-                final updatedProduct = p.copyWith(
-                  name: nameCtrl.text.trim().toUpperCase(),
+                // Tạo tên sản phẩm chuẩn từ các field
+                final generatedName = ProductConstants.generateProductName(
+                  brand: selectedBrand ?? '',
+                  model: modelCtrl.text.trim(),
                   capacity: capacityCtrl.text.trim(),
+                  color: colorCtrl.text.trim(),
+                  condition: p.condition, // Giữ nguyên condition
+                );
+
+                final updatedProduct = p.copyWith(
+                  name: generatedName,
+                  brand: selectedBrand,
+                  model: modelCtrl.text.trim(),
+                  capacity: ProductConstants.mapCapacity(capacityCtrl.text.trim()),
+                  color: ProductConstants.mapColor(colorCtrl.text.trim()),
                   imei: imeiCtrl.text.trim(),
                   supplier: canEditFinancialInfo ? supplierCtrl.text.trim() : p.supplier,
                   cost: newCost,
@@ -904,7 +941,7 @@ class _InventoryViewState extends State<InventoryView>
             child: const Text('Lưu'),
           ),
         ],
-      ),
+      )),
     );
   }
 
@@ -2635,7 +2672,7 @@ class _InventoryViewState extends State<InventoryView>
                               ),
                             Expanded(
                               child: Text(
-                                p.name,
+                                ProductConstants.cleanProductName(p.name),
                                 style: AppTextStyles.subtitle1.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: isPending ? Colors.orange.shade800 : const Color(0xFF1A237E),
@@ -3620,7 +3657,8 @@ class _InventoryViewState extends State<InventoryView>
   }
 
   void _editProduct(Product p) {
-    final nameC = TextEditingController(text: p.name);
+    // Tên máy = chỉ model (VD: "15 PRO MAX")
+    final nameC = TextEditingController(text: p.model ?? '');
     final imeiC = TextEditingController(text: p.imei ?? '');
     final costC = TextEditingController(
       text: CurrencyTextField.formatDisplay(p.cost),
@@ -3628,10 +3666,13 @@ class _InventoryViewState extends State<InventoryView>
     final priceC = TextEditingController(
       text: CurrencyTextField.formatDisplay(p.price),
     );
-    final detailC = TextEditingController(text: p.capacity ?? '');
+    // Chi tiết tách riêng: capacity và color
+    final detailC = TextEditingController(text: ProductConstants.mapCapacity(p.capacity));
+    final colorC = TextEditingController(text: ProductConstants.mapColor(p.color));
     final labelInfoC = TextEditingController(text: p.labelInfo ?? '');
     final qtyC = TextEditingController(text: p.quantity.toString());
-    final modelC = TextEditingController(text: p.model ?? '');
+    // Brand chọn riêng - giữ từ sản phẩm gốc
+    String? selectedBrand = ProductConstants.mapBrand(p.brand);
 
     String type = p.type;
     String? supplier = p.supplier;
@@ -3663,15 +3704,27 @@ class _InventoryViewState extends State<InventoryView>
               // → Chuyển sang kho chính (isPending = false)
               final shouldTransferToMainInventory = p.isPending && newCost > 0;
 
+              // Tạo tên sản phẩm chuẩn từ các field
+              // nameC = model, selectedBrand = brand
+              final generatedName = ProductConstants.generateProductName(
+                brand: selectedBrand,
+                model: nameC.text.trim(), // nameC chứa model
+                capacity: detailC.text.trim(),
+                color: colorC.text.trim(),
+                condition: p.condition, // Giữ nguyên condition
+              );
+
               final updatedP = p.copyWith(
-                name: nameC.text.trim().toUpperCase(),
-                model: modelC.text.trim().isNotEmpty
-                    ? modelC.text.trim()
+                name: generatedName,
+                brand: selectedBrand ?? p.brand,
+                model: nameC.text.trim().isNotEmpty
+                    ? nameC.text.trim()
                     : null,
                 imei: imeiC.text.trim(),
                 cost: newCost,
                 price: CurrencyTextField.parseValue(priceC.text),
-                capacity: detailC.text.trim().toUpperCase(),
+                capacity: ProductConstants.mapCapacity(detailC.text.trim()),
+                color: ProductConstants.mapColor(colorC.text.trim()),
                 labelInfo: labelInfoC.text.trim(),
                 quantity: int.tryParse(qtyC.text) ?? 1,
                 type: type,
@@ -3758,14 +3811,35 @@ class _InventoryViewState extends State<InventoryView>
                     ),
                   ),
 
-                  // Tên máy
-                  _input(nameC, "Tên máy *", Icons.phone_android, caps: true),
+                  // Hãng
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: ProductConstants.brands.contains(selectedBrand) ? selectedBrand : null,
+                    decoration: const InputDecoration(
+                      labelText: "Hãng *",
+                      prefixIcon: Icon(Icons.business, size: 18),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: ProductConstants.brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                    onChanged: (v) => setS(() => selectedBrand = v),
+                  ),
 
-                  // Chi tiết
+                  // Model (tên máy cụ thể)
+                  _input(nameC, "Model (VD: 15 PRO MAX)", Icons.phone_android, caps: true),
+
+                  // Dung lượng
                   _input(
                     detailC,
-                    "Chi tiết (Dung lượng - Màu...)",
-                    Icons.info_outline,
+                    "Dung lượng (VD: 256GB)",
+                    Icons.storage,
+                    caps: true,
+                  ),
+
+                  // Màu sắc
+                  _input(
+                    colorC,
+                    "Màu sắc",
+                    Icons.color_lens,
                     caps: true,
                   ),
 
@@ -3784,8 +3858,8 @@ class _InventoryViewState extends State<InventoryView>
                     readOnly: true,
                   ),
 
-                  // Model
-                  _input(modelC, "Model", Icons.smartphone, caps: true),
+                  // Model (nameC chứa model)
+                  _input(nameC, "Model", Icons.smartphone, caps: true),
 
                   // Giá vốn - KHÓA nếu đã nhập kho chính hoặc đã bán
                   if (!p.isPending || p.status == 0)

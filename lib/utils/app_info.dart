@@ -10,11 +10,11 @@ class AppInfo {
     try {
       final pubspecString = await rootBundle.loadString('pubspec.yaml');
       final pubspec = loadYaml(pubspecString);
-      _version = pubspec['version']?.toString() ?? '10.0.3';
+      _version = pubspec['version']?.toString() ?? '10.0.4';
       return _version!;
     } catch (e) {
       // Fallback to hardcoded version if can't read pubspec
-      return '10.0.3';
+      return '10.0.4';
     }
   }
 

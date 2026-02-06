@@ -211,23 +211,32 @@ class PaymentIntentService {
 
   /// Create a new payment intent
   ///
-  /// This does NOT execute the payment. It only creates a pending intent
-  /// that must be executed through the Unified Payment Page.
+  /// If status is PENDING: stores in pending cache for later execution.
+  /// If status is COMPLETED: stores directly in history (for instant cash payments).
   static Future<PaymentIntent> createIntent(PaymentIntent intent) async {
-    if (intent.status != PaymentIntentStatus.pending) {
-      throw ArgumentError('New payment intent must have PENDING status');
+    // Ensure service is initialized
+    if (!_isInitialized) {
+      await initialize();
     }
 
-    // Store in memory cache
-    _pendingIntents[intent.id] = intent;
-    
-    // Persist to database
+    // Persist to database first
     try {
       await _db.insertPaymentIntent(_intentToDbRow(intent));
-      debugPrint('💳 PaymentIntent created and persisted: ${intent.id} - ${intent.type.code}');
+      debugPrint('💳 PaymentIntent created and persisted: ${intent.id} - ${intent.type.code} - ${intent.status.code}');
     } catch (e) {
       debugPrint('⚠️ PaymentIntent DB insert error: $e');
-      // Still keep in memory even if DB fails
+      // Still continue to store in memory
+    }
+
+    // Store in appropriate cache based on status
+    if (intent.status == PaymentIntentStatus.pending) {
+      _pendingIntents[intent.id] = intent;
+    } else {
+      // Already completed/cancelled/failed - add to history
+      _historyIntents.insert(0, intent);
+      if (_historyIntents.length > 100) {
+        _historyIntents.removeLast();
+      }
     }
 
     return intent;
@@ -345,6 +354,101 @@ class PaymentIntentService {
 
     debugPrint('🚫 PaymentIntent cancelled: $intentId');
     return true;
+  }
+
+  // ---------------------------------------------------------------------------
+  // DIRECT PAYMENT EXECUTION (Không cần navigate qua UnifiedPaymentPage)
+  // ---------------------------------------------------------------------------
+
+  /// Execute payment directly without going through UI
+  ///
+  /// This is a convenience method for business modules that want to
+  /// execute payments inline without navigating to UnifiedPaymentPage.
+  ///
+  /// Parameters:
+  /// - type: Loại thanh toán (PaymentIntentType)
+  /// - amount: Số tiền
+  /// - paymentMethod: Phương thức thanh toán
+  /// - description: Mô tả giao dịch
+  /// - executedBy: Người thực hiện
+  /// - referenceId: ID tham chiếu (debt ID, sale ID, etc.)
+  /// - referenceType: Loại tham chiếu
+  /// - personName: Tên người liên quan
+  /// - personPhone: SĐT
+  /// - notes: Ghi chú
+  /// - metadata: Thông tin bổ sung
+  ///
+  /// Returns: PaymentExecutionResult
+  static Future<PaymentExecutionResult> executePaymentDirect({
+    required PaymentIntentType type,
+    required int amount,
+    required PaymentMethod paymentMethod,
+    required String description,
+    required String executedBy,
+    String? referenceId,
+    String? referenceType,
+    String? personName,
+    String? personPhone,
+    String? notes,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      // Validate amount
+      if (amount <= 0) {
+        return PaymentExecutionResult.failure(
+          errorCode: 'INVALID_AMOUNT',
+          errorMessage: 'Số tiền phải > 0',
+        );
+      }
+
+      // Create intent with timestamp-based ID
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final intentId = 'pi_direct_${type.code.toLowerCase()}_$now';
+      
+      final intent = PaymentIntent(
+        id: intentId,
+        type: type,
+        amount: amount,
+        status: PaymentIntentStatus.pending,
+        paymentMethod: paymentMethod,
+        description: description,
+        referenceId: referenceId,
+        referenceType: referenceType,
+        personName: personName,
+        personPhone: personPhone,
+        notes: notes,
+        createdBy: executedBy,
+        createdAt: now,
+        metadata: metadata,
+      );
+
+      // Store in memory temporarily (for tracking)
+      _pendingIntents[intentId] = intent;
+
+      // Persist to database (for audit trail)
+      try {
+        await _db.insertPaymentIntent(_intentToDbRow(intent));
+      } catch (e) {
+        debugPrint('⚠️ Direct payment DB insert warning: $e');
+      }
+
+      // Execute immediately
+      final result = await executePayment(
+        intentId: intentId,
+        paymentMethod: paymentMethod,
+        executedBy: executedBy,
+      );
+
+      debugPrint('💳 Direct payment ${result.success ? "SUCCESS" : "FAILED"}: ${intent.type.code} - ${intent.amount}đ');
+      
+      return result;
+    } catch (e) {
+      debugPrint('❌ executePaymentDirect error: $e');
+      return PaymentExecutionResult.failure(
+        errorCode: 'EXECUTION_ERROR',
+        errorMessage: 'Lỗi thực thi thanh toán: $e',
+      );
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -499,30 +603,38 @@ class PaymentIntentService {
       case PaymentIntentType.operatingExpense:
       case PaymentIntentType.utilityExpense:
       case PaymentIntentType.otherExpense:
-        // Insert expense record
+        // Insert expense record - FIX: use correct field names
+        final shopId = UserService.getShopIdSync();
         await _db.insertExpense({
           'firestoreId': 'exp_${intent.id}',
           'amount': intent.amount,
           'title': intent.description,
+          'description': intent.description,
           'note': intent.notes,
           'paymentMethod': paymentMethod.code,
+          'date': now,
           'createdAt': now,
-          'category': intent.metadata?['category'] ?? 'OTHER',
+          'category': intent.metadata?['category'] ?? 'KHÁC',
+          'shopId': shopId,
           'isSynced': 0,
         });
         break;
 
       case PaymentIntentType.salaryPayment:
       case PaymentIntentType.bonusPayment:
-        // Record salary payment
+        // Record salary payment - FIX: use correct field names
+        final shopIdSalary = UserService.getShopIdSync();
         await _db.insertExpense({
           'firestoreId': 'salary_${intent.id}',
           'amount': intent.amount,
           'title': intent.description,
+          'description': intent.description,
           'note': intent.notes,
           'paymentMethod': paymentMethod.code,
+          'date': now,
           'createdAt': now,
-          'category': 'SALARY',
+          'category': 'LƯƠNG',
+          'shopId': shopIdSalary,
           'isSynced': 0,
         });
         break;

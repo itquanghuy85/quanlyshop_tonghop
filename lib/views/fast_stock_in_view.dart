@@ -18,8 +18,7 @@ import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
 import '../services/stock_entry_service.dart';
-import '../services/payment_intent_service.dart';
-import '../models/payment_intent_model.dart';
+import '../services/financial_activity_service.dart';
 import '../utils/sku_generator.dart';
 import '../utils/imei_extractor.dart';
 import '../widgets/currency_text_field.dart';
@@ -76,7 +75,6 @@ class _FastStockInViewState extends State<FastStockInView> {
 
   final TextEditingController modelCtrl = TextEditingController();
   final TextEditingController imeiCtrl = TextEditingController();
-  final TextEditingController labelNoteCtrl = TextEditingController();
   final TextEditingController quantityCtrl = TextEditingController(text: '1');
   final TextEditingController costCtrl = TextEditingController();
   final TextEditingController priceCtrl = TextEditingController();
@@ -132,9 +130,14 @@ class _FastStockInViewState extends State<FastStockInView> {
       selectedCapacity = code.capacity!.toUpperCase();
     }
 
-    // Pre-fill color
-    if (code.color != null && colors.contains(code.color!.toUpperCase())) {
-      selectedColor = code.color!.toUpperCase();
+    // Pre-fill color - với mapping để đồng bộ
+    if (code.color != null) {
+      final mappedColor = ProductConstants.mapColor(code.color);
+      if (colors.contains(mappedColor)) {
+        selectedColor = mappedColor;
+      } else if (colors.contains(code.color!.toUpperCase())) {
+        selectedColor = code.color!.toUpperCase();
+      }
     }
 
     // Pre-fill condition - map từ các giá trị khác nhau
@@ -223,7 +226,7 @@ class _FastStockInViewState extends State<FastStockInView> {
     // CurrencyTextField handles formatting - no format listeners to remove
     modelCtrl.dispose();
     imeiCtrl.dispose();
-    labelNoteCtrl.dispose();
+
     quantityCtrl.dispose();
     costCtrl.dispose();
     priceCtrl.dispose();
@@ -700,9 +703,13 @@ class _FastStockInViewState extends State<FastStockInView> {
 
       final product = Product(
         firestoreId: fId,
-        name:
-            '$selectedBrand ${modelCtrl.text.trim()} $selectedCapacity $selectedColor $selectedCondition'
-                .toUpperCase(),
+        name: ProductConstants.generateProductName(
+          brand: selectedBrand,
+          model: modelCtrl.text.trim(),
+          capacity: selectedCapacity,
+          color: selectedColor,
+          condition: selectedCondition,
+        ),
         brand: selectedBrand!,
         model: modelCtrl.text.trim(),
         imei: imei,
@@ -824,6 +831,7 @@ class _FastStockInViewState extends State<FastStockInView> {
       // Xử lý thanh toán nhà cung cấp - CHỈ KHI KHÔNG PENDING
       if (!isPending) {
         final totalCost = cost * quantity;
+        final shopId = await UserService.getCurrentShopId();
         
         if (selectedPaymentMethod == 'CÔNG NỢ') {
           // Tạo công nợ shop phải trả cho nhà cung cấp
@@ -849,56 +857,46 @@ class _FastStockInViewState extends State<FastStockInView> {
             );
           }
           EventBus().emit('debts_changed');
-          
-          // Tạo PaymentIntent cho công nợ nhập hàng
-          final intent = PaymentIntent(
-            id: 'pi_${DateTime.now().millisecondsSinceEpoch}',
-            type: PaymentIntentType.supplierDebt,
-            amount: totalCost,
-            description: 'Công nợ nhập nhanh: ${product.name} x$quantity',
-            referenceId: product.imei,
-            referenceType: 'STOCK_IN',
-            personName: selectedSupplier,
-            status: PaymentIntentStatus.completed,
-            createdAt: DateTime.now().millisecondsSinceEpoch,
-            createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
-            metadata: {
-              'supplierName': selectedSupplier,
-              'productName': product.name,
-              'imei': product.imei,
-              'quantity': quantity,
-              'costPrice': cost,
-              'paymentMethod': 'CÔNG NỢ',
-              'autoCompleted': true,
-            },
-          );
-          await PaymentIntentService.createIntent(intent);
-          debugPrint('FastStockIn: Created debt + PaymentIntent for CÔNG NỢ: $totalCost');
+          debugPrint('FastStockIn: Created debt for CÔNG NỢ: $totalCost');
         } else {
-          // TIỀN MẶT hoặc CHUYỂN KHOẢN - Tạo PaymentIntent để tracking
-          final intent = PaymentIntent(
-            id: 'pi_${DateTime.now().millisecondsSinceEpoch}',
-            type: PaymentIntentType.inventoryPurchase,
+          // TIỀN MẶT hoặc CHUYỂN KHOẢN - Tạo expense record trực tiếp
+          final expenseFirestoreId = 'exp_stockin_${DateTime.now().millisecondsSinceEpoch}_${product.imei}';
+          final expenseData = {
+            'firestoreId': expenseFirestoreId,
+            'title': 'Nhập kho: ${product.name}',
+            'description': 'NCC: ${selectedSupplier ?? "N/A"} - IMEI: ${product.imei} - SL: $quantity',
+            'amount': totalCost,
+            'category': 'NHẬP HÀNG',
+            'date': DateTime.now().millisecondsSinceEpoch,
+            'note': 'Nhập nhanh từ Fast Stock In',
+            'paymentMethod': selectedPaymentMethod,
+            'createdAt': DateTime.now().millisecondsSinceEpoch,
+            'shopId': shopId,
+            'isSynced': 0,
+          };
+          final expenseId = await db.insertExpense(expenseData);
+          if (expenseId > 0) {
+            await SyncOrchestrator().enqueue(
+              entityType: SyncEntityType.expense,
+              entityId: expenseId,
+              firestoreId: expenseFirestoreId,
+              operation: SyncOperation.create,
+              data: expenseData,
+            );
+          }
+          
+          // Log vào financial_activity_log để hiện trong Nhật ký tài chính
+          await FinancialActivityService.logPurchase(
+            firestoreId: expenseFirestoreId,
             amount: totalCost,
-            description: 'Nhập nhanh: ${product.name} x$quantity',
-            referenceId: product.imei,
-            referenceType: 'STOCK_IN',
-            personName: selectedSupplier,
-            status: PaymentIntentStatus.completed,
-            createdAt: DateTime.now().millisecondsSinceEpoch,
-            createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
-            metadata: {
-              'supplierName': selectedSupplier,
-              'productName': product.name,
-              'imei': product.imei,
-              'quantity': quantity,
-              'costPrice': cost,
-              'paymentMethod': selectedPaymentMethod,
-              'autoCompleted': true,
-            },
+            productName: product.name,
+            quantity: quantity,
+            paymentMethod: selectedPaymentMethod!,
+            supplierName: selectedSupplier ?? 'N/A',
           );
-          await PaymentIntentService.createIntent(intent);
-          debugPrint('FastStockIn: Created PaymentIntent for $selectedPaymentMethod: $totalCost');
+          
+          EventBus().emit('expenses_changed');
+          debugPrint('FastStockIn: Created expense for $selectedPaymentMethod: $totalCost');
         }
       }
 
@@ -987,11 +985,13 @@ class _FastStockInViewState extends State<FastStockInView> {
 
     try {
       // Tạo tên sản phẩm
-      final productName =
-          '$selectedBrand ${modelCtrl.text.trim()} ${selectedCapacity ?? ""} $selectedColor $selectedCondition'
-              .toUpperCase()
-              .trim()
-              .replaceAll(RegExp(r'\s+'), ' ');
+      final productName = ProductConstants.generateProductName(
+        brand: selectedBrand,
+        model: modelCtrl.text.trim(),
+        capacity: selectedCapacity,
+        color: selectedColor,
+        condition: selectedCondition,
+      );
 
       // Lấy supplier ID nếu có
       String? supplierId;
@@ -1026,9 +1026,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         capacity: selectedCapacity,
         color: selectedColor,
         condition: selectedCondition,
-        labelInfo: labelInfoCtrl.text.trim().isNotEmpty
-            ? '${labelInfoCtrl.text.trim()}${labelNoteCtrl.text.trim().isNotEmpty ? ' | ' + labelNoteCtrl.text.trim() : ''}'
-            : (labelNoteCtrl.text.trim().isNotEmpty ? labelNoteCtrl.text.trim() : null),
+        labelInfo: labelInfoCtrl.text.trim().isNotEmpty ? labelInfoCtrl.text.trim() : null,
         productType: 'DIEN_THOAI',
       );
 
@@ -1155,7 +1153,6 @@ class _FastStockInViewState extends State<FastStockInView> {
     });
     modelCtrl.clear();
     imeiCtrl.clear();
-    labelNoteCtrl.clear();
     quantityCtrl.text = '1';
     costCtrl.clear();
     priceCtrl.clear();
@@ -1430,11 +1427,32 @@ class _FastStockInViewState extends State<FastStockInView> {
   void _applyQuickInputCode(QuickInputCode code) {
     setState(() {
       if (code.type == 'DIEN_THOAI') {
-        selectedBrand = code.brand;
+        // Validate và map các giá trị cho đồng bộ
+        if (code.brand != null && brands.contains(code.brand)) {
+          selectedBrand = code.brand;
+        }
         modelCtrl.text = code.model ?? '';
-        selectedCapacity = code.capacity;
-        selectedColor = code.color;
-        selectedCondition = code.condition;
+        if (code.capacity != null && capacities.contains(code.capacity)) {
+          selectedCapacity = code.capacity;
+        }
+        // Map color về dạng chuẩn
+        if (code.color != null) {
+          final mappedColor = ProductConstants.mapColor(code.color);
+          if (colors.contains(mappedColor)) {
+            selectedColor = mappedColor;
+          } else if (colors.contains(code.color)) {
+            selectedColor = code.color;
+          }
+        }
+        // Map condition về dạng short
+        if (code.condition != null) {
+          final mappedCondition = ProductConstants.mapConditionShort(code.condition!);
+          if (conditions.contains(mappedCondition)) {
+            selectedCondition = mappedCondition;
+          } else if (conditions.contains(code.condition)) {
+            selectedCondition = code.condition;
+          }
+        }
       } else {
         // For accessories, set description as model
         modelCtrl.text = code.description ?? '';
@@ -1459,7 +1477,6 @@ class _FastStockInViewState extends State<FastStockInView> {
 
       // Reset IMEI for new entry
       imeiCtrl.clear();
-      labelNoteCtrl.clear();
       quantityCtrl.text = '1';
     });
 
@@ -1647,30 +1664,6 @@ class _FastStockInViewState extends State<FastStockInView> {
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  Text(
-                    AppLocalizations.of(context)!.labelNoteFieldLabel,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: AppTextStyles.body1.fontSize,
-                    ),
-                  ),
-                  TextField(
-                    controller: labelNoteCtrl,
-                    inputFormatters: [UpperCaseTextFormatter()],
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
-                    decoration: InputDecoration(
-                      hintText: AppLocalizations.of(context)!.labelNoteFieldHint,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
                   ),
                   const SizedBox(height: 8),
 

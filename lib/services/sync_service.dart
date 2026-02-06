@@ -331,6 +331,19 @@ class SyncService {
       return;
     }
 
+    // AUTO-CLEANUP: Xóa orphan repair_parts bị stuck (không có firestoreId)
+    // và force mark các records có firestoreId là đã sync
+    try {
+      final dbHelper = DBHelper();
+      final orphansCleaned = await dbHelper.cleanupOrphanRepairParts();
+      final forceMarked = await dbHelper.forceMarkRepairPartsSynced();
+      if (orphansCleaned > 0 || forceMarked > 0) {
+        debugPrint("🧹 Auto-cleanup: removed $orphansCleaned orphans, force-marked $forceMarked synced");
+      }
+    } catch (e) {
+      debugPrint("⚠️ Auto-cleanup failed: $e");
+    }
+
     // 1. Đồng bộ REPAIRS
     _subscribeToCollection(
       collection: 'repairs',

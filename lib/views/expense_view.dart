@@ -493,29 +493,27 @@ class _ExpenseViewState extends State<ExpenseView> {
                         final user = FirebaseAuth.instance.currentUser;
                         final navigator = Navigator.of(ctx);
                         
-                        // Create PaymentIntent and redirect to UnifiedPaymentPage
-                        final intent = PaymentIntent(
-                          id: 'exp_${DateTime.now().millisecondsSinceEpoch}_${titleC.text.hashCode}',
+                        // Convert payment method string to enum
+                        final method = payMethod == 'CHUYỂN KHOẢN' 
+                            ? PaymentMethod.transfer 
+                            : PaymentMethod.cash;
+                            
+                        navigator.pop(); // Close dialog first
+                        
+                        // Execute payment directly without navigation
+                        final result = await PaymentIntentService.executePaymentDirect(
                           type: category == 'ĐIỆN NƯỚC' || category == 'INTERNET' 
                               ? PaymentIntentType.utilityExpense 
                               : PaymentIntentType.operatingExpense,
                           amount: amount,
+                          paymentMethod: method,
                           description: '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
-                          createdBy: user?.uid ?? 'unknown',
-                          createdAt: DateTime.now().millisecondsSinceEpoch,
+                          executedBy: user?.displayName ?? user?.email ?? 'unknown',
                           metadata: {
                             'category': category,
                             'title': titleC.text.toUpperCase(),
                             'note': noteC.text,
                           },
-                        );
-
-                        navigator.pop(); // Close dialog first
-                        
-                        // Navigate to UnifiedPaymentPage
-                        final result = await UnifiedPaymentPage.navigateWithIntent(
-                          context,
-                          intent,
                         );
 
                         if (result != null && result.success) {

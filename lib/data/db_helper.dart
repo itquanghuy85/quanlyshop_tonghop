@@ -68,7 +68,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 73,
+      version: 74,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
@@ -465,6 +465,22 @@ class DBHelper {
             await db.execute('ALTER TABLE products ADD COLUMN labelNote TEXT');
           } catch (e) {
             debugPrint('DB upgrade error (products labelNote): $e');
+          }
+        }
+        if (oldV < 74) {
+          // Add firestoreId column to payment_intents table for cloud sync
+          debugPrint('DB upgrade v74: Adding firestoreId to payment_intents table...');
+          try {
+            await db.execute('ALTER TABLE payment_intents ADD COLUMN firestoreId TEXT');
+            debugPrint('v74: added firestoreId column to payment_intents');
+          } catch (e) {
+            debugPrint('v74 error (firestoreId): $e');
+          }
+          try {
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_payment_intents_firestoreId ON payment_intents(firestoreId)');
+            debugPrint('v74: created index on payment_intents firestoreId');
+          } catch (e) {
+            debugPrint('v74 error (index): $e');
           }
         }
         if (oldV < 26) {
@@ -3126,8 +3142,23 @@ class DBHelper {
       _upsert('expenses', e.toMap(), e.firestoreId ?? "exp_${e.date}");
   Future<int> insertExpense(Map<String, dynamic> e) async =>
       (await database).insert('expenses', e);
-  Future<List<Map<String, dynamic>>> getAllExpenses() async =>
-      (await database).query('expenses', orderBy: 'date DESC');
+  
+  /// Lấy tất cả expenses của shop hiện tại
+  Future<List<Map<String, dynamic>>> getAllExpenses() async {
+    final shopId = UserService.getShopIdSync();
+    final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      return db.query(
+        'expenses',
+        where: 'shopId = ? OR shopId IS NULL',
+        whereArgs: [shopId],
+        orderBy: 'date DESC',
+      );
+    }
+    // Fallback: nếu không có shopId thì trả về tất cả (super admin)
+    return db.query('expenses', orderBy: 'date DESC');
+  }
+  
   Future<List<Expense>> getAllExpensesForSync() async {
     final db = await database;
     final maps = await db.query('expenses', orderBy: 'date DESC');
@@ -6197,5 +6228,57 @@ class DBHelper {
       limit: 1,
     );
     return results.isNotEmpty ? results.first : null;
+  }
+
+  // ============ DEBUG & CLEANUP FUNCTIONS ============
+
+  /// Debug: Xem chi tiết các repair_parts chưa sync
+  Future<List<Map<String, dynamic>>> debugGetUnsyncedRepairPartsDetails() async {
+    final db = await database;
+    return await db.query(
+      'repair_parts',
+      where: '(isSynced = 0 OR isSynced IS NULL) AND (deleted = 0 OR deleted IS NULL)',
+    );
+  }
+
+  /// Cleanup: Xóa các repair_parts bị stuck (không có firestoreId và isSynced = 0)
+  /// Chỉ xóa records orphan (firestoreId = null) để tránh mất dữ liệu
+  Future<int> cleanupOrphanRepairParts() async {
+    final db = await database;
+    final orphans = await db.query(
+      'repair_parts',
+      where: '(firestoreId IS NULL OR firestoreId = "") AND (isSynced = 0 OR isSynced IS NULL)',
+    );
+    
+    if (orphans.isEmpty) {
+      debugPrint('DB: Không có orphan repair_parts cần cleanup');
+      return 0;
+    }
+
+    debugPrint('DB: Tìm thấy ${orphans.length} orphan repair_parts:');
+    for (var part in orphans) {
+      debugPrint('  - id=${part['id']}, partName=${part['partName']}, createdAt=${part['createdAt']}');
+    }
+
+    // Xóa orphans
+    final deleted = await db.delete(
+      'repair_parts',
+      where: '(firestoreId IS NULL OR firestoreId = "") AND (isSynced = 0 OR isSynced IS NULL)',
+    );
+    debugPrint('DB: Đã xóa $deleted orphan repair_parts');
+    return deleted;
+  }
+
+  /// Force sync: Đánh dấu tất cả repair_parts có firestoreId là đã sync
+  /// (Dùng khi records đã có trên cloud nhưng local bị stuck isSynced = 0)
+  Future<int> forceMarkRepairPartsSynced() async {
+    final db = await database;
+    final result = await db.update(
+      'repair_parts',
+      {'isSynced': 1},
+      where: 'firestoreId IS NOT NULL AND firestoreId != "" AND (isSynced = 0 OR isSynced IS NULL)',
+    );
+    debugPrint('DB: Force marked $result repair_parts as synced');
+    return result;
   }
 }

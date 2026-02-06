@@ -386,6 +386,8 @@ class _DebtViewState extends State<DebtView>
 
     final formKey = GlobalKey<FormState>();
     final payC = TextEditingController();
+    String payMethod = 'TIỀN MẶT';
+    
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -395,6 +397,7 @@ class _DebtViewState extends State<DebtView>
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CurrencyTextField(
                   controller: payC,
@@ -407,6 +410,30 @@ class _DebtViewState extends State<DebtView>
                         (debt['paidAmount'] as int? ?? 0),
                     fieldName: 'Số tiền thu',
                   ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "THANH TOÁN BẰNG",
+                  style: AppTextStyles.overline.copyWith(
+                    color: AppColors.onSurface.withOpacity(0.6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: ['TIỀN MẶT', 'CHUYỂN KHOẢN']
+                      .map(
+                        (m) => Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: ChoiceChip(
+                              label: Text(m, style: AppTextStyles.caption),
+                              selected: payMethod == m,
+                              onSelected: (v) => setS(() => payMethod = m),
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
               ],
             ),
@@ -432,22 +459,26 @@ class _DebtViewState extends State<DebtView>
                 final debtType = debt['type'] ?? 'CUSTOMER_OWES';
                 final isCustomerDebt = debtType == 'CUSTOMER_OWES';
                 
-                // Tạo PaymentIntent và redirect đến UnifiedPaymentPage
-                final intent = PaymentIntent(
-                  id: 'debt_pay_${DateTime.now().millisecondsSinceEpoch}_${debt['id']}',
+                // Convert payment method
+                final method = payMethod == 'CHUYỂN KHOẢN' 
+                    ? PaymentMethod.transfer 
+                    : PaymentMethod.cash;
+                
+                // Execute payment directly without navigation
+                final result = await PaymentIntentService.executePaymentDirect(
                   type: isCustomerDebt 
                       ? PaymentIntentType.customerDebtCollection 
                       : PaymentIntentType.supplierDebt,
                   amount: payAmount,
+                  paymentMethod: method,
                   description: isCustomerDebt 
                       ? 'Thu nợ khách: ${debt['personName'] ?? 'N/A'}'
                       : 'Trả nợ NCC: ${debt['personName'] ?? 'N/A'}',
-                  personName: debt['personName'],
-                  personPhone: debt['phone'],
+                  executedBy: user?.displayName ?? user?.email ?? 'unknown',
                   referenceId: debt['firestoreId'],
                   referenceType: 'debt',
-                  createdBy: user?.uid ?? 'unknown',
-                  createdAt: DateTime.now().millisecondsSinceEpoch,
+                  personName: debt['personName'],
+                  personPhone: debt['phone'],
                   metadata: {
                     'debtId': debt['id'],
                     'debtFirestoreId': debt['firestoreId'],
@@ -456,12 +487,7 @@ class _DebtViewState extends State<DebtView>
                   },
                 );
 
-                final result = await UnifiedPaymentPage.navigateWithIntent(
-                  context,
-                  intent,
-                );
-
-                if (result != null && result.success) {
+                if (result.success) {
                   EventBus().emit('debts_changed');
                   if (mounted) {
                     NotificationService.showSnackBar(
@@ -470,9 +496,16 @@ class _DebtViewState extends State<DebtView>
                     );
                     await _refresh();
                   }
+                } else {
+                  if (mounted) {
+                    NotificationService.showSnackBar(
+                      result.errorMessage ?? 'Có lỗi xảy ra',
+                      color: Colors.red,
+                    );
+                  }
                 }
               },
-              child: const Text("TIẾP TỤC"),
+              child: const Text("XÁC NHẬN"),
             ),
           ],
         ),
