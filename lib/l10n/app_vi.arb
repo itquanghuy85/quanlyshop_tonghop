@@ -2266,5 +2266,82 @@
   "createNewBranch": "Tạo chi nhánh mới",
   "branchName": "Tên chi nhánh",
   "branchCreated": "Đã tạo chi nhánh: {name}",
-  "errorCreatingBranch": "Lỗi tạo chi nhánh"
+  "errorCreatingBranch": "Lỗi tạo chi nhánh",
+
+  "nameRequired": "Tên là bắt buộc",
+  "phoneLengthInvalid": "Số điện thoại phải từ 9-12 chữ số",
+  "imeiMinLength": "IMEI phải có ít nhất 6 ký tự",
+  "imeiLengthInvalid": "IMEI phải từ 6-20 ký tự",
+  "imeiDigitsOnly": "IMEI chỉ được chứa số",
+  "modelMinLength": "Model phải có ít nhất 2 ký tự",
+  "modelMaxLength": "Model không được vượt quá 50 ký tự",
+
+  "printLabelTitle": "In Tem",
+  "notAvailable": "Không có",
+  "productInfoTitle": "Thông tin sản phẩm",
+  "productNameLabel": "Tên sản phẩm:",
+  "productDetailLabel": "Chi tiết:",
+  "imeiLabelWithColon": "IMEI:",
+  "originalPriceLabel": "Giá gốc:",
+  "labelModeAutoTitle": "Tự động",
+  "labelModeAutoSubtitle": "Dùng thiết lập thiết kế tem",
+  "labelModeCustomTitle": "Tùy chỉnh",
+  "labelModeCustomSubtitle": "Nhập giá và text tuỳ chỉnh",
+  "labelCustomContentTitle": "Nội dung tùy chỉnh",
+  "labelKpkExplain": "KPK: Giá \"Không phải không\"",
+  "labelCpkExplain": "CPK: Giá \"Có phải không\"",
+  "currencySymbol": "₫",
+  "deviceNameLabel": "Tên máy",
+  "productDetailLabelPlain": "Chi tiết",
+  "qrCodeLabel": "Mã QR",
+  "addCustomLinesLabel": "Thêm dòng tuỳ chỉnh",
+  "customLine1Hint": "Dòng tuỳ chỉnh 1...",
+  "customLine2Hint": "Dòng tuỳ chỉnh 2...",
+  "customLine3Hint": "Dòng tuỳ chỉnh 3...",
+  "printQuantityLabel": "Số lượng in",
+  "priceKpkPrefix": "KPK: ",
+  "priceCpkPrefix": "CPK: ",
+  "imeiPrefix": "IMEI: ",
+  "printingLabel": "Đang in...",
+  "printLabelQuantity": "In {count} tem",
+  "@printLabelQuantity": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "printLabelSuccess": "In thành công {count} tem",
+  "@printLabelSuccess": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "printLabelPartial": "Đã in {success}/{total} tem",
+  "@printLabelPartial": {
+    "placeholders": {
+      "success": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "printLabelError": "Lỗi in: {error}",
+  "@printLabelError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "imeiWithValue": "IMEI: {imei}",
+  "@imeiWithValue": {
+    "placeholders": {
+      "imei": {"type": "String"}
+    }
+  },
+
+  "labelNoteFieldLabel": "Ghi chú tem",
+  "labelNoteFieldHint": "Ghi chú thêm cho tem...",
+
+  "fieldRequired": "{fieldName} là bắt buộc",
+  "@fieldRequired": {
+    "placeholders": {
+      "fieldName": {"type": "String"}
+    }
+  }
 }

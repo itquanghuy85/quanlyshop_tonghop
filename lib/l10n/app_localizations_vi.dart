@@ -780,6 +780,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get addNewProduct => 'Thêm sản phẩm mới';
 
   @override
+  String get modelRequired => 'Vui lòng nhập model máy';
+
+  @override
   String get issueRequired => 'Vui lòng nhập lỗi máy';
 
   @override
@@ -2780,283 +2783,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get inventoryManagementDesc => 'Nhập hàng, xuất kho, kiểm kê linh kiện';
 
   @override
-  String get printQrImeiInventory => 'IN QR IMEI KHO HÀNG';
-
-  @override
-  String get designQrLabel => 'Thiết kế tem QR';
-
-  @override
-  String get searchImeiNameModel => 'Tìm IMEI, tên máy, model...';
-
-  @override
-  String get labelCustomization => 'Tùy chỉnh tem';
-
-  @override
-  String get qrSize => 'Cỡ QR';
-
-  @override
-  String get columns => 'Cột';
-
-  @override
-  String get padding => 'Padding';
-
-  @override
-  String get modelDetail => 'Model/Chi tiết';
-
-  @override
-  String get printAll => 'IN TẤT CẢ';
-
-  @override
-  String get printSelected => 'IN ĐÃ CHỌN';
-
-  @override
-  String get openPrintPage => 'MỞ TRANG IN';
-
-  @override
-  String get printQrImeiSuccess => '✅ In QR IMEI thành công';
-
-  @override
-  String get printQrImeiFail => '❌ Lỗi khi in QR IMEI';
-
-  @override
-  String imeiListLoadError(String error) {
-    return 'Lỗi tải danh sách IMEI: $error';
-  }
-
-  @override
-  String get noImeiToPrint => 'Không có IMEI để in';
-
-  @override
-  String imeiTotalCount(int count) {
-    return 'Tổng: $count IMEI';
-  }
-
-  @override
-  String imeiWithValue(String value) {
-    return 'IMEI: $value';
-  }
-
-  @override
-  String get qrSizeXSmall => 'XS';
-
-  @override
-  String get qrSizeSmall => 'S';
-
-  @override
-  String get qrSizeMedium => 'M';
-
-  @override
-  String get qrSizeLarge => 'L';
-
-  @override
-  String get defaultProductName => 'SẢN PHẨM';
-
-  @override
-  String get imeiPrefix => 'IMEI: ';
-
-  @override
-  String get printLabelTitle => 'IN TEM';
-
-  @override
-  String get notAvailable => 'N/A';
-
-  @override
-  String get productInfoTitle => 'THÔNG TIN SẢN PHẨM';
-
-  @override
-  String get productNameLabel => 'Tên:';
-
-  @override
-  String get productDetailLabel => 'Chi tiết:';
-
-  @override
-  String get productDetailLabelPlain => 'Chi tiết';
-
-  @override
-  String get imeiLabelWithColon => 'IMEI:';
-
-  @override
-  String get originalPriceLabel => 'Giá bán gốc:';
-
-  @override
-  String get labelModeAutoTitle => 'TỰ ĐỘNG';
-
-  @override
-  String get labelModeAutoSubtitle => 'Dùng cấu hình thiết kế tem';
-
-  @override
-  String get labelModeCustomTitle => 'TÙY CHỈNH';
-
-  @override
-  String get labelModeCustomSubtitle => 'Nhập giá & nội dung riêng';
-
-  @override
-  String get labelCustomContentTitle => 'TÙY CHỈNH NỘI DUNG TEM';
-
-  @override
-  String get labelKpkExplain => '📌 KPK = Không Phụ Kiện (giá máy trần)';
-
-  @override
-  String get labelCpkExplain => '📌 CPK = Có Phụ Kiện (sạc, cáp, ốp, kính...)';
-
-  @override
-  String get labelElementName => 'Tên máy';
-
-  @override
-  String get labelElementDetail => 'Chi tiết';
-
-  @override
-  String get labelElementPriceKpk => 'Giá KPK';
-
-  @override
-  String get labelElementPriceCpk => 'Giá CPK';
-
-  @override
-  String get labelElementLabelNote => 'Thông tin in trên tem';
-
-  @override
-  String get labelElementImei => 'IMEI';
-
-  @override
-  String get labelElementQr => 'Mã QR';
-
-  @override
-  String get labelElementShop => 'Thông tin shop';
-
-  @override
-  String get priceKpkLabel => 'Giá KPK:';
-
-  @override
-  String get priceCpkLabel => 'Giá CPK:';
-
-  @override
-  String get priceKpkPrefix => 'GIÁ KPK: ';
-
-  @override
-  String get priceCpkPrefix => 'GIÁ CPK: ';
-
-  @override
-  String get currencySymbol => 'đ';
-
-  @override
-  String get deviceNameLabel => 'Tên máy';
-
-  @override
-  String get qrCodeLabel => 'QR Code';
-
-  @override
-  String get addCustomLinesLabel => 'Thêm nội dung tùy biến (cho giấy lớn)';
-
-  @override
-  String get customLine1Hint => 'Dòng 1: VD: BẢO HÀNH 12 THÁNG';
-
-  @override
-  String get customLine2Hint => 'Dòng 2: VD: ĐỔI TRẢ 7 NGÀY';
-
-  @override
-  String get customLine3Hint => 'Dòng 3: VD: HOTLINE: 0123.456.789';
-
-  @override
-  String get printQuantityLabel => 'Số lượng in:';
-
-  @override
-  String get labelPreviewTitle => 'XEM TRƯỚC TEM';
-
-  @override
-  String labelPreviewKpk(String price) {
-    return 'GIÁ KPK: $price';
-  }
-
-  @override
-  String labelPreviewCpk(String price) {
-    return 'GIÁ CPK: $price';
-  }
-
-  @override
-  String get printingLabel => 'ĐANG IN...';
-
-  @override
-  String printLabelQuantity(int count) {
-    return 'IN $count TEM';
-  }
-
-  @override
-  String printLabelSuccess(int count) {
-    return '✅ Đã in thành công $count tem!';
-  }
-
-  @override
-  String printLabelPartial(int count, int total) {
-    return '⚠️ Đã in $count/$total tem';
-  }
-
-  @override
-  String printLabelError(String error) {
-    return 'Lỗi in tem: $error';
-  }
-
-  @override
-  String get printLabelFailed => '❌ Lỗi khi in tem';
-
-  @override
-  String get confirmCostMoveToMainStock => 'XÁC NHẬN GIÁ - CHUYỂN KHO CHÍNH';
-
-  @override
-  String get createOrder => 'TẠO ĐƠN HÀNG';
-
-  @override
-  String get nameRequired => 'Tên không được để trống';
-
-  @override
-  String get phoneLengthInvalid => 'Số điện thoại phải có 9-12 chữ số';
-
-  @override
-  String get imeiMinLength => 'IMEI phải có ít nhất 4 chữ số';
-
-  @override
-  String get imeiLengthInvalid => 'IMEI phải là 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)';
-
-  @override
-  String get imeiDigitsOnly => 'IMEI chỉ được chứa số';
-
-  @override
-  String get modelRequired => 'Model không được để trống';
-
-  @override
-  String get modelMinLength => 'Model phải có ít nhất 2 ký tự';
-
-  @override
-  String get modelMaxLength => 'Model không được quá 50 ký tự';
-
-  @override
-  String fieldRequired(String field) {
-    return '$field không được để trống';
-  }
-
-  @override
-  String get noNetworkMessage => 'Không có kết nối mạng. Vui lòng kiểm tra internet.';
-
-  @override
-  String get syncSuccessMessage => 'Đồng bộ dữ liệu thành công!';
-
-  @override
-  String syncErrorMessage(String error) {
-    return 'Lỗi đồng bộ: $error';
-  }
-
-  @override
-  String get onlineStatus => 'Trực tuyến';
-
-  @override
-  String get offlineStatus => 'Ngoại tuyến';
-
-  @override
-  String get syncingLabel => 'Đồng bộ...';
-
-  @override
-  String get syncLabel => 'Đồng bộ';
-
-  @override
   String get salesAndDebt => 'Bán hàng & Công nợ';
 
   @override
@@ -3118,12 +2844,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get taxAndInsuranceDesc => 'Icon 💳 \"Cài đặt Khấu trừ/Thuế\":\n• Giảm trừ cá nhân: 11 triệu\n• BHXH 8%, BHYT 1.5%, BHTN 1%';
-
-  @override
-  String get labelNoteFieldLabel => 'Thông tin in trên tem';
-
-  @override
-  String get labelNoteFieldHint => 'In trên tem (không bắt buộc)';
 
   @override
   String get goToSalaryTable => 'ĐI ĐẾN BẢNG LƯƠNG';
@@ -5212,4 +4932,142 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get errorCreatingBranch => 'Lỗi tạo chi nhánh';
+
+  @override
+  String get nameRequired => 'Tên là bắt buộc';
+
+  @override
+  String get phoneLengthInvalid => 'Số điện thoại phải từ 9-12 chữ số';
+
+  @override
+  String get imeiMinLength => 'IMEI phải có ít nhất 6 ký tự';
+
+  @override
+  String get imeiLengthInvalid => 'IMEI phải từ 6-20 ký tự';
+
+  @override
+  String get imeiDigitsOnly => 'IMEI chỉ được chứa số';
+
+  @override
+  String get modelMinLength => 'Model phải có ít nhất 2 ký tự';
+
+  @override
+  String get modelMaxLength => 'Model không được vượt quá 50 ký tự';
+
+  @override
+  String get printLabelTitle => 'In Tem';
+
+  @override
+  String get notAvailable => 'Không có';
+
+  @override
+  String get productInfoTitle => 'Thông tin sản phẩm';
+
+  @override
+  String get productNameLabel => 'Tên sản phẩm:';
+
+  @override
+  String get productDetailLabel => 'Chi tiết:';
+
+  @override
+  String get imeiLabelWithColon => 'IMEI:';
+
+  @override
+  String get originalPriceLabel => 'Giá gốc:';
+
+  @override
+  String get labelModeAutoTitle => 'Tự động';
+
+  @override
+  String get labelModeAutoSubtitle => 'Dùng thiết lập thiết kế tem';
+
+  @override
+  String get labelModeCustomTitle => 'Tùy chỉnh';
+
+  @override
+  String get labelModeCustomSubtitle => 'Nhập giá và text tuỳ chỉnh';
+
+  @override
+  String get labelCustomContentTitle => 'Nội dung tùy chỉnh';
+
+  @override
+  String get labelKpkExplain => 'KPK: Giá \"Không phải không\"';
+
+  @override
+  String get labelCpkExplain => 'CPK: Giá \"Có phải không\"';
+
+  @override
+  String get currencySymbol => '₫';
+
+  @override
+  String get deviceNameLabel => 'Tên máy';
+
+  @override
+  String get productDetailLabelPlain => 'Chi tiết';
+
+  @override
+  String get qrCodeLabel => 'Mã QR';
+
+  @override
+  String get addCustomLinesLabel => 'Thêm dòng tuỳ chỉnh';
+
+  @override
+  String get customLine1Hint => 'Dòng tuỳ chỉnh 1...';
+
+  @override
+  String get customLine2Hint => 'Dòng tuỳ chỉnh 2...';
+
+  @override
+  String get customLine3Hint => 'Dòng tuỳ chỉnh 3...';
+
+  @override
+  String get printQuantityLabel => 'Số lượng in';
+
+  @override
+  String get priceKpkPrefix => 'KPK: ';
+
+  @override
+  String get priceCpkPrefix => 'CPK: ';
+
+  @override
+  String get imeiPrefix => 'IMEI: ';
+
+  @override
+  String get printingLabel => 'Đang in...';
+
+  @override
+  String printLabelQuantity(int count) {
+    return 'In $count tem';
+  }
+
+  @override
+  String printLabelSuccess(int count) {
+    return 'In thành công $count tem';
+  }
+
+  @override
+  String printLabelPartial(int success, int total) {
+    return 'Đã in $success/$total tem';
+  }
+
+  @override
+  String printLabelError(String error) {
+    return 'Lỗi in: $error';
+  }
+
+  @override
+  String imeiWithValue(String imei) {
+    return 'IMEI: $imei';
+  }
+
+  @override
+  String get labelNoteFieldLabel => 'Ghi chú tem';
+
+  @override
+  String get labelNoteFieldHint => 'Ghi chú thêm cho tem...';
+
+  @override
+  String fieldRequired(String fieldName) {
+    return '$fieldName là bắt buộc';
+  }
 }

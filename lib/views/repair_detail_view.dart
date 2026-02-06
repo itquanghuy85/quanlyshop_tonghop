@@ -1542,7 +1542,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   validator: (v) {
                     final text = v?.trim() ?? '';
                     if (text.isEmpty) return dialogLoc.phoneRequired2;
-                    final err = UserService.validatePhone(text);
+                    final err = UserService.validatePhone(text, dialogLoc);
                     return err;
                   },
                 ),

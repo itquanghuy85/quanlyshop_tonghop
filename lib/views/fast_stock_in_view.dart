@@ -1026,11 +1026,10 @@ class _FastStockInViewState extends State<FastStockInView> {
         capacity: selectedCapacity,
         color: selectedColor,
         condition: selectedCondition,
-        labelInfo: labelInfoCtrl.text.trim(),
+        labelInfo: labelInfoCtrl.text.trim().isNotEmpty
+            ? '${labelInfoCtrl.text.trim()}${labelNoteCtrl.text.trim().isNotEmpty ? ' | ' + labelNoteCtrl.text.trim() : ''}'
+            : (labelNoteCtrl.text.trim().isNotEmpty ? labelNoteCtrl.text.trim() : null),
         productType: 'DIEN_THOAI',
-        labelNote: labelNoteCtrl.text.trim().isNotEmpty
-            ? labelNoteCtrl.text.trim()
-            : null,
       );
 
       // Tạo StockEntry (DRAFT)

@@ -1,6 +1,7 @@
 class Product {
   int? id;
   String? firestoreId;
+  String? shopId;
   String name;
   String brand; // Trường bắt buộc
   String? model; // Model máy (ví dụ: iPhone 15 Pro, Galaxy S24, etc.)
@@ -29,6 +30,7 @@ class Product {
   Product({
     this.id,
     this.firestoreId,
+    this.shopId,
     required this.name,
     this.brand = "KHÁC",
     this.model,
@@ -59,6 +61,7 @@ class Product {
     return {
       'id': id,
       'firestoreId': firestoreId ?? "prod_${createdAt}_$name",
+      'shopId': shopId,
       'name': name,
       'brand': brand,
       'model': model,
@@ -119,6 +122,7 @@ class Product {
     return Product(
       id: map['id'] is int ? map['id'] : null,
       firestoreId: map['firestoreId'],
+      shopId: map['shopId'],
       name: map['name'] ?? "",
       brand: map['brand'] ?? "KHÁC",
       model: map['model'],
@@ -149,6 +153,7 @@ class Product {
   Product copyWith({
     int? id,
     String? firestoreId,
+    String? shopId,
     String? name,
     String? brand,
     String? model,
@@ -177,6 +182,7 @@ class Product {
     return Product(
       id: id ?? this.id,
       firestoreId: firestoreId ?? this.firestoreId,
+      shopId: shopId ?? this.shopId,
       name: name ?? this.name,
       brand: brand ?? this.brand,
       model: model ?? this.model,

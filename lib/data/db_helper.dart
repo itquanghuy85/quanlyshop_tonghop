@@ -68,13 +68,13 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 72,
+      version: 73,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, brand TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, isSynced INTEGER DEFAULT 0)',
@@ -442,6 +442,29 @@ class DBHelper {
             );
           } catch (e) {
             debugPrint('DB upgrade error (repair_parts stockEntryId): $e');
+          }
+        }
+        if (oldV < 73) {
+          // Add shopId, updatedAt, model, labelNote to products table for multi-shop support
+          try {
+            await db.execute('ALTER TABLE products ADD COLUMN shopId TEXT');
+          } catch (e) {
+            debugPrint('DB upgrade error (products shopId): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE products ADD COLUMN updatedAt INTEGER');
+          } catch (e) {
+            debugPrint('DB upgrade error (products updatedAt): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE products ADD COLUMN model TEXT');
+          } catch (e) {
+            debugPrint('DB upgrade error (products model): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE products ADD COLUMN labelNote TEXT');
+          } catch (e) {
+            debugPrint('DB upgrade error (products labelNote): $e');
           }
         }
         if (oldV < 26) {
@@ -2637,25 +2660,29 @@ class DBHelper {
   /// Get products with pagination support for lazy loading
   /// Returns [limit] products starting from [offset], ordered by createdAt DESC
   Future<List<Product>> getProductsPaged(int limit, int offset, {String? type, bool inStockOnly = false}) async {
-    String? where;
-    List<dynamic>? whereArgs;
+    final shopId = UserService.getShopIdSync();
+    String where = '(deleted = 0 OR deleted IS NULL)';
+    List<dynamic> whereArgs = [];
     
-    if (type != null && inStockOnly) {
-      where = 'type = ? AND quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)';
-      whereArgs = [type];
-    } else if (type != null) {
-      where = 'type = ? AND (deleted = 0 OR deleted IS NULL)';
-      whereArgs = [type];
-    } else if (inStockOnly) {
-      where = 'quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)';
-    } else {
-      where = 'deleted = 0 OR deleted IS NULL';
+    // Add shopId filter for multi-shop support
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND (shopId = ? OR shopId IS NULL)';
+      whereArgs.add(shopId);
+    }
+    
+    if (type != null) {
+      where += ' AND type = ?';
+      whereArgs.add(type);
+    }
+    
+    if (inStockOnly) {
+      where += ' AND quantity > 0 AND (status = 1 OR status IS NULL)';
     }
     
     final maps = await (await database).query(
       'products',
       where: where,
-      whereArgs: whereArgs,
+      whereArgs: whereArgs.isEmpty ? null : whereArgs,
       orderBy: 'createdAt DESC',
       limit: limit,
       offset: offset,
@@ -2665,21 +2692,26 @@ class DBHelper {
 
   /// Get total count of products for pagination
   Future<int> getProductsCount({String? type, bool inStockOnly = false}) async {
-    String query = 'SELECT COUNT(*) as count FROM products';
+    final shopId = UserService.getShopIdSync();
+    String where = '(deleted = 0 OR deleted IS NULL)';
     List<dynamic> args = [];
     
-    if (type != null && inStockOnly) {
-      query += ' WHERE type = ? AND quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)';
-      args.add(type);
-    } else if (type != null) {
-      query += ' WHERE type = ? AND (deleted = 0 OR deleted IS NULL)';
-      args.add(type);
-    } else if (inStockOnly) {
-      query += ' WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)';
-    } else {
-      query += ' WHERE deleted = 0 OR deleted IS NULL';
+    // Add shopId filter for multi-shop support
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND (shopId = ? OR shopId IS NULL)';
+      args.add(shopId);
     }
     
+    if (type != null) {
+      where += ' AND type = ?';
+      args.add(type);
+    }
+    
+    if (inStockOnly) {
+      where += ' AND quantity > 0 AND (status = 1 OR status IS NULL)';
+    }
+    
+    String query = 'SELECT COUNT(*) as count FROM products WHERE $where';
     final result = await (await database).rawQuery(query, args);
     return Sqflite.firstIntValue(result) ?? 0;
   }
@@ -2687,14 +2719,23 @@ class DBHelper {
   /// Get inventory summary (total quantity and capital) for all products
   /// This calculates from ALL products in DB, not just paginated data
   Future<Map<String, int>> getInventorySummary({String? type}) async {
+    final shopId = UserService.getShopIdSync();
+    String shopFilter = '';
+    List<dynamic> args = [];
+    
+    // Add shopId filter for multi-shop support
+    if (shopId != null && shopId.isNotEmpty) {
+      shopFilter = ' AND (shopId = ? OR shopId IS NULL)';
+      args.add(shopId);
+    }
+    
     String query = '''
       SELECT 
         COALESCE(SUM(quantity), 0) as totalQty,
         COALESCE(SUM(cost * quantity), 0) as totalCapital
       FROM products 
-      WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)
+      WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)$shopFilter
     ''';
-    List<dynamic> args = [];
     
     if (type != null && type != 'TẤT CẢ') {
       query = '''
@@ -2702,7 +2743,7 @@ class DBHelper {
           COALESCE(SUM(quantity), 0) as totalQty,
           COALESCE(SUM(cost * quantity), 0) as totalCapital
         FROM products 
-        WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL) AND type = ?
+        WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)$shopFilter AND type = ?
       ''';
       args.add(type);
     }
@@ -2719,9 +2760,20 @@ class DBHelper {
   }
 
   Future<List<Product>> getAllProducts() async {
+    final shopId = UserService.getShopIdSync();
+    String whereClause = '(deleted = 0 OR deleted IS NULL)';
+    List<dynamic> whereArgs = [];
+    
+    // Filter by shopId if available (for multi-shop support)
+    if (shopId != null && shopId.isNotEmpty) {
+      whereClause += ' AND (shopId = ? OR shopId IS NULL)';
+      whereArgs.add(shopId);
+    }
+    
     final maps = await (await database).query(
       'products',
-      where: 'deleted = 0 OR deleted IS NULL',
+      where: whereClause,
+      whereArgs: whereArgs.isEmpty ? null : whereArgs,
     );
     return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
   }
@@ -2731,12 +2783,24 @@ class DBHelper {
     String type, {
     bool inStockOnly = true,
   }) async {
+    final shopId = UserService.getShopIdSync();
+    String where = 'type = ? AND (deleted = 0 OR deleted IS NULL)';
+    List<dynamic> whereArgs = [type];
+    
+    // Add shopId filter for multi-shop support
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND (shopId = ? OR shopId IS NULL)';
+      whereArgs.add(shopId);
+    }
+    
+    if (inStockOnly) {
+      where += ' AND quantity > 0 AND (status = 1 OR status IS NULL)';
+    }
+    
     final maps = await (await database).query(
       'products',
-      where: inStockOnly
-          ? 'type = ? AND quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)'
-          : 'type = ? AND (deleted = 0 OR deleted IS NULL)',
-      whereArgs: [type],
+      where: where,
+      whereArgs: whereArgs,
       orderBy: 'createdAt DESC',
     );
     return List.generate(maps.length, (i) => Product.fromMap(maps[i]));

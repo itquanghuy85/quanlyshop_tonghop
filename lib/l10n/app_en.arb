@@ -2401,5 +2401,82 @@
   "createNewBranch": "Create new branch",
   "branchName": "Branch name",
   "branchCreated": "Branch created: {name}",
-  "errorCreatingBranch": "Error creating branch"
+  "errorCreatingBranch": "Error creating branch",
+
+  "nameRequired": "Name is required",
+  "phoneLengthInvalid": "Phone number must be 9-12 digits",
+  "imeiMinLength": "IMEI must be at least 6 characters",
+  "imeiLengthInvalid": "IMEI must be 6-20 characters",
+  "imeiDigitsOnly": "IMEI must contain only digits",
+  "modelMinLength": "Model must be at least 2 characters",
+  "modelMaxLength": "Model must not exceed 50 characters",
+
+  "printLabelTitle": "Print Label",
+  "notAvailable": "N/A",
+  "productInfoTitle": "Product Information",
+  "productNameLabel": "Product Name:",
+  "productDetailLabel": "Detail:",
+  "imeiLabelWithColon": "IMEI:",
+  "originalPriceLabel": "Original Price:",
+  "labelModeAutoTitle": "Auto Mode",
+  "labelModeAutoSubtitle": "Use label design settings",
+  "labelModeCustomTitle": "Custom Mode",
+  "labelModeCustomSubtitle": "Enter custom prices and text",
+  "labelCustomContentTitle": "Custom Content",
+  "labelKpkExplain": "KPK: \"Không phải không\" price",
+  "labelCpkExplain": "CPK: \"Có phải không\" price",
+  "currencySymbol": "₫",
+  "deviceNameLabel": "Device Name",
+  "productDetailLabelPlain": "Detail",
+  "qrCodeLabel": "QR Code",
+  "addCustomLinesLabel": "Add Custom Lines",
+  "customLine1Hint": "Custom line 1...",
+  "customLine2Hint": "Custom line 2...",
+  "customLine3Hint": "Custom line 3...",
+  "printQuantityLabel": "Print Quantity",
+  "priceKpkPrefix": "KPK: ",
+  "priceCpkPrefix": "CPK: ",
+  "imeiPrefix": "IMEI: ",
+  "printingLabel": "Printing...",
+  "printLabelQuantity": "Print {count} labels",
+  "@printLabelQuantity": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "printLabelSuccess": "Successfully printed {count} labels",
+  "@printLabelSuccess": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "printLabelPartial": "Printed {success}/{total} labels",
+  "@printLabelPartial": {
+    "placeholders": {
+      "success": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "printLabelError": "Print error: {error}",
+  "@printLabelError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "imeiWithValue": "IMEI: {imei}",
+  "@imeiWithValue": {
+    "placeholders": {
+      "imei": {"type": "String"}
+    }
+  },
+
+  "labelNoteFieldLabel": "Label Note",
+  "labelNoteFieldHint": "Additional note for label...",
+
+  "fieldRequired": "{fieldName} is required",
+  "@fieldRequired": {
+    "placeholders": {
+      "fieldName": {"type": "String"}
+    }
+  }
 }
