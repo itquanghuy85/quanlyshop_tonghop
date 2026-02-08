@@ -2525,24 +2525,31 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   }
 
   Widget _buildWorkScheduleTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    // Empty state - same simple pattern as _buildRepairList
+    if (_workSchedule == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Text(
-                  "Lịch làm việc hiện tại",
-                  style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
-                ),
+              const Icon(Icons.schedule, size: 48, color: Colors.grey),
+              const SizedBox(height: 12),
+              Text(
+                "Chưa có lịch làm việc",
+                style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.headline3.fontSize),
               ),
+              const SizedBox(height: 8),
+              Text(
+                "Nhấn nút bên dưới để thiết lập lịch",
+                style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: _editWorkScheduleForStaff,
                 icon: const Icon(Icons.edit, size: 16),
-                label: const Text("Chỉnh sửa"),
+                label: const Text("Thiết lập lịch làm việc"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
@@ -2550,100 +2557,87 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (_workSchedule != null) ...[
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.access_time, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            "Giờ làm việc: ${_workSchedule!['startTime'] ?? '08:00'} - ${_workSchedule!['endTime'] ?? '17:00'}",
-                            style: TextStyle(
-                              fontSize: AppTextStyles.headline3.fontSize,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.free_breakfast, color: Colors.orange),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            "Giờ nghỉ: ${_workSchedule!['breakTime'] ?? 1} giờ",
-                            style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.timer, color: Colors.green),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            "OT tối đa: ${_workSchedule!['maxOtHours'] ?? 4} giờ/ngày",
-                            style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_today, color: Colors.purple),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            "Ngày làm việc: Thứ 2 - Thứ 7",
-                            style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+        ),
+      );
+    }
+
+    // Has schedule data - use ListView
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                "Lịch làm việc hiện tại",
+                style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
               ),
             ),
-          ] else ...[
-            Center(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.schedule, size: 48, color: Colors.grey),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Chưa có lịch làm việc",
-                        style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.headline3.fontSize),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Nhấn 'Chỉnh sửa' để thiết lập lịch làm việc cho nhân viên này",
-                        style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
+            ElevatedButton.icon(
+              onPressed: _editWorkScheduleForStaff,
+              icon: const Icon(Icons.edit, size: 16),
+              label: const Text("Chỉnh sửa"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
               ),
             ),
           ],
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildScheduleRow(
+                  Icons.access_time,
+                  Colors.blue,
+                  "Giờ làm việc: ${_workSchedule!['startTime'] ?? '08:00'} - ${_workSchedule!['endTime'] ?? '17:00'}",
+                  bold: true,
+                ),
+                const SizedBox(height: 8),
+                _buildScheduleRow(
+                  Icons.free_breakfast,
+                  Colors.orange,
+                  "Giờ nghỉ: ${_workSchedule!['breakTime'] ?? 1} giờ",
+                ),
+                const SizedBox(height: 8),
+                _buildScheduleRow(
+                  Icons.timer,
+                  Colors.green,
+                  "OT tối đa: ${_workSchedule!['maxOtHours'] ?? 4} giờ/ngày",
+                ),
+                const SizedBox(height: 8),
+                _buildScheduleRow(
+                  Icons.calendar_today,
+                  Colors.purple,
+                  "Ngày làm việc: Thứ 2 - Thứ 7",
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScheduleRow(IconData icon, Color color, String text, {bool bold = false}) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: bold ? AppTextStyles.headline3.fontSize : AppTextStyles.headline4.fontSize,
+              fontWeight: bold ? FontWeight.w500 : FontWeight.normal,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
