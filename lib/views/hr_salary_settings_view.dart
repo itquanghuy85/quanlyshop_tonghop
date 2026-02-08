@@ -42,6 +42,11 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
     'salaryType': 'monthly',
     'saleCommType': 'percent',
     'saleCommValue': 1.0,
+    'saleCommTier1Max': 10000000.0,   // Dưới 10 triệu
+    'saleCommTier1Value': 20000.0,    // 20k
+    'saleCommTier2Max': 50000000.0,   // 10-50 triệu
+    'saleCommTier2Value': 50000.0,    // 50k
+    'saleCommTier3Value': 100000.0,   // Trên 50 triệu -> 100k
     'repairCommType': 'percent',
     'repairCommValue': 10.0,
     'transportAllowance': 0.0,

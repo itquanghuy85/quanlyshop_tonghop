@@ -49,6 +49,11 @@ class SalaryCalculationService {
           salaryType: defaults['salaryType'] ?? 'monthly',
           saleCommType: defaults['saleCommType'] ?? 'percent',
           saleCommValue: (defaults['saleCommValue'] ?? 1.0).toDouble(),
+          saleCommTier1Max: (defaults['saleCommTier1Max'] ?? 10000000).toDouble(),
+          saleCommTier1Value: (defaults['saleCommTier1Value'] ?? 20000).toDouble(),
+          saleCommTier2Max: (defaults['saleCommTier2Max'] ?? 50000000).toDouble(),
+          saleCommTier2Value: (defaults['saleCommTier2Value'] ?? 50000).toDouble(),
+          saleCommTier3Value: (defaults['saleCommTier3Value'] ?? 100000).toDouble(),
           repairCommType: defaults['repairCommType'] ?? 'percent',
           repairCommValue: (defaults['repairCommValue'] ?? 10.0).toDouble(),
           transportAllowance: (defaults['transportAllowance'] ?? 0).toDouble(),
@@ -344,6 +349,29 @@ class SalaryCalculationService {
       if (saleRevenue > 0) {
         notes.add(
           '🛒 HH bán: ${_formatCurrency(saleRevenue)} × ${settings.saleCommValue}% = ${_formatCurrency(calculatedSaleComm)}',
+        );
+      }
+    } else if (settings.saleCommType == 'tiered') {
+      // Tính hoa hồng theo bậc - cần biết giá trị từng đơn
+      // Nếu có danh sách giá trị từng đơn, dùng calculateTotalSaleCommission
+      // Nếu không, ước tính dựa trên doanh số trung bình mỗi đơn
+      if (saleOrderCount > 0) {
+        final avgOrderValue = saleRevenue / saleOrderCount;
+        // Tính hoa hồng cho từng đơn dựa trên giá trị trung bình
+        for (int i = 0; i < saleOrderCount; i++) {
+          calculatedSaleComm += settings.calculateSaleCommission(avgOrderValue);
+        }
+        // Ghi chú chi tiết
+        String tierInfo;
+        if (avgOrderValue < settings.saleCommTier1Max) {
+          tierInfo = 'Bậc 1: ${_formatCurrency(settings.saleCommTier1Value)}/đơn';
+        } else if (avgOrderValue <= settings.saleCommTier2Max) {
+          tierInfo = 'Bậc 2: ${_formatCurrency(settings.saleCommTier2Value)}/đơn';
+        } else {
+          tierInfo = 'Bậc 3: ${_formatCurrency(settings.saleCommTier3Value)}/đơn';
+        }
+        notes.add(
+          '🛒 HH bậc: $saleOrderCount đơn × $tierInfo = ${_formatCurrency(calculatedSaleComm)}',
         );
       }
     } else {
