@@ -1142,6 +1142,80 @@ class SyncService {
       debugPrint("Lỗi khởi tạo employee_salary_settings sync: $e");
     }
 
+    // === MULTI-INDUSTRY EXPANSION - Phase 1 (v75) ===
+
+    // 25. Đồng bộ PRODUCT CATEGORIES (Danh mục sản phẩm)
+    try {
+      // Categories được lưu trong subcollection của shops
+      final categoriesSub = _db
+          .collection('shops')
+          .doc(shopId)
+          .collection('product_categories')
+          .snapshots()
+          .listen((snapshot) async {
+        for (final change in snapshot.docChanges) {
+          try {
+            final docId = change.doc.id;
+            final data = change.doc.data() ?? {};
+            final db = DBHelper();
+
+            if (data['isActive'] == false) {
+              // Soft delete locally
+              await db.rawUpdate(
+                'UPDATE product_categories SET isActive = 0 WHERE firestoreId = ?',
+                [docId],
+              );
+            } else {
+              data['firestoreId'] = docId;
+              data['shopId'] = shopId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertProductCategory(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync product_category ${change.doc.id}: $e");
+          }
+        }
+        onDataChanged();
+        EventBus().emit('product_categories_changed');
+      }, onError: (e) => debugPrint("Sync error in product_categories: $e"));
+      _subscriptions.add(categoriesSub);
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo product_categories sync: $e");
+    }
+
+    // 26. Đồng bộ PRODUCT VARIANTS (Biến thể sản phẩm)
+    try {
+      _subscribeToCollection(
+        collection: 'product_variants',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['isActive'] == false) {
+              await db.rawUpdate(
+                'UPDATE product_variants SET isActive = 0 WHERE firestoreId = ?',
+                [docId],
+              );
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertProductVariant(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync product_variant $docId: $e");
+          }
+        },
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('product_variants_changed');
+        },
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo product_variants sync: $e");
+    }
+
     // Mark as initialized
     _isInitialized = true;
 

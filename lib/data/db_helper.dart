@@ -68,13 +68,13 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 74,
+      version: 75,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT)',
+          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, isSynced INTEGER DEFAULT 0)',
@@ -274,6 +274,87 @@ class DBHelper {
         );
         await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_financial_activity_type ON financial_activity_log(activityType)',
+        );
+        // === MULTI-INDUSTRY EXPANSION - Phase 1 (v75) ===
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS shop_settings(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firestoreId TEXT UNIQUE,
+            shopId TEXT,
+            businessType TEXT DEFAULT 'electronics',
+            businessTypeName TEXT,
+            enableRepair INTEGER DEFAULT 1,
+            enableExpiry INTEGER DEFAULT 0,
+            enableVariants INTEGER DEFAULT 0,
+            enableSerial INTEGER DEFAULT 1,
+            enableWarranty INTEGER DEFAULT 1,
+            enableBatch INTEGER DEFAULT 0,
+            defaultUnit TEXT DEFAULT 'cái',
+            expiryWarningDays INTEGER DEFAULT 7,
+            lowStockWarning INTEGER DEFAULT 5,
+            createdAt INTEGER,
+            updatedAt INTEGER,
+            updatedBy TEXT,
+            isSynced INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS product_categories(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firestoreId TEXT UNIQUE,
+            shopId TEXT,
+            name TEXT,
+            description TEXT,
+            icon TEXT,
+            color TEXT,
+            parentId TEXT,
+            sortOrder INTEGER DEFAULT 0,
+            trackExpiry INTEGER DEFAULT 0,
+            trackSerial INTEGER DEFAULT 0,
+            hasVariants INTEGER DEFAULT 0,
+            hasWarranty INTEGER DEFAULT 0,
+            defaultWarrantyDays INTEGER DEFAULT 0,
+            customFields TEXT,
+            isActive INTEGER DEFAULT 1,
+            createdAt INTEGER,
+            updatedAt INTEGER,
+            updatedBy TEXT,
+            isSynced INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_product_categories_shopId ON product_categories(shopId)',
+        );
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS product_variants(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firestoreId TEXT UNIQUE,
+            shopId TEXT,
+            productId TEXT,
+            sku TEXT,
+            size TEXT,
+            color TEXT,
+            colorCode TEXT,
+            material TEXT,
+            style TEXT,
+            costPrice INTEGER DEFAULT 0,
+            salePrice INTEGER DEFAULT 0,
+            quantity INTEGER DEFAULT 0,
+            minQuantity INTEGER DEFAULT 0,
+            barcode TEXT,
+            image TEXT,
+            isActive INTEGER DEFAULT 1,
+            createdAt INTEGER,
+            updatedAt INTEGER,
+            updatedBy TEXT,
+            isSynced INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_product_variants_productId ON product_variants(productId)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_product_variants_shopId ON product_variants(shopId)',
         );
       },
       onUpgrade: (db, oldV, newV) async {
@@ -482,6 +563,140 @@ class DBHelper {
           } catch (e) {
             debugPrint('v74 error (index): $e');
           }
+        }
+        // === MULTI-INDUSTRY EXPANSION - Phase 1 (v75) ===
+        if (oldV < 75) {
+          debugPrint('DB upgrade v75: Multi-industry expansion tables...');
+          // shop_settings table
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS shop_settings(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firestoreId TEXT UNIQUE,
+                shopId TEXT,
+                businessType TEXT DEFAULT 'electronics',
+                businessTypeName TEXT,
+                enableRepair INTEGER DEFAULT 1,
+                enableExpiry INTEGER DEFAULT 0,
+                enableVariants INTEGER DEFAULT 0,
+                enableSerial INTEGER DEFAULT 1,
+                enableWarranty INTEGER DEFAULT 1,
+                enableBatch INTEGER DEFAULT 0,
+                defaultUnit TEXT DEFAULT 'cái',
+                expiryWarningDays INTEGER DEFAULT 7,
+                lowStockWarning INTEGER DEFAULT 5,
+                createdAt INTEGER,
+                updatedAt INTEGER,
+                updatedBy TEXT,
+                isSynced INTEGER DEFAULT 0
+              )
+            ''');
+            debugPrint('v75: created shop_settings table');
+          } catch (e) {
+            debugPrint('v75 error (shop_settings): $e');
+          }
+          // product_categories table
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS product_categories(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firestoreId TEXT UNIQUE,
+                shopId TEXT,
+                name TEXT,
+                description TEXT,
+                icon TEXT,
+                color TEXT,
+                parentId TEXT,
+                sortOrder INTEGER DEFAULT 0,
+                trackExpiry INTEGER DEFAULT 0,
+                trackSerial INTEGER DEFAULT 0,
+                hasVariants INTEGER DEFAULT 0,
+                hasWarranty INTEGER DEFAULT 0,
+                defaultWarrantyDays INTEGER DEFAULT 0,
+                customFields TEXT,
+                isActive INTEGER DEFAULT 1,
+                createdAt INTEGER,
+                updatedAt INTEGER,
+                updatedBy TEXT,
+                isSynced INTEGER DEFAULT 0
+              )
+            ''');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_product_categories_shopId ON product_categories(shopId)');
+            debugPrint('v75: created product_categories table');
+          } catch (e) {
+            debugPrint('v75 error (product_categories): $e');
+          }
+          // product_variants table
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS product_variants(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firestoreId TEXT UNIQUE,
+                shopId TEXT,
+                productId TEXT,
+                sku TEXT,
+                size TEXT,
+                color TEXT,
+                colorCode TEXT,
+                material TEXT,
+                style TEXT,
+                costPrice INTEGER DEFAULT 0,
+                salePrice INTEGER DEFAULT 0,
+                quantity INTEGER DEFAULT 0,
+                minQuantity INTEGER DEFAULT 0,
+                barcode TEXT,
+                image TEXT,
+                isActive INTEGER DEFAULT 1,
+                createdAt INTEGER,
+                updatedAt INTEGER,
+                updatedBy TEXT,
+                isSynced INTEGER DEFAULT 0
+              )
+            ''');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_product_variants_productId ON product_variants(productId)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_product_variants_shopId ON product_variants(shopId)');
+            debugPrint('v75: created product_variants table');
+          } catch (e) {
+            debugPrint('v75 error (product_variants): $e');
+          }
+          // Add new columns to products table for multi-industry
+          try {
+            await db.execute('ALTER TABLE products ADD COLUMN categoryId TEXT');
+            debugPrint('v75: added categoryId to products');
+          } catch (e) {
+            debugPrint('v75 error (products categoryId): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE products ADD COLUMN unit TEXT');
+            debugPrint('v75: added unit to products');
+          } catch (e) {
+            debugPrint('v75 error (products unit): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE products ADD COLUMN expiryDate INTEGER');
+            debugPrint('v75: added expiryDate to products');
+          } catch (e) {
+            debugPrint('v75 error (products expiryDate): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE products ADD COLUMN batchNumber TEXT');
+            debugPrint('v75: added batchNumber to products');
+          } catch (e) {
+            debugPrint('v75 error (products batchNumber): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE products ADD COLUMN variantParentId TEXT');
+            debugPrint('v75: added variantParentId to products');
+          } catch (e) {
+            debugPrint('v75 error (products variantParentId): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE products ADD COLUMN customData TEXT');
+            debugPrint('v75: added customData to products');
+          } catch (e) {
+            debugPrint('v75 error (products customData): $e');
+          }
+          debugPrint('v75: Multi-industry expansion complete');
         }
         if (oldV < 26) {
           // Migration to remove kpkPrice and pkPrice columns from products and quick_input_codes tables
@@ -6290,5 +6505,165 @@ class DBHelper {
     );
     debugPrint('DB: Force marked $result repair_parts as synced');
     return result;
+  }
+
+  // === MULTI-INDUSTRY EXPANSION - Phase 1 (v75) ===
+
+  /// Raw update helper cho sync service
+  Future<int> rawUpdate(String sql, List<dynamic> args) async {
+    final db = await database;
+    return await db.rawUpdate(sql, args);
+  }
+
+  /// Upsert ProductCategory từ sync
+  Future<void> upsertProductCategory(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'];
+
+    // Clean data
+    final cleanData = Map<String, dynamic>.from(data);
+    cleanData.remove('id');
+
+    // Ensure timestamps are integers
+    if (cleanData['createdAt'] is String) {
+      cleanData['createdAt'] = DateTime.tryParse(cleanData['createdAt'])?.millisecondsSinceEpoch;
+    }
+    if (cleanData['updatedAt'] is String) {
+      cleanData['updatedAt'] = DateTime.tryParse(cleanData['updatedAt'])?.millisecondsSinceEpoch;
+    }
+
+    // Convert booleans to int for SQLite
+    for (final key in ['trackExpiry', 'trackSerial', 'hasVariants', 'hasWarranty', 'isActive', 'isSynced']) {
+      if (cleanData[key] is bool) {
+        cleanData[key] = cleanData[key] == true ? 1 : 0;
+      }
+    }
+
+    // Convert customFields map to JSON string
+    if (cleanData['customFields'] is Map) {
+      final map = cleanData['customFields'] as Map;
+      final pairs = map.entries.map((e) => '"${e.key}":"${e.value}"');
+      cleanData['customFields'] = '{${pairs.join(',')}}';
+    }
+
+    if (firestoreId != null && firestoreId.toString().isNotEmpty) {
+      final existing = await db.query(
+        'product_categories',
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+      if (existing.isNotEmpty) {
+        await db.update(
+          'product_categories',
+          cleanData,
+          where: 'firestoreId = ?',
+          whereArgs: [firestoreId],
+        );
+        return;
+      }
+    }
+    // Insert new
+    await db.insert('product_categories', cleanData);
+  }
+
+  /// Upsert ProductVariant từ sync
+  Future<void> upsertProductVariant(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'];
+
+    // Clean data
+    final cleanData = Map<String, dynamic>.from(data);
+    cleanData.remove('id');
+
+    // Ensure timestamps are integers
+    if (cleanData['createdAt'] is String) {
+      cleanData['createdAt'] = DateTime.tryParse(cleanData['createdAt'])?.millisecondsSinceEpoch;
+    }
+    if (cleanData['updatedAt'] is String) {
+      cleanData['updatedAt'] = DateTime.tryParse(cleanData['updatedAt'])?.millisecondsSinceEpoch;
+    }
+
+    // Convert booleans to int for SQLite
+    if (cleanData['isActive'] is bool) {
+      cleanData['isActive'] = cleanData['isActive'] == true ? 1 : 0;
+    }
+    if (cleanData['isSynced'] is bool) {
+      cleanData['isSynced'] = cleanData['isSynced'] == true ? 1 : 0;
+    }
+
+    if (firestoreId != null && firestoreId.toString().isNotEmpty) {
+      final existing = await db.query(
+        'product_variants',
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+      if (existing.isNotEmpty) {
+        await db.update(
+          'product_variants',
+          cleanData,
+          where: 'firestoreId = ?',
+          whereArgs: [firestoreId],
+        );
+        return;
+      }
+    }
+    // Insert new
+    await db.insert('product_variants', cleanData);
+  }
+
+  /// Lấy danh sách ProductCategory theo shopId
+  Future<List<Map<String, dynamic>>> getProductCategories(String shopId) async {
+    final db = await database;
+    return await db.query(
+      'product_categories',
+      where: 'shopId = ? AND isActive = 1',
+      whereArgs: [shopId],
+      orderBy: 'sortOrder ASC, name ASC',
+    );
+  }
+
+  /// Lấy danh sách ProductVariant theo productId
+  Future<List<Map<String, dynamic>>> getProductVariants(String productId) async {
+    final db = await database;
+    return await db.query(
+      'product_variants',
+      where: 'productId = ? AND isActive = 1',
+      whereArgs: [productId],
+      orderBy: 'size ASC, color ASC',
+    );
+  }
+
+  /// Lấy danh sách sản phẩm sắp hết hạn
+  Future<List<Map<String, dynamic>>> getExpiringProducts({
+    required String shopId,
+    int warningDays = 7,
+  }) async {
+    final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final warningDate = DateTime.now()
+        .add(Duration(days: warningDays))
+        .millisecondsSinceEpoch;
+
+    return await db.query(
+      'products',
+      where:
+          'shopId = ? AND expiryDate IS NOT NULL AND expiryDate > ? AND expiryDate <= ? AND status = 1 AND (deleted = 0 OR deleted IS NULL)',
+      whereArgs: [shopId, now, warningDate],
+      orderBy: 'expiryDate ASC',
+    );
+  }
+
+  /// Lấy danh sách sản phẩm đã hết hạn
+  Future<List<Map<String, dynamic>>> getExpiredProducts(String shopId) async {
+    final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    return await db.query(
+      'products',
+      where:
+          'shopId = ? AND expiryDate IS NOT NULL AND expiryDate <= ? AND status = 1 AND (deleted = 0 OR deleted IS NULL)',
+      whereArgs: [shopId, now],
+      orderBy: 'expiryDate ASC',
+    );
   }
 }

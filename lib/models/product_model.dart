@@ -16,7 +16,7 @@ class Product {
   int createdAt;
   int? updatedAt;
   String? supplier;
-  String type;
+  String type; // DEPRECATED - giữ lại để tương thích ngược
   int quantity;
   String? color;
   String? capacity; // Dung lượng (ví dụ: 64GB, 128GB, etc.)
@@ -26,6 +26,14 @@ class Product {
   bool isPending; // Kho tạm - chưa có giá vốn
   String? pendingSupplier; // NCC tạm khi chưa xác nhận giá
   String? labelNote; // Nội dung in trên tem
+
+  // === MULTI-INDUSTRY FIELDS (Phase 1) ===
+  String? categoryId; // Tham chiếu đến ProductCategory (thay thế type)
+  String? unit; // Đơn vị tính: cái, kg, lít, hộp...
+  int? expiryDate; // Ngày hết hạn (milliseconds) - cho thực phẩm
+  String? batchNumber; // Số lô hàng - cho thực phẩm
+  String? variantParentId; // ID sản phẩm cha (nếu là biến thể)
+  String? customData; // JSON string cho dữ liệu tùy chỉnh theo ngành
 
   Product({
     this.id,
@@ -55,6 +63,13 @@ class Product {
     this.isPending = false,
     this.pendingSupplier,
     this.labelNote,
+    // Multi-industry fields
+    this.categoryId,
+    this.unit,
+    this.expiryDate,
+    this.batchNumber,
+    this.variantParentId,
+    this.customData,
   });
 
   Map<String, dynamic> toMap() {
@@ -86,6 +101,13 @@ class Product {
       'isPending': isPending ? 1 : 0,
       'pendingSupplier': pendingSupplier,
       'labelNote': labelNote,
+      // Multi-industry fields
+      'categoryId': categoryId,
+      'unit': unit,
+      'expiryDate': expiryDate,
+      'batchNumber': batchNumber,
+      'variantParentId': variantParentId,
+      'customData': customData,
     };
   }
 
@@ -147,6 +169,13 @@ class Product {
       isPending: map['isPending'] == 1,
       pendingSupplier: map['pendingSupplier'],
       labelNote: map['labelNote'],
+      // Multi-industry fields
+      categoryId: map['categoryId'],
+      unit: map['unit'],
+      expiryDate: map['expiryDate'] != null ? _parseTimestamp(map['expiryDate']) : null,
+      batchNumber: map['batchNumber'],
+      variantParentId: map['variantParentId'],
+      customData: map['customData'],
     );
   }
 
@@ -178,6 +207,13 @@ class Product {
     bool? isPending,
     String? pendingSupplier,
     String? labelNote,
+    // Multi-industry fields
+    String? categoryId,
+    String? unit,
+    int? expiryDate,
+    String? batchNumber,
+    String? variantParentId,
+    String? customData,
   }) {
     return Product(
       id: id ?? this.id,
@@ -207,6 +243,34 @@ class Product {
       isPending: isPending ?? this.isPending,
       pendingSupplier: pendingSupplier ?? this.pendingSupplier,
       labelNote: labelNote ?? this.labelNote,
+      // Multi-industry fields
+      categoryId: categoryId ?? this.categoryId,
+      unit: unit ?? this.unit,
+      expiryDate: expiryDate ?? this.expiryDate,
+      batchNumber: batchNumber ?? this.batchNumber,
+      variantParentId: variantParentId ?? this.variantParentId,
+      customData: customData ?? this.customData,
     );
   }
+
+  // === HELPER GETTERS ===
+  
+  /// Kiểm tra sản phẩm có hạn sử dụng không
+  bool get hasExpiry => expiryDate != null;
+  
+  /// Kiểm tra sản phẩm đã hết hạn chưa
+  bool get isExpired => 
+      expiryDate != null && 
+      DateTime.fromMillisecondsSinceEpoch(expiryDate!).isBefore(DateTime.now());
+  
+  /// Kiểm tra sản phẩm sắp hết hạn (trong 7 ngày)
+  bool get isNearExpiry {
+    if (expiryDate == null) return false;
+    final expiry = DateTime.fromMillisecondsSinceEpoch(expiryDate!);
+    final now = DateTime.now();
+    return expiry.isAfter(now) && expiry.difference(now).inDays <= 7;
+  }
+  
+  /// Kiểm tra đây có phải sản phẩm biến thể không
+  bool get isVariant => variantParentId != null && variantParentId!.isNotEmpty;
 }

@@ -276,6 +276,42 @@ service cloud.firestore {
         // DELETE: Owner only (remove adjustments)
         allow delete: if isAuth() && belongsTo(shopId) && isOwner();
       }
+
+      // ─────────── SUBCOLLECTION: settings (Multi-industry) ───────────
+      // Stores shop settings including businessType and module flags
+      match /settings/{settingId} {
+        // READ: Any shop member
+        allow read: if isAuth() && belongsTo(shopId);
+        
+        // WRITE: Owner only
+        allow create, update: if isAuth() && 
+                         belongsTo(shopId) && 
+                         isOwner();
+        
+        // DELETE: Never
+        allow delete: if false;
+      }
+
+      // ─────────── SUBCOLLECTION: product_categories (Multi-industry) ───────────
+      // Dynamic product categories per shop
+      match /product_categories/{categoryId} {
+        // READ: Any shop member
+        allow read: if isAuth() && belongsTo(shopId);
+        
+        // CREATE: Manager+ only
+        allow create: if isAuth() && 
+                         belongsTo(shopId) && 
+                         isManager() &&
+                         has(['name', 'shopId']);
+        
+        // UPDATE: Manager+ only
+        allow update: if isAuth() && 
+                         belongsTo(shopId) && 
+                         isManager();
+        
+        // DELETE: Owner only (soft delete preferred)
+        allow delete: if isAuth() && belongsTo(shopId) && isOwner();
+      }
     }
 
     // ═══════════ 2.3 INVITES ═══════════
@@ -371,7 +407,29 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ═══════════ 3.3.1 STOCK ENTRIES (Phiếu nhập kho tạm) ═══════════
+    // ═══════════ 3.3.1 PRODUCT VARIANTS (Multi-industry) ═══════════
+    match /product_variants/{variantId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['productId', 'shopId']) &&
+                       optNumGte0('costPrice') &&
+                       optNumGte0('salePrice') &&
+                       optNumGte0('quantity');
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked() &&
+                       optNumGte0('costPrice') &&
+                       optNumGte0('salePrice') &&
+                       optNumGte0('quantity');
+      
+      allow delete: if false;
+    }
+
+    // ═══════════ 3.3.2 STOCK ENTRIES (Phiếu nhập kho tạm) ═══════════
     match /stock_entries/{entryId} {
       // Cho phép đọc entries của shop mình
       allow read: if isAuth() && docInMyShop();
