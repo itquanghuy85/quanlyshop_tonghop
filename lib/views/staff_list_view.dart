@@ -2525,62 +2525,34 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   }
 
   Widget _buildWorkScheduleTab() {
-    // Empty state - same simple pattern as _buildRepairList
+    // Empty state - exactly like _buildRepairList
     if (_workSchedule == null) {
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.schedule, size: 48, color: Colors.grey),
-              const SizedBox(height: 12),
-              Text(
-                "Chưa có lịch làm việc",
-                style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.headline3.fontSize),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Nhấn nút bên dưới để thiết lập lịch",
-                style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _editWorkScheduleForStaff,
-                icon: const Icon(Icons.edit, size: 16),
-                label: const Text("Thiết lập lịch làm việc"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
+        child: Text(
+          "Chưa có lịch làm việc\nNhấn nút 'Chỉnh sửa' để thiết lập",
+          style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
+          textAlign: TextAlign.center,
         ),
       );
     }
 
-    // Has schedule data - use ListView
+    // Has schedule data - use ListView with constrained Row
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
+            Flexible(
               child: Text(
                 "Lịch làm việc hiện tại",
                 style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
               ),
             ),
-            ElevatedButton.icon(
+            TextButton.icon(
               onPressed: _editWorkScheduleForStaff,
               icon: const Icon(Icons.edit, size: 16),
-              label: const Text("Chỉnh sửa"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
+              label: const Text("Sửa"),
             ),
           ],
         ),
