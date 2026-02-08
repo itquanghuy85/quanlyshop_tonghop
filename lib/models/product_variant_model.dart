@@ -211,8 +211,8 @@ class ProductVariant {
     );
   }
 
-  /// Kiểm tra tồn kho thấp
-  bool get isLowStock => quantity <= minQuantity;
+  /// Kiểm tra tồn kho thấp (còn hàng nhưng ít hơn ngưỡng)
+  bool get isLowStock => quantity > 0 && quantity <= minQuantity;
 
   /// Kiểm tra hết hàng
   bool get isOutOfStock => quantity <= 0;

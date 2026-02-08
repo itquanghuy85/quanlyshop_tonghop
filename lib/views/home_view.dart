@@ -73,9 +73,11 @@ import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import '../services/category_service.dart';
 import '../services/expiry_alert_service.dart';
+import '../services/variant_service.dart';
 import '../models/shop_settings_model.dart';
 import '../widgets/expiry_badge.dart';
 import 'food/expiry_management_view.dart';
+import 'fashion/variant_management_view.dart';
 
 class HomeView extends StatefulWidget {
   final String role;
@@ -199,8 +201,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   // Phase 2: Multi-Industry - Shop Settings
   ShopSettings? _shopSettings;
   ExpiryStats? _expiryStats;
+  VariantWarningCounts? _variantWarnings; // Phase 3: Fashion
   bool get _isFood => _shopSettings?.businessType == 'food';
+  bool get _isFashion => _shopSettings?.businessType == 'fashion';
   bool get _enableExpiry => _shopSettings?.enableExpiry ?? false;
+  bool get _enableVariants => _shopSettings?.enableVariants ?? false;
 
   final bool _isSuperAdmin = UserService.isCurrentUserSuperAdmin();
   bool get hasFullAccess =>
@@ -262,6 +267,24 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           label: 'HSD', // Hạn sử dụng
         ),
         'widget': const ExpiryManagementView(),
+      },
+      // Phase 3: Variants tab for Fashion shops
+      if (_enableVariants) {
+        'permission': 'allowViewInventory', // Same as inventory access
+        'item': BottomNavigationBarItem(
+          icon: Badge(
+            isLabelVisible: (_variantWarnings?.total ?? 0) > 0,
+            label: Text('${_variantWarnings?.total ?? 0}'),
+            child: const Icon(Icons.checkroom_outlined),
+          ),
+          activeIcon: Badge(
+            isLabelVisible: (_variantWarnings?.total ?? 0) > 0,
+            label: Text('${_variantWarnings?.total ?? 0}'),
+            child: const Icon(Icons.checkroom),
+          ),
+          label: 'Size/Màu', // Biến thể
+        ),
+        'widget': const VariantManagementView(),
       },
       {
         'permission':
@@ -1265,7 +1288,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       final settings = await CategoryService().getShopSettings();
       if (!mounted) return;
       
-      // Load expiry stats if enabled
+      // Load expiry stats if enabled (Food shops)
       ExpiryStats? expiryStats;
       if (settings?.enableExpiry == true) {
         expiryStats = await ExpiryAlertService().getExpiryStats();
@@ -1273,9 +1296,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         ExpiryAlertService().checkAndNotifyExpiry();
       }
       
+      // Load variant warnings if enabled (Fashion shops) - Phase 3
+      VariantWarningCounts? variantWarnings;
+      if (settings?.enableVariants == true) {
+        variantWarnings = await VariantService().getWarningCounts();
+      }
+      
       setState(() {
         _shopSettings = settings;
         _expiryStats = expiryStats;
+        _variantWarnings = variantWarnings;
         // Re-initialize tabs when shop settings change
         _initializeTabConfigs();
         _updateAvailableTabs();

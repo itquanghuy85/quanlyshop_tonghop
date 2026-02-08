@@ -313,7 +313,9 @@ void main() {
       );
       
       expect(variant.isOutOfStock, true);
-      expect(variant.isLowStock, true);
+      // When out of stock (quantity=0), isLowStock is false
+      // isLowStock only when 0 < quantity <= minQuantity
+      expect(variant.isLowStock, false);
     });
 
     test('toMap and fromMap roundtrip', () {
