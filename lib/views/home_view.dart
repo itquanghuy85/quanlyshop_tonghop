@@ -882,69 +882,70 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     debugPrint(
       'HomeView: _rebuildTabWidgets called - rebuilding all tabs with fresh data',
     );
+    final loc = AppLocalizations.of(context)!;
     // Rebuild tab configs with current data values
     _tabConfigs = [
       {
         'permission': null,
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined),
-          activeIcon: Icon(Icons.home_rounded),
-          label: 'Home',
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.home_outlined),
+          activeIcon: const Icon(Icons.home_rounded),
+          label: loc.homeTab,
         ),
         'widget': _buildHomeTab(),
       },
       {
         'permission': 'allowViewSales',
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart_outlined),
-          activeIcon: Icon(Icons.shopping_cart_rounded),
-          label: 'Bán hàng',
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.shopping_cart_outlined),
+          activeIcon: const Icon(Icons.shopping_cart_rounded),
+          label: loc.salesTab,
         ),
         'widget': _buildSalesTab(),
       },
       {
         'permission': 'allowViewRepairs',
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.build_outlined),
-          activeIcon: Icon(Icons.build_rounded),
-          label: 'Sửa chữa',
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.build_outlined),
+          activeIcon: const Icon(Icons.build_rounded),
+          label: loc.repairsTab,
         ),
         'widget': _buildRepairsTab(),
       },
       {
         'permission': 'allowViewInventory',
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.inventory_2_outlined),
-          activeIcon: Icon(Icons.inventory_2_rounded),
-          label: 'Kho',
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.inventory_2_outlined),
+          activeIcon: const Icon(Icons.inventory_2_rounded),
+          label: loc.inventoryTab,
         ),
         'widget': _buildInventoryTab(),
       },
       {
         'permission': 'allowManageStaff',
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.people_outline),
-          activeIcon: Icon(Icons.people_rounded),
-          label: 'Nhân sự',
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.people_outline),
+          activeIcon: const Icon(Icons.people_rounded),
+          label: loc.staffTab,
         ),
         'widget': _buildStaffTab(),
       },
       {
         'permission': 'allowViewRevenue',
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.account_balance_wallet_outlined),
-          activeIcon: Icon(Icons.account_balance_wallet_rounded),
-          label: 'Tài chính',
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.account_balance_wallet_outlined),
+          activeIcon: const Icon(Icons.account_balance_wallet_rounded),
+          label: loc.financeTab,
         ),
         'widget': _buildFinanceTab(),
       },
       {
         'permission':
             null, // Cài đặt luôn mở cho tất cả, chỉ Super Admin mới khóa được
-        'item': const BottomNavigationBarItem(
-          icon: Icon(Icons.settings_outlined),
-          activeIcon: Icon(Icons.settings_rounded),
-          label: 'Cài đặt',
+        'item': BottomNavigationBarItem(
+          icon: const Icon(Icons.settings_outlined),
+          activeIcon: const Icon(Icons.settings_rounded),
+          label: loc.settingsTab,
         ),
         'widget': _buildSettingsTab(),
       },
@@ -968,13 +969,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     // Limit to 7 tabs max
     if (allConfigs.length > 7) {
       final priorityTabs = [
-        'Home',
-        'Bán hàng',
-        'Sửa chữa',
-        'Kho',
-        'Nhân sự',
-        'Tài chính',
-        'Cài đặt',
+        loc.homeTab,
+        loc.salesTab,
+        loc.repairsTab,
+        loc.inventoryTab,
+        loc.staffTab,
+        loc.financeTab,
+        loc.settingsTab,
       ];
       final prioritized = allConfigs
           .where(

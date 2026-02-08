@@ -55,6 +55,8 @@ class UserService {
   static String? _cachedShopId;
   static String? _cachedUid; // Track which user's shopId is cached
   static String? _adminSelectedShopId; // Shop được super admin chọn để xem
+  static bool? _cachedCanViewCostPrice; // Cache permission xem giá vốn
+  static DateTime? _cachedCanViewCostPriceTime; // Thời điểm cache
 
   // Method để cập nhật cache shopId từ bên ngoài (dùng cho sync)
   static void updateCachedShopId(String? shopId) {
@@ -117,6 +119,8 @@ class UserService {
     _cachedShopId = null;
     _cachedUid = null;
     _adminSelectedShopId = null;
+    _cachedCanViewCostPrice = null;
+    _cachedCanViewCostPriceTime = null;
     ClaimsService().stopClaimsSync(); // Stop claims listener on logout
     PaymentIntentService.clearCache(); // Clear payment intent cache
   }
@@ -263,6 +267,7 @@ class UserService {
       'allowViewRevenue': isOwner, // Chỉ chủ shop được xem tài chính
       'allowViewExpenses': isOwner, // Chỉ chủ shop được xem chi phí
       'allowViewDebts': isOwner, // Chỉ chủ shop được xem công nợ
+      'allowViewCostPrice': isOwner || isManager || isAdmin, // Xem giá vốn - mặc định chỉ owner/manager/admin
       'allowViewSettings': isOwner || isManager || isAdmin,
       'allowManageStaff': isOwner || isManager || isAdmin,
       'shopAppLocked': false,
@@ -713,6 +718,9 @@ class UserService {
             defaults['allowViewExpenses']!,
         'allowViewDebts':
             (data['allowViewDebts'] as bool?) ?? defaults['allowViewDebts']!,
+        'allowViewCostPrice':
+            (data['allowViewCostPrice'] as bool?) ??
+            defaults['allowViewCostPrice']!,
         'allowViewSettings':
             (data['allowViewSettings'] as bool?) ??
             defaults['allowViewSettings']!,
@@ -740,6 +748,7 @@ class UserService {
         'allowViewRevenue',
         'allowViewExpenses',
         'allowViewDebts',
+        'allowViewCostPrice',
         'allowViewSettings',
         'allowManageStaff',
       ]) {
@@ -907,6 +916,7 @@ class UserService {
     required bool allowViewRevenue,
     required bool allowViewExpenses,
     required bool allowViewDebts,
+    required bool allowViewCostPrice,
   }) async {
     // Refresh token để đảm bảo custom claims (role, shopId) được cập nhật
     try {
@@ -930,6 +940,7 @@ class UserService {
         'allowViewRevenue': allowViewRevenue,
         'allowViewExpenses': allowViewExpenses,
         'allowViewDebts': allowViewDebts,
+        'allowViewCostPrice': allowViewCostPrice,
         'permissionsUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       debugPrint('✅ Updated permissions for user $uid');
@@ -1113,5 +1124,37 @@ class UserService {
       // Simple random, not crypto secure but ok for demo
     }
     return code;
+  }
+
+  // === PERMISSION HELPER METHODS ===
+
+  /// Kiểm tra xem user hiện tại có quyền xem giá vốn không
+  /// Sử dụng cache 5 phút để tránh gọi Firestore liên tục
+  static Future<bool> canViewCostPrice() async {
+    // Super admin luôn được xem
+    if (isCurrentUserSuperAdmin()) return true;
+
+    // Check cache (5 phút)
+    if (_cachedCanViewCostPrice != null && _cachedCanViewCostPriceTime != null) {
+      if (DateTime.now().difference(_cachedCanViewCostPriceTime!).inMinutes < 5) {
+        return _cachedCanViewCostPrice!;
+      }
+    }
+
+    // Lấy permissions từ Firestore
+    final perms = await getCurrentUserPermissions();
+    final canView = perms['allowViewCostPrice'] as bool? ?? false;
+    
+    // Cache kết quả
+    _cachedCanViewCostPrice = canView;
+    _cachedCanViewCostPriceTime = DateTime.now();
+    
+    return canView;
+  }
+
+  /// Xóa cache permission khi user logout hoặc đổi shop
+  static void clearCostPricePermissionCache() {
+    _cachedCanViewCostPrice = null;
+    _cachedCanViewCostPriceTime = null;
   }
 }

@@ -953,10 +953,11 @@ if (UserService.isCurrentUserSuperAdmin()) {
 ## 📞 THÔNG TIN LIÊN HỆ
 
 **Nhà phát triển:** Huluca Tech  
-**Email:** support@huluca.com  
-**Hotline:** 0909.xxx.xxx
+**Email:** itquanghuy85@gmail.com  
+**Hotline:** +84964.09.59.79
 
 ---
+chú ý các vấn đề:  sync, dropdown, overflowed, ngôn ngữ hiển thị (E/V), nhập giá trị tiền tệ đồng bộ và ko auto focus...sau khi sửa hay nâng cấp phải cập nhật vào tài liệu này.
 
 *Tài liệu được cập nhật lần cuối: Tháng 1/2026*  
 *Phiên bản app: 3.4.0+10*

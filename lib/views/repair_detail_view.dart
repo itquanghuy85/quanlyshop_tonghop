@@ -486,6 +486,31 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   /// Nhân viên submit đơn chờ duyệt giao (pendingDeliveryApproval = true)
   Future<void> _submitForDeliveryApproval() async {
+    // Kiểm tra thông tin khách hàng trước khi giao máy
+    if (r.phone.isEmpty || r.customerName.isEmpty || r.customerName == 'KHÁCH VÃNG LAI') {
+      final shouldEdit = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('⚠️ Thiếu thông tin khách hàng'),
+          content: const Text('Vui lòng cập nhật thông tin khách hàng (Tên, SĐT) trước khi giao máy.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Cập nhật ngay'),
+            ),
+          ],
+        ),
+      );
+      if (shouldEdit == true) {
+        await _editBasicInfo();
+      }
+      return;
+    }
+    
     String payMethod = loc.cash;
     String selectedWarranty = r.warranty.isEmpty ? '1 tháng' : r.warranty;
     final List<String> warrantyOptions = [
@@ -675,6 +700,31 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   /// Quản lý duyệt đơn giao máy (pendingDeliveryApproval -> status 4)
   Future<void> _approveDelivery() async {
+    // Kiểm tra thông tin khách hàng trước khi giao máy
+    if (r.phone.isEmpty || r.customerName.isEmpty || r.customerName == 'KHÁCH VÃNG LAI') {
+      final shouldEdit = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('⚠️ Thiếu thông tin khách hàng'),
+          content: const Text('Vui lòng cập nhật thông tin khách hàng (Tên, SĐT) trước khi duyệt giao máy.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Cập nhật ngay'),
+            ),
+          ],
+        ),
+      );
+      if (shouldEdit == true) {
+        await _editBasicInfo();
+      }
+      return;
+    }
+    
     String selectedWarranty = r.warranty.isEmpty ? 'KO BH' : r.warranty;
     final List<String> warrantyOptions = [
       'KO BH',
@@ -1117,10 +1167,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       // Thử load products để xem có nhưng chưa đánh đúng loại
       final allProducts = await db.getAllProducts();
       final linhKienProducts = allProducts
-          .where((p) => p.type == 'LINH KIỆN')
+          .where((p) => p.type == 'LINH_KIEN')
           .toList();
       final phuKienProducts = allProducts
-          .where((p) => p.type == 'PHỤ KIỆN')
+          .where((p) => p.type == 'PHU_KIEN')
           .toList();
 
       String msg = loc.partsInventoryEmpty;

@@ -35,6 +35,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   final searchCtrl = TextEditingController();
   String _searchQuery = '';
   bool _isAdmin = false;
+  bool _canViewCostPrice = false; // Phân quyền xem giá vốn
   bool _isSelectionMode = false;
   final Set<int> _selectedIds = {};
   bool _showOutOfStock = false;
@@ -101,7 +102,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   Future<void> _loadPermissions() async {
     final perms = await UserService.getCurrentUserPermissions();
     if (!mounted) return;
-    setState(() => _isAdmin = perms['allowViewParts'] ?? false);
+    setState(() {
+      _isAdmin = perms['allowViewParts'] ?? false;
+      _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+    });
   }
 
   Future<void> _refreshParts() async {
@@ -344,8 +348,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           _summaryItem(Icons.category, '$types', 'Loại LK'),
           _verticalDivider(),
           _summaryItem(Icons.inventory_2, '$qty', 'Tổng SL'),
-          _verticalDivider(),
-          _summaryItem(Icons.account_balance_wallet, MoneyUtils.formatCompact(cost), 'Giá vốn'),
+          if (_canViewCostPrice) ...[
+            _verticalDivider(),
+            _summaryItem(Icons.account_balance_wallet, MoneyUtils.formatCompact(cost), 'Giá vốn'),
+          ],
           if (lowStock > 0) ...[
             _verticalDivider(),
             _summaryItem(Icons.warning_amber, '$lowStock', 'Sắp hết', Colors.amber),
@@ -455,7 +461,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
             itemBuilder: (_) => [
               _sortMenuItem('name', 'Tên A-Z', Icons.sort_by_alpha),
               _sortMenuItem('quantity', 'Số lượng', Icons.format_list_numbered),
-              _sortMenuItem('cost', 'Giá vốn', Icons.attach_money),
+              if (_canViewCostPrice)
+                _sortMenuItem('cost', 'Giá vốn', Icons.attach_money),
             ],
           ),
         ],
@@ -668,8 +675,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     Row(
                       children: [
                         _infoChip(Icons.inventory_2, 'SL: $qty', isLow ? Colors.orange : Colors.blue),
-                        const SizedBox(width: 8),
-                        _infoChip(Icons.attach_money, NumberFormat.compact().format(cost), Colors.green),
+                        if (_canViewCostPrice) ...[
+                          const SizedBox(width: 8),
+                          _infoChip(Icons.attach_money, NumberFormat.compact().format(cost), Colors.green),
+                        ],
                         const SizedBox(width: 8),
                         _infoChip(Icons.sell, NumberFormat.compact().format(price), Colors.red),
                       ],
@@ -838,12 +847,16 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 child: Column(
                   children: [
                     _detailRow('Số lượng tồn', '$qty', Icons.inventory_2),
-                    const Divider(height: 20),
-                    _detailRow('Giá vốn/sp', '${NumberFormat('#,###').format(cost)}đ', Icons.attach_money),
+                    if (_canViewCostPrice) ...[
+                      const Divider(height: 20),
+                      _detailRow('Giá vốn/sp', '${NumberFormat('#,###').format(cost)}đ', Icons.attach_money),
+                    ],
                     const Divider(height: 20),
                     _detailRow('Giá bán/sp', '${NumberFormat('#,###').format(price)}đ', Icons.sell),
-                    const Divider(height: 20),
-                    _detailRow('Tổng vốn tồn', '${NumberFormat('#,###').format(totalCost)}đ', Icons.account_balance_wallet, Colors.green),
+                    if (_canViewCostPrice) ...[
+                      const Divider(height: 20),
+                      _detailRow('Tổng vốn tồn', '${NumberFormat('#,###').format(totalCost)}đ', Icons.account_balance_wallet, Colors.green),
+                    ],
                     const Divider(height: 20),
                     _detailRow('Nhà cung cấp', supplierName, Icons.store),
                     if (createdAt != null) ...[
@@ -978,6 +991,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
   final searchCtrl = TextEditingController();
   String _searchQuery = '';
   bool _isAdmin = false;
+  bool _canViewCostPrice = false; // Phân quyền xem giá vốn
 
   // Multi-select mode
   bool _isSelectionMode = false;
@@ -1000,6 +1014,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
     if (!mounted) return;
     setState(() {
       _isAdmin = perms['allowViewParts'] ?? false;
+      _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
     });
   }
 
@@ -1189,14 +1204,16 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(
-                          child: CurrencyTextField(
-                            controller: costC,
-                            label: "Giá vốn",
-                            icon: Icons.attach_money,
+                        if (_canViewCostPrice)
+                          Expanded(
+                            child: CurrencyTextField(
+                              controller: costC,
+                              label: "Giá vốn",
+                              icon: Icons.attach_money,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
+                        if (_canViewCostPrice)
+                          const SizedBox(width: 10),
                         Expanded(
                           child: CurrencyTextField(
                             controller: priceC,

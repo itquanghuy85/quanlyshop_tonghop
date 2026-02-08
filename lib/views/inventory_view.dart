@@ -60,6 +60,7 @@ class _InventoryViewState extends State<InventoryView>
   static const int _pageSize = 10; // Load 10 products at a time for better performance
   int _unsyncedCount = 0;
   bool _isAdmin = false;
+  bool _canViewCostPrice = false; // Phân quyền xem giá vốn
   
   // Total inventory summary from DB (not from paginated data)
   int _totalQtyFromDB = 0;
@@ -423,13 +424,14 @@ class _InventoryViewState extends State<InventoryView>
                   ? (displayProduct.pendingSupplier ?? "Chưa xác nhận")
                   : (displayProduct.supplier ?? "N/A"),
             ),
-            _detailItem(
-              "Giá nhập",
-              displayProduct.isPending
-                  ? "Chờ xác nhận"
-                  : "${MoneyUtils.formatCurrency(displayProduct.cost)} đ",
-              color: displayProduct.isPending ? Colors.orange : null,
-            ),
+            if (_canViewCostPrice)
+              _detailItem(
+                "Giá nhập",
+                displayProduct.isPending
+                    ? "Chờ xác nhận"
+                    : "${MoneyUtils.formatCurrency(displayProduct.cost)} đ",
+                color: displayProduct.isPending ? Colors.orange : null,
+              ),
             _detailItem(
               "Giá bán",
               displayProduct.isPending
@@ -718,20 +720,22 @@ class _InventoryViewState extends State<InventoryView>
                   child: Text(p.supplier ?? 'N/A', style: AppTextStyles.headline4.copyWith(color: Colors.black54)),
                 ),
               const SizedBox(height: 12),
-              // Giá nhập - KHÓA nếu đã nhập kho chính
-              if (canEditFinancialInfo)
-                CurrencyTextField(controller: costCtrl, label: 'Giá nhập (VNĐ)')
-              else
-                InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Giá nhập (không đổi)',
-                    prefixIcon: Icon(Icons.lock, size: 16, color: Colors.grey),
-                    filled: true,
-                    fillColor: Color(0xFFF5F5F5),
+              // Giá nhập - KHÓA nếu đã nhập kho chính hoặc không có quyền xem giá vốn
+              if (_canViewCostPrice) ...[
+                if (canEditFinancialInfo)
+                  CurrencyTextField(controller: costCtrl, label: 'Giá nhập (VNĐ)')
+                else
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Giá nhập (không đổi)',
+                      prefixIcon: Icon(Icons.lock, size: 16, color: Colors.grey),
+                      filled: true,
+                      fillColor: Color(0xFFF5F5F5),
+                    ),
+                    child: Text(MoneyUtils.formatCurrency(p.cost), style: AppTextStyles.headline4.copyWith(color: Colors.black54)),
                   ),
-                  child: Text(MoneyUtils.formatCurrency(p.cost), style: AppTextStyles.headline4.copyWith(color: Colors.black54)),
-                ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
+              ],
               CurrencyTextField(controller: priceCtrl, label: 'Giá bán (VNĐ)'),
               const SizedBox(height: 12),
               ValidatedTextField(
@@ -1018,10 +1022,11 @@ class _InventoryViewState extends State<InventoryView>
                             color: Colors.grey,
                           ),
                         ),
-                      Text(
-                        'Giá vốn: ${MoneyUtils.formatCurrency(p.cost)}đ',
-                        style: AppTextStyles.subtitle1,
-                      ),
+                      if (_canViewCostPrice)
+                        Text(
+                          'Giá vốn: ${MoneyUtils.formatCurrency(p.cost)}đ',
+                          style: AppTextStyles.subtitle1,
+                        ),
                     ],
                   ),
                 ),
@@ -1250,6 +1255,7 @@ class _InventoryViewState extends State<InventoryView>
     setState(() {
       _isAdmin = perms['allowViewInventory'] ?? false;
       _hasInventoryAccess = perms['allowViewInventory'] ?? false;
+      _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
     });
     _refresh();
   }
@@ -2263,7 +2269,7 @@ class _InventoryViewState extends State<InventoryView>
           Container(width: 1, height: 36, color: Colors.white24),
           _summaryItemCompact(
             "VỐN TỒN KHO",
-            "${MoneyUtils.formatCurrency(capital)} đ",
+            _canViewCostPrice ? "${MoneyUtils.formatCurrency(capital)} đ" : "***",
             Icons.account_balance_wallet,
           ),
         ],
@@ -2348,9 +2354,15 @@ class _InventoryViewState extends State<InventoryView>
                 ),
                 const SizedBox(width: 8),
                 _buildTypeFilterChip(
-                  'PHỤ KIỆN',
+                  'PHU_KIEN',
                   Icons.headset_mic,
                   Colors.green,
+                ),
+                const SizedBox(width: 8),
+                _buildTypeFilterChip(
+                  'LINH_KIEN',
+                  Icons.build,
+                  Colors.orange,
                 ),
                 const SizedBox(width: 8),
                 // Filter Kho Tạm
@@ -2448,9 +2460,9 @@ class _InventoryViewState extends State<InventoryView>
     final isSelected = _filterType == type;
     final label = type == 'DIEN_THOAI'
         ? 'Điện thoại'
-        : type == 'PHỤ KIỆN'
+        : type == 'PHU_KIEN'
         ? 'Phụ kiện'
-        : type == 'LINH KIỆN'
+        : type == 'LINH_KIEN'
         ? 'Linh kiện'
         : 'Tất cả';
 
@@ -2733,7 +2745,7 @@ class _InventoryViewState extends State<InventoryView>
                 spacing: 4,
                 runSpacing: 4,
                 children: [
-                  if (!isPending && p.cost > 0)
+                  if (_canViewCostPrice && !isPending && p.cost > 0)
                     _compactChip('Vốn: ${NumberFormat.compact(locale: 'vi').format(p.cost)}đ', Colors.orange.shade100),
                   if (!isPending)
                     _compactChip('Bán: ${NumberFormat.compact(locale: 'vi').format(p.price)}đ', Colors.green.shade100),
@@ -3147,20 +3159,21 @@ class _InventoryViewState extends State<InventoryView>
                     "Số IMEI / Serial",
                     Icons.fingerprint,
                     f: imeiF,
-                    next: costF,
+                    next: _canViewCostPrice ? costF : priceF,
                     type: TextInputType.number,
                   ),
 
-                  // Giá vốn
-                  _input(
-                    costC,
-                    "Giá vốn (k)",
-                    Icons.money,
-                    f: costF,
-                    next: priceF,
-                    type: TextInputType.number,
-                    suffix: "k",
-                  ),
+                  // Giá vốn - chỉ hiển thị nếu có quyền
+                  if (_canViewCostPrice)
+                    _input(
+                      costC,
+                      "Giá vốn (k)",
+                      Icons.money,
+                      f: costF,
+                      next: priceF,
+                      type: TextInputType.number,
+                      suffix: "k",
+                    ),
 
                   // Giá bán
                   _input(
@@ -3572,14 +3585,16 @@ class _InventoryViewState extends State<InventoryView>
                   ),
                   const SizedBox(height: 16),
 
-                  // Giá vốn
-                  CurrencyTextField(
-                    controller: costC,
-                    label: 'GIÁ VỐN (*)',
-                    icon: Icons.monetization_on,
-                    autoMultiply1000: true,
-                  ),
-                  const SizedBox(height: 12),
+                  // Giá vốn - chỉ hiển thị nếu có quyền
+                  if (_canViewCostPrice) ...[
+                    CurrencyTextField(
+                      controller: costC,
+                      label: 'GIÁ VỐN (*)',
+                      icon: Icons.monetization_on,
+                      autoMultiply1000: true,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
 
                   // Giá bán (optional)
                   CurrencyTextField(
@@ -3861,34 +3876,36 @@ class _InventoryViewState extends State<InventoryView>
                   // Model (nameC chứa model)
                   _input(nameC, "Model", Icons.smartphone, caps: true),
 
-                  // Giá vốn - KHÓA nếu đã nhập kho chính hoặc đã bán
-                  if (!p.isPending || p.status == 0)
-                    InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: "Giá vốn (đã nhập kho - không đổi)",
-                        prefixIcon: Icon(
-                          Icons.lock,
-                          size: 18,
-                          color: Colors.grey,
+                  // Giá vốn - KHÓA nếu đã nhập kho chính hoặc đã bán, ẩn nếu không có quyền
+                  if (_canViewCostPrice) ...[
+                    if (!p.isPending || p.status == 0)
+                      InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: "Giá vốn (đã nhập kho - không đổi)",
+                          prefixIcon: Icon(
+                            Icons.lock,
+                            size: 18,
+                            color: Colors.grey,
+                          ),
+                          filled: true,
+                          fillColor: Color(0xFFF5F5F5),
                         ),
-                        filled: true,
-                        fillColor: Color(0xFFF5F5F5),
-                      ),
-                      child: Text(
-                        CurrencyTextField.formatDisplay(p.cost),
-                        style: AppTextStyles.headline4.copyWith(
-                          color: Colors.black54,
+                        child: Text(
+                          CurrencyTextField.formatDisplay(p.cost),
+                          style: AppTextStyles.headline4.copyWith(
+                            color: Colors.black54,
+                          ),
                         ),
+                      )
+                    else
+                      _input(
+                        costC,
+                        "Giá vốn (k)",
+                        Icons.money,
+                        type: TextInputType.number,
+                        suffix: "k",
                       ),
-                    )
-                  else
-                    _input(
-                      costC,
-                      "Giá vốn (k)",
-                      Icons.money,
-                      type: TextInputType.number,
-                      suffix: "k",
-                    ),
+                  ],
 
                   // Giá bán
                   _input(

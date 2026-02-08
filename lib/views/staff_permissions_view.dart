@@ -81,6 +81,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
         allowViewRevenue: permissionKey == 'allowViewRevenue' ? value : (userData['allowViewRevenue'] ?? false),
         allowViewExpenses: permissionKey == 'allowViewExpenses' ? value : (userData['allowViewExpenses'] ?? false),
         allowViewDebts: permissionKey == 'allowViewDebts' ? value : (userData['allowViewDebts'] ?? false),
+        allowViewCostPrice: permissionKey == 'allowViewCostPrice' ? value : (userData['allowViewCostPrice'] ?? false),
       );
       if (mounted) {
         // Ghi log thay đổi quyền
@@ -137,6 +138,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
           allowViewRevenue: true,
           allowViewExpenses: true,
           allowViewDebts: true,
+          allowViewCostPrice: true,
         );
       }
 
@@ -327,6 +329,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
                             _buildPermissionRow("DOANH THU & LỜI LỖ", userData['allowViewRevenue'] ?? false, uid, 'allowViewRevenue'),
                             _buildPermissionRow("CHI PHÍ CỬA HÀNG", userData['allowViewExpenses'] ?? false, uid, 'allowViewExpenses'),
                             _buildPermissionRow("SỔ CÔNG NỢ", userData['allowViewDebts'] ?? false, uid, 'allowViewDebts'),
+                            _buildPermissionRow("GIÁ VỐN SẢN PHẨM", userData['allowViewCostPrice'] ?? false, uid, 'allowViewCostPrice'),
                           ] else ...[
                             Container(
                               padding: const EdgeInsets.all(12),

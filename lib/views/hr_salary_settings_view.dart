@@ -227,6 +227,11 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
         'baseSalary': (_shopDefaults['baseSalary'] ?? 0).toInt(),
         'saleCommPercent': _shopDefaults['saleCommValue'] ?? 1.0,
         'saleCommType': _shopDefaults['saleCommType'] ?? 'percent',
+        'saleCommTier1Max': (_shopDefaults['saleCommTier1Max'] ?? 10000000).toInt(),
+        'saleCommTier1Value': (_shopDefaults['saleCommTier1Value'] ?? 20000).toInt(),
+        'saleCommTier2Max': (_shopDefaults['saleCommTier2Max'] ?? 50000000).toInt(),
+        'saleCommTier2Value': (_shopDefaults['saleCommTier2Value'] ?? 50000).toInt(),
+        'saleCommTier3Value': (_shopDefaults['saleCommTier3Value'] ?? 100000).toInt(),
         'repairProfitPercent': _shopDefaults['repairCommValue'] ?? 10.0,
         'repairCommType': _shopDefaults['repairCommType'] ?? 'percent',
         'transportAllowance': (_shopDefaults['transportAllowance'] ?? 0)
@@ -528,6 +533,10 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                     value: 'fixed_per_order',
                     child: Text('Tiền cố định/đơn'),
                   ),
+                  DropdownMenuItem(
+                    value: 'tiered',
+                    child: Text('Theo bậc giá trị đơn'),
+                  ),
                 ],
                 onChanged: (v) =>
                     setState(() => _shopDefaults['saleCommType'] = v),
@@ -540,6 +549,8 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                   onChanged: (v) =>
                       setState(() => _shopDefaults['saleCommValue'] = v),
                 )
+              else if (_shopDefaults['saleCommType'] == 'tiered')
+                ..._buildTieredCommissionFields()
               else
                 _buildCurrencyField(
                   label: 'Tiền/đơn bán (đ)',
@@ -1448,6 +1459,101 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
       suffix: suffix,
       enabled: _isAdmin,
     );
+  }
+
+  /// Builds the tiered commission configuration fields
+  List<Widget> _buildTieredCommissionFields() {
+    return [
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.orange.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '📊 Hoa hồng theo bậc giá trị đơn hàng:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• Bậc 1: Đơn dưới mức 1 → Hoa hồng 1\n'
+              '• Bậc 2: Đơn từ mức 1 đến mức 2 → Hoa hồng 2\n'
+              '• Bậc 3: Đơn trên mức 2 → Hoa hồng 3',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      // Tier 1: Under X -> Y
+      Row(
+        children: [
+          Expanded(
+            child: _buildCurrencyField(
+              label: 'Mức 1: Đơn dưới (đ)',
+              value: (_shopDefaults['saleCommTier1Max'] ?? 10000000).toDouble(),
+              onChanged: (v) => setState(() => _shopDefaults['saleCommTier1Max'] = v),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildCurrencyField(
+              label: 'Hoa hồng 1 (đ)',
+              value: (_shopDefaults['saleCommTier1Value'] ?? 20000).toDouble(),
+              onChanged: (v) => setState(() => _shopDefaults['saleCommTier1Value'] = v),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      // Tier 2: From X to Y -> Z
+      Row(
+        children: [
+          Expanded(
+            child: _buildCurrencyField(
+              label: 'Mức 2: Đơn đến (đ)',
+              value: (_shopDefaults['saleCommTier2Max'] ?? 50000000).toDouble(),
+              onChanged: (v) => setState(() => _shopDefaults['saleCommTier2Max'] = v),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildCurrencyField(
+              label: 'Hoa hồng 2 (đ)',
+              value: (_shopDefaults['saleCommTier2Value'] ?? 50000).toDouble(),
+              onChanged: (v) => setState(() => _shopDefaults['saleCommTier2Value'] = v),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      // Tier 3: Over Y -> Z
+      Row(
+        children: [
+          const Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'Bậc 3: Đơn trên mức 2',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildCurrencyField(
+              label: 'Hoa hồng 3 (đ)',
+              value: (_shopDefaults['saleCommTier3Value'] ?? 100000).toDouble(),
+              onChanged: (v) => setState(() => _shopDefaults['saleCommTier3Value'] = v),
+            ),
+          ),
+        ],
+      ),
+    ];
   }
 }
 

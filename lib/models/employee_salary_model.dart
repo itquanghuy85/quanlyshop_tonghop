@@ -12,8 +12,18 @@ class EmployeeSalarySettings {
   final String salaryType; // 'monthly' | 'daily' | 'hourly'
 
   // === HOA HỒNG BÁN HÀNG ===
-  final String saleCommType; // 'percent' | 'fixed_per_order'
+  final String saleCommType; // 'percent' | 'fixed_per_order' | 'tiered'
   final double saleCommValue; // % hoặc số tiền cố định/đơn
+  
+  // === HOA HỒNG THEO BẬC (TIERED) ===
+  // Tier 1: Đơn hàng dưới tier1Max
+  final double saleCommTier1Max;    // e.g., 10,000,000 (10 triệu)
+  final double saleCommTier1Value;  // e.g., 20,000 (20k)
+  // Tier 2: Đơn hàng từ tier1Max đến tier2Max
+  final double saleCommTier2Max;    // e.g., 50,000,000 (50 triệu)
+  final double saleCommTier2Value;  // e.g., 50,000 (50k)
+  // Tier 3: Đơn hàng trên tier2Max
+  final double saleCommTier3Value;  // e.g., 100,000 (100k)
 
   // === HOA HỒNG SỬA CHỮA ===
   final String repairCommType; // 'percent' | 'fixed_per_order'
@@ -50,6 +60,11 @@ class EmployeeSalarySettings {
     this.salaryType = 'monthly',
     this.saleCommType = 'percent',
     this.saleCommValue = 1.0,
+    this.saleCommTier1Max = 10000000,  // 10 triệu
+    this.saleCommTier1Value = 20000,   // 20k
+    this.saleCommTier2Max = 50000000,  // 50 triệu
+    this.saleCommTier2Value = 50000,   // 50k
+    this.saleCommTier3Value = 100000,  // 100k
     this.repairCommType = 'percent',
     this.repairCommValue = 10.0,
     this.transportAllowance = 0,
@@ -95,6 +110,11 @@ class EmployeeSalarySettings {
       salaryType: map['salaryType'] ?? 'monthly',
       saleCommType: map['saleCommType'] ?? 'percent',
       saleCommValue: (map['saleCommValue'] ?? 1.0).toDouble(),
+      saleCommTier1Max: (map['saleCommTier1Max'] ?? 10000000).toDouble(),
+      saleCommTier1Value: (map['saleCommTier1Value'] ?? 20000).toDouble(),
+      saleCommTier2Max: (map['saleCommTier2Max'] ?? 50000000).toDouble(),
+      saleCommTier2Value: (map['saleCommTier2Value'] ?? 50000).toDouble(),
+      saleCommTier3Value: (map['saleCommTier3Value'] ?? 100000).toDouble(),
       repairCommType: map['repairCommType'] ?? 'percent',
       repairCommValue: (map['repairCommValue'] ?? 10.0).toDouble(),
       transportAllowance: (map['transportAllowance'] ?? 0).toDouble(),
@@ -124,6 +144,11 @@ class EmployeeSalarySettings {
       'salaryType': salaryType,
       'saleCommType': saleCommType,
       'saleCommValue': saleCommValue,
+      'saleCommTier1Max': saleCommTier1Max,
+      'saleCommTier1Value': saleCommTier1Value,
+      'saleCommTier2Max': saleCommTier2Max,
+      'saleCommTier2Value': saleCommTier2Value,
+      'saleCommTier3Value': saleCommTier3Value,
       'repairCommType': repairCommType,
       'repairCommValue': repairCommValue,
       'transportAllowance': transportAllowance,
@@ -154,6 +179,11 @@ class EmployeeSalarySettings {
       'salaryType': salaryType,
       'saleCommType': saleCommType,
       'saleCommValue': saleCommValue,
+      'saleCommTier1Max': saleCommTier1Max,
+      'saleCommTier1Value': saleCommTier1Value,
+      'saleCommTier2Max': saleCommTier2Max,
+      'saleCommTier2Value': saleCommTier2Value,
+      'saleCommTier3Value': saleCommTier3Value,
       'repairCommType': repairCommType,
       'repairCommValue': repairCommValue,
       'transportAllowance': transportAllowance,
@@ -184,6 +214,11 @@ class EmployeeSalarySettings {
     String? salaryType,
     String? saleCommType,
     double? saleCommValue,
+    double? saleCommTier1Max,
+    double? saleCommTier1Value,
+    double? saleCommTier2Max,
+    double? saleCommTier2Value,
+    double? saleCommTier3Value,
     String? repairCommType,
     double? repairCommValue,
     double? transportAllowance,
@@ -210,6 +245,11 @@ class EmployeeSalarySettings {
       salaryType: salaryType ?? this.salaryType,
       saleCommType: saleCommType ?? this.saleCommType,
       saleCommValue: saleCommValue ?? this.saleCommValue,
+      saleCommTier1Max: saleCommTier1Max ?? this.saleCommTier1Max,
+      saleCommTier1Value: saleCommTier1Value ?? this.saleCommTier1Value,
+      saleCommTier2Max: saleCommTier2Max ?? this.saleCommTier2Max,
+      saleCommTier2Value: saleCommTier2Value ?? this.saleCommTier2Value,
+      saleCommTier3Value: saleCommTier3Value ?? this.saleCommTier3Value,
       repairCommType: repairCommType ?? this.repairCommType,
       repairCommValue: repairCommValue ?? this.repairCommValue,
       transportAllowance: transportAllowance ?? this.transportAllowance,
@@ -232,14 +272,34 @@ class EmployeeSalarySettings {
   double get totalAllowance =>
       transportAllowance + mealAllowance + phoneAllowance + otherAllowance;
 
-  /// Tính hoa hồng bán hàng dự kiến theo doanh số
-  double calculateSaleCommission(double revenue) {
+  /// Tính hoa hồng bán hàng dự kiến theo doanh số (giá trị đơn hàng)
+  /// [orderValue]: Giá trị đơn hàng
+  /// Returns: Hoa hồng cho đơn hàng đó
+  double calculateSaleCommission(double orderValue) {
     if (saleCommType == 'percent') {
-      return revenue * (saleCommValue / 100);
+      return orderValue * (saleCommValue / 100);
+    } else if (saleCommType == 'tiered') {
+      // Hoa hồng theo bậc dựa vào giá trị đơn hàng
+      // Tier 1: Dưới tier1Max -> tier1Value
+      // Tier 2: Từ tier1Max đến tier2Max -> tier2Value
+      // Tier 3: Trên tier2Max -> tier3Value
+      if (orderValue < saleCommTier1Max) {
+        return saleCommTier1Value;
+      } else if (orderValue <= saleCommTier2Max) {
+        return saleCommTier2Value;
+      } else {
+        return saleCommTier3Value;
+      }
     } else {
-      // fixed_per_order - cần biết số đơn
-      return saleCommValue; // Trả về giá trị/đơn
+      // fixed_per_order - số tiền cố định
+      return saleCommValue;
     }
+  }
+
+  /// Tính tổng hoa hồng cho nhiều đơn hàng (dùng cho tiered)
+  /// [orderValues]: List giá trị các đơn hàng
+  double calculateTotalSaleCommission(List<double> orderValues) {
+    return orderValues.fold(0.0, (sum, orderValue) => sum + calculateSaleCommission(orderValue));
   }
 
   /// Tính hoa hồng sửa chữa dự kiến theo lợi nhuận

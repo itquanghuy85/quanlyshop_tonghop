@@ -331,15 +331,13 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       return null;
     }
 
-    final isPhoneMissing = phoneCtrl.text.isEmpty;
-    if (modelCtrl.text.isEmpty || (!_isWalkIn && isPhoneMissing)) {
+    // CHỈ YÊU CẦU MODEL - Cho phép nhập khách hàng sau, chỉ bắt buộc khi giao máy
+    if (modelCtrl.text.isEmpty) {
       debugPrint(
-        '🔧 _saveOrderProcess: Validation failed - phone or model empty',
+        '🔧 _saveOrderProcess: Validation failed - model empty',
       );
       NotificationService.showSnackBar(
-        _isWalkIn
-            ? loc.pleaseEnterModel
-            : loc.pleaseEnterPhoneAndModel,
+        loc.pleaseEnterModel,
         color: Colors.red,
       );
       return null;

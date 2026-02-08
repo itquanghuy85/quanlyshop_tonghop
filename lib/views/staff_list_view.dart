@@ -1290,6 +1290,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   bool _canViewRevenue = false;
   bool _canViewExpenses = false;
   bool _canViewDebts = false;
+  bool _canViewCostPrice = false;
 
   List<Repair> _repairsReceived = [];
   List<Repair> _repairsDelivered = [];
@@ -1329,6 +1330,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       _canViewRevenue = widget.fullData['allowViewRevenue'] == true;
       _canViewExpenses = widget.fullData['allowViewExpenses'] == true;
       _canViewDebts = widget.fullData['allowViewDebts'] == true;
+      _canViewCostPrice = widget.fullData['allowViewCostPrice'] == true;
 
       // Đồng bộ permissions với role hiện tại
       _syncPermissionsWithRole();
@@ -1578,6 +1580,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
         allowViewRevenue: _canViewRevenue,
         allowViewExpenses: _canViewExpenses,
         allowViewDebts: _canViewDebts,
+        allowViewCostPrice: _canViewCostPrice,
       );
 
       if (!mounted) return;
