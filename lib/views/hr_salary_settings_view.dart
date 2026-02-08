@@ -968,6 +968,10 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                                 child: Text('% Doanh số'),
                               ),
                               DropdownMenuItem(
+                                value: 'tiered',
+                                child: Text('Theo bậc giá trị đơn'),
+                              ),
+                              DropdownMenuItem(
                                 value: 'fixed_per_order',
                                 child: Text('Tiền cố định/đơn'),
                               ),
@@ -985,6 +989,8 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                                 settings = settings.copyWith(saleCommValue: v);
                               }),
                             )
+                          else if (settings.saleCommType == 'tiered')
+                            ..._buildEmployeeTieredFields(settings, setDialogState, (s) => settings = s)
                           else
                             _buildCurrencyField(
                               label: 'Tiền/đơn bán (đ)',
@@ -1554,6 +1560,115 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
               label: 'Hoa hồng 3 (đ)',
               value: (_shopDefaults['saleCommTier3Value'] ?? 100000).toDouble(),
               onChanged: (v) => setState(() => _shopDefaults['saleCommTier3Value'] = v),
+            ),
+          ),
+        ],
+      ),
+    ];
+  }
+
+  /// Builds the tiered commission fields for individual employee settings
+  List<Widget> _buildEmployeeTieredFields(
+    EmployeeSalarySettings settings,
+    void Function(VoidCallback) setDialogState,
+    void Function(EmployeeSalarySettings) updateSettings,
+  ) {
+    return [
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.orange.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '📊 Hoa hồng theo bậc giá trị đơn hàng:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• Bậc 1: Đơn dưới mức 1 → Hoa hồng 1\n'
+              '• Bậc 2: Đơn từ mức 1 đến mức 2 → Hoa hồng 2\n'
+              '• Bậc 3: Đơn trên mức 2 → Hoa hồng 3',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      // Tier 1
+      Row(
+        children: [
+          Expanded(
+            child: _buildCurrencyField(
+              label: 'Mức 1: Đơn dưới (đ)',
+              value: settings.saleCommTier1Max,
+              onChanged: (v) => setDialogState(() {
+                updateSettings(settings.copyWith(saleCommTier1Max: v));
+              }),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildCurrencyField(
+              label: 'Hoa hồng 1 (đ)',
+              value: settings.saleCommTier1Value,
+              onChanged: (v) => setDialogState(() {
+                updateSettings(settings.copyWith(saleCommTier1Value: v));
+              }),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      // Tier 2
+      Row(
+        children: [
+          Expanded(
+            child: _buildCurrencyField(
+              label: 'Mức 2: Đơn đến (đ)',
+              value: settings.saleCommTier2Max,
+              onChanged: (v) => setDialogState(() {
+                updateSettings(settings.copyWith(saleCommTier2Max: v));
+              }),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildCurrencyField(
+              label: 'Hoa hồng 2 (đ)',
+              value: settings.saleCommTier2Value,
+              onChanged: (v) => setDialogState(() {
+                updateSettings(settings.copyWith(saleCommTier2Value: v));
+              }),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      // Tier 3
+      Row(
+        children: [
+          const Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'Bậc 3: Đơn trên mức 2',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildCurrencyField(
+              label: 'Hoa hồng 3 (đ)',
+              value: settings.saleCommTier3Value,
+              onChanged: (v) => setDialogState(() {
+                updateSettings(settings.copyWith(saleCommTier3Value: v));
+              }),
             ),
           ),
         ],

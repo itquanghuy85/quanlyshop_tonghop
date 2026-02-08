@@ -1429,13 +1429,39 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
 
   Future<void> _loadWorkSchedule() async {
     try {
-      final schedule = await db.getWorkSchedule(widget.uid);
+      Map<String, dynamic>? schedule;
+      
+      // Thử tải từ Firestore trước
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId != null && shopId.isNotEmpty) {
+        final doc = await FirebaseFirestore.instance
+            .collection('work_schedules')
+            .doc('staff_${widget.uid}_$shopId')
+            .get();
+        if (doc.exists) {
+          schedule = doc.data();
+          debugPrint('📋 Loaded schedule from Firestore for ${widget.uid}');
+          // Cập nhật local DB
+          await db.upsertWorkSchedule(widget.uid, schedule!);
+        }
+      }
+      
+      // Nếu không có trên Firestore, dùng local DB
+      schedule ??= await db.getWorkSchedule(widget.uid);
+      
       if (!mounted) return;
       setState(() => _workSchedule = schedule);
     } catch (e) {
       debugPrint('Error loading work schedule: $e');
-      if (!mounted) return;
-      setState(() => _workSchedule = null);
+      // Fallback to local DB
+      try {
+        final localSchedule = await db.getWorkSchedule(widget.uid);
+        if (!mounted) return;
+        setState(() => _workSchedule = localSchedule);
+      } catch (e2) {
+        if (!mounted) return;
+        setState(() => _workSchedule = null);
+      }
     }
   }
 
