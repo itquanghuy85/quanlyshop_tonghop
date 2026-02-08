@@ -61,3 +61,9 @@ Editing & PR guidance for agents
 - Update `pubspec.yaml` only for runtime deps; run `flutter pub get` after.
 - Use `SetOptions(merge: true)` for Firestore upserts to avoid overwriting.
 - Test sync: Ensure local DB updates on Firestore changes; handle offline scenarios.
+
+Multi-industry expansion (important)
+- When working on multi-industry features (categories, variants, expiry tracking), read `DOCS/MULTI_INDUSTRY_EXPANSION_GUIDE.md` first.
+- Do NOT modify PaymentIntentService or SalaryCalculationService during expansion.
+- Keep backward compatibility: existing shops must continue working without changes.
+- Use feature flags to enable/disable modules per businessType.

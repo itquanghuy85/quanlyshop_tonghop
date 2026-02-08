@@ -81,6 +81,23 @@ class SalaryCalculationService {
     // ===== 2. LẤY CÀI ĐẶT KHẤU TRỪ/THUẾ CỦA SHOP =====
     deductionSettings ??= await getShopDeductionSettings();
 
+    // ===== 2.5 LẤY LỊCH LÀM VIỆC CỦA NHÂN VIÊN =====
+    List<int> configuredWorkDays = [1, 2, 3, 4, 5, 6]; // Default Mon-Sat
+    try {
+      final schedule = await _db.getWorkSchedule(staffId);
+      if (schedule != null && schedule['workDays'] != null) {
+        final wd = schedule['workDays'];
+        if (wd is List) {
+          configuredWorkDays = wd.cast<int>();
+        } else if (wd is String) {
+          configuredWorkDays = (List<dynamic>.from(_parseJsonList(wd))).cast<int>();
+        }
+        debugPrint('📊 [SalaryCalc] $staffName: workDays config = $configuredWorkDays');
+      }
+    } catch (e) {
+      debugPrint('📊 [SalaryCalc] Error loading work schedule: $e');
+    }
+
     // ===== 3. LẤY DỮ LIỆU CHẤM CÔNG TỪ FIRESTORE =====
     final startDate = DateTime(year, month, 1);
     final endDate = DateTime(year, month + 1, 0); // Ngày cuối tháng
@@ -172,7 +189,7 @@ class SalaryCalculationService {
     debugPrint('📊 [SalaryCalc] $staffName: Tìm thấy $workDays ngày chấm công trong tháng $month/$year');
 
     // Tính số ngày nghỉ (dựa trên số ngày làm việc tiêu chuẩn trong tháng)
-    final workingDaysInMonth = _getWorkingDaysInMonth(year, month);
+    final workingDaysInMonth = _getWorkingDaysInMonth(year, month, configuredWorkDays);
     // Đảm bảo absentDays không âm (nếu NV làm thêm ngày)
     final absentDays = (workingDaysInMonth - workDays).clamp(0, workingDaysInMonth);
 
@@ -803,21 +820,32 @@ class SalaryCalculationService {
     }
   }
 
-  /// Tính số ngày làm việc trong tháng (trừ CN)
-  static int _getWorkingDaysInMonth(int year, int month) {
-    final firstDay = DateTime(year, month, 1);
+  /// Tính số ngày làm việc trong tháng theo config workDays
+  /// workDays: [1,2,3,4,5,6] = Mon-Sat, [1,2,3,4,5,6,7] = Mon-Sun
+  static int _getWorkingDaysInMonth(int year, int month, [List<int> workDays = const [1, 2, 3, 4, 5, 6]]) {
     final lastDay = DateTime(year, month + 1, 0);
     int workingDays = 0;
 
     for (int day = 1; day <= lastDay.day; day++) {
       final date = DateTime(year, month, day);
-      // Không tính Chủ nhật (weekday = 7)
-      if (date.weekday != DateTime.sunday) {
+      // Chỉ tính những ngày trong workDays config
+      if (workDays.contains(date.weekday)) {
         workingDays++;
       }
     }
 
     return workingDays;
+  }
+
+  /// Helper để parse JSON string thành List
+  static List<dynamic> _parseJsonList(String jsonStr) {
+    try {
+      // Simple parser for [1,2,3,4,5,6,7] format
+      final stripped = jsonStr.replaceAll('[', '').replaceAll(']', '');
+      return stripped.split(',').map((s) => int.parse(s.trim())).toList();
+    } catch (_) {
+      return [1, 2, 3, 4, 5, 6];
+    }
   }
 
   /// Tính lương cho tất cả nhân viên trong tháng

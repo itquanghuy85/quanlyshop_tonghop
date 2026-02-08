@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1479,73 +1480,165 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       text: (_workSchedule?['maxOtHours'] ?? 4).toString(),
     );
 
+    // Parse existing workDays or default to Mon-Sat
+    List<int> selectedDays = [1, 2, 3, 4, 5, 6];
+    if (_workSchedule?['workDays'] != null) {
+      final wd = _workSchedule!['workDays'];
+      if (wd is List) {
+        selectedDays = wd.cast<int>();
+      } else if (wd is String) {
+        selectedDays = (jsonDecode(wd) as List).cast<int>();
+      }
+    }
+
     await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Chỉnh sửa lịch làm việc cho ${widget.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: startTimeCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Giờ bắt đầu (HH:mm)',
-              ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Chỉnh sửa lịch làm việc cho ${widget.name}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: startTimeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Giờ bắt đầu (HH:mm)',
+                  ),
+                ),
+                TextField(
+                  controller: endTimeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Giờ kết thúc (HH:mm)',
+                  ),
+                ),
+                TextField(
+                  controller: breakTimeCtrl,
+                  decoration: const InputDecoration(labelText: 'Giờ nghỉ (giờ)'),
+                  keyboardType: TextInputType.number,
+                ),
+                TextField(
+                  controller: maxOtCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'OT tối đa (giờ/ngày)',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Ngày làm việc trong tuần:', 
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    _buildDayChip(1, 'T2', selectedDays, (v) => setDialogState(() {
+                      if (v) selectedDays.add(1); else selectedDays.remove(1);
+                    })),
+                    _buildDayChip(2, 'T3', selectedDays, (v) => setDialogState(() {
+                      if (v) selectedDays.add(2); else selectedDays.remove(2);
+                    })),
+                    _buildDayChip(3, 'T4', selectedDays, (v) => setDialogState(() {
+                      if (v) selectedDays.add(3); else selectedDays.remove(3);
+                    })),
+                    _buildDayChip(4, 'T5', selectedDays, (v) => setDialogState(() {
+                      if (v) selectedDays.add(4); else selectedDays.remove(4);
+                    })),
+                    _buildDayChip(5, 'T6', selectedDays, (v) => setDialogState(() {
+                      if (v) selectedDays.add(5); else selectedDays.remove(5);
+                    })),
+                    _buildDayChip(6, 'T7', selectedDays, (v) => setDialogState(() {
+                      if (v) selectedDays.add(6); else selectedDays.remove(6);
+                    })),
+                    _buildDayChip(7, 'CN', selectedDays, (v) => setDialogState(() {
+                      if (v) selectedDays.add(7); else selectedDays.remove(7);
+                    })),
+                  ],
+                ),
+              ],
             ),
-            TextField(
-              controller: endTimeCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Giờ kết thúc (HH:mm)',
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('HỦY'),
             ),
-            TextField(
-              controller: breakTimeCtrl,
-              decoration: const InputDecoration(labelText: 'Giờ nghỉ (giờ)'),
-              keyboardType: TextInputType.number,
-            ),
-            TextField(
-              controller: maxOtCtrl,
-              decoration: const InputDecoration(
-                labelText: 'OT tối đa (giờ/ngày)',
-              ),
-              keyboardType: TextInputType.number,
+            ElevatedButton(
+              onPressed: () async {
+                selectedDays.sort();
+                final newSchedule = {
+                  'userId': widget.uid,
+                  'startTime': startTimeCtrl.text,
+                  'endTime': endTimeCtrl.text,
+                  'breakTime': int.tryParse(breakTimeCtrl.text) ?? 1,
+                  'maxOtHours': int.tryParse(maxOtCtrl.text) ?? 4,
+                  'workDays': selectedDays,
+                  'updatedAt': DateTime.now().millisecondsSinceEpoch,
+                };
+
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(context);
+                await db.upsertWorkSchedule(widget.uid, newSchedule);
+                await _loadWorkSchedule();
+                navigator.pop();
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text("Đã cập nhật lịch làm việc"),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              child: const Text('LƯU'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('HỦY'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final newSchedule = {
-                'userId': widget.uid,
-                'startTime': startTimeCtrl.text,
-                'endTime': endTimeCtrl.text,
-                'breakTime': int.tryParse(breakTimeCtrl.text) ?? 1,
-                'maxOtHours': int.tryParse(maxOtCtrl.text) ?? 4,
-                'workDays': [1, 2, 3, 4, 5, 6], // Monday to Saturday
-                'updatedAt': DateTime.now().millisecondsSinceEpoch,
-              };
-
-              final messenger = ScaffoldMessenger.of(context);
-              final navigator = Navigator.of(context);
-              await db.upsertWorkSchedule(widget.uid, newSchedule);
-              await _loadWorkSchedule();
-              navigator.pop();
-              messenger.showSnackBar(
-                const SnackBar(
-                  content: Text("Đã cập nhật lịch làm việc"),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: const Text('LƯU'),
-          ),
-        ],
       ),
     );
+  }
+
+  Widget _buildDayChip(int day, String label, List<int> selectedDays, Function(bool) onChanged) {
+    final isSelected = selectedDays.contains(day);
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: onChanged,
+      selectedColor: Colors.blue.shade100,
+      checkmarkColor: Colors.blue,
+    );
+  }
+
+  String _formatWorkDays(dynamic workDaysData) {
+    List<int> days = [1, 2, 3, 4, 5, 6]; // Default Mon-Sat
+    if (workDaysData != null) {
+      if (workDaysData is List) {
+        days = workDaysData.cast<int>();
+      } else if (workDaysData is String) {
+        days = (jsonDecode(workDaysData) as List).cast<int>();
+      }
+    }
+    days.sort();
+    
+    final dayNames = {1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 7: 'CN'};
+    
+    // Check if consecutive
+    if (days.isNotEmpty) {
+      bool isConsecutive = true;
+      for (int i = 1; i < days.length; i++) {
+        if (days[i] != days[i - 1] + 1) {
+          isConsecutive = false;
+          break;
+        }
+      }
+      if (isConsecutive && days.length > 1) {
+        return '${dayNames[days.first]} - ${dayNames[days.last]}';
+      }
+    }
+    
+    // Non-consecutive, list all
+    return days.map((d) => dayNames[d]).join(', ');
   }
 
   Future<void> _pickPhoto() async {
@@ -2585,7 +2678,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                 _buildScheduleRow(
                   Icons.calendar_today,
                   Colors.purple,
-                  "Ngày làm việc: Thứ 2 - Thứ 7",
+                  "Ngày làm việc: ${_formatWorkDays(_workSchedule!['workDays'])}",
                 ),
               ],
             ),

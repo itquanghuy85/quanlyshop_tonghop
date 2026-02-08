@@ -290,6 +290,7 @@ superAdmin > owner > manager > employee/technician
 | `DOCS/UNIFIED_PAYMENT_GUIDE.md` | Hướng dẫn PaymentIntent |
 | `DOCS/PAYMENT_FLOW_AUDIT_REPORT.md` | Audit flow tài chính |
 | `DOCS/MULTI_SHOP_GUIDE.md` | Hướng dẫn multi-shop |
+| `DOCS/MULTI_INDUSTRY_EXPANSION_GUIDE.md` | ⭐ **Mở rộng đa ngành** (QUAN TRỌNG) |
 | `DOCS/HELP_CENTER_GUIDE.md` | Hướng dẫn sử dụng app |
 | `.github/copilot-instructions.md` | AI agent instructions |
 
@@ -302,4 +303,4 @@ superAdmin > owner > manager > employee/technician
 
 ---
 
-*Cập nhật lần cuối: 2026-02-06*
+*Cập nhật lần cuối: 2026-02-08*
