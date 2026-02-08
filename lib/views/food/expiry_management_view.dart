@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../../l10n/app_localizations.dart';
 import '../../models/product_model.dart';
 import '../../services/expiry_alert_service.dart';
 import '../../widgets/expiry_badge.dart';
@@ -440,7 +440,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
   }
 
   Widget _buildBatchCard(BatchInfo batch) {
-    Color statusColor;
+    MaterialColor statusColor;
     String statusText;
     IconData statusIcon;
 
