@@ -173,7 +173,8 @@ class SalaryCalculationService {
 
     // Tính số ngày nghỉ (dựa trên số ngày làm việc tiêu chuẩn trong tháng)
     final workingDaysInMonth = _getWorkingDaysInMonth(year, month);
-    final absentDays = workingDaysInMonth - workDays;
+    // Đảm bảo absentDays không âm (nếu NV làm thêm ngày)
+    final absentDays = (workingDaysInMonth - workDays).clamp(0, workingDaysInMonth);
 
     notes.add(
       '📅 Chấm công: $workDays/$workingDaysInMonth ngày, ${totalWorkHours.toStringAsFixed(1)}h làm việc',
@@ -206,6 +207,7 @@ class SalaryCalculationService {
     int saleOrderCount = 0;
     double saleRevenue = 0;
     double saleProfit = 0;
+    List<double> saleOrderValues = []; // Lưu giá trị từng đơn cho tính tiered
     
     try {
       final shopId = await UserService.getCurrentShopId();
@@ -231,6 +233,7 @@ class SalaryCalculationService {
             final totalCost = (data['totalCost'] ?? 0).toDouble();
             saleRevenue += totalPrice;
             saleProfit += (totalPrice - totalCost);
+            saleOrderValues.add(totalPrice); // Lưu giá trị đơn
           }
         }
       }
@@ -247,6 +250,7 @@ class SalaryCalculationService {
       saleOrderCount = staffSales.length;
       saleRevenue = staffSales.fold(0.0, (sum, s) => sum + s.totalPrice);
       saleProfit = staffSales.fold(0.0, (sum, s) => sum + (s.totalPrice - s.totalCost));
+      saleOrderValues = staffSales.map((s) => s.totalPrice.toDouble()).toList();
     }
 
     if (saleOrderCount > 0) {
@@ -352,26 +356,37 @@ class SalaryCalculationService {
         );
       }
     } else if (settings.saleCommType == 'tiered') {
-      // Tính hoa hồng theo bậc - cần biết giá trị từng đơn
-      // Nếu có danh sách giá trị từng đơn, dùng calculateTotalSaleCommission
-      // Nếu không, ước tính dựa trên doanh số trung bình mỗi đơn
-      if (saleOrderCount > 0) {
-        final avgOrderValue = saleRevenue / saleOrderCount;
-        // Tính hoa hồng cho từng đơn dựa trên giá trị trung bình
-        for (int i = 0; i < saleOrderCount; i++) {
-          calculatedSaleComm += settings.calculateSaleCommission(avgOrderValue);
+      // Tính hoa hồng theo bậc - dùng giá trị thực từng đơn
+      if (saleOrderValues.isNotEmpty) {
+        // Đếm số đơn theo từng bậc
+        int tier1Count = 0;
+        int tier2Count = 0;
+        int tier3Count = 0;
+        for (final orderValue in saleOrderValues) {
+          final comm = settings.calculateSaleCommission(orderValue);
+          calculatedSaleComm += comm;
+          // Đếm bậc
+          if (orderValue < settings.saleCommTier1Max) {
+            tier1Count++;
+          } else if (orderValue <= settings.saleCommTier2Max) {
+            tier2Count++;
+          } else {
+            tier3Count++;
+          }
         }
-        // Ghi chú chi tiết
-        String tierInfo;
-        if (avgOrderValue < settings.saleCommTier1Max) {
-          tierInfo = 'Bậc 1: ${_formatCurrency(settings.saleCommTier1Value)}/đơn';
-        } else if (avgOrderValue <= settings.saleCommTier2Max) {
-          tierInfo = 'Bậc 2: ${_formatCurrency(settings.saleCommTier2Value)}/đơn';
-        } else {
-          tierInfo = 'Bậc 3: ${_formatCurrency(settings.saleCommTier3Value)}/đơn';
+        // Ghi chú chi tiết từng bậc
+        List<String> tierDetails = [];
+        if (tier1Count > 0) {
+          tierDetails.add('$tier1Count đơn bậc 1 (${_formatCurrency(settings.saleCommTier1Value)})');
+        }
+        if (tier2Count > 0) {
+          tierDetails.add('$tier2Count đơn bậc 2 (${_formatCurrency(settings.saleCommTier2Value)})');
+        }
+        if (tier3Count > 0) {
+          tierDetails.add('$tier3Count đơn bậc 3 (${_formatCurrency(settings.saleCommTier3Value)})');
         }
         notes.add(
-          '🛒 HH bậc: $saleOrderCount đơn × $tierInfo = ${_formatCurrency(calculatedSaleComm)}',
+          '🛒 HH bậc: ${tierDetails.join(', ')} = ${_formatCurrency(calculatedSaleComm)}',
         );
       }
     } else {
