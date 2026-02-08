@@ -18,6 +18,7 @@ import 'help_center_view.dart';
 import 'user_guide_view.dart';
 import 'shop_selector_view.dart';
 import 'staff_permissions_view.dart';
+import 'category_management_view.dart';
 
 class SettingsView extends StatefulWidget {
   final void Function(Locale)? setLocale;
@@ -702,6 +703,57 @@ class _SettingsViewState extends State<SettingsView> {
                     },
                   ),
                 ),
+
+                // ====== QUẢN LÝ CỬA HÀNG ======
+                const SizedBox(height: 30),
+                _buildSection('Quản lý cửa hàng'),
+                
+                // Quản lý danh mục sản phẩm
+                if (_role == 'owner' || UserService.isCurrentUserSuperAdmin())
+                  Card(
+                    color: Colors.indigo.shade50,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      side: BorderSide(color: Colors.indigo.shade200),
+                    ),
+                    child: ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.category,
+                          color: Colors.indigo,
+                          size: 28,
+                        ),
+                      ),
+                      title: const Text(
+                        'Quản lý danh mục',
+                        style: TextStyle(
+                          color: Colors.indigo,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'Thêm, sửa, xóa danh mục sản phẩm',
+                      ),
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: Colors.indigo,
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CategoryManagementView(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
 
                 // NÚT XÓA TRẮNG CHỈ HIỆN CHO SUPER ADMIN
                 if (UserService.isCurrentUserSuperAdmin()) ...[

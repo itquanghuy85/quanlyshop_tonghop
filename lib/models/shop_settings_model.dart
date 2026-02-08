@@ -113,6 +113,21 @@ class ShopSettings {
     );
   }
 
+  /// Factory tạo từ loại ngành kinh doanh
+  factory ShopSettings.fromBusinessType(String type, String shopId) {
+    switch (type) {
+      case 'electronics':
+        return ShopSettings.electronics(shopId);
+      case 'food':
+        return ShopSettings.food(shopId);
+      case 'fashion':
+        return ShopSettings.fashion(shopId);
+      case 'general':
+      default:
+        return ShopSettings.general(shopId);
+    }
+  }
+
   /// Tạo từ Map (Firestore hoặc SQLite)
   factory ShopSettings.fromMap(Map<String, dynamic> map) {
     return ShopSettings(

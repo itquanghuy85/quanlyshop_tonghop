@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../l10n/app_localizations.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
+import '../services/category_service.dart';
+import '../models/shop_settings_model.dart';
 import '../theme/app_text_styles.dart';
 
 class RegisterView extends StatefulWidget {
@@ -32,6 +34,7 @@ class _RegisterViewState extends State<RegisterView> {
   int _currentStep = 0; 
   bool _obscurePass = true;
   bool _obscureConfirm = true;
+  String _selectedBusinessType = 'electronics'; // Default business type
 
   @override
   void initState() {
@@ -112,12 +115,20 @@ class _RegisterViewState extends State<RegisterView> {
           final success = await UserService.useInviteCode(_inviteCodeC.text.trim(), cred.user!.uid);
           if (!success) throw loc.invalidOrExpiredInviteCode;
         } else {
+          // Create user info with business type
           await UserService.syncUserInfo(cred.user!.uid, email, extra: {
             'displayName': name.toUpperCase(),
             'phone': _phoneC.text.trim(),
             'address': _addressC.text.trim().toUpperCase(),
             'shopName': shopName.toUpperCase(),
           });
+          
+          // Save shop settings with business type
+          final shopId = await UserService.getCurrentShopId();
+          if (shopId != null) {
+            final settings = ShopSettings.fromBusinessType(_selectedBusinessType, shopId);
+            await CategoryService().saveShopSettings(settings);
+          }
         }
       }
       if (!mounted) return;
@@ -238,6 +249,12 @@ class _RegisterViewState extends State<RegisterView> {
         _input(_passC, AppLocalizations.of(context)!.password, Icons.lock, obscure: _obscurePass, suffix: IconButton(icon: Icon(_obscurePass ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _obscurePass = !_obscurePass))),
         _input(_confirmPassC, AppLocalizations.of(context)!.confirmPassword, Icons.lock_clock, obscure: _obscureConfirm, suffix: IconButton(icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm))),
         _input(_addressC, AppLocalizations.of(context)!.address, Icons.map),
+        // Business type selection for store owners
+        if (!_isJoinShop) ...[
+          const SizedBox(height: 8),
+          _buildBusinessTypeSelector(),
+          const SizedBox(height: 8),
+        ],
         if (_isJoinShop) ...[
           _input(_inviteCodeC, AppLocalizations.of(context)!.shopInviteCode, Icons.qr_code),
           Container(
@@ -358,6 +375,77 @@ class _RegisterViewState extends State<RegisterView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBusinessTypeSelector() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.business, color: Colors.blueAccent, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Loại hình kinh doanh',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: AppTextStyles.headline4.fontSize,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _businessTypeOption('electronics', '📱 Điện tử', 'Điện thoại, laptop, phụ kiện', Colors.blue),
+          _businessTypeOption('food', '🍎 Thực phẩm', 'Rau củ, thịt cá, đồ khô', Colors.green),
+          _businessTypeOption('fashion', '👕 Thời trang', 'Quần áo, giày dép, túi xách', Colors.purple),
+          _businessTypeOption('general', '📦 Tổng hợp', 'Các loại khác, tự thiết lập', Colors.orange),
+        ],
+      ),
+    );
+  }
+
+  Widget _businessTypeOption(String type, String title, String desc, Color color) {
+    final selected = _selectedBusinessType == type;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedBusinessType = type),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.1) : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? color : Colors.grey.shade200,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(title, style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                desc,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(
+              selected ? Icons.check_circle : Icons.radio_button_off,
+              color: selected ? color : Colors.grey,
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }
