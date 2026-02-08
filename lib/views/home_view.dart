@@ -71,6 +71,11 @@ import '../services/repair_partner_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
+import '../services/category_service.dart';
+import '../services/expiry_alert_service.dart';
+import '../models/shop_settings_model.dart';
+import '../widgets/expiry_badge.dart';
+import 'food/expiry_management_view.dart';
 
 class HomeView extends StatefulWidget {
   final String role;
@@ -191,6 +196,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   String _userName = ''; // Tên hiển thị của người dùng
   String _shopName = ''; // Tên cửa hàng
 
+  // Phase 2: Multi-Industry - Shop Settings
+  ShopSettings? _shopSettings;
+  ExpiryStats? _expiryStats;
+  bool get _isFood => _shopSettings?.businessType == 'food';
+  bool get _enableExpiry => _shopSettings?.enableExpiry ?? false;
+
   final bool _isSuperAdmin = UserService.isCurrentUserSuperAdmin();
   bool get hasFullAccess =>
       widget.role == 'admin' || widget.role == 'owner' || _isSuperAdmin;
@@ -233,6 +244,24 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           label: loc.inventoryTab,
         ),
         'widget': _buildInventoryTab(),
+      },
+      // Phase 2: Expiry tab for Food shops
+      if (_enableExpiry) {
+        'permission': 'allowViewInventory', // Same as inventory access
+        'item': BottomNavigationBarItem(
+          icon: Badge(
+            isLabelVisible: (_expiryStats?.atRiskCount ?? 0) > 0,
+            label: Text('${_expiryStats?.atRiskCount ?? 0}'),
+            child: const Icon(Icons.timer_outlined),
+          ),
+          activeIcon: Badge(
+            isLabelVisible: (_expiryStats?.atRiskCount ?? 0) > 0,
+            label: Text('${_expiryStats?.atRiskCount ?? 0}'),
+            child: const Icon(Icons.timer),
+          ),
+          label: 'HSD', // Hạn sử dụng
+        ),
+        'widget': const ExpiryManagementView(),
       },
       {
         'permission':
@@ -1024,6 +1053,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       // 1. Load permissions và stats từ local trước (nhanh)
       _updatePermissions(); // Không await - chạy song song
       _loadStats(); // Không await - chạy song song
+      _loadShopSettings(); // Phase 2: Load shop settings cho multi-industry
       
       // 2. Load user info NGAY (quan trọng cho lời chào)
       await _loadUserAndShopInfo(); // AWAIT để đảm bảo có data trước khi render
@@ -1227,6 +1257,32 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     _statsDebounceTimer = Timer(const Duration(milliseconds: 500), () {
       if (mounted) _loadStats();
     });
+  }
+
+  /// Phase 2: Load shop settings cho multi-industry features
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (!mounted) return;
+      
+      // Load expiry stats if enabled
+      ExpiryStats? expiryStats;
+      if (settings?.enableExpiry == true) {
+        expiryStats = await ExpiryAlertService().getExpiryStats();
+        // Check and notify expiry alerts
+        ExpiryAlertService().checkAndNotifyExpiry();
+      }
+      
+      setState(() {
+        _shopSettings = settings;
+        _expiryStats = expiryStats;
+        // Re-initialize tabs when shop settings change
+        _initializeTabConfigs();
+        _updateAvailableTabs();
+      });
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
   }
 
   // State variables for accurate financial overview (same as revenue_view.dart)

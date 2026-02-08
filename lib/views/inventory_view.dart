@@ -38,6 +38,10 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/expiry_badge.dart';
+import '../services/expiry_alert_service.dart';
+import '../services/category_service.dart';
+import '../models/shop_settings_model.dart';
 
 class InventoryView extends StatefulWidget {
   final String role;
@@ -108,6 +112,11 @@ class _InventoryViewState extends State<InventoryView>
   final double _titleFontSize = 15.0;
   final double _smallFontSize = 11.0;
   final double _btnMinHeight = 44.0;
+
+  // Phase 2: Multi-Industry - Shop Settings
+  ShopSettings? _shopSettings;
+  bool get _enableExpiry => _shopSettings?.enableExpiry ?? false;
+  bool get _enableBatch => _shopSettings?.enableBatch ?? false;
 
   @override
   void initState() {
@@ -1251,11 +1260,14 @@ class _InventoryViewState extends State<InventoryView>
 
   Future<void> _init() async {
     final perms = await UserService.getCurrentUserPermissions();
+    // Load shop settings for multi-industry features
+    final settings = await CategoryService().getShopSettings();
     if (!mounted) return;
     setState(() {
       _isAdmin = perms['allowViewInventory'] ?? false;
       _hasInventoryAccess = perms['allowViewInventory'] ?? false;
       _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+      _shopSettings = settings;
     });
     _refresh();
   }
@@ -2789,6 +2801,10 @@ class _InventoryViewState extends State<InventoryView>
     final priceF = FocusNode();
     final qtyF = FocusNode();
 
+    // Phase 2: Food module - Expiry & Batch fields
+    final batchC = TextEditingController();
+    DateTime? expiryDate;
+
     // SKU fields
     String selectedNhom = 'IP'; // Default nhóm
     final modelC = TextEditingController();
@@ -2882,6 +2898,10 @@ class _InventoryViewState extends State<InventoryView>
                 createdAt: ts,
                 supplier: supplier,
                 status: 1,
+                // Phase 2: Food module - Expiry & Batch
+                expiryDate: expiryDate?.millisecondsSinceEpoch,
+                batchNumber: batchC.text.trim().isNotEmpty ? batchC.text.trim() : null,
+                unit: _shopSettings?.defaultUnit,
               );
               final user = FirebaseAuth.instance.currentUser;
               final userName =
@@ -3221,6 +3241,66 @@ class _InventoryViewState extends State<InventoryView>
                       ),
                     ],
                   ),
+
+                  // Phase 2: Food module - Expiry & Batch fields
+                  if (_enableExpiry || _enableBatch) ...[
+                    const Divider(height: 30, thickness: 1),
+                    Text(
+                      "HẠN SỬ DỤNG",
+                      style: AppTextStyles.headline4.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    
+                    if (_enableExpiry) ...[
+                      InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: expiryDate ?? DateTime.now().add(const Duration(days: 30)),
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                            helpText: 'Chọn ngày hết hạn',
+                          );
+                          if (picked != null) {
+                            setS(() => expiryDate = picked);
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Ngày hết hạn',
+                            prefixIcon: Icon(Icons.event, color: Colors.orange.shade600),
+                            suffixIcon: expiryDate != null
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () => setS(() => expiryDate = null),
+                                  )
+                                : null,
+                          ),
+                          child: Text(
+                            expiryDate != null
+                                ? DateFormat('dd/MM/yyyy').format(expiryDate!)
+                                : 'Chưa chọn',
+                            style: TextStyle(
+                              color: expiryDate != null ? Colors.black : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                    
+                    if (_enableBatch) ...[
+                      const SizedBox(height: 12),
+                      _input(
+                        batchC,
+                        "Số lô hàng",
+                        Icons.qr_code_2,
+                        caps: true,
+                      ),
+                    ],
+                  ],
 
                   // SKU Section
                   const Divider(height: 30, thickness: 1),
@@ -3689,6 +3769,12 @@ class _InventoryViewState extends State<InventoryView>
     // Brand chọn riêng - giữ từ sản phẩm gốc
     String? selectedBrand = ProductConstants.mapBrand(p.brand);
 
+    // Phase 2: Food module - Expiry & Batch fields
+    final batchC = TextEditingController(text: p.batchNumber ?? '');
+    DateTime? expiryDate = p.expiryDate != null 
+        ? DateTime.fromMillisecondsSinceEpoch(p.expiryDate!) 
+        : null;
+
     String type = p.type;
     String? supplier = p.supplier;
     bool isSaving = false;
@@ -3751,6 +3837,9 @@ class _InventoryViewState extends State<InventoryView>
                 pendingSupplier: shouldTransferToMainInventory
                     ? null
                     : p.pendingSupplier,
+                // Phase 2: Food module - Expiry & Batch
+                expiryDate: expiryDate?.millisecondsSinceEpoch,
+                batchNumber: batchC.text.trim().isNotEmpty ? batchC.text.trim() : null,
               );
               final user = FirebaseAuth.instance.currentUser;
               final userName =
@@ -3915,6 +4004,66 @@ class _InventoryViewState extends State<InventoryView>
                     type: TextInputType.number,
                     suffix: "k",
                   ),
+
+                  // Phase 2: Food module - Expiry & Batch fields
+                  if (_enableExpiry || _enableBatch) ...[
+                    const Divider(height: 30, thickness: 1),
+                    Text(
+                      "HẠN SỬ DỤNG",
+                      style: AppTextStyles.headline4.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    
+                    if (_enableExpiry) ...[
+                      InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: expiryDate ?? DateTime.now().add(const Duration(days: 30)),
+                            firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                            lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                            helpText: 'Chọn ngày hết hạn',
+                          );
+                          if (picked != null) {
+                            setS(() => expiryDate = picked);
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Ngày hết hạn',
+                            prefixIcon: Icon(Icons.event, color: Colors.orange.shade600),
+                            suffixIcon: expiryDate != null
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () => setS(() => expiryDate = null),
+                                  )
+                                : null,
+                          ),
+                          child: Text(
+                            expiryDate != null
+                                ? DateFormat('dd/MM/yyyy').format(expiryDate!)
+                                : 'Chưa chọn',
+                            style: TextStyle(
+                              color: expiryDate != null ? Colors.black : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                    
+                    if (_enableBatch) ...[
+                      const SizedBox(height: 12),
+                      _input(
+                        batchC,
+                        "Số lô hàng",
+                        Icons.qr_code_2,
+                        caps: true,
+                      ),
+                    ],
+                  ],
 
                   // Số lượng và Nhà cung cấp
                   Row(
