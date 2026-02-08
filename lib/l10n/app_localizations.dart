@@ -98,7 +98,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'Repair Shop Manager'**
+  /// **'Shop Manager'**
   String get appTitle;
 
   /// No description provided for @login.
@@ -860,7 +860,7 @@ abstract class AppLocalizations {
   /// No description provided for @appDescription.
   ///
   /// In en, this message translates to:
-  /// **'Phone repair shop management'**
+  /// **'Multi-industry shop management solution'**
   String get appDescription;
 
   /// No description provided for @version.
@@ -5342,7 +5342,7 @@ abstract class AppLocalizations {
   /// No description provided for @welcomeDesc.
   ///
   /// In en, this message translates to:
-  /// **'Comprehensive phone repair shop management app. Easy to use, powerful and efficient for all business needs.'**
+  /// **'Multi-industry shop management: Electronics, Food, Fashion & more. Easy to use, powerful and efficient for all business needs.'**
   String get welcomeDesc;
 
   /// No description provided for @professionalSalesManagement.
@@ -5462,7 +5462,7 @@ abstract class AppLocalizations {
   /// No description provided for @phoneRepairShopManagement.
   ///
   /// In en, this message translates to:
-  /// **'Phone Repair Shop Management'**
+  /// **'Multi-Industry Shop Management'**
   String get phoneRepairShopManagement;
 
   /// No description provided for @repairManagement.
@@ -7862,7 +7862,7 @@ abstract class AppLocalizations {
   /// No description provided for @professionalPhoneRepairShop.
   ///
   /// In en, this message translates to:
-  /// **'Professional phone repair shop'**
+  /// **'Professional shop management solution'**
   String get professionalPhoneRepairShop;
 
   /// No description provided for @hotlineAndZalo.
@@ -7886,7 +7886,7 @@ abstract class AppLocalizations {
   /// No description provided for @appFullDescription.
   ///
   /// In en, this message translates to:
-  /// **'A comprehensive phone repair shop management app with real-time sync features.'**
+  /// **'Comprehensive multi-industry shop management: Electronics (IMEI, warranty), Food (expiry), Fashion (size/color variants) with real-time sync.'**
   String get appFullDescription;
 
   /// No description provided for @viewByMonth.

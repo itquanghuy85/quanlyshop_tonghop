@@ -626,7 +626,7 @@ class _ShopsTabState extends State<ShopsTab> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Ứng dụng quản lý sửa chữa điện thoại HULUCA giúp cửa hàng theo dõi đơn sửa chữa, khách hàng, thu chi và tồn kho một cách đơn giản, có hỗ trợ làm việc cả khi offline và đồng bộ dữ liệu với Firebase.',
+              'Ứng dụng quản lý cửa hàng đa ngành HULUCA - giải pháp toàn diện cho: Điện tử (IMEI, bảo hành), Thực phẩm (HSD), Thời trang (biến thể size/màu) và nhiều loại hình kinh doanh khác. Hỗ trợ offline và đồng bộ thời gian thực với Firebase.',
               style: TextStyle(
                 fontSize: AppTextStyles.subtitle1.fontSize,
                 color: Colors.black87,
@@ -634,7 +634,7 @@ class _ShopsTabState extends State<ShopsTab> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Ứng dụng được xây dựng và vận hành bởi HULUCA (admin@huluca.com) với mục tiêu hỗ trợ các cửa hàng sửa chữa điện thoại vừa và nhỏ quản lý công việc hiệu quả, minh bạch và chuyên nghiệp hơn.',
+              'Ứng dụng được xây dựng và vận hành bởi HULUCA (admin@huluca.com) với mục tiêu hỗ trợ các cửa hàng bán lẻ vừa và nhỏ quản lý công việc hiệu quả, minh bạch và chuyên nghiệp hơn.',
               style: TextStyle(
                 fontSize: AppTextStyles.subtitle1.fontSize,
                 color: Colors.black87,

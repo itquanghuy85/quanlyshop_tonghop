@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Repair Shop Manager';
+  String get appTitle => 'Shop Manager';
 
   @override
   String get login => 'Login';
@@ -390,7 +390,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appName => 'Shop Manager';
 
   @override
-  String get appDescription => 'Phone repair shop management';
+  String get appDescription => 'Multi-industry shop management solution';
 
   @override
   String get version => 'Version 10.0.6';
@@ -2711,7 +2711,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get welcomeToShopManager => 'Welcome to Shop Manager';
 
   @override
-  String get welcomeDesc => 'Comprehensive phone repair shop management app. Easy to use, powerful and efficient for all business needs.';
+  String get welcomeDesc => 'Multi-industry shop management: Electronics, Food, Fashion & more. Easy to use, powerful and efficient for all business needs.';
 
   @override
   String get professionalSalesManagement => 'Professional Sales Management';
@@ -2771,7 +2771,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hulucaShop => 'HULUCA SHOP';
 
   @override
-  String get phoneRepairShopManagement => 'Phone Repair Shop Management';
+  String get phoneRepairShopManagement => 'Multi-Industry Shop Management';
 
   @override
   String get repairManagement => 'Repair Management';
@@ -4081,7 +4081,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dongNai => 'DONG NAI';
 
   @override
-  String get professionalPhoneRepairShop => 'Professional phone repair shop';
+  String get professionalPhoneRepairShop => 'Professional shop management solution';
 
   @override
   String get hotlineAndZalo => 'Hotline & Zalo';
@@ -4095,7 +4095,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get appFullDescription => 'A comprehensive phone repair shop management app with real-time sync features.';
+  String get appFullDescription => 'Comprehensive multi-industry shop management: Electronics (IMEI, warranty), Food (expiry), Fashion (size/color variants) with real-time sync.';
 
   @override
   String get viewByMonth => 'View by month';

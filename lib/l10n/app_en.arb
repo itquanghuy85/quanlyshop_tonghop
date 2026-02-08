@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "Repair Shop Manager",
+  "appTitle": "Shop Manager",
   "login": "Login",
   "logout": "Logout",
   "settings": "Settings",
@@ -127,7 +127,7 @@
   "cleanupManagement": "Cleanup management: Delete old repair history (optional)",
   "aboutSection": "ABOUT",
   "appName": "Shop Manager",
-  "appDescription": "Phone repair shop management",
+  "appDescription": "Multi-industry shop management solution",
   "version": "Version",
   "versionNumber": "2.6.0",
   "contactSupport": "Contact support",
@@ -1174,7 +1174,7 @@
   "free": "Free",
   "skip": "SKIP",
   "welcomeToShopManager": "Welcome to Shop Manager",
-  "welcomeDesc": "Comprehensive phone repair shop management app. Easy to use, powerful and efficient for all business needs.",
+  "welcomeDesc": "Multi-industry shop management: Electronics, Food, Fashion & more. Easy to use, powerful and efficient for all business needs.",
   "professionalSalesManagement": "Professional Sales Management",
   "salesDesc": "Create sales orders quickly, track revenue, manage customers and product warranties easily.",
   "repairAndWarranty": "Repair & Warranty",
@@ -1194,7 +1194,7 @@
   "startJourney": "Start Your Journey",
   "startDesc": "Explore all features and manage your shop efficiently. Wish you success!",
   "hulucaShop": "HULUCA SHOP",
-  "phoneRepairShopManagement": "Phone Repair Shop Management",
+  "phoneRepairShopManagement": "Multi-Industry Shop Management",
   "repairManagement": "Repair Management",
   "repairManagementDesc": "Track repair orders from receiving to delivery",
   "inventoryManagement": "Inventory Management",
@@ -1979,7 +1979,7 @@
   "developerAndDesigner": "Developer & Designer",
   "hulucaStore": "HULUCA STORE",
   "dongNai": "DONG NAI",
-  "professionalPhoneRepairShop": "Professional phone repair shop",
+  "professionalPhoneRepairShop": "Professional shop management solution",
   "hotlineAndZalo": "Hotline & Zalo",
   "shopManagerApp": "Shop Manager App",
   "versionLabel": "Version {version}",
@@ -1988,7 +1988,7 @@
       "version": {"type": "String"}
     }
   },
-  "appFullDescription": "A comprehensive phone repair shop management app with real-time sync features.",
+  "appFullDescription": "Comprehensive multi-industry shop management: Electronics (IMEI, warranty), Food (expiry), Fashion (size/color variants) with real-time sync.",
 
   "attendanceTracking": "ATTENDANCE TRACKING",
   "viewByMonth": "View by month",

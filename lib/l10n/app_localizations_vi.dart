@@ -9,7 +9,7 @@ class AppLocalizationsVi extends AppLocalizations {
   AppLocalizationsVi([String locale = 'vi']) : super(locale);
 
   @override
-  String get appTitle => 'Quản lý tiệm sửa chữa';
+  String get appTitle => 'Quản lý cửa hàng';
 
   @override
   String get login => 'Đăng nhập';
@@ -390,7 +390,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get appName => 'Shop Manager';
 
   @override
-  String get appDescription => 'Quản lý cửa hàng sửa chữa điện thoại';
+  String get appDescription => 'Giải pháp quản lý cửa hàng đa ngành toàn diện';
 
   @override
   String get version => 'Phiên bản 10.0.6';
@@ -2711,7 +2711,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get welcomeToShopManager => 'Chào mừng đến với Shop Manager';
 
   @override
-  String get welcomeDesc => 'Ứng dụng quản lý cửa hàng sửa chữa điện thoại toàn diện. Dễ sử dụng, mạnh mẽ và hiệu quả cho mọi nhu cầu kinh doanh.';
+  String get welcomeDesc => 'Giải pháp quản lý cửa hàng đa ngành: Điện tử, Thực phẩm, Thời trang & nhiều hơn nữa. Dễ sử dụng, mạnh mẽ và hiệu quả cho mọi nhu cầu kinh doanh.';
 
   @override
   String get professionalSalesManagement => 'Quản lý bán hàng chuyên nghiệp';
@@ -2771,7 +2771,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get hulucaShop => 'HULUCA SHOP';
 
   @override
-  String get phoneRepairShopManagement => 'Quản lý cửa hàng sửa chữa điện thoại';
+  String get phoneRepairShopManagement => 'Quản lý cửa hàng đa ngành';
 
   @override
   String get repairManagement => 'Quản lý sửa chữa';
@@ -4081,7 +4081,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get dongNai => 'ĐỒNG NAI';
 
   @override
-  String get professionalPhoneRepairShop => 'Cửa hàng sửa chữa điện thoại chuyên nghiệp';
+  String get professionalPhoneRepairShop => 'Giải pháp quản lý cửa hàng chuyên nghiệp';
 
   @override
   String get hotlineAndZalo => 'Hotline & Zalo';
@@ -4095,7 +4095,7 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
-  String get appFullDescription => 'Ứng dụng quản lý cửa hàng sửa chữa điện thoại toàn diện với tính năng đồng bộ thời gian thực.';
+  String get appFullDescription => 'Ứng dụng quản lý cửa hàng đa ngành toàn diện: hỗ trợ điện tử (IMEI, bảo hành), thực phẩm (HSD), thời trang (biến thể size/màu) với đồng bộ thời gian thực.';
 
   @override
   String get viewByMonth => 'Xem theo tháng';
