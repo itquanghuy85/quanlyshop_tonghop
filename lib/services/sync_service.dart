@@ -1072,6 +1072,76 @@ class SyncService {
       debugPrint("Lỗi khởi tạo payment_intents sync: $e");
     }
 
+    // 23. Đồng bộ WORK SCHEDULES (Lịch làm việc nhân viên)
+    try {
+      _subscribeToCollection(
+        collection: 'work_schedules',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              // Không xóa hẳn, chỉ bỏ qua
+              debugPrint("Work schedule $docId marked as deleted");
+            } else {
+              // Lấy userId từ docId (format: staff_<userId>_<shopId>)
+              String? userId;
+              if (docId.startsWith('staff_')) {
+                final parts = docId.split('_');
+                if (parts.length >= 2) {
+                  userId = parts[1];
+                }
+              }
+              if (userId != null && userId.isNotEmpty) {
+                final scheduleData = Map<String, dynamic>.from(data);
+                _convertTimestampFields(scheduleData);
+                await db.upsertWorkSchedule(userId, scheduleData);
+                debugPrint("✅ Synced work_schedule for user $userId");
+              }
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync work_schedule $docId: $e");
+          }
+        },
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('work_schedules_changed');
+        },
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo work_schedules sync: $e");
+    }
+
+    // 24. Đồng bộ EMPLOYEE SALARY SETTINGS (Cài đặt lương nhân viên)
+    try {
+      _subscribeToCollection(
+        collection: 'employee_salary_settings',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteEmployeeSalarySettingsByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertEmployeeSalarySettings(data);
+              debugPrint("✅ Synced employee_salary_setting for ${data['staffId']}");
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync employee_salary_setting $docId: $e");
+          }
+        },
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('employee_salary_settings_changed');
+        },
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo employee_salary_settings sync: $e");
+    }
+
     // Mark as initialized
     _isInitialized = true;
 

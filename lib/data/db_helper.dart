@@ -4263,6 +4263,16 @@ class DBHelper {
     );
   }
 
+  /// Xóa cài đặt lương by firestoreId (for sync)
+  Future<void> deleteEmployeeSalarySettingsByFirestoreId(String firestoreId) async {
+    final db = await database;
+    await db.delete(
+      'employee_salary_settings',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
+
   // --- SYSTEM ---
   Future<void> updateOrderStatusFromDebt(
     String linkedId,
