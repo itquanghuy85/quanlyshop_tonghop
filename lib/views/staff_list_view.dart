@@ -2525,7 +2525,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   }
 
   Widget _buildWorkScheduleTab() {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2533,9 +2533,11 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "Lịch làm việc hiện tại",
-                style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  "Lịch làm việc hiện tại",
+                  style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
+                ),
               ),
               ElevatedButton.icon(
                 onPressed: _editWorkScheduleForStaff,
@@ -2560,11 +2562,13 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                       children: [
                         const Icon(Icons.access_time, color: Colors.blue),
                         const SizedBox(width: 8),
-                        Text(
-                          "Giờ làm việc: ${_workSchedule!['startTime']} - ${_workSchedule!['endTime']}",
-                          style: TextStyle(
-                            fontSize: AppTextStyles.headline3.fontSize,
-                            fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: Text(
+                            "Giờ làm việc: ${_workSchedule!['startTime'] ?? '08:00'} - ${_workSchedule!['endTime'] ?? '17:00'}",
+                            style: TextStyle(
+                              fontSize: AppTextStyles.headline3.fontSize,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -2574,9 +2578,11 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                       children: [
                         const Icon(Icons.free_breakfast, color: Colors.orange),
                         const SizedBox(width: 8),
-                        Text(
-                          "Giờ nghỉ: ${_workSchedule!['breakTime']} giờ",
-                          style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
+                        Expanded(
+                          child: Text(
+                            "Giờ nghỉ: ${_workSchedule!['breakTime'] ?? 1} giờ",
+                            style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
+                          ),
                         ),
                       ],
                     ),
@@ -2585,9 +2591,11 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                       children: [
                         const Icon(Icons.timer, color: Colors.green),
                         const SizedBox(width: 8),
-                        Text(
-                          "OT tối đa: ${_workSchedule!['maxOtHours']} giờ/ngày",
-                          style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
+                        Expanded(
+                          child: Text(
+                            "OT tối đa: ${_workSchedule!['maxOtHours'] ?? 4} giờ/ngày",
+                            style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
+                          ),
                         ),
                       ],
                     ),
@@ -2596,9 +2604,11 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                       children: [
                         const Icon(Icons.calendar_today, color: Colors.purple),
                         const SizedBox(width: 8),
-                        Text(
-                          "Ngày làm việc: Thứ 2 - Thứ 7",
-                          style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
+                        Expanded(
+                          child: Text(
+                            "Ngày làm việc: Thứ 2 - Thứ 7",
+                            style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
+                          ),
                         ),
                       ],
                     ),
@@ -2607,24 +2617,27 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
               ),
             ),
           ] else ...[
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    const Icon(Icons.schedule, size: 48, color: Colors.grey),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Chưa có lịch làm việc",
-                      style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.headline3.fontSize),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Nhấn 'Chỉnh sửa' để thiết lập lịch làm việc cho nhân viên này",
-                      style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+            Center(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.schedule, size: 48, color: Colors.grey),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Chưa có lịch làm việc",
+                        style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.headline3.fontSize),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Nhấn 'Chỉnh sửa' để thiết lập lịch làm việc cho nhân viên này",
+                        style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
