@@ -477,8 +477,8 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
       final settingsRef = FirebaseFirestore.instance
           .collection('shops')
           .doc(shopId)
-          .collection('shop_settings')
-          .doc('settings');
+          .collection('settings')
+          .doc('shop_settings');
       await settingsRef.set(settings.toFirestoreMap());
       debugPrint('✅ Created shop_settings for $shopId with businessType=$businessType');
 

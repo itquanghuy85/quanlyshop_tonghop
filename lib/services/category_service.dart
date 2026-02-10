@@ -75,9 +75,38 @@ class CategoryService {
       debugPrint('Error getting shop settings from Firestore: $e');
     }
 
-    // KHÔNG auto-create electronics - trả về null để home_view hiện wizard
-    // Chỉ shop owner mới có quyền chọn loại hình kinh doanh
-    debugPrint('📦 CategoryService: Settings not found - returning null (new shop needs wizard)');
+    // Check if shop has existing data (products, repairs) → existing shop → auto-create electronics
+    // New shop without data → return null to show wizard
+    try {
+      final productsDoc = await _firestore
+          .collection('shops')
+          .doc(shopId)
+          .collection('products')
+          .limit(1)
+          .get();
+      final repairsDoc = await _firestore
+          .collection('shops')
+          .doc(shopId)
+          .collection('repairs')
+          .limit(1)
+          .get();
+      
+      final hasExistingData = productsDoc.docs.isNotEmpty || repairsDoc.docs.isNotEmpty;
+      
+      if (hasExistingData) {
+        // Existing shop without settings → auto-create electronics for backward compatibility
+        debugPrint('📦 CategoryService: Existing shop detected, auto-creating electronics settings');
+        final defaultSettings = ShopSettings.electronics(shopId);
+        await saveShopSettings(defaultSettings);
+        _cachedSettings = defaultSettings;
+        return _cachedSettings;
+      }
+    } catch (e) {
+      debugPrint('Error checking existing data: $e');
+    }
+
+    // New shop without data → return null để home_view hiện wizard
+    debugPrint('📦 CategoryService: New shop - returning null (needs wizard)');
     return null;
   }
 
