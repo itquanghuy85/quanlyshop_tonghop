@@ -75,11 +75,19 @@ class _SettingsViewState extends State<SettingsView> {
     try {
       final shops = await UserService.getAllShops();
       if (mounted) {
+        final savedShopId = UserService.getAdminSelectedShop();
+        // Validate that savedShopId exists in shops list
+        final shopExists = savedShopId != null &&
+            shops.any((s) => s['id'] == savedShopId);
         setState(() {
           _allShops = shops;
-          _selectedShopId = UserService.getAdminSelectedShop();
+          _selectedShopId = shopExists ? savedShopId : null;
           _loadingShops = false;
         });
+        // Clear invalid saved shop
+        if (savedShopId != null && !shopExists) {
+          UserService.setAdminSelectedShop(null);
+        }
       }
     } catch (e) {
       debugPrint('Error loading shops: $e');
@@ -806,7 +814,7 @@ class _SettingsViewState extends State<SettingsView> {
                             )
                           else
                             DropdownButtonFormField<String>(
-                              initialValue: _selectedShopId,
+                              value: _selectedShopId,
                               decoration: InputDecoration(
                                 labelText: localizations.selectShopLabel,
                                 border: OutlineInputBorder(
