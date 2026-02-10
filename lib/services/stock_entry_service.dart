@@ -346,6 +346,16 @@ class StockEntryService {
                 parts.add(item.color!);
               }
               productName = parts.join(' ');
+            } else if (item.productType == 'QUAN_AO' || item.productType == 'GIAY_DEP') {
+              // Fashion: include size and color in product name
+              final parts = <String>[item.name];
+              if (item.size != null && item.size!.isNotEmpty) {
+                parts.add('Size ${item.size}');
+              }
+              if (item.color != null && item.color!.isNotEmpty) {
+                parts.add(item.color!);
+              }
+              productName = parts.join(' - ');
             }
 
             // Tạo chi tiết
@@ -360,6 +370,16 @@ class StockEntryService {
               }
               if (item.condition != null && item.condition!.isNotEmpty) {
                 detailParts.add(item.condition!);
+              }
+              detail = detailParts.join(' - ');
+            } else if (item.productType == 'QUAN_AO' || item.productType == 'GIAY_DEP') {
+              // Fashion: size + color as detail
+              final detailParts = <String>[];
+              if (item.size != null && item.size!.isNotEmpty) {
+                detailParts.add('Size ${item.size}');
+              }
+              if (item.color != null && item.color!.isNotEmpty) {
+                detailParts.add(item.color!);
               }
               detail = detailParts.join(' - ');
             }
@@ -377,6 +397,11 @@ class StockEntryService {
             if (isPhoneWithBatch && productsToCreate > 1) {
               finalProductName = '$productName #${i + 1}';
             }
+
+            // Check if fashion product
+            final bool isFashion = item.productType == 'QUAN_AO' || 
+                item.productType == 'GIAY_DEP' || 
+                item.productType == 'PHU_KIEN_THOI_TRANG';
 
             transaction.set(productRef, {
               'name': finalProductName,
@@ -402,6 +427,16 @@ class StockEntryService {
               if (isPhoneWithBatch)
                 'needsImeiUpdate': true, // Đánh dấu cần cập nhật IMEI
               if (isPhoneWithBatch) 'batchIndex': i + 1,
+              // Fashion-specific fields (size, color)
+              if (isFashion && item.size != null && item.size!.isNotEmpty)
+                'size': item.size,
+              if (isFashion && item.color != null && item.color!.isNotEmpty)
+                'color': item.color,
+              // SKU for non-phone products
+              if (!isFashion && item.sku != null && item.sku!.isNotEmpty)
+                'sku': item.sku,
+              if (item.unit != null && item.unit!.isNotEmpty)
+                'unit': item.unit,
             });
           } // End for loop products
         }
@@ -511,7 +546,7 @@ class StockEntryService {
       if (result['success'] == true) {
         final entry = result['entry'] as StockEntry;
         final totalCost = (result['totalCost'] as double).toInt();
-        final direction = result['direction'] as String;
+        // direction used for debugging
         final partFirestoreIds = result['partFirestoreIds'] as Map<String, String>;
         final userName =
             _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
@@ -654,9 +689,7 @@ class StockEntryService {
       // === GHI SUPPLIER_IMPORT_HISTORY VÀO LOCAL DB ===
       if (result['success'] == true) {
         final entry = result['entry'] as StockEntry;
-        final userName =
-            _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
-        final now = DateTime.now().millisecondsSinceEpoch;
+        // Note: userName and now not needed as we sync from Firestore
 
         try {
           final db = DBHelper();

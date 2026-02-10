@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import '../l10n/app_localizations.dart';
 import '../constants/product_constants.dart';
 import '../data/db_helper.dart';
 import '../theme/app_text_styles.dart';
@@ -19,6 +18,9 @@ import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
 import '../services/stock_entry_service.dart';
 import '../services/financial_activity_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
+import '../models/shop_settings_model.dart';
 import '../utils/sku_generator.dart';
 import '../utils/imei_extractor.dart';
 import '../widgets/currency_text_field.dart';
@@ -62,7 +64,15 @@ class _FastStockInViewState extends State<FastStockInView> {
   bool _isLoading = true;
   String? _loadingError;
 
-  // Current quick input code for price sync
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  bool get _isFashion => _shopSettings?.businessType == 'fashion';
+  bool get _isElectronics => _shopSettings?.businessType == 'electronics' || _shopSettings == null;
+  bool get _enableSerial => _shopSettings?.enableSerial ?? true;
+
+  // Current quick input code for price sync (reserved for future use)
+  // ignore: unused_field
   QuickInputCode? _currentQuickInputCode;
 
   // Selected values
@@ -241,6 +251,10 @@ class _FastStockInViewState extends State<FastStockInView> {
   Future<void> _loadSuppliers() async {
     debugPrint('FastStockIn: start loading suppliers');
     try {
+      // Load shop settings for terminology
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) _shopSettings = settings;
+      
       final sups = await supplierService.getSuppliers();
       if (mounted) {
         setState(() {
@@ -271,7 +285,7 @@ class _FastStockInViewState extends State<FastStockInView> {
     final addressCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
 
-    final result = await showDialog<bool>(
+    await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
@@ -588,6 +602,8 @@ class _FastStockInViewState extends State<FastStockInView> {
     );
   }
 
+  /// Legacy save method - kept for reference, now using StockEntryService.quickStockIn
+  // ignore: unused_element
   Future<void> _saveProduct() async {
     // Finalize currency fields trước khi xử lý
     CurrencyTextField.finalizeAll();
@@ -606,7 +622,7 @@ class _FastStockInViewState extends State<FastStockInView> {
     }
     if (modelCtrl.text.trim().isEmpty || imeiCtrl.text.trim().isEmpty) {
       NotificationService.showSnackBar(
-        "Vui lòng nhập model và IMEI!",
+        "Vui lòng nhập model và ${_terms.specialField1Label}!",
         color: Colors.red,
       );
       return;
@@ -631,11 +647,11 @@ class _FastStockInViewState extends State<FastStockInView> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Xác nhận nhập Kho Tạm'),
-          content: const Column(
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Sản phẩm sẽ được nhập vào KHO TẠM vì chưa có giá vốn.'),
+              Text('${_terms.productLabel} sẽ được nhập vào KHO TẠM vì chưa có giá vốn.'),
               SizedBox(height: 8),
               Text(
                 '• Sẽ KHÔNG tạo công nợ NCC',
@@ -688,8 +704,8 @@ class _FastStockInViewState extends State<FastStockInView> {
     setState(() => _saving = true);
 
     try {
-      // Generate SKU
-      final sku = await SKUGenerator.generateSKU(
+      // Generate SKU (reserved for future barcode printing)
+      await SKUGenerator.generateSKU(
         nhom: _getNhomFromBrand(selectedBrand!),
         model: modelCtrl.text.trim(),
         thongtin: null,
@@ -950,10 +966,10 @@ class _FastStockInViewState extends State<FastStockInView> {
   Future<void> _saveToStockEntry() async {
     CurrencyTextField.finalizeAll();
 
-    // Validate thông tin cơ bản
+    // Validate thông tin cơ bản - condition chỉ bắt buộc cho electronics
     if (selectedBrand == null ||
         selectedColor == null ||
-        selectedCondition == null) {
+        (_isElectronics && selectedCondition == null)) {
       NotificationService.showSnackBar(
         "Vui lòng chọn đầy đủ thông tin cơ bản!",
         color: Colors.red,
@@ -1079,7 +1095,7 @@ class _FastStockInViewState extends State<FastStockInView> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Sản phẩm: $productName'),
+                Text('${_terms.productLabel}: $productName'),
                 Text('Số lượng: $quantity'),
                 const SizedBox(height: 12),
                 const Text(
@@ -1568,24 +1584,28 @@ class _FastStockInViewState extends State<FastStockInView> {
                     selectedBrand,
                     (v) => selectedBrand = v,
                   ),
-                  _buildChipRow(
-                    'Dung lượng',
-                    capacities,
-                    selectedCapacity,
-                    (v) => selectedCapacity = v,
-                  ),
+                  // Dung lượng chỉ cho electronics, Size cho fashion
+                  if (_isElectronics)
+                    _buildChipRow(
+                      'Dung lượng',
+                      capacities,
+                      selectedCapacity,
+                      (v) => selectedCapacity = v,
+                    ),
                   _buildChipRow(
                     'Màu sắc',
                     colors,
                     selectedColor,
                     (v) => selectedColor = v,
                   ),
-                  _buildChipRow(
-                    'Tình trạng',
-                    conditions,
-                    selectedCondition,
-                    (v) => selectedCondition = v,
-                  ),
+                  // Tình trạng chỉ cho electronics
+                  if (_isElectronics)
+                    _buildChipRow(
+                      'Tình trạng',
+                      conditions,
+                      selectedCondition,
+                      (v) => selectedCondition = v,
+                    ),
 
                   _buildModelField(),
                   Text(
@@ -1600,7 +1620,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                     controller: labelInfoCtrl,
                     style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                     decoration: InputDecoration(
-                      hintText: 'VD: Bảo hành 6T, Máy đẹp 99%',
+                      hintText: 'VD: ${_terms.specialField2Label}, ghi chú nhanh...',
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 6,
                         vertical: 8,
@@ -1621,51 +1641,54 @@ class _FastStockInViewState extends State<FastStockInView> {
                     (v) => setState(() => selectedPaymentMethod = v),
                   ),
 
-                  Text(
-                    'IMEI/Serial *',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: imeiCtrl,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(5),
-                          ],
-                          style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
-                          decoration: InputDecoration(
-                            hintText: 'Nhập 5 số cuối IMEI (bắt buộc)',
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 8,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(4),
+                  // IMEI/Serial chỉ cho electronics
+                  if (_enableSerial) ...[
+                    Text(
+                      'IMEI/Serial *',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: imeiCtrl,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(5),
+                            ],
+                            style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                            decoration: InputDecoration(
+                              hintText: 'Nhập 5 số cuối IMEI (bắt buộc)',
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 8,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: _openQRScanner,
-                        icon: const Icon(
-                          Icons.qr_code_scanner,
-                          color: Colors.green,
-                        ),
-                        tooltip: 'Quét QR/Barcode IMEI',
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.green.withOpacity(0.1),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _openQRScanner,
+                          icon: const Icon(
+                            Icons.qr_code_scanner,
+                            color: Colors.green,
+                          ),
+                          tooltip: 'Quét QR/Barcode IMEI',
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.green.withOpacity(0.1),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
 
                   Text(
                     'Số lượng',
@@ -1674,7 +1697,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                   TextField(
                     controller: quantityCtrl,
                     keyboardType: TextInputType.number,
-                    enabled: imeiCtrl.text.isEmpty,
+                    enabled: _enableSerial ? imeiCtrl.text.isEmpty : true,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                     decoration: InputDecoration(

@@ -4,9 +4,12 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../core/utils/money_utils.dart';
 import '../controllers/fast_inventory_input_controller.dart';
 import '../models/product_model.dart';
+import '../models/shop_settings_model.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import '../services/first_time_guide_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 import '../utils/imei_extractor.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/imei_scan_result_dialog.dart';
@@ -65,6 +68,15 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
   List<Product> _recentProducts = [];
   bool _showRecent = false;
 
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+  bool get _enableSerial => _shopSettings?.enableSerial ?? true;
+  String get _businessType => _shopSettings?.businessType ?? 'electronics';
+  bool get _isElectronics => _businessType == 'electronics' || _shopSettings == null;
+  
+  /// Terminology động theo ngành
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+
   @override
   void initState() {
     super.initState();
@@ -92,10 +104,10 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
       title: 'Nhập Nhanh (Siêu Tốc)',
       icon: Icons.flash_on,
       color: Colors.orange,
-      steps: const [
+      steps: [
         GuideStep(
           title: '📷 Quét mã liên tục',
-          description: 'Quét barcode/QR nhiều sản phẩm liên tục. Hệ thống tự động điền thông tin từ thư viện.',
+          description: 'Quét barcode/QR nhiều ${_terms.productLabel} liên tục. Hệ thống tự động điền thông tin từ thư viện.',
           icon: Icons.qr_code_scanner,
           iconColor: Colors.purple,
         ),
@@ -107,7 +119,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
         ),
         GuideStep(
           title: '🏢 Chọn NCC trước',
-          description: 'Nhớ tạo và chọn NCC trước khi nhập. Tất cả sản phẩm sẽ được gắn với NCC đã chọn.',
+          description: 'Nhớ tạo và chọn NCC trước khi nhập. Tất cả ${_terms.productLabel} sẽ được gắn với NCC đã chọn.',
           icon: Icons.store,
           iconColor: Colors.teal,
         ),
@@ -123,11 +135,17 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
 
   Future<void> _loadInitialData() async {
     try {
+      // Load shop settings for multi-industry support
+      final settings = await CategoryService().getShopSettings();
+      debugPrint('📱 FastInventoryInput: Loaded shop settings - businessType=${settings?.businessType}, enableSerial=${settings?.enableSerial}');
+      
       final suppliers = await _controller.getSuppliers();
       final recentProducts = await _controller.loadRecentProducts();
 
       if (mounted) {
         setState(() {
+          _shopSettings = settings;
+          debugPrint('📱 FastInventoryInput: setState with _enableSerial=$_enableSerial, _businessType=$_businessType');
           _suppliers = suppliers;
           if (_suppliers.isNotEmpty) {
             _selectedSupplier = _suppliers.first['name'] as String;
@@ -220,7 +238,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
 
       setState(() => _batchItems.clear());
       NotificationService.showSnackBar(
-        "Đã nhập kho ${_batchItems.length} sản phẩm thành công!",
+        "Đã nhập kho ${_batchItems.length} ${_terms.productLabel} thành công!",
         color: Colors.green,
       );
       HapticFeedback.lightImpact();
@@ -288,8 +306,8 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
             onPressed: () => setState(() => _showRecent = !_showRecent),
             icon: Icon(_showRecent ? Icons.history : Icons.history_outlined),
             tooltip: _showRecent
-                ? "Ẩn sản phẩm gần đây"
-                : "Hiện sản phẩm gần đây",
+                ? "Ẩn ${_terms.productLabel} gần đây"
+                : "Hiện ${_terms.productLabel} gần đây",
           ),
           if (_isBatchMode && _batchItems.isNotEmpty)
             IconButton(
@@ -382,33 +400,35 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
                 ],
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ValidatedTextField(
-                      controller: _imeiController,
-                      label: "IMEI/Serial (có thể nhập thủ công)",
-                      icon: Icons.fingerprint,
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _openQRScannerForIMEI,
-                    icon: const Icon(
-                      Icons.qr_code_scanner,
-                      color: Colors.green,
-                    ),
-                    tooltip: 'Quét QR lấy 5 số cuối IMEI',
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.green.withOpacity(0.1),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+              // Multi-Industry: Only show IMEI field for electronics with serial enabled
+              if (_enableSerial)
+                Row(
+                  children: [
+                    Expanded(
+                      child: ValidatedTextField(
+                        controller: _imeiController,
+                        label: "${_terms.specialField1Label} (có thể nhập thủ công)",
+                        icon: Icons.fingerprint,
+                        keyboardType: TextInputType.number,
                       ),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: _openQRScannerForIMEI,
+                      icon: const Icon(
+                        Icons.qr_code_scanner,
+                        color: Colors.green,
+                      ),
+                      tooltip: 'Quét QR lấy 5 số cuối IMEI',
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.green.withOpacity(0.1),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
@@ -458,7 +478,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        "Chưa có sản phẩm nào trong batch",
+                        "Chưa có ${_terms.productLabel} nào trong batch",
                         style: AppTextStyles.body2.copyWith(
                           color: AppColors.onSurface.withOpacity(0.6),
                         ),
@@ -484,7 +504,9 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
                       child: ListTile(
                         title: Text(item['name']),
                         subtitle: Text(
-                          "IMEI: ${item['imei']} • Giá: ${MoneyUtils.formatVND(item['price'])}đ",
+                          _enableSerial && item['imei'] != null && item['imei'].toString().isNotEmpty
+                              ? "${_terms.specialField1Label}: ${item['imei']} • Giá: ${MoneyUtils.formatVND(item['price'])}đ"
+                              : "Giá: ${MoneyUtils.formatVND(item['price'])}đ",
                         ),
                         trailing: IconButton(
                           onPressed: () =>

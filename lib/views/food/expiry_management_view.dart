@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/product_model.dart';
+import '../../models/shop_settings_model.dart';
+import '../../services/business_type_helper.dart';
+import '../../services/category_service.dart';
 import '../../services/expiry_alert_service.dart';
 import '../../widgets/expiry_badge.dart';
 
@@ -25,12 +28,23 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
   List<BatchInfo> _batches = [];
   bool _isLoading = true;
   int _warningDays = 7;
+  
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _loadShopSettings();
     _loadData();
+  }
+
+  Future<void> _loadShopSettings() async {
+    final settings = await CategoryService().getShopSettings();
+    if (mounted) {
+      setState(() => _shopSettings = settings);
+    }
   }
 
   @override
@@ -198,7 +212,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${_stats!.totalWithExpiry} sản phẩm có HSD',
+                  '${_stats!.totalWithExpiry} ${_terms.productLabel} có HSD',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -274,10 +288,10 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
             const SizedBox(height: 16),
             Text(
               filterStatus == ExpiryStatus.expired
-                  ? 'Không có sản phẩm hết hạn 🎉'
+                  ? 'Không có ${_terms.productLabel} hết hạn 🎉'
                   : filterStatus == ExpiryStatus.nearExpiry
-                      ? 'Không có sản phẩm sắp hết hạn'
-                      : 'Không có sản phẩm',
+                      ? 'Không có ${_terms.productLabel} sắp hết hạn'
+                      : 'Không có ${_terms.productLabel}',
               style: TextStyle(
                 color: Colors.grey.shade500,
                 fontSize: 16,
@@ -446,7 +460,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
 
     if (batch.hasExpired) {
       statusColor = Colors.red;
-      statusText = 'Có SP hết hạn';
+      statusText = 'Có ${_terms.productLabel} hết hạn';
       statusIcon = Icons.error;
     } else if (batch.isNearExpiry) {
       statusColor = Colors.orange;
@@ -604,7 +618,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Sản phẩm sẽ được cảnh báo khi còn $tempDays ngày đến HSD',
+                  '${_terms.productLabel[0].toUpperCase()}${_terms.productLabel.substring(1).toLowerCase()} sẽ được cảnh báo khi còn $tempDays ngày đến HSD',
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: 12,

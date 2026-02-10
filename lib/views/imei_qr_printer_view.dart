@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
+import '../models/shop_settings_model.dart';
 import '../services/notification_service.dart';
 import '../services/unified_printer_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../models/printer_types.dart';
@@ -18,6 +21,9 @@ class ImeiQrPrinterView extends StatefulWidget {
 class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
   final db = DBHelper();
   final TextEditingController _searchCtrl = TextEditingController();
+
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   bool _isLoading = true;
   bool _isPrinting = false;
@@ -36,7 +42,19 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     _loadData();
+  }
+
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
   }
 
   @override
@@ -63,7 +81,7 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
       if (!mounted) return;
       setState(() => _isLoading = false);
       NotificationService.showSnackBar(
-        'Lỗi tải danh sách IMEI: $e',
+        'Lỗi tải danh sách ${_terms.specialField1Label}: $e',
         color: Colors.red,
       );
     }
@@ -97,7 +115,7 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
   Future<void> _printItems(List<Product> items) async {
     if (items.isEmpty) {
       NotificationService.showSnackBar(
-        'Không có IMEI để in',
+        'Không có ${_terms.specialField1Label} để in',
         color: Colors.orange,
       );
       return;
@@ -125,21 +143,21 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
         qrSize: _qrSize,
         columns: _columns,
         codeType: _codeType,
-        defaultProductName: 'SẢN PHẨM',
-        imeiPrefix: 'IMEI: ',
-        imeiLabel: 'IMEI',
+        defaultProductName: _terms.productPlural.toUpperCase(),
+        imeiPrefix: '${_terms.specialField1Label}: ',
+        imeiLabel: _terms.specialField1Label,
         preferRasterForBluetooth: _bluetoothCompat,
       );
       if (!mounted) return;
 
       NotificationService.showSnackBar(
-        ok ? 'In QR IMEI thành công' : 'In QR IMEI thất bại',
+        ok ? 'In QR ${_terms.specialField1Label} thành công' : 'In QR ${_terms.specialField1Label} thất bại',
         color: ok ? Colors.green : Colors.red,
       );
     } catch (e) {
       if (!mounted) return;
       NotificationService.showSnackBar(
-        'Lỗi in QR IMEI: $e',
+        'Lỗi in QR ${_terms.specialField1Label}: $e',
         color: Colors.red,
       );
     } finally {
@@ -152,7 +170,7 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
     final selectedCount = _selectedImeis.length;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('In QR IMEI - Kho hàng'),
+        title: Text('In QR ${_terms.specialField1Label} - ${_terms.inventoryLabel}'),
         actions: [
           IconButton(
             tooltip: 'Thiết kế tem',
@@ -181,7 +199,7 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
                     controller: _searchCtrl,
                     onChanged: _applySearch,
                     decoration: InputDecoration(
-                      hintText: 'Tìm IMEI / Tên / Model',
+                      hintText: 'Tìm ${_terms.specialField1Label} / Tên / Model',
                       prefixIcon: const Icon(Icons.search),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -195,7 +213,7 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Tổng IMEI: ${_filteredItems.length}',
+                          'Tổng ${_terms.specialField1Label}: ${_filteredItems.length}',
                           style: AppTextStyles.body2,
                         ),
                       ),
@@ -293,7 +311,7 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
                             spacing: 12,
                             children: [
                               FilterChip(
-                                label: const Text('Tên sản phẩm'),
+                                label: Text('Tên ${_terms.productLabel.toLowerCase()}'),
                                 selected: _showName,
                                 onSelected: (v) =>
                                     setState(() => _showName = v),
@@ -305,7 +323,7 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
                                     setState(() => _showDetail = v),
                               ),
                               FilterChip(
-                                label: const Text('IMEI'),
+                                label: Text(_terms.specialField1Label),
                                 selected: _showImei,
                                 onSelected: (v) =>
                                     setState(() => _showImei = v),
@@ -349,7 +367,7 @@ class _ImeiQrPrinterViewState extends State<ImeiQrPrinterView> {
                             });
                           },
                           title: Text(p.name),
-                          subtitle: Text('IMEI: $imei'),
+                          subtitle: Text('${_terms.specialField1Label}: $imei'),
                           secondary: const Icon(Icons.qr_code_2),
                         ),
                       );

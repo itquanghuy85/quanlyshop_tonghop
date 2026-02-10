@@ -8,7 +8,6 @@ import '../data/db_helper.dart';
 import '../theme/app_text_styles.dart';
 import '../models/sale_order_model.dart';
 import '../models/repair_model.dart';
-import '../models/expense_model.dart';
 import '../services/user_service.dart';
 import '../services/audit_service.dart';
 import '../services/notification_service.dart';
@@ -2294,7 +2293,7 @@ class _CashClosingViewState extends State<CashClosingView>
         'icon': '🛒',
         'title': 'Bán hàng #${s.firestoreId?.substring(0, 8) ?? s.id}',
         'subtitle':
-            '${s.customerName ?? 'KH lẻ'} • ${s.paymentMethod == 'TIỀN MẶT' ? '💵' : '🏦'} ${s.paymentMethod}',
+            '${s.customerName.isNotEmpty ? s.customerName : 'KH lẻ'} • ${s.paymentMethod == 'TIỀN MẶT' ? '💵' : '🏦'} ${s.paymentMethod}',
         'time': DateFormat(
           'HH:mm',
         ).format(DateTime.fromMillisecondsSinceEpoch(s.soldAt)),
@@ -2318,7 +2317,7 @@ class _CashClosingViewState extends State<CashClosingView>
           'icon': '🏦',
           'title': 'Tất toán NH: ${s.bankName ?? "Ngân hàng"}',
           'subtitle':
-              '${s.customerName ?? 'KH'} • Đơn #${s.firestoreId?.substring(0, 8) ?? s.id}',
+              '${s.customerName.isNotEmpty ? s.customerName : 'KH'} • Đơn #${s.firestoreId?.substring(0, 8) ?? s.id}',
           'time': DateFormat('HH:mm').format(
             DateTime.fromMillisecondsSinceEpoch(s.settlementReceivedAt!),
           ),
@@ -2338,7 +2337,7 @@ class _CashClosingViewState extends State<CashClosingView>
         'icon': '🔧',
         'title': 'Sửa chữa #${r.firestoreId?.substring(0, 8) ?? r.id}',
         'subtitle':
-            '${r.customerName ?? 'KH'} • ${r.paymentMethod == 'TIỀN MẶT' ? '💵' : '🏦'} ${r.paymentMethod}',
+            '${r.customerName.isNotEmpty ? r.customerName : 'KH'} • ${r.paymentMethod == 'TIỀN MẶT' ? '💵' : '🏦'} ${r.paymentMethod}',
         'time': DateFormat(
           'HH:mm',
         ).format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!)),

@@ -16,14 +16,14 @@ import '../models/repair_model.dart';
 import '../models/repair_service_model.dart';
 import '../models/repair_partner_model.dart';
 import '../models/payment_intent_model.dart';
+import '../models/shop_settings_model.dart';
 import '../services/unified_printer_service.dart';
 import '../services/repair_partner_service.dart';
-import '../services/repair_partner_payment_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/payment_intent_service.dart';
+import '../services/category_service.dart';
 import '../models/printer_types.dart';
 import '../widgets/printer_selection_dialog.dart';
-import '../widgets/section_card.dart';
 import '../services/notification_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/firestore_service.dart';
@@ -32,7 +32,6 @@ import '../data/db_helper.dart';
 import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/app_button_styles.dart';
 import 'parts_inventory_view.dart';
 import 'repair_partner_view.dart';
 import 'repair_invoice_template_view.dart';
@@ -57,15 +56,31 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   bool _hasPermission = false;
   List<RepairPartner> _partners = [];
 
+  // Shop settings for dynamic terminology (reserved for future multi-industry use)
+  // ignore: unused_field
+  ShopSettings? _shopSettings;
+
   AppLocalizations get loc => AppLocalizations.of(context)!;
 
   @override
   void initState() {
     super.initState();
     r = widget.repair;
+    _loadShopSettings();
     _checkPermission();
     _loadShopInfo();
     _loadPartners();
+  }
+
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
   }
 
   Future<void> _loadPartners() async {
@@ -1169,9 +1184,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       final linhKienProducts = allProducts
           .where((p) => p.type == 'LINH_KIEN')
           .toList();
-      final phuKienProducts = allProducts
-          .where((p) => p.type == 'PHU_KIEN')
-          .toList();
+      // phuKienProducts reserved for future use
 
       String msg = loc.partsInventoryEmpty;
       if (allProducts.isEmpty) {
@@ -1479,8 +1492,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       },
     );
     if (result == true) {
-      final oldCost = r.cost;
-      final oldPrice = r.price;
+      // Update pricing directly
       setState(() {
         final parsedPrice = MoneyUtils.parseCurrency(priceC.text);
         final parsedCost = MoneyUtils.parseCurrency(costC.text);

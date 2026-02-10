@@ -6,6 +6,8 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import '../core/utils/money_utils.dart';
 import '../theme/app_text_styles.dart';
+import '../models/shop_settings_model.dart';
+import '../services/category_service.dart';
 
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
@@ -30,11 +32,29 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
   final db = DBHelper();
   List<Map<String, dynamic>> combinedHistory = [];
   bool _isLoading = true;
+  
+  // Shop settings for multi-industry
+  ShopSettings? _shopSettings;
+  bool get _enableRepair => _shopSettings?.enableRepair ?? true;
 
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     _loadUnifiedHistory();
+  }
+  
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+        // Reload history after shop settings to filter correctly
+        _loadUnifiedHistory();
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
   }
 
   Future<void> _loadUnifiedHistory() async {
@@ -44,17 +64,20 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
 
     List<Map<String, dynamic>> results = [];
 
-    for (var r in repairs.where((item) => item.phone == widget.phone)) {
-      results.add({
-        'type': 'REPAIR',
-        'time': r.createdAt,
-        'title': r.model,
-        'subtitle': "Sửa: ${r.issue.split('|').first}",
-        'status': r.status,
-        'amount': r.price,
-        'images': r.receiveImages,
-        'data': r,
-      });
+    // Chỉ hiện lịch sử sửa chữa nếu shop hỗ trợ repair (electronics)
+    if (_enableRepair) {
+      for (var r in repairs.where((item) => item.phone == widget.phone)) {
+        results.add({
+          'type': 'REPAIR',
+          'time': r.createdAt,
+          'title': r.model,
+          'subtitle': "Sửa: ${r.issue.split('|').first}",
+          'status': r.status,
+          'amount': r.price,
+          'images': r.receiveImages,
+          'data': r,
+        });
+      }
     }
 
     for (var s in sales.where((item) => item.phone == widget.phone)) {

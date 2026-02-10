@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
+import '../models/shop_settings_model.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
@@ -13,11 +14,11 @@ import '../services/firestore_service.dart';
 import '../services/unified_printer_service.dart';
 import '../services/adjustment_service.dart';
 import '../services/first_time_guide_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 import '../utils/money_utils.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/validated_text_field.dart';
-import '../widgets/currency_text_field.dart';
-import '../widgets/section_card.dart';
 import '../models/repair_partner_model.dart';
 import '../models/repair_service_model.dart';
 import '../services/repair_partner_service.dart';
@@ -76,6 +77,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   List<RepairPartner> _partners = [];
   bool _isWalkIn = false;
 
+  // Shop settings for dynamic terminology
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+
   final List<String> brands = ["IPHONE", "SAMSUNG", "OPPO", "REDMI", "VIVO"];
   List<String> get commonIssues => [
     loc.replacePin,
@@ -93,6 +98,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     phoneCtrl.addListener(() {
       if (phoneCtrl.text.length == 10) _smartFill();
       setState(() {}); // Refresh UI for add customer button
@@ -105,6 +111,17 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showFirstTimeGuide();
     });
+  }
+
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
   }
 
   /// Hiển thị hướng dẫn lần đầu

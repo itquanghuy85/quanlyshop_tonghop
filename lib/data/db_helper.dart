@@ -68,13 +68,13 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 75,
+      version: 77,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT)',
+          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, size TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, isSynced INTEGER DEFAULT 0)',
@@ -126,6 +126,11 @@ class DBHelper {
             salaryType TEXT DEFAULT "monthly",
             saleCommType TEXT DEFAULT "percent",
             saleCommValue REAL DEFAULT 1.0,
+            saleCommTier1Max REAL DEFAULT 10000000,
+            saleCommTier1Value REAL DEFAULT 20000,
+            saleCommTier2Max REAL DEFAULT 50000000,
+            saleCommTier2Value REAL DEFAULT 50000,
+            saleCommTier3Value REAL DEFAULT 100000,
             repairCommType TEXT DEFAULT "percent",
             repairCommValue REAL DEFAULT 10.0,
             transportAllowance REAL DEFAULT 0,
@@ -697,6 +702,64 @@ class DBHelper {
             debugPrint('v75 error (products customData): $e');
           }
           debugPrint('v75: Multi-industry expansion complete');
+        }
+        if (oldV < 76) {
+          // v76: Add tiered commission columns to employee_salary_settings
+          debugPrint('DB upgrade v76: Adding tiered commission columns...');
+          try {
+            await db.execute(
+              'ALTER TABLE employee_salary_settings ADD COLUMN saleCommTier1Max REAL DEFAULT 10000000',
+            );
+            debugPrint('v76: added saleCommTier1Max');
+          } catch (e) {
+            debugPrint('v76 error (saleCommTier1Max): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE employee_salary_settings ADD COLUMN saleCommTier1Value REAL DEFAULT 20000',
+            );
+            debugPrint('v76: added saleCommTier1Value');
+          } catch (e) {
+            debugPrint('v76 error (saleCommTier1Value): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE employee_salary_settings ADD COLUMN saleCommTier2Max REAL DEFAULT 50000000',
+            );
+            debugPrint('v76: added saleCommTier2Max');
+          } catch (e) {
+            debugPrint('v76 error (saleCommTier2Max): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE employee_salary_settings ADD COLUMN saleCommTier2Value REAL DEFAULT 50000',
+            );
+            debugPrint('v76: added saleCommTier2Value');
+          } catch (e) {
+            debugPrint('v76 error (saleCommTier2Value): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE employee_salary_settings ADD COLUMN saleCommTier3Value REAL DEFAULT 100000',
+            );
+            debugPrint('v76: added saleCommTier3Value');
+          } catch (e) {
+            debugPrint('v76 error (saleCommTier3Value): $e');
+          }
+          debugPrint('v76: Tiered commission columns complete');
+        }
+        if (oldV < 77) {
+          // v77: Add size column to products for fashion products
+          debugPrint('DB upgrade v77: Adding size column to products...');
+          try {
+            await db.execute(
+              'ALTER TABLE products ADD COLUMN size TEXT',
+            );
+            debugPrint('v77: added size column to products');
+          } catch (e) {
+            debugPrint('v77 error (size): $e');
+          }
+          debugPrint('v77: Fashion size column complete');
         }
         if (oldV < 26) {
           // Migration to remove kpkPrice and pkPrice columns from products and quick_input_codes tables

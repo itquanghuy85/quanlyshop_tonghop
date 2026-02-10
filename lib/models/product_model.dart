@@ -20,6 +20,7 @@ class Product {
   int quantity;
   String? color;
   String? capacity; // Dung lượng (ví dụ: 64GB, 128GB, etc.)
+  String? size; // Size quần áo/giày: XS, S, M, L, XL, 28, 29, 30...
   String? paymentMethod; // Phương thức thanh toán
   String? labelInfo; // Thông tin in trên tem
   bool isSynced;
@@ -57,6 +58,7 @@ class Product {
     this.quantity = 1,
     this.color,
     this.capacity,
+    this.size,
     this.paymentMethod,
     this.labelInfo,
     this.isSynced = false,
@@ -95,6 +97,7 @@ class Product {
       'quantity': quantity,
       'color': color,
       'capacity': capacity,
+      'size': size,
       'paymentMethod': paymentMethod,
       'labelInfo': labelInfo,
       'isSynced': isSynced ? 1 : 0,
@@ -163,6 +166,7 @@ class Product {
       quantity: _parseInt(map['quantity'], 1),
       color: map['color'],
       capacity: map['capacity'],
+      size: map['size'],
       paymentMethod: map['paymentMethod'],
       labelInfo: map['labelInfo'],
       isSynced: map['isSynced'] == 1,
@@ -200,6 +204,7 @@ class Product {
     int? quantity,
     String? color,
     String? capacity,
+    String? size,
     String? paymentMethod,
     String? labelInfo,
     bool? isSynced,
@@ -237,6 +242,7 @@ class Product {
       quantity: quantity ?? this.quantity,
       color: color ?? this.color,
       capacity: capacity ?? this.capacity,
+      size: size ?? this.size,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       labelInfo: labelInfo ?? this.labelInfo,
       isSynced: isSynced ?? this.isSynced,

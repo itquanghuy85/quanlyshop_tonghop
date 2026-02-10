@@ -18,7 +18,10 @@ import '../services/audit_service.dart';
 import '../services/unified_printer_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/payment_intent_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 import '../models/payment_intent_model.dart';
+import '../models/shop_settings_model.dart';
 import '../models/printer_types.dart';
 import '../constants/financial_constants.dart';
 import '../widgets/printer_selection_dialog.dart';
@@ -47,6 +50,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   bool get _isInstallmentNH => s.paymentMethod.toUpperCase() == "TRẢ GÓP (NH)";
   bool _managerUnlocked = false;
   bool _checkingManager = false;
+  
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   // Theme colors cho màn hình chi tiết đơn bán hàng
   final Color _primaryColor = Colors.indigo; // Đồng bộ với create_sale_view
@@ -62,7 +69,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
 
   Future<void> _loadShopInfo() async {
     final prefs = await SharedPreferences.getInstance();
+    final settings = await CategoryService().getShopSettings();
+    if (!mounted) return;
     setState(() {
+      _shopSettings = settings;
       _shopName = prefs.getString('shop_name') ?? "TEN SHOP";
       _shopAddr = prefs.getString('shop_address') ?? "DIA CHI";
       _shopPhone = prefs.getString('shop_phone') ?? "SDT";
@@ -208,7 +218,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       'customerAddress': s.address,
       'productNames': s.productNames,
       'productImeis': s.productImeis,
-      'warranty': s.warranty ?? 'KO BH',
+      'warranty': s.warranty.isNotEmpty ? s.warranty : 'KO BH',
       'sellerName': s.sellerName,
       'soldAt': s.soldAt,
       'totalPrice': s.totalPrice,
@@ -392,7 +402,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     final imeis = TextEditingController(text: s.productImeis);
     final notes = TextEditingController(text: s.notes ?? "");
     final warranties = ["KO BH", "1 THÁNG", "3 THÁNG", "6 THÁNG", "12 THÁNG"];
-    String warranty = s.warranty ?? "KO BH";
+    String warranty = s.warranty.isNotEmpty ? s.warranty : "KO BH";
     String payment = s.paymentMethod;
     final oldPaymentMethod = s.paymentMethod; // Lưu lại để so sánh
 
@@ -422,16 +432,16 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 ),
                 TextFormField(
                   controller: products,
-                  decoration: const InputDecoration(labelText: "Sản phẩm"),
+                  decoration: InputDecoration(labelText: _terms.productLabel),
                 ),
                 TextFormField(
                   controller: imeis,
-                  decoration: const InputDecoration(labelText: "IMEI/Serial"),
+                  decoration: InputDecoration(labelText: _terms.specialField1Label),
                 ),
                 // Các trường số tiền đã bị vô hiệu hóa để bảo vệ dữ liệu tài chính
                 DropdownButtonFormField<String>(
                   initialValue: warranty,
-                  decoration: const InputDecoration(labelText: "Bảo hành"),
+                  decoration: InputDecoration(labelText: _terms.specialField2Label),
                   items: warranties
                       .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                       .toList(),
@@ -911,7 +921,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               _item("Địa chỉ", s.address.isEmpty ? "---" : s.address),
               _item("Sản phẩm", s.productNames),
               _item("IMEI", s.productImeis),
-              _item("Bảo hành", s.warranty ?? "KO BH"),
+              _item("Bảo hành", s.warranty.isNotEmpty ? s.warranty : "KO BH"),
               _item("Nhân viên", s.sellerName),
               _item("Thời gian", _fmtDate(s.soldAt)),
               _item("Hình thức", s.paymentMethod),

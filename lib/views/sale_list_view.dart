@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import '../data/db_helper.dart';
 import '../models/sale_order_model.dart';
 import '../services/event_bus.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
+import '../models/shop_settings_model.dart';
 import 'sale_detail_view.dart';
 import 'create_sale_view.dart';
 import '../theme/app_colors.dart';
@@ -35,6 +38,10 @@ class _SaleListViewState extends State<SaleListView> {
   String _paymentStatusFilter = 'all'; // all, paid, debt
   DateTime? _customStartDate;
   DateTime? _customEndDate;
+  
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
   
   /// Check if we need full data (for filtering)
   bool get _needsFullData => 
@@ -103,6 +110,10 @@ class _SaleListViewState extends State<SaleListView> {
       _allLoadedSales = [];
       _hasMore = true;
     });
+    
+    // Load shop settings for terminology
+    final settings = await CategoryService().getShopSettings();
+    if (mounted) _shopSettings = settings;
     
     if (_needsFullData || widget.todayOnly) {
       // Load all data for filtering
@@ -486,7 +497,7 @@ class _SaleListViewState extends State<SaleListView> {
               onChanged: (v) => setState(() => _search = v),
               style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
               decoration: InputDecoration(
-                hintText: "Tìm theo tên khách, máy hoặc IMEI...",
+                hintText: "Tìm theo tên khách, ${_terms.productLabel.toLowerCase()} hoặc ${_terms.specialField1Label}...",
                 hintStyle: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade500),
                 prefixIcon: const Icon(
                   Icons.search_rounded,

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
 import '../models/financial_activity_model.dart';
+import '../models/shop_settings_model.dart';
+import '../services/category_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../theme/app_text_styles.dart';
 
@@ -29,6 +31,10 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   int _offset = 0;
   final int _limit = 50;
 
+  // Shop settings for multi-industry
+  ShopSettings? _shopSettings;
+  bool get _enableRepair => _shopSettings?.enableRepair ?? true;
+
   // Tab Hệ thống
   List<Map<String, dynamic>> _auditLogs = [];
   bool _auditLoading = true;
@@ -43,8 +49,8 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
 
-  // Danh sách loại activity
-  final List<Map<String, String>> _activityTypes = [
+  // Danh sách loại activity - dynamic based on shop settings
+  List<Map<String, String>> get _activityTypes => [
     {'value': '', 'label': 'Tất cả'},
     {'value': 'SALE', 'label': '🛒 Bán hàng'},
     {'value': 'PURCHASE', 'label': '📦 Nhập hàng'},
@@ -52,7 +58,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     {'value': 'DEBT_COLLECT', 'label': '💰 Thu nợ'},
     {'value': 'DEBT_PAY', 'label': '💳 Trả NCC'},
     {'value': 'SETTLEMENT', 'label': '🏦 Tất toán'},
-    {'value': 'REPAIR', 'label': '🔧 Sửa chữa'},
+    if (_enableRepair) {'value': 'REPAIR', 'label': '🔧 Sửa chữa'},
   ];
 
   final List<Map<String, String>> _directions = [
@@ -65,6 +71,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     _tabController = TabController(
       length: 2,
       vsync: this,
@@ -79,6 +86,17 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     _loadData();
     if (widget.initialTab == 1) {
       _loadAuditLogs();
+    }
+  }
+  
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
     }
   }
 

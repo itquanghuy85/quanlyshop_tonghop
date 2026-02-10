@@ -6,12 +6,15 @@ import '../theme/app_text_styles.dart';
 import '../data/db_helper.dart';
 import '../models/purchase_order_model.dart';
 import '../models/debt_model.dart';
+import '../models/shop_settings_model.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import '../services/supplier_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/payment_intent_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 import '../models/payment_intent_model.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -42,6 +45,16 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
   String _currentUserName = '';
   String _paymentMethod = 'TIỀN MẶT';
 
+  // Shop settings for dynamic terminology
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  
+  // Multi-industry getters
+  String get _businessType => _shopSettings?.businessType ?? 'electronics';
+  bool get _isFashion => _businessType == 'fashion';
+  bool get _isElectronics => _businessType == 'electronics';
+  bool get _enableSerial => _shopSettings?.enableSerial ?? true;
+
   // Item form
   final itemNameCtrl = TextEditingController();
   final itemImeiCtrl = TextEditingController();
@@ -55,9 +68,21 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     _loadData();
     itemCostCtrl.addListener(_formatCost);
     itemPriceCtrl.addListener(_formatPrice);
+  }
+
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
   }
 
   Future<void> _loadData() async {
@@ -112,7 +137,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
   void _addItem() {
     if (itemNameCtrl.text.isEmpty || itemQuantityCtrl.text.isEmpty ||
         itemCostCtrl.text.isEmpty || itemPriceCtrl.text.isEmpty) {
-      NotificationService.showSnackBar("Vui lòng nhập đầy đủ thông tin sản phẩm!", color: Colors.red);
+      NotificationService.showSnackBar("Vui lòng nhập đầy đủ thông tin ${_terms.productLabel.toLowerCase()}!", color: Colors.red);
       return;
     }
 
@@ -154,7 +179,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
     
     if (!_formKey.currentState!.validate()) return;
     if (_items.isEmpty) {
-      NotificationService.showSnackBar("Vui lòng thêm ít nhất 1 sản phẩm!", color: Colors.red);
+      NotificationService.showSnackBar("Vui lòng thêm ít nhất 1 ${_terms.productLabel.toLowerCase()}!", color: Colors.red);
       return;
     }
 
@@ -310,23 +335,25 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("THÊM SẢN PHẨM", style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold)),
+            Text("THÊM ${_terms.productLabel.toUpperCase()}", style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             ValidatedTextField(
               controller: itemNameCtrl,
-              label: "TÊN SẢN PHẨM",
+              label: "TÊN ${_terms.productLabel.toUpperCase()}",
               icon: Icons.inventory,
               required: true,
               uppercase: true,
             ),
             const SizedBox(height: 8),
-            ValidatedTextField(
-              controller: itemImeiCtrl,
-              label: "IMEI/SERIAL",
-              icon: Icons.qr_code,
-              uppercase: true,
-            ),
-            const SizedBox(height: 8),
+            // IMEI/Serial - only for electronics shops
+            if (_enableSerial)
+              ValidatedTextField(
+                controller: itemImeiCtrl,
+                label: _terms.specialField1Label.toUpperCase(),
+                icon: Icons.qr_code,
+                uppercase: true,
+              ),
+            if (_enableSerial) const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -390,8 +417,8 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
                 Expanded(
                   child: ValidatedTextField(
                     controller: itemCapacityCtrl,
-                    label: "DUNG LƯỢNG",
-                    icon: Icons.memory,
+                    label: _isFashion ? "SIZE" : "DUNG LƯỢNG",
+                    icon: _isFashion ? Icons.straighten : Icons.memory,
                     uppercase: true,
                   ),
                 ),
@@ -403,7 +430,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
               child: ElevatedButton.icon(
                 onPressed: _addItem,
                 icon: const Icon(Icons.add),
-                label: const Text("THÊM SẢN PHẨM"),
+                label: Text("THÊM ${_terms.productLabel.toUpperCase()}"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -426,7 +453,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Text("DANH SÁCH SẢN PHẨM", style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold)),
+            child: Text("DANH SÁCH ${_terms.productLabel.toUpperCase()}", style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold)),
           ),
           ..._items.asMap().entries.map((entry) {
             final index = entry.key;
@@ -506,7 +533,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Text("IMEI: "),
+                        Text("${_terms.specialField1Label}: "),
                         Expanded(
                           child: TextFormField(
                             initialValue: item.imei ?? '',
@@ -515,10 +542,10 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
                                 _items[index] = item.copyWith(imei: value.trim().isNotEmpty ? value.trim() : null);
                               });
                             },
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              hintText: "Nhập IMEI (tùy chọn)",
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              hintText: "Nhập ${_terms.specialField1Label.toLowerCase()} (tùy chọn)",
                             ),
                           ),
                         ),
@@ -537,7 +564,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
-              "Tổng: ${_items.fold(0, (sum, item) => sum + item.quantity)} sản phẩm - ${MoneyUtils.formatVND(_items.fold(0, (sum, item) => sum + (item.unitCost * item.quantity)))}đ",
+              "Tổng: ${_items.fold(0, (sum, item) => sum + item.quantity)} ${_terms.productLabel.toLowerCase()} - ${MoneyUtils.formatVND(_items.fold(0, (sum, item) => sum + (item.unitCost * item.quantity)))}đ",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
             ),
           ),

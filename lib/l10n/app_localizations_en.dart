@@ -15,9 +15,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get login => 'Login';
 
   @override
-  String get logout => 'LOGOUT';
-
-  @override
   String get settings => 'Settings';
 
   @override
@@ -64,9 +61,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get parts => 'Parts';
-
-  @override
-  String get sales => 'sales';
 
   @override
   String get customers => 'Customers';
@@ -126,13 +120,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboard => 'DASHBOARD';
 
   @override
-  String get repair => 'repair';
-
-  @override
   String get warranty => 'WARRANTY';
-
-  @override
-  String get printer => 'Printer';
 
   @override
   String get auditLog => 'AUDIT LOG';
@@ -145,9 +133,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get payroll => 'PAYROLL';
-
-  @override
-  String get debt => 'DEBT';
 
   @override
   String get quickActions => 'QUICK ACCESS';
@@ -235,9 +220,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get quickStats => 'Quick stats';
-
-  @override
-  String get pendingRepairs => 'Pending repairs';
 
   @override
   String get completedToday => 'Done/Delivered today';
@@ -360,9 +342,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get brandInfoSection => 'BRAND INFO';
 
   @override
-  String get shopNameLabel => 'Shop Name';
-
-  @override
   String get shopPhoneLabel => 'Contact phone';
 
   @override
@@ -393,9 +372,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appDescription => 'Multi-industry shop management solution';
 
   @override
-  String get version => 'Version 10.0.6';
-
-  @override
   String get versionNumber => '2.6.0';
 
   @override
@@ -412,9 +388,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get contactPhone => 'Phone/Zalo: 0964 095 979';
-
-  @override
-  String get technicalSupport => 'TECHNICAL SUPPORT';
 
   @override
   String get businessSolutions => 'Business management solutions';
@@ -463,9 +436,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scanQRCode => 'Scan QR code';
-
-  @override
-  String get createRepairOrder => 'CREATE REPAIR';
 
   @override
   String get noPermissionRepair => 'This account is not permitted to access REPAIR section. Contact shop owner for permissions.';
@@ -540,9 +510,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get viewInventoryPermission => 'View inventory permission';
 
   @override
-  String get employee => 'Employee';
-
-  @override
   String get inventoryCheck => 'INVENTORY CHECK';
 
   @override
@@ -570,12 +537,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quickMenu => 'Quick menu';
 
   @override
-  String get customerName => 'Customer name';
-
-  @override
-  String get phoneNumber => 'Phone number';
-
-  @override
   String get customerAddress => 'CUSTOMER ADDRESS';
 
   @override
@@ -583,12 +544,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get viewCustomerHistory => 'VIEW CUSTOMER HISTORY';
-
-  @override
-  String get deviceModel => 'DEVICE MODEL *';
-
-  @override
-  String get deviceIssue => 'DEVICE ISSUE *';
 
   @override
   String get appearanceCondition => 'APPEARANCE CONDITION';
@@ -603,19 +558,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accessoriesHint => 'E.g.: CHARGER, EARPHONES...';
 
   @override
-  String get screenPassword => 'Screen password';
-
-  @override
-  String get estimatedPrice => 'ESTIMATED PRICE';
-
-  @override
   String get paymentMethod => 'PAYMENT METHOD';
-
-  @override
-  String get cash => 'CASH';
-
-  @override
-  String get bankTransfer => 'BANK TRANSFER';
 
   @override
   String get credit => 'CREDIT';
@@ -661,11 +604,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get imeiNumber => 'IMEI number (if any)';
-
-  @override
-  String costPrice(String price) {
-    return 'Cost: $price';
-  }
 
   @override
   String get capacity => 'Capacity (e.g.: 64GB, 128GB)';
@@ -724,13 +662,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get financeCenter => 'FINANCE CENTER';
 
   @override
-  String get repairs => 'REPAIRS';
-
-  @override
   String get staff => 'STAFF';
-
-  @override
-  String get all => 'All';
 
   @override
   String get passwordHint => 'Password';
@@ -792,9 +724,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get createNewOrderQuestion => 'Do you want to create a new repair order?';
 
   @override
-  String get back => 'Back';
-
-  @override
   String saveOrderError(String error) {
     return 'Error saving order: $error';
   }
@@ -843,9 +772,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get contactPerson => 'Contact person';
-
-  @override
-  String get address => 'Address';
 
   @override
   String get name => 'Name';
@@ -964,12 +890,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get warningNewDevice => 'This device has very little data';
 
   @override
-  String get repairOrders => 'repair orders';
-
-  @override
-  String get saleOrders => 'sale orders';
-
-  @override
   String get products => 'products';
 
   @override
@@ -1000,13 +920,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get uploadingData => 'Syncing data...';
 
   @override
-  String get downloadSuccess => 'Shop data downloaded successfully!';
-
-  @override
   String get uploadSuccess => 'Data synced to cloud!';
-
-  @override
-  String get dangerWarning => '⚠️ DANGER WARNING';
 
   @override
   String get confirmResetShop => 'Type \'XOA HET\' to confirm';
@@ -1048,9 +962,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filter => 'Filter';
 
   @override
-  String get createSaleOrder => 'CREATE SALE ORDER';
-
-  @override
   String get searchByNameImei => 'Search by customer, device or IMEI...';
 
   @override
@@ -1078,9 +989,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repairPartnerTab => 'REPAIR PARTNERS';
 
   @override
-  String get staffManagement => 'STAFF MANAGEMENT';
-
-  @override
   String get roleLabel => 'Role';
 
   @override
@@ -1094,18 +1002,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get attendanceManagement => 'Manage work hours';
-
-  @override
-  String get addService => 'ADD SERVICE';
-
-  @override
-  String get editService => 'Edit service';
-
-  @override
-  String get update => 'Update';
-
-  @override
-  String get add => 'Add';
 
   @override
   String get deleteSupplier => 'DELETE SUPPLIER';
@@ -1162,16 +1058,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deletePartner => 'Delete partner';
 
   @override
-  String get qrScanSettings => 'QR SCAN SETTINGS';
-
-  @override
   String get scanSettings => 'Scan settings';
-
-  @override
-  String get labelSettings => 'Product Label Settings';
-
-  @override
-  String get cpkPriceSettings => 'CPK Price Settings';
 
   @override
   String get confirm => 'Confirm';
@@ -1207,24 +1094,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get done => 'Done';
 
   @override
-  String get next => 'Next';
-
-  @override
   String get previous => 'Previous';
 
   @override
   String get select => 'Select';
 
   @override
-  String selected(String deviceName) {
-    return 'Selected: $deviceName';
-  }
-
-  @override
   String get edit => 'Edit';
-
-  @override
-  String get details => 'Details';
 
   @override
   String get total => 'Total';
@@ -1267,9 +1143,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ok => 'OK';
-
-  @override
-  String get notFound => 'Not found';
 
   @override
   String get noResults => 'No results';
@@ -1368,9 +1241,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reset => 'Reset';
 
   @override
-  String get apply => 'APPLY';
-
-  @override
   String get from => 'From';
 
   @override
@@ -1396,9 +1266,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get without => 'Without';
-
-  @override
-  String get newLabel => 'NEW';
 
   @override
   String get old => 'Old';
@@ -1528,9 +1395,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectOtherShop => 'SELECT OTHER SHOP';
 
   @override
-  String get currentShop => 'Current Shop';
-
-  @override
   String get logoutFromApp => 'Logout from app';
 
   @override
@@ -1546,19 +1410,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncCenterDesc => 'Download, upload, check and restore data';
-
-  @override
-  String get loadingShopData => 'Loading shop data...';
-
-  @override
-  String switchedToShop(String shopName) {
-    return 'Switched to shop: $shopName';
-  }
-
-  @override
-  String errorSwitchingShop(String error) {
-    return 'Error switching shop: $error';
-  }
 
   @override
   String get viewShopAsAdmin => 'Super Admin can select shop to view data';
@@ -1600,9 +1451,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resetShopWarning => 'This action will permanently delete 100% of Orders, Inventory, Debts and Logs from both Cloud and this Device. CANNOT BE UNDONE!';
-
-  @override
-  String get typeToConfirm => 'Type \'DELETE ALL\' to confirm:';
 
   @override
   String resetCloudError(String error) {
@@ -1668,9 +1516,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get continueAdding => 'CONTINUE ADDING';
 
   @override
-  String get quickStockIn => 'QUICK STOCK IN';
-
-  @override
   String get manualEntry => 'Manual entry';
 
   @override
@@ -1684,9 +1529,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addMore => 'Add more';
-
-  @override
-  String get understood => 'UNDERSTOOD';
 
   @override
   String get confirmStockIn => 'Confirm stock in?';
@@ -1728,13 +1570,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get partnerInfoNotFound => 'Partner info not found!';
 
   @override
-  String get noPartner => 'No partner';
-
-  @override
   String get loadingList => 'Loading list...';
-
-  @override
-  String get pleaseLoginAgain => 'Please login again';
 
   @override
   String searchError(String error) {
@@ -1762,12 +1598,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get labelSettingsSaved => '✅ Label settings saved!';
-
-  @override
-  String get pleaseEnterTemplateName => 'Please enter template name';
-
-  @override
   String get shopTab => 'Shop';
 
   @override
@@ -1779,12 +1609,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get onlySuperAdminCanDelete => 'ONLY SUPER ADMIN CAN DELETE SHOP DATA!';
-
-  @override
-  String get shopDataDeleted => 'SHOP DATA DELETED!';
-
-  @override
   String get displayInfoOnLabel => 'Info displayed on label';
 
   @override
@@ -1792,9 +1616,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shopNameHint => 'E.g.: HULUCA MOBILE';
-
-  @override
-  String get hotline => 'Hotline: 1900 xxxx';
 
   @override
   String get hotlineHint => 'E.g.: 0909 123 456';
@@ -1807,9 +1628,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sloganHint => 'E.g.: Best prices guaranteed';
-
-  @override
-  String get addressOptional => 'Address (optional)';
 
   @override
   String get addressHint => 'E.g.: 123 ABC, District 1, HCM';
@@ -1832,18 +1650,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get csvCopied => 'CSV copied to clipboard';
 
   @override
-  String get confirmDeliveryAndPayment => 'CONFIRM DELIVERY & PAYMENT';
-
-  @override
-  String get statusRepairing => 'REPAIRING';
-
-  @override
   String get statusDone => 'DONE';
-
-  @override
-  String issueLabel(String issue) {
-    return 'Device issue';
-  }
 
   @override
   String get receiptSavedAndPrinted => 'Receipt saved and printed successfully!';
@@ -1856,9 +1663,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get isActive => 'Active';
-
-  @override
-  String get confirmDeleteTitle => 'Confirm delete';
 
   @override
   String get confirmButton => 'CONFIRM';
@@ -1882,9 +1686,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get inventoryTab => 'Inventory';
 
   @override
-  String get staffTab => 'Staff';
-
-  @override
   String get financeTab => 'Finance';
 
   @override
@@ -1901,9 +1702,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exitAppTitle => 'Exit app?';
-
-  @override
-  String get exit => 'EXIT';
 
   @override
   String get groupChat => 'GROUP CHAT';
@@ -1923,25 +1721,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get todayOverview => 'TODAY OVERVIEW';
 
   @override
-  String get todayIncome => 'TODAY INCOME';
-
-  @override
   String get todayExpenseLabel => 'TODAY EXPENSE';
 
   @override
-  String get expenseItems => 'expense items';
-
-  @override
-  String get totalDebt => 'TOTAL DEBT';
-
-  @override
   String get todayActivities => 'TODAY ACTIVITIES';
-
-  @override
-  String get delivered => 'Delivered';
-
-  @override
-  String get todayNetProfit => 'TODAY NET PROFIT';
 
   @override
   String get profitFormula => '= Income - Expense - Cost';
@@ -1951,6 +1734,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get featureLockedByOwner => 'You don\'t have permission to access this feature.\nPlease contact Shop Owner for access.';
+
+  @override
+  String get technicalSupport => 'TECHNICAL SUPPORT';
 
   @override
   String get contactShopOwner => 'CONTACT SHOP OWNER';
@@ -2035,9 +1821,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get downloadShopDataTitle => 'DOWNLOAD SHOP DATA';
 
   @override
-  String get downloadDataOf => 'Download data of';
-
-  @override
   String get fromCloudToDevice => 'from cloud to this device.';
 
   @override
@@ -2077,9 +1860,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repairOrderTitle => 'Repairs';
 
   @override
-  String get repairOrderList => 'Repair order list';
-
-  @override
   String get pendingStockShort => 'Pending Stock';
 
   @override
@@ -2090,6 +1870,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get incomeExpense => 'Income/Expense';
+
+  @override
+  String get createSaleOrder => 'CREATE SALE ORDER';
 
   @override
   String get sellProductsQuickly => 'Sell products quickly';
@@ -2143,22 +1926,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get viewSearchTrackSales => 'View, search and track all sale orders.';
 
   @override
-  String get customerManagement => 'Customer Management';
-
-  @override
   String get addEditViewCustomers => 'Add, edit and view customer information.';
 
   @override
   String get viewProcessWarrantyRequests => 'View and process warranty requests.';
 
   @override
+  String get repairs => 'REPAIRS';
+
+  @override
   String get createNewRepairOrder => 'CREATE NEW REPAIR ORDER';
 
   @override
-  String get viewSearchTrackRepairs => 'View, search and track all repair orders.';
+  String get repairOrderList => 'Repair order list';
 
   @override
-  String get inventoryManagement => 'Inventory Management';
+  String get viewSearchTrackRepairs => 'View, search and track all repair orders.';
 
   @override
   String get holdForDetailedGuide => 'Hold for detailed guide';
@@ -2171,6 +1954,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fullInformation => 'Full information';
+
+  @override
+  String get quickStockIn => 'QUICK STOCK IN';
 
   @override
   String get quickStockInGuide => 'Super fast stock in - just scan:\n\n⚡ Scan barcode/QR continuously\n⚡ Auto-fill info from library\n⚡ Suitable for large quantities\n\n📌 Use when: Quick input of accessories, parts already in system.';
@@ -2212,10 +1998,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get viewManageQuickInputCodes => 'View and manage quick input codes.';
 
   @override
-  String get noAccessPermission => 'You do not have permission to access this feature';
+  String get contactOwnerForPermission => 'Contact shop owner for permission';
 
   @override
-  String get contactOwnerForPermission => 'Contact shop owner for permission';
+  String get staffManagement => 'STAFF MANAGEMENT';
 
   @override
   String get recordWorkingHours => 'Record working hours';
@@ -2234,9 +2020,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reports => 'REPORTS';
-
-  @override
-  String get attendanceTracking => 'ATTENDANCE TRACKING';
 
   @override
   String get viewAllStaffAttendance => 'View all staff attendance by day/month.';
@@ -2281,19 +2064,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get warrantyTracking => 'Warranty\nTracking';
 
   @override
-  String get manageAllTransactions => 'Manage all income/expense transactions.';
-
-  @override
-  String get expenseManagement => 'Expense Management';
-
-  @override
-  String get addTrackShopExpenses => 'Add and track shop expenses.';
-
-  @override
   String get debtManagementIncomeExpense => 'Debt Management (Income/Expense)';
-
-  @override
-  String get recordPayDebts => 'Record and pay debts.';
 
   @override
   String get summaryAllTransactions => 'Summary of all income/expense transactions.';
@@ -2305,13 +2076,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trackAllFinancialActivities => 'Track all financial activities.';
 
   @override
-  String get shopSettings => 'Shop Settings';
-
-  @override
   String get shopInfoLogoLocationMembers => 'Shop info, logo, location and member management.';
-
-  @override
-  String get notifications => 'Notifications';
 
   @override
   String get configureNotificationSettings => 'Configure notification and alert settings.';
@@ -2320,31 +2085,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get designPrintTemplates => 'Design print templates for thermal printer.';
 
   @override
-  String get adminCenter => 'Admin Center';
-
-  @override
   String get manageSystemForSuperAdmin => 'Manage entire system for super admin.';
 
   @override
-  String get aboutDeveloper => 'About Developer';
-
-  @override
   String get developerAndAppInfo => 'Developer and app information.';
-
-  @override
-  String get logoutFromAccount => 'Logout from account';
-
-  @override
-  String get logoutConfirmTitle => 'Logout?';
-
-  @override
-  String get logoutConfirmMessage => 'Are you sure you want to logout from this account?';
-
-  @override
-  String get checkingSync => 'Checking sync...';
-
-  @override
-  String get checkingLocalVsCloud => 'Checking local vs cloud data';
 
   @override
   String get dataSyncComplete => 'Data sync complete';
@@ -2353,24 +2097,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localCloudMatch100 => 'Local and Cloud match 100%';
 
   @override
-  String get recheckingSync => '🔄 Rechecking...';
-
-  @override
   String get needsDataSync => 'Needs data sync';
 
   @override
-  String recordsNotSynced(int count) {
-    return 'records not synced. Tap to open Sync Center.';
-  }
-
-  @override
-  String get todayFinancialReport => 'TODAY FINANCIAL REPORT';
-
-  @override
   String get salesAndRepairOrders => 'sales + repair orders';
-
-  @override
-  String get warrantyReminder => 'WARRANTY REMINDER';
 
   @override
   String expiringWarrantiesMessage(int count) {
@@ -2393,6 +2123,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get customersAndSuppliersDataItem => 'Customers & Suppliers';
 
   @override
+  String get downloadDataOf => 'Download data of';
+
+  @override
   String get fromCloudToThisDevice => 'from cloud to this device.';
 
   @override
@@ -2400,6 +2133,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get processMayTakeFewMinutes => 'Process may take a few minutes depending on data size.';
+
+  @override
+  String get downloadSuccess => 'Shop data downloaded successfully!';
 
   @override
   String downloadError(String error) {
@@ -2414,12 +2150,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncNeeded => 'Sync needed';
-
-  @override
-  String get todayExpense => 'TODAY EXPENSE';
-
-  @override
-  String get todayActivity => 'TODAY ACTIVITY';
 
   @override
   String get comparingLocalVsCloud => 'Comparing local and cloud data...';
@@ -2451,10 +2181,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get step => 'Step';
 
   @override
+  String get next => 'Next';
+
+  @override
+  String get back => 'Back';
+
+  @override
   String get storeOwner => 'Store Owner';
 
   @override
   String get createNewShop => 'Create a new shop and manage employees';
+
+  @override
+  String get employee => 'Employee';
 
   @override
   String get joinExistingShop => 'Join an existing shop via invitation code';
@@ -2473,6 +2212,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get confirmPassword => 'Confirm Password';
+
+  @override
+  String get address => 'Address';
 
   @override
   String get shopInviteCode => 'Shop Invitation Code';
@@ -2575,9 +2317,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get customizeContentAndFontSize => 'Customize content and font size';
 
   @override
-  String get labelDesignTitle => 'LABEL DESIGN';
-
-  @override
   String get layoutShopInfoFormula => 'Layout, shop info, CPK formula';
 
   @override
@@ -2629,13 +2368,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get thankYou => 'Thank you!';
 
   @override
-  String get userGuide => 'User Guide';
+  String selected(String deviceName) {
+    return 'Selected: $deviceName';
+  }
 
   @override
   String get learnHowToUseApp => 'Learn how to use the Shopmanager app';
 
   @override
   String get searchGuides => 'Search guides...';
+
+  @override
+  String get newLabel => 'NEW';
+
+  @override
+  String get notFound => 'Not found';
 
   @override
   String get easy => 'Easy';
@@ -2665,6 +2412,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get supportEmail => 'support@huluca.com';
+
+  @override
+  String get hotline => 'Hotline: 1900 xxxx';
 
   @override
   String get supportHotline => 'Support hotline: 1900 xxxx';
@@ -2780,6 +2530,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repairManagementDesc => 'Track repair orders from receiving to delivery';
 
   @override
+  String get inventoryManagement => 'Inventory Management';
+
+  @override
   String get inventoryManagementDesc => 'Import goods, export inventory, check parts';
 
   @override
@@ -2805,6 +2558,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSyncDesc => 'Safe data, access anytime, anywhere';
+
+  @override
+  String get version => 'Version 10.0.6';
 
   @override
   String get salaryCalculationGuide => 'SALARY CALCULATION GUIDE';
@@ -2846,6 +2602,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get taxAndInsuranceDesc => '💳 \"Deduction/Tax Settings\" icon:\n• Personal deduction: 11 million\n• SI 8%, HI 1.5%, UI 1%';
 
   @override
+  String get understood => 'UNDERSTOOD';
+
+  @override
   String get goToSalaryTable => 'GO TO SALARY TABLE';
 
   @override
@@ -2867,7 +2626,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reportAndAnalysis => 'REPORTS & ANALYSIS';
 
   @override
+  String get manageAllTransactions => 'Manage all income/expense transactions.';
+
+  @override
+  String get expenseManagement => 'Expense Management';
+
+  @override
+  String get addTrackShopExpenses => 'Add and track shop expenses.';
+
+  @override
   String get debtManagementInOut => 'Debt Management (In/Out)';
+
+  @override
+  String get recordPayDebts => 'Record and pay debts.';
 
   @override
   String get financialReportLabel => 'Financial Report';
@@ -2882,13 +2653,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trackAllIncomeExpenseActivities => 'Track all income/expense activities.';
 
   @override
+  String get todayIncome => 'TODAY INCOME';
+
+  @override
+  String get todayExpense => 'TODAY EXPENSE';
+
+  @override
+  String get sales => 'sales';
+
+  @override
+  String get repair => 'repair';
+
+  @override
+  String get expenseItems => 'expense items';
+
+  @override
+  String get todayNetProfit => 'TODAY NET PROFIT';
+
+  @override
+  String get totalDebt => 'TOTAL DEBT';
+
+  @override
+  String get shopSettings => 'Shop Settings';
+
+  @override
   String get shopSettingsDescription => 'Information, logo, location and shop member management.';
+
+  @override
+  String get notifications => 'Notifications';
 
   @override
   String get notificationSettingsDescription => 'Configure notification and alert settings.';
 
   @override
+  String get printer => 'Printer';
+
+  @override
   String get printerSettingsDescription => 'Setup connection and print template design.';
+
+  @override
+  String get adminCenter => 'Admin Center';
 
   @override
   String get adminCenterDescription => 'Manage entire system for super admin.';
@@ -2897,16 +2701,63 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutDeveloperDescription => 'Information about developer and application.';
 
   @override
+  String get logout => 'LOGOUT';
+
+  @override
+  String get logoutFromAccount => 'Logout from account';
+
+  @override
+  String get logoutConfirmTitle => 'Logout?';
+
+  @override
+  String get logoutConfirmMessage => 'Are you sure you want to logout from this account?';
+
+  @override
   String get needSyncData => '⚠️ Need data sync';
+
+  @override
+  String recordsNotSynced(int count) {
+    return 'records not synced. Tap to open Sync Center.';
+  }
+
+  @override
+  String get todayFinancialReport => 'TODAY FINANCIAL REPORT';
+
+  @override
+  String get details => 'Details';
+
+  @override
+  String get saleOrders => 'sale orders';
+
+  @override
+  String get repairOrders => 'repair orders';
+
+  @override
+  String get todayActivity => 'TODAY ACTIVITY';
+
+  @override
+  String get pendingRepairs => 'Pending repairs';
 
   @override
   String get netProfitFormula => '= Income - Expense - Cost';
 
   @override
+  String get userGuide => 'User Guide';
+
+  @override
   String get viewDetailedGuideForEachFeature => 'View detailed guide for each feature in app';
 
   @override
+  String get warrantyReminder => 'WARRANTY REMINDER';
+
+  @override
   String get devicesExpiringWarranty => 'devices expiring warranty soon. View now!';
+
+  @override
+  String get checkingSync => 'Checking sync...';
+
+  @override
+  String get checkingLocalVsCloud => 'Checking local vs cloud data';
 
   @override
   String get dataSyncedFully => '✅ Data synced fully';
@@ -2915,7 +2766,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localCloudMatched => 'Local and Cloud matched 100%';
 
   @override
+  String get recheckingSync => '🔄 Rechecking...';
+
+  @override
   String get exitApp => 'Exit app?';
+
+  @override
+  String get exit => 'EXIT';
 
   @override
   String get emailAlreadyInUse => 'This email is already registered by someone else.';
@@ -2948,13 +2805,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invalidOrExpiredInviteCode => 'Invite code is incorrect or expired.';
 
   @override
+  String get loadingShopData => 'Loading shop data...';
+
+  @override
+  String switchedToShop(String shopName) {
+    return 'Switched to shop: $shopName';
+  }
+
+  @override
+  String errorSwitchingShop(String error) {
+    return 'Error switching shop: $error';
+  }
+
+  @override
+  String get onlySuperAdminCanDelete => 'ONLY SUPER ADMIN CAN DELETE SHOP DATA!';
+
+  @override
+  String get dangerWarning => '⚠️ DANGER WARNING';
+
+  @override
   String get deleteAllDataWarning => 'This action will delete 100% of Orders, Inventory, Debts and Logs of the Shop on both Cloud and this Device. CANNOT BE RECOVERED!';
+
+  @override
+  String get typeToConfirm => 'Type \'DELETE ALL\' to confirm:';
 
   @override
   String get deleteAllPlaceholder => 'DELETE ALL';
 
   @override
   String get confirmDeleteAll => 'CONFIRM DELETE ALL';
+
+  @override
+  String get shopDataDeleted => 'SHOP DATA DELETED!';
 
   @override
   String errorDeletingCloudData(String error) {
@@ -3025,9 +2907,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backCover => 'BACK COVER';
 
   @override
-  String get noAccessories => 'None';
-
-  @override
   String get walkInCustomerNoSave => 'Walk-in customer - not saved to contacts';
 
   @override
@@ -3058,6 +2937,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncingDataToServer => 'Syncing data to server...';
 
   @override
+  String get createRepairOrder => 'CREATE REPAIR';
+
+  @override
   String repairOrderCreated(String model, String customer) {
     return 'Created repair order $model for customer $customer';
   }
@@ -3084,7 +2966,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get addServiceTitle => 'Add service';
+  String get addService => 'ADD SERVICE';
 
   @override
   String get serviceName => 'Service name *';
@@ -3096,7 +2978,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get partnerOptional => 'Partner (optional)';
 
   @override
+  String get noPartner => 'No partner';
+
+  @override
   String get partnerPaymentMethod => 'Partner payment method *';
+
+  @override
+  String get update => 'Update';
+
+  @override
+  String get add => 'Add';
 
   @override
   String get saveOrder => 'SAVE ORDER';
@@ -3114,10 +3005,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get customerNameOptional => 'Customer name (optional)';
 
   @override
+  String get customerName => 'Customer name';
+
+  @override
+  String get deviceModel => 'DEVICE MODEL *';
+
+  @override
+  String get deviceIssue => 'DEVICE ISSUE *';
+
+  @override
+  String get estimatedPrice => 'ESTIMATED PRICE';
+
+  @override
   String get services => 'SERVICES';
 
   @override
   String get securityAccessories => 'SECURITY & ACCESSORIES';
+
+  @override
+  String get screenPassword => 'Screen password';
 
   @override
   String get otherAccessories => 'Other accessories';
@@ -3150,16 +3056,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectCustomer => 'Select customer';
 
   @override
-  String get addCustomer => 'Add customer';
-
-  @override
   String get todayClosedNoRepair => '❌ Today is closed! Cannot create new repair order.';
-
-  @override
-  String get pleaseEnterServiceName => 'Please enter service name';
-
-  @override
-  String get pleaseSelectPaymentMethod => 'Please select payment method';
 
   @override
   String get selectCustomerTitle => 'SELECT CUSTOMER';
@@ -3169,16 +3066,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noCustomerFound => 'No customer found';
-
-  @override
-  String addressLabel(String address) {
-    return 'Address';
-  }
-
-  @override
-  String notesLabel(String notes) {
-    return 'Notes';
-  }
 
   @override
   String get repairInputAction => 'CREATE REPAIR ORDER';
@@ -3201,6 +3088,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repairDone => 'Repair done';
 
   @override
+  String get delivered => 'Delivered';
+
+  @override
   String get received => 'Received';
 
   @override
@@ -3209,12 +3099,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get apply => 'APPLY';
+
+  @override
   String orderHasAccounting(String price, String cost) {
     return 'Order has accounting data:\n• Price: $price\n• Cost: $cost';
   }
 
   @override
   String get orderHasParts => 'Order has parts:';
+
+  @override
+  String get statusRepairing => 'REPAIRING';
 
   @override
   String get statusRepairDone => 'REPAIR DONE';
@@ -3254,6 +3150,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusOther => 'OTHER';
+
+  @override
+  String get all => 'All';
 
   @override
   String get statusSelectMultiple => 'STATUS (select multiple)';
@@ -3360,6 +3259,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repairDoneButton => 'DONE';
 
   @override
+  String get phoneNumber => 'Phone number';
+
+  @override
   String get orderAlreadyHasParts => 'This order already has parts:';
 
   @override
@@ -3370,6 +3272,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editPrice => 'Edit price';
+
+  @override
+  String get editService => 'Edit service';
+
+  @override
+  String get addServiceTitle => 'Add service';
 
   @override
   String get partnerOptional2 => 'Partner (optional)';
@@ -3411,9 +3319,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get warrantyLabel2 => 'Warranty';
 
   @override
-  String get cancelButton => 'CANCEL';
-
-  @override
   String get saveButton => 'SAVE';
 
   @override
@@ -3432,19 +3337,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noPartnerOption => 'No partner';
 
   @override
-  String get viewRepairPartners => 'View repair partners';
-
-  @override
   String get enterServiceName => 'Please enter service name';
-
-  @override
-  String get serviceNameRequired => 'Service name *';
-
-  @override
-  String get costVnd => 'Cost (VND)';
-
-  @override
-  String get paymentMethodLabel => 'PAYMENT METHOD:';
 
   @override
   String get chargeCustomerVnd => 'Charge customer (VND)';
@@ -3465,9 +3358,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editInfoTitle => 'EDIT INFO';
 
   @override
-  String get techNotesTitle => 'TECHNICIAN NOTES';
-
-  @override
   String get partsInventoryShort => 'Parts Inv';
 
   @override
@@ -3482,6 +3372,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get noAccessPermission => 'You do not have permission to access this feature';
+
+  @override
   String get repairDetailTitle => 'REPAIR ORDER DETAIL';
 
   @override
@@ -3492,6 +3385,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectPaymentMethod => 'Select payment method:';
+
+  @override
+  String get confirmDeliveryAndPayment => 'CONFIRM DELIVERY & PAYMENT';
 
   @override
   String get completeDelivery => 'COMPLETE DELIVERY';
@@ -3512,7 +3408,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get twelveMonths => '12 MONTHS';
 
   @override
-  String get techNotesHint => 'Ex: Replace power IC, check mainboard, replace charging cable...';
+  String get cash => 'CASH';
+
+  @override
+  String get bankTransfer => 'BANK TRANSFER';
+
+  @override
+  String get debt => 'DEBT';
 
   @override
   String get financeTitleUpper => 'FINANCE';
@@ -3620,7 +3522,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get defaultShopPhone => '0123.456.789';
 
   @override
+  String get techNotesTitle => 'TECHNICIAN NOTES';
+
+  @override
   String get repairProcessNotes => 'Repair process notes:';
+
+  @override
+  String get techNotesHint => 'Ex: Replace power IC, check mainboard, replace charging cable...';
 
   @override
   String get trackRepairProgress => 'Track repair progress and update status.';
@@ -3667,7 +3575,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get phoneNumberLabel => 'Phone number';
 
   @override
+  String issueLabel(String issue) {
+    return 'Device issue';
+  }
+
+  @override
   String get accessoriesLabel => 'Accessories';
+
+  @override
+  String get noAccessories => 'None';
 
   @override
   String errorSaving(String error) {
@@ -3766,6 +3682,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get supplierHint => 'e.g.: Parts ABC';
 
   @override
+  String get paymentMethodLabel => 'PAYMENT METHOD:';
+
+  @override
   String get debtWarning => 'Debt will be recorded in Debt Management';
 
   @override
@@ -3775,10 +3694,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recordDebt => 'RECORD DEBT';
 
   @override
+  String get viewRepairPartners => 'View repair partners';
+
+  @override
+  String get serviceNameRequired => 'Service name *';
+
+  @override
+  String get pleaseEnterServiceName => 'Please enter service name';
+
+  @override
+  String get costVnd => 'Cost (VND)';
+
+  @override
   String get costField => 'Cost';
 
   @override
   String get partnerPaymentMethodRequired => 'Partner payment method *';
+
+  @override
+  String get pleaseSelectPaymentMethod => 'Please select payment method';
 
   @override
   String get selectPartsTitle => 'SELECT PARTS / COMPONENTS';
@@ -3798,6 +3732,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String stockQty(int qty) {
     return 'Stock: $qty';
+  }
+
+  @override
+  String costPrice(String price) {
+    return 'Cost: $price';
   }
 
   @override
@@ -3854,6 +3793,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get generalSettingsTab => 'General';
+
+  @override
+  String get staffTab => 'Staff';
 
   @override
   String get workScheduleSaved => 'Work schedule settings saved';
@@ -4066,6 +4008,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectStaffForAttendance => 'Please select staff to view attendance info';
 
   @override
+  String get aboutDeveloper => 'About Developer';
+
+  @override
   String get hulucaStoreDongNai => 'HULUCA STORE DONG NAI';
 
   @override
@@ -4096,6 +4041,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appFullDescription => 'Comprehensive multi-industry shop management: Electronics (IMEI, warranty), Food (expiry), Fashion (size/color variants) with real-time sync.';
+
+  @override
+  String get attendanceTracking => 'ATTENDANCE TRACKING';
 
   @override
   String get viewByMonth => 'View by month';
@@ -4211,6 +4159,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteCustomerAction => 'delete customer';
 
   @override
+  String get confirmDeleteTitle => 'Confirm delete';
+
+  @override
   String confirmDeleteCustomer(String name) {
     return 'Are you sure you want to delete customer \"$name\"?';
   }
@@ -4224,7 +4175,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ownerPasswordRequired => 'Only shop owner can perform this action.\nEnter account password to confirm:';
 
   @override
+  String get pleaseLoginAgain => 'Please login again';
+
+  @override
   String get incorrectPassword => 'Incorrect password!';
+
+  @override
+  String get customerManagement => 'Customer Management';
+
+  @override
+  String get addCustomer => 'Add customer';
 
   @override
   String get searchCustomers => 'Search customers...';
@@ -4284,7 +4244,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enterEmailOptional => 'Enter email (optional)';
 
   @override
+  String addressLabel(String address) {
+    return 'Address';
+  }
+
+  @override
   String get enterAddressOptional => 'Enter address (optional)';
+
+  @override
+  String notesLabel(String notes) {
+    return 'Notes';
+  }
 
   @override
   String get enterNotesOptional => 'Enter notes (optional)';
@@ -4382,6 +4352,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String errorCheckingProduct(String error) {
     return 'Error checking product: $error';
   }
+
+  @override
+  String get qrScanSettings => 'QR SCAN SETTINGS';
 
   @override
   String get soundFeedback => 'Sound feedback';
@@ -4485,10 +4458,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get labelSettings => 'Product Label Settings';
+
+  @override
   String get labelTemplates => 'Label Templates';
 
   @override
   String get labelDisplayInfo => 'Information displayed on label';
+
+  @override
+  String get shopNameLabel => 'Shop Name';
 
   @override
   String get shopNameExample => 'Ex: HULUCA MOBILE';
@@ -4506,7 +4485,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sloganExample => 'Ex: Best price guaranteed';
 
   @override
+  String get addressOptional => 'Address (optional)';
+
+  @override
   String get addressExample => 'Ex: 123 ABC Street, District 1, HCM';
+
+  @override
+  String get cpkPriceSettings => 'CPK Price Settings';
 
   @override
   String get cpkFormulaTitle => '📌 CPK Price Formula (With Accessories):';
@@ -4551,6 +4536,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get saveSettingsButton => 'SAVE SETTINGS';
 
   @override
+  String get labelSettingsSaved => '✅ Label settings saved!';
+
+  @override
   String errorPrefixLabel(String error) {
     return '❌ Error: $error';
   }
@@ -4565,6 +4553,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String confirmDeleteTemplate(String name) {
     return 'Are you sure you want to delete template \"$name\"?';
   }
+
+  @override
+  String get cancelButton => 'CANCEL';
 
   @override
   String get deleteButton => 'DELETE';
@@ -4636,6 +4627,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get importDateField => 'Import date';
 
   @override
+  String get pleaseEnterTemplateName => 'Please enter template name';
+
+  @override
   String get saveTemplateButton => 'SAVE TEMPLATE';
 
   @override
@@ -4678,6 +4672,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resetButton => 'Reset';
+
+  @override
+  String get labelDesignTitle => 'LABEL DESIGN';
 
   @override
   String get layoutTab => 'Layout';
@@ -4910,6 +4907,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get switchShop => 'Switch shop';
+
+  @override
+  String get currentShop => 'Current Shop';
 
   @override
   String shopSwitched(Object shopName) {

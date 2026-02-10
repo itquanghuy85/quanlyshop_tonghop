@@ -10,11 +10,14 @@ import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../services/data_migration_service.dart';
 import '../services/sync_service.dart';
+import '../services/category_service.dart';
+import '../models/shop_settings_model.dart';
 import '../widgets/validated_text_field.dart';
 import '../theme/app_text_styles.dart';
 import 'adjustment_history_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'label_designer_view.dart';
+import 'onboarding/business_type_wizard.dart';
 
 class ShopSettingsView extends StatefulWidget {
   const ShopSettingsView({super.key});
@@ -39,6 +42,9 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   double? _shopLongitude;
   File? _selectedLogo;
 
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+
   // Controllers
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
@@ -50,6 +56,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   void initState() {
     super.initState();
     _loadShopData();
+    _loadShopSettings();
   }
 
   @override
@@ -169,6 +176,54 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
     await prefs.setString('shop_name', name);
     await prefs.setString('shop_address', address);
     await prefs.setString('shop_phone', phone);
+  }
+
+  /// Load shop settings for multi-industry features
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      debugPrint('🏪 ShopSettings: Loaded - businessType=${settings?.businessType}');
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
+  }
+
+  /// Open business type wizard to change business type
+  Future<void> _openBusinessTypeWizard() async {
+    final shopId = await UserService.getCurrentShopId();
+    if (shopId == null) {
+      NotificationService.showSnackBar('Không tìm thấy thông tin shop', color: Colors.red);
+      return;
+    }
+    
+    // Navigate to wizard
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BusinessTypeWizard(
+          shopId: shopId,
+          shopName: _shopName,
+          onComplete: (settings) async {
+            // Save the new settings
+            await CategoryService().saveShopSettings(settings);
+            // Clear cached settings
+            CategoryService().clearCache();
+            Navigator.pop(context);
+            // Reload settings
+            await _loadShopSettings();
+            if (mounted) {
+              NotificationService.showSnackBar(
+                'Đã cập nhật loại hình kinh doanh. Vui lòng khởi động lại app để áp dụng!',
+                color: Colors.green,
+              );
+            }
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _pickLogo() async {
@@ -402,6 +457,10 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                     ),
                     const SizedBox(height: 12),
 
+                    // === LOẠI HÌNH KINH DOANH ===
+                    _buildBusinessTypeSection(),
+                    const SizedBox(height: 12),
+
                     // === VỊ TRÍ CHẤM CÔNG ===
                     _buildCompactLocationSection(),
                     const SizedBox(height: 12),
@@ -435,6 +494,106 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         fontWeight: FontWeight.bold,
         color: const Color(0xFF2962FF),
       ),
+    );
+  }
+
+  /// Business Type Section - Multi-Industry support
+  Widget _buildBusinessTypeSection() {
+    final businessType = _shopSettings?.businessType ?? 'electronics';
+    final businessTypeName = _shopSettings?.businessTypeName ?? 'Điện thoại & Điện tử';
+    
+    // Get icon and color based on business type
+    IconData icon;
+    Color color;
+    switch (businessType) {
+      case 'food':
+        icon = Icons.restaurant;
+        color = Colors.orange;
+        break;
+      case 'fashion':
+        icon = Icons.checkroom;
+        color = Colors.pink;
+        break;
+      case 'general':
+        icon = Icons.store;
+        color = Colors.blue;
+        break;
+      default: // electronics
+        icon = Icons.phone_android;
+        color = Colors.indigo;
+    }
+    
+    // Get enabled features
+    final features = <String>[];
+    if (_shopSettings?.enableRepair == true) features.add('Sửa chữa');
+    if (_shopSettings?.enableSerial == true) features.add('IMEI/Serial');
+    if (_shopSettings?.enableWarranty == true) features.add('Bảo hành');
+    if (_shopSettings?.enableExpiry == true) features.add('Hạn sử dụng');
+    if (_shopSettings?.enableBatch == true) features.add('Số lô');
+    if (_shopSettings?.enableVariants == true) features.add('Biến thể');
+    
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Loại hình kinh doanh',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      Text(
+                        businessTypeName,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Lock icon instead of edit - business type is fixed after shop creation
+                Icon(Icons.lock_outline, size: 18, color: Colors.grey.shade400),
+              ],
+            ),
+            if (features.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: features.map((f) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    f,
+                      style: TextStyle(fontSize: 11, color: color),
+                    ),
+                  )).toList(),
+                ),
+              ],
+            ],
+          ),
+        ),
     );
   }
 

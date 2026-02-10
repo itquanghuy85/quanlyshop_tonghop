@@ -85,6 +85,41 @@ class ProductConstants {
     'Mét',
     'Kg',
   ];
+  
+  /// Danh sách size quần áo (S-M-L)
+  static const List<String> clothingSizes = [
+    'XS',
+    'S',
+    'M',
+    'L',
+    'XL',
+    'XXL',
+    'XXXL',
+    'Free Size',
+  ];
+  
+  /// Danh sách size số (quần jeans, giày)
+  static const List<String> numericSizes = [
+    '26',
+    '27',
+    '28',
+    '29',
+    '30',
+    '31',
+    '32',
+    '33',
+    '34',
+    '35',
+    '36',
+    '37',
+    '38',
+    '39',
+    '40',
+    '41',
+    '42',
+    '43',
+    '44',
+  ];
 
   /// Loại sản phẩm
   static const List<String> productTypes = [

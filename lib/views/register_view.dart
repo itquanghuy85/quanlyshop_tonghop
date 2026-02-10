@@ -405,9 +405,10 @@ class _RegisterViewState extends State<RegisterView> {
           ),
           const SizedBox(height: 12),
           _businessTypeOption('electronics', '📱 Điện tử', 'Điện thoại, laptop, phụ kiện', Colors.blue),
-          _businessTypeOption('food', '🍎 Thực phẩm', 'Rau củ, thịt cá, đồ khô', Colors.green),
+          // Food và General tạm ẩn - chỉ hỗ trợ Electronics và Fashion
+          // _businessTypeOption('food', '🍎 Thực phẩm', 'Rau củ, thịt cá, đồ khô', Colors.green),
           _businessTypeOption('fashion', '👕 Thời trang', 'Quần áo, giày dép, túi xách', Colors.purple),
-          _businessTypeOption('general', '📦 Tổng hợp', 'Các loại khác, tự thiết lập', Colors.orange),
+          // _businessTypeOption('general', '📦 Tổng hợp', 'Các loại khác, tự thiết lập', Colors.orange),
         ],
       ),
     );

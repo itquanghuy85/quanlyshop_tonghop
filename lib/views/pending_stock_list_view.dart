@@ -4,6 +4,9 @@ import '../theme/app_text_styles.dart';
 import '../services/stock_entry_service.dart';
 import '../services/notification_service.dart';
 import '../services/first_time_guide_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
+import '../models/shop_settings_model.dart';
 import '../widgets/gradient_fab.dart';
 import 'smart_stock_in_view.dart';
 import 'package:intl/intl.dart';
@@ -26,6 +29,10 @@ class _PendingStockListViewState extends State<PendingStockListView> {
   
   // Search
   String _searchQuery = '';
+  
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   @override
   void initState() {
@@ -81,6 +88,10 @@ class _PendingStockListViewState extends State<PendingStockListView> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      // Load shop settings for terminology
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) _shopSettings = settings;
+      
       debugPrint('📋 PendingStockListView._loadData: START');
       final entries = await _service.getPendingEntries();
       debugPrint(
@@ -308,7 +319,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
       child: TextField(
         onChanged: (val) => setState(() => _searchQuery = val),
         decoration: InputDecoration(
-          hintText: 'Tìm tên, IMEI, SKU, NCC...',
+          hintText: 'Tìm tên, ${_terms.specialField1Label}, SKU, NCC...',
           hintStyle: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade500),
           prefixIcon: const Icon(Icons.search, size: 20),
           suffixIcon: _searchQuery.isNotEmpty
@@ -541,7 +552,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                             ),
                           if (item.imei != null && item.imei!.isNotEmpty)
                             Text(
-                              'IMEI: ${item.imei}',
+                              '${_terms.specialField1Label}: ${item.imei}',
                               style: TextStyle(
                                 fontSize: AppTextStyles.caption.fontSize,
                                 color: Colors.grey.shade600,
@@ -612,6 +623,8 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                     ),
                   if (item.color != null && item.color!.isNotEmpty)
                     _infoChip('🎨 ${item.color}', Colors.pink.shade50),
+                  if (item.size != null && item.size!.isNotEmpty)
+                    _infoChip('📏 Size ${item.size}', Colors.purple.shade50),
                   if (item.condition != null && item.condition!.isNotEmpty)
                     _infoChip('📦 ${item.condition}', Colors.cyan.shade50),
                   if (entry.supplierName != null)

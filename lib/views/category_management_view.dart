@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/product_category_model.dart';
+import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 
 /// Màn hình quản lý danh mục sản phẩm
 /// Multi-Industry Extension - Phase 1
@@ -15,11 +17,26 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
   final CategoryService _categoryService = CategoryService();
   List<ProductCategory> _categories = [];
   bool _isLoading = true;
+  ShopSettings? _shopSettings;
+
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     _loadCategories();
+  }
+
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
   }
 
   Future<void> _loadCategories() async {
@@ -149,10 +166,10 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
 
   String _buildSubtitle(ProductCategory category) {
     final features = <String>[];
-    if (category.trackSerial) features.add('IMEI');
+    if (category.trackSerial) features.add(_terms.specialField1Label);
     if (category.trackExpiry) features.add('HSD');
     if (category.hasVariants) features.add('Biến thể');
-    if (category.hasWarranty) features.add('Bảo hành');
+    if (category.hasWarranty) features.add(_terms.specialField2Label);
     if (category.description?.isNotEmpty == true) {
       features.add(category.description!);
     }
@@ -250,8 +267,8 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
                 // Feature toggles
                 const Text('Tính năng', style: TextStyle(fontWeight: FontWeight.bold)),
                 SwitchListTile(
-                  title: const Text('Theo dõi IMEI/Serial'),
-                  subtitle: const Text('Cho điện thoại, laptop'),
+                  title: Text('Theo dõi ${_terms.specialField1Label}'),
+                  subtitle: const Text('Cho sản phẩm cần theo dõi serial'),
                   value: trackSerial,
                   onChanged: (v) => setDialogState(() => trackSerial = v),
                   contentPadding: EdgeInsets.zero,
@@ -271,8 +288,8 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
                   contentPadding: EdgeInsets.zero,
                 ),
                 SwitchListTile(
-                  title: const Text('Có bảo hành'),
-                  subtitle: const Text('Cho điện tử'),
+                  title: Text('Có ${_terms.specialField2Label.toLowerCase()}'),
+                  subtitle: const Text('Cho sản phẩm có thời hạn bảo hành'),
                   value: hasWarranty,
                   onChanged: (v) => setDialogState(() => hasWarranty = v),
                   contentPadding: EdgeInsets.zero,

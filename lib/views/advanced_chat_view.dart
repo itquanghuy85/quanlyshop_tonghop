@@ -8,11 +8,12 @@ import 'package:image_picker/image_picker.dart';
 import '../models/chat_message_model.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
+import '../models/shop_settings_model.dart';
 import '../services/chat_service.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
+import '../services/category_service.dart';
 import '../data/db_helper.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
@@ -46,7 +47,8 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
 
   // Search state
   bool _isSearching = false;
-  String _searchQuery = '';
+  // ignore: unused_field
+  String _searchQuery = ''; // Used in _toggleSearch but search feature WIP
   List<ChatMessage> _searchResults = [];
 
   // Subscriptions
@@ -55,6 +57,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   StreamSubscription? _typingSubscription;
   StreamSubscription? _onlineSubscription;
   StreamSubscription? _shopChangedSubscription;
+
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+  bool get _enableRepair => _shopSettings?.enableRepair ?? true;
 
   // Emoji reactions
   final List<String> _reactions = [
@@ -134,6 +140,12 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
 
   void _initChat() async {
     setState(() => _isLoading = true);
+
+    // Load shop settings for multi-industry support
+    final settings = await CategoryService().getShopSettings();
+    if (mounted && settings != null) {
+      setState(() => _shopSettings = settings);
+    }
 
     // Set online
     await ChatService.setOnlineStatus(true);
@@ -462,55 +474,65 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(ctx).size.height * 0.7,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: DefaultTabController(
-          length: 2,
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
+      builder: (ctx) {
+        // Multi-Industry: Determine tabs based on enabled features
+        final showRepair = _enableRepair;
+        final tabCount = showRepair ? 2 : 1;
+        
+        return Container(
+          height: MediaQuery.of(ctx).size.height * 0.7,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: DefaultTabController(
+            length: tabCount,
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Gim đơn hàng vào chat',
-                      style: TextStyle(
-                        fontSize: AppTextStyles.headline2.fontSize,
-                        fontWeight: FontWeight.bold,
+                      const SizedBox(height: 16),
+                      Text(
+                        'Gim đơn hàng vào chat',
+                        style: TextStyle(
+                          fontSize: AppTextStyles.headline2.fontSize,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+                TabBar(
+                  labelColor: Colors.blue,
+                  tabs: [
+                    if (showRepair)
+                      const Tab(icon: Icon(Icons.build, size: 18), text: 'Sửa'),
+                    const Tab(icon: Icon(Icons.shopping_cart, size: 18), text: 'Bán'),
                   ],
                 ),
-              ),
-              const TabBar(
-                labelColor: Colors.blue,
-                tabs: [
-                  Tab(icon: Icon(Icons.build, size: 18), text: 'Sửa'),
-                  Tab(icon: Icon(Icons.shopping_cart, size: 18), text: 'Bán'),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
-                  children: [_buildRepairList(), _buildSaleList()],
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      if (showRepair) _buildRepairList(),
+                      _buildSaleList(),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -591,11 +613,11 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                   ),
                 ),
                 title: Text(
-                  s.customerName ?? 'Khách lẻ',
+                  s.customerName.isNotEmpty ? s.customerName : 'Khách lẻ',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text(
-                  s.productNames ?? '',
+                  s.productNames,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -642,7 +664,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     final message =
         '''
 🛒 ĐƠN BÁN HÀNG
-👤 ${sale.customerName ?? 'Khách lẻ'} - 📱 ${sale.phone ?? 'N/A'}
+👤 ${sale.customerName.isNotEmpty ? sale.customerName : 'Khách lẻ'} - 📱 ${sale.phone.isNotEmpty ? sale.phone : 'N/A'}
 📦 ${sale.productNames}
 💰 ${NumberFormat('#,###').format(sale.totalPrice)}đ
 💳 ${sale.paymentMethod}''';
@@ -652,7 +674,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       linkedType: 'sale',
       linkedKey: sale.firestoreId ?? 'sale_${sale.soldAt}',
       linkedSummary:
-          '${sale.customerName ?? 'Khách lẻ'} - ${NumberFormat.compact(locale: 'vi').format(sale.totalPrice)}đ',
+          '${sale.customerName.isNotEmpty ? sale.customerName : 'Khách lẻ'} - ${NumberFormat.compact(locale: 'vi').format(sale.totalPrice)}đ',
     );
 
     _scrollToBottom();
@@ -877,6 +899,8 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
 
   Widget _buildPinnedSection() {
     final latestPin = _pinnedMessages.first;
+    // isMe reserved for future styling (own pins vs others)
+    // ignore: unused_local_variable
     final isMe = latestPin.senderId == FirebaseAuth.instance.currentUser?.uid;
 
     return Container(

@@ -14,7 +14,6 @@ import '../services/sync_orchestrator.dart';
 import '../services/user_service.dart';
 import '../services/adjustment_service.dart';
 import '../services/event_bus.dart';
-import '../services/financial_activity_service.dart';
 import '../services/payment_intent_service.dart';
 import '../models/payment_intent_model.dart';
 import '../constants/financial_constants.dart';
@@ -23,7 +22,6 @@ import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import '../widgets/gradient_fab.dart';
 import 'fast_stock_in_view.dart';
-import 'unified_payment_page.dart';
 import '../widgets/custom_app_bar.dart';
 
 class ExpenseView extends StatefulWidget {

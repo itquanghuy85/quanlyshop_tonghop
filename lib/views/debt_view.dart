@@ -11,7 +11,6 @@ import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import '../services/adjustment_service.dart';
-import '../services/firestore_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../services/repair_partner_service.dart';
 import '../services/payment_intent_service.dart';
@@ -19,9 +18,9 @@ import '../models/payment_intent_model.dart';
 import '../constants/financial_constants.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
-import '../models/repair_partner_model.dart';
+import '../models/shop_settings_model.dart';
+import '../services/category_service.dart';
 import 'repair_partner_detail_view.dart';
-import 'unified_payment_page.dart';
 
 class DebtView extends StatefulWidget {
   const DebtView({super.key});
@@ -33,18 +32,23 @@ class _DebtViewState extends State<DebtView>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final db = DBHelper();
   final _partnerService = RepairPartnerService();
-  late TabController _tabController;
+  TabController? _tabController;
   List<Map<String, dynamic>> _debts = [];
   List<Map<String, dynamic>> _partnerDebts = []; // Công nợ đối tác sửa chữa
   bool _isLoading = true;
   bool _isSyncing = false;
   String _syncStatus = 'Đã đồng bộ';
   StreamSubscription<String>? _eventSub;
+  
+  // Shop settings for multi-industry
+  ShopSettings? _shopSettings;
+  bool get _enableRepair => _shopSettings?.enableRepair ?? true;
+  int get _tabCount => _enableRepair ? 4 : 3; // 4 tabs for electronics, 3 for fashion
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _loadShopSettings();
     _loadRole();
     _refresh();
 
@@ -60,6 +64,24 @@ class _DebtViewState extends State<DebtView>
       _showFirstTimeGuide();
     });
   }
+  
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() {
+          _shopSettings = settings;
+          _tabController = TabController(length: _tabCount, vsync: this);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+      // Fallback to default 4 tabs
+      if (mounted) {
+        setState(() => _tabController = TabController(length: 4, vsync: this));
+      }
+    }
+  }
 
   /// Hiển thị hướng dẫn lần đầu
   Future<void> _showFirstTimeGuide() async {
@@ -69,29 +91,31 @@ class _DebtViewState extends State<DebtView>
       title: 'Quản Lý Công Nợ',
       icon: Icons.account_balance_wallet,
       color: Colors.red,
-      steps: const [
+      steps: [
         GuideStep(
-          title: '📊 3 loại công nợ',
+          title: _enableRepair ? '📊 3 loại công nợ' : '📊 2 loại công nợ',
           description:
-              'KHÁCH NỢ (khách chưa TT), NỢ NCC (nợ nhà cung cấp), NỢ ĐỐI TÁC (nợ thợ sửa ngoài).',
+              _enableRepair 
+                ? 'KHÁCH NỢ (khách chưa TT), NỢ NCC (nợ nhà cung cấp), NỢ ĐỐI TÁC (nợ thợ sửa ngoài).'
+                : 'KHÁCH NỢ (khách chưa TT), NỢ NCC (nợ nhà cung cấp).',
           icon: Icons.category,
           iconColor: Colors.blue,
         ),
-        GuideStep(
+        const GuideStep(
           title: '💰 Ghi nhận thanh toán',
           description:
               'Nhấn vào khoản nợ để xem chi tiết và ghi nhận thanh toán từng phần hoặc toàn bộ.',
           icon: Icons.payment,
           iconColor: Colors.green,
         ),
-        GuideStep(
+        const GuideStep(
           title: '📅 Theo dõi hạn nợ',
           description:
               'Nợ quá hạn sẽ được highlight đỏ. Báo cáo tổng hợp giúp theo dõi dòng tiền.',
           icon: Icons.event,
           iconColor: Colors.orange,
         ),
-        GuideStep(
+        const GuideStep(
           title: '🔄 Tự động tạo nợ',
           description:
               'Khi bán hàng/nhập kho chọn "CÔNG NỢ", hệ thống tự tạo khoản nợ tương ứng.',
@@ -104,7 +128,7 @@ class _DebtViewState extends State<DebtView>
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     _eventSub?.cancel();
     super.dispose();
   }
@@ -520,21 +544,28 @@ class _DebtViewState extends State<DebtView>
   Widget build(BuildContext context) {
     super.build(context);
 
-    // Đếm số công nợ còn hiệu lực (bao gồm cả partner debts)
+    // Chờ shop settings load xong
+    if (_tabController == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Đếm số công nợ còn hiệu lực (bao gồm cả partner debts nếu có repair)
     final activeDebtsCount =
-        _debts.where(_isActiveDebt).length + _partnerDebts.length;
+        _debts.where(_isActiveDebt).length + (_enableRepair ? _partnerDebts.length : 0);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: CustomAppBar.buildWithTabs(
         title: 'QUẢN LÝ CÔNG NỢ',
         subtitle: '$activeDebtsCount khoản nợ còn',
-        tabController: _tabController,
-        tabs: const [
-          Tab(text: "KHÁCH NỢ"),
-          Tab(text: "NỢ NCC"),
-          Tab(text: "NỢ ĐỐI TÁC"),
-          Tab(text: "KHÁC"),
+        tabController: _tabController!,
+        tabs: [
+          const Tab(text: "KHÁCH NỢ"),
+          const Tab(text: "NỢ NCC"),
+          if (_enableRepair) const Tab(text: "NỢ ĐỐI TÁC"),
+          const Tab(text: "KHÁC"),
         ],
         accentColor: AppBarAccents.customer,
         actions: [
@@ -570,30 +601,30 @@ class _DebtViewState extends State<DebtView>
               children: [
                 _buildDebtList('CUSTOMER_OWES'),
                 _buildDebtList('SHOP_OWES'),
-                _buildPartnerDebtList(), // Tab mới cho công nợ đối tác sửa chữa
+                if (_enableRepair) _buildPartnerDebtList(), // Tab cho công nợ đối tác sửa chữa - chỉ cho electronics
                 _buildDebtList('OTHER'),
               ],
             ),
-      floatingActionButton: _tabController.index == 2
+      floatingActionButton: (_enableRepair && _tabController?.index == 2)
           ? null // Không có FAB cho tab đối tác (quản lý qua trang đối tác)
           : FloatingActionButton(
               onPressed: () {
-                if (_tabController.index == 0) {
+                if (_tabController?.index == 0) {
                   _createCustomerDebt(); // Tạo nợ khách hàng (phải thu)
-                } else if (_tabController.index == 1) {
+                } else if (_tabController?.index == 1) {
                   _createSupplierDebt(); // Tạo nợ nhà cung cấp (phải trả)
-                } else if (_tabController.index == 3) {
+                } else if (_enableRepair ? _tabController?.index == 3 : _tabController?.index == 2) {
                   _createOtherDebt(); // Tạo công nợ khác
                 }
               },
-              backgroundColor: _tabController.index == 0
+              backgroundColor: _tabController?.index == 0
                   ? Colors.redAccent
-                  : _tabController.index == 1
+                  : _tabController?.index == 1
                   ? Colors.blueAccent
                   : Colors.purpleAccent,
-              tooltip: _tabController.index == 0
+              tooltip: _tabController?.index == 0
                   ? 'Tạo nợ khách hàng'
-                  : _tabController.index == 1
+                  : _tabController?.index == 1
                   ? 'Tạo nợ nhà cung cấp'
                   : 'Tạo công nợ khác',
               child: const Icon(Icons.add, color: Colors.white),

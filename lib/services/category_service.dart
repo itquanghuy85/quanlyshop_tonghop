@@ -23,10 +23,15 @@ class CategoryService {
 
   /// Lấy ShopSettings từ cache hoặc tạo mới
   Future<ShopSettings?> getShopSettings() async {
-    if (_cachedSettings != null) return _cachedSettings;
+    // Skip cache to ensure fresh data
+    // if (_cachedSettings != null) return _cachedSettings;
 
     final shopId = await UserService.getCurrentShopId();
-    if (shopId == null) return null;
+    debugPrint('📦 CategoryService.getShopSettings: shopId=$shopId');
+    if (shopId == null) {
+      debugPrint('📦 CategoryService: No shopId, returning null');
+      return null;
+    }
 
     // Try local DB first
     try {
@@ -39,8 +44,10 @@ class CategoryService {
       );
       if (results.isNotEmpty) {
         _cachedSettings = ShopSettings.fromMap(results.first);
+        debugPrint('📦 CategoryService: Found in local DB - businessType=${_cachedSettings?.businessType}, enableRepair=${_cachedSettings?.enableRepair}');
         return _cachedSettings;
       }
+      debugPrint('📦 CategoryService: Not found in local DB');
     } catch (e) {
       debugPrint('Error getting shop settings locally: $e');
     }
@@ -58,24 +65,43 @@ class CategoryService {
         data['firestoreId'] = doc.id;
         data['shopId'] = shopId;
         _cachedSettings = ShopSettings.fromMap(data);
+        debugPrint('📦 CategoryService: Found in Firestore - businessType=${_cachedSettings?.businessType}, enableRepair=${_cachedSettings?.enableRepair}');
         // Cache locally
         await _saveSettingsLocally(_cachedSettings!);
         return _cachedSettings;
       }
+      debugPrint('📦 CategoryService: Not found in Firestore');
     } catch (e) {
       debugPrint('Error getting shop settings from Firestore: $e');
     }
 
-    // Return default electronics settings
-    return ShopSettings.electronics(shopId);
+    // KHÔNG auto-create electronics - trả về null để home_view hiện wizard
+    // Chỉ shop owner mới có quyền chọn loại hình kinh doanh
+    debugPrint('📦 CategoryService: Settings not found - returning null (new shop needs wizard)');
+    return null;
   }
 
   /// Lưu ShopSettings
   Future<bool> saveShopSettings(ShopSettings settings) async {
-    final shopId = await UserService.getCurrentShopId();
+    // Nếu settings đã có shopId thì dùng đó, nếu không thì lấy từ UserService
+    String? shopId = settings.shopId;
+    if (shopId == null || shopId.isEmpty) {
+      shopId = await UserService.getCurrentShopId();
+    }
     if (shopId == null) return false;
 
     final settingsWithShop = settings.copyWith(shopId: shopId);
+    
+    debugPrint('💾 CategoryService.saveShopSettings: businessType=${settingsWithShop.businessType}, enableRepair=${settingsWithShop.enableRepair}, shopId=$shopId');
+
+    // Clear existing local cache for this shop first
+    try {
+      final db = await _dbHelper.database;
+      await db.delete('shop_settings', where: 'shopId = ?', whereArgs: [shopId]);
+      debugPrint('💾 CategoryService: Cleared old local settings for shopId=$shopId');
+    } catch (e) {
+      debugPrint('Error clearing old shop settings: $e');
+    }
 
     // Save to Firestore
     try {
@@ -85,6 +111,7 @@ class CategoryService {
           .collection('settings')
           .doc('shop_settings')
           .set(settingsWithShop.toFirestoreMap(), SetOptions(merge: true));
+      debugPrint('💾 CategoryService: Saved to Firestore successfully');
     } catch (e) {
       debugPrint('Error saving shop settings to Firestore: $e');
     }
@@ -94,7 +121,15 @@ class CategoryService {
 
     // Update cache
     _cachedSettings = settingsWithShop;
+    debugPrint('💾 CategoryService: Cache updated with businessType=${_cachedSettings?.businessType}');
     return true;
+  }
+  
+  /// Clear cache - gọi khi đổi shop hoặc logout
+  void clearCache() {
+    _cachedSettings = null;
+    _cachedCategories = null;
+    debugPrint('🗑️ CategoryService: Cache cleared');
   }
 
   Future<void> _saveSettingsLocally(ShopSettings settings) async {
@@ -391,12 +426,6 @@ class CategoryService {
   Future<List<ProductCategory>> getSubcategories(String parentId) async {
     final categories = await getCategories();
     return categories.where((c) => c.parentId == parentId).toList();
-  }
-
-  /// Clear cache (khi logout hoặc switch shop)
-  void clearCache() {
-    _cachedSettings = null;
-    _cachedCategories = null;
   }
 
   /// Check if current shop supports repair

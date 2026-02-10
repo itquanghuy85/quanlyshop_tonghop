@@ -9,12 +9,10 @@ import '../data/db_helper.dart';
 import '../constants/product_constants.dart';
 import '../models/product_model.dart';
 import '../models/inventory_check_model.dart';
-import '../models/debt_model.dart';
 import '../models/payment_intent_model.dart';
 import 'create_sale_view.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/unified_printer_service.dart';
-import '../services/bluetooth_printer_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
@@ -22,10 +20,11 @@ import '../services/supplier_service.dart';
 import '../services/firestore_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../services/payment_intent_service.dart';
+import '../services/variant_service.dart';
 import 'supplier_list_view.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/printer_selection_dialog.dart';
-import '../widgets/print_label_dialog.dart';
+import '../widgets/variant_selector.dart';
 import '../models/printer_types.dart';
 import 'smart_stock_in_view.dart';
 import 'global_search_view.dart';
@@ -38,9 +37,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import '../widgets/custom_app_bar.dart';
-import '../widgets/expiry_badge.dart';
-import '../services/expiry_alert_service.dart';
 import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 import '../models/shop_settings_model.dart';
 
 class InventoryView extends StatefulWidget {
@@ -63,7 +61,7 @@ class _InventoryViewState extends State<InventoryView>
   int _currentOffset = 0;
   static const int _pageSize = 10; // Load 10 products at a time for better performance
   int _unsyncedCount = 0;
-  bool _isAdmin = false;
+  bool _isAdmin = false; // Used in _init for permission check
   bool _canViewCostPrice = false; // Phân quyền xem giá vốn
   
   // Total inventory summary from DB (not from paginated data)
@@ -105,11 +103,8 @@ class _InventoryViewState extends State<InventoryView>
   );
   InventoryCheck? _currentCheck;
 
-  // Layout sizing constants
-  final double _pad = 12.0;
-  final double _cardPadding = 12.0;
+  // Layout sizing constants (iconSize, smallFontSize, btnMinHeight are in use)
   final double _iconSize = 20.0;
-  final double _titleFontSize = 15.0;
   final double _smallFontSize = 11.0;
   final double _btnMinHeight = 44.0;
 
@@ -117,14 +112,24 @@ class _InventoryViewState extends State<InventoryView>
   ShopSettings? _shopSettings;
   bool get _enableExpiry => _shopSettings?.enableExpiry ?? false;
   bool get _enableBatch => _shopSettings?.enableBatch ?? false;
+  bool get _enableSerial => _shopSettings?.enableSerial ?? true;
+  bool get _enableVariants => _shopSettings?.enableVariants ?? false;
+  bool get _enableRepair => _shopSettings?.enableRepair ?? true;
+  String get _businessType => _shopSettings?.businessType ?? 'electronics';
+  bool get _isFashion => _businessType == 'fashion';
+  bool get _isElectronics => _businessType == 'electronics';
+  
+  // Variant Service for fashion products  
+  final VariantService _variantService = VariantService();
+  
+  /// Terminology động theo ngành
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 1, vsync: this); // 1 tab: Kho chính
-    _init();
-    // Re-enable inventory check initialization for QR check
-    _initCheckData();
+    _init(); // _init sẽ gọi _initCheckData sau khi load shop settings
     // Setup scroll listener for lazy loading
     _scrollController.addListener(_onScroll);
     // Hiển thị hướng dẫn cho người dùng mới
@@ -138,31 +143,31 @@ class _InventoryViewState extends State<InventoryView>
     await FirstTimeGuideService.showGuideIfNeeded(
       context: context,
       screenKey: FirstTimeGuideService.keyProductList,
-      title: 'Danh Sách Sản Phẩm',
+      title: 'Danh Sách ${_terms.productLabel}',
       icon: Icons.inventory_2,
       color: Colors.blue,
-      steps: const [
+      steps: [
         GuideStep(
           title: '📦 Tồn kho hiện tại',
-          description: 'Danh sách tất cả sản phẩm trong kho. Lọc theo loại hoặc tìm kiếm nhanh.',
+          description: 'Danh sách tất cả ${_terms.productLabel.toLowerCase()} trong kho. Lọc theo loại hoặc tìm kiếm nhanh.',
           icon: Icons.list,
           iconColor: Colors.blue,
         ),
         GuideStep(
           title: '🔍 Tìm kiếm',
-          description: 'Nhấn icon kính lúp để tìm theo tên, IMEI, SKU. Hỗ trợ tìm kiếm toàn cục.',
+          description: 'Nhấn icon kính lúp để tìm theo tên, ${_terms.specialField1Label}, SKU. Hỗ trợ tìm kiếm toàn cục.',
           icon: Icons.search,
           iconColor: Colors.purple,
         ),
         GuideStep(
           title: '🛒 Bán hàng nhanh',
-          description: 'Nhấn vào sản phẩm để xem chi tiết, hoặc vuốt để bán nhanh/in tem.',
+          description: 'Nhấn vào ${_terms.productLabel.toLowerCase()} để xem chi tiết, hoặc vuốt để bán nhanh/in tem.',
           icon: Icons.shopping_cart,
           iconColor: Colors.green,
         ),
         GuideStep(
           title: '✏️ Chỉnh sửa giá',
-          description: 'Admin có thể chỉnh sửa giá bán, giá nhập trực tiếp từ chi tiết sản phẩm.',
+          description: 'Admin có thể chỉnh sửa giá bán, giá nhập trực tiếp từ chi tiết ${_terms.productLabel.toLowerCase()}.',
           icon: Icons.edit,
           iconColor: Colors.orange,
         ),
@@ -425,8 +430,12 @@ class _InventoryViewState extends State<InventoryView>
               ),
             ),
             const SizedBox(height: 15),
-            _detailItem("Chi tiết máy", displayProduct.capacity ?? ""),
-            _detailItem("IMEI/Serial", displayProduct.imei ?? "N/A"),
+            // Show capacity/size based on business type
+            if (_isElectronics)
+              _detailItem("Chi tiết máy", displayProduct.capacity ?? "")
+            else if (_isFashion && (displayProduct.capacity?.isNotEmpty ?? false))
+              _detailItem("Size", displayProduct.capacity ?? ""),
+            if (_enableSerial) _detailItem(_terms.specialField1Label, displayProduct.imei ?? "N/A"),
             _detailItem(
               "Nhà cung cấp",
               displayProduct.isPending
@@ -461,7 +470,7 @@ class _InventoryViewState extends State<InventoryView>
                   : "N/A",
               color: Colors.grey,
             ),
-            if (repairs.isNotEmpty) ...[
+            if (repairs.isNotEmpty && _businessType == 'electronics') ...[
               const Divider(height: 30),
               Text(
                 "LỊCH SỬ SỬA CHỮA",
@@ -672,7 +681,7 @@ class _InventoryViewState extends State<InventoryView>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-        title: const Text('Chỉnh sửa sản phẩm'),
+        title: Text('Chỉnh sửa ${_terms.productLabel.toLowerCase()}'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -698,20 +707,25 @@ class _InventoryViewState extends State<InventoryView>
                     val.isEmpty ? 'Vui lòng nhập model' : null,
               ),
               const SizedBox(height: 12),
-              ValidatedTextField(
-                controller: capacityCtrl,
-                label: 'Dung lượng (VD: 256GB)',
-                uppercase: true,
-              ),
-              const SizedBox(height: 12),
+              // Dung lượng/Size - chỉ hiển thị cho electronics hoặc fashion
+              if (_isElectronics || _isFashion)
+                ValidatedTextField(
+                  controller: capacityCtrl,
+                  label: _isFashion ? 'Size' : 'Dung lượng (VD: 256GB)',
+                  uppercase: true,
+                ),
+              if (_isElectronics || _isFashion)
+                const SizedBox(height: 12),
               ValidatedTextField(
                 controller: colorCtrl,
                 label: 'Màu sắc',
                 uppercase: true,
               ),
               const SizedBox(height: 12),
-              ValidatedTextField(controller: imeiCtrl, label: 'IMEI/Serial'),
-              const SizedBox(height: 12),
+              if (_enableSerial) ...[
+                ValidatedTextField(controller: imeiCtrl, label: _terms.specialField1Label),
+                const SizedBox(height: 12),
+              ],
               // Nhà cung cấp - KHÓA nếu đã nhập kho chính
               if (canEditFinancialInfo)
                 ValidatedTextField(
@@ -887,9 +901,9 @@ class _InventoryViewState extends State<InventoryView>
                       content: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Bạn vừa thay đổi giá của sản phẩm. Điều này sẽ ảnh hưởng đến:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          Text(
+                            'Bạn vừa thay đổi giá của ${_terms.productLabel.toLowerCase()}. Điều này sẽ ảnh hưởng đến:',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 12),
                           Container(
@@ -941,12 +955,12 @@ class _InventoryViewState extends State<InventoryView>
                 }
 
                 NotificationService.showSnackBar(
-                  'Đã cập nhật sản phẩm',
+                  'Đã cập nhật ${_terms.productLabel.toLowerCase()}',
                   color: Colors.green,
                 );
               } catch (e) {
                 NotificationService.showSnackBar(
-                  'Lỗi cập nhật sản phẩm: $e',
+                  'Lỗi cập nhật ${_terms.productLabel.toLowerCase()}: $e',
                   color: Colors.red,
                 );
               }
@@ -1001,7 +1015,7 @@ class _InventoryViewState extends State<InventoryView>
               Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
               const SizedBox(width: 8),
               Expanded(
-                child: Text('ẨN SẢN PHẨM (KHO)', style: AppTextStyles.headline3),
+                child: Text('ẨN ${_terms.productLabel.toUpperCase()} (KHO)', style: AppTextStyles.headline3),
               ),
             ],
           ),
@@ -1024,9 +1038,9 @@ class _InventoryViewState extends State<InventoryView>
                         p.name,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      if (p.imei != null && p.imei!.isNotEmpty)
+                      if (_enableSerial && p.imei != null && p.imei!.isNotEmpty)
                         Text(
-                          'IMEI: ${p.imei}',
+                          '${_terms.specialField1Label}: ${p.imei}',
                           style: AppTextStyles.subtitle1.copyWith(
                             color: Colors.grey,
                           ),
@@ -1167,11 +1181,11 @@ class _InventoryViewState extends State<InventoryView>
       await db.logAction(
         userId: user?.uid ?? '0',
         userName: userName,
-        action: 'ẨN SẢN PHẨM (KHO)',
+        action: 'ẨN ${_terms.productLabel.toUpperCase()} (KHO)',
         type: 'PRODUCT',
         targetId: productId,
         desc:
-        'Ẩn SP khỏi kho: ${p.name} | IMEI: $imei | Giá vốn: ${p.cost} | Lý do: ${reason ?? "Không ghi"}',
+        'Ẩn SP khỏi kho: ${p.name} | ${_terms.specialField1Label}: $imei | Giá vốn: ${p.cost} | Lý do: ${reason ?? "Không ghi"}',
       );
 
       // 2. XÓA MỀM sản phẩm (chỉ ẩn khỏi danh sách kho)
@@ -1189,12 +1203,12 @@ class _InventoryViewState extends State<InventoryView>
 
       await _refresh();
       NotificationService.showSnackBar(
-        'Đã ẩn sản phẩm khỏi kho: ${p.name}',
+        'Đã ẩn ${_terms.productLabel.toLowerCase()} khỏi kho: ${p.name}',
         color: Colors.green,
       );
     } catch (e) {
       NotificationService.showSnackBar(
-        'Lỗi xóa sản phẩm: $e',
+        'Lỗi xóa ${_terms.productLabel.toLowerCase()}: $e',
         color: Colors.red,
       );
     }
@@ -1268,8 +1282,57 @@ class _InventoryViewState extends State<InventoryView>
       _hasInventoryAccess = perms['allowViewInventory'] ?? false;
       _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
       _shopSettings = settings;
+      // Set default type based on business type
+      _selectedType = _getDefaultInventoryType();
     });
+    // CRITICAL: Init check data AFTER shop settings are loaded so _selectedType is correct
+    _initCheckData();
     _refresh();
+  }
+
+  /// Get default inventory type based on business type
+  String _getDefaultInventoryType() {
+    switch (_businessType) {
+      case 'food':
+        return 'THUC_PHAM';
+      case 'fashion':
+        return 'THOI_TRANG';
+      case 'general':
+        return 'SAN_PHAM';
+      case 'electronics':
+      default:
+        return 'DIEN_THOAI';
+    }
+  }
+
+  /// Build inventory type dropdown items based on business type
+  List<DropdownMenuItem<String>> _buildInventoryTypeItems() {
+    switch (_businessType) {
+      case 'food':
+        return [
+          DropdownMenuItem(value: 'THUC_PHAM', child: Text('🥗 ${_terms.category1}')),
+          DropdownMenuItem(value: 'DO_UONG', child: Text('🥤 ${_terms.category2}')),
+          DropdownMenuItem(value: 'NGUYEN_LIEU', child: Text('🌾 ${_terms.category3}')),
+        ];
+      case 'fashion':
+        return [
+          DropdownMenuItem(value: 'THOI_TRANG', child: Text('👕 ${_terms.category1}')),
+          DropdownMenuItem(value: 'GIAY_DEP', child: Text('👟 ${_terms.category2}')),
+          DropdownMenuItem(value: 'PHU_KIEN_TT', child: Text('👜 ${_terms.category3}')),
+        ];
+      case 'general':
+        return [
+          DropdownMenuItem(value: 'SAN_PHAM', child: Text('📦 ${_terms.productLabel}')),
+          DropdownMenuItem(value: 'DICH_VU', child: Text('🛠️ Dịch vụ')),
+        ];
+      case 'electronics':
+      default:
+        return [
+          DropdownMenuItem(value: 'DIEN_THOAI', child: Text('📱 ${_terms.category1}')),
+          DropdownMenuItem(value: 'PHU_KIEN', child: Text('🔧 ${_terms.category2} (Kho sửa chữa)')),
+          DropdownMenuItem(value: 'LINH_KIEN', child: Text('⚙️ ${_terms.category3} (${_terms.productLabel})')),
+        ];
+    }
   }
 
   Future<void> _initCheckData() async {
@@ -1454,7 +1517,7 @@ class _InventoryViewState extends State<InventoryView>
             action: "XÓA KHO",
             type: "PRODUCT",
             targetId: p.imei,
-            desc: "Đã xóa ${p.name} (IMEI: ${p.imei})",
+            desc: "Đã xóa ${p.name} (${_terms.specialField1Label}: ${p.imei})",
           );
           await db.deleteProduct(id);
 
@@ -1644,7 +1707,7 @@ class _InventoryViewState extends State<InventoryView>
       (item) => item.imei == imei,
       orElse: () => InventoryCheckItem(
         itemId: imei,
-        itemName: 'Sản phẩm quét: $imei',
+        itemName: '${_terms.productLabel} quét: $imei',
         itemType: _selectedType,
         quantity: 1,
         isChecked: true,
@@ -1708,7 +1771,7 @@ class _InventoryViewState extends State<InventoryView>
       appBar: CustomAppBar.build(
         title: 'QUẢN LÝ KHO',
         subtitle:
-            '${_products.length} sản phẩm${_unsyncedCount > 0 ? ' • $_unsyncedCount chưa đồng bộ' : ''}',
+            '${_products.length} ${_terms.productLabel.toLowerCase()}${_unsyncedCount > 0 ? ' • $_unsyncedCount chưa đồng bộ' : ''}',
         accentColor: AppBarAccents.inventory,
         actions: [
           IconButton(
@@ -1811,40 +1874,42 @@ class _InventoryViewState extends State<InventoryView>
                   ),
                 ),
                 const SizedBox(width: 6),
-                // Nhập nhanh button
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const FastStockInView(),
-                      ),
-                    ).then((_) => _refresh()),
-                    icon: Icon(Icons.flash_on, size: _iconSize - 2),
-                    label: Text("NHANH", style: AppTextStyles.body1),
-                    style: AppButtonStyles.elevatedButtonStyle,
+                // Nhập nhanh button - only show for electronics shops
+                if (_businessType == 'electronics')
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const FastStockInView(),
+                        ),
+                      ).then((_) => _refresh()),
+                      icon: Icon(Icons.flash_on, size: _iconSize - 2),
+                      label: Text("NHANH", style: AppTextStyles.body1),
+                      style: AppButtonStyles.elevatedButtonStyle,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                // Linh kiện button - mở trang riêng
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const PartsInventoryView()),
-                    ).then((_) => _refresh()),
-                    icon: Icon(Icons.build_circle, size: _iconSize - 2),
-                    label: Text("LINH KIỆN", style: AppTextStyles.body1),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7B1FA2),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                if (_businessType == 'electronics')
+                  const SizedBox(width: 6),
+                if (_businessType == 'electronics')
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const PartsInventoryView()),
+                      ).then((_) => _refresh()),
+                      icon: Icon(Icons.build_circle, size: _iconSize - 2),
+                      label: Text(_terms.category3.toUpperCase(), style: AppTextStyles.body1),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7B1FA2),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -1978,30 +2043,17 @@ class _InventoryViewState extends State<InventoryView>
           ),
           child: Column(
             children: [
-              // Type selector
+              // Type selector - dynamic based on business type
               DropdownButtonFormField<String>(
                 initialValue: _selectedType,
                 decoration: InputDecoration(
-                  labelText: "Loại sản phẩm kiểm kho",
+                  labelText: "Loại ${_terms.productLabel.toLowerCase()} kiểm kho",
                   prefixIcon: const Icon(Icons.category),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                items: const [
-                  DropdownMenuItem(
-                    value: "DIEN_THOAI",
-                    child: Text("📱 Điện thoại"),
-                  ),
-                  DropdownMenuItem(
-                    value: "PHỤ KIỆN",
-                    child: Text("🔧 Phụ kiện (Kho sửa chữa)"),
-                  ),
-                  DropdownMenuItem(
-                    value: "LINH_KIEN",
-                    child: Text("⚙️ Linh kiện (Sản phẩm)"),
-                  ),
-                ],
+                items: _buildInventoryTypeItems(),
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _selectedType = value);
@@ -2097,7 +2149,7 @@ class _InventoryViewState extends State<InventoryView>
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _progressItem(
-                "Tổng sản phẩm",
+                "Tổng ${_terms.productLabel.toLowerCase()}",
                 _checkItems.length.toString(),
                 Icons.inventory,
               ),
@@ -2160,13 +2212,13 @@ class _InventoryViewState extends State<InventoryView>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (item.imei != null && item.imei!.isNotEmpty)
-                              Text("IMEI: ${item.imei}")
+                              Text("${_terms.specialField1Label}: ${item.imei}")
                             else
                               Text(
                                 _selectedType == 'PHỤ KIỆN' 
-                                    ? "Phụ tùng sửa chữa" 
+                                    ? "${_terms.category2} sửa chữa" 
                                     : _selectedType == 'LINH_KIEN'
-                                        ? "Linh kiện (không IMEI)"
+                                        ? "${_terms.category3} (không ${_terms.specialField1Label})"
                                         : "Mã SP: ${item.itemId}",
                                 style: AppTextStyles.subtitle1.copyWith(color: Colors.grey),
                               ),
@@ -2399,7 +2451,7 @@ class _InventoryViewState extends State<InventoryView>
                     }
                   },
                   decoration: InputDecoration(
-                    hintText: "Tìm máy, phụ kiện hoặc IMEI...",
+                    hintText: "Tìm ${_terms.productLabel.toLowerCase()}, ${_terms.category2.toLowerCase()} hoặc ${_terms.specialField1Label}...",
                     prefixIcon: const Icon(
                       Icons.search,
                       color: Color(0xFF2962FF),
@@ -2471,11 +2523,11 @@ class _InventoryViewState extends State<InventoryView>
   Widget _buildTypeFilterChip(String type, IconData icon, Color color) {
     final isSelected = _filterType == type;
     final label = type == 'DIEN_THOAI'
-        ? 'Điện thoại'
+        ? _terms.category1
         : type == 'PHU_KIEN'
-        ? 'Phụ kiện'
+        ? _terms.category2
         : type == 'LINH_KIEN'
-        ? 'Linh kiện'
+        ? _terms.category3
         : 'Tất cả';
 
     // Đếm số lượng theo type
@@ -2710,7 +2762,7 @@ class _InventoryViewState extends State<InventoryView>
                         // Detail line: only IMEI (capacity/color/condition already in name)
                         if (p.imei != null && p.imei!.isNotEmpty)
                           Text(
-                            'IMEI: ${p.imei}',
+                            '${_terms.specialField1Label}: ${p.imei}',
                             style: AppTextStyles.caption.copyWith(color: Colors.grey.shade600),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -2765,6 +2817,12 @@ class _InventoryViewState extends State<InventoryView>
                     _compactChip('🏭 ${p.supplier}', Colors.purple.shade50),
                   if (isPending)
                     _compactChip('⏳ Chờ giá', Colors.yellow.shade100),
+                  // Show variant stock badge for fashion products
+                  if (_enableVariants && p.firestoreId != null)
+                    VariantStockWidget(
+                      productId: p.firestoreId!,
+                      variantService: _variantService,
+                    ),
                 ],
               ),
             ],
@@ -2827,7 +2885,7 @@ class _InventoryViewState extends State<InventoryView>
           Future<void> generateSKU() async {
             if (selectedNhom.isEmpty) {
               NotificationService.showSnackBar(
-                "Vui lòng chọn nhóm sản phẩm!",
+                "Vui lòng chọn nhóm ${_terms.productLabel.toLowerCase()}!",
                 color: Colors.red,
               );
               return;
@@ -3141,14 +3199,14 @@ class _InventoryViewState extends State<InventoryView>
                   // Loại hàng
                   DropdownButtonFormField<String>(
                     initialValue: type,
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: "DIEN_THOAI",
-                        child: Text("DIEN_THOAI"),
+                        child: Text(_terms.category1),
                       ),
                       DropdownMenuItem(
                         value: "PHỤ KIỆN",
-                        child: Text("PHỤ KIỆN"),
+                        child: Text(_terms.category2),
                       ),
                     ],
                     onChanged: (v) => setS(() => type = v!),
@@ -3158,30 +3216,32 @@ class _InventoryViewState extends State<InventoryView>
                   // Tên máy
                   _input(
                     nameC,
-                    "Tên máy *",
-                    Icons.phone_android,
+                    _isFashion ? "Tên sản phẩm *" : "Tên máy *",
+                    _isFashion ? Icons.checkroom : Icons.phone_android,
                     f: nameF,
                     next: imeiF,
                     caps: true,
                   ),
 
                   // Chi tiết
-                  _input(
-                    detailC,
-                    "Chi tiết (Dung lượng - Màu...)",
-                    Icons.info_outline,
-                    caps: true,
-                  ),
+                  if (_isElectronics || _isFashion)
+                    _input(
+                      detailC,
+                      _isFashion ? "Size - Màu sắc" : "Chi tiết (Dung lượng - Màu...)",
+                      _isFashion ? Icons.straighten : Icons.info_outline,
+                      caps: true,
+                    ),
 
-                  // IMEI/Serial
-                  _input(
-                    imeiC,
-                    "Số IMEI / Serial",
-                    Icons.fingerprint,
-                    f: imeiF,
-                    next: _canViewCostPrice ? costF : priceF,
-                    type: TextInputType.number,
-                  ),
+                  // IMEI/Serial - chỉ hiển thị cho electronics
+                  if (_enableSerial)
+                    _input(
+                      imeiC,
+                      "Số IMEI / Serial",
+                      Icons.fingerprint,
+                      f: imeiF,
+                      next: _canViewCostPrice ? costF : priceF,
+                      type: TextInputType.number,
+                    ),
 
                   // Giá vốn - chỉ hiển thị nếu có quyền
                   if (_canViewCostPrice)
@@ -3320,23 +3380,23 @@ class _InventoryViewState extends State<InventoryView>
                       labelText: "Nhóm *",
                       prefixIcon: Icon(Icons.category, size: 18),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: "IP", child: Text("IP - iPhone")),
-                      DropdownMenuItem(
+                    items: [
+                      const DropdownMenuItem(value: "IP", child: Text("IP - iPhone")),
+                      const DropdownMenuItem(
                         value: "SS",
                         child: Text("SS - Samsung"),
                       ),
-                      DropdownMenuItem(
+                      const DropdownMenuItem(
                         value: "PIN",
                         child: Text("PIN - Pin sạc"),
                       ),
-                      DropdownMenuItem(
+                      const DropdownMenuItem(
                         value: "MH",
                         child: Text("MH - Màn hình"),
                       ),
                       DropdownMenuItem(
                         value: "PK",
-                        child: Text("PK - Phụ kiện"),
+                        child: Text("PK - ${_terms.category2}"),
                       ),
                     ],
                     onChanged: (v) => setS(() => selectedNhom = v!),
@@ -3653,7 +3713,7 @@ class _InventoryViewState extends State<InventoryView>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'IMEI: ${p.imei ?? "N/A"}',
+                          '${_terms.specialField1Label}: ${p.imei ?? "N/A"}',
                           style: AppTextStyles.subtitle1,
                         ),
                         Text(
@@ -3884,9 +3944,9 @@ class _InventoryViewState extends State<InventoryView>
           }
 
           return AlertDialog(
-            title: const Text(
-              "CHỈNH SỬA SẢN PHẨM",
-              style: TextStyle(
+            title: Text(
+              "CHỈNH SỬA ${_terms.productLabel.toUpperCase()}",
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF2962FF),
               ),
@@ -3915,29 +3975,33 @@ class _InventoryViewState extends State<InventoryView>
                     ),
                   ),
 
-                  // Hãng
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: ProductConstants.brands.contains(selectedBrand) ? selectedBrand : null,
-                    decoration: const InputDecoration(
-                      labelText: "Hãng *",
-                      prefixIcon: Icon(Icons.business, size: 18),
-                      border: OutlineInputBorder(),
+                  // Hãng - chỉ hiện cho điện thoại
+                  if (_businessType == 'electronics') ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: ProductConstants.brands.contains(selectedBrand) ? selectedBrand : null,
+                      decoration: const InputDecoration(
+                        labelText: "Hãng *",
+                        prefixIcon: Icon(Icons.business, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: ProductConstants.brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                      onChanged: (v) => setS(() => selectedBrand = v),
                     ),
-                    items: ProductConstants.brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
-                    onChanged: (v) => setS(() => selectedBrand = v),
-                  ),
+                  ],
 
-                  // Model (tên máy cụ thể)
-                  _input(nameC, "Model (VD: 15 PRO MAX)", Icons.phone_android, caps: true),
+                  // Tên sản phẩm / Model
+                  _input(nameC, _isElectronics ? "Model (VD: 15 PRO MAX)" : "Tên ${_terms.productLabel.toLowerCase()}", 
+                    _isElectronics ? Icons.phone_android : Icons.inventory_2, caps: true),
 
-                  // Dung lượng
-                  _input(
-                    detailC,
-                    "Dung lượng (VD: 256GB)",
-                    Icons.storage,
-                    caps: true,
-                  ),
+                  // Dung lượng/Size - hiện cho electronics và fashion
+                  if (_isElectronics || _isFashion)
+                    _input(
+                      detailC,
+                      _isFashion ? "Kích thước / Size" : "Dung lượng (VD: 256GB)",
+                      _isFashion ? Icons.straighten : Icons.storage,
+                      caps: true,
+                    ),
 
                   // Màu sắc
                   _input(
@@ -3954,16 +4018,14 @@ class _InventoryViewState extends State<InventoryView>
                     Icons.local_offer_outlined,
                   ),
 
-                  // IMEI/Serial (read-only)
-                  _input(
-                    imeiC,
-                    "Số IMEI / Serial",
-                    Icons.fingerprint,
-                    readOnly: true,
-                  ),
-
-                  // Model (nameC chứa model)
-                  _input(nameC, "Model", Icons.smartphone, caps: true),
+                  // IMEI/Serial (read-only) - chỉ hiện nếu enableSerial
+                  if (_enableSerial)
+                    _input(
+                      imeiC,
+                      _terms.specialField1Label,
+                      Icons.fingerprint,
+                      readOnly: true,
+                    ),
 
                   // Giá vốn - KHÓA nếu đã nhập kho chính hoặc đã bán, ẩn nếu không có quyền
                   if (_canViewCostPrice) ...[

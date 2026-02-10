@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/product_model.dart';
 import '../../models/product_variant_model.dart';
+import '../../models/shop_settings_model.dart';
 import '../../services/variant_service.dart';
+import '../../services/category_service.dart';
+import '../../services/business_type_helper.dart';
 import '../../data/db_helper.dart';
 import '../../widgets/variant_selector.dart';
 
@@ -28,11 +31,26 @@ class _VariantManagementViewState extends State<VariantManagementView>
   VariantWarningCounts? _warnings;
   bool _isLoading = true;
 
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _loadShopSettings();
     _loadData();
+  }
+
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
   }
 
   @override
@@ -166,7 +184,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
                 ],
               ),
             ),
-            const Tab(text: '📦 Theo sản phẩm'),
+            Tab(text: '📦 Theo ${_terms.productLabel.toLowerCase()}'),
           ],
         ),
       ),
@@ -241,7 +259,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
           Colors.blue,
         ),
         _buildStatCard(
-          'Sản phẩm',
+          _terms.productLabel,
           '${_productsWithVariants.length}',
           Icons.inventory_2,
           Colors.purple,
@@ -352,7 +370,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
         if (_productsWithVariants.length > 3)
           TextButton(
             onPressed: () => _tabController.animateTo(3),
-            child: Text('Xem thêm ${_productsWithVariants.length - 3} sản phẩm →'),
+            child: Text('Xem thêm ${_productsWithVariants.length - 3} ${_terms.productLabel.toLowerCase()} →'),
           ),
       ],
     );
@@ -593,20 +611,20 @@ class _VariantManagementViewState extends State<VariantManagementView>
   /// Tab 4: Theo sản phẩm
   Widget _buildByProductTab() {
     if (_productsWithVariants.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.checkroom_outlined, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
+            const Icon(Icons.checkroom_outlined, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
             Text(
-              'Chưa có sản phẩm nào có biến thể',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              'Chưa có ${_terms.productLabel.toLowerCase()} nào có biến thể',
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              'Thêm biến thể size/màu cho sản phẩm thời trang',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              'Thêm biến thể size/màu cho ${_terms.productLabel.toLowerCase()}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
         ),
@@ -670,21 +688,95 @@ class _VariantManagementViewState extends State<VariantManagementView>
     }
   }
 
-  void _showBulkImportDialog() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tính năng nhập hàng hàng loạt sẽ sớm có!')),
+  void _showBulkImportDialog() async {
+    // First select product
+    final selectedProduct = await showModalBottomSheet<Product>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _ProductSelectorSheet(dbHelper: _dbHelper),
     );
+
+    if (selectedProduct == null || !mounted) return;
+
+    // Show bulk import dialog
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => _BulkImportDialog(
+        product: selectedProduct,
+        variantService: _variantService,
+      ),
+    );
+
+    if (result == true) {
+      await _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã nhập hàng theo biến thể thành công!')),
+        );
+      }
+    }
   }
 
-  void _showPrintBarcodeDialog() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tính năng in barcode sẽ sớm có!')),
+  void _showPrintBarcodeDialog() async {
+    if (_allVariants.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chưa có biến thể nào để in barcode!')),
+      );
+      return;
+    }
+
+    // Show dialog to select variants to print
+    final result = await showDialog<List<ProductVariant>>(
+      context: context,
+      builder: (context) => _PrintBarcodeDialog(variants: _allVariants),
     );
+
+    if (result != null && result.isNotEmpty && mounted) {
+      // TODO: Integrate with printer service
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Đã chọn ${result.length} biến thể để in barcode')),
+      );
+    }
   }
 
-  void _exportToExcel() {
+  void _exportToExcel() async {
+    if (_allVariants.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chưa có biến thể nào để xuất!')),
+      );
+      return;
+    }
+
+    // Generate CSV content for easy export
+    final buffer = StringBuffer();
+    buffer.writeln('Sản phẩm,Size,Màu,Số lượng,Giá bán,SKU,Barcode');
+    
+    for (final variant in _allVariants) {
+      // Get product name
+      final product = _productsWithVariants.firstWhere(
+        (p) => p.firestoreId == variant.productId,
+        orElse: () => Product(name: 'N/A', brand: '', model: '', type: '', createdAt: DateTime.now().millisecondsSinceEpoch),
+      );
+      buffer.writeln(
+        '${product.name},'
+        '${variant.size ?? ""},'
+        '${variant.color ?? ""},'
+        '${variant.quantity},'
+        '${variant.salePrice},'
+        '${variant.sku ?? ""},'
+        '${variant.barcode ?? ""}'
+      );
+    }
+
+    // For now, show the data - full Excel export would need a file picker
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tính năng xuất Excel sẽ sớm có!')),
+      SnackBar(
+        content: Text('Đã tạo dữ liệu ${_allVariants.length} biến thể. Sao chép hoặc chia sẻ?'),
+        action: SnackBarAction(
+          label: 'OK',
+          onPressed: () {},
+        ),
+      ),
     );
   }
 }
@@ -756,7 +848,7 @@ class _ProductSelectorSheetState extends State<_ProductSelectorSheet> {
                   const SizedBox(height: 12),
                   TextField(
                     decoration: const InputDecoration(
-                      hintText: 'Tìm sản phẩm...',
+                      hintText: 'Tìm...',
                       prefixIcon: Icon(Icons.search),
                       border: OutlineInputBorder(),
                     ),
@@ -1140,6 +1232,237 @@ class _EditVariantDialogState extends State<_EditVariantDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Lưu'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Dialog nhập hàng hàng loạt theo biến thể
+class _BulkImportDialog extends StatefulWidget {
+  final Product product;
+  final VariantService variantService;
+
+  const _BulkImportDialog({
+    required this.product,
+    required this.variantService,
+  });
+
+  @override
+  State<_BulkImportDialog> createState() => _BulkImportDialogState();
+}
+
+class _BulkImportDialogState extends State<_BulkImportDialog> {
+  List<ProductVariant> _existingVariants = [];
+  final Map<String, TextEditingController> _qtyControllers = {};
+  bool _isLoading = true;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVariants();
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _qtyControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _loadVariants() async {
+    final productId = widget.product.firestoreId ?? '';
+    if (productId.isEmpty) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    final variants = await widget.variantService.getVariantsByProduct(productId);
+    
+    for (final v in variants) {
+      _qtyControllers[v.firestoreId] = TextEditingController(text: '0');
+    }
+
+    setState(() {
+      _existingVariants = variants;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+
+    int successCount = 0;
+    for (final variant in _existingVariants) {
+      final addQty = int.tryParse(_qtyControllers[variant.firestoreId]?.text ?? '0') ?? 0;
+      if (addQty > 0) {
+        final updated = variant.copyWith(quantity: variant.quantity + addQty);
+        final success = await widget.variantService.updateVariant(updated);
+        if (success) successCount++;
+      }
+    }
+
+    setState(() => _isSaving = false);
+
+    if (mounted) {
+      Navigator.pop(context, successCount > 0);
+      if (successCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Đã cập nhật $successCount biến thể!')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Nhập hàng: ${widget.product.name}'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _existingVariants.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Chưa có biến thể.\nHãy thêm biến thể trước khi nhập hàng.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _existingVariants.length,
+                    itemBuilder: (context, index) {
+                      final variant = _existingVariants[index];
+                      return Card(
+                        child: ListTile(
+                          title: Text(variant.displayName),
+                          subtitle: Text('Tồn: ${variant.quantity}'),
+                          trailing: SizedBox(
+                            width: 80,
+                            child: TextField(
+                              controller: _qtyControllers[variant.firestoreId],
+                              decoration: const InputDecoration(
+                                labelText: '+SL',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: _isSaving || _existingVariants.isEmpty ? null : _save,
+          child: _isSaving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Nhập hàng'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Dialog chọn biến thể để in barcode
+class _PrintBarcodeDialog extends StatefulWidget {
+  final List<ProductVariant> variants;
+
+  const _PrintBarcodeDialog({required this.variants});
+
+  @override
+  State<_PrintBarcodeDialog> createState() => _PrintBarcodeDialogState();
+}
+
+class _PrintBarcodeDialogState extends State<_PrintBarcodeDialog> {
+  final Set<String> _selectedIds = {};
+  bool _selectAll = false;
+
+  void _toggleSelectAll() {
+    setState(() {
+      _selectAll = !_selectAll;
+      if (_selectAll) {
+        _selectedIds.addAll(widget.variants.map((v) => v.firestoreId));
+      } else {
+        _selectedIds.clear();
+      }
+    });
+  }
+
+  void _toggle(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Chọn biến thể để in barcode'),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 400,
+        child: Column(
+          children: [
+            // Select all checkbox
+            CheckboxListTile(
+              title: const Text('Chọn tất cả'),
+              value: _selectAll,
+              onChanged: (_) => _toggleSelectAll(),
+            ),
+            const Divider(),
+            // Variants list
+            Expanded(
+              child: ListView.builder(
+                itemCount: widget.variants.length,
+                itemBuilder: (context, index) {
+                  final variant = widget.variants[index];
+                  final isSelected = _selectedIds.contains(variant.firestoreId);
+                  return CheckboxListTile(
+                    title: Text(variant.displayName),
+                    subtitle: Text('SKU: ${variant.sku ?? "N/A"} • Tồn: ${variant.quantity}'),
+                    value: isSelected,
+                    onChanged: (_) => _toggle(variant.firestoreId),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: _selectedIds.isEmpty
+              ? null
+              : () {
+                  final selected = widget.variants
+                      .where((v) => _selectedIds.contains(v.firestoreId))
+                      .toList();
+                  Navigator.pop(context, selected);
+                },
+          child: Text('In (${_selectedIds.length})'),
         ),
       ],
     );

@@ -8,6 +8,9 @@ import '../services/notification_service.dart';
 import '../services/firestore_service.dart';
 import '../services/sync_service.dart';
 import '../services/supplier_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
+import '../models/shop_settings_model.dart';
 import '../data/db_helper.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
@@ -33,6 +36,10 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
   bool _isSyncing = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   @override
   void initState() {
@@ -50,6 +57,11 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
     try {
       setState(() => _isLoading = true);
       shopId = await UserService.getCurrentShopId();
+      
+      // Load shop settings for terminology
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) _shopSettings = settings;
+      
       await _loadCodes();
     } catch (e) {
       debugPrint('Error initializing data: $e');
@@ -658,7 +670,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                         Text(
                           isPhone
                               ? '${code.brand ?? ''} ${code.model ?? ''}'.trim()
-                              : code.description ?? 'Phụ kiện',
+                              : code.description ?? _terms.category2,
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade700,
@@ -936,6 +948,11 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   final _labelInfoCtrl = TextEditingController();
   final _supplierCtrl = TextEditingController();
 
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  bool get _isFashion => _shopSettings?.businessType == 'fashion';
+  bool get _isElectronics => _shopSettings?.businessType == 'electronics' || _shopSettings == null;
+
   String _type = 'DIEN_THOAI';
   String? _paymentMethod;
   String? _selectedColor;
@@ -973,6 +990,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     _loadSuppliers();
     if (widget.code != null) {
       final code = widget.code!;
@@ -1005,6 +1023,17 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
       _paymentMethod = code.paymentMethod != null && _paymentMethods.contains(code.paymentMethod)
           ? code.paymentMethod
           : null;
+    }
+  }
+
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
     }
   }
 
@@ -1156,7 +1185,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                           Expanded(
                             child: _buildTypeChip(
                               'DIEN_THOAI',
-                              'Điện thoại',
+                              _terms.category1,
                               Icons.smartphone,
                               Colors.blue,
                             ),
@@ -1165,7 +1194,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                           Expanded(
                             child: _buildTypeChip(
                               'PHỤ KIỆN',
-                              'Phụ kiện',
+                              _terms.category2,
                               Icons.inventory_2,
                               Colors.orange,
                             ),
@@ -1234,52 +1263,56 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Dung lượng và Màu sắc
+                        // Dung lượng/Size và Màu sắc
                         Row(
                           children: [
-                            Expanded(
-                              child: Autocomplete<String>(
-                                optionsBuilder: (textEditingValue) {
-                                  if (textEditingValue.text.isEmpty) {
-                                    return _capacitySuggestions;
-                                  }
-                                  return _capacitySuggestions.where(
-                                    (cap) => cap.toLowerCase().contains(
-                                      textEditingValue.text.toLowerCase(),
-                                    ),
-                                  );
-                                },
-                                onSelected: (selection) {
-                                  _capacityCtrl.text = selection;
-                                },
-                                fieldViewBuilder:
-                                    (
-                                      context,
-                                      controller,
-                                      focusNode,
-                                      onSubmitted,
-                                    ) {
-                                      controller.text = _capacityCtrl.text;
-                                      controller.addListener(
-                                        () => _capacityCtrl.text =
-                                            controller.text,
-                                      );
-                                      return TextFormField(
-                                        controller: controller,
-                                        focusNode: focusNode,
-                                        decoration: InputDecoration(
-                                          labelText: 'Dung lượng',
-                                          hintText: 'VD: 256GB',
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
+                            // Dung lượng/Size - chỉ hiện cho electronics hoặc fashion
+                            if (_isElectronics || _isFashion)
+                              Expanded(
+                                child: Autocomplete<String>(
+                                  optionsBuilder: (textEditingValue) {
+                                    if (textEditingValue.text.isEmpty) {
+                                      return _capacitySuggestions;
+                                    }
+                                    return _capacitySuggestions.where(
+                                      (cap) => cap.toLowerCase().contains(
+                                        textEditingValue.text.toLowerCase(),
+                                      ),
+                                    );
+                                  },
+                                  onSelected: (selection) {
+                                    _capacityCtrl.text = selection;
+                                  },
+                                  fieldViewBuilder:
+                                      (
+                                        context,
+                                        controller,
+                                        focusNode,
+                                        onSubmitted,
+                                      ) {
+                                        controller.text = _capacityCtrl.text;
+                                        controller.addListener(
+                                          () => _capacityCtrl.text =
+                                              controller.text,
+                                        );
+                                        return TextFormField(
+                                          controller: controller,
+                                          focusNode: focusNode,
+                                          decoration: InputDecoration(
+                                            labelText: _isFashion ? 'Size' : 'Dung lượng',
+                                            hintText: _isFashion ? 'VD: L, XL, 40' : 'VD: 256GB',
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(
+                                                12,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      );
-                                    },
-                              ),
-                            ),
+                                        );
+                                      },
+                                ),
+                              )
+                            else
+                              const Expanded(child: SizedBox()),
                           ],
                         ),
                         const SizedBox(height: 16),

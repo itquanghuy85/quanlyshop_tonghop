@@ -674,6 +674,10 @@ class UserService {
       debugPrint('getCurrentUserPermissions: role from firestore = $role');
       final defaults = _defaultPermissionsForRole(role);
       debugPrint('getCurrentUserPermissions: defaults = $defaults');
+      // Debug: kiểm tra allowViewCostPrice từ Firestore vs force override
+      final firestoreCostPrice = data['allowViewCostPrice'];
+      final forceTrue = (role == 'owner' || role == 'manager' || role == 'admin');
+      debugPrint('getCurrentUserPermissions: Firestore allowViewCostPrice=$firestoreCostPrice, forceTrue=$forceTrue');
 
       // Bắt đầu từ quyền riêng trên tài khoản (nếu chưa cấu hình thì dùng mặc định theo role)
       final perms = <String, dynamic>{
@@ -718,9 +722,11 @@ class UserService {
             defaults['allowViewExpenses']!,
         'allowViewDebts':
             (data['allowViewDebts'] as bool?) ?? defaults['allowViewDebts']!,
+        // Owner, Manager, Admin LUÔN được xem giá vốn, không bao giờ bị tắt
         'allowViewCostPrice':
-            (data['allowViewCostPrice'] as bool?) ??
-            defaults['allowViewCostPrice']!,
+            (role == 'owner' || role == 'manager' || role == 'admin')
+              ? true
+              : ((data['allowViewCostPrice'] as bool?) ?? defaults['allowViewCostPrice']!),
         'allowViewSettings':
             (data['allowViewSettings'] as bool?) ??
             defaults['allowViewSettings']!,

@@ -4,6 +4,9 @@ import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
 import '../models/product_model.dart';
 import '../models/quick_input_code_model.dart';
+import '../models/shop_settings_model.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 import '../theme/app_text_styles.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
@@ -26,13 +29,27 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
   List<dynamic> _results = [];
   bool _isLoading = false;
   String _selectedCategory = 'Tất cả';
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
-  final List<String> _categories = ['Tất cả', 'Khách hàng', 'Đơn sửa chữa', 'Đơn bán hàng', 'Sản phẩm', 'Mã nhập nhanh'];
+  List<String> get _categories => ['Tất cả', 'Khách hàng', 'Đơn sửa chữa', 'Đơn bán hàng', _terms.productLabel, 'Mã nhập nhanh'];
 
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     _searchCtrl.addListener(_onSearchChanged);
+  }
+
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
   }
 
   @override
@@ -103,24 +120,18 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
       }).toList();
 
       // Filter by category
-      switch (_selectedCategory) {
-        case 'Khách hàng':
-          allResults = customerResults;
-          break;
-        case 'Đơn sửa chữa':
-          allResults = repairResults;
-          break;
-        case 'Đơn bán hàng':
-          allResults = saleResults;
-          break;
-        case 'Sản phẩm':
-          allResults = productResults;
-          break;
-        case 'Mã nhập nhanh':
-          allResults = quickInputCodeResults;
-          break;
-        default:
-          allResults = [...customerResults, ...repairResults, ...saleResults, ...productResults, ...quickInputCodeResults];
+      if (_selectedCategory == 'Khách hàng') {
+        allResults = customerResults;
+      } else if (_selectedCategory == 'Đơn sửa chữa') {
+        allResults = repairResults;
+      } else if (_selectedCategory == 'Đơn bán hàng') {
+        allResults = saleResults;
+      } else if (_selectedCategory == _terms.productLabel) {
+        allResults = productResults;
+      } else if (_selectedCategory == 'Mã nhập nhanh') {
+        allResults = quickInputCodeResults;
+      } else {
+        allResults = [...customerResults, ...repairResults, ...saleResults, ...productResults, ...quickInputCodeResults];
       }
 
       setState(() {
@@ -168,7 +179,7 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
       icon = Icons.shopping_cart;
     } else if (item is Product) {
       title = item.name;
-      subtitle = item.imei != null ? 'IMEI: ${item.imei}' : 'Số lượng: ${item.quantity}';
+      subtitle = item.imei != null ? '${_terms.specialField1Label}: ${item.imei}' : 'Số lượng: ${item.quantity}';
       icon = Icons.inventory;
     } else if (item is QuickInputCode) {
       title = item.name;
@@ -210,7 +221,7 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('TÌM KIẾM TOÀN APP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline2.fontSize)),
-            Text('Tìm đơn sửa, đơn bán, sản phẩm...', style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.white70)),
+            Text('Tìm đơn sửa, đơn bán, ${_terms.productLabel.toLowerCase()}...', style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.white70)),
           ],
         ),
         automaticallyImplyLeading: true,
@@ -222,7 +233,7 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
             child: TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
-                hintText: 'Nhập tên, SĐT, model, IMEI...',
+                hintText: 'Nhập tên, SĐT, model, ${_terms.specialField1Label.toLowerCase()}...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
@@ -272,7 +283,7 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
                           } else if (item is SaleOrder) {
                             type = 'Đơn bán hàng';
                           } else if (item is Product) {
-                            type = 'Sản phẩm';
+                            type = _terms.productLabel;
                           } else if (item is QuickInputCode) {
                             type = 'Mã nhập nhanh';
                           } else {
@@ -306,7 +317,7 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
   String _getType(dynamic item) {
     if (item is Repair) return 'Đơn sửa chữa';
     if (item is SaleOrder) return 'Đơn bán hàng';
-    if (item is Product) return 'Sản phẩm';
+    if (item is Product) return _terms.productLabel;
     if (item is QuickInputCode) return 'Mã nhập nhanh';
     return 'Khách hàng';
   }

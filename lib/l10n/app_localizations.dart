@@ -107,12 +107,6 @@ abstract class AppLocalizations {
   /// **'Login'**
   String get login;
 
-  /// No description provided for @logout.
-  ///
-  /// In en, this message translates to:
-  /// **'LOGOUT'**
-  String get logout;
-
   /// No description provided for @settings.
   ///
   /// In en, this message translates to:
@@ -208,12 +202,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Parts'**
   String get parts;
-
-  /// No description provided for @sales.
-  ///
-  /// In en, this message translates to:
-  /// **'sales'**
-  String get sales;
 
   /// No description provided for @customers.
   ///
@@ -329,23 +317,11 @@ abstract class AppLocalizations {
   /// **'DASHBOARD'**
   String get dashboard;
 
-  /// No description provided for @repair.
-  ///
-  /// In en, this message translates to:
-  /// **'repair'**
-  String get repair;
-
   /// No description provided for @warranty.
   ///
   /// In en, this message translates to:
   /// **'WARRANTY'**
   String get warranty;
-
-  /// No description provided for @printer.
-  ///
-  /// In en, this message translates to:
-  /// **'Printer'**
-  String get printer;
 
   /// No description provided for @auditLog.
   ///
@@ -370,12 +346,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'PAYROLL'**
   String get payroll;
-
-  /// No description provided for @debt.
-  ///
-  /// In en, this message translates to:
-  /// **'DEBT'**
-  String get debt;
 
   /// No description provided for @quickActions.
   ///
@@ -550,12 +520,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quick stats'**
   String get quickStats;
-
-  /// No description provided for @pendingRepairs.
-  ///
-  /// In en, this message translates to:
-  /// **'Pending repairs'**
-  String get pendingRepairs;
 
   /// No description provided for @completedToday.
   ///
@@ -797,12 +761,6 @@ abstract class AppLocalizations {
   /// **'BRAND INFO'**
   String get brandInfoSection;
 
-  /// No description provided for @shopNameLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Shop Name'**
-  String get shopNameLabel;
-
   /// No description provided for @shopPhoneLabel.
   ///
   /// In en, this message translates to:
@@ -863,12 +821,6 @@ abstract class AppLocalizations {
   /// **'Multi-industry shop management solution'**
   String get appDescription;
 
-  /// No description provided for @version.
-  ///
-  /// In en, this message translates to:
-  /// **'Version 10.0.6'**
-  String get version;
-
   /// No description provided for @versionNumber.
   ///
   /// In en, this message translates to:
@@ -904,12 +856,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Phone/Zalo: 0964 095 979'**
   String get contactPhone;
-
-  /// No description provided for @technicalSupport.
-  ///
-  /// In en, this message translates to:
-  /// **'TECHNICAL SUPPORT'**
-  String get technicalSupport;
 
   /// No description provided for @businessSolutions.
   ///
@@ -1006,12 +952,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scan QR code'**
   String get scanQRCode;
-
-  /// No description provided for @createRepairOrder.
-  ///
-  /// In en, this message translates to:
-  /// **'CREATE REPAIR'**
-  String get createRepairOrder;
 
   /// No description provided for @noPermissionRepair.
   ///
@@ -1157,12 +1097,6 @@ abstract class AppLocalizations {
   /// **'View inventory permission'**
   String get viewInventoryPermission;
 
-  /// No description provided for @employee.
-  ///
-  /// In en, this message translates to:
-  /// **'Employee'**
-  String get employee;
-
   /// No description provided for @inventoryCheck.
   ///
   /// In en, this message translates to:
@@ -1217,18 +1151,6 @@ abstract class AppLocalizations {
   /// **'Quick menu'**
   String get quickMenu;
 
-  /// No description provided for @customerName.
-  ///
-  /// In en, this message translates to:
-  /// **'Customer name'**
-  String get customerName;
-
-  /// No description provided for @phoneNumber.
-  ///
-  /// In en, this message translates to:
-  /// **'Phone number'**
-  String get phoneNumber;
-
   /// No description provided for @customerAddress.
   ///
   /// In en, this message translates to:
@@ -1246,18 +1168,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'VIEW CUSTOMER HISTORY'**
   String get viewCustomerHistory;
-
-  /// No description provided for @deviceModel.
-  ///
-  /// In en, this message translates to:
-  /// **'DEVICE MODEL *'**
-  String get deviceModel;
-
-  /// No description provided for @deviceIssue.
-  ///
-  /// In en, this message translates to:
-  /// **'DEVICE ISSUE *'**
-  String get deviceIssue;
 
   /// No description provided for @appearanceCondition.
   ///
@@ -1283,35 +1193,11 @@ abstract class AppLocalizations {
   /// **'E.g.: CHARGER, EARPHONES...'**
   String get accessoriesHint;
 
-  /// No description provided for @screenPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Screen password'**
-  String get screenPassword;
-
-  /// No description provided for @estimatedPrice.
-  ///
-  /// In en, this message translates to:
-  /// **'ESTIMATED PRICE'**
-  String get estimatedPrice;
-
   /// No description provided for @paymentMethod.
   ///
   /// In en, this message translates to:
   /// **'PAYMENT METHOD'**
   String get paymentMethod;
-
-  /// No description provided for @cash.
-  ///
-  /// In en, this message translates to:
-  /// **'CASH'**
-  String get cash;
-
-  /// No description provided for @bankTransfer.
-  ///
-  /// In en, this message translates to:
-  /// **'BANK TRANSFER'**
-  String get bankTransfer;
 
   /// No description provided for @credit.
   ///
@@ -1402,12 +1288,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'IMEI number (if any)'**
   String get imeiNumber;
-
-  /// No description provided for @costPrice.
-  ///
-  /// In en, this message translates to:
-  /// **'Cost: {price}'**
-  String costPrice(String price);
 
   /// No description provided for @capacity.
   ///
@@ -1517,23 +1397,11 @@ abstract class AppLocalizations {
   /// **'FINANCE CENTER'**
   String get financeCenter;
 
-  /// No description provided for @repairs.
-  ///
-  /// In en, this message translates to:
-  /// **'REPAIRS'**
-  String get repairs;
-
   /// No description provided for @staff.
   ///
   /// In en, this message translates to:
   /// **'STAFF'**
   String get staff;
-
-  /// No description provided for @all.
-  ///
-  /// In en, this message translates to:
-  /// **'All'**
-  String get all;
 
   /// No description provided for @passwordHint.
   ///
@@ -1649,12 +1517,6 @@ abstract class AppLocalizations {
   /// **'Do you want to create a new repair order?'**
   String get createNewOrderQuestion;
 
-  /// No description provided for @back.
-  ///
-  /// In en, this message translates to:
-  /// **'Back'**
-  String get back;
-
   /// No description provided for @saveOrderError.
   ///
   /// In en, this message translates to:
@@ -1738,12 +1600,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Contact person'**
   String get contactPerson;
-
-  /// No description provided for @address.
-  ///
-  /// In en, this message translates to:
-  /// **'Address'**
-  String get address;
 
   /// No description provided for @name.
   ///
@@ -1973,18 +1829,6 @@ abstract class AppLocalizations {
   /// **'This device has very little data'**
   String get warningNewDevice;
 
-  /// No description provided for @repairOrders.
-  ///
-  /// In en, this message translates to:
-  /// **'repair orders'**
-  String get repairOrders;
-
-  /// No description provided for @saleOrders.
-  ///
-  /// In en, this message translates to:
-  /// **'sale orders'**
-  String get saleOrders;
-
   /// No description provided for @products.
   ///
   /// In en, this message translates to:
@@ -2045,23 +1889,11 @@ abstract class AppLocalizations {
   /// **'Syncing data...'**
   String get uploadingData;
 
-  /// No description provided for @downloadSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Shop data downloaded successfully!'**
-  String get downloadSuccess;
-
   /// No description provided for @uploadSuccess.
   ///
   /// In en, this message translates to:
   /// **'Data synced to cloud!'**
   String get uploadSuccess;
-
-  /// No description provided for @dangerWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'⚠️ DANGER WARNING'**
-  String get dangerWarning;
 
   /// No description provided for @confirmResetShop.
   ///
@@ -2141,12 +1973,6 @@ abstract class AppLocalizations {
   /// **'Filter'**
   String get filter;
 
-  /// No description provided for @createSaleOrder.
-  ///
-  /// In en, this message translates to:
-  /// **'CREATE SALE ORDER'**
-  String get createSaleOrder;
-
   /// No description provided for @searchByNameImei.
   ///
   /// In en, this message translates to:
@@ -2201,12 +2027,6 @@ abstract class AppLocalizations {
   /// **'REPAIR PARTNERS'**
   String get repairPartnerTab;
 
-  /// No description provided for @staffManagement.
-  ///
-  /// In en, this message translates to:
-  /// **'STAFF MANAGEMENT'**
-  String get staffManagement;
-
   /// No description provided for @roleLabel.
   ///
   /// In en, this message translates to:
@@ -2236,30 +2056,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Manage work hours'**
   String get attendanceManagement;
-
-  /// No description provided for @addService.
-  ///
-  /// In en, this message translates to:
-  /// **'ADD SERVICE'**
-  String get addService;
-
-  /// No description provided for @editService.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit service'**
-  String get editService;
-
-  /// No description provided for @update.
-  ///
-  /// In en, this message translates to:
-  /// **'Update'**
-  String get update;
-
-  /// No description provided for @add.
-  ///
-  /// In en, this message translates to:
-  /// **'Add'**
-  String get add;
 
   /// No description provided for @deleteSupplier.
   ///
@@ -2369,29 +2165,11 @@ abstract class AppLocalizations {
   /// **'Delete partner'**
   String get deletePartner;
 
-  /// No description provided for @qrScanSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'QR SCAN SETTINGS'**
-  String get qrScanSettings;
-
   /// No description provided for @scanSettings.
   ///
   /// In en, this message translates to:
   /// **'Scan settings'**
   String get scanSettings;
-
-  /// No description provided for @labelSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Product Label Settings'**
-  String get labelSettings;
-
-  /// No description provided for @cpkPriceSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'CPK Price Settings'**
-  String get cpkPriceSettings;
 
   /// No description provided for @confirm.
   ///
@@ -2459,12 +2237,6 @@ abstract class AppLocalizations {
   /// **'Done'**
   String get done;
 
-  /// No description provided for @next.
-  ///
-  /// In en, this message translates to:
-  /// **'Next'**
-  String get next;
-
   /// No description provided for @previous.
   ///
   /// In en, this message translates to:
@@ -2477,23 +2249,11 @@ abstract class AppLocalizations {
   /// **'Select'**
   String get select;
 
-  /// No description provided for @selected.
-  ///
-  /// In en, this message translates to:
-  /// **'Selected: {deviceName}'**
-  String selected(String deviceName);
-
   /// No description provided for @edit.
   ///
   /// In en, this message translates to:
   /// **'Edit'**
   String get edit;
-
-  /// No description provided for @details.
-  ///
-  /// In en, this message translates to:
-  /// **'Details'**
-  String get details;
 
   /// No description provided for @total.
   ///
@@ -2578,12 +2338,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'OK'**
   String get ok;
-
-  /// No description provided for @notFound.
-  ///
-  /// In en, this message translates to:
-  /// **'Not found'**
-  String get notFound;
 
   /// No description provided for @noResults.
   ///
@@ -2777,12 +2531,6 @@ abstract class AppLocalizations {
   /// **'Reset'**
   String get reset;
 
-  /// No description provided for @apply.
-  ///
-  /// In en, this message translates to:
-  /// **'APPLY'**
-  String get apply;
-
   /// No description provided for @from.
   ///
   /// In en, this message translates to:
@@ -2836,12 +2584,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Without'**
   String get without;
-
-  /// No description provided for @newLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'NEW'**
-  String get newLabel;
 
   /// No description provided for @old.
   ///
@@ -3089,12 +2831,6 @@ abstract class AppLocalizations {
   /// **'SELECT OTHER SHOP'**
   String get selectOtherShop;
 
-  /// No description provided for @currentShop.
-  ///
-  /// In en, this message translates to:
-  /// **'Current Shop'**
-  String get currentShop;
-
   /// No description provided for @logoutFromApp.
   ///
   /// In en, this message translates to:
@@ -3124,24 +2860,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download, upload, check and restore data'**
   String get syncCenterDesc;
-
-  /// No description provided for @loadingShopData.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading shop data...'**
-  String get loadingShopData;
-
-  /// No description provided for @switchedToShop.
-  ///
-  /// In en, this message translates to:
-  /// **'Switched to shop: {shopName}'**
-  String switchedToShop(String shopName);
-
-  /// No description provided for @errorSwitchingShop.
-  ///
-  /// In en, this message translates to:
-  /// **'Error switching shop: {error}'**
-  String errorSwitchingShop(String error);
 
   /// No description provided for @viewShopAsAdmin.
   ///
@@ -3220,12 +2938,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This action will permanently delete 100% of Orders, Inventory, Debts and Logs from both Cloud and this Device. CANNOT BE UNDONE!'**
   String get resetShopWarning;
-
-  /// No description provided for @typeToConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Type \'DELETE ALL\' to confirm:'**
-  String get typeToConfirm;
 
   /// No description provided for @resetCloudError.
   ///
@@ -3341,12 +3053,6 @@ abstract class AppLocalizations {
   /// **'CONTINUE ADDING'**
   String get continueAdding;
 
-  /// No description provided for @quickStockIn.
-  ///
-  /// In en, this message translates to:
-  /// **'QUICK STOCK IN'**
-  String get quickStockIn;
-
   /// No description provided for @manualEntry.
   ///
   /// In en, this message translates to:
@@ -3376,12 +3082,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add more'**
   String get addMore;
-
-  /// No description provided for @understood.
-  ///
-  /// In en, this message translates to:
-  /// **'UNDERSTOOD'**
-  String get understood;
 
   /// No description provided for @confirmStockIn.
   ///
@@ -3461,23 +3161,11 @@ abstract class AppLocalizations {
   /// **'Partner info not found!'**
   String get partnerInfoNotFound;
 
-  /// No description provided for @noPartner.
-  ///
-  /// In en, this message translates to:
-  /// **'No partner'**
-  String get noPartner;
-
   /// No description provided for @loadingList.
   ///
   /// In en, this message translates to:
   /// **'Loading list...'**
   String get loadingList;
-
-  /// No description provided for @pleaseLoginAgain.
-  ///
-  /// In en, this message translates to:
-  /// **'Please login again'**
-  String get pleaseLoginAgain;
 
   /// No description provided for @searchError.
   ///
@@ -3509,18 +3197,6 @@ abstract class AppLocalizations {
   /// **'Delete error: {error}'**
   String deleteError(String error);
 
-  /// No description provided for @labelSettingsSaved.
-  ///
-  /// In en, this message translates to:
-  /// **'✅ Label settings saved!'**
-  String get labelSettingsSaved;
-
-  /// No description provided for @pleaseEnterTemplateName.
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter template name'**
-  String get pleaseEnterTemplateName;
-
   /// No description provided for @shopTab.
   ///
   /// In en, this message translates to:
@@ -3539,18 +3215,6 @@ abstract class AppLocalizations {
   /// **'Version {version}'**
   String versionFormat(String version);
 
-  /// No description provided for @onlySuperAdminCanDelete.
-  ///
-  /// In en, this message translates to:
-  /// **'ONLY SUPER ADMIN CAN DELETE SHOP DATA!'**
-  String get onlySuperAdminCanDelete;
-
-  /// No description provided for @shopDataDeleted.
-  ///
-  /// In en, this message translates to:
-  /// **'SHOP DATA DELETED!'**
-  String get shopDataDeleted;
-
   /// No description provided for @displayInfoOnLabel.
   ///
   /// In en, this message translates to:
@@ -3568,12 +3232,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'E.g.: HULUCA MOBILE'**
   String get shopNameHint;
-
-  /// No description provided for @hotline.
-  ///
-  /// In en, this message translates to:
-  /// **'Hotline: 1900 xxxx'**
-  String get hotline;
 
   /// No description provided for @hotlineHint.
   ///
@@ -3598,12 +3256,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'E.g.: Best prices guaranteed'**
   String get sloganHint;
-
-  /// No description provided for @addressOptional.
-  ///
-  /// In en, this message translates to:
-  /// **'Address (optional)'**
-  String get addressOptional;
 
   /// No description provided for @addressHint.
   ///
@@ -3641,29 +3293,11 @@ abstract class AppLocalizations {
   /// **'CSV copied to clipboard'**
   String get csvCopied;
 
-  /// No description provided for @confirmDeliveryAndPayment.
-  ///
-  /// In en, this message translates to:
-  /// **'CONFIRM DELIVERY & PAYMENT'**
-  String get confirmDeliveryAndPayment;
-
-  /// No description provided for @statusRepairing.
-  ///
-  /// In en, this message translates to:
-  /// **'REPAIRING'**
-  String get statusRepairing;
-
   /// No description provided for @statusDone.
   ///
   /// In en, this message translates to:
   /// **'DONE'**
   String get statusDone;
-
-  /// No description provided for @issueLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Device issue'**
-  String issueLabel(String issue);
 
   /// No description provided for @receiptSavedAndPrinted.
   ///
@@ -3688,12 +3322,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Active'**
   String get isActive;
-
-  /// No description provided for @confirmDeleteTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Confirm delete'**
-  String get confirmDeleteTitle;
 
   /// No description provided for @confirmButton.
   ///
@@ -3737,12 +3365,6 @@ abstract class AppLocalizations {
   /// **'Inventory'**
   String get inventoryTab;
 
-  /// No description provided for @staffTab.
-  ///
-  /// In en, this message translates to:
-  /// **'Staff'**
-  String get staffTab;
-
   /// No description provided for @financeTab.
   ///
   /// In en, this message translates to:
@@ -3779,12 +3401,6 @@ abstract class AppLocalizations {
   /// **'Exit app?'**
   String get exitAppTitle;
 
-  /// No description provided for @exit.
-  ///
-  /// In en, this message translates to:
-  /// **'EXIT'**
-  String get exit;
-
   /// No description provided for @groupChat.
   ///
   /// In en, this message translates to:
@@ -3815,47 +3431,17 @@ abstract class AppLocalizations {
   /// **'TODAY OVERVIEW'**
   String get todayOverview;
 
-  /// No description provided for @todayIncome.
-  ///
-  /// In en, this message translates to:
-  /// **'TODAY INCOME'**
-  String get todayIncome;
-
   /// No description provided for @todayExpenseLabel.
   ///
   /// In en, this message translates to:
   /// **'TODAY EXPENSE'**
   String get todayExpenseLabel;
 
-  /// No description provided for @expenseItems.
-  ///
-  /// In en, this message translates to:
-  /// **'expense items'**
-  String get expenseItems;
-
-  /// No description provided for @totalDebt.
-  ///
-  /// In en, this message translates to:
-  /// **'TOTAL DEBT'**
-  String get totalDebt;
-
   /// No description provided for @todayActivities.
   ///
   /// In en, this message translates to:
   /// **'TODAY ACTIVITIES'**
   String get todayActivities;
-
-  /// No description provided for @delivered.
-  ///
-  /// In en, this message translates to:
-  /// **'Delivered'**
-  String get delivered;
-
-  /// No description provided for @todayNetProfit.
-  ///
-  /// In en, this message translates to:
-  /// **'TODAY NET PROFIT'**
-  String get todayNetProfit;
 
   /// No description provided for @profitFormula.
   ///
@@ -3874,6 +3460,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You don\'t have permission to access this feature.\nPlease contact Shop Owner for access.'**
   String get featureLockedByOwner;
+
+  /// No description provided for @technicalSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'TECHNICAL SUPPORT'**
+  String get technicalSupport;
 
   /// No description provided for @contactShopOwner.
   ///
@@ -4031,12 +3623,6 @@ abstract class AppLocalizations {
   /// **'DOWNLOAD SHOP DATA'**
   String get downloadShopDataTitle;
 
-  /// No description provided for @downloadDataOf.
-  ///
-  /// In en, this message translates to:
-  /// **'Download data of'**
-  String get downloadDataOf;
-
   /// No description provided for @fromCloudToDevice.
   ///
   /// In en, this message translates to:
@@ -4115,12 +3701,6 @@ abstract class AppLocalizations {
   /// **'Repairs'**
   String get repairOrderTitle;
 
-  /// No description provided for @repairOrderList.
-  ///
-  /// In en, this message translates to:
-  /// **'Repair order list'**
-  String get repairOrderList;
-
   /// No description provided for @pendingStockShort.
   ///
   /// In en, this message translates to:
@@ -4144,6 +3724,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Income/Expense'**
   String get incomeExpense;
+
+  /// No description provided for @createSaleOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'CREATE SALE ORDER'**
+  String get createSaleOrder;
 
   /// No description provided for @sellProductsQuickly.
   ///
@@ -4247,12 +3833,6 @@ abstract class AppLocalizations {
   /// **'View, search and track all sale orders.'**
   String get viewSearchTrackSales;
 
-  /// No description provided for @customerManagement.
-  ///
-  /// In en, this message translates to:
-  /// **'Customer Management'**
-  String get customerManagement;
-
   /// No description provided for @addEditViewCustomers.
   ///
   /// In en, this message translates to:
@@ -4265,23 +3845,29 @@ abstract class AppLocalizations {
   /// **'View and process warranty requests.'**
   String get viewProcessWarrantyRequests;
 
+  /// No description provided for @repairs.
+  ///
+  /// In en, this message translates to:
+  /// **'REPAIRS'**
+  String get repairs;
+
   /// No description provided for @createNewRepairOrder.
   ///
   /// In en, this message translates to:
   /// **'CREATE NEW REPAIR ORDER'**
   String get createNewRepairOrder;
 
+  /// No description provided for @repairOrderList.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair order list'**
+  String get repairOrderList;
+
   /// No description provided for @viewSearchTrackRepairs.
   ///
   /// In en, this message translates to:
   /// **'View, search and track all repair orders.'**
   String get viewSearchTrackRepairs;
-
-  /// No description provided for @inventoryManagement.
-  ///
-  /// In en, this message translates to:
-  /// **'Inventory Management'**
-  String get inventoryManagement;
 
   /// No description provided for @holdForDetailedGuide.
   ///
@@ -4306,6 +3892,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Full information'**
   String get fullInformation;
+
+  /// No description provided for @quickStockIn.
+  ///
+  /// In en, this message translates to:
+  /// **'QUICK STOCK IN'**
+  String get quickStockIn;
 
   /// No description provided for @quickStockInGuide.
   ///
@@ -4385,17 +3977,17 @@ abstract class AppLocalizations {
   /// **'View and manage quick input codes.'**
   String get viewManageQuickInputCodes;
 
-  /// No description provided for @noAccessPermission.
-  ///
-  /// In en, this message translates to:
-  /// **'You do not have permission to access this feature'**
-  String get noAccessPermission;
-
   /// No description provided for @contactOwnerForPermission.
   ///
   /// In en, this message translates to:
   /// **'Contact shop owner for permission'**
   String get contactOwnerForPermission;
+
+  /// No description provided for @staffManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'STAFF MANAGEMENT'**
+  String get staffManagement;
 
   /// No description provided for @recordWorkingHours.
   ///
@@ -4432,12 +4024,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'REPORTS'**
   String get reports;
-
-  /// No description provided for @attendanceTracking.
-  ///
-  /// In en, this message translates to:
-  /// **'ATTENDANCE TRACKING'**
-  String get attendanceTracking;
 
   /// No description provided for @viewAllStaffAttendance.
   ///
@@ -4523,35 +4109,11 @@ abstract class AppLocalizations {
   /// **'Warranty\nTracking'**
   String get warrantyTracking;
 
-  /// No description provided for @manageAllTransactions.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage all income/expense transactions.'**
-  String get manageAllTransactions;
-
-  /// No description provided for @expenseManagement.
-  ///
-  /// In en, this message translates to:
-  /// **'Expense Management'**
-  String get expenseManagement;
-
-  /// No description provided for @addTrackShopExpenses.
-  ///
-  /// In en, this message translates to:
-  /// **'Add and track shop expenses.'**
-  String get addTrackShopExpenses;
-
   /// No description provided for @debtManagementIncomeExpense.
   ///
   /// In en, this message translates to:
   /// **'Debt Management (Income/Expense)'**
   String get debtManagementIncomeExpense;
-
-  /// No description provided for @recordPayDebts.
-  ///
-  /// In en, this message translates to:
-  /// **'Record and pay debts.'**
-  String get recordPayDebts;
 
   /// No description provided for @summaryAllTransactions.
   ///
@@ -4571,23 +4133,11 @@ abstract class AppLocalizations {
   /// **'Track all financial activities.'**
   String get trackAllFinancialActivities;
 
-  /// No description provided for @shopSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Shop Settings'**
-  String get shopSettings;
-
   /// No description provided for @shopInfoLogoLocationMembers.
   ///
   /// In en, this message translates to:
   /// **'Shop info, logo, location and member management.'**
   String get shopInfoLogoLocationMembers;
-
-  /// No description provided for @notifications.
-  ///
-  /// In en, this message translates to:
-  /// **'Notifications'**
-  String get notifications;
 
   /// No description provided for @configureNotificationSettings.
   ///
@@ -4601,59 +4151,17 @@ abstract class AppLocalizations {
   /// **'Design print templates for thermal printer.'**
   String get designPrintTemplates;
 
-  /// No description provided for @adminCenter.
-  ///
-  /// In en, this message translates to:
-  /// **'Admin Center'**
-  String get adminCenter;
-
   /// No description provided for @manageSystemForSuperAdmin.
   ///
   /// In en, this message translates to:
   /// **'Manage entire system for super admin.'**
   String get manageSystemForSuperAdmin;
 
-  /// No description provided for @aboutDeveloper.
-  ///
-  /// In en, this message translates to:
-  /// **'About Developer'**
-  String get aboutDeveloper;
-
   /// No description provided for @developerAndAppInfo.
   ///
   /// In en, this message translates to:
   /// **'Developer and app information.'**
   String get developerAndAppInfo;
-
-  /// No description provided for @logoutFromAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Logout from account'**
-  String get logoutFromAccount;
-
-  /// No description provided for @logoutConfirmTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Logout?'**
-  String get logoutConfirmTitle;
-
-  /// No description provided for @logoutConfirmMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to logout from this account?'**
-  String get logoutConfirmMessage;
-
-  /// No description provided for @checkingSync.
-  ///
-  /// In en, this message translates to:
-  /// **'Checking sync...'**
-  String get checkingSync;
-
-  /// No description provided for @checkingLocalVsCloud.
-  ///
-  /// In en, this message translates to:
-  /// **'Checking local vs cloud data'**
-  String get checkingLocalVsCloud;
 
   /// No description provided for @dataSyncComplete.
   ///
@@ -4667,41 +4175,17 @@ abstract class AppLocalizations {
   /// **'Local and Cloud match 100%'**
   String get localCloudMatch100;
 
-  /// No description provided for @recheckingSync.
-  ///
-  /// In en, this message translates to:
-  /// **'🔄 Rechecking...'**
-  String get recheckingSync;
-
   /// No description provided for @needsDataSync.
   ///
   /// In en, this message translates to:
   /// **'Needs data sync'**
   String get needsDataSync;
 
-  /// No description provided for @recordsNotSynced.
-  ///
-  /// In en, this message translates to:
-  /// **'records not synced. Tap to open Sync Center.'**
-  String recordsNotSynced(int count);
-
-  /// No description provided for @todayFinancialReport.
-  ///
-  /// In en, this message translates to:
-  /// **'TODAY FINANCIAL REPORT'**
-  String get todayFinancialReport;
-
   /// No description provided for @salesAndRepairOrders.
   ///
   /// In en, this message translates to:
   /// **'sales + repair orders'**
   String get salesAndRepairOrders;
-
-  /// No description provided for @warrantyReminder.
-  ///
-  /// In en, this message translates to:
-  /// **'WARRANTY REMINDER'**
-  String get warrantyReminder;
 
   /// No description provided for @expiringWarrantiesMessage.
   ///
@@ -4739,6 +4223,12 @@ abstract class AppLocalizations {
   /// **'Customers & Suppliers'**
   String get customersAndSuppliersDataItem;
 
+  /// No description provided for @downloadDataOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Download data of'**
+  String get downloadDataOf;
+
   /// No description provided for @fromCloudToThisDevice.
   ///
   /// In en, this message translates to:
@@ -4756,6 +4246,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Process may take a few minutes depending on data size.'**
   String get processMayTakeFewMinutes;
+
+  /// No description provided for @downloadSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop data downloaded successfully!'**
+  String get downloadSuccess;
 
   /// No description provided for @downloadError.
   ///
@@ -4780,18 +4276,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sync needed'**
   String get syncNeeded;
-
-  /// No description provided for @todayExpense.
-  ///
-  /// In en, this message translates to:
-  /// **'TODAY EXPENSE'**
-  String get todayExpense;
-
-  /// No description provided for @todayActivity.
-  ///
-  /// In en, this message translates to:
-  /// **'TODAY ACTIVITY'**
-  String get todayActivity;
 
   /// No description provided for @comparingLocalVsCloud.
   ///
@@ -4835,6 +4319,18 @@ abstract class AppLocalizations {
   /// **'Step'**
   String get step;
 
+  /// No description provided for @next.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get next;
+
+  /// No description provided for @back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get back;
+
   /// No description provided for @storeOwner.
   ///
   /// In en, this message translates to:
@@ -4846,6 +4342,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Create a new shop and manage employees'**
   String get createNewShop;
+
+  /// No description provided for @employee.
+  ///
+  /// In en, this message translates to:
+  /// **'Employee'**
+  String get employee;
 
   /// No description provided for @joinExistingShop.
   ///
@@ -4882,6 +4384,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Confirm Password'**
   String get confirmPassword;
+
+  /// No description provided for @address.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String get address;
 
   /// No description provided for @shopInviteCode.
   ///
@@ -5075,12 +4583,6 @@ abstract class AppLocalizations {
   /// **'Customize content and font size'**
   String get customizeContentAndFontSize;
 
-  /// No description provided for @labelDesignTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'LABEL DESIGN'**
-  String get labelDesignTitle;
-
   /// No description provided for @layoutShopInfoFormula.
   ///
   /// In en, this message translates to:
@@ -5183,11 +4685,11 @@ abstract class AppLocalizations {
   /// **'Thank you!'**
   String get thankYou;
 
-  /// No description provided for @userGuide.
+  /// No description provided for @selected.
   ///
   /// In en, this message translates to:
-  /// **'User Guide'**
-  String get userGuide;
+  /// **'Selected: {deviceName}'**
+  String selected(String deviceName);
 
   /// No description provided for @learnHowToUseApp.
   ///
@@ -5200,6 +4702,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Search guides...'**
   String get searchGuides;
+
+  /// No description provided for @newLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'NEW'**
+  String get newLabel;
+
+  /// No description provided for @notFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Not found'**
+  String get notFound;
 
   /// No description provided for @easy.
   ///
@@ -5254,6 +4768,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'support@huluca.com'**
   String get supportEmail;
+
+  /// No description provided for @hotline.
+  ///
+  /// In en, this message translates to:
+  /// **'Hotline: 1900 xxxx'**
+  String get hotline;
 
   /// No description provided for @supportHotline.
   ///
@@ -5477,6 +4997,12 @@ abstract class AppLocalizations {
   /// **'Track repair orders from receiving to delivery'**
   String get repairManagementDesc;
 
+  /// No description provided for @inventoryManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Inventory Management'**
+  String get inventoryManagement;
+
   /// No description provided for @inventoryManagementDesc.
   ///
   /// In en, this message translates to:
@@ -5530,6 +5056,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Safe data, access anytime, anywhere'**
   String get cloudSyncDesc;
+
+  /// No description provided for @version.
+  ///
+  /// In en, this message translates to:
+  /// **'Version 10.0.6'**
+  String get version;
 
   /// No description provided for @salaryCalculationGuide.
   ///
@@ -5609,6 +5141,12 @@ abstract class AppLocalizations {
   /// **'💳 \"Deduction/Tax Settings\" icon:\n• Personal deduction: 11 million\n• SI 8%, HI 1.5%, UI 1%'**
   String get taxAndInsuranceDesc;
 
+  /// No description provided for @understood.
+  ///
+  /// In en, this message translates to:
+  /// **'UNDERSTOOD'**
+  String get understood;
+
   /// No description provided for @goToSalaryTable.
   ///
   /// In en, this message translates to:
@@ -5651,11 +5189,35 @@ abstract class AppLocalizations {
   /// **'REPORTS & ANALYSIS'**
   String get reportAndAnalysis;
 
+  /// No description provided for @manageAllTransactions.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage all income/expense transactions.'**
+  String get manageAllTransactions;
+
+  /// No description provided for @expenseManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense Management'**
+  String get expenseManagement;
+
+  /// No description provided for @addTrackShopExpenses.
+  ///
+  /// In en, this message translates to:
+  /// **'Add and track shop expenses.'**
+  String get addTrackShopExpenses;
+
   /// No description provided for @debtManagementInOut.
   ///
   /// In en, this message translates to:
   /// **'Debt Management (In/Out)'**
   String get debtManagementInOut;
+
+  /// No description provided for @recordPayDebts.
+  ///
+  /// In en, this message translates to:
+  /// **'Record and pay debts.'**
+  String get recordPayDebts;
 
   /// No description provided for @financialReportLabel.
   ///
@@ -5681,11 +5243,65 @@ abstract class AppLocalizations {
   /// **'Track all income/expense activities.'**
   String get trackAllIncomeExpenseActivities;
 
+  /// No description provided for @todayIncome.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY INCOME'**
+  String get todayIncome;
+
+  /// No description provided for @todayExpense.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY EXPENSE'**
+  String get todayExpense;
+
+  /// No description provided for @sales.
+  ///
+  /// In en, this message translates to:
+  /// **'sales'**
+  String get sales;
+
+  /// No description provided for @repair.
+  ///
+  /// In en, this message translates to:
+  /// **'repair'**
+  String get repair;
+
+  /// No description provided for @expenseItems.
+  ///
+  /// In en, this message translates to:
+  /// **'expense items'**
+  String get expenseItems;
+
+  /// No description provided for @todayNetProfit.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY NET PROFIT'**
+  String get todayNetProfit;
+
+  /// No description provided for @totalDebt.
+  ///
+  /// In en, this message translates to:
+  /// **'TOTAL DEBT'**
+  String get totalDebt;
+
+  /// No description provided for @shopSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop Settings'**
+  String get shopSettings;
+
   /// No description provided for @shopSettingsDescription.
   ///
   /// In en, this message translates to:
   /// **'Information, logo, location and shop member management.'**
   String get shopSettingsDescription;
+
+  /// No description provided for @notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifications;
 
   /// No description provided for @notificationSettingsDescription.
   ///
@@ -5693,11 +5309,23 @@ abstract class AppLocalizations {
   /// **'Configure notification and alert settings.'**
   String get notificationSettingsDescription;
 
+  /// No description provided for @printer.
+  ///
+  /// In en, this message translates to:
+  /// **'Printer'**
+  String get printer;
+
   /// No description provided for @printerSettingsDescription.
   ///
   /// In en, this message translates to:
   /// **'Setup connection and print template design.'**
   String get printerSettingsDescription;
+
+  /// No description provided for @adminCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Center'**
+  String get adminCenter;
 
   /// No description provided for @adminCenterDescription.
   ///
@@ -5711,11 +5339,77 @@ abstract class AppLocalizations {
   /// **'Information about developer and application.'**
   String get aboutDeveloperDescription;
 
+  /// No description provided for @logout.
+  ///
+  /// In en, this message translates to:
+  /// **'LOGOUT'**
+  String get logout;
+
+  /// No description provided for @logoutFromAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout from account'**
+  String get logoutFromAccount;
+
+  /// No description provided for @logoutConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Logout?'**
+  String get logoutConfirmTitle;
+
+  /// No description provided for @logoutConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to logout from this account?'**
+  String get logoutConfirmMessage;
+
   /// No description provided for @needSyncData.
   ///
   /// In en, this message translates to:
   /// **'⚠️ Need data sync'**
   String get needSyncData;
+
+  /// No description provided for @recordsNotSynced.
+  ///
+  /// In en, this message translates to:
+  /// **'records not synced. Tap to open Sync Center.'**
+  String recordsNotSynced(int count);
+
+  /// No description provided for @todayFinancialReport.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY FINANCIAL REPORT'**
+  String get todayFinancialReport;
+
+  /// No description provided for @details.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get details;
+
+  /// No description provided for @saleOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'sale orders'**
+  String get saleOrders;
+
+  /// No description provided for @repairOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'repair orders'**
+  String get repairOrders;
+
+  /// No description provided for @todayActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'TODAY ACTIVITY'**
+  String get todayActivity;
+
+  /// No description provided for @pendingRepairs.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending repairs'**
+  String get pendingRepairs;
 
   /// No description provided for @netProfitFormula.
   ///
@@ -5723,17 +5417,41 @@ abstract class AppLocalizations {
   /// **'= Income - Expense - Cost'**
   String get netProfitFormula;
 
+  /// No description provided for @userGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'User Guide'**
+  String get userGuide;
+
   /// No description provided for @viewDetailedGuideForEachFeature.
   ///
   /// In en, this message translates to:
   /// **'View detailed guide for each feature in app'**
   String get viewDetailedGuideForEachFeature;
 
+  /// No description provided for @warrantyReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'WARRANTY REMINDER'**
+  String get warrantyReminder;
+
   /// No description provided for @devicesExpiringWarranty.
   ///
   /// In en, this message translates to:
   /// **'devices expiring warranty soon. View now!'**
   String get devicesExpiringWarranty;
+
+  /// No description provided for @checkingSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking sync...'**
+  String get checkingSync;
+
+  /// No description provided for @checkingLocalVsCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking local vs cloud data'**
+  String get checkingLocalVsCloud;
 
   /// No description provided for @dataSyncedFully.
   ///
@@ -5747,11 +5465,23 @@ abstract class AppLocalizations {
   /// **'Local and Cloud matched 100%'**
   String get localCloudMatched;
 
+  /// No description provided for @recheckingSync.
+  ///
+  /// In en, this message translates to:
+  /// **'🔄 Rechecking...'**
+  String get recheckingSync;
+
   /// No description provided for @exitApp.
   ///
   /// In en, this message translates to:
   /// **'Exit app?'**
   String get exitApp;
+
+  /// No description provided for @exit.
+  ///
+  /// In en, this message translates to:
+  /// **'EXIT'**
+  String get exit;
 
   /// No description provided for @emailAlreadyInUse.
   ///
@@ -5813,11 +5543,47 @@ abstract class AppLocalizations {
   /// **'Invite code is incorrect or expired.'**
   String get invalidOrExpiredInviteCode;
 
+  /// No description provided for @loadingShopData.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading shop data...'**
+  String get loadingShopData;
+
+  /// No description provided for @switchedToShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched to shop: {shopName}'**
+  String switchedToShop(String shopName);
+
+  /// No description provided for @errorSwitchingShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Error switching shop: {error}'**
+  String errorSwitchingShop(String error);
+
+  /// No description provided for @onlySuperAdminCanDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'ONLY SUPER ADMIN CAN DELETE SHOP DATA!'**
+  String get onlySuperAdminCanDelete;
+
+  /// No description provided for @dangerWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ DANGER WARNING'**
+  String get dangerWarning;
+
   /// No description provided for @deleteAllDataWarning.
   ///
   /// In en, this message translates to:
   /// **'This action will delete 100% of Orders, Inventory, Debts and Logs of the Shop on both Cloud and this Device. CANNOT BE RECOVERED!'**
   String get deleteAllDataWarning;
+
+  /// No description provided for @typeToConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Type \'DELETE ALL\' to confirm:'**
+  String get typeToConfirm;
 
   /// No description provided for @deleteAllPlaceholder.
   ///
@@ -5830,6 +5596,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'CONFIRM DELETE ALL'**
   String get confirmDeleteAll;
+
+  /// No description provided for @shopDataDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'SHOP DATA DELETED!'**
+  String get shopDataDeleted;
 
   /// No description provided for @errorDeletingCloudData.
   ///
@@ -5963,12 +5735,6 @@ abstract class AppLocalizations {
   /// **'BACK COVER'**
   String get backCover;
 
-  /// No description provided for @noAccessories.
-  ///
-  /// In en, this message translates to:
-  /// **'None'**
-  String get noAccessories;
-
   /// No description provided for @walkInCustomerNoSave.
   ///
   /// In en, this message translates to:
@@ -6017,6 +5783,12 @@ abstract class AppLocalizations {
   /// **'Syncing data to server...'**
   String get syncingDataToServer;
 
+  /// No description provided for @createRepairOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'CREATE REPAIR'**
+  String get createRepairOrder;
+
   /// No description provided for @repairOrderCreated.
   ///
   /// In en, this message translates to:
@@ -6053,11 +5825,11 @@ abstract class AppLocalizations {
   /// **'Total cost: {amount}'**
   String totalCost(String amount);
 
-  /// No description provided for @addServiceTitle.
+  /// No description provided for @addService.
   ///
   /// In en, this message translates to:
-  /// **'Add service'**
-  String get addServiceTitle;
+  /// **'ADD SERVICE'**
+  String get addService;
 
   /// No description provided for @serviceName.
   ///
@@ -6077,11 +5849,29 @@ abstract class AppLocalizations {
   /// **'Partner (optional)'**
   String get partnerOptional;
 
+  /// No description provided for @noPartner.
+  ///
+  /// In en, this message translates to:
+  /// **'No partner'**
+  String get noPartner;
+
   /// No description provided for @partnerPaymentMethod.
   ///
   /// In en, this message translates to:
   /// **'Partner payment method *'**
   String get partnerPaymentMethod;
+
+  /// No description provided for @update.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get update;
+
+  /// No description provided for @add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get add;
 
   /// No description provided for @saveOrder.
   ///
@@ -6113,6 +5903,30 @@ abstract class AppLocalizations {
   /// **'Customer name (optional)'**
   String get customerNameOptional;
 
+  /// No description provided for @customerName.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer name'**
+  String get customerName;
+
+  /// No description provided for @deviceModel.
+  ///
+  /// In en, this message translates to:
+  /// **'DEVICE MODEL *'**
+  String get deviceModel;
+
+  /// No description provided for @deviceIssue.
+  ///
+  /// In en, this message translates to:
+  /// **'DEVICE ISSUE *'**
+  String get deviceIssue;
+
+  /// No description provided for @estimatedPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'ESTIMATED PRICE'**
+  String get estimatedPrice;
+
   /// No description provided for @services.
   ///
   /// In en, this message translates to:
@@ -6124,6 +5938,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SECURITY & ACCESSORIES'**
   String get securityAccessories;
+
+  /// No description provided for @screenPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen password'**
+  String get screenPassword;
 
   /// No description provided for @otherAccessories.
   ///
@@ -6185,29 +6005,11 @@ abstract class AppLocalizations {
   /// **'Select customer'**
   String get selectCustomer;
 
-  /// No description provided for @addCustomer.
-  ///
-  /// In en, this message translates to:
-  /// **'Add customer'**
-  String get addCustomer;
-
   /// No description provided for @todayClosedNoRepair.
   ///
   /// In en, this message translates to:
   /// **'❌ Today is closed! Cannot create new repair order.'**
   String get todayClosedNoRepair;
-
-  /// No description provided for @pleaseEnterServiceName.
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter service name'**
-  String get pleaseEnterServiceName;
-
-  /// No description provided for @pleaseSelectPaymentMethod.
-  ///
-  /// In en, this message translates to:
-  /// **'Please select payment method'**
-  String get pleaseSelectPaymentMethod;
 
   /// No description provided for @selectCustomerTitle.
   ///
@@ -6226,18 +6028,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No customer found'**
   String get noCustomerFound;
-
-  /// No description provided for @addressLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Address'**
-  String addressLabel(String address);
-
-  /// No description provided for @notesLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Notes'**
-  String notesLabel(String notes);
 
   /// No description provided for @repairInputAction.
   ///
@@ -6275,6 +6065,12 @@ abstract class AppLocalizations {
   /// **'Repair done'**
   String get repairDone;
 
+  /// No description provided for @delivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get delivered;
+
   /// No description provided for @received.
   ///
   /// In en, this message translates to:
@@ -6287,6 +6083,12 @@ abstract class AppLocalizations {
   /// **'Selected: {count} statuses'**
   String selectedStatuses(int count);
 
+  /// No description provided for @apply.
+  ///
+  /// In en, this message translates to:
+  /// **'APPLY'**
+  String get apply;
+
   /// No description provided for @orderHasAccounting.
   ///
   /// In en, this message translates to:
@@ -6298,6 +6100,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Order has parts:'**
   String get orderHasParts;
+
+  /// No description provided for @statusRepairing.
+  ///
+  /// In en, this message translates to:
+  /// **'REPAIRING'**
+  String get statusRepairing;
 
   /// No description provided for @statusRepairDone.
   ///
@@ -6364,6 +6172,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'OTHER'**
   String get statusOther;
+
+  /// No description provided for @all.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get all;
 
   /// No description provided for @statusSelectMultiple.
   ///
@@ -6545,6 +6359,12 @@ abstract class AppLocalizations {
   /// **'DONE'**
   String get repairDoneButton;
 
+  /// No description provided for @phoneNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone number'**
+  String get phoneNumber;
+
   /// No description provided for @orderAlreadyHasParts.
   ///
   /// In en, this message translates to:
@@ -6568,6 +6388,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit price'**
   String get editPrice;
+
+  /// No description provided for @editService.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit service'**
+  String get editService;
+
+  /// No description provided for @addServiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add service'**
+  String get addServiceTitle;
 
   /// No description provided for @partnerOptional2.
   ///
@@ -6647,12 +6479,6 @@ abstract class AppLocalizations {
   /// **'Warranty'**
   String get warrantyLabel2;
 
-  /// No description provided for @cancelButton.
-  ///
-  /// In en, this message translates to:
-  /// **'CANCEL'**
-  String get cancelButton;
-
   /// No description provided for @saveButton.
   ///
   /// In en, this message translates to:
@@ -6689,35 +6515,11 @@ abstract class AppLocalizations {
   /// **'No partner'**
   String get noPartnerOption;
 
-  /// No description provided for @viewRepairPartners.
-  ///
-  /// In en, this message translates to:
-  /// **'View repair partners'**
-  String get viewRepairPartners;
-
   /// No description provided for @enterServiceName.
   ///
   /// In en, this message translates to:
   /// **'Please enter service name'**
   String get enterServiceName;
-
-  /// No description provided for @serviceNameRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Service name *'**
-  String get serviceNameRequired;
-
-  /// No description provided for @costVnd.
-  ///
-  /// In en, this message translates to:
-  /// **'Cost (VND)'**
-  String get costVnd;
-
-  /// No description provided for @paymentMethodLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'PAYMENT METHOD:'**
-  String get paymentMethodLabel;
 
   /// No description provided for @chargeCustomerVnd.
   ///
@@ -6755,12 +6557,6 @@ abstract class AppLocalizations {
   /// **'EDIT INFO'**
   String get editInfoTitle;
 
-  /// No description provided for @techNotesTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'TECHNICIAN NOTES'**
-  String get techNotesTitle;
-
   /// No description provided for @partsInventoryShort.
   ///
   /// In en, this message translates to:
@@ -6785,6 +6581,12 @@ abstract class AppLocalizations {
   /// **'Print error: {error}'**
   String printError(String error);
 
+  /// No description provided for @noAccessPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'You do not have permission to access this feature'**
+  String get noAccessPermission;
+
   /// No description provided for @repairDetailTitle.
   ///
   /// In en, this message translates to:
@@ -6808,6 +6610,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select payment method:'**
   String get selectPaymentMethod;
+
+  /// No description provided for @confirmDeliveryAndPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'CONFIRM DELIVERY & PAYMENT'**
+  String get confirmDeliveryAndPayment;
 
   /// No description provided for @completeDelivery.
   ///
@@ -6845,11 +6653,23 @@ abstract class AppLocalizations {
   /// **'12 MONTHS'**
   String get twelveMonths;
 
-  /// No description provided for @techNotesHint.
+  /// No description provided for @cash.
   ///
   /// In en, this message translates to:
-  /// **'Ex: Replace power IC, check mainboard, replace charging cable...'**
-  String get techNotesHint;
+  /// **'CASH'**
+  String get cash;
+
+  /// No description provided for @bankTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'BANK TRANSFER'**
+  String get bankTransfer;
+
+  /// No description provided for @debt.
+  ///
+  /// In en, this message translates to:
+  /// **'DEBT'**
+  String get debt;
 
   /// No description provided for @financeTitleUpper.
   ///
@@ -7025,11 +6845,23 @@ abstract class AppLocalizations {
   /// **'0123.456.789'**
   String get defaultShopPhone;
 
+  /// No description provided for @techNotesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'TECHNICIAN NOTES'**
+  String get techNotesTitle;
+
   /// No description provided for @repairProcessNotes.
   ///
   /// In en, this message translates to:
   /// **'Repair process notes:'**
   String get repairProcessNotes;
+
+  /// No description provided for @techNotesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ex: Replace power IC, check mainboard, replace charging cable...'**
+  String get techNotesHint;
 
   /// No description provided for @trackRepairProgress.
   ///
@@ -7115,11 +6947,23 @@ abstract class AppLocalizations {
   /// **'Phone number'**
   String get phoneNumberLabel;
 
+  /// No description provided for @issueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Device issue'**
+  String issueLabel(String issue);
+
   /// No description provided for @accessoriesLabel.
   ///
   /// In en, this message translates to:
   /// **'Accessories'**
   String get accessoriesLabel;
+
+  /// No description provided for @noAccessories.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get noAccessories;
 
   /// No description provided for @errorSaving.
   ///
@@ -7265,6 +7109,12 @@ abstract class AppLocalizations {
   /// **'e.g.: Parts ABC'**
   String get supplierHint;
 
+  /// No description provided for @paymentMethodLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PAYMENT METHOD:'**
+  String get paymentMethodLabel;
+
   /// No description provided for @debtWarning.
   ///
   /// In en, this message translates to:
@@ -7283,6 +7133,30 @@ abstract class AppLocalizations {
   /// **'RECORD DEBT'**
   String get recordDebt;
 
+  /// No description provided for @viewRepairPartners.
+  ///
+  /// In en, this message translates to:
+  /// **'View repair partners'**
+  String get viewRepairPartners;
+
+  /// No description provided for @serviceNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Service name *'**
+  String get serviceNameRequired;
+
+  /// No description provided for @pleaseEnterServiceName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter service name'**
+  String get pleaseEnterServiceName;
+
+  /// No description provided for @costVnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost (VND)'**
+  String get costVnd;
+
   /// No description provided for @costField.
   ///
   /// In en, this message translates to:
@@ -7294,6 +7168,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Partner payment method *'**
   String get partnerPaymentMethodRequired;
+
+  /// No description provided for @pleaseSelectPaymentMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Please select payment method'**
+  String get pleaseSelectPaymentMethod;
 
   /// No description provided for @selectPartsTitle.
   ///
@@ -7330,6 +7210,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stock: {qty}'**
   String stockQty(int qty);
+
+  /// No description provided for @costPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Cost: {price}'**
+  String costPrice(String price);
 
   /// No description provided for @sellPrice.
   ///
@@ -7432,6 +7318,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'General'**
   String get generalSettingsTab;
+
+  /// No description provided for @staffTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Staff'**
+  String get staffTab;
 
   /// No description provided for @workScheduleSaved.
   ///
@@ -7829,6 +7721,12 @@ abstract class AppLocalizations {
   /// **'Please select staff to view attendance info'**
   String get selectStaffForAttendance;
 
+  /// No description provided for @aboutDeveloper.
+  ///
+  /// In en, this message translates to:
+  /// **'About Developer'**
+  String get aboutDeveloper;
+
   /// No description provided for @hulucaStoreDongNai.
   ///
   /// In en, this message translates to:
@@ -7888,6 +7786,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Comprehensive multi-industry shop management: Electronics (IMEI, warranty), Food (expiry), Fashion (size/color variants) with real-time sync.'**
   String get appFullDescription;
+
+  /// No description provided for @attendanceTracking.
+  ///
+  /// In en, this message translates to:
+  /// **'ATTENDANCE TRACKING'**
+  String get attendanceTracking;
 
   /// No description provided for @viewByMonth.
   ///
@@ -8099,6 +8003,12 @@ abstract class AppLocalizations {
   /// **'delete customer'**
   String get deleteCustomerAction;
 
+  /// No description provided for @confirmDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm delete'**
+  String get confirmDeleteTitle;
+
   /// No description provided for @confirmDeleteCustomer.
   ///
   /// In en, this message translates to:
@@ -8117,11 +8027,29 @@ abstract class AppLocalizations {
   /// **'Only shop owner can perform this action.\nEnter account password to confirm:'**
   String get ownerPasswordRequired;
 
+  /// No description provided for @pleaseLoginAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Please login again'**
+  String get pleaseLoginAgain;
+
   /// No description provided for @incorrectPassword.
   ///
   /// In en, this message translates to:
   /// **'Incorrect password!'**
   String get incorrectPassword;
+
+  /// No description provided for @customerManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer Management'**
+  String get customerManagement;
+
+  /// No description provided for @addCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Add customer'**
+  String get addCustomer;
 
   /// No description provided for @searchCustomers.
   ///
@@ -8225,11 +8153,23 @@ abstract class AppLocalizations {
   /// **'Enter email (optional)'**
   String get enterEmailOptional;
 
+  /// No description provided for @addressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Address'**
+  String addressLabel(String address);
+
   /// No description provided for @enterAddressOptional.
   ///
   /// In en, this message translates to:
   /// **'Enter address (optional)'**
   String get enterAddressOptional;
+
+  /// No description provided for @notesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String notesLabel(String notes);
 
   /// No description provided for @enterNotesOptional.
   ///
@@ -8404,6 +8344,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Error checking product: {error}'**
   String errorCheckingProduct(String error);
+
+  /// No description provided for @qrScanSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'QR SCAN SETTINGS'**
+  String get qrScanSettings;
 
   /// No description provided for @soundFeedback.
   ///
@@ -8591,6 +8537,12 @@ abstract class AppLocalizations {
   /// **'Switched to zone: {zone}'**
   String switchedToZone(String zone);
 
+  /// No description provided for @labelSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Product Label Settings'**
+  String get labelSettings;
+
   /// No description provided for @labelTemplates.
   ///
   /// In en, this message translates to:
@@ -8602,6 +8554,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Information displayed on label'**
   String get labelDisplayInfo;
+
+  /// No description provided for @shopNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop Name'**
+  String get shopNameLabel;
 
   /// No description provided for @shopNameExample.
   ///
@@ -8633,11 +8591,23 @@ abstract class AppLocalizations {
   /// **'Ex: Best price guaranteed'**
   String get sloganExample;
 
+  /// No description provided for @addressOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Address (optional)'**
+  String get addressOptional;
+
   /// No description provided for @addressExample.
   ///
   /// In en, this message translates to:
   /// **'Ex: 123 ABC Street, District 1, HCM'**
   String get addressExample;
+
+  /// No description provided for @cpkPriceSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'CPK Price Settings'**
+  String get cpkPriceSettings;
 
   /// No description provided for @cpkFormulaTitle.
   ///
@@ -8723,6 +8693,12 @@ abstract class AppLocalizations {
   /// **'SAVE SETTINGS'**
   String get saveSettingsButton;
 
+  /// No description provided for @labelSettingsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Label settings saved!'**
+  String get labelSettingsSaved;
+
   /// No description provided for @errorPrefixLabel.
   ///
   /// In en, this message translates to:
@@ -8746,6 +8722,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Are you sure you want to delete template \"{name}\"?'**
   String confirmDeleteTemplate(String name);
+
+  /// No description provided for @cancelButton.
+  ///
+  /// In en, this message translates to:
+  /// **'CANCEL'**
+  String get cancelButton;
 
   /// No description provided for @deleteButton.
   ///
@@ -8885,6 +8867,12 @@ abstract class AppLocalizations {
   /// **'Import date'**
   String get importDateField;
 
+  /// No description provided for @pleaseEnterTemplateName.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter template name'**
+  String get pleaseEnterTemplateName;
+
   /// No description provided for @saveTemplateButton.
   ///
   /// In en, this message translates to:
@@ -8968,6 +8956,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset'**
   String get resetButton;
+
+  /// No description provided for @labelDesignTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LABEL DESIGN'**
+  String get labelDesignTitle;
 
   /// No description provided for @layoutTab.
   ///
@@ -9412,6 +9406,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Switch shop'**
   String get switchShop;
+
+  /// No description provided for @currentShop.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Shop'**
+  String get currentShop;
 
   /// No description provided for @shopSwitched.
   ///

@@ -7,11 +7,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
+import '../models/shop_settings_model.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
+import '../services/category_service.dart';
 import '../widgets/currency_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -61,11 +63,17 @@ class _RevenueViewState extends State<RevenueView>
   // State for detail tab sub-navigation
   int _detailSubTab = 0; // 0: Bán hàng, 1: Sửa chữa, 2: Chi tiêu
 
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+  bool get _enableRepair => _shopSettings?.enableRepair ?? true;
+  bool get _isFashion => _shopSettings?.businessType == 'fashion';
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 1, vsync: this);
     _loadPermissions();
+    _loadShopSettings();
     _loadAllData();
     _initClosingRealTimeSync();
     // Lắng nghe event bus thay vì gọi initRealTimeSync trực tiếp
@@ -168,6 +176,14 @@ class _RevenueViewState extends State<RevenueView>
     if (!mounted) return;
     setState(() {
       _hasRevenueAccess = perms['allowViewRevenue'] ?? false;
+    });
+  }
+
+  Future<void> _loadShopSettings() async {
+    final settings = await CategoryService().getShopSettings();
+    if (!mounted) return;
+    setState(() {
+      _shopSettings = settings;
     });
   }
 
@@ -652,6 +668,32 @@ class _RevenueViewState extends State<RevenueView>
 
   /// Widget gộp BÁN HÀNG + SỬA CHỮA + CHI TIÊU trong 1 tab với SegmentedButton
   Widget _buildDetailTab() {
+    // Xây dựng danh sách segments động dựa trên enableRepair
+    final segments = <ButtonSegment<int>>[
+      const ButtonSegment(
+        value: 0,
+        label: Text("BÁN HÀNG"),
+        icon: Icon(Icons.shopping_cart, size: 16),
+      ),
+      if (_enableRepair)
+        const ButtonSegment(
+          value: 1,
+          label: Text("SỬA CHỮA"),
+          icon: Icon(Icons.build, size: 16),
+        ),
+      ButtonSegment(
+        value: _enableRepair ? 2 : 1,
+        label: const Text("CHI TIÊU"),
+        icon: const Icon(Icons.money_off, size: 16),
+      ),
+    ];
+
+    // Map selectedIndex dựa trên enableRepair
+    int displayIndex = _detailSubTab;
+    if (!_enableRepair && _detailSubTab > 0) {
+      displayIndex = _detailSubTab; // Chi tiêu = 1 khi không có repair
+    }
+
     return Column(
       children: [
         Container(
@@ -660,24 +702,8 @@ class _RevenueViewState extends State<RevenueView>
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(
-                  value: 0,
-                  label: Text("BÁN HÀNG"),
-                  icon: Icon(Icons.shopping_cart, size: 16),
-                ),
-                ButtonSegment(
-                  value: 1,
-                  label: Text("SỬA CHỮA"),
-                  icon: Icon(Icons.build, size: 16),
-                ),
-                ButtonSegment(
-                  value: 2,
-                  label: Text("CHI TIÊU"),
-                  icon: Icon(Icons.money_off, size: 16),
-                ),
-              ],
-              selected: {_detailSubTab},
+              segments: segments,
+              selected: {displayIndex},
               onSelectionChanged: (Set<int> selected) {
                 setState(() => _detailSubTab = selected.first);
               },
@@ -690,7 +716,7 @@ class _RevenueViewState extends State<RevenueView>
             index: _detailSubTab,
             children: [
               _buildSaleDetail(),
-              _buildRepairDetail(),
+              if (_enableRepair) _buildRepairDetail(),
               _buildExpenseDetail(),
             ],
           ),
@@ -2485,15 +2511,17 @@ class _RevenueViewState extends State<RevenueView>
                         Colors.blue,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _modernStatCard(
-                        "Sửa chữa",
-                        fRepairs.length.toString(),
-                        Icons.build,
-                        Colors.orange,
+                    if (_enableRepair) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _modernStatCard(
+                          "Sửa chữa",
+                          fRepairs.length.toString(),
+                          Icons.build,
+                          Colors.orange,
+                        ),
                       ),
-                    ),
+                    ],
                     const SizedBox(width: 8),
                     Expanded(
                       child: _modernStatCard(
@@ -2509,9 +2537,9 @@ class _RevenueViewState extends State<RevenueView>
                 // Chi tiết nguồn thu
                 _buildRevenueBreakdown(
                   salesIncome,
-                  repairsIncome,
+                  _enableRepair ? repairsIncome : 0,
                   fSales.length,
-                  fRepairs.length,
+                  _enableRepair ? fRepairs.length : 0,
                 ),
               ],
             ),
@@ -2619,7 +2647,7 @@ class _RevenueViewState extends State<RevenueView>
               ),
             ],
           ),
-          if (saleDebt > 0 || repairDebt > 0 || pendingFromBank > 0) ...[
+          if (saleDebt > 0 || (_enableRepair && repairDebt > 0) || pendingFromBank > 0) ...[
             const Divider(height: 20),
             if (saleDebt > 0)
               _receivableItem(
@@ -2629,7 +2657,7 @@ class _RevenueViewState extends State<RevenueView>
                 Icons.shopping_bag,
                 Colors.blue,
               ),
-            if (repairDebt > 0)
+            if (_enableRepair && repairDebt > 0)
               _receivableItem(
                 "Công nợ sửa chữa",
                 repairDebt,
@@ -2763,7 +2791,7 @@ class _RevenueViewState extends State<RevenueView>
                       flex: salesPct.round().clamp(1, 100),
                       child: Container(color: Colors.green.shade400),
                     ),
-                  if (repairsPct > 0)
+                  if (_enableRepair && repairsPct > 0)
                     Flexible(
                       flex: repairsPct.round().clamp(1, 100),
                       child: Container(color: Colors.blue.shade400),
@@ -2793,11 +2821,12 @@ class _RevenueViewState extends State<RevenueView>
                 Colors.green.shade400,
                 "${salesPct.toStringAsFixed(0)}%",
               ),
-              _chartLegend(
-                "Sửa chữa",
-                Colors.blue.shade400,
-                "${repairsPct.toStringAsFixed(0)}%",
-              ),
+              if (_enableRepair)
+                _chartLegend(
+                  "Sửa chữa",
+                  Colors.blue.shade400,
+                  "${repairsPct.toStringAsFixed(0)}%",
+                ),
               _chartLegend(
                 "Chi phí",
                 Colors.red.shade400,
@@ -2849,12 +2878,14 @@ class _RevenueViewState extends State<RevenueView>
           salesIncome,
           Colors.green,
         ),
-        const SizedBox(height: 8),
-        _revenueBreakdownRow(
-          "Sửa chữa ($repairsCount đơn)",
-          repairsIncome,
-          Colors.blue,
-        ),
+        if (_enableRepair && repairsCount > 0) ...[
+          const SizedBox(height: 8),
+          _revenueBreakdownRow(
+            "Sửa chữa ($repairsCount đơn)",
+            repairsIncome,
+            Colors.blue,
+          ),
+        ],
       ],
     );
   }

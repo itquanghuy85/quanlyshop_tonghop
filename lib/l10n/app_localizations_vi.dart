@@ -15,9 +15,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get login => 'Đăng nhập';
 
   @override
-  String get logout => 'ĐĂNG XUẤT';
-
-  @override
   String get settings => 'Cài đặt';
 
   @override
@@ -64,9 +61,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get parts => 'Linh kiện';
-
-  @override
-  String get sales => 'bán';
 
   @override
   String get customers => 'Khách hàng';
@@ -126,13 +120,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get dashboard => 'DASHBOARD';
 
   @override
-  String get repair => 'sửa';
-
-  @override
   String get warranty => 'BẢO HÀNH';
-
-  @override
-  String get printer => 'Máy in';
 
   @override
   String get auditLog => 'NHẬT KÝ';
@@ -145,9 +133,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get payroll => 'LƯƠNG';
-
-  @override
-  String get debt => 'CÔNG NỢ';
 
   @override
   String get quickActions => 'TRUY CẬP NHANH';
@@ -235,9 +220,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get quickStats => 'Thống kê nhanh';
-
-  @override
-  String get pendingRepairs => 'Đơn sửa chờ';
 
   @override
   String get completedToday => 'Xong/Giao hôm nay';
@@ -360,9 +342,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get brandInfoSection => 'THÔNG TIN THƯƠNG HIỆU';
 
   @override
-  String get shopNameLabel => 'Tên cửa hàng';
-
-  @override
   String get shopPhoneLabel => 'Số điện thoại liên hệ';
 
   @override
@@ -393,9 +372,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get appDescription => 'Giải pháp quản lý cửa hàng đa ngành toàn diện';
 
   @override
-  String get version => 'Phiên bản 10.0.6';
-
-  @override
   String get versionNumber => '2.6.0';
 
   @override
@@ -412,9 +388,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get contactPhone => 'SĐT/Zalo: 0964 095 979';
-
-  @override
-  String get technicalSupport => 'HỖ TRỢ KỸ THUẬT';
 
   @override
   String get businessSolutions => 'Phát triển giải pháp quản lý kinh doanh';
@@ -463,9 +436,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get scanQRCode => 'Quét mã QR';
-
-  @override
-  String get createRepairOrder => 'NHẬP ĐƠN SỬA';
 
   @override
   String get noPermissionRepair => 'Tài khoản này không được phép vào mục SỬA CHỮA. Liên hệ chủ shop để phân quyền.';
@@ -540,9 +510,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get viewInventoryPermission => 'Quyền xem kho';
 
   @override
-  String get employee => 'NHÂN VIÊN';
-
-  @override
   String get inventoryCheck => 'KIỂM KHO';
 
   @override
@@ -570,12 +537,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get quickMenu => 'Menu nhanh';
 
   @override
-  String get customerName => 'Tên KH';
-
-  @override
-  String get phoneNumber => 'Số điện thoại';
-
-  @override
   String get customerAddress => 'ĐỊA CHỈ KHÁCH HÀNG';
 
   @override
@@ -583,12 +544,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get viewCustomerHistory => 'XEM LỊCH SỬ KHÁCH NÀY';
-
-  @override
-  String get deviceModel => 'MODEL MÁY *';
-
-  @override
-  String get deviceIssue => 'LỖI MÁY *';
 
   @override
   String get appearanceCondition => 'TÌNH TRẠNG NGOẠI QUAN';
@@ -603,19 +558,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get accessoriesHint => 'Ví dụ: SẠC, TAI NGHE...';
 
   @override
-  String get screenPassword => 'Mật khẩu màn hình';
-
-  @override
-  String get estimatedPrice => 'GIÁ DỰ KIẾN';
-
-  @override
   String get paymentMethod => 'HÌNH THỨC THANH TOÁN';
-
-  @override
-  String get cash => 'TIỀN MẶT';
-
-  @override
-  String get bankTransfer => 'CHUYỂN KHOẢN';
 
   @override
   String get credit => 'CÔNG NỢ';
@@ -661,11 +604,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get imeiNumber => 'Số IMEI (Nếu có)';
-
-  @override
-  String costPrice(String price) {
-    return 'Vốn: $price';
-  }
 
   @override
   String get capacity => 'Dung lượng (ví dụ: 64GB, 128GB)';
@@ -724,13 +662,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get financeCenter => 'TRUNG TÂM TÀI CHÍNH';
 
   @override
-  String get repairs => 'SỬA CHỮA';
-
-  @override
   String get staff => 'NHÂN VIÊN';
-
-  @override
-  String get all => 'Tất cả';
 
   @override
   String get passwordHint => 'Mật khẩu';
@@ -792,9 +724,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get createNewOrderQuestion => 'Bạn có muốn tạo đơn sửa chữa mới không?';
 
   @override
-  String get back => 'QUAY LẠI';
-
-  @override
   String saveOrderError(String error) {
     return 'Lỗi lưu đơn: $error';
   }
@@ -843,9 +772,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get contactPerson => 'Người liên hệ';
-
-  @override
-  String get address => 'Địa chỉ';
 
   @override
   String get name => 'Tên';
@@ -964,12 +890,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get warningNewDevice => 'Máy này có rất ít dữ liệu';
 
   @override
-  String get repairOrders => 'đơn sửa';
-
-  @override
-  String get saleOrders => 'đơn bán';
-
-  @override
   String get products => 'sản phẩm';
 
   @override
@@ -1000,13 +920,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get uploadingData => 'Đang đồng bộ dữ liệu...';
 
   @override
-  String get downloadSuccess => 'Đã tải xong dữ liệu shop!';
-
-  @override
   String get uploadSuccess => 'Đã đồng bộ dữ liệu lên đám mây!';
-
-  @override
-  String get dangerWarning => '⚠️ CẢNH BÁO NGUY HIỂM';
 
   @override
   String get confirmResetShop => 'Nhập chữ \'XOA HET\' để xác nhận';
@@ -1048,9 +962,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get filter => 'Bộ lọc';
 
   @override
-  String get createSaleOrder => 'TẠO ĐƠN BÁN HÀNG';
-
-  @override
   String get searchByNameImei => 'Tìm theo tên khách, máy hoặc IMEI...';
 
   @override
@@ -1078,9 +989,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get repairPartnerTab => 'ĐỐI TÁC SỬA CHỮA';
 
   @override
-  String get staffManagement => 'QUẢN LÝ NHÂN SỰ';
-
-  @override
   String get roleLabel => 'Vai trò';
 
   @override
@@ -1094,18 +1002,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get attendanceManagement => 'Quản lý giờ làm việc';
-
-  @override
-  String get addService => 'THÊM DỊCH VỤ';
-
-  @override
-  String get editService => 'Sửa dịch vụ';
-
-  @override
-  String get update => 'Cập nhật';
-
-  @override
-  String get add => 'Thêm';
 
   @override
   String get deleteSupplier => 'XÓA NHÀ CUNG CẤP';
@@ -1162,16 +1058,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get deletePartner => 'Xóa đối tác';
 
   @override
-  String get qrScanSettings => 'CÀI ĐẶT QUÉT QR';
-
-  @override
   String get scanSettings => 'Cài đặt scan';
-
-  @override
-  String get labelSettings => 'Cài đặt tem nhãn';
-
-  @override
-  String get cpkPriceSettings => 'Cài đặt giá CPK';
 
   @override
   String get confirm => 'Xác nhận';
@@ -1207,24 +1094,13 @@ class AppLocalizationsVi extends AppLocalizations {
   String get done => 'Xong';
 
   @override
-  String get next => 'TIẾP THEO';
-
-  @override
   String get previous => 'Trước đó';
 
   @override
   String get select => 'Chọn';
 
   @override
-  String selected(String deviceName) {
-    return '✅ Đã chọn: $deviceName';
-  }
-
-  @override
   String get edit => 'Sửa';
-
-  @override
-  String get details => 'Chi tiết';
 
   @override
   String get total => 'Tổng cộng';
@@ -1267,9 +1143,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get ok => 'OK';
-
-  @override
-  String get notFound => 'Không tìm thấy';
 
   @override
   String get noResults => 'Không có kết quả';
@@ -1368,9 +1241,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get reset => 'Đặt lại';
 
   @override
-  String get apply => 'ÁP DỤNG';
-
-  @override
   String get from => 'Từ';
 
   @override
@@ -1396,9 +1266,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get without => 'Không có';
-
-  @override
-  String get newLabel => 'MỚI';
 
   @override
   String get old => 'Cũ';
@@ -1528,9 +1395,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get selectOtherShop => 'CHỌN SHOP KHÁC';
 
   @override
-  String get currentShop => 'Cửa hàng hiện tại';
-
-  @override
   String get logoutFromApp => 'Đăng xuất khỏi ứng dụng';
 
   @override
@@ -1546,19 +1410,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get syncCenterDesc => 'Tải về, đẩy lên, kiểm tra và khôi phục dữ liệu';
-
-  @override
-  String get loadingShopData => 'Đang tải dữ liệu shop...';
-
-  @override
-  String switchedToShop(String shopName) {
-    return 'Đã chuyển sang shop: $shopName';
-  }
-
-  @override
-  String errorSwitchingShop(String error) {
-    return 'Lỗi khi chuyển shop: $error';
-  }
 
   @override
   String get viewShopAsAdmin => 'Super Admin có thể chọn shop để xem dữ liệu';
@@ -1600,9 +1451,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get resetShopWarning => 'Hành động này sẽ xóa sạch 100% dữ liệu Đơn hàng, Kho, Nợ và Nhật ký của Shop trên cả Đám mây và Máy này. KHÔNG THỂ KHÔI PHỤC!';
-
-  @override
-  String get typeToConfirm => 'Nhập chữ \'XOA HET\' để xác nhận:';
 
   @override
   String resetCloudError(String error) {
@@ -1668,9 +1516,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get continueAdding => 'NHẬP TIẾP';
 
   @override
-  String get quickStockIn => 'NHẬP NHANH';
-
-  @override
   String get manualEntry => 'Nhập thủ công';
 
   @override
@@ -1684,9 +1529,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get addMore => 'Nhập thêm';
-
-  @override
-  String get understood => 'ĐÃ HIỂU';
 
   @override
   String get confirmStockIn => 'Xác nhận nhập kho?';
@@ -1728,13 +1570,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get partnerInfoNotFound => 'Không tìm thấy thông tin đối tác!';
 
   @override
-  String get noPartner => 'Không có đối tác';
-
-  @override
   String get loadingList => 'Đang tải danh sách...';
-
-  @override
-  String get pleaseLoginAgain => 'Vui lòng đăng nhập lại';
 
   @override
   String searchError(String error) {
@@ -1762,12 +1598,6 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
-  String get labelSettingsSaved => '✅ Đã lưu cài đặt tem nhãn!';
-
-  @override
-  String get pleaseEnterTemplateName => 'Vui lòng nhập tên mẫu';
-
-  @override
   String get shopTab => 'Shop';
 
   @override
@@ -1779,12 +1609,6 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
-  String get onlySuperAdminCanDelete => 'CHỈ SUPER ADMIN MỚI ĐƯỢC XÓA DỮ LIỆU SHOP!';
-
-  @override
-  String get shopDataDeleted => 'ĐÃ XÓA SẠCH DỮ LIỆU SHOP!';
-
-  @override
   String get displayInfoOnLabel => 'Thông tin hiển thị trên tem';
 
   @override
@@ -1792,9 +1616,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get shopNameHint => 'VD: HULUCA MOBILE';
-
-  @override
-  String get hotline => 'Hotline: 1900 xxxx';
 
   @override
   String get hotlineHint => 'VD: 0909 123 456';
@@ -1807,9 +1628,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get sloganHint => 'VD: Cam kết giá tốt nhất thị trường';
-
-  @override
-  String get addressOptional => 'Địa chỉ (tùy chọn)';
 
   @override
   String get addressHint => 'VD: 123 ABC, Q1, HCM';
@@ -1832,18 +1650,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get csvCopied => 'Đã copy CSV vào clipboard';
 
   @override
-  String get confirmDeliveryAndPayment => 'XÁC NHẬN GIAO MÁY & THANH TOÁN';
-
-  @override
-  String get statusRepairing => 'ĐANG SỬA';
-
-  @override
   String get statusDone => 'ĐÃ XONG';
-
-  @override
-  String issueLabel(String issue) {
-    return 'Tình trạng lỗi';
-  }
 
   @override
   String get receiptSavedAndPrinted => 'Đã lưu và in phiếu tiếp nhận thành công!';
@@ -1856,9 +1663,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get isActive => 'Đang hoạt động';
-
-  @override
-  String get confirmDeleteTitle => 'Xác nhận xóa';
 
   @override
   String get confirmButton => 'XÁC NHẬN';
@@ -1882,9 +1686,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get inventoryTab => 'Kho';
 
   @override
-  String get staffTab => 'Nhân viên';
-
-  @override
   String get financeTab => 'Tài chính';
 
   @override
@@ -1901,9 +1702,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get exitAppTitle => 'Thoát ứng dụng?';
-
-  @override
-  String get exit => 'THOÁT';
 
   @override
   String get groupChat => 'CHAT NHÓM';
@@ -1923,25 +1721,10 @@ class AppLocalizationsVi extends AppLocalizations {
   String get todayOverview => 'TỔNG QUAN HÔM NAY';
 
   @override
-  String get todayIncome => 'THU HÔM NAY';
-
-  @override
   String get todayExpenseLabel => 'CHI HÔM NAY';
 
   @override
-  String get expenseItems => 'khoản chi';
-
-  @override
-  String get totalDebt => 'TỔNG CÔNG NỢ';
-
-  @override
   String get todayActivities => 'HOẠT ĐỘNG HÔM NAY';
-
-  @override
-  String get delivered => 'Đã giao';
-
-  @override
-  String get todayNetProfit => 'LỢI NHUẬN RÒNG HÔM NAY';
 
   @override
   String get profitFormula => '= Thu - Chi - Giá vốn';
@@ -1951,6 +1734,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get featureLockedByOwner => 'Bạn không có quyền truy cập tính năng này.\nVui lòng liên hệ Chủ shop để được cấp quyền.';
+
+  @override
+  String get technicalSupport => 'HỖ TRỢ KỸ THUẬT';
 
   @override
   String get contactShopOwner => 'LIÊN HỆ CHỦ SHOP';
@@ -2035,9 +1821,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get downloadShopDataTitle => 'TẢI DỮ LIỆU SHOP';
 
   @override
-  String get downloadDataOf => 'Tải dữ liệu của';
-
-  @override
   String get fromCloudToDevice => 'từ đám mây về máy này.';
 
   @override
@@ -2077,9 +1860,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get repairOrderTitle => 'Đơn sửa';
 
   @override
-  String get repairOrderList => 'Danh sách đơn sửa';
-
-  @override
   String get pendingStockShort => 'Hàng chờ XN';
 
   @override
@@ -2090,6 +1870,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get incomeExpense => 'Thu/Chi';
+
+  @override
+  String get createSaleOrder => 'TẠO ĐƠN BÁN HÀNG';
 
   @override
   String get sellProductsQuickly => 'Bán sản phẩm nhanh chóng';
@@ -2143,22 +1926,22 @@ class AppLocalizationsVi extends AppLocalizations {
   String get viewSearchTrackSales => 'Xem, tìm kiếm và theo dõi tất cả đơn bán hàng.';
 
   @override
-  String get customerManagement => 'Quản lý khách hàng';
-
-  @override
   String get addEditViewCustomers => 'Thêm, sửa và xem thông tin khách hàng.';
 
   @override
   String get viewProcessWarrantyRequests => 'Xem và xử lý các yêu cầu bảo hành sản phẩm.';
 
   @override
+  String get repairs => 'SỬA CHỮA';
+
+  @override
   String get createNewRepairOrder => 'TẠO ĐƠN SỬA MỚI';
 
   @override
-  String get viewSearchTrackRepairs => 'Xem, tìm kiếm và theo dõi tất cả đơn sửa chữa.';
+  String get repairOrderList => 'Danh sách đơn sửa';
 
   @override
-  String get inventoryManagement => 'Quản lý kho hàng';
+  String get viewSearchTrackRepairs => 'Xem, tìm kiếm và theo dõi tất cả đơn sửa chữa.';
 
   @override
   String get holdForDetailedGuide => 'Nhấn giữ để xem hướng dẫn chi tiết';
@@ -2171,6 +1954,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get fullInformation => 'Đầy đủ thông tin';
+
+  @override
+  String get quickStockIn => 'NHẬP NHANH';
 
   @override
   String get quickStockInGuide => 'Nhập hàng siêu tốc - chỉ cần quét mã:\n\n⚡ Quét barcode/QR liên tục\n⚡ Tự động điền thông tin từ thư viện\n⚡ Phù hợp nhập số lượng lớn\n\n📌 Dùng khi: Nhập nhanh phụ kiện, linh kiện đã có sẵn mã trong hệ thống.';
@@ -2212,10 +1998,10 @@ class AppLocalizationsVi extends AppLocalizations {
   String get viewManageQuickInputCodes => 'Xem và quản lý danh sách mã nhập nhanh đã tạo.';
 
   @override
-  String get noAccessPermission => 'Bạn không có quyền truy cập tính năng này';
+  String get contactOwnerForPermission => 'Liên hệ chủ shop để được cấp quyền';
 
   @override
-  String get contactOwnerForPermission => 'Liên hệ chủ shop để được cấp quyền';
+  String get staffManagement => 'QUẢN LÝ NHÂN SỰ';
 
   @override
   String get recordWorkingHours => 'Ghi nhận giờ làm việc';
@@ -2234,9 +2020,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get reports => 'BÁO CÁO';
-
-  @override
-  String get attendanceTracking => 'QUẢN LÝ CHẤM CÔNG';
 
   @override
   String get viewAllStaffAttendance => 'Xem chấm công tất cả nhân viên theo ngày/tháng.';
@@ -2281,19 +2064,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get warrantyTracking => 'Theo dõi\nBảo hành';
 
   @override
-  String get manageAllTransactions => 'Quản lý tất cả các giao dịch thu/chi.';
-
-  @override
-  String get expenseManagement => 'Quản lý chi phí';
-
-  @override
-  String get addTrackShopExpenses => 'Thêm và theo dõi các khoản chi phí của cửa hàng.';
-
-  @override
   String get debtManagementIncomeExpense => 'Quản lý nợ (Thu/Chi)';
-
-  @override
-  String get recordPayDebts => 'Ghi nhận và thanh toán các khoản nợ.';
 
   @override
   String get summaryAllTransactions => 'Tổng hợp tất cả giao dịch thu chi.';
@@ -2305,13 +2076,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get trackAllFinancialActivities => 'Theo dõi mọi hoạt động thu chi.';
 
   @override
-  String get shopSettings => 'Cài đặt cửa hàng';
-
-  @override
   String get shopInfoLogoLocationMembers => 'Thông tin, logo, vị trí và quản lý thành viên shop.';
-
-  @override
-  String get notifications => 'Thông báo';
 
   @override
   String get configureNotificationSettings => 'Cấu hình cài đặt thông báo và cảnh báo.';
@@ -2320,31 +2085,10 @@ class AppLocalizationsVi extends AppLocalizations {
   String get designPrintTemplates => 'Thiết kế mẫu in cho máy in nhiệt.';
 
   @override
-  String get adminCenter => 'Trung tâm Admin';
-
-  @override
   String get manageSystemForSuperAdmin => 'Quản lý toàn bộ hệ thống cho admin cấp cao.';
 
   @override
-  String get aboutDeveloper => 'Về nhà phát triển';
-
-  @override
   String get developerAndAppInfo => 'Thông tin về nhà phát triển và ứng dụng.';
-
-  @override
-  String get logoutFromAccount => 'Đăng xuất khỏi tài khoản';
-
-  @override
-  String get logoutConfirmTitle => 'Đăng xuất?';
-
-  @override
-  String get logoutConfirmMessage => 'Bạn có chắc muốn đăng xuất khỏi tài khoản?';
-
-  @override
-  String get checkingSync => 'Đang kiểm tra đồng bộ...';
-
-  @override
-  String get checkingLocalVsCloud => 'Kiểm tra dữ liệu local vs cloud';
 
   @override
   String get dataSyncComplete => 'Dữ liệu đồng bộ hoàn toàn';
@@ -2353,24 +2097,10 @@ class AppLocalizationsVi extends AppLocalizations {
   String get localCloudMatch100 => 'Local và Cloud đã khớp 100%';
 
   @override
-  String get recheckingSync => '🔄 Đang kiểm tra lại...';
-
-  @override
   String get needsDataSync => 'Cần đồng bộ dữ liệu';
 
   @override
-  String recordsNotSynced(int count) {
-    return 'bản ghi chưa đồng bộ. Bấm để mở Trung tâm đồng bộ.';
-  }
-
-  @override
-  String get todayFinancialReport => 'BÁO CÁO TÀI CHÍNH HÔM NAY';
-
-  @override
   String get salesAndRepairOrders => 'đơn bán + đơn sửa';
-
-  @override
-  String get warrantyReminder => 'NHẮC LỊCH BẢO HÀNH';
 
   @override
   String expiringWarrantiesMessage(int count) {
@@ -2393,6 +2123,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get customersAndSuppliersDataItem => 'Khách hàng & NCC';
 
   @override
+  String get downloadDataOf => 'Tải dữ liệu của';
+
+  @override
   String get fromCloudToThisDevice => 'từ đám mây về máy này.';
 
   @override
@@ -2400,6 +2133,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get processMayTakeFewMinutes => 'Quá trình có thể mất vài phút tùy lượng dữ liệu.';
+
+  @override
+  String get downloadSuccess => 'Đã tải xong dữ liệu shop!';
 
   @override
   String downloadError(String error) {
@@ -2414,12 +2150,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get syncNeeded => 'Cần đồng bộ dữ liệu';
-
-  @override
-  String get todayExpense => 'CHI HÔM NAY';
-
-  @override
-  String get todayActivity => 'HOẠT ĐỘNG HÔM NAY';
 
   @override
   String get comparingLocalVsCloud => 'Đang so sánh dữ liệu local và cloud...';
@@ -2451,10 +2181,19 @@ class AppLocalizationsVi extends AppLocalizations {
   String get step => 'Bước';
 
   @override
+  String get next => 'TIẾP THEO';
+
+  @override
+  String get back => 'QUAY LẠI';
+
+  @override
   String get storeOwner => 'CHỦ CỬA HÀNG';
 
   @override
   String get createNewShop => 'Tạo shop mới và quản lý nhân viên';
+
+  @override
+  String get employee => 'NHÂN VIÊN';
 
   @override
   String get joinExistingShop => 'Tham gia shop có sẵn qua mã mời';
@@ -2473,6 +2212,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get confirmPassword => 'Xác nhận mật khẩu';
+
+  @override
+  String get address => 'Địa chỉ';
 
   @override
   String get shopInviteCode => 'Mã mời từ Shop';
@@ -2575,9 +2317,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get customizeContentAndFontSize => 'Tùy chỉnh nội dung và size chữ';
 
   @override
-  String get labelDesignTitle => 'THIẾT KẾ TEM NHÃN';
-
-  @override
   String get layoutShopInfoFormula => 'Bố cục, thông tin Shop, công thức CPK';
 
   @override
@@ -2629,13 +2368,21 @@ class AppLocalizationsVi extends AppLocalizations {
   String get thankYou => 'Cảm ơn quý khách!';
 
   @override
-  String get userGuide => 'Hướng dẫn sử dụng';
+  String selected(String deviceName) {
+    return '✅ Đã chọn: $deviceName';
+  }
 
   @override
   String get learnHowToUseApp => 'Tìm hiểu cách sử dụng ứng dụng Shopmanager';
 
   @override
   String get searchGuides => 'Tìm kiếm hướng dẫn...';
+
+  @override
+  String get newLabel => 'MỚI';
+
+  @override
+  String get notFound => 'Không tìm thấy';
 
   @override
   String get easy => 'Dễ';
@@ -2665,6 +2412,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get supportEmail => 'support@huluca.com';
+
+  @override
+  String get hotline => 'Hotline: 1900 xxxx';
 
   @override
   String get supportHotline => 'Hotline hỗ trợ: 1900 xxxx';
@@ -2780,6 +2530,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get repairManagementDesc => 'Theo dõi đơn sửa chữa từ nhận máy đến giao máy';
 
   @override
+  String get inventoryManagement => 'Quản lý kho hàng';
+
+  @override
   String get inventoryManagementDesc => 'Nhập hàng, xuất kho, kiểm kê linh kiện';
 
   @override
@@ -2805,6 +2558,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get cloudSyncDesc => 'Dữ liệu an toàn, truy cập mọi lúc mọi nơi';
+
+  @override
+  String get version => 'Phiên bản 10.0.6';
 
   @override
   String get salaryCalculationGuide => 'HƯỚNG DẪN TÍNH LƯƠNG';
@@ -2846,6 +2602,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get taxAndInsuranceDesc => 'Icon 💳 \"Cài đặt Khấu trừ/Thuế\":\n• Giảm trừ cá nhân: 11 triệu\n• BHXH 8%, BHYT 1.5%, BHTN 1%';
 
   @override
+  String get understood => 'ĐÃ HIỂU';
+
+  @override
   String get goToSalaryTable => 'ĐI ĐẾN BẢNG LƯƠNG';
 
   @override
@@ -2867,7 +2626,19 @@ class AppLocalizationsVi extends AppLocalizations {
   String get reportAndAnalysis => 'BÁO CÁO & PHÂN TÍCH';
 
   @override
+  String get manageAllTransactions => 'Quản lý tất cả các giao dịch thu/chi.';
+
+  @override
+  String get expenseManagement => 'Quản lý chi phí';
+
+  @override
+  String get addTrackShopExpenses => 'Thêm và theo dõi các khoản chi phí của cửa hàng.';
+
+  @override
   String get debtManagementInOut => 'Quản lý nợ (Thu/Chi)';
+
+  @override
+  String get recordPayDebts => 'Ghi nhận và thanh toán các khoản nợ.';
 
   @override
   String get financialReportLabel => 'Báo cáo tài chính';
@@ -2882,13 +2653,46 @@ class AppLocalizationsVi extends AppLocalizations {
   String get trackAllIncomeExpenseActivities => 'Theo dõi mọi hoạt động thu chi.';
 
   @override
+  String get todayIncome => 'THU HÔM NAY';
+
+  @override
+  String get todayExpense => 'CHI HÔM NAY';
+
+  @override
+  String get sales => 'bán';
+
+  @override
+  String get repair => 'sửa';
+
+  @override
+  String get expenseItems => 'khoản chi';
+
+  @override
+  String get todayNetProfit => 'LỢI NHUẬN RÒNG HÔM NAY';
+
+  @override
+  String get totalDebt => 'TỔNG CÔNG NỢ';
+
+  @override
+  String get shopSettings => 'Cài đặt cửa hàng';
+
+  @override
   String get shopSettingsDescription => 'Thông tin, logo, vị trí và quản lý thành viên shop.';
+
+  @override
+  String get notifications => 'Thông báo';
 
   @override
   String get notificationSettingsDescription => 'Cấu hình cài đặt thông báo và cảnh báo.';
 
   @override
+  String get printer => 'Máy in';
+
+  @override
   String get printerSettingsDescription => 'Cài đặt kết nối và thiết kế mẫu in.';
+
+  @override
+  String get adminCenter => 'Trung tâm Admin';
 
   @override
   String get adminCenterDescription => 'Quản lý toàn bộ hệ thống cho admin cấp cao.';
@@ -2897,16 +2701,63 @@ class AppLocalizationsVi extends AppLocalizations {
   String get aboutDeveloperDescription => 'Thông tin về nhà phát triển và ứng dụng.';
 
   @override
+  String get logout => 'ĐĂNG XUẤT';
+
+  @override
+  String get logoutFromAccount => 'Đăng xuất khỏi tài khoản';
+
+  @override
+  String get logoutConfirmTitle => 'Đăng xuất?';
+
+  @override
+  String get logoutConfirmMessage => 'Bạn có chắc muốn đăng xuất khỏi tài khoản?';
+
+  @override
   String get needSyncData => '⚠️ Cần đồng bộ dữ liệu';
+
+  @override
+  String recordsNotSynced(int count) {
+    return 'bản ghi chưa đồng bộ. Bấm để mở Trung tâm đồng bộ.';
+  }
+
+  @override
+  String get todayFinancialReport => 'BÁO CÁO TÀI CHÍNH HÔM NAY';
+
+  @override
+  String get details => 'Chi tiết';
+
+  @override
+  String get saleOrders => 'đơn bán';
+
+  @override
+  String get repairOrders => 'đơn sửa';
+
+  @override
+  String get todayActivity => 'HOẠT ĐỘNG HÔM NAY';
+
+  @override
+  String get pendingRepairs => 'Đơn sửa chờ';
 
   @override
   String get netProfitFormula => '= Thu - Chi - Giá vốn';
 
   @override
+  String get userGuide => 'Hướng dẫn sử dụng';
+
+  @override
   String get viewDetailedGuideForEachFeature => 'Xem hướng dẫn chi tiết từng tính năng trong app';
 
   @override
+  String get warrantyReminder => 'NHẮC LỊCH BẢO HÀNH';
+
+  @override
   String get devicesExpiringWarranty => 'máy sắp hết hạn bảo hành. Xem ngay!';
+
+  @override
+  String get checkingSync => 'Đang kiểm tra đồng bộ...';
+
+  @override
+  String get checkingLocalVsCloud => 'Kiểm tra dữ liệu local vs cloud';
 
   @override
   String get dataSyncedFully => '✅ Dữ liệu đồng bộ hoàn toàn';
@@ -2915,7 +2766,13 @@ class AppLocalizationsVi extends AppLocalizations {
   String get localCloudMatched => 'Local và Cloud đã khớp 100%';
 
   @override
+  String get recheckingSync => '🔄 Đang kiểm tra lại...';
+
+  @override
   String get exitApp => 'Thoát ứng dụng?';
+
+  @override
+  String get exit => 'THOÁT';
 
   @override
   String get emailAlreadyInUse => 'Email này đã được đăng ký bởi người khác.';
@@ -2948,13 +2805,38 @@ class AppLocalizationsVi extends AppLocalizations {
   String get invalidOrExpiredInviteCode => 'Mã mời không chính xác hoặc đã hết hạn.';
 
   @override
+  String get loadingShopData => 'Đang tải dữ liệu shop...';
+
+  @override
+  String switchedToShop(String shopName) {
+    return 'Đã chuyển sang shop: $shopName';
+  }
+
+  @override
+  String errorSwitchingShop(String error) {
+    return 'Lỗi khi chuyển shop: $error';
+  }
+
+  @override
+  String get onlySuperAdminCanDelete => 'CHỈ SUPER ADMIN MỚI ĐƯỢC XÓA DỮ LIỆU SHOP!';
+
+  @override
+  String get dangerWarning => '⚠️ CẢNH BÁO NGUY HIỂM';
+
+  @override
   String get deleteAllDataWarning => 'Hành động này sẽ xóa sạch 100% dữ liệu Đơn hàng, Kho, Nợ và Nhật ký của Shop trên cả Đám mây và Máy này. KHÔNG THỂ KHÔI PHỤC!';
+
+  @override
+  String get typeToConfirm => 'Nhập chữ \'XOA HET\' để xác nhận:';
 
   @override
   String get deleteAllPlaceholder => 'XOA HET';
 
   @override
   String get confirmDeleteAll => 'XÁC NHẬN XÓA SẠCH';
+
+  @override
+  String get shopDataDeleted => 'ĐÃ XÓA SẠCH DỮ LIỆU SHOP!';
 
   @override
   String errorDeletingCloudData(String error) {
@@ -3025,9 +2907,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get backCover => 'ỐP LƯNG';
 
   @override
-  String get noAccessories => 'Không có';
-
-  @override
   String get walkInCustomerNoSave => 'Khách vãng lai không lưu danh bạ';
 
   @override
@@ -3058,6 +2937,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get syncingDataToServer => 'Đang đồng bộ dữ liệu lên server...';
 
   @override
+  String get createRepairOrder => 'NHẬP ĐƠN SỬA';
+
+  @override
   String repairOrderCreated(String model, String customer) {
     return 'Đã nhập đơn sửa $model cho khách $customer';
   }
@@ -3084,7 +2966,7 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
-  String get addServiceTitle => 'Thêm dịch vụ';
+  String get addService => 'THÊM DỊCH VỤ';
 
   @override
   String get serviceName => 'Tên dịch vụ *';
@@ -3096,7 +2978,16 @@ class AppLocalizationsVi extends AppLocalizations {
   String get partnerOptional => 'Đối tác (tùy chọn)';
 
   @override
+  String get noPartner => 'Không có đối tác';
+
+  @override
   String get partnerPaymentMethod => 'Phương thức TT đối tác *';
+
+  @override
+  String get update => 'Cập nhật';
+
+  @override
+  String get add => 'Thêm';
 
   @override
   String get saveOrder => 'LƯU ĐƠN';
@@ -3114,10 +3005,25 @@ class AppLocalizationsVi extends AppLocalizations {
   String get customerNameOptional => 'Tên KH (tùy chọn)';
 
   @override
+  String get customerName => 'Tên KH';
+
+  @override
+  String get deviceModel => 'MODEL MÁY *';
+
+  @override
+  String get deviceIssue => 'LỖI MÁY *';
+
+  @override
+  String get estimatedPrice => 'GIÁ DỰ KIẾN';
+
+  @override
   String get services => 'DỊCH VỤ';
 
   @override
   String get securityAccessories => 'BẢO MẬT & PHỤ KIỆN';
+
+  @override
+  String get screenPassword => 'Mật khẩu màn hình';
 
   @override
   String get otherAccessories => 'Phụ kiện khác';
@@ -3150,16 +3056,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get selectCustomer => 'Chọn khách';
 
   @override
-  String get addCustomer => 'Thêm khách hàng';
-
-  @override
   String get todayClosedNoRepair => '❌ Ngày hôm nay đã chốt quỹ! Không thể tạo phiếu sửa mới.';
-
-  @override
-  String get pleaseEnterServiceName => 'Vui lòng nhập tên dịch vụ';
-
-  @override
-  String get pleaseSelectPaymentMethod => 'Vui lòng chọn phương thức TT';
 
   @override
   String get selectCustomerTitle => 'CHỌN KHÁCH HÀNG';
@@ -3169,16 +3066,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get noCustomerFound => 'Không tìm thấy khách hàng';
-
-  @override
-  String addressLabel(String address) {
-    return 'Địa chỉ';
-  }
-
-  @override
-  String notesLabel(String notes) {
-    return 'Ghi chú';
-  }
 
   @override
   String get repairInputAction => 'NHẬP ĐƠN SỬA';
@@ -3201,6 +3088,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get repairDone => 'Sửa xong';
 
   @override
+  String get delivered => 'Đã giao';
+
+  @override
   String get received => 'Tiếp nhận';
 
   @override
@@ -3209,12 +3099,18 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
+  String get apply => 'ÁP DỤNG';
+
+  @override
   String orderHasAccounting(String price, String cost) {
     return 'Đơn có số liệu kế toán:\n• Giá: $price\n• Chi phí: $cost';
   }
 
   @override
   String get orderHasParts => 'Đơn có phụ tùng:';
+
+  @override
+  String get statusRepairing => 'ĐANG SỬA';
 
   @override
   String get statusRepairDone => 'SỬA XONG';
@@ -3254,6 +3150,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get statusOther => 'KHÁC';
+
+  @override
+  String get all => 'Tất cả';
 
   @override
   String get statusSelectMultiple => 'TRẠNG THÁI (chọn nhiều)';
@@ -3360,6 +3259,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get repairDoneButton => 'ĐÃ XONG';
 
   @override
+  String get phoneNumber => 'Số điện thoại';
+
+  @override
   String get orderAlreadyHasParts => 'Đơn này đã có phụ tùng:';
 
   @override
@@ -3370,6 +3272,12 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get editPrice => 'Sửa giá';
+
+  @override
+  String get editService => 'Sửa dịch vụ';
+
+  @override
+  String get addServiceTitle => 'Thêm dịch vụ';
 
   @override
   String get partnerOptional2 => 'Đối tác (tùy chọn)';
@@ -3411,9 +3319,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get warrantyLabel2 => 'Bảo hành';
 
   @override
-  String get cancelButton => 'HỦY';
-
-  @override
   String get saveButton => 'LƯU';
 
   @override
@@ -3432,19 +3337,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get noPartnerOption => 'Không có đối tác';
 
   @override
-  String get viewRepairPartners => 'Xem đối tác sửa chữa';
-
-  @override
   String get enterServiceName => 'Vui lòng nhập tên dịch vụ';
-
-  @override
-  String get serviceNameRequired => 'Tên dịch vụ *';
-
-  @override
-  String get costVnd => 'Chi phí (VNĐ)';
-
-  @override
-  String get paymentMethodLabel => 'PHƯƠNG THỨC THANH TOÁN:';
 
   @override
   String get chargeCustomerVnd => 'Giá thu khách (VNĐ)';
@@ -3465,9 +3358,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get editInfoTitle => 'SỬA THÔNG TIN';
 
   @override
-  String get techNotesTitle => 'GHI CHÚ KỸ THUẬT VIÊN';
-
-  @override
   String get partsInventoryShort => 'Kho LK';
 
   @override
@@ -3482,6 +3372,9 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
+  String get noAccessPermission => 'Bạn không có quyền truy cập tính năng này';
+
+  @override
   String get repairDetailTitle => 'CHI TIẾT ĐƠN SỬA';
 
   @override
@@ -3492,6 +3385,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get selectPaymentMethod => 'Chọn phương thức thanh toán:';
+
+  @override
+  String get confirmDeliveryAndPayment => 'XÁC NHẬN GIAO MÁY & THANH TOÁN';
 
   @override
   String get completeDelivery => 'HOÀN TẤT GIAO MÁY';
@@ -3512,7 +3408,13 @@ class AppLocalizationsVi extends AppLocalizations {
   String get twelveMonths => '12 THÁNG';
 
   @override
-  String get techNotesHint => 'VD: KT thay IC nguồn, sàng main, thay cáp sạc...';
+  String get cash => 'TIỀN MẶT';
+
+  @override
+  String get bankTransfer => 'CHUYỂN KHOẢN';
+
+  @override
+  String get debt => 'CÔNG NỢ';
 
   @override
   String get financeTitleUpper => 'TÀI CHÍNH';
@@ -3620,7 +3522,13 @@ class AppLocalizationsVi extends AppLocalizations {
   String get defaultShopPhone => '0123.456.789';
 
   @override
+  String get techNotesTitle => 'GHI CHÚ KỸ THUẬT VIÊN';
+
+  @override
   String get repairProcessNotes => 'Ghi chú quá trình sửa chữa:';
+
+  @override
+  String get techNotesHint => 'VD: KT thay IC nguồn, sàng main, thay cáp sạc...';
 
   @override
   String get trackRepairProgress => 'Theo dõi tiến độ sửa chữa và cập nhật trạng thái.';
@@ -3667,7 +3575,15 @@ class AppLocalizationsVi extends AppLocalizations {
   String get phoneNumberLabel => 'Số điện thoại';
 
   @override
+  String issueLabel(String issue) {
+    return 'Tình trạng lỗi';
+  }
+
+  @override
   String get accessoriesLabel => 'Phụ kiện kèm';
+
+  @override
+  String get noAccessories => 'Không có';
 
   @override
   String errorSaving(String error) {
@@ -3766,6 +3682,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get supplierHint => 'VD: Linh kiện ABC';
 
   @override
+  String get paymentMethodLabel => 'PHƯƠNG THỨC THANH TOÁN:';
+
+  @override
   String get debtWarning => 'Khoản nợ sẽ được ghi vào Quản lý công nợ';
 
   @override
@@ -3775,10 +3694,25 @@ class AppLocalizationsVi extends AppLocalizations {
   String get recordDebt => 'GHI NỢ';
 
   @override
+  String get viewRepairPartners => 'Xem đối tác sửa chữa';
+
+  @override
+  String get serviceNameRequired => 'Tên dịch vụ *';
+
+  @override
+  String get pleaseEnterServiceName => 'Vui lòng nhập tên dịch vụ';
+
+  @override
+  String get costVnd => 'Chi phí (VNĐ)';
+
+  @override
   String get costField => 'Chi phí';
 
   @override
   String get partnerPaymentMethodRequired => 'Phương thức TT đối tác *';
+
+  @override
+  String get pleaseSelectPaymentMethod => 'Vui lòng chọn phương thức TT';
 
   @override
   String get selectPartsTitle => 'CHỌN PHỤ TÙNG / LINH KIỆN';
@@ -3798,6 +3732,11 @@ class AppLocalizationsVi extends AppLocalizations {
   @override
   String stockQty(int qty) {
     return 'Tồn: $qty';
+  }
+
+  @override
+  String costPrice(String price) {
+    return 'Vốn: $price';
   }
 
   @override
@@ -3854,6 +3793,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get generalSettingsTab => 'Cài đặt chung';
+
+  @override
+  String get staffTab => 'Nhân viên';
 
   @override
   String get workScheduleSaved => 'Đã lưu cài đặt lịch làm việc';
@@ -4066,6 +4008,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get selectStaffForAttendance => 'Vui lòng chọn nhân viên để xem thông tin chấm công';
 
   @override
+  String get aboutDeveloper => 'Về nhà phát triển';
+
+  @override
   String get hulucaStoreDongNai => 'HULUCA STORE ĐỒNG NAI';
 
   @override
@@ -4096,6 +4041,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get appFullDescription => 'Ứng dụng quản lý cửa hàng đa ngành toàn diện: hỗ trợ điện tử (IMEI, bảo hành), thực phẩm (HSD), thời trang (biến thể size/màu) với đồng bộ thời gian thực.';
+
+  @override
+  String get attendanceTracking => 'QUẢN LÝ CHẤM CÔNG';
 
   @override
   String get viewByMonth => 'Xem theo tháng';
@@ -4211,6 +4159,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get deleteCustomerAction => 'xóa khách hàng';
 
   @override
+  String get confirmDeleteTitle => 'Xác nhận xóa';
+
+  @override
   String confirmDeleteCustomer(String name) {
     return 'Bạn có chắc muốn xóa khách hàng \"$name\"?';
   }
@@ -4224,7 +4175,16 @@ class AppLocalizationsVi extends AppLocalizations {
   String get ownerPasswordRequired => 'Chỉ chủ cửa hàng mới được thực hiện thao tác này.\nNhập mật khẩu tài khoản để xác nhận:';
 
   @override
+  String get pleaseLoginAgain => 'Vui lòng đăng nhập lại';
+
+  @override
   String get incorrectPassword => 'Mật khẩu không đúng!';
+
+  @override
+  String get customerManagement => 'Quản lý khách hàng';
+
+  @override
+  String get addCustomer => 'Thêm khách hàng';
 
   @override
   String get searchCustomers => 'Tìm kiếm khách hàng...';
@@ -4284,7 +4244,17 @@ class AppLocalizationsVi extends AppLocalizations {
   String get enterEmailOptional => 'Nhập email (tùy chọn)';
 
   @override
+  String addressLabel(String address) {
+    return 'Địa chỉ';
+  }
+
+  @override
   String get enterAddressOptional => 'Nhập địa chỉ (tùy chọn)';
+
+  @override
+  String notesLabel(String notes) {
+    return 'Ghi chú';
+  }
 
   @override
   String get enterNotesOptional => 'Nhập ghi chú (tùy chọn)';
@@ -4382,6 +4352,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String errorCheckingProduct(String error) {
     return 'Lỗi kiểm tra sản phẩm: $error';
   }
+
+  @override
+  String get qrScanSettings => 'CÀI ĐẶT QUÉT QR';
 
   @override
   String get soundFeedback => 'Phản hồi âm thanh';
@@ -4485,10 +4458,16 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
+  String get labelSettings => 'Cài đặt tem nhãn';
+
+  @override
   String get labelTemplates => 'Mẫu tem nhãn';
 
   @override
   String get labelDisplayInfo => 'Thông tin hiển thị trên tem';
+
+  @override
+  String get shopNameLabel => 'Tên cửa hàng';
 
   @override
   String get shopNameExample => 'VD: HULUCA MOBILE';
@@ -4506,7 +4485,13 @@ class AppLocalizationsVi extends AppLocalizations {
   String get sloganExample => 'VD: Cam kết giá tốt nhất';
 
   @override
+  String get addressOptional => 'Địa chỉ (tùy chọn)';
+
+  @override
   String get addressExample => 'VD: 123 Đường ABC, Quận 1, HCM';
+
+  @override
+  String get cpkPriceSettings => 'Cài đặt giá CPK';
 
   @override
   String get cpkFormulaTitle => '📌 Công thức giá CPK (Có phụ kiện):';
@@ -4551,6 +4536,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get saveSettingsButton => 'LƯU CÀI ĐẶT';
 
   @override
+  String get labelSettingsSaved => '✅ Đã lưu cài đặt tem nhãn!';
+
+  @override
   String errorPrefixLabel(String error) {
     return '❌ Lỗi: $error';
   }
@@ -4565,6 +4553,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String confirmDeleteTemplate(String name) {
     return 'Bạn có chắc muốn xóa mẫu \"$name\"?';
   }
+
+  @override
+  String get cancelButton => 'HỦY';
 
   @override
   String get deleteButton => 'XÓA';
@@ -4636,6 +4627,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get importDateField => 'Ngày nhập';
 
   @override
+  String get pleaseEnterTemplateName => 'Vui lòng nhập tên mẫu';
+
+  @override
   String get saveTemplateButton => 'LƯU MẪU';
 
   @override
@@ -4678,6 +4672,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get resetButton => 'Đặt lại';
+
+  @override
+  String get labelDesignTitle => 'THIẾT KẾ TEM NHÃN';
 
   @override
   String get layoutTab => 'Bố cục';
@@ -4910,6 +4907,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get switchShop => 'Chuyển cửa hàng';
+
+  @override
+  String get currentShop => 'Cửa hàng hiện tại';
 
   @override
   String shopSwitched(Object shopName) {

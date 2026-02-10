@@ -2,7 +2,6 @@
   "@@locale": "en",
   "appTitle": "Shop Manager",
   "login": "Login",
-  "logout": "Logout",
   "settings": "Settings",
   "language": "Language",
   "selectLanguage": "Select language",
@@ -19,7 +18,6 @@
   "inventory": "Inventory",
   "suppliers": "Suppliers",
   "parts": "Parts",
-  "sales": "Sales",
   "customers": "Customers",
   "debts": "Debts",
   "save": "Save",
@@ -39,14 +37,11 @@
   "revenue": "Revenue",
   "expenses": "Expenses",
   "dashboard": "DASHBOARD",
-  "repair": "REPAIR",
   "warranty": "WARRANTY",
-  "printer": "PRINTER",
   "auditLog": "AUDIT LOG",
   "performance": "PERFORMANCE",
   "attendance": "ATTENDANCE",
   "payroll": "PAYROLL",
-  "debt": "DEBT",
   "quickActions": "QUICK ACCESS",
   "checkInventory": "CHECK INVENTORY",
   "manageInventory": "MANAGE INVENTORY",
@@ -76,7 +71,6 @@
   "arrowForward": "Arrow forward",
   "perpetualCalendar": "Perpetual calendar",
   "quickStats": "Quick stats",
-  "pendingRepairs": "In progress",
   "completedToday": "Done/Delivered today",
   "soldToday": "Sold today",
   "todaySummary": "TODAY'S WORK",
@@ -117,7 +111,6 @@
   "settingsTitle": "SYSTEM SETTINGS",
   "languageLabel": "Language:",
   "brandInfoSection": "BRAND INFO",
-  "shopNameLabel": "Shop name (CAPS)",
   "shopPhoneLabel": "Contact phone",
   "shopAddressLabel": "Shop address",
   "invoiceConfigSection": "INVOICE CONFIG",
@@ -128,14 +121,12 @@
   "aboutSection": "ABOUT",
   "appName": "Shop Manager",
   "appDescription": "Multi-industry shop management solution",
-  "version": "Version",
   "versionNumber": "2.6.0",
   "contactSupport": "Contact support",
   "developer": "Developer",
   "developerName": "Quang Huy",
   "developerRole": "Mobile app development expert",
   "contactPhone": "Phone/Zalo: 0964 095 979",
-  "technicalSupport": "Technical support & app development",
   "businessSolutions": "Business management solutions",
   "saveAllSettings": "SAVE ALL SETTINGS",
   "enterInviteCode": "Enter invite code",
@@ -152,7 +143,6 @@
   "shopInfoSaved": "SHOP INFO SAVED!",
   "cleanupConfigSaved": "Cleanup config saved",
   "scanQRCode": "Scan QR code",
-  "createRepairOrder": "Create repair order",
   "noPermissionRepair": "This account is not permitted to access REPAIR section. Contact shop owner for permissions.",
   "allowed": "Yes",
   "notAllowed": "No",
@@ -177,7 +167,6 @@
   "noPermissionPrinter": "This account is not permitted to configure PRINTER. Contact shop owner for permissions.",
   "noPermissionCreateRepair": "This account is not permitted to create repair orders. Contact shop owner for permissions.",
   "viewInventoryPermission": "View inventory permission",
-  "employee": "EMPLOYEE",
   "inventoryCheck": "INVENTORY CHECK",
   "checkInventoryDesc": "Check phone & accessory stock",
   "receiptPrinter": "RECEIPT PRINTER",
@@ -187,22 +176,14 @@
   "thermalPrinter": "THERMAL PRINTER",
   "printLabelsDesc": "Print device labels",
   "quickMenu": "Quick menu",
-  "customerName": "CUSTOMER NAME",
-  "phoneNumber": "PHONE NUMBER",
   "customerAddress": "CUSTOMER ADDRESS",
   "addToContacts": "ADD TO CONTACTS",
   "viewCustomerHistory": "VIEW CUSTOMER HISTORY",
-  "deviceModel": "DEVICE MODEL",
-  "deviceIssue": "DEVICE ISSUE",
   "appearanceCondition": "APPEARANCE CONDITION",
   "appearanceHint": "E.g.: SCRATCHED, CRACKED, BENT...",
   "accessoriesIncluded": "ACCESSORIES INCLUDED",
   "accessoriesHint": "E.g.: CHARGER, EARPHONES...",
-  "screenPassword": "SCREEN PASSWORD",
-  "estimatedPrice": "ESTIMATED PRICE",
   "paymentMethod": "PAYMENT METHOD",
-  "cash": "CASH",
-  "bankTransfer": "BANK TRANSFER",
   "credit": "CREDIT",
   "installment": "INSTALLMENT (BANK)",
   "t86": "T86",
@@ -218,7 +199,6 @@
   "accessory": "ACCESSORY",
   "productName": "Product/Part name",
   "imeiNumber": "IMEI number (if any)",
-  "costPrice": "Cost price",
   "capacity": "Capacity (e.g.: 64GB, 128GB)",
   "quantity": "Quantity",
   "supplierRequired": "Supplier (required)",
@@ -244,9 +224,7 @@
   "labelPrintFailed": "LABEL PRINT FAILED - CHECK PRINTER",
   "errorPrintingLabel": "ERROR PRINTING LABEL",
   "financeCenter": "FINANCE CENTER",
-  "repairs": "REPAIRS",
   "staff": "STAFF",
-  "all": "All",
   "passwordHint": "Password",
   "priceHint": "Price",
   "transfer": "Transfer",
@@ -273,7 +251,6 @@
   "issueRequired": "Please enter device issue",
   "orderCreatedSuccessfully": "Repair order created successfully!",
   "createNewOrderQuestion": "Do you want to create a new repair order?",
-  "back": "Back",
   "saveOrderError": "Error saving order: {error}",
   "@saveOrderError": {
     "placeholders": {
@@ -316,7 +293,6 @@
   "addSupplierQuickly": "Add supplier quick",
   "supplierName": "Supplier name",
   "contactPerson": "Contact person",
-  "address": "Address",
   "name": "Name",
   "color": "Color",
   "price": "Price",
@@ -362,8 +338,6 @@
   "advancedAdmin": "ADVANCED ADMIN",
   "confirmLogout": "Are you sure you want to logout?",
   "warningNewDevice": "This device has very little data",
-  "repairOrders": "repair orders",
-  "saleOrders": "sale orders",
   "products": "products",
   "continueAnyway": "CONTINUE ANYWAY",
   "newStaffWarning": "Please DOWNLOAD DATA first, DO NOT sync to cloud without data.",
@@ -374,9 +348,7 @@
   "downloadAllData": "Download all shop data from cloud.",
   "downloadingData": "Downloading data...",
   "uploadingData": "Syncing data...",
-  "downloadSuccess": "All shop data downloaded!",
   "uploadSuccess": "Data synced to cloud!",
-  "dangerWarning": "DANGER WARNING",
   "confirmResetShop": "Type 'XOA HET' to confirm",
   "confirmResetButton": "CONFIRM RESET",
   "resetSuccess": "SHOP DATA RESET!",
@@ -390,7 +362,6 @@
   "todaySales": "TODAY'S SALES",
   "ordersCount": "orders",
   "filter": "Filter",
-  "createSaleOrder": "Create new sale order",
   "searchByNameImei": "Search by customer, device or IMEI...",
   "financeManagement": "FINANCE MANAGEMENT",
   "revenueExpenseOverview": "Revenue, expense overview",
@@ -400,16 +371,11 @@
   "partnersCount": "partners",
   "supplierTab": "SUPPLIERS",
   "repairPartnerTab": "REPAIR PARTNERS",
-  "staffManagement": "STAFF MANAGEMENT",
   "roleLabel": "Role",
   "generateQRInvite": "Generate QR invite",
   "saleDetail": "SALE DETAILS",
   "repairDetail": "REPAIR DETAILS",
   "attendanceManagement": "Manage work hours",
-  "addService": "ADD SERVICE",
-  "editService": "Edit service",
-  "update": "Update",
-  "add": "Add",
   "deleteSupplier": "DELETE SUPPLIER",
   "confirmDeleteSupplier": "Are you sure you want to delete this supplier?",
   "deleteSaleOrder": "DELETE SALE ORDER",
@@ -428,10 +394,7 @@
   "saveChanges": "SAVE CHANGES",
   "addCode": "ADD CODE",
   "deletePartner": "Delete partner",
-  "qrScanSettings": "QR SCAN SETTINGS",
   "scanSettings": "Scan settings",
-  "labelSettings": "Product Label Settings",
-  "cpkPriceSettings": "CPK Price Settings",
   "confirm": "Confirm",
   "confirmAction": "Confirm action",
   "loading": "Loading...",
@@ -443,12 +406,9 @@
   "noData": "No data",
   "retry": "Retry",
   "done": "Done",
-  "next": "Next",
   "previous": "Previous",
   "select": "Select",
-  "selected": "Selected",
   "edit": "Edit",
-  "details": "Details",
   "total": "Total",
   "amount": "Amount",
   "date": "Date",
@@ -463,7 +423,6 @@
   "connectionError": "Connection error",
   "tryAgain": "Try again",
   "ok": "OK",
-  "notFound": "Not found",
   "noResults": "No results",
   "copy": "Copy",
   "copied": "Copied",
@@ -496,7 +455,6 @@
   "clear": "Clear",
   "clearAll": "Clear all",
   "reset": "Reset",
-  "apply": "Apply",
   "from": "From",
   "to": "To",
   "by": "By",
@@ -506,7 +464,6 @@
   "and": "And",
   "withLabel": "With",
   "without": "Without",
-  "newLabel": "New",
   "old": "Old",
   "more": "More",
   "less": "Less",
@@ -562,7 +519,6 @@
   "languageAndInterface": "LANGUAGE & INTERFACE",
   "accountAndSecurity": "ACCOUNT & SECURITY",
   "selectOtherShop": "SELECT OTHER SHOP",
-  "currentShop": "Current shop",
   "logoutFromApp": "Logout from app",
   "logoutQuestion": "Logout?",
   "logoutError": "Logout error: {error}",
@@ -575,23 +531,6 @@
   },
   "syncCenter": "SYNC CENTER",
   "syncCenterDesc": "Download, upload, check and restore data",
-  "loadingShopData": "Loading shop data...",
-  "switchedToShop": "Switched to shop: {shopName}",
-  "@switchedToShop": {
-    "placeholders": {
-      "shopName": {
-        "type": "String"
-      }
-    }
-  },
-  "errorSwitchingShop": "Error switching shop: {error}",
-  "@errorSwitchingShop": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "viewShopAsAdmin": "Super Admin can select shop to view data",
   "noShops": "No shops available",
   "selectShopLabel": "Select shop",
@@ -612,7 +551,6 @@
   "userRole": "USER",
   "dangerWarningTitle": "⚠️ DANGER WARNING",
   "resetShopWarning": "This action will permanently delete 100% of Orders, Inventory, Debts and Logs from both Cloud and this Device. CANNOT BE UNDONE!",
-  "typeToConfirm": "Type 'XOA HET' to confirm:",
   "resetCloudError": "ERROR DELETING CLOUD DATA: {error}",
   "@resetCloudError": {
     "placeholders": {
@@ -653,13 +591,11 @@
   "deletedSuccessfully": "DELETED SUCCESSFULLY",
   "addToStock": "ADD TO STOCK",
   "continueAdding": "CONTINUE ADDING",
-  "quickStockIn": "Quick Stock In",
   "manualEntry": "Manual entry",
   "confirmStagingStock": "Confirm add to staging stock",
   "addToStagingStock": "Add to Staging Stock",
   "purchaseOrderCreated": "Purchase order created",
   "addMore": "Add more",
-  "understood": "UNDERSTOOD",
   "confirmStockIn": "Confirm stock in?",
   "pleaseEnterPartnerName": "Please enter partner name",
   "pleaseEnterSupplierName": "Please enter supplier name",
@@ -673,9 +609,7 @@
   "partnerUpdatedSuccess": "Partner updated",
   "partnerNotFound": "Partner not found!",
   "partnerInfoNotFound": "Partner info not found!",
-  "noPartner": "No partner",
   "loadingList": "Loading list...",
-  "pleaseLoginAgain": "Please login again",
   "searchError": "Search error: {error}",
   "@searchError": {
     "placeholders": {
@@ -716,8 +650,6 @@
       }
     }
   },
-  "labelSettingsSaved": "✅ Label settings saved!",
-  "pleaseEnterTemplateName": "Please enter template name",
   "shopTab": "Shop",
   "templateTab": "Templates",
   "versionFormat": "Version {version}",
@@ -728,17 +660,13 @@
       }
     }
   },
-  "onlySuperAdminCanDelete": "ONLY SUPER ADMIN CAN DELETE SHOP DATA!",
-  "shopDataDeleted": "SHOP DATA DELETED!",
   "displayInfoOnLabel": "Info displayed on label",
   "shopNameField": "Shop Name",
   "shopNameHint": "E.g.: HULUCA MOBILE",
-  "hotline": "Hotline",
   "hotlineHint": "E.g.: 0909 123 456",
   "zalo": "Zalo",
   "slogan": "Slogan",
   "sloganHint": "E.g.: Best prices guaranteed",
-  "addressOptional": "Address (optional)",
   "addressHint": "E.g.: 123 ABC, District 1, HCM",
   "invoiceSaved": "Invoice template saved",
   "profileSaved": "PROFILE SAVED",
@@ -752,10 +680,7 @@
     }
   },
   "csvCopied": "CSV copied to clipboard",
-  "confirmDeliveryAndPayment": "CONFIRM DELIVERY & PAYMENT",
-  "statusRepairing": "REPAIRING",
   "statusDone": "DONE",
-  "issueLabel": "Issue: {issue}",
   "@issueLabel": {
     "placeholders": {
       "issue": {
@@ -767,7 +692,6 @@
   "partnerDeleted": "PARTNER DELETED",
   "refreshingFcmToken": "Refreshing FCM token...",
   "isActive": "Active",
-  "confirmDeleteTitle": "CONFIRM DELETE",
   "confirmButton": "CONFIRM",
   "shopField": "Shop",
   "selectShopToViewData": "SELECT SHOP TO VIEW",
@@ -775,14 +699,12 @@
   "salesTab": "Sales",
   "repairsTab": "Repairs",
   "inventoryTab": "Inventory",
-  "staffTab": "Staff",
   "financeTab": "Finance",
   "settingsTab": "Settings",
   "goodMorning": "Good morning",
   "goodAfternoon": "Good afternoon",
   "goodEvening": "Good evening",
   "exitAppTitle": "Exit app?",
-  "exit": "EXIT",
   "groupChat": "GROUP CHAT",
   "newMessagesCount": "{count} new messages",
   "@newMessagesCount": {
@@ -795,13 +717,8 @@
   "noMessages": "No messages yet",
   "financialOverview": "FINANCIAL OVERVIEW",
   "todayOverview": "TODAY OVERVIEW",
-  "todayIncome": "TODAY INCOME",
   "todayExpenseLabel": "TODAY EXPENSE",
-  "expenseItems": "expense items",
-  "totalDebt": "TOTAL DEBT",
   "todayActivities": "TODAY ACTIVITIES",
-  "delivered": "Delivered",
-  "todayNetProfit": "TODAY NET PROFIT",
   "profitFormula": "= Income - Expense - Cost",
   "featureLockedByAdmin": "This feature has been locked by Administrator.\nPlease contact developer for support.",
   "featureLockedByOwner": "You don't have permission to access this feature.\nPlease contact Shop Owner for access.",
@@ -846,7 +763,6 @@
   "newStaffSyncGuide": "Go to Shop Settings → Download shop data to sync",
   "downloadShopDataToStart": "Download shop data to start working",
   "downloadShopDataTitle": "DOWNLOAD SHOP DATA",
-  "downloadDataOf": "Download data of",
   "fromCloudToDevice": "from cloud to this device.",
   "debtsAndExpenses": "Debts & Expenses",
   "customersAndSuppliers": "Customers & Suppliers",
@@ -860,14 +776,12 @@
   "salesOrder": "Sales",
   "salesOrderList": "List",
   "repairOrderTitle": "Repairs",
-  "repairOrderList": "List",
   "pendingStockShort": "Pending Stock",
   "temporaryImport": "Temp Import",
   "payment": "Payment",
   "incomeExpense": "Income/Expense",
   "createSaleOrder": "CREATE SALE ORDER",
   "sellProductsQuickly": "Sell products quickly",
-  "createRepairOrder": "CREATE REPAIR ORDER",
   "receiveDeviceForRepair": "Receive device for repair",
   "addStock": "+ ADD STOCK",
   "newStockIn": "New stock in",
@@ -884,14 +798,12 @@
   "management": "MANAGEMENT",
   "saleOrderList": "Sale order list",
   "viewSearchTrackSales": "View, search and track all sale orders.",
-  "customerManagement": "Customer Management",
   "addEditViewCustomers": "Add, edit and view customer information.",
   "viewProcessWarrantyRequests": "View and process warranty requests.",
   "repairs": "REPAIRS",
   "createNewRepairOrder": "CREATE NEW REPAIR ORDER",
   "repairOrderList": "Repair order list",
   "viewSearchTrackRepairs": "View, search and track all repair orders.",
-  "inventoryManagement": "INVENTORY MANAGEMENT",
   "holdForDetailedGuide": "Hold for detailed guide",
   "stockInNew": "STOCK IN NEW",
   "stockInNewGuide": "Stock in with full information:\n\n✅ Support: Phones, Accessories, Parts\n✅ Save temp: Input when info is incomplete\n✅ Confirm: Stock officially enters inventory\n\n📌 Use when: Inputting new stock from supplier, need full IMEI/SKU, cost price, supplier...",
@@ -910,8 +822,6 @@
   "manageSupplierPartnerDebt": "Manage suppliers, repair partners and debts.",
   "quickInputCodeList": "Quick input code list",
   "viewManageQuickInputCodes": "View and manage quick input codes.",
-  "understood": "UNDERSTOOD",
-  "noAccessPermission": "No access permission",
   "contactOwnerForPermission": "Contact shop owner for permission",
   "staffManagement": "STAFF MANAGEMENT",
   "recordWorkingHours": "Record working hours",
@@ -920,7 +830,6 @@
   "workSchedule": "Work\nSchedule",
   "salaryCommissionSettings": "Salary &\nCommission Settings",
   "reports": "REPORTS",
-  "attendanceTracking": "Attendance tracking",
   "viewAllStaffAttendance": "View all staff attendance by day/month.",
   "personalAttendance": "Personal attendance",
   "checkInOutAndHistory": "Check-in/out and view personal attendance history.",
@@ -935,33 +844,18 @@
   "debtManagement": "Debt\nManagement",
   "bankInstallmentStats": "Bank\nInstallment Stats",
   "warrantyTracking": "Warranty\nTracking",
-  "manageAllTransactions": "Manage all income/expense transactions.",
-  "expenseManagement": "Expense Management",
-  "addTrackShopExpenses": "Add and track shop expenses.",
   "debtManagementIncomeExpense": "Debt Management (Income/Expense)",
-  "recordPayDebts": "Record and pay debts.",
   "summaryAllTransactions": "Summary of all income/expense transactions.",
   "financialLog": "Financial Log",
   "trackAllFinancialActivities": "Track all financial activities.",
-  "shopSettings": "Shop Settings",
   "shopInfoLogoLocationMembers": "Shop info, logo, location and member management.",
-  "notifications": "Notifications",
   "configureNotificationSettings": "Configure notification and alert settings.",
   "designPrintTemplates": "Design print templates for thermal printer.",
-  "adminCenter": "Admin Center",
   "manageSystemForSuperAdmin": "Manage entire system for super admin.",
-  "aboutDeveloper": "About Developer",
   "developerAndAppInfo": "Developer and app information.",
-  "logoutFromAccount": "Logout from account",
-  "logoutConfirmTitle": "Logout?",
-  "logoutConfirmMessage": "Are you sure you want to logout?",
-  "checkingSync": "Checking sync...",
-  "checkingLocalVsCloud": "Checking local vs cloud data",
   "dataSyncComplete": "Data sync complete",
   "localCloudMatch100": "Local and Cloud match 100%",
-  "recheckingSync": "Rechecking sync...",
   "needsDataSync": "Needs data sync",
-  "recordsNotSynced": "{count} records not synced. Tap to open Sync Center.",
   "@recordsNotSynced": {
     "placeholders": {
       "count": {
@@ -969,10 +863,7 @@
       }
     }
   },
-  "todayFinancialReport": "TODAY FINANCIAL REPORT",
-  "details": "Details",
   "salesAndRepairOrders": "sales + repair orders",
-  "warrantyReminder": "WARRANTY REMINDER",
   "expiringWarrantiesMessage": "{count} devices expiring warranty. View now!",
   "@expiringWarrantiesMessage": {
     "placeholders": {
@@ -1002,10 +893,7 @@
   "dataFullySynced": "Data fully synced",
   "localAndCloudMatched": "Local and cloud data matched",
   "syncNeeded": "Sync needed",
-  "todayExpense": "TODAY EXPENSE",
-  "todayActivity": "TODAY ACTIVITY",
   "comparingLocalVsCloud": "Comparing local and cloud data...",
-  "totalDebt": "TOTAL DEBT",
   "saleAndRepairCount": "{saleCount} sales + {repairCount} repairs",
   "@saleAndRepairCount": {
     "placeholders": {
@@ -1054,7 +942,6 @@
   "joinExistingShop": "Join an existing shop via invitation code",
   "shopName": "Shop Name",
   "fullName": "Full Name",
-  "phoneNumber": "Phone Number",
   "loginEmail": "Login Email",
   "emailAutoGenerated": "Email is automatically generated from name and shop name",
   "confirmPassword": "Confirm Password",
@@ -1105,7 +992,6 @@
   "receiptSettings": "RECEIPT SETTINGS",
   "productLabelDesign": "PRODUCT LABEL DESIGN",
   "customizeContentAndFontSize": "Customize content and font size",
-  "labelDesignTitle": "Label design",
   "layoutShopInfoFormula": "Layout, shop info, CPK formula",
   "hot": "HOT",
   "wifiPrinter": "WIFI PRINTER",
@@ -1131,7 +1017,6 @@
       }
     }
   },
-  "userGuide": "User Guide",
   "learnHowToUseApp": "Learn how to use the Shopmanager app",
   "searchGuides": "Search guides...",
   "newLabel": "NEW",
@@ -1253,7 +1138,6 @@
   "printerSettingsDescription": "Setup connection and print template design.",
   "adminCenter": "Admin Center",
   "adminCenterDescription": "Manage entire system for super admin.",
-  "aboutDeveloper": "About Developer",
   "aboutDeveloperDescription": "Information about developer and application.",
   "logout": "LOGOUT",
   "logoutFromAccount": "Logout from account",
@@ -1267,8 +1151,6 @@
   "repairOrders": "repair orders",
   "todayActivity": "TODAY ACTIVITY",
   "pendingRepairs": "Pending repairs",
-  "delivered": "Delivered",
-  "debt": "Debt",
   "netProfitFormula": "= Income - Expense - Cost",
   "userGuide": "User Guide",
   "viewDetailedGuideForEachFeature": "View detailed guide for each feature in app",
@@ -1295,13 +1177,17 @@
   "switchedToShop": "Switched to shop: {shopName}",
   "@switchedToShop": {
     "placeholders": {
-      "shopName": {"type": "String"}
+      "shopName": {
+        "type": "String"
+      }
     }
   },
   "errorSwitchingShop": "Error switching shop: {error}",
   "@errorSwitchingShop": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "onlySuperAdminCanDelete": "ONLY SUPER ADMIN CAN DELETE SHOP DATA!",
@@ -1314,7 +1200,9 @@
   "errorDeletingCloudData": "ERROR DELETING CLOUD DATA: {error}",
   "@errorDeletingCloudData": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "userGuideSection": "📚 User Guide",
@@ -1338,25 +1226,30 @@
   "software": "SOFTWARE",
   "sim": "SIM",
   "backCover": "BACK COVER",
-  "noAccessories": "NO ACCESSORIES",
   "walkInCustomerNoSave": "Walk-in customer - not saved to contacts",
   "pleaseEnterNameAndPhone": "Please enter both name and phone number",
   "customerWithPhoneExists": "Customer with this phone already exists: {name}",
   "@customerWithPhoneExists": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "customerAdded": "Customer added: {name}",
   "@customerAdded": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "errorAddingCustomer": "Error adding customer: {error}",
   "@errorAddingCustomer": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "pleaseEnterModel": "Please enter device Model",
@@ -1366,8 +1259,12 @@
   "repairOrderCreated": "Created repair order {model} for customer {customer}",
   "@repairOrderCreated": {
     "placeholders": {
-      "model": {"type": "String"},
-      "customer": {"type": "String"}
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      }
     }
   },
   "orderSavedSuccess": "ORDER SAVED SUCCESSFULLY",
@@ -1375,25 +1272,31 @@
   "partnerCost": "Partner: {partner} - Cost: {cost}",
   "@partnerCost": {
     "placeholders": {
-      "partner": {"type": "String"},
-      "cost": {"type": "String"}
+      "partner": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "String"
+      }
     }
   },
   "costOnly": "Cost: {cost}",
   "@costOnly": {
     "placeholders": {
-      "cost": {"type": "String"}
+      "cost": {
+        "type": "String"
+      }
     }
   },
   "totalCost": "Total cost: {amount}",
   "@totalCost": {
     "placeholders": {
-      "amount": {"type": "String"}
+      "amount": {
+        "type": "String"
+      }
     }
   },
   "addService": "ADD SERVICE",
-  "editService": "Edit service",
-  "addServiceTitle": "Add service",
   "serviceName": "Service name *",
   "costVND": "Cost (VND)",
   "partnerOptional": "Partner (optional)",
@@ -1423,14 +1326,10 @@
   "createRepairOrderTitle": "CREATE REPAIR ORDER",
   "fillCustomerAndDeviceInfo": "Fill customer and device info",
   "selectCustomer": "Select customer",
-  "addCustomer": "Add customer",
   "todayClosedNoRepair": "❌ Today is closed! Cannot create new repair order.",
-  "pleaseEnterServiceName": "Please enter service name",
-  "pleaseSelectPaymentMethod": "Please select payment method",
   "selectCustomerTitle": "SELECT CUSTOMER",
   "searchByNameOrPhone": "Search by name or phone...",
   "noCustomerFound": "No customer found",
-  "addressLabel": "Address: {address}",
   "@addressLabel": {
     "placeholders": {
       "address": {
@@ -1438,7 +1337,6 @@
       }
     }
   },
-  "notesLabel": "Notes: {notes}",
   "@notesLabel": {
     "placeholders": {
       "notes": {
@@ -1536,32 +1434,56 @@
   "deliveredDevice": "Delivered device {model} to customer {customer}. Warranty: {warranty}",
   "@deliveredDevice": {
     "placeholders": {
-      "model": { "type": "String" },
-      "customer": { "type": "String" },
-      "warranty": { "type": "String" }
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      },
+      "warranty": {
+        "type": "String"
+      }
     }
   },
   "repairOrderShare": "REPAIR ORDER - {customer} - {phone} - {model} - {price}",
   "@repairOrderShare": {
     "placeholders": {
-      "customer": { "type": "String" },
-      "phone": { "type": "String" },
-      "model": { "type": "String" },
-      "price": { "type": "String" }
+      "customer": {
+        "type": "String"
+      },
+      "phone": {
+        "type": "String"
+      },
+      "model": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
     }
   },
   "statusUpdated": "UPDATED: {status}",
   "@statusUpdated": {
-    "placeholders": { "status": { "type": "String" } }
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
   },
   "orderWillBeSentForApproval": "Order will be sent to manager for approval before delivery",
   "sentDeliveryApprovalRequest": "Sent delivery approval request",
   "approvedDelivery": "Approved delivery of {model} to customer {customer}. Warranty: {warranty}",
   "@approvedDelivery": {
     "placeholders": {
-      "model": { "type": "String" },
-      "customer": { "type": "String" },
-      "warranty": { "type": "String" }
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      },
+      "warranty": {
+        "type": "String"
+      }
     }
   },
   "approvedAndCompletedDelivery": "Approved and completed delivery",
@@ -1571,14 +1493,22 @@
   "orderHasParts2": "This order already has parts:",
   "addedPartsFromInventory": "Added parts from inventory: {parts}\n(Cost already recorded when imported)",
   "@addedPartsFromInventory": {
-    "placeholders": { "parts": { "type": "String" } }
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
   },
   "partsSupplier": "Parts supplier",
   "addedPartsWithPayment": "Added parts ({method}): {parts}",
   "@addedPartsWithPayment": {
     "placeholders": {
-      "method": { "type": "String" },
-      "parts": { "type": "String" }
+      "method": {
+        "type": "String"
+      },
+      "parts": {
+        "type": "String"
+      }
     }
   },
   "savedTechnicianNotes": "Saved technician notes",
@@ -1588,7 +1518,11 @@
   "editButton": "Edit",
   "partnerLabel": "Partner: {name}",
   "@partnerLabel": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "orderPendingYourApproval": "Order is pending your approval for delivery",
   "waitingManagerApproval": "Waiting for manager approval for delivery",
@@ -1615,32 +1549,29 @@
   "deviceIssueLabel": "Device issue",
   "accessoriesIncludedLabel": "Accessories included",
   "warrantyLabel2": "Warranty",
-  "notesLabel": "Notes",
-  "cancelButton": "CANCEL",
   "saveButton": "SAVE",
   "cancelButtonLower": "Cancel",
   "enterModelRequired": "Enter device model",
   "enterIssueRequired": "Enter issue description",
   "editInfoTooltip": "Edit information",
   "noPartnerOption": "No partner",
-  "viewRepairPartners": "View repair partners",
   "enterServiceName": "Please enter service name",
-  "serviceNameRequired": "Service name *",
-  "costVnd": "Cost (VND)",
-  "paymentMethodLabel": "Payment method",
   "chargeCustomerVnd": "Charge customer (VND)",
   "partsCostVnd": "Parts cost (VND)",
   "repairOrderFinance": "REPAIR ORDER FINANCE",
   "customerCharge": "Customer charge",
   "partsCost": "Parts cost",
   "editInfoTitle": "EDIT INFO",
-  "techNotesTitle": "Technician notes",
   "partsInventoryShort": "Parts Inv",
   "techShort": "Tech",
   "printFailed": "Print failed! Please check printer settings.",
   "printError": "Print error: {error}",
   "@printError": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "noAccessPermission": "You do not have permission to access this feature",
   "repairDetailTitle": "REPAIR ORDER DETAIL",
@@ -1657,22 +1588,29 @@
   "cash": "CASH",
   "bankTransfer": "BANK TRANSFER",
   "debt": "DEBT",
-  "techNotesHint": "E.g.: Replaced power IC, re-soldered main board, replaced charging cable...",
   "financeTitleUpper": "FINANCE",
   "luuYTitle": "WARNING",
   "partsInventoryEmpty": "Parts inventory empty. ",
   "noProductsInInventory": "No products in inventory yet.",
   "totalProductsLinhKien": "Total: {total}, PARTS: {parts}. ",
   "@totalProductsLinhKien": {
-    "placeholders": { 
-      "total": { "type": "int" },
-      "parts": { "type": "int" }
+    "placeholders": {
+      "total": {
+        "type": "int"
+      },
+      "parts": {
+        "type": "int"
+      }
     }
   },
   "goToInventoryAddParts": "Go to Inventory → Add Product → Select type 'PARTS'",
   "addedPartsFromInventoryMsg": "Added parts from inventory: {parts}\n(Cost already recorded when imported)",
   "@addedPartsFromInventoryMsg": {
-    "placeholders": { "parts": { "type": "String" } }
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
   },
   "priceLabel": "PRICE",
   "costLabel": "COST",
@@ -1682,16 +1620,28 @@
   "expectedProfit": "Expected profit",
   "partsUsedLabel": "Parts: {parts}",
   "@partsUsedLabel": {
-    "placeholders": { "parts": { "type": "String" } }
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
   },
   "servicesCount": "SERVICES ({count})",
   "@servicesCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "repairServices": "REPAIR SERVICES",
   "imagesCount": "IMAGES ({count})",
   "@imagesCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "receivedImages": "RECEIVED DEVICE IMAGES",
   "noImages": "No images",
@@ -1699,20 +1649,45 @@
   "statusStartRepairMsg": "START REPAIR",
   "debtNoteRepair": "Debt for repair: {model}",
   "@debtNoteRepair": {
-    "placeholders": { "model": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "pendingDeliveryApproval": "Pending delivery approval - {customer}",
   "@pendingDeliveryApproval": {
-    "placeholders": { "customer": { "type": "String" } }
+    "placeholders": {
+      "customer": {
+        "type": "String"
+      }
+    }
   },
   "requestDeliveryApprovalDesc": "Request delivery approval for {model} - customer {customer}",
   "@requestDeliveryApprovalDesc": {
-    "placeholders": { "model": { "type": "String" }, "customer": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      }
+    }
   },
   "notifRequestDeliveryApproval": "📋 DELIVERY APPROVAL REQUEST",
   "chatRequestDeliveryApproval": "📋 DELIVERY REQUEST: {model} - {customer} - {price}đ",
   "@chatRequestDeliveryApproval": {
-    "placeholders": { "model": { "type": "String" }, "customer": { "type": "String" }, "price": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "customer": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
   },
   "defaultShopName": "SHOP NEW",
   "defaultShopDesc": "Smartphone Specialist",
@@ -1724,11 +1699,14 @@
   "repairOrderDetail": "REPAIR ORDER DETAIL",
   "partsShort": "PT: {parts}",
   "@partsShort": {
-    "placeholders": { "parts": { "type": "String" } }
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
   },
   "noServicesYet": "No services yet",
   "totalServices": "Total SVC:",
-  "notesLabel": "Notes",
   "deliveryLabel": "Delivery",
   "approveDelivery": "APPROVE DELIVERY",
   "deliverDevice": "DELIVER",
@@ -1743,34 +1721,62 @@
   "noAccessories": "None",
   "errorSaving": "Error saving: {error}",
   "@errorSaving": {
-    "placeholders": { "error": { "type": "String" } }
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "rejectDeliveryDesc": "Reject delivery approval for {model}",
   "@rejectDeliveryDesc": {
-    "placeholders": { "model": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "customerInfo": "Customer: {name}",
   "@customerInfo": {
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "deviceInfo": "Device: {model}",
   "@deviceInfo": {
-    "placeholders": { "model": { "type": "String" } }
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
   },
   "priceInfo": "Price: {price}đ",
   "@priceInfo": {
-    "placeholders": { "price": { "type": "String" } }
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
   },
   "paymentInfo": "Payment: {method}",
   "@paymentInfo": {
-    "placeholders": { "method": { "type": "String" } }
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
   },
   "selectWarrantyNote": "Select warranty (can change before approval):",
   "confirmApproveDelivery": "Confirm approve delivery and complete transaction?",
   "reject": "REJECT",
   "chatApprovedDelivery": "✅ APPROVED DELIVERY: {summary}",
   "@chatApprovedDelivery": {
-    "placeholders": { "summary": { "type": "String" } }
+    "placeholders": {
+      "summary": {
+        "type": "String"
+      }
+    }
   },
   "noneYet": "Not yet",
   "deliveryDate": "Delivery date",
@@ -1778,13 +1784,27 @@
   "shareRepairReceipt": "🌟 REPAIR/WARRANTY RECEIPT 🌟\n----------------------------\nShop: {shopName}\nModel: {model}\nCustomer: {customerName} - {phone}\nIssue: {issue}\nWarranty: {warranty}\nTotal: {total}\n----------------------------\nThank you for your trust!",
   "@shareRepairReceipt": {
     "placeholders": {
-      "shopName": {"type": "String"},
-      "model": {"type": "String"},
-      "customerName": {"type": "String"},
-      "phone": {"type": "String"},
-      "issue": {"type": "String"},
-      "warranty": {"type": "String"},
-      "total": {"type": "String"}
+      "shopName": {
+        "type": "String"
+      },
+      "model": {
+        "type": "String"
+      },
+      "customerName": {
+        "type": "String"
+      },
+      "phone": {
+        "type": "String"
+      },
+      "issue": {
+        "type": "String"
+      },
+      "warranty": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "actionDeliverDevice": "DELIVER DEVICE",
@@ -1792,22 +1812,34 @@
   "debtNoteForRepair": "Debt for repair: {model}",
   "@debtNoteForRepair": {
     "placeholders": {
-      "model": {"type": "String"}
+      "model": {
+        "type": "String"
+      }
     }
   },
   "repairOrderSummary": "REPAIR ORDER - {customerName} - {phone} - {model} - {total}",
   "@repairOrderSummary": {
     "placeholders": {
-      "customerName": {"type": "String"},
-      "phone": {"type": "String"},
-      "model": {"type": "String"},
-      "total": {"type": "String"}
+      "customerName": {
+        "type": "String"
+      },
+      "phone": {
+        "type": "String"
+      },
+      "model": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "chatDeviceDelivered": "✅ DEVICE DELIVERED: {summary}",
   "@chatDeviceDelivered": {
     "placeholders": {
-      "summary": {"type": "String"}
+      "summary": {
+        "type": "String"
+      }
     }
   },
   "partsPaymentTitle": "PARTS PAYMENT",
@@ -1815,7 +1847,9 @@
   "partsDesc": "Parts: {parts}",
   "@partsDesc": {
     "placeholders": {
-      "parts": {"type": "String"}
+      "parts": {
+        "type": "String"
+      }
     }
   },
   "supplierOptional": "Supplier (optional)",
@@ -1839,26 +1873,34 @@
   "stockQty": "Stock: {qty}",
   "@stockQty": {
     "placeholders": {
-      "qty": {"type": "int"}
+      "qty": {
+        "type": "int"
+      }
     }
   },
   "costPrice": "Cost: {price}",
   "@costPrice": {
     "placeholders": {
-      "price": {"type": "String"}
+      "price": {
+        "type": "String"
+      }
     }
   },
   "sellPrice": "Sell: {price}",
   "@sellPrice": {
     "placeholders": {
-      "price": {"type": "String"}
+      "price": {
+        "type": "String"
+      }
     }
   },
   "outOfStock": "OUT OF STOCK",
   "confirmQty": "CONFIRM ({qty})",
   "@confirmQty": {
     "placeholders": {
-      "qty": {"type": "int"}
+      "qty": {
+        "type": "int"
+      }
     }
   },
   "confirmBtn": "CONFIRM",
@@ -1881,13 +1923,17 @@
   "saveErrorMsg": "Error saving: {error}",
   "@saveErrorMsg": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "staffScheduleSavedFor": "Saved work schedule for {name}",
   "@staffScheduleSavedFor": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "loadingStaffList": "Loading staff list...",
@@ -1897,7 +1943,9 @@
   "staffCountLabel": "Staff count: {count}",
   "@staffCountLabel": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "staffWorkSchedule": "Individual staff schedules",
@@ -1924,7 +1972,9 @@
   "noAttendanceDataFor": "No attendance data for {date}",
   "@noAttendanceDataFor": {
     "placeholders": {
-      "date": {"type": "String"}
+      "date": {
+        "type": "String"
+      }
     }
   },
   "checkInLabel": "In:",
@@ -1937,14 +1987,18 @@
   "errorMsg": "Error: {error}",
   "@errorMsg": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "noStaffHint": "No staff yet. Tap \"Reload\" below or add staff in Staff Management.",
   "staffScheduleFor": "Work schedule: {name}",
   "@staffScheduleFor": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "workTimeSettings": "Work Time Settings",
@@ -1972,7 +2026,6 @@
   "checkInTimeLabel": "Check-in:",
   "checkOutTimeLabel": "Check-out:",
   "selectStaffForAttendance": "Please select staff to view attendance info",
-
   "aboutDeveloper": "About Developer",
   "hulucaStoreDongNai": "HULUCA STORE DONG NAI",
   "professionalStoreManagementApp": "Professional store management application",
@@ -1985,24 +2038,29 @@
   "versionLabel": "Version {version}",
   "@versionLabel": {
     "placeholders": {
-      "version": {"type": "String"}
+      "version": {
+        "type": "String"
+      }
     }
   },
   "appFullDescription": "Comprehensive multi-industry shop management: Electronics (IMEI, warranty), Food (expiry), Fashion (size/color variants) with real-time sync.",
-
   "attendanceTracking": "ATTENDANCE TRACKING",
   "viewByMonth": "View by month",
   "viewByDay": "View by day",
   "attendanceForDate": "ATTENDANCE {date}",
   "@attendanceForDate": {
     "placeholders": {
-      "date": {"type": "String"}
+      "date": {
+        "type": "String"
+      }
     }
   },
   "monthLabel": "MONTH {month}",
   "@monthLabel": {
     "placeholders": {
-      "month": {"type": "String"}
+      "month": {
+        "type": "String"
+      }
     }
   },
   "present": "Present",
@@ -2035,14 +2093,17 @@
   "monthYearFormat": "Month {monthYear}",
   "@monthYearFormat": {
     "placeholders": {
-      "monthYear": {"type": "String"}
+      "monthYear": {
+        "type": "String"
+      }
     }
   },
-
   "errorLoadingCustomers": "Error loading customers: {error}",
   "@errorLoadingCustomers": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "editCustomerAction": "edit customer",
@@ -2051,13 +2112,17 @@
   "confirmDeleteCustomer": "Are you sure you want to delete customer \"{name}\"?",
   "@confirmDeleteCustomer": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "confirmActionTitle": "Confirm {action}",
   "@confirmActionTitle": {
     "placeholders": {
-      "action": {"type": "String"}
+      "action": {
+        "type": "String"
+      }
     }
   },
   "ownerPasswordRequired": "Only shop owner can perform this action.\nEnter account password to confirm:",
@@ -2071,19 +2136,25 @@
   "notePrefix": "Note: {note}",
   "@notePrefix": {
     "placeholders": {
-      "note": {"type": "String"}
+      "note": {
+        "type": "String"
+      }
     }
   },
   "totalPurchasedAmount": "Purchased: {amount}",
   "@totalPurchasedAmount": {
     "placeholders": {
-      "amount": {"type": "String"}
+      "amount": {
+        "type": "String"
+      }
     }
   },
   "repairCountLabel": "Repairs: {count} times",
   "@repairCountLabel": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "historyTab": "History",
@@ -2104,7 +2175,6 @@
   "totalPurchasesLabel": "Total purchases",
   "totalRepairsLabel": "Total repairs",
   "noHistoryYet": "No history yet",
-
   "fastInventoryCheck": "Fast Inventory Check",
   "checklistTitle": "📋 Checklist",
   "checklistDescription": "System displays all products in stock. Scan QR code of each product to mark as checked.",
@@ -2117,7 +2187,9 @@
   "errorLoadingInventory": "Error loading inventory: {error}",
   "@errorLoadingInventory": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "phonesCategory": "Phones",
@@ -2134,25 +2206,33 @@
   "invalidQrForInventory": "Invalid QR for inventory check: {error}",
   "@invalidQrForInventory": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "productNotFoundById": "Product not found with ID: {id}",
   "@productNotFoundById": {
     "placeholders": {
-      "id": {"type": "String"}
+      "id": {
+        "type": "String"
+      }
     }
   },
   "productNotSupportedForInventory": "Product not supported for inventory: {type}",
   "@productNotSupportedForInventory": {
     "placeholders": {
-      "type": {"type": "String"}
+      "type": {
+        "type": "String"
+      }
     }
   },
   "errorCheckingProduct": "Error checking product: {error}",
   "@errorCheckingProduct": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "qrScanSettings": "QR SCAN SETTINGS",
@@ -2182,20 +2262,26 @@
   "pendingCheckCount": "Pending ({count})",
   "@pendingCheckCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "scannedCount": "Scanned ({count})",
   "@scannedCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "noProductsInStockMsg": "No products in stock",
   "scannedLabel": "Scanned: {count}",
   "@scannedLabel": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "holdQrSteady": "Hold QR steady in front of camera",
@@ -2204,10 +2290,11 @@
   "switchedToZone": "Switched to zone: {zone}",
   "@switchedToZone": {
     "placeholders": {
-      "zone": {"type": "String"}
+      "zone": {
+        "type": "String"
+      }
     }
   },
-
   "labelSettings": "Product Label Settings",
   "labelTemplates": "Label Templates",
   "labelDisplayInfo": "Information displayed on label",
@@ -2238,7 +2325,9 @@
   "errorPrefixLabel": "❌ Error: {error}",
   "@errorPrefixLabel": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "defaultLabel": "Default",
@@ -2246,7 +2335,9 @@
   "confirmDeleteTemplate": "Are you sure you want to delete template \"{name}\"?",
   "@confirmDeleteTemplate": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
   "cancelButton": "CANCEL",
@@ -2278,10 +2369,11 @@
   "templateUpdated": "✅ Updated template \"{name}\"",
   "@templateUpdated": {
     "placeholders": {
-      "name": {"type": "String"}
+      "name": {
+        "type": "String"
+      }
     }
   },
-
   "productNameLabelShort": "Product",
   "detailsLabel": "Details",
   "labelInfoTitle": "Label Info",
@@ -2317,7 +2409,6 @@
   "spacingLabel": "Spacing:",
   "boldOption": "Bold",
   "fontStyleLabel": "Font style:",
-
   "roleOwner": "Shop Owner",
   "roleManager": "Manager",
   "roleTechnician": "Technician",
@@ -2333,13 +2424,17 @@
   "stepsCountLabel": "{count} steps",
   "@stepsCountLabel": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "tipsCountLabel": "{count} tips",
   "@tipsCountLabel": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "quickGuide": "Quick Guide",
@@ -2348,19 +2443,25 @@
   "forRoleLabel": "For {role}",
   "@forRoleLabel": {
     "placeholders": {
-      "role": {"type": "String"}
+      "role": {
+        "type": "String"
+      }
     }
   },
   "estimatedTimeLabel": "Estimated time: {time}",
   "@estimatedTimeLabel": {
     "placeholders": {
-      "time": {"type": "String"}
+      "time": {
+        "type": "String"
+      }
     }
   },
   "difficultyLabel": "Difficulty: {level}",
   "@difficultyLabel": {
     "placeholders": {
-      "level": {"type": "String"}
+      "level": {
+        "type": "String"
+      }
     }
   },
   "prerequisitesLabel": "Prerequisites",
@@ -2402,7 +2503,6 @@
   "branchName": "Branch name",
   "branchCreated": "Branch created: {name}",
   "errorCreatingBranch": "Error creating branch",
-
   "nameRequired": "Name is required",
   "phoneLengthInvalid": "Phone number must be 9-12 digits",
   "imeiMinLength": "IMEI must be at least 6 characters",
@@ -2410,7 +2510,6 @@
   "imeiDigitsOnly": "IMEI must contain only digits",
   "modelMinLength": "Model must be at least 2 characters",
   "modelMaxLength": "Model must not exceed 50 characters",
-
   "printLabelTitle": "Print Label",
   "notAvailable": "N/A",
   "productInfoTitle": "Product Information",
@@ -2441,42 +2540,54 @@
   "printLabelQuantity": "Print {count} labels",
   "@printLabelQuantity": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "printLabelSuccess": "Successfully printed {count} labels",
   "@printLabelSuccess": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "printLabelPartial": "Printed {success}/{total} labels",
   "@printLabelPartial": {
     "placeholders": {
-      "success": {"type": "int"},
-      "total": {"type": "int"}
+      "success": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "printLabelError": "Print error: {error}",
   "@printLabelError": {
     "placeholders": {
-      "error": {"type": "String"}
+      "error": {
+        "type": "String"
+      }
     }
   },
   "imeiWithValue": "IMEI: {imei}",
   "@imeiWithValue": {
     "placeholders": {
-      "imei": {"type": "String"}
+      "imei": {
+        "type": "String"
+      }
     }
   },
-
   "labelNoteFieldLabel": "Label Note",
   "labelNoteFieldHint": "Additional note for label...",
-
   "fieldRequired": "{fieldName} is required",
   "@fieldRequired": {
     "placeholders": {
-      "fieldName": {"type": "String"}
+      "fieldName": {
+        "type": "String"
+      }
     }
   }
 }

@@ -68,9 +68,11 @@ import '../theme/app_button_styles.dart';
 import '../services/category_service.dart';
 import '../services/expiry_alert_service.dart';
 import '../services/variant_service.dart';
+import '../services/business_type_helper.dart';
 import '../models/shop_settings_model.dart';
 import 'food/expiry_management_view.dart';
 import 'fashion/variant_management_view.dart';
+import 'onboarding/business_type_wizard.dart';
 
 class HomeView extends StatefulWidget {
   final String role;
@@ -195,8 +197,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   ShopSettings? _shopSettings;
   ExpiryStats? _expiryStats;
   VariantWarningCounts? _variantWarnings; // Phase 3: Fashion
+  bool get _enableRepair => _shopSettings?.enableRepair ?? true; // Default true for backwards compat
   bool get _enableExpiry => _shopSettings?.enableExpiry ?? false;
   bool get _enableVariants => _shopSettings?.enableVariants ?? false;
+  bool get _enableSerial => _shopSettings?.enableSerial ?? false;
+  bool get _enableWarranty => _shopSettings?.enableWarranty ?? false;
+  String get _businessType => _shopSettings?.businessType ?? 'electronics';
+  bool get _isElectronics => _businessType == 'electronics';
+  bool get _isFashion => _businessType == 'fashion';
+  bool get _isFood => _businessType == 'food';
+  
+  /// Terminology động theo ngành - giúp app hiển thị như được thiết kế riêng cho ngành đó
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   final bool _isSuperAdmin = UserService.isCurrentUserSuperAdmin();
   bool get hasFullAccess =>
@@ -223,7 +235,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         ),
         'widget': _buildSalesTab(),
       },
-      {
+      // Only show Repairs tab for electronics shops
+      if (_enableRepair) {
         'permission': 'allowViewRepairs',
         'item': BottomNavigationBarItem(
           icon: const Icon(Icons.build_outlined),
@@ -946,7 +959,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         ),
         'widget': _buildSalesTab(),
       },
-      {
+      // Only show Repairs tab for electronics shops
+      if (_enableRepair) {
         'permission': 'allowViewRepairs',
         'item': BottomNavigationBarItem(
           icon: const Icon(Icons.build_outlined),
@@ -963,6 +977,42 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           label: loc.inventoryTab,
         ),
         'widget': _buildInventoryTab(),
+      },
+      // Expiry tab for Food shops
+      if (_enableExpiry) {
+        'permission': 'allowViewInventory',
+        'item': BottomNavigationBarItem(
+          icon: Badge(
+            isLabelVisible: (_expiryStats?.atRiskCount ?? 0) > 0,
+            label: Text('${_expiryStats?.atRiskCount ?? 0}'),
+            child: const Icon(Icons.timer_outlined),
+          ),
+          activeIcon: Badge(
+            isLabelVisible: (_expiryStats?.atRiskCount ?? 0) > 0,
+            label: Text('${_expiryStats?.atRiskCount ?? 0}'),
+            child: const Icon(Icons.timer),
+          ),
+          label: 'HSD',
+        ),
+        'widget': const ExpiryManagementView(),
+      },
+      // Variants tab for Fashion shops
+      if (_enableVariants) {
+        'permission': 'allowViewInventory',
+        'item': BottomNavigationBarItem(
+          icon: Badge(
+            isLabelVisible: (_variantWarnings?.total ?? 0) > 0,
+            label: Text('${_variantWarnings?.total ?? 0}'),
+            child: const Icon(Icons.checkroom_outlined),
+          ),
+          activeIcon: Badge(
+            isLabelVisible: (_variantWarnings?.total ?? 0) > 0,
+            label: Text('${_variantWarnings?.total ?? 0}'),
+            child: const Icon(Icons.checkroom),
+          ),
+          label: 'Size/Màu',
+        ),
+        'widget': const VariantManagementView(),
       },
       {
         'permission': 'allowManageStaff',
@@ -1276,7 +1326,21 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   /// Phase 2: Load shop settings cho multi-industry features
   Future<void> _loadShopSettings() async {
     try {
+      // CRITICAL: Clear cache to ensure fresh settings are loaded
+      CategoryService().clearCache();
+      
+      final shopId = await UserService.getCurrentShopId();
+      debugPrint('🏠 HomeView: Loading settings for shopId=$shopId');
+      
       final settings = await CategoryService().getShopSettings();
+      debugPrint('🏠 HomeView: Loaded shop settings:');
+      debugPrint('   - businessType: ${settings?.businessType}');
+      debugPrint('   - enableRepair: ${settings?.enableRepair}');
+      debugPrint('   - enableSerial: ${settings?.enableSerial}');
+      debugPrint('   - enableExpiry: ${settings?.enableExpiry}');
+      debugPrint('   - enableVariants: ${settings?.enableVariants}');
+      debugPrint('   - isDefault: ${settings?.isDefault}');
+      
       if (!mounted) return;
       
       // Load expiry stats if enabled (Food shops)
@@ -1297,13 +1361,57 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         _shopSettings = settings;
         _expiryStats = expiryStats;
         _variantWarnings = variantWarnings;
+        debugPrint('🏠 HomeView: setState done - _enableRepair=$_enableRepair, _enableVariants=$_enableVariants');
         // Re-initialize tabs when shop settings change
         _initializeTabConfigs();
         _updateAvailableTabs();
       });
-    } catch (e) {
+      
+      // CRITICAL: Nếu chưa có settings, hiện wizard để chọn loại hình kinh doanh
+      if (settings == null && mounted) {
+        debugPrint('🏠 HomeView: No settings found - showing business type wizard');
+        _showBusinessTypeSetupDialog();
+      }
+    } catch (e, stack) {
       debugPrint('Error loading shop settings: $e');
+      debugPrint('Stack: $stack');
     }
+  }
+  
+  /// Hiển thị dialog chọn ngành kinh doanh cho shops chưa thiết lập
+  void _showBusinessTypeSetupDialog() async {
+    final shopId = await UserService.getCurrentShopId();
+    if (shopId == null || !mounted) return;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: false, // Force user to choose
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: BusinessTypeWizard(
+          shopId: shopId,
+          shopName: _shopName.isNotEmpty ? _shopName : 'Cửa hàng',
+          onComplete: (newSettings) async {
+            Navigator.pop(context);
+            // Save the new settings
+            await CategoryService().saveShopSettings(newSettings);
+            // Reload settings to apply changes
+            _loadShopSettings();
+            NotificationService.showSnackBar(
+              'Đã thiết lập ngành kinh doanh: ${newSettings.businessTypeName}',
+              color: Colors.green,
+            );
+          },
+        ),
+      ),
+    );
   }
 
   // State variables for accurate financial overview (same as revenue_view.dart)
@@ -1860,6 +1968,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
+  /// Helper to extract IconData from Icon or Badge widget
+  IconData? _extractIconData(Widget widget) {
+    if (widget is Icon) {
+      return widget.icon;
+    }
+    if (widget is Badge && widget.child is Icon) {
+      return (widget.child as Icon).icon;
+    }
+    return null;
+  }
+
   /// Animated navigation item với hiệu ứng scale và màu sắc
   Widget _buildAnimatedNavItem(
     BottomNavigationBarItem item,
@@ -1880,6 +1999,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     final color = index < tabColors.length
         ? tabColors[index]
         : AppColors.primary;
+
+    // Safely extract IconData from either Icon or Badge
+    final iconData = isSelected
+        ? _extractIconData(item.activeIcon)
+        : _extractIconData(item.icon);
 
     return Expanded(
       child: GestureDetector(
@@ -1908,9 +2032,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   scale: isSelected ? 1.15 : 1.0,
                   duration: const Duration(milliseconds: 200),
                   child: Icon(
-                    isSelected
-                        ? (item.activeIcon as Icon).icon
-                        : (item.icon as Icon).icon,
+                    iconData ?? Icons.circle,
                     size: isSelected ? 24 : 22,
                     color: isSelected
                         ? color
@@ -2738,21 +2860,38 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(width: 12),
-              // Danh sách đơn sửa
-              Expanded(
-                child: _buildPinnedCard(
-                  icon: Icons.build_circle,
-                  title: loc.repairOrderTitle,
-                  subtitle: loc.repairOrderList,
-                  color: Colors.deepPurple,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const OrderListView(),
+              // Danh sách đơn sửa - only show for electronics shops
+              if (_enableRepair)
+                Expanded(
+                  child: _buildPinnedCard(
+                    icon: Icons.build_circle,
+                    title: loc.repairOrderTitle,
+                    subtitle: loc.repairOrderList,
+                    color: Colors.deepPurple,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const OrderListView(),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              // Alternative shortcut for non-electronics shops
+              if (!_enableRepair)
+                Expanded(
+                  child: _buildPinnedCard(
+                    icon: Icons.people,
+                    title: loc.customers,
+                    subtitle: loc.customersAndSuppliers,
+                    color: Colors.teal,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CustomerManagementView(),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ],
@@ -2945,7 +3084,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         ),
         const SizedBox(height: 10),
 
-        // SỬA CHỮA
+        // SỬA CHỮA - Only show for electronics shops
+        if (_enableRepair)
         Card(
           color: Colors.blue.shade50,
           shape: RoundedRectangleBorder(
@@ -2986,7 +3126,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        if (_enableRepair) const SizedBox(height: 10),
 
         // Row: Nhập kho & Kiểm kho
         Row(
@@ -3290,7 +3430,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const FastInventoryInputView(),
+                    // Electronics: FastInventoryInputView (has IMEI)
+                    // Fashion/Food: SmartStockInView (has size/color)
+                    builder: (_) => _isElectronics 
+                        ? const FastInventoryInputView() 
+                        : const SmartStockInView(),
                   ),
                 ),
               ),
@@ -3698,7 +3842,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(width: 8),
-              // Nhập cũ (siêu tốc)
+              // Nhập siêu tốc - chỉ hiện cho electronics (có IMEI scan)
+              if (_isElectronics)
               Expanded(
                 child: Card(
                   color: Colors.orange.shade50,
@@ -5431,6 +5576,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
                 Row(
                   children: [
+                    // Pending repairs - only for electronics
+                    if (_enableRepair)
                     Expanded(
                       child: _activityCard(
                         icon: Icons.build_circle,
@@ -5448,6 +5595,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         ),
                       ),
                     ),
+                    // Delivered repairs - only for electronics
+                    if (_enableRepair)
                     Expanded(
                       child: _activityCard(
                         icon: Icons.check_circle,
@@ -5464,6 +5613,44 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                    // Expiry warning - only for food shops
+                    if (_enableExpiry)
+                    Expanded(
+                      child: _activityCard(
+                        icon: Icons.timer,
+                        label: 'Sắp hết HSD',
+                        value: (_expiryStats?.atRiskCount ?? 0).toString(),
+                        color: Colors.orange,
+                        onTap: () {
+                          // Navigate to expiry tab
+                          final expiryTabIndex = _navItems.indexWhere(
+                            (item) => item.label == 'HSD',
+                          );
+                          if (expiryTabIndex != -1) {
+                            setState(() => _currentIndex = expiryTabIndex);
+                          }
+                        },
+                      ),
+                    ),
+                    // Variant warnings - only for fashion shops
+                    if (_enableVariants)
+                    Expanded(
+                      child: _activityCard(
+                        icon: Icons.checkroom,
+                        label: 'Hết size/màu',
+                        value: (_variantWarnings?.outOfStock ?? 0).toString(),
+                        color: Colors.purple,
+                        onTap: () {
+                          // Navigate to variant tab
+                          final variantTabIndex = _navItems.indexWhere(
+                            (item) => item.label == 'Size/Màu',
+                          );
+                          if (variantTabIndex != -1) {
+                            setState(() => _currentIndex = variantTabIndex);
+                          }
+                        },
                       ),
                     ),
                     Expanded(

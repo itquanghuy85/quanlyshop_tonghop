@@ -4,10 +4,13 @@ import 'dart:async';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
+import '../models/shop_settings_model.dart';
 import '../theme/app_text_styles.dart';
 import '../models/inventory_zone_model.dart';
 import '../services/notification_service.dart';
 import '../services/first_time_guide_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 import '../utils/qr_parser.dart';
 import '../utils/imei_extractor.dart';
 
@@ -74,7 +77,14 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   bool _enableSoundFeedback = true;
   bool _enableHapticFeedback = true;
 
-  // Delay trước khi bắt đầu scan (2 giây để user chuẩn bị)
+  // Multi-industry support
+  ShopSettings? _shopSettings;
+  String get _businessType => _shopSettings?.businessType ?? 'electronics';
+  bool get _enableSerial => _shopSettings?.enableSerial ?? true;
+  bool get _isFashion => _businessType == 'fashion';
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+
+  // Delay trường kự truộc khi bất đầu scan (2 giây để user chuẩn bị)
   bool _isScanReady = false;
   DateTime? _scanStartTime;
 
@@ -92,11 +102,28 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   @override
   void initState() {
     super.initState();
-    _loadInventoryData();
+    _initData(); // Load shop settings first, then inventory data
     // Hiển thị hướng dẫn cho người dùng mới
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showFirstTimeGuide();
     });
+  }
+
+  /// Load shop settings trước, sau đó load inventory data
+  Future<void> _initData() async {
+    final settings = await CategoryService().getShopSettings();
+    if (mounted) {
+      setState(() => _shopSettings = settings);
+    }
+    // CRITICAL: Load inventory data AFTER shop settings so _businessType is correct
+    await _loadInventoryData();
+  }
+
+  Future<void> _loadShopSettings() async {
+    final settings = await CategoryService().getShopSettings();
+    if (mounted) {
+      setState(() => _shopSettings = settings);
+    }
   }
 
   /// Hiển thị hướng dẫn lần đầu
@@ -148,22 +175,48 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     super.dispose();
   }
 
+  /// Get product types for current business type
+  /// Returns (mainTypes, secondaryTypes) for zone separation
+  (List<String>, List<String>) _getProductTypesForBusiness() {
+    switch (_businessType) {
+      case 'food':
+        return (['THUC_PHAM'], ['DO_UONG', 'NGUYEN_LIEU']);
+      case 'fashion':
+        return (['THOI_TRANG'], ['GIAY_DEP', 'PHU_KIEN_TT']);
+      case 'general':
+        return (['SAN_PHAM'], ['DICH_VU']);
+      case 'electronics':
+      default:
+        return (['DIEN_THOAI'], ['PHU_KIEN', 'LINH_KIEN']);
+    }
+  }
+
   Future<void> _loadInventoryData() async {
     setState(() => _isLoading = true);
     try {
-      // Load phones (IMEI-based inventory)
-      final phones = await db.getInStockProducts();
-      _expectedPhones = phones
-          .where(
-            (p) =>
-                p.type == 'DIEN_THOAI' && p.imei != null && p.imei!.isNotEmpty,
-          )
-          .toList();
+      final allProducts = await db.getInStockProducts();
+      final (mainTypes, secondaryTypes) = _getProductTypesForBusiness();
 
-      // Load accessories (quantity-based inventory)
-      final accessories = await db.getInStockProducts();
-      final accessoryProducts = accessories
-          .where((p) => p.type == 'PHỤ KIỆN')
+      // Load main products (zone 1)
+      // For electronics: use IMEI-based matching
+      // For others: use code/ID-based matching
+      if (_businessType == 'electronics') {
+        _expectedPhones = allProducts
+            .where(
+              (p) =>
+                  mainTypes.contains(p.type) && p.imei != null && p.imei!.isNotEmpty,
+            )
+            .toList();
+      } else {
+        // For non-electronics, load all main type products
+        _expectedPhones = allProducts
+            .where((p) => mainTypes.contains(p.type))
+            .toList();
+      }
+
+      // Load secondary products (zone 2) - quantity-based inventory
+      final accessoryProducts = allProducts
+          .where((p) => secondaryTypes.contains(p.type))
           .toList();
 
       // Group accessories by code and count quantities
@@ -193,27 +246,89 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
   }
 
   void _createDefaultZones() {
-    _inventoryZones = [
-      InventoryZone(
-        id: 'phones',
-        name: 'Điện thoại',
-        description: 'Kiểm tra tất cả điện thoại trong kho',
-        expectedProductCodes: _expectedPhones.map((p) => p.imei!).toList(),
-        isActive: true,
-      ),
-      InventoryZone(
-        id: 'accessories',
-        name: 'Phụ kiện',
-        description: 'Kiểm tra tất cả phụ kiện',
-        expectedProductCodes: _expectedAccessoryCounts.keys.toList(),
-      ),
-      InventoryZone(
-        id: 'special',
-        name: 'Đặc biệt',
-        description: 'Sản phẩm đặc biệt cần kiểm tra riêng',
-        expectedProductCodes: [],
-      ),
-    ];
+    // Create zones based on business type
+    switch (_businessType) {
+      case 'food':
+        _inventoryZones = [
+          InventoryZone(
+            id: 'food',
+            name: 'Thực phẩm',
+            description: 'Kiểm tra tất cả thực phẩm trong kho',
+            expectedProductCodes: _expectedPhones.map((p) => p.firestoreId ?? p.id.toString()).toList(),
+            isActive: true,
+          ),
+          InventoryZone(
+            id: 'drinks',
+            name: 'Đồ uống',
+            description: 'Kiểm tra đồ uống',
+            expectedProductCodes: _expectedAccessoryCounts.keys.toList(),
+          ),
+          InventoryZone(
+            id: 'ingredients',
+            name: 'Nguyên liệu',
+            description: 'Nguyên liệu cần kiểm tra',
+            expectedProductCodes: [],
+          ),
+        ];
+        break;
+      case 'fashion':
+        _inventoryZones = [
+          InventoryZone(
+            id: 'clothing',
+            name: 'Quần áo',
+            description: 'Kiểm tra tất cả quần áo trong kho',
+            expectedProductCodes: _expectedPhones.map((p) => p.firestoreId ?? p.id.toString()).toList(),
+            isActive: true,
+          ),
+          InventoryZone(
+            id: 'shoes',
+            name: 'Giày dép',
+            description: 'Kiểm tra giày dép',
+            expectedProductCodes: _expectedAccessoryCounts.keys.toList(),
+          ),
+          InventoryZone(
+            id: 'accessories',
+            name: 'Phụ kiện',
+            description: 'Phụ kiện thời trang',
+            expectedProductCodes: [],
+          ),
+        ];
+        break;
+      case 'general':
+        _inventoryZones = [
+          InventoryZone(
+            id: 'products',
+            name: _terms.productLabel,
+            description: 'Kiểm tra tất cả ${_terms.productLabel.toLowerCase()}',
+            expectedProductCodes: _expectedPhones.map((p) => p.firestoreId ?? p.id.toString()).toList(),
+            isActive: true,
+          ),
+        ];
+        break;
+      case 'electronics':
+      default:
+        _inventoryZones = [
+          InventoryZone(
+            id: 'phones',
+            name: 'Điện thoại',
+            description: 'Kiểm tra tất cả điện thoại trong kho',
+            expectedProductCodes: _expectedPhones.map((p) => p.imei!).toList(),
+            isActive: true,
+          ),
+          InventoryZone(
+            id: 'accessories',
+            name: 'Phụ kiện',
+            description: 'Kiểm tra tất cả phụ kiện',
+            expectedProductCodes: _expectedAccessoryCounts.keys.toList(),
+          ),
+          InventoryZone(
+            id: 'special',
+            name: 'Đặc biệt',
+            description: '${_terms.productLabel} đặc biệt cần kiểm tra riêng',
+            expectedProductCodes: [],
+          ),
+        ];
+    }
 
     // Set first zone as current if available
     if (_inventoryZones.isNotEmpty) {
@@ -407,7 +522,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     if (imei == null || imei.isEmpty) {
       _provideScanFeedback(isSuccess: false);
       NotificationService.showSnackBar(
-        '❌ QR điện thoại thiếu IMEI',
+        '❌ QR ${_terms.productLabel.toLowerCase()} thiếu ${_terms.specialField1Label}',
         color: Colors.red,
       );
       return;
@@ -604,7 +719,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     // Case 5: Malformed or unknown format
     HapticFeedback.vibrate();
     NotificationService.showSnackBar(
-      '⚠️ QR không hợp lệ cho kiểm kho - cần IMEI hoặc code sản phẩm',
+      '⚠️ QR không hợp lệ cho kiểm kho - cần ${_terms.specialField1Label} hoặc mã ${_terms.productLabel.toLowerCase()}',
       color: Colors.orange,
     );
   }
@@ -627,7 +742,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       if (product == null) {
         HapticFeedback.vibrate();
         NotificationService.showSnackBar(
-          '🚨 Không tìm thấy sản phẩm với ID: $productId',
+          '🚨 Không tìm thấy ${_terms.productLabel.toLowerCase()} với ID: $productId',
           color: Colors.red,
         );
         return;
@@ -648,14 +763,14 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       } else {
         HapticFeedback.vibrate();
         NotificationService.showSnackBar(
-          '⚠️ Sản phẩm không hỗ trợ kiểm kho: ${product.name}',
+          '⚠️ ${_terms.productLabel} không hỗ trợ kiểm kho: ${product.name}',
           color: Colors.orange,
         );
       }
     } catch (e) {
       HapticFeedback.vibrate();
       NotificationService.showSnackBar(
-        '❌ Lỗi kiểm tra sản phẩm: $e',
+        '❌ Lỗi kiểm tra ${_terms.productLabel.toLowerCase()}: $e',
         color: Colors.red,
       );
     }
@@ -743,8 +858,8 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
           children: [
             const Icon(Icons.keyboard, color: Colors.purple),
             const SizedBox(width: 8),
-            const Expanded(
-              child: Text('NHẬP IMEI THỦ CÔNG', style: TextStyle(fontSize: 16)),
+            Expanded(
+              child: Text('NHẬP ${_terms.specialField1Label.toUpperCase()} THỦ CÔNG', style: const TextStyle(fontSize: 16)),
             ),
           ],
         ),
@@ -771,10 +886,10 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                         size: 18,
                       ),
                       const SizedBox(width: 8),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Dùng khi QR bị mờ hoặc rách.\nNhập IMEI in trên máy để check.',
-                          style: TextStyle(fontSize: 11),
+                          'Dùng khi QR bị mờ hoặc rách.\nNhập ${_terms.specialField1Label} in trên máy để check.',
+                          style: const TextStyle(fontSize: 11),
                         ),
                       ),
                     ],
@@ -784,7 +899,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                 TextField(
                   controller: controller,
                   decoration: InputDecoration(
-                    labelText: 'IMEI / Mã sản phẩm',
+                    labelText: '${_terms.specialField1Label} / Mã ${_terms.productLabel.toLowerCase()}',
                     hintText: 'Ví dụ: 353456789012345',
                     prefixIcon: const Icon(Icons.phone_android, size: 20),
                     border: OutlineInputBorder(
@@ -795,7 +910,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                       vertical: 12,
                     ),
                     isDense: true,
-                    helperText: 'IMEI thường có 15 số',
+                    helperText: '${_terms.specialField1Label} thường có 15 số',
                     helperStyle: const TextStyle(fontSize: 11),
                   ),
                   style: const TextStyle(fontSize: 14),
@@ -884,7 +999,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       _handleAccessoryScan(qrMap);
     } else {
       NotificationService.showSnackBar(
-        '⚠️ Vui lòng nhập IMEI hoặc mã sản phẩm hợp lệ',
+        '⚠️ Vui lòng nhập ${_terms.specialField1Label} hoặc mã ${_terms.productLabel.toLowerCase()} hợp lệ',
         color: Colors.orange,
       );
     }
@@ -1030,7 +1145,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Text(
-            'Không có sản phẩm nào trong kho',
+            'Không có ${_terms.productLabel.toLowerCase()} nào trong kho',
             style: TextStyle(color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
@@ -1163,7 +1278,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Text(
-            'Không có sản phẩm nào trong kho',
+            'Không có ${_terms.productLabel.toLowerCase()} nào trong kho',
             style: TextStyle(color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
@@ -1472,7 +1587,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
           IconButton(
             icon: const Icon(Icons.keyboard),
             onPressed: _showManualInputDialog,
-            tooltip: 'Nhập IMEI thủ công',
+            tooltip: 'Nhập ${_terms.specialField1Label} thủ công',
           ),
           IconButton(
             icon: const Icon(Icons.settings),
@@ -1699,7 +1814,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Điện thoại: scan IMEI\nPhụ kiện: scan từng món',
+                                    '${_terms.productLabel}: scan ${_terms.specialField1Label}\nPhụ kiện: scan từng món',
                                     style: TextStyle(color: Colors.grey[600]),
                                     textAlign: TextAlign.center,
                                   ),

@@ -8,8 +8,10 @@ import '../data/db_helper.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_text_styles.dart';
 import '../models/repair_model.dart';
-import '../services/sync_orchestrator.dart';
+import '../models/shop_settings_model.dart';
 import '../services/event_bus.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 import '../widgets/gradient_fab.dart';
 import 'repair_detail_view.dart';
 import 'create_repair_order_view.dart';
@@ -47,6 +49,10 @@ class OrderListViewState extends State<OrderListView> {
   int _currentOffset = 0;
   static const int _pageSize = 30;
   String _currentSearch = "";
+
+  // Shop settings for dynamic terminology
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   // Date filter
   String _timeFilter = 'all'; // all, today, week, month, custom
@@ -88,6 +94,7 @@ class OrderListViewState extends State<OrderListView> {
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     _loadInitialData();
     
     // Setup scroll listener for lazy loading
@@ -138,6 +145,17 @@ class OrderListViewState extends State<OrderListView> {
     } catch (e) {
       debugPrint('OrderListView: Error loading more: $e');
       if (mounted) setState(() => _isLoadingMore = false);
+    }
+  }
+
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
     }
   }
 
@@ -193,7 +211,8 @@ class OrderListViewState extends State<OrderListView> {
               (r) =>
                   r.customerName.toLowerCase().contains(val.toLowerCase()) ||
                   r.phone.contains(val) ||
-                  r.model.toLowerCase().contains(val.toLowerCase()),
+                  r.model.toLowerCase().contains(val.toLowerCase()) ||
+                  r.issue.toLowerCase().contains(val.toLowerCase()),
             )
             .toList();
 
@@ -812,16 +831,10 @@ class OrderListViewState extends State<OrderListView> {
         desc: loc.deletedRepairDesc(r.model, r.customerName, r.phone, partsInfo),
       );
 
-      // Queue delete sync
-      if (repairId != null && repairFirestoreId != null) {
-        await SyncOrchestrator().enqueue(
-          entityType: SyncEntityType.repair,
-          entityId: repairId,
-          firestoreId: repairFirestoreId,
-          operation: SyncOperation.delete,
-          data: null,
-        );
-      }
+      // KHÔNG cần enqueue delete nữa vì đã soft delete trực tiếp trên Firestore rồi
+      // Việc enqueue delete sẽ tạo pending sync không cần thiết
+      // Realtime listener sẽ tự đồng xóa local khi nhận deleted=true từ Firestore
+      debugPrint('✅ Repair deleted directly on Firestore - no need for sync queue');
 
       navigator.pop();
       _loadInitialData();
@@ -892,11 +905,11 @@ class OrderListViewState extends State<OrderListView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "DANH SÁCH MÁY SỬA",
+              "DANH SÁCH ${_terms.productLabel.toUpperCase()} SỬA",
               style: AppTextStyles.headline2.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
             ),
             Text(
-              '$count máy • $pendingCount đang xử lý',
+              '$count ${_terms.productLabel.toLowerCase()} • $pendingCount đang xử lý',
               style: AppTextStyles.caption.copyWith(
                 color: Colors.white70,
               ),
@@ -1060,7 +1073,7 @@ class OrderListViewState extends State<OrderListView> {
           if (res == true) _loadInitialData();
         },
         icon: Icons.phone_android,
-        label: 'Nhận máy',
+        label: 'Nhận ${_terms.productLabel.toLowerCase()}',
       ),
     );
   }

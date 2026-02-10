@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
+import '../models/product_variant_model.dart';
 import '../models/customer_model.dart';
 import '../models/sale_order_model.dart';
 import '../models/debt_model.dart';
@@ -19,12 +20,16 @@ import '../services/claims_service.dart';
 import '../services/financial_activity_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../services/payment_intent_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
+import '../services/variant_service.dart';
 import '../models/payment_intent_model.dart';
+import '../models/shop_settings_model.dart';
 import '../constants/financial_constants.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/currency_text_field.dart';
-import '../widgets/section_card.dart';
+import '../widgets/variant_selector.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -74,6 +79,18 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   bool _isSaving = false;
   bool _hasPermission = false;
 
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+  bool get _enableSerial => _shopSettings?.enableSerial ?? true;
+  bool get _enableWarranty => _shopSettings?.enableWarranty ?? true;
+  bool get _enableVariants => _shopSettings?.enableVariants ?? false;
+
+  /// Terminology động theo ngành
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+
+  // Variant Service for fashion/multi-size products
+  final VariantService _variantService = VariantService();
+
   // Focus management cho IMEI fields
   final Map<String, FocusNode> _imeiFocusNodes = {};
   final Map<String, TextEditingController> _imeiControllers = {};
@@ -103,8 +120,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       screenKey: FirstTimeGuideService.keySalesView,
       title: 'Tạo Đơn Bán Hàng',
       color: Colors.green,
-      steps: const [
-        GuideStep(
+      steps: [
+        const GuideStep(
           title: '👤 Thông tin khách hàng',
           description:
               'Nhập SĐT để tự động điền tên khách cũ. Hoặc chọn từ danh bạ khách hàng.',
@@ -112,27 +129,27 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           iconColor: Colors.blue,
         ),
         GuideStep(
-          title: '📦 Chọn sản phẩm',
+          title: '📦 Chọn ${_terms.productLabel.toLowerCase()}',
           description:
-              'Tìm kiếm và chọn sản phẩm trong kho. Có thể bán nhiều sản phẩm trong 1 đơn.',
+              'Tìm kiếm và chọn ${_terms.productLabel.toLowerCase()} trong kho. Có thể bán nhiều ${_terms.productLabel.toLowerCase()} trong 1 đơn.',
           icon: Icons.inventory_2,
           iconColor: Colors.orange,
         ),
-        GuideStep(
+        const GuideStep(
           title: '💰 Giá bán & Giảm giá',
           description:
               'Hệ thống tự tính tổng. Có thể nhập giảm giá trực tiếp hoặc điều chỉnh giá.',
           icon: Icons.attach_money,
           iconColor: Colors.green,
         ),
-        GuideStep(
+        const GuideStep(
           title: '🏦 Thanh toán trả góp',
           description:
               'Bật trả góp để nhập tiền đặt cọc, số tiền vay và ngân hàng hỗ trợ.',
           icon: Icons.credit_card,
           iconColor: Colors.purple,
         ),
-        GuideStep(
+        const GuideStep(
           title: '📝 Công nợ khách hàng',
           description:
               'Chọn "CÔNG NỢ" nếu khách chưa thanh toán đủ. Theo dõi trong mục Tài chính.',
@@ -307,8 +324,13 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   Future<void> _loadData() async {
     final prods = await db.getInStockProducts();
     final suggests = await db.getCustomerSuggestions();
+    
+    // Load shop settings for multi-industry terminology
+    final shopSettings = await CategoryService().getShopSettings();
+    
     if (!mounted) return;
     setState(() {
+      _shopSettings = shopSettings;
       _allInStock = prods;
       _filteredInStock = prods;
       _suggestCustomers = suggests;
@@ -492,8 +514,53 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     });
   }
 
-  void _addProductToSale(Product p) {
-    if (_selectedItems.any((item) => item['product'].id == p.id)) return;
+  /// Add product to sale - with variant support for fashion shops
+  Future<void> _addProductToSale(Product p) async {
+    // Check if already added (for non-variant products, check by ID)
+    // For variant products, same product can be added multiple times with different variants
+    final hasVariantSupport = _enableVariants;
+    
+    // Load variants if enabled
+    List<ProductVariant> variants = [];
+    if (hasVariantSupport && p.firestoreId != null) {
+      variants = await _variantService.getVariantsByProduct(p.firestoreId!);
+    }
+    
+    ProductVariant? selectedVariant;
+    
+    // If product has variants, show variant selector dialog
+    if (variants.isNotEmpty && mounted) {
+      selectedVariant = await showDialog<ProductVariant>(
+        context: context,
+        builder: (ctx) => VariantSelectionDialog(
+          productId: p.firestoreId!,
+          productName: p.name,
+          productPrice: p.price,
+        ),
+      );
+      
+      // User cancelled variant selection
+      if (selectedVariant == null) return;
+      
+      // Check if this exact variant is already in cart
+      final alreadyInCart = _selectedItems.any((item) {
+        final itemVariant = item['variant'] as ProductVariant?;
+        return itemVariant?.firestoreId == selectedVariant?.firestoreId;
+      });
+      
+      if (alreadyInCart) {
+        NotificationService.showSnackBar(
+          'Biến thể này đã có trong giỏ hàng!',
+          color: Colors.orange,
+        );
+        return;
+      }
+    } else {
+      // Non-variant product: check if already added
+      if (_selectedItems.any((item) => item['product'].id == p.id && item['variant'] == null)) {
+        return;
+      }
+    }
 
     final productId = p.id;
     final imeiController = TextEditingController(text: p.imei ?? '');
@@ -502,10 +569,13 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     setState(() {
       _selectedItems.add({
         'product': p,
+        'variant': selectedVariant,  // null for non-variant products
         'isGift': false,
-        'sellPrice': p.price,
+        'sellPrice': selectedVariant?.salePrice ?? p.price,
         'quantity': 1,
         'imei': p.imei ?? '',
+        // Store variant display name for UI
+        'variantName': selectedVariant?.displayName,
       });
 
       _imeiControllers[productId.toString()] = imeiController;
@@ -514,14 +584,16 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       _calculateTotal();
     });
 
-    // Tự động focus vào IMEI field
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted && _imeiFocusNodes[productId.toString()]?.context != null) {
-        FocusScope.of(
-          context,
-        ).requestFocus(_imeiFocusNodes[productId.toString()]);
-      }
-    });
+    // Tự động focus vào IMEI field (only for serial-enabled products)
+    if (_enableSerial) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && _imeiFocusNodes[productId.toString()]?.context != null) {
+          FocusScope.of(
+            context,
+          ).requestFocus(_imeiFocusNodes[productId.toString()]);
+        }
+      });
+    }
   }
 
   Future<void> _revertOldSaleChanges() async {
@@ -614,7 +686,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     if (_selectedItems.isEmpty) {
       debugPrint('🛒 _processSale: No items selected');
       NotificationService.showSnackBar(
-        "VUI LÒNG CHỌN SẢN PHẨM",
+        "VUI LÒNG CHỌN ${_terms.productLabel.toUpperCase()}",
         color: Colors.red,
       );
       return;
@@ -781,7 +853,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             (customImei == null || customImei.isEmpty) &&
             (p.imei == null || p.imei!.isEmpty)) {
           NotificationService.showSnackBar(
-            "Không thể bán máy chưa có IMEI: ${p.name}",
+            "Không thể bán ${_terms.productLabel.toLowerCase()} chưa có ${_terms.specialField1Label}: ${p.name}",
             color: Colors.red,
           );
           setState(() => _isSaving = false);
@@ -930,9 +1002,17 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       for (var item in _selectedItems) {
         final p = item['product'] as Product;
         final quantity = item['quantity'] as int;
+        final variant = item['variant'] as ProductVariant?;
 
-        if (isLocalOnly) {
-          // Chỉ cập nhật local database khi bán offline
+        // Handle variant stock deduction for fashion shops
+        if (variant != null) {
+          // Deduct from variant stock
+          await _variantService.decreaseQuantity(variant.firestoreId, quantity);
+          debugPrint(
+            '👗 Variant sale: Deducted ${p.name} - ${variant.displayName} by $quantity',
+          );
+        } else if (isLocalOnly) {
+          // Chỉ cập nhật local database khi bán offline (non-variant products)
           if (p.type == 'DIEN_THOAI') {
             await db.updateProductStatus(p.id!, 0);
           }
@@ -1261,7 +1341,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         title: Tooltip(
           message: widget.editSale != null
               ? "Chỉnh sửa thông tin đơn bán hàng"
-              : "Chọn sản phẩm, nhập thông tin khách và hoàn tất đơn bán.",
+              : "Chọn ${_terms.productLabel.toLowerCase()}, nhập thông tin khách và hoàn tất đơn bán.",
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1275,7 +1355,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 ),
               ),
               Text(
-                '${_selectedItems.length} sản phẩm đã chọn',
+                '${_selectedItems.length} ${_terms.productLabel.toLowerCase()} đã chọn',
                 style: TextStyle(
                   fontSize: AppTextStyles.body1.fontSize,
                   color: Colors.white70,
@@ -1323,7 +1403,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                "SẢN PHẨM",
+                                _terms.productLabel.toUpperCase(),
                                 style: AppTextStyles.caption.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.purple.shade700,
@@ -1342,7 +1422,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                           const SizedBox(height: 8),
                           DebouncedSearchField(
                             controller: searchProdCtrl,
-                            hint: "Tìm máy hoặc IMEI...",
+                            hint: "Tìm ${_terms.productLabel.toLowerCase()} hoặc ${_terms.specialField1Label}...",
                             onSearch: (v) => setState(
                               () => _filteredInStock = _allInStock
                                   .where(
@@ -1505,7 +1585,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                             )
                           : Text(
                               _selectedItems.isEmpty
-                                  ? "CHƯA CHỌN SẢN PHẨM"
+                                  ? "CHƯA CHỌN ${_terms.productLabel.toUpperCase()}"
                                   : "HOÀN TẤT ĐƠN HÀNG",
                               style: AppTextStyles.button.copyWith(
                                 color: AppColors.onSuccess,
@@ -1896,16 +1976,18 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         // Bảo hành + Ghi chú: dùng Row flexible để tránh tràn ngang
         Row(
           children: [
+            // Multi-Industry: Only show warranty for electronics
+            if (_enableWarranty)
             SizedBox(
               width: 130,
               child: DropdownButtonFormField<String>(
                 value: _saleWarranty,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: "B.HÀNH",
-                  prefixIcon: Icon(Icons.verified_user, size: 16),
+                decoration: InputDecoration(
+                  labelText: _terms.specialField2Label,
+                  prefixIcon: const Icon(Icons.verified_user, size: 16),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
+                  contentPadding: const EdgeInsets.symmetric(
                     horizontal: 6,
                     vertical: 6,
                   ),
@@ -1925,7 +2007,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 onChanged: (v) => setState(() => _saleWarranty = v ?? "KO BH"),
               ),
             ),
-            const SizedBox(width: 12),
+            if (_enableWarranty) const SizedBox(width: 12),
             Expanded(
               child: TextFormField(
                 controller: noteCtrl,
@@ -2274,7 +2356,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              "IMEI: ${p.imei ?? 'PK'} - Giá: ${MoneyUtils.formatCurrency(p.price)}",
+              "${_terms.specialField1Label}: ${p.imei ?? 'PK'} - Giá: ${MoneyUtils.formatCurrency(p.price)}",
             ),
             // HIỂN THỊ SỐ LƯỢNG TỒN TRONG LIST CHỌN
             trailing: Column(
@@ -2296,7 +2378,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             onTap: () {
               if (p.quantity == 0) {
                 NotificationService.showSnackBar(
-                  "Sản phẩm '${p.name}' chưa có trong kho!\nVui lòng tạo nhà cung cấp và nhập kho trước khi bán.",
+                  "${_terms.productLabel} '${p.name}' chưa có trong kho!\nVui lòng tạo nhà cung cấp và nhập kho trước khi bán.",
                   color: AppColors.error,
                 );
                 return;
@@ -2314,6 +2396,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       children: _selectedItems.map((item) {
         final product = item['product'] as Product;
         final quantity = item['quantity'] as int? ?? 1;
+        final variant = item['variant'] as ProductVariant?;
+        final variantName = item['variantName'] as String?;
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4),
           child: Padding(
@@ -2324,9 +2408,34 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        product.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            product.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          // Show variant info if available
+                          if (variantName != null) ...[
+                            const SizedBox(height: 2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: Text(
+                                variantName,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     IconButton(
@@ -2347,6 +2456,17 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   ],
                 ),
                 const SizedBox(height: 4),
+                // Show variant stock if available
+                if (variant != null) ...[
+                  Text(
+                    "Tồn kho: ${variant.quantity}",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: variant.quantity > 0 ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                ],
                 Text(
                   "Giá bán: ${MoneyUtils.formatCurrency(item['sellPrice'])}",
                 ),
@@ -2404,9 +2524,11 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   ],
                 ),
                 const SizedBox(height: 4),
+                // Multi-Industry: Only show serial field if enabled
+                if (_enableSerial)
                 Row(
                   children: [
-                    const Text("IMEI: "),
+                    Text("${_terms.specialField1Label}: "),
                     Expanded(
                       child: TextField(
                         controller:
@@ -2418,13 +2540,13 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                             item['imei'] = value.trim();
                           });
                         },
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 4,
                           ),
-                          hintText: "Nhập IMEI (tùy chọn)",
+                          hintText: _terms.specialField1Hint,
                         ),
                         textInputAction: TextInputAction.next,
                       ),

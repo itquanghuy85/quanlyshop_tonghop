@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/supplier_model.dart';
 import '../models/repair_partner_model.dart';
 import '../models/payment_intent_model.dart';
+import '../models/shop_settings_model.dart';
 import '../constants/financial_constants.dart';
 import '../services/supplier_service.dart';
 import '../services/repair_partner_service.dart';
@@ -11,6 +12,8 @@ import '../services/repair_partner_payment_service.dart';
 import '../services/user_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../services/payment_intent_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 import '../data/db_helper.dart';
 import '../utils/money_utils.dart';
 import '../widgets/currency_text_field.dart';
@@ -71,13 +74,18 @@ class _SupplierListViewState extends State<SupplierListView>
   int _totalPartnerPaid = 0;
   int _partnerOwingCount = 0;
 
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  bool get _isElectronics => _shopSettings?.businessType == 'electronics' || _shopSettings?.businessType == null;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this); // Will be recreated after settings load
     _tabController.addListener(() {
       if (mounted) setState(() {}); // Rebuild FAB when tab changes
     });
+    _loadShopSettings();
     _load();
     _loadPartners();
     EventBus().stream
@@ -90,6 +98,26 @@ class _SupplierListViewState extends State<SupplierListView>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showFirstTimeGuide();
     });
+  }
+
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        final isElectronics = settings?.businessType == 'electronics' || settings?.businessType == null;
+        final newLength = isElectronics ? 2 : 1;
+        if (_tabController.length != newLength) {
+          _tabController.dispose();
+          _tabController = TabController(length: newLength, vsync: this);
+          _tabController.addListener(() {
+            if (mounted) setState(() {});
+          });
+        }
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
   }
 
   /// Hiển thị hướng dẫn lần đầu
@@ -422,9 +450,9 @@ class _SupplierListViewState extends State<SupplierListView>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'NHÀ CUNG CẤP'),
-            Tab(text: 'ĐỐI TÁC SỬA CHỮA'),
+          tabs: [
+            const Tab(text: 'NHÀ CUNG CẤP'),
+            if (_isElectronics) const Tab(text: 'ĐỐI TÁC SỬA CHỮA'),
           ],
         ),
       ),
@@ -436,7 +464,7 @@ class _SupplierListViewState extends State<SupplierListView>
               MaterialPageRoute(builder: (_) => const SupplierFormView()),
             );
             await _load();
-          } else {
+          } else if (_isElectronics) {
             await Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const RepairPartnerFormView()),
@@ -452,7 +480,10 @@ class _SupplierListViewState extends State<SupplierListView>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildSupplierTab(), _buildPartnerTab()],
+        children: [
+          _buildSupplierTab(),
+          if (_isElectronics) _buildPartnerTab(),
+        ],
       ),
     );
   }
@@ -1561,7 +1592,7 @@ class _SupplierListViewState extends State<SupplierListView>
           ],
         ),
         content: Text(
-          "Bạn chắc chắn muốn xóa nhà cung cấp \"${d.supplier.name}\" khỏi danh sách? Các sản phẩm cũ vẫn giữ nguyên thông tin NCC dạng chữ.",
+          "Bạn chắc chắn muốn xóa nhà cung cấp \"${d.supplier.name}\" khỏi danh sách? Các ${_terms.productLabel.toLowerCase()} cũ vẫn giữ nguyên thông tin NCC dạng chữ.",
           style: AppTextStyles.body2,
         ),
         actions: [

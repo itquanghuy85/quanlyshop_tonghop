@@ -28,6 +28,10 @@ class ShopSettings {
   final DateTime updatedAt;
   final String? updatedBy;
   final bool isSynced;
+  
+  // === DEFAULT FLAG ===
+  /// True nếu settings được tạo mặc định (shop chưa thiết lập ngành kinh doanh)
+  final bool isDefault;
 
   ShopSettings({
     this.id = '',
@@ -48,6 +52,7 @@ class ShopSettings {
     DateTime? updatedAt,
     this.updatedBy,
     this.isSynced = false,
+    this.isDefault = false, // Default false - settings được tạo bình thường
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
@@ -149,6 +154,7 @@ class ShopSettings {
       updatedAt: _parseDateTime(map['updatedAt']),
       updatedBy: map['updatedBy'],
       isSynced: map['isSynced'] == true || map['isSynced'] == 1,
+      isDefault: false, // Always false when loading from DB/Firestore (already saved)
     );
   }
 
@@ -228,6 +234,7 @@ class ShopSettings {
     DateTime? updatedAt,
     String? updatedBy,
     bool? isSynced,
+    bool? isDefault,
   }) {
     return ShopSettings(
       id: id ?? this.id,
@@ -248,6 +255,7 @@ class ShopSettings {
       updatedAt: updatedAt ?? DateTime.now(),
       updatedBy: updatedBy ?? this.updatedBy,
       isSynced: isSynced ?? this.isSynced,
+      isDefault: isDefault ?? this.isDefault,
     );
   }
 

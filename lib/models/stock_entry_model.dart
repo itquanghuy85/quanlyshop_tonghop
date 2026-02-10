@@ -34,8 +34,11 @@ class StockEntryItem {
   final String? sku;
   final String? unit;
   
+  // Thời trang - Fashion
+  final String? size;  // XS, S, M, L, XL, XXL, 28, 29, 30, 31...
+  
   // Loại sản phẩm
-  final String productType;  // DIEN_THOAI, PHU_KIEN, LINH_KIEN
+  final String productType;  // DIEN_THOAI, PHU_KIEN, LINH_KIEN, QUAN_AO, GIAY_DEP...
   
   StockEntryItem({
     this.id,
@@ -52,6 +55,7 @@ class StockEntryItem {
     this.labelInfo,
     this.sku,
     this.unit,
+    this.size,
     required this.productType,
   });
   
@@ -71,6 +75,7 @@ class StockEntryItem {
       if (labelInfo != null && labelInfo!.isNotEmpty) 'labelInfo': labelInfo,
       if (sku != null && sku!.isNotEmpty) 'sku': sku,
       if (unit != null && unit!.isNotEmpty) 'unit': unit,
+      if (size != null && size!.isNotEmpty) 'size': size,
       'productType': productType,
     };
   }
@@ -91,6 +96,7 @@ class StockEntryItem {
       labelInfo: map['labelInfo'],
       sku: map['sku'],
       unit: map['unit'],
+      size: map['size'],
       productType: map['productType'] ?? 'DIEN_THOAI',
     );
   }
@@ -110,6 +116,7 @@ class StockEntryItem {
     String? labelInfo,
     String? sku,
     String? unit,
+    String? size,
     String? productType,
   }) {
     return StockEntryItem(
@@ -127,6 +134,7 @@ class StockEntryItem {
       labelInfo: labelInfo ?? this.labelInfo,
       sku: sku ?? this.sku,
       unit: unit ?? this.unit,
+      size: size ?? this.size,
       productType: productType ?? this.productType,
     );
   }
@@ -144,6 +152,13 @@ class StockEntryItem {
       if (capacity != null && capacity!.isNotEmpty) parts.add(capacity!);
       if (color != null && color!.isNotEmpty) parts.add(color!);
       return parts.join(' ');
+    }
+    // Fashion products - show size and color
+    if (productType == 'QUAN_AO' || productType == 'GIAY_DEP' || productType == 'THOI_TRANG') {
+      final parts = <String>[name];
+      if (size != null && size!.isNotEmpty) parts.add('Size $size');
+      if (color != null && color!.isNotEmpty) parts.add(color!);
+      return parts.join(' - ');
     }
     return name;
   }

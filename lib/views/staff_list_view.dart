@@ -11,10 +11,12 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart';
 import '../services/user_service.dart';
+import '../services/category_service.dart';
 import '../data/db_helper.dart';
 import '../services/storage_service.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
+import '../models/shop_settings_model.dart';
 import '../widgets/gradient_fab.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
@@ -46,6 +48,10 @@ class _StaffListViewState extends State<StaffListView> {
   bool _loadingRole = true;
   bool _hasManageStaffAccess = false;
 
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+  bool get _enableRepair => _shopSettings?.enableRepair ?? true;
+
   // Invite code QR
   String? _currentInviteCode;
   String? _currentShopName;
@@ -55,6 +61,13 @@ class _StaffListViewState extends State<StaffListView> {
   void initState() {
     super.initState();
     _loadCurrentUserRole();
+    _loadShopSettings();
+  }
+
+  Future<void> _loadShopSettings() async {
+    final settings = await CategoryService().getShopSettings();
+    if (!mounted) return;
+    setState(() => _shopSettings = settings);
   }
 
   Future<void> _loadCurrentUserRole() async {
@@ -1293,6 +1306,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   bool _canViewDebts = false;
   bool _canViewCostPrice = false;
 
+  // Multi-Industry: Shop Settings
+  ShopSettings? _shopSettings;
+  bool get _enableRepair => _shopSettings?.enableRepair ?? true;
+
   List<Repair> _repairsReceived = [];
   List<Repair> _repairsDelivered = [];
   List<SaleOrder> _sales = [];
@@ -1302,6 +1319,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     try {
       _tabController = TabController(length: 4, vsync: this);
 
@@ -1365,6 +1383,12 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       _canViewExpenses = true;
       _canViewDebts = true;
     }
+  }
+
+  Future<void> _loadShopSettings() async {
+    final settings = await CategoryService().getShopSettings();
+    if (!mounted) return;
+    setState(() => _shopSettings = settings);
   }
 
   Future<void> _loadCurrentShop() async {
@@ -1615,8 +1639,18 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     if (workDaysData != null) {
       if (workDaysData is List) {
         days = workDaysData.cast<int>();
-      } else if (workDaysData is String) {
-        days = (jsonDecode(workDaysData) as List).cast<int>();
+      } else if (workDaysData is String && workDaysData.isNotEmpty) {
+        // Try JSON first, fallback to comma-separated
+        try {
+          days = (jsonDecode(workDaysData) as List).cast<int>();
+        } catch (_) {
+          // Fallback: parse comma-separated string like "0,1,2,3,4,5,6"
+          days = workDaysData
+              .split(',')
+              .map((s) => int.tryParse(s.trim()) ?? 0)
+              .where((d) => d >= 0 && d <= 7)
+              .toList();
+        }
       }
     }
     days.sort();
@@ -1987,22 +2021,24 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                 onChanged: (v) =>
                                     setState(() => _canViewSales = v),
                               ),
-                              SwitchListTile(
-                                title: Text(
-                                  "SỬA CHỮA",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
-                                ),
-                                subtitle: Text(
-                                  "Xem danh sách đơn sửa, tạo đơn mới",
-                                  style: TextStyle(
-                                    fontSize: AppTextStyles.body1.fontSize,
-                                    color: Colors.grey,
+                              // Chỉ hiển thị sửa chữa cho shop electronics
+                              if (_enableRepair)
+                                SwitchListTile(
+                                  title: Text(
+                                    "SỬA CHỮA",
+                                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                                   ),
+                                  subtitle: Text(
+                                    "Xem danh sách đơn sửa, tạo đơn mới",
+                                    style: TextStyle(
+                                      fontSize: AppTextStyles.body1.fontSize,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  value: _canViewRepairs,
+                                  onChanged: (v) =>
+                                      setState(() => _canViewRepairs = v),
                                 ),
-                                value: _canViewRepairs,
-                                onChanged: (v) =>
-                                    setState(() => _canViewRepairs = v),
-                              ),
                               SwitchListTile(
                                 title: Text(
                                   "KHO",

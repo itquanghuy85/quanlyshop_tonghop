@@ -146,13 +146,14 @@ class _BusinessTypeWizardState extends State<BusinessTypeWizard> {
           Icons.phone_android,
           Colors.blue,
         ),
-        _buildTypeCard(
-          'food',
-          '🍎 Thực phẩm & Đồ tươi sống',
-          'Cửa hàng thực phẩm, nông sản...\nHỗ trợ: Hạn sử dụng, theo lô, đơn vị tính',
-          Icons.restaurant,
-          Colors.green,
-        ),
+        // Food và General tạm ẩn - chỉ hỗ trợ Electronics và Fashion
+        // _buildTypeCard(
+        //   'food',
+        //   '🍎 Thực phẩm & Đồ tươi sống',
+        //   'Cửa hàng thực phẩm, nông sản...\nHỗ trợ: Hạn sử dụng, theo lô, đơn vị tính',
+        //   Icons.restaurant,
+        //   Colors.green,
+        // ),
         _buildTypeCard(
           'fashion',
           '👕 Thời trang & May mặc',
@@ -160,13 +161,13 @@ class _BusinessTypeWizardState extends State<BusinessTypeWizard> {
           Icons.checkroom,
           Colors.purple,
         ),
-        _buildTypeCard(
-          'general',
-          '📦 Tổng hợp / Tùy chỉnh',
-          'Các loại hình khác hoặc tự tạo\nTự do bật/tắt từng tính năng',
-          Icons.store,
-          Colors.orange,
-        ),
+        // _buildTypeCard(
+        //   'general',
+        //   '📦 Tổng hợp / Tùy chỉnh',
+        //   'Các loại hình khác hoặc tự tạo\nTự do bật/tắt từng tính năng',
+        //   Icons.store,
+        //   Colors.orange,
+        // ),
       ],
     );
   }
@@ -527,9 +528,10 @@ class BusinessTypeQuickSelector extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildOption(context, 'electronics', '📱 Điện thoại & Điện tử', Icons.phone_android, Colors.blue),
-          _buildOption(context, 'food', '🍎 Thực phẩm', Icons.restaurant, Colors.green),
+          // Food và General tạm ẩn - chỉ hỗ trợ Electronics và Fashion
+          // _buildOption(context, 'food', '🍎 Thực phẩm', Icons.restaurant, Colors.green),
           _buildOption(context, 'fashion', '👕 Thời trang', Icons.checkroom, Colors.purple),
-          _buildOption(context, 'general', '📦 Tổng hợp', Icons.store, Colors.orange),
+          // _buildOption(context, 'general', '📦 Tổng hợp', Icons.store, Colors.orange),
         ],
       ),
     );

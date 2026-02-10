@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../services/user_service.dart';
-import '../services/supplier_service.dart';
 import '../services/event_bus.dart';
 import '../services/audit_service.dart';
 import '../services/adjustment_service.dart';
@@ -14,9 +13,11 @@ import '../models/payment_intent_model.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/gradient_fab.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../core/utils/money_utils.dart';
+import '../models/shop_settings_model.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 
 /// Widget content để embed vào InventoryView tab - Phiên bản chuyên nghiệp
 class PartsInventoryViewContent extends StatefulWidget {
@@ -27,19 +28,24 @@ class PartsInventoryViewContent extends StatefulWidget {
 
 class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   final db = DBHelper();
-  final _supplierService = SupplierService();
+  // _supplierService reserved for future supplier operations
   List<Map<String, dynamic>> _parts = [];
   List<Map<String, dynamic>> _filteredParts = [];
   List<Map<String, dynamic>> _suppliers = [];
   bool _isLoading = true;
   final searchCtrl = TextEditingController();
   String _searchQuery = '';
-  bool _isAdmin = false;
+  // ignore: unused_field
+  bool _isAdmin = false; // Set in _loadPermissions, reserved for UI restrictions
   bool _canViewCostPrice = false; // Phân quyền xem giá vốn
   bool _isSelectionMode = false;
   final Set<int> _selectedIds = {};
   bool _showOutOfStock = false;
   String _sortBy = 'name'; // name, quantity, cost
+  
+  // Dynamic terminology
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
   
   // Navigation - filter by model category
   String? _selectedModelCategory;
@@ -65,6 +71,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     _loadPermissions();
     _refreshParts();
     _loadSuppliers();
@@ -97,6 +104,13 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     _scrollController.dispose();
     searchCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadShopSettings() async {
+    final settings = await CategoryService().getShopSettings();
+    if (mounted) {
+      setState(() => _shopSettings = settings);
+    }
   }
 
   Future<void> _loadPermissions() async {
@@ -414,7 +428,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 },
                 style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
                 decoration: InputDecoration(
-                  hintText: 'Tìm linh kiện, model...',
+                  hintText: 'Tìm ${_terms.category3}, model...',
                   hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: AppTextStyles.headline5.fontSize),
                   prefixIcon: const Icon(Icons.search, color: _primaryColor, size: 20),
                   suffixIcon: _searchQuery.isNotEmpty
@@ -754,14 +768,14 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           Icon(Icons.build_circle_outlined, size: 80, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isNotEmpty ? 'Không tìm thấy linh kiện' : 'Chưa có linh kiện trong kho',
+            _searchQuery.isNotEmpty ? 'Không tìm thấy ${_terms.category3}' : 'Chưa có ${_terms.category3} trong kho',
             style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
           Text(
             _searchQuery.isNotEmpty 
                 ? 'Thử từ khóa khác' 
-                : 'Nhấn "THÊM LINH KIỆN" để bắt đầu',
+                : 'Nhấn "THÊM ${_terms.category3.toUpperCase()}" để bắt đầu',
             style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade400),
           ),
         ],
@@ -776,7 +790,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     final totalCost = cost * qty;
     final supplierName = _getSupplierName(p['supplierId'] as int?);
     final createdAt = p['createdAt'] as int?;
-    final updatedAt = p['updatedAt'] as int?;
+    // updatedAt tracked but not displayed in current UI
     
     showModalBottomSheet(
       context: context,
@@ -937,7 +951,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc muốn xóa ${_selectedIds.length} linh kiện đã chọn?'),
+        content: Text('Bạn có chắc muốn xóa ${_selectedIds.length} ${_terms.category3} đã chọn?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -968,7 +982,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã xóa linh kiện'), backgroundColor: Colors.green),
+        SnackBar(content: Text('Đã xóa ${_terms.category3}'), backgroundColor: Colors.green),
       );
     }
   }
@@ -983,7 +997,7 @@ class PartsInventoryView extends StatefulWidget {
 
 class _PartsInventoryViewState extends State<PartsInventoryView> {
   final db = DBHelper();
-  final _supplierService = SupplierService();
+  // _supplierService reserved for future supplier operations
   List<Map<String, dynamic>> _parts = [];
   List<Map<String, dynamic>> _filteredParts = [];
   List<Map<String, dynamic>> _suppliers = [];
@@ -1001,12 +1015,24 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
   final Color _primaryColor = Colors.purple; // Màu chính cho phụ tùng
   final Color _backgroundColor = const Color(0xFFF8FAFF);
 
+  // Dynamic terminology
+  ShopSettings? _shopSettings;
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     _loadPermissions();
     _refreshParts();
     _loadSuppliers();
+  }
+
+  Future<void> _loadShopSettings() async {
+    final settings = await CategoryService().getShopSettings();
+    if (mounted) {
+      setState(() => _shopSettings = settings);
+    }
   }
 
   Future<void> _loadPermissions() async {
@@ -1092,7 +1118,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
             });
           }
           return AlertDialog(
-            title: Text(part == null ? "NHẬP LINH KIỆN MỚI" : "SỬA LINH KIỆN"),
+            title: Text(part == null ? "NHẬP ${_terms.category3.toUpperCase()} MỚI" : "SỬA ${_terms.category3.toUpperCase()}"),
             content: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -1102,7 +1128,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                   children: [
                     ValidatedTextField(
                       controller: nameC,
-                      label: "Tên linh kiện (VD: PIN IPHONE 11)",
+                      label: "Tên ${_terms.category3} (VD: PIN IPHONE 11)",
                       icon: Icons.inventory,
                       uppercase: true,
                       required: true,
@@ -1368,7 +1394,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         entityType: 'repair_part',
                         entityId: insertedId.toString(),
                         summary:
-                            'Nhập linh kiện: $partName x$qty - ${NumberFormat('#,###').format(cost * qty)}đ ($paymentMethod)',
+                            'Nhập ${_terms.category3}: $partName x$qty - ${NumberFormat('#,###').format(cost * qty)}đ ($paymentMethod)',
                         payload: {
                           'partName': partName,
                           'quantity': qty,
@@ -1388,7 +1414,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           'supplierId': selectedSupplierId,
                           'supplierName': supplierName,
                           'productName': partName,
-                          'productBrand': 'LINH KIỆN',
+                          'productBrand': _terms.category3.toUpperCase(),
                           'productModel': modelC.text.toUpperCase(),
                           'imei': null,
                           'quantity': qty,
@@ -1397,7 +1423,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           'paymentMethod': paymentMethod,
                           'importDate': now,
                           'importedBy': userName,
-                          'notes': 'Nhập từ kho linh kiện',
+                          'notes': 'Nhập từ kho ${_terms.category3}',
                           'shopId': shopId,
                           'isSynced': 0,
                         };
@@ -1424,11 +1450,10 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         EventBus().emit('suppliers_changed');
                       }
 
-                      // Xử lý thanh toán cho nhập linh kiện
+                      // Xử lý thanh toán cho nhập hàng
                       final totalCost = cost * qty;
                       if (totalCost > 0) {
                         final user = FirebaseAuth.instance.currentUser;
-                        final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
                         if (paymentMethod == 'CÔNG NỢ') {
                           // Công nợ NCC → Tạo debt record + PaymentIntent (CHỜ CHI)
                           final debtFId = 'debt_part_${DateTime.now().millisecondsSinceEpoch}_${selectedSupplierId ?? 0}';
@@ -1441,7 +1466,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             'type': 'SHOP_OWES',
                             'status': 'ACTIVE',
                             'createdAt': DateTime.now().millisecondsSinceEpoch,
-                            'note': 'Nhập linh kiện: $partName x$qty',
+                            'note': 'Nhập ${_terms.category3}: $partName x$qty',
                             'linkedId': null,
                             'isSynced': 0,
                             'shopId': shopId,
@@ -1463,7 +1488,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             id: 'pi_part_debt_${DateTime.now().millisecondsSinceEpoch}_$partName',
                             type: PaymentIntentType.supplierDebt,
                             amount: totalCost,
-                            description: 'Trả nợ nhập linh kiện: $partName - $supplierName',
+                            description: 'Trả nợ nhập ${_terms.category3}: $partName - $supplierName',
                             referenceId: debtFId,
                             referenceType: 'part_debt',
                             personName: supplierName,
@@ -1485,12 +1510,12 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           final expenseFirestoreId = 'exp_part_${DateTime.now().millisecondsSinceEpoch}_$partName';
                           final expenseData = {
                             'firestoreId': expenseFirestoreId,
-                            'title': 'Nhập linh kiện: $partName',
+                            'title': 'Nhập ${_terms.category3}: $partName',
                             'description': 'NCC: $supplierName - SL: $qty',
                             'amount': totalCost,
-                            'category': 'NHẬP LINH KIỆN',
+                            'category': 'NHẬP ${_terms.category3.toUpperCase()}',
                             'date': DateTime.now().millisecondsSinceEpoch,
-                            'note': 'Nhập từ kho linh kiện - $paymentMethod',
+                            'note': 'Nhập từ kho ${_terms.category3} - $paymentMethod',
                             'paymentMethod': paymentMethod,
                             'createdAt': DateTime.now().millisecondsSinceEpoch,
                             'shopId': shopId,
@@ -1580,7 +1605,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                                 'debts',
                                 {
                                   'totalAmount': newTotalCost,
-                                  'note': 'Nhập linh kiện: $partName x$qty',
+                                  'note': 'Nhập ${_terms.category3}: $partName x$qty',
                                   'updatedAt': now,
                                   'isSynced': 0,
                                 },
@@ -1613,7 +1638,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                                 'expenses',
                                 {
                                   'amount': newTotalCost,
-                                  'description': 'Nhập linh kiện: $partName x$qty${selectedSupplierId != null ? " từ $supplierName" : ""}',
+                                  'description': 'Nhập ${_terms.category3}: $partName x$qty${selectedSupplierId != null ? " từ $supplierName" : ""}',
                                   'updatedAt': now,
                                   'isSynced': 0,
                                 },
@@ -1648,7 +1673,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           action: 'PART_UPDATE',
                           entityType: 'repair_part',
                           entityId: partId.toString(),
-                          summary: 'Cập nhật linh kiện: $partName',
+                          summary: 'Cập nhật ${_terms.category3}: $partName',
                           payload: {
                             'partName': partName,
                             'quantity': qty,
@@ -1753,7 +1778,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                                 'debts',
                                 {
                                   'totalAmount': newTotalCost,
-                                  'note': 'Nhập linh kiện: $partName x$qty (điều chỉnh: $reason)',
+                                  'note': 'Nhập ${_terms.category3}: $partName x$qty (điều chỉnh: $reason)',
                                   'updatedAt': now,
                                   'isSynced': 0,
                                 },
@@ -1785,7 +1810,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                                 'expenses',
                                 {
                                   'amount': newTotalCost,
-                                  'description': 'Nhập linh kiện: $partName x$qty (điều chỉnh: $reason)${selectedSupplierId != null ? " từ $supplierName" : ""}',
+                                  'description': 'Nhập ${_terms.category3}: $partName x$qty (điều chỉnh: $reason)${selectedSupplierId != null ? " từ $supplierName" : ""}',
                                   'updatedAt': now,
                                   'isSynced': 0,
                                 },
@@ -1809,7 +1834,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             action: 'PART_QTY_ADJUST',
                             entityType: 'repair_part',
                             entityId: partId.toString(),
-                            summary: 'Điều chỉnh số lượng linh kiện: $partName ($oldQty -> $qty)',
+                            summary: 'Điều chỉnh số lượng ${_terms.category3}: $partName ($oldQty -> $qty)',
                             payload: {
                               'partName': partName,
                               'oldQuantity': oldQty,
@@ -1900,7 +1925,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
       builder: (ctx) => AlertDialog(
         title: const Text('Xác nhận xóa'),
         content: Text(
-          'Bạn có chắc muốn xóa $count linh kiện đã chọn?\n\nHành động này không thể hoàn tác.',
+          'Bạn có chắc muốn xóa $count ${_terms.category3} đã chọn?\n\nHành động này không thể hoàn tác.',
         ),
         actions: [
           TextButton(
@@ -1943,7 +1968,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
             action: 'DELETE_PART',
             entityType: 'repair_parts',
             entityId: part['firestoreId'] ?? id.toString(),
-            summary: 'Xóa linh kiện: ${part['partName']}',
+            summary: 'Xóa ${_terms.category3}: ${part['partName']}',
           );
         }
       }
@@ -1952,7 +1977,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Đã xóa $deletedCount linh kiện'),
+          content: Text('Đã xóa $deletedCount ${_terms.category3}'),
           backgroundColor: Colors.green,
         ),
       );
@@ -2005,7 +2030,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                 ),
               )
             : Text(
-                "KHO LINH KIỆN SỬA CHỮA",
+                "KHO ${_terms.category3.toUpperCase()} SỬA CHỮA",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
               ),
         backgroundColor: _isSelectionMode ? Colors.red.shade700 : Colors.transparent,
@@ -2051,7 +2076,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     },
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search),
-                      hintText: 'Tìm linh kiện theo tên / dòng máy',
+                      hintText: 'Tìm ${_terms.category3} theo tên / dòng máy',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

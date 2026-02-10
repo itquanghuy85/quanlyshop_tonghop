@@ -24,7 +24,6 @@ import '../theme/app_text_styles.dart';
 import '../services/payment_intent_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../services/event_bus.dart';
-import '../widgets/gradient_fab.dart';
 import 'unified_payment_page.dart';
 
 /// Central payment hub - displays ALL pending payments
@@ -44,7 +43,8 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
   List<PaymentIntent> _allIntents = [];
   bool _isLoading = true;
 
-  // Filter
+  // Filter - reserved for future filtering feature
+  // ignore: unused_field
   String? _filterCategory; // 'income', 'expense', 'debt', null = all
 
   // FIX: EventBus subscription để lắng nghe khi data từ cloud sync thay đổi

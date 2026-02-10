@@ -5,7 +5,10 @@ import '../data/db_helper.dart';
 import '../theme/app_text_styles.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
+import '../models/shop_settings_model.dart';
 import '../services/user_service.dart';
+import '../services/category_service.dart';
+import '../services/business_type_helper.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
 
@@ -20,12 +23,27 @@ class _WarrantyViewState extends State<WarrantyView> {
   List<Map<String, dynamic>> _warrantyList = [];
   bool _isLoading = true;
   bool _isAdmin = false;
+  ShopSettings? _shopSettings;
+
+  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   @override
   void initState() {
     super.initState();
+    _loadShopSettings();
     _loadRole();
     _loadAllWarranty();
+  }
+
+  Future<void> _loadShopSettings() async {
+    try {
+      final settings = await CategoryService().getShopSettings();
+      if (mounted) {
+        setState(() => _shopSettings = settings);
+      }
+    } catch (e) {
+      debugPrint('Error loading shop settings: $e');
+    }
   }
 
   Future<void> _loadRole() async {
@@ -186,7 +204,7 @@ class _WarrantyViewState extends State<WarrantyView> {
           ),
           const SizedBox(height: 15),
           Text(
-            "KHÔNG CÓ MÁY NÀO TRONG HẠN BẢO HÀNH",
+            "KHÔNG CÓ ${_terms.productLabel.toUpperCase()} NÀO TRONG HẠN BẢO HÀNH",
             style: TextStyle(
               color: Colors.blueGrey,
               fontWeight: FontWeight.bold,
