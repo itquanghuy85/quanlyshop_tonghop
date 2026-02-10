@@ -7,6 +7,8 @@ import 'sync_service.dart';
 import 'encryption_service.dart';
 import 'event_bus.dart';
 import 'category_service.dart';
+import 'business_type_helper.dart';
+import 'label_settings_service.dart';
 import '../data/db_helper.dart';
 
 /// CurrentShopService: Quản lý activeShopId cho owner có nhiều shop
@@ -236,8 +238,10 @@ class CurrentShopService {
       // 5. Clear local SQLite to prevent stale data
       await _clearLocalCache();
       
-      // 5.1. Clear CategoryService cache (shop settings)
+      // 5.1. Clear all caches (shop settings, business type, labels)
       CategoryService().clearCache();
+      BusinessTypeHelper().clearCache();
+      LabelSettingsService().clearCache();
 
       // 6. Re-initialize encryption for new shop
       EncryptionService.init(newShopId);

@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/current_shop_service.dart';
 import '../services/user_service.dart';
+import '../services/category_service.dart';
+import '../models/shop_settings_model.dart';
 import '../l10n/app_localizations.dart';
 
 /// ShopSwitcherWidget: Dropdown để owner chọn shop đang quản lý
@@ -351,64 +353,105 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
     final nameController = TextEditingController();
     final addressController = TextEditingController();
     final loc = AppLocalizations.of(context);
+    String selectedBusinessType = 'electronics';
 
-    final result = await showDialog<bool>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.add_business, color: Colors.purple),
-            const SizedBox(width: 8),
-            Expanded(child: Text(loc?.createNewBranch ?? 'Create New Branch')),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.add_business, color: Colors.purple),
+              const SizedBox(width: 8),
+              Expanded(child: Text(loc?.createNewBranch ?? 'Create New Branch')),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: loc?.branchName ?? 'Branch Name',
+                  hintText: 'Chi nhánh 2',
+                  prefixIcon: const Icon(Icons.store),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: addressController,
+                decoration: InputDecoration(
+                  labelText: loc?.address ?? 'Address',
+                  hintText: '123 Đường ABC',
+                  prefixIcon: const Icon(Icons.location_on),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Business type dropdown
+              DropdownButtonFormField<String>(
+                value: selectedBusinessType,
+                decoration: InputDecoration(
+                  labelText: 'Ngành kinh doanh',
+                  prefixIcon: const Icon(Icons.business_center),
+                  border: const OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'electronics',
+                    child: Text('📱 Điện thoại & Điện tử'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'fashion',
+                    child: Text('👗 Thời trang & May mặc'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'food',
+                    child: Text('🍎 Thực phẩm & Đồ tươi sống'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'general',
+                    child: Text('🏪 Tổng hợp'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setDialogState(() => selectedBusinessType = value);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: Text(loc?.cancel ?? 'Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, {
+                'name': nameController.text.trim(),
+                'address': addressController.text.trim(),
+                'businessType': selectedBusinessType,
+              }),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+              child: Text(loc?.create ?? 'Create'),
+            ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: loc?.branchName ?? 'Branch Name',
-                hintText: 'Chi nhánh 2',
-                prefixIcon: const Icon(Icons.store),
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: addressController,
-              decoration: InputDecoration(
-                labelText: loc?.address ?? 'Address',
-                hintText: '123 Đường ABC',
-                prefixIcon: const Icon(Icons.location_on),
-                border: const OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc?.cancel ?? 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
-            child: Text(loc?.create ?? 'Create'),
-          ),
-        ],
       ),
     );
 
-    if (result == true && nameController.text.trim().isNotEmpty) {
+    if (result != null && result['name']?.isNotEmpty == true) {
       await _createNewShop(
-        nameController.text.trim(),
-        addressController.text.trim(),
+        result['name'],
+        result['address'] ?? '',
+        result['businessType'] ?? 'electronics',
       );
     }
   }
 
-  Future<void> _createNewShop(String name, String address) async {
+  Future<void> _createNewShop(String name, String address, String businessType) async {
     setState(() => _loading = true);
 
     try {
@@ -417,14 +460,27 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
 
       // Create new shop document
       final newShopRef = FirebaseFirestore.instance.collection('shops').doc();
+      final shopId = newShopRef.id;
+      
       await newShopRef.set({
         'name': name,
         'address': address,
         'ownerUid': currentUser.uid,
         'ownerEmail': currentUser.email,
         'createdAt': FieldValue.serverTimestamp(),
-        'shopId': newShopRef.id,
+        'shopId': shopId,
+        'businessType': businessType,
       });
+
+      // Create shop_settings document with selected business type
+      final settings = ShopSettings.fromBusinessType(businessType, shopId);
+      final settingsRef = FirebaseFirestore.instance
+          .collection('shops')
+          .doc(shopId)
+          .collection('shop_settings')
+          .doc('settings');
+      await settingsRef.set(settings.toFirestoreMap());
+      debugPrint('✅ Created shop_settings for $shopId with businessType=$businessType');
 
       // Invalidate cache and reload
       _shopService.invalidateCache();
