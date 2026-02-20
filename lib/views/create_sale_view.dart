@@ -2422,7 +2422,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     );
   }
 
-  /// Show bottom sheet for gift/discount options
+  /// Show bottom sheet for gift/discount options — single overlay, no chaining
   Future<void> _showGiftDiscountSheet(Map<String, dynamic> item) async {
     final product = item['product'] as Product;
     final isGift = item['isGift'] as bool;
@@ -2430,54 +2430,29 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     final sellPrice = item['sellPrice'] as int;
     final hasPromotion = isGift || sellPrice < originalPrice;
 
-    final action = await showModalBottomSheet<String>(
+    // Result: {'action': 'gift'|'discount'|'reset', 'price': int?}
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
+      isScrollControlled: true, // allow resize when keyboard opens
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Ưu đãi: ${product.name}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.card_giftcard, color: Colors.green),
-                title: const Text('Tặng miễn phí (0đ)'),
-                subtitle: const Text('Không tính tiền sản phẩm này'),
-                selected: isGift,
-                onTap: () => Navigator.pop(ctx, 'gift'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.discount, color: Colors.orange),
-                title: const Text('Giảm giá sản phẩm'),
-                subtitle: Text('Giá gốc: ${MoneyUtils.formatCurrency(originalPrice)}'),
-                selected: !isGift && sellPrice < originalPrice && sellPrice > 0,
-                onTap: () => Navigator.pop(ctx, 'discount'),
-              ),
-              if (hasPromotion)
-                ListTile(
-                  leading: const Icon(Icons.undo, color: Colors.grey),
-                  title: const Text('Bỏ ưu đãi'),
-                  subtitle: Text('Khôi phục giá ${MoneyUtils.formatCurrency(originalPrice)}'),
-                  onTap: () => Navigator.pop(ctx, 'reset'),
-                ),
-              const SizedBox(height: 8),
-            ],
-          ),
+        return _GiftDiscountSheetContent(
+          productName: product.name,
+          originalPrice: originalPrice,
+          currentSellPrice: sellPrice,
+          isGift: isGift,
+          hasPromotion: hasPromotion,
+          formatCurrency: _formatCurrency,
+          parseCurrency: _parseCurrency,
         );
       },
     );
 
-    if (!mounted || action == null) return;
+    if (!mounted || result == null) return;
 
+    final action = result['action'] as String;
     switch (action) {
       case 'gift':
         setState(() {
@@ -2487,10 +2462,12 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         });
         break;
       case 'discount':
-        // Wait for next frame to avoid _dependents.isEmpty assertion
-        await Future.delayed(const Duration(milliseconds: 50));
-        if (!mounted) return;
-        _showDiscountPriceDialog(item);
+        final newPrice = result['price'] as int;
+        setState(() {
+          item['isGift'] = false;
+          item['sellPrice'] = newPrice;
+          _calculateTotal();
+        });
         break;
       case 'reset':
         setState(() {
@@ -2500,87 +2477,6 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         });
         break;
     }
-  }
-
-  /// Show dialog to enter discounted price
-  Future<void> _showDiscountPriceDialog(Map<String, dynamic> item) async {
-    final originalPrice = item['originalPrice'] as int;
-    final currentPrice = item['sellPrice'] as int;
-    final controller = TextEditingController(
-      text: _formatCurrency(currentPrice > 0 && currentPrice < originalPrice ? currentPrice : originalPrice),
-    );
-
-    final newPrice = await showDialog<int>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Nhập giá ưu đãi'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Giá gốc: ${MoneyUtils.formatCurrency(originalPrice)}',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Giá bán mới',
-                  suffixText: 'đ',
-                  border: OutlineInputBorder(),
-                ),
-                autofocus: true,
-                onChanged: (value) {
-                  final parsed = _parseCurrency(value);
-                  final formatted = _formatCurrency(parsed);
-                  if (formatted != value) {
-                    controller.value = TextEditingValue(
-                      text: formatted,
-                      selection: TextSelection.collapsed(offset: formatted.length),
-                    );
-                  }
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('HỦY'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final price = _parseCurrency(controller.text);
-                if (price < 0) {
-                  NotificationService.showSnackBar('Giá không hợp lệ', color: Colors.red);
-                  return;
-                }
-                if (price >= originalPrice) {
-                  NotificationService.showSnackBar(
-                    'Giá ưu đãi phải thấp hơn giá gốc (${MoneyUtils.formatCurrency(originalPrice)})',
-                    color: Colors.orange,
-                  );
-                  return;
-                }
-                Navigator.pop(ctx, price);
-              },
-              child: const Text('XÁC NHẬN'),
-            ),
-          ],
-        );
-      },
-    );
-
-    controller.dispose();
-    if (!mounted || newPrice == null) return;
-    setState(() {
-      item['isGift'] = false;
-      item['sellPrice'] = newPrice;
-      _calculateTotal();
-    });
   }
 
   Widget _buildSelectedItemsList() {
@@ -3069,5 +2965,180 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
         ),
       ),
     );
+  }
+}
+
+/// Stateful bottom sheet content for gift/discount — avoids chaining overlays
+class _GiftDiscountSheetContent extends StatefulWidget {
+  final String productName;
+  final int originalPrice;
+  final int currentSellPrice;
+  final bool isGift;
+  final bool hasPromotion;
+  final String Function(int) formatCurrency;
+  final int Function(String) parseCurrency;
+
+  const _GiftDiscountSheetContent({
+    required this.productName,
+    required this.originalPrice,
+    required this.currentSellPrice,
+    required this.isGift,
+    required this.hasPromotion,
+    required this.formatCurrency,
+    required this.parseCurrency,
+  });
+
+  @override
+  State<_GiftDiscountSheetContent> createState() =>
+      _GiftDiscountSheetContentState();
+}
+
+class _GiftDiscountSheetContentState extends State<_GiftDiscountSheetContent> {
+  bool _showDiscountInput = false;
+  late TextEditingController _priceController;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialPrice = widget.currentSellPrice > 0 &&
+            widget.currentSellPrice < widget.originalPrice
+        ? widget.currentSellPrice
+        : widget.originalPrice;
+    _priceController = TextEditingController(
+      text: widget.formatCurrency(initialPrice),
+    );
+  }
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Ưu đãi: ${widget.productName}',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+            const Divider(height: 1),
+            if (!_showDiscountInput) ...[
+              // --- Menu options ---
+              ListTile(
+                leading:
+                    const Icon(Icons.card_giftcard, color: Colors.green),
+                title: const Text('Tặng miễn phí (0đ)'),
+                subtitle: const Text('Không tính tiền sản phẩm này'),
+                selected: widget.isGift,
+                onTap: () =>
+                    Navigator.pop(context, {'action': 'gift'}),
+              ),
+              ListTile(
+                leading:
+                    const Icon(Icons.discount, color: Colors.orange),
+                title: const Text('Giảm giá sản phẩm'),
+                subtitle: Text(
+                    'Giá gốc: ${MoneyUtils.formatCurrency(widget.originalPrice)}'),
+                selected: !widget.isGift &&
+                    widget.currentSellPrice < widget.originalPrice &&
+                    widget.currentSellPrice > 0,
+                onTap: () => setState(() => _showDiscountInput = true),
+              ),
+              if (widget.hasPromotion)
+                ListTile(
+                  leading: const Icon(Icons.undo, color: Colors.grey),
+                  title: const Text('Bỏ ưu đãi'),
+                  subtitle: Text(
+                      'Khôi phục giá ${MoneyUtils.formatCurrency(widget.originalPrice)}'),
+                  onTap: () =>
+                      Navigator.pop(context, {'action': 'reset'}),
+                ),
+              const SizedBox(height: 8),
+            ] else ...[
+              // --- Inline discount input ---
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Giá gốc: ${MoneyUtils.formatCurrency(widget.originalPrice)}',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _priceController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Giá bán mới',
+                        suffixText: 'đ',
+                        border: OutlineInputBorder(),
+                      ),
+                      autofocus: true,
+                      onChanged: (value) {
+                        final parsed = widget.parseCurrency(value);
+                        final formatted = widget.formatCurrency(parsed);
+                        if (formatted != value) {
+                          _priceController.value = TextEditingValue(
+                            text: formatted,
+                            selection: TextSelection.collapsed(
+                                offset: formatted.length),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () =>
+                              setState(() => _showDiscountInput = false),
+                          child: const Text('QUAY LẠI'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: _onConfirmDiscount,
+                          child: const Text('XÁC NHẬN'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onConfirmDiscount() {
+    final price = widget.parseCurrency(_priceController.text);
+    if (price < 0) {
+      NotificationService.showSnackBar('Giá không hợp lệ',
+          color: Colors.red);
+      return;
+    }
+    if (price >= widget.originalPrice) {
+      NotificationService.showSnackBar(
+        'Giá ưu đãi phải thấp hơn giá gốc (${MoneyUtils.formatCurrency(widget.originalPrice)})',
+        color: Colors.orange,
+      );
+      return;
+    }
+    Navigator.pop(context, {'action': 'discount', 'price': price});
   }
 }
