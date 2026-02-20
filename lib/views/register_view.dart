@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../l10n/app_localizations.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
@@ -114,6 +115,16 @@ class _RegisterViewState extends State<RegisterView> {
         if (_isJoinShop) {
           final success = await UserService.useInviteCode(_inviteCodeC.text.trim(), cred.user!.uid);
           if (!success) throw loc.invalidOrExpiredInviteCode;
+          // Save employee displayName + info to Firestore (useInviteCode only sets shopId)
+          await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
+            'displayName': name.toUpperCase(),
+            'email': email,
+            'phone': _phoneC.text.trim(),
+            'address': _addressC.text.trim().toUpperCase(),
+            'role': 'employee',
+          }, SetOptions(merge: true));
+          // Also set Firebase Auth displayName for fast lookup
+          await cred.user!.updateDisplayName(name.toUpperCase());
         } else {
           // Create user info with business type
           await UserService.syncUserInfo(cred.user!.uid, email, extra: {
@@ -122,6 +133,8 @@ class _RegisterViewState extends State<RegisterView> {
             'address': _addressC.text.trim().toUpperCase(),
             'shopName': shopName.toUpperCase(),
           });
+          // Also set Firebase Auth displayName for fast lookup
+          await cred.user!.updateDisplayName(name.toUpperCase());
           
           // Save shop settings with business type
           final shopId = await UserService.getCurrentShopId();

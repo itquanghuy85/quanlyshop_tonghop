@@ -1193,27 +1193,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         }
       }
 
-      // Lấy tên hiển thị từ Firestore (background)
-      debugPrint('_loadUserAndShopInfo: Fetching user doc from Firestore...');
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      // Lấy tên hiển thị qua UserService (kiểm tra Auth displayName + Firestore + email fallback)
+      debugPrint('_loadUserAndShopInfo: Getting displayName via UserService...');
+      String displayName = await UserService.getCurrentUserName();
+      debugPrint('_loadUserAndShopInfo: displayName=$displayName');
 
-      String displayName = '';
-      if (userDoc.exists) {
-        final data = userDoc.data();
-        debugPrint('_loadUserAndShopInfo: User doc data=$data');
-        displayName = data?['displayName'] ?? data?['name'] ?? '';
-        debugPrint('_loadUserAndShopInfo: displayName from Firestore=$displayName');
-      } else {
-        debugPrint('_loadUserAndShopInfo: User doc does NOT exist');
-      }
-
-      // Fallback: dùng phần trước @ của email
-      if (displayName.isEmpty && user.email != null) {
+      // Nếu UserService trả về 'Unknown', thử fallback email
+      if (displayName == 'Unknown' && user.email != null) {
         displayName = user.email!.split('@').first;
-        // Capitalize first letter
         if (displayName.isNotEmpty) {
           displayName = displayName[0].toUpperCase() + displayName.substring(1);
         }

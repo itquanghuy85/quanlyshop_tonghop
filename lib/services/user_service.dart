@@ -571,9 +571,26 @@ class UserService {
       debugPrint('EncryptionService initialized for shop: $_cachedShopId');
     }
 
+    // Determine displayName with multiple fallbacks
+    String resolvedDisplayName = '';
+    if (data['displayName'] != null && data['displayName'].toString().trim().isNotEmpty) {
+      resolvedDisplayName = data['displayName'].toString().trim();
+    } else if (data['name'] != null && data['name'].toString().trim().isNotEmpty) {
+      resolvedDisplayName = data['name'].toString().trim();
+    } else if (FirebaseAuth.instance.currentUser?.displayName != null &&
+               FirebaseAuth.instance.currentUser!.displayName!.trim().isNotEmpty) {
+      resolvedDisplayName = FirebaseAuth.instance.currentUser!.displayName!.trim();
+    } else if (email.isNotEmpty) {
+      // Fallback: capitalize phần trước @ của email
+      final emailPrefix = email.split('@').first;
+      resolvedDisplayName = emailPrefix.isNotEmpty
+          ? emailPrefix[0].toUpperCase() + emailPrefix.substring(1)
+          : '';
+    }
+
     final userData = {
       'email': email,
-      'displayName': data['displayName'] ?? '',
+      'displayName': resolvedDisplayName,
       'phone': data['phone'] ?? '',
       'address': data['address'] ?? '',
       'role': isSuperAdmin
