@@ -1797,7 +1797,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           ),
 
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
                 GestureDetector(

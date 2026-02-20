@@ -25,7 +25,8 @@ import 'fast_stock_in_view.dart';
 import '../widgets/custom_app_bar.dart';
 
 class ExpenseView extends StatefulWidget {
-  const ExpenseView({super.key});
+  final bool embedded;
+  const ExpenseView({super.key, this.embedded = false});
   @override
   State<ExpenseView> createState() => _ExpenseViewState();
 }
@@ -376,7 +377,7 @@ class _ExpenseViewState extends State<ExpenseView> {
           amountC.addListener(() => setS(() {}));
           return AlertDialog(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(14),
             ),
             title: Text(
               "GHI CHÉP CHI PHÍ",
@@ -545,6 +546,16 @@ class _ExpenseViewState extends State<ExpenseView> {
   @override
   Widget build(BuildContext context) {
     if (!_hasPermission) {
+      if (widget.embedded) {
+        return Center(
+          child: Text(
+            "Bạn không có quyền truy cập tính năng này",
+            style: AppTextStyles.body1.copyWith(
+              color: AppColors.onSurface.withOpacity(0.6),
+            ),
+          ),
+        );
+      }
       return Scaffold(
         appBar: AppBar(
           flexibleSpace: Container(
@@ -577,12 +588,53 @@ class _ExpenseViewState extends State<ExpenseView> {
       (sum, e) => sum + (e['amount'] as int),
     );
 
+    final body = Column(
+      children: [
+        _buildFilterBar(),
+        _buildProfessionalHeader(totalAmount, _filteredExpenses),
+        Expanded(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _filteredExpenses.isEmpty
+              ? _buildEmpty()
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _filteredExpenses.length,
+                  itemBuilder: (ctx, i) =>
+                      _expenseProfessionalCard(_filteredExpenses[i]),
+                ),
+        ),
+      ],
+    );
+
+    final fab = kIsWeb
+        ? null
+        : GradientFab.danger(
+            onPressed: _showAddExpenseDialog,
+            icon: Icons.add_circle_outline,
+            label: 'Chi phí mới',
+          );
+
+    if (widget.embedded) {
+      return Stack(
+        children: [
+          body,
+          if (fab != null)
+            Positioned(
+              right: 16,
+              bottom: 16,
+              child: fab,
+            ),
+        ],
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
       appBar: CustomAppBar.build(
         title: 'QUẢN LÝ CHI PHÍ',
         subtitle: '${_filteredExpenses.length} khoản chi',
-        accentColor: AppBarAccents.staff, // Red accent for expenses
+        accentColor: AppBarAccents.staff,
         actions: [
           IconButton(
             onPressed: () => Navigator.push(
@@ -617,31 +669,8 @@ class _ExpenseViewState extends State<ExpenseView> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildFilterBar(),
-          _buildProfessionalHeader(totalAmount, _filteredExpenses),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredExpenses.isEmpty
-                ? _buildEmpty()
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _filteredExpenses.length,
-                    itemBuilder: (ctx, i) =>
-                        _expenseProfessionalCard(_filteredExpenses[i]),
-                  ),
-          ),
-        ],
-      ),
-      floatingActionButton: kIsWeb
-          ? null
-          : GradientFab.danger(
-              onPressed: _showAddExpenseDialog,
-              icon: Icons.add_circle_outline,
-              label: 'Chi phí mới',
-            ),
+      body: body,
+      floatingActionButton: fab,
     );
   }
 
@@ -835,12 +864,12 @@ class _ExpenseViewState extends State<ExpenseView> {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFFB71C1C), Color(0xFFEF5350)],
         ),
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: Colors.red.withAlpha(77),

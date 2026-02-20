@@ -66,7 +66,7 @@ class _PrinterSettingViewState extends State<PrinterSettingView> {
         automaticallyImplyLeading: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             _buildPrinterCard(
@@ -107,8 +107,8 @@ class _PrinterSettingViewState extends State<PrinterSettingView> {
 
   Widget _buildPrinterCard({required String title, required String desc, required IconData icon, required Color color, required TextEditingController controller, required bool isEnable, Function(bool)? onToggle}) {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25), boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 10)]),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 10)]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -142,8 +142,8 @@ class _PrinterSettingViewState extends State<PrinterSettingView> {
 
   Widget _buildLogoSection() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25)),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
       child: Row(
         children: [
           Container(

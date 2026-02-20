@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/connectivity_service.dart';
 import '../theme/app_text_styles.dart';
-import '../l10n/app_localizations.dart';
 
 class SyncStatusWidget extends StatefulWidget {
   const SyncStatusWidget({super.key});
@@ -25,10 +24,8 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
 
     if (!ConnectivityService.instance.isOnline) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            AppLocalizations.of(context)!.noNetworkMessage,
-          ),
+        const SnackBar(
+          content: Text('Không có kết nối mạng'),
           backgroundColor: Colors.red,
         ),
       );
@@ -39,19 +36,15 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
     try {
       await ConnectivityService.instance.manualSync();
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            AppLocalizations.of(context)!.syncSuccessMessage,
-          ),
+        const SnackBar(
+          content: Text('Đồng bộ thành công'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text(
-            AppLocalizations.of(context)!.syncErrorMessage(e.toString()),
-          ),
+          content: Text('Lỗi đồng bộ: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -86,8 +79,8 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
           const SizedBox(width: 8),
           Text(
             isOnline
-                ? AppLocalizations.of(context)!.onlineStatus
-                : AppLocalizations.of(context)!.offlineStatus,
+                ? 'Trực tuyến'
+                : 'Ngoại tuyến',
             style: TextStyle(
               color: isOnline ? Colors.green.shade700 : Colors.red.shade700,
               fontWeight: FontWeight.w500,
@@ -108,8 +101,8 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget> {
                     : const Icon(Icons.sync, size: 16),
                 label: Text(
                   _isSyncing
-                      ? AppLocalizations.of(context)!.syncingLabel
-                      : AppLocalizations.of(context)!.syncLabel,
+                      ? 'Đang đồng bộ...'
+                      : 'Đồng bộ',
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green.shade600,

@@ -12,6 +12,7 @@ import '../services/user_service.dart';
 import '../services/audit_service.dart';
 import '../services/notification_service.dart';
 import '../utils/money_utils.dart';
+import '../widgets/custom_app_bar.dart';
 
 /// Helper: Check if debtType is "Shop owes" (NCC) - includes SHOP_OWES and OTHER_SHOP_OWES
 bool _isShopOwesDebt(String? debtType) {
@@ -502,41 +503,52 @@ class _CashClosingViewState extends State<CashClosingView>
       expandedHeight: 0,
       floating: false,
       pinned: true,
-      backgroundColor: Colors.indigo.shade700,
-      foregroundColor: Colors.white,
+      toolbarHeight: CustomAppBar.kAppBarHeight,
+      backgroundColor: Colors.white,
+      foregroundColor: CustomAppBar.kTextPrimary,
+      elevation: 0.5,
+      titleSpacing: 8,
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text("CHỐT QUỸ", style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            'CHỐT QUỸ',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: CustomAppBar.kTitleFontSize,
+              color: CustomAppBar.kTextPrimary,
+            ),
+          ),
           const SizedBox(width: 8),
           GestureDetector(
             onTap: _pickDate,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.indigo.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.indigo.shade200),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.calendar_today,
                     size: 12,
-                    color: Colors.white,
+                    color: Colors.indigo.shade600,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     DateFormat('dd/MM/yyyy', 'vi').format(_selectedDate),
                     style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      color: Colors.indigo.shade700,
+                      fontWeight: FontWeight.w600,
+                      fontSize: CustomAppBar.kSubtitleFontSize + 1,
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.arrow_drop_down,
-                    color: Colors.white,
+                    color: Colors.indigo.shade600,
                     size: 16,
                   ),
                 ],
@@ -547,21 +559,67 @@ class _CashClosingViewState extends State<CashClosingView>
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.calendar_month),
+          icon: Icon(
+            Icons.calendar_month,
+            size: 20,
+            color: Colors.indigo.shade600,
+          ),
           onPressed: _pickDate,
+          splashRadius: 18,
         ),
       ],
       bottom: TabBar(
         controller: _tabController,
-        labelColor: Colors.white,
-        unselectedLabelColor: Colors.white60,
-        indicatorColor: Colors.white,
-        indicatorWeight: 3,
-        tabs: const [
-          Tab(icon: Icon(Icons.dashboard, size: 20), text: "Tổng quan"),
-          Tab(icon: Icon(Icons.arrow_downward, size: 20), text: "Thu"),
-          Tab(icon: Icon(Icons.arrow_upward, size: 20), text: "Chi"),
-          Tab(icon: Icon(Icons.history, size: 20), text: "Lịch sử"),
+        labelColor: Colors.indigo.shade700,
+        unselectedLabelColor: Colors.grey,
+        indicatorColor: Colors.indigo.shade700,
+        indicatorWeight: 2,
+        labelPadding: EdgeInsets.zero,
+        tabs: [
+          Tab(
+            height: CustomAppBar.kTabBarHeight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.dashboard, size: 14),
+                SizedBox(width: 4),
+                Text('Tổng quan', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+          Tab(
+            height: CustomAppBar.kTabBarHeight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.arrow_downward, size: 14),
+                SizedBox(width: 4),
+                Text('Thu', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+          Tab(
+            height: CustomAppBar.kTabBarHeight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.arrow_upward, size: 14),
+                SizedBox(width: 4),
+                Text('Chi', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+          Tab(
+            height: CustomAppBar.kTabBarHeight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.history, size: 14),
+                SizedBox(width: 4),
+                Text('Lịch sử', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -997,7 +1055,7 @@ class _CashClosingViewState extends State<CashClosingView>
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1531,7 +1589,7 @@ class _CashClosingViewState extends State<CashClosingView>
     final isClosed = _todayClosing != null;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isClosed ? Colors.green.shade50 : Colors.orange.shade50,
         borderRadius: BorderRadius.circular(16),
@@ -2013,7 +2071,7 @@ class _CashClosingViewState extends State<CashClosingView>
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -2297,7 +2355,7 @@ class _CashClosingViewState extends State<CashClosingView>
         'time': DateFormat(
           'HH:mm',
         ).format(DateTime.fromMillisecondsSinceEpoch(s.soldAt)),
-        'amount': s.isInstallment ? s.downPayment : s.totalPrice,
+        'amount': s.isInstallment ? s.downPayment : s.finalPrice,
       });
     }
 
@@ -2539,9 +2597,9 @@ class _CashClosingViewState extends State<CashClosingView>
       if (s.paymentMethod == 'CÔNG NỢ') {
         // K3: Công nợ - tính vào doanh thu và giá vốn (accrual basis)
         // Nhưng KHÔNG tăng quỹ tiền mặt/ngân hàng
-        saleIncome += s.totalPrice;
+        saleIncome += s.finalPrice;
         saleCost += s.totalCost;
-        saleDebt += s.totalPrice;
+        saleDebt += s.finalPrice;
         continue;
       }
 
@@ -2551,7 +2609,7 @@ class _CashClosingViewState extends State<CashClosingView>
         saleIncome += paidToday;
         
         // Giá vốn theo tỷ lệ đã thu
-        final ratio = s.totalPrice > 0 ? paidToday / s.totalPrice : 0;
+        final ratio = s.finalPrice > 0 ? paidToday / s.finalPrice : 0;
         saleCost += (s.totalCost * ratio).round();
 
         if (s.paymentMethod == 'TIỀN MẶT' || s.downPaymentMethod == 'TIỀN MẶT') {
@@ -2561,13 +2619,13 @@ class _CashClosingViewState extends State<CashClosingView>
         }
       } else {
         // Bán thường - tính đầy đủ
-        saleIncome += s.totalPrice;
+        saleIncome += s.finalPrice;
         saleCost += s.totalCost;
 
         if (s.paymentMethod == 'TIỀN MẶT') {
-          cashIn += s.totalPrice;
+          cashIn += s.finalPrice;
         } else {
-          bankIn += s.totalPrice;
+          bankIn += s.finalPrice;
         }
       }
     }
@@ -2586,7 +2644,7 @@ class _CashClosingViewState extends State<CashClosingView>
         bankIn += amount;
 
         // Giá vốn phần còn lại
-        final downRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0;
+        final downRatio = s.finalPrice > 0 ? s.downPayment / s.finalPrice : 0;
         final remainRatio = 1.0 - downRatio;
         saleCost += (s.totalCost * remainRatio).round();
       }

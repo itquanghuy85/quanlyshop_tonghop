@@ -278,7 +278,7 @@ class _DebtViewState extends State<DebtView>
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(12),
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.8,
         ),
@@ -1178,10 +1178,10 @@ class _DebtViewState extends State<DebtView>
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withAlpha(77)),
       ),
       child: Column(

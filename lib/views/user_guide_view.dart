@@ -257,7 +257,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
 
   Widget _buildQuickStats(int moduleCount, int sectionCount) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.purple.shade50, Colors.blue.shade50],
@@ -569,7 +569,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
         children: [
         // Module Header
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [module.color.withOpacity(0.1), module.color.withOpacity(0.05)],
@@ -819,7 +819,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
 
   Widget _buildHelpFooter() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.blueGrey.shade50,
         borderRadius: BorderRadius.circular(16),
@@ -948,7 +948,7 @@ class _SectionDetailPage extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -980,7 +980,7 @@ class _SectionDetailPage extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -1111,7 +1111,7 @@ class _SectionDetailPage extends StatelessWidget {
 
                   // Feedback
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(16),
@@ -1177,7 +1177,7 @@ class _SectionDetailPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(

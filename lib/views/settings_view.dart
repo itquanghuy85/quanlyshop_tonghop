@@ -14,6 +14,7 @@ import '../utils/app_info.dart';
 import '../services/first_time_guide_service.dart';
 import '../widgets/unified_sync_button.dart';
 import '../widgets/shop_switcher_widget.dart';
+import '../widgets/custom_app_bar.dart';
 import 'help_center_view.dart';
 import 'user_guide_view.dart';
 import 'shop_selector_view.dart';
@@ -224,7 +225,7 @@ class _SettingsViewState extends State<SettingsView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(loc.deleteAllDataWarning),
-            const SizedBox(height: 15),
+            const SizedBox(height: 8),
             Text(
               loc.typeToConfirm,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
@@ -289,32 +290,13 @@ class _SettingsViewState extends State<SettingsView> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        title: Text(
-          localizations.systemSettings,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: true,
+      appBar: CustomAppBar.build(
+        title: localizations.systemSettings,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(10),
               children: [
                 _buildSection(localizations.languageAndInterface),
                 Card(
@@ -323,11 +305,11 @@ class _SettingsViewState extends State<SettingsView> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
                             color: Colors.blue.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
@@ -361,7 +343,7 @@ class _SettingsViewState extends State<SettingsView> {
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.blue.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: Colors.blue.withOpacity(0.3)),
                           ),
                           child: DropdownButton<Locale>(
@@ -447,16 +429,17 @@ class _SettingsViewState extends State<SettingsView> {
                     side: BorderSide(color: Colors.purple.shade100),
                   ),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.all(18),
+                    contentPadding: const EdgeInsets.all(10),
+                    dense: true,
                     leading: Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(7),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [Colors.purple.shade400, Colors.purple.shade600],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.purple.withOpacity(0.3),
@@ -545,7 +528,7 @@ class _SettingsViewState extends State<SettingsView> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 8),
 
                 // NÚT CHỌN SHOP KHÁC - Chỉ hiện cho Super Admin
                 if (UserService.isCurrentUserSuperAdmin()) ...[
@@ -589,7 +572,7 @@ class _SettingsViewState extends State<SettingsView> {
                       },
                     ),
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 8),
                 ],
 
                 Card(
@@ -663,7 +646,7 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
 
                 // ĐỒNG BỘ DỮ LIỆU - Chỉ còn 1 entry point duy nhất
-                const SizedBox(height: 30),
+                const SizedBox(height: 10),
                 _buildSection(localizations.syncManagement),
                 // Card đơn giản mở Trung tâm đồng bộ
                 Card(
@@ -713,7 +696,7 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
 
                 // ====== QUẢN LÝ CỬA HÀNG ======
-                const SizedBox(height: 30),
+                const SizedBox(height: 10),
                 _buildSection('Quản lý cửa hàng'),
                 
                 // Quản lý danh mục sản phẩm
@@ -765,7 +748,7 @@ class _SettingsViewState extends State<SettingsView> {
 
                 // NÚT XÓA TRẮNG CHỈ HIỆN CHO SUPER ADMIN
                 if (UserService.isCurrentUserSuperAdmin()) ...[
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 10),
                   _buildSection(localizations.advancedAdmin),
 
                   // DROPDOWN CHỌN SHOP
@@ -804,7 +787,7 @@ class _SettingsViewState extends State<SettingsView> {
                               color: Colors.grey,
                             ),
                           ),
-                          const SizedBox(height: 15),
+                          const SizedBox(height: 8),
                           if (_loadingShops)
                             const Center(child: CircularProgressIndicator())
                           else if (_allShops.isEmpty)
@@ -907,7 +890,7 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 8),
 
                   Card(
                     color: Colors.orange.shade50,
@@ -941,7 +924,7 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 8),
                   // Nút reset hướng dẫn sử dụng
                   Card(
                     color: Colors.blue.shade50,
@@ -978,7 +961,7 @@ class _SettingsViewState extends State<SettingsView> {
                       },
                     ),
                   ),
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 8),
                   Card(
                     color: Colors.red.shade50,
                     shape: RoundedRectangleBorder(
@@ -1008,7 +991,7 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                 ],
 
-                const SizedBox(height: 50),
+                const SizedBox(height: 16),
                 Center(
                   child: FutureBuilder<String>(
                     future: _versionFuture,
@@ -1032,12 +1015,12 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Widget _buildSection(String title) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
+    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
     child: Text(
       title,
       style: TextStyle(
         fontWeight: FontWeight.bold,
-        fontSize: AppTextStyles.subtitle1.fontSize,
+        fontSize: AppTextStyles.caption.fontSize,
         color: Colors.blueGrey,
       ),
     ),

@@ -75,7 +75,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       backgroundColor: AppColors.surface,
       child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.95,
@@ -84,7 +84,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
           children: [
             // Header với gradient
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(12),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [AppColors.primary, AppColors.primaryLight],
@@ -317,7 +317,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppColors.primary.withOpacity(0.1),
                 shape: BoxShape.circle,
@@ -529,7 +529,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppColors.primary.withOpacity(0.1),
                 shape: BoxShape.circle,
@@ -761,7 +761,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppColors.primary.withOpacity(0.1),
                 shape: BoxShape.circle,

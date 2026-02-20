@@ -162,7 +162,7 @@ class _RegisterViewState extends State<RegisterView> {
         automaticallyImplyLeading: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             _buildStepIndicator(),

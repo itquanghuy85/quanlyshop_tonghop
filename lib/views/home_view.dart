@@ -43,6 +43,7 @@ import 'cash_closing_view.dart';
 import 'bank_installment_report_view.dart';
 import 'financial_activity_log_view.dart';
 import 'financial_report_view.dart';
+import 'financial_hub_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
@@ -55,6 +56,7 @@ import '../widgets/unified_sync_button.dart';
 import '../widgets/notification_badge.dart';
 import '../widgets/simple_sync_indicator.dart';
 import '../widgets/shop_switcher_widget.dart';
+import '../widgets/custom_app_bar.dart';
 import '../services/sync_service.dart';
 import '../services/sync_health_check.dart';
 import '../services/user_service.dart';
@@ -391,7 +393,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             children: [
               // Icon khóa với animation
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: (isLockedByAdmin ? AppColors.error : Colors.orange)
                       .withOpacity(0.1),
@@ -417,7 +419,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   color: isLockedByAdmin
                       ? Colors.red.shade50
                       : Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isLockedByAdmin
                         ? Colors.red.shade200
@@ -464,7 +466,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   featureName,
@@ -505,7 +507,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
@@ -624,7 +626,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   Widget _buildOwnerContactCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.orange.shade600, Colors.orange.shade400],
@@ -1324,6 +1326,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   /// Phase 2: Load shop settings cho multi-industry features
+  bool _isShowingBusinessTypeWizard = false;
+  
   Future<void> _loadShopSettings() async {
     try {
       // CRITICAL: Clear cache to ensure fresh settings are loaded
@@ -1368,8 +1372,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       });
       
       // CRITICAL: Nếu chưa có settings, hiện wizard để chọn loại hình kinh doanh
-      if (settings == null && mounted) {
+      // Guard để tránh hiện wizard nhiều lần (do EventBus + onShopChanged cùng gọi)
+      if (settings == null && mounted && !_isShowingBusinessTypeWizard) {
         debugPrint('🏠 HomeView: No settings found - showing business type wizard');
+        _isShowingBusinessTypeWizard = true;
         _showBusinessTypeSetupDialog();
       }
     } catch (e, stack) {
@@ -1400,6 +1406,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           shopName: _shopName.isNotEmpty ? _shopName : 'Cửa hàng',
           onComplete: (newSettings) async {
             Navigator.pop(context);
+            _isShowingBusinessTypeWizard = false;
             // Save the new settings
             await CategoryService().saveShopSettings(newSettings);
             // Reload settings to apply changes
@@ -1411,7 +1418,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           },
         ),
       ),
-    );
+    ).whenComplete(() {
+      _isShowingBusinessTypeWizard = false;
+    });
   }
 
   // State variables for accurate financial overview (same as revenue_view.dart)
@@ -1814,55 +1823,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          title: Row(
-            children: [
-              const Icon(Icons.store_rounded, color: Colors.white, size: 22),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _getTabTitle(_currentIndex),
-                      style: AppTextStyles.headline6.copyWith(color: Colors.white),
-                    ),
-                    // Shop name indicator for multi-shop owners
-                    FutureBuilder<Map<String, dynamic>?>(
-                      future: CurrentShopService().getActiveShopInfo(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData || snapshot.data == null) {
-                          return const SizedBox.shrink();
-                        }
-                        final shopName = snapshot.data!['name'] as String?;
-                        if (shopName == null) return const SizedBox.shrink();
-                        return Text(
-                          shopName,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.white70,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        appBar: CustomAppBar.build(
+          title: _getTabTitle(_currentIndex),
+          subtitle: _shopName.isNotEmpty ? _shopName : null,
+          showBackButton: false,
+          centerTitle: false,
+          leading: const Padding(
+            padding: EdgeInsets.only(left: 12),
+            child: Icon(Icons.store_rounded, color: Colors.white, size: 20),
           ),
           actions: [
             NotificationBadge(
@@ -1902,7 +1870,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   builder: (_) => GlobalSearchView(role: widget.role),
                 ),
               ),
-              icon: const Icon(Icons.search, color: Colors.white, size: 28),
+              icon: const Icon(Icons.search, color: Colors.white, size: 22),
               tooltip: loc.searchWholeApp,
             ),
             // Simple sync indicator - tự động sync, tap để force sync
@@ -1950,8 +1918,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 child: SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
+                      horizontal: 4,
+                      vertical: 4,
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -2015,32 +1983,32 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: EdgeInsets.all(isSelected ? 10 : 6),
+                padding: EdgeInsets.all(isSelected ? 7 : 4),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? color.withOpacity(0.15)
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: AnimatedScale(
-                  scale: isSelected ? 1.15 : 1.0,
+                  scale: isSelected ? 1.1 : 1.0,
                   duration: const Duration(milliseconds: 200),
                   child: Icon(
                     iconData ?? Icons.circle,
-                    size: isSelected ? 24 : 22,
+                    size: isSelected ? 22 : 20,
                     color: isSelected
                         ? color
                         : AppColors.onSurface.withOpacity(0.5),
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 200),
                 style: TextStyle(
@@ -2073,7 +2041,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       ), // Force rebuild when stats change
       onRefresh: () => _syncNow(),
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         children: [
           if (_shopLocked)
             Card(
@@ -2174,20 +2142,20 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: AppColors.primary.withOpacity(0.25),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -2200,12 +2168,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               Icon(
                 greetingIcon,
                 color: Colors.white.withOpacity(0.9),
-                size: 20,
+                size: 18,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 greeting,
-                style: AppTextStyles.headline5.copyWith(
+                style: AppTextStyles.headline6.copyWith(
                   color: Colors.white.withOpacity(0.9),
                   fontWeight: FontWeight.w500,
                 ),
@@ -2213,46 +2181,46 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               const Spacer(),
               Text(
                 DateFormat('EEEE, dd/MM', 'vi').format(DateTime.now()),
-                style: AppTextStyles.subtitle1.copyWith(
+                style: AppTextStyles.caption.copyWith(
                   color: Colors.white.withOpacity(0.8),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           // Tên người dùng
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.person_rounded,
                   color: Colors.white,
-                  size: 28,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       _userName.isNotEmpty ? _userName : loc.userLabel,
-                      style: AppTextStyles.headline1.copyWith(
+                      style: AppTextStyles.headline3.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Row(
                       children: [
                         Container(
@@ -2307,34 +2275,34 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   Widget _buildNewStaffBannerSimple() {
     final loc = AppLocalizations.of(context)!;
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.blue.shade400, Colors.blue.shade600],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: Colors.blue.withOpacity(0.25),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.waving_hand, color: Colors.white, size: 24),
+            child: const Icon(Icons.waving_hand, color: Colors.white, size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2783,13 +2751,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   Widget _buildPinnedShortcutsSection() {
     final loc = AppLocalizations.of(context)!;
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: 6),
             child: Row(
               children: [
                 Icon(Icons.push_pin, size: 14, color: Colors.grey.shade600),
@@ -2823,7 +2791,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               // Thanh toán
               Expanded(
                 child: _buildPinnedCard(
@@ -2841,7 +2809,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
               // Danh sách đơn bán
@@ -2859,7 +2827,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               // Danh sách đơn sửa - only show for electronics shops
               if (_enableRepair)
                 Expanded(
@@ -2975,10 +2943,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   /// Section header giống Settings View
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
       child: Text(
         title,
-        style: AppTextStyles.subtitle1.copyWith(
+        style: AppTextStyles.caption.copyWith(
           fontWeight: FontWeight.bold,
           color: Colors.blueGrey,
           letterSpacing: 0.5,
@@ -3044,20 +3012,23 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         Card(
           color: Colors.green.shade50,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(10),
             side: BorderSide(color: Colors.green.shade200),
           ),
           child: ListTile(
+            dense: true,
+            visualDensity: const VisualDensity(vertical: -2),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
             leading: Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: Colors.green.shade100,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
                 Icons.add_shopping_cart,
                 color: Colors.green,
-                size: 24,
+                size: 20,
               ),
             ),
             title: Text(
@@ -3069,11 +3040,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
             subtitle: Text(
               loc.sellProductsQuickly,
-              style: AppTextStyles.body1,
+              style: AppTextStyles.caption,
             ),
             trailing: const Icon(
               Icons.arrow_forward_ios,
-              size: 16,
+              size: 14,
               color: Colors.green,
             ),
             onTap: () => Navigator.push(
@@ -3082,27 +3053,30 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
 
         // SỬA CHỮA - Only show for electronics shops
         if (_enableRepair)
         Card(
           color: Colors.blue.shade50,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(10),
             side: BorderSide(color: Colors.blue.shade200),
           ),
           child: ListTile(
+            dense: true,
+            visualDensity: const VisualDensity(vertical: -2),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
             leading: Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: Colors.blue.shade100,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
                 Icons.build_circle,
                 color: Colors.blue,
-                size: 24,
+                size: 20,
               ),
             ),
             title: Text(
@@ -3111,11 +3085,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
             subtitle: Text(
               loc.receiveDeviceForRepair,
-              style: AppTextStyles.body1,
+              style: AppTextStyles.caption,
             ),
             trailing: const Icon(
               Icons.arrow_forward_ios,
-              size: 16,
+              size: 14,
               color: Colors.blue,
             ),
             onTap: () => Navigator.push(
@@ -3126,7 +3100,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
           ),
         ),
-        if (_enableRepair) const SizedBox(height: 10),
+        if (_enableRepair) const SizedBox(height: 6),
 
         // Row: Nhập kho & Kiểm kho
         Row(
@@ -3135,7 +3109,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               child: Card(
                 color: Colors.green.shade50,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(10),
                   side: BorderSide(color: Colors.green.shade300, width: 2),
                 ),
                 child: InkWell(
@@ -3143,24 +3117,24 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     context,
                     MaterialPageRoute(builder: (_) => const SmartStockInView()),
                   ),
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(10),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
                             color: Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.add_box,
                             color: Colors.green,
-                            size: 28,
+                            size: 20,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         Text(
                           loc.addStock,
                           style: AppTextStyles.subtitle1.copyWith(
@@ -3180,12 +3154,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Card(
                 color: Colors.purple.shade50,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(10),
                   side: BorderSide(color: Colors.purple.shade200),
                 ),
                 child: InkWell(
@@ -3195,24 +3169,24 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       builder: (_) => const FastInventoryCheckView(),
                     ),
                   ),
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(10),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
                             color: Colors.purple.shade100,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.qr_code_scanner,
                             color: Colors.purple,
-                            size: 28,
+                            size: 20,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         Text(
                           loc.checkInventory,
                           style: AppTextStyles.subtitle1.copyWith(
@@ -3234,7 +3208,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
 
         // Row: Báo cáo & Chấm công
         Row(
@@ -3243,7 +3217,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               child: Card(
                 color: Colors.indigo.shade50,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(10),
                   side: BorderSide(color: Colors.indigo.shade200),
                 ),
                 child: InkWell(
@@ -3251,24 +3225,24 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     context,
                     MaterialPageRoute(builder: (_) => const RevenueView()),
                   ),
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(10),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
                             color: Colors.indigo.shade100,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.bar_chart,
                             color: Colors.indigo,
-                            size: 28,
+                            size: 20,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         Text(
                           loc.report,
                           style: AppTextStyles.subtitle1.copyWith(
@@ -3288,12 +3262,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Card(
                 color: Colors.teal.shade50,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(10),
                   side: BorderSide(color: Colors.teal.shade200),
                 ),
                 child: InkWell(
@@ -3301,24 +3275,24 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     context,
                     MaterialPageRoute(builder: (_) => const AttendanceView()),
                   ),
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(10),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(10),
                     child: Column(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
                             color: Colors.teal.shade100,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.access_time,
                             color: Colors.teal,
-                            size: 28,
+                            size: 20,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
                         Text(
                           loc.attendance,
                           style: AppTextStyles.subtitle1.copyWith(
@@ -3340,23 +3314,26 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
 
         // BẢO HÀNH
         Card(
           color: Colors.amber.shade50,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(10),
             side: BorderSide(color: Colors.amber.shade200),
           ),
           child: ListTile(
+            dense: true,
+            visualDensity: const VisualDensity(vertical: -2),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
             leading: Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: Colors.amber.shade100,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.shield, color: Colors.amber.shade800, size: 24),
+              child: Icon(Icons.shield, color: Colors.amber.shade800, size: 18),
             ),
             title: Text(
               "BẢO HÀNH",
@@ -3367,11 +3344,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
             subtitle: Text(
               "Tra cứu bảo hành nhanh",
-              style: AppTextStyles.body1,
+              style: AppTextStyles.caption,
             ),
             trailing: const Icon(
               Icons.arrow_forward_ios,
-              size: 16,
+              size: 14,
               color: Colors.amber,
             ),
             onTap: () => Navigator.push(
@@ -3583,31 +3560,32 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         children: [
           // Header Section
           _buildTabHeader(loc.sales.toUpperCase(), Icons.shopping_cart, Colors.green),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           // Quick Action - Tạo đơn bán
           _buildSectionHeader(loc.quickActions),
           Card(
             color: Colors.green.shade50,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(10),
               side: BorderSide(color: Colors.green.shade200),
             ),
             child: ListTile(
+              dense: true,
               leading: Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.green.shade100,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.add_shopping_cart,
                   color: Colors.green,
-                  size: 28,
+                  size: 22,
                 ),
               ),
               title: Text(
@@ -3619,11 +3597,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
               subtitle: Text(
                 loc.createSaleOrderQuickly,
-                style: AppTextStyles.body1,
+                style: AppTextStyles.caption,
               ),
               trailing: const Icon(
                 Icons.arrow_forward_ios,
-                size: 16,
+                size: 14,
                 color: Colors.green,
               ),
               onTap: () => Navigator.push(
@@ -3633,7 +3611,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           _buildSectionHeader(loc.management),
           _tabMenuItem(
             loc.saleOrderList,
@@ -3674,29 +3652,30 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         children: [
           // Header Section
           _buildTabHeader(loc.repairsTab.toUpperCase(), Icons.build, Colors.blue),
-          const SizedBox(height: 20),          // Quick Action - Tạo đơn sửa
+          const SizedBox(height: 10),          // Quick Action - Tạo đơn sửa
           _buildSectionHeader(loc.quickActions),
           Card(
             color: Colors.blue.shade50,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(10),
               side: BorderSide(color: Colors.blue.shade200),
             ),
             child: ListTile(
+              dense: true,
               leading: Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.build_circle,
                   color: Colors.blue,
-                  size: 28,
+                  size: 22,
                 ),
               ),
               title: Text(
@@ -3724,7 +3703,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           _buildSectionHeader(loc.management),
           _tabMenuItem(
             loc.repairOrderList,
@@ -3748,11 +3727,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         children: [
           // Header Section
           _buildTabHeader(loc.inventoryManagement, Icons.inventory_2, Colors.orange),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           // Pending Payments Widget (Thanh toán chờ xử lý)
           const PendingPaymentsWidget(),
@@ -3766,7 +3745,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _buildSectionHeader(loc.quickActions),
           // Dòng hướng dẫn cho người mới
           Padding(
-            padding: const EdgeInsets.only(bottom: 8, left: 4),
+            padding: const EdgeInsets.only(bottom: 4, left: 4),
             child: Row(
               children: [
                 Icon(Icons.info_outline, size: 14, color: Colors.grey.shade600),
@@ -3788,7 +3767,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 child: Card(
                   color: Colors.green.shade50,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(10),
                     side: BorderSide(color: Colors.green.shade300, width: 2),
                   ),
                   child: InkWell(
@@ -3804,24 +3783,24 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       Icons.add_box,
                       Colors.green,
                     ),
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(10),
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(10),
                       child: Column(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
                               color: Colors.green.shade100,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: const Icon(
                               Icons.add_box,
                               color: Colors.green,
-                              size: 28,
+                              size: 20,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
                           Text(
                             loc.stockInNew,
                             style: AppTextStyles.subtitle1.copyWith(
@@ -3841,14 +3820,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               // Nhập siêu tốc - chỉ hiện cho electronics (có IMEI scan)
               if (_isElectronics)
               Expanded(
                 child: Card(
                   color: Colors.orange.shade50,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(10),
                     side: BorderSide(color: Colors.orange.shade200),
                   ),
                   child: InkWell(
@@ -3864,24 +3843,24 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       Icons.flash_on,
                       Colors.orange,
                     ),
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(10),
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(10),
                       child: Column(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
                               color: Colors.orange.shade100,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: const Icon(
                               Icons.flash_on,
                               color: Colors.orange,
-                              size: 28,
+                              size: 20,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
                           Text(
                             loc.quickStockIn,
                             style: AppTextStyles.subtitle1.copyWith(
@@ -3901,12 +3880,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(
                 child: Card(
                   color: Colors.purple.shade50,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(10),
                     side: BorderSide(color: Colors.purple.shade200),
                   ),
                   child: InkWell(
@@ -3922,24 +3901,24 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       Icons.qr_code_scanner,
                       Colors.purple,
                     ),
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(10),
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(10),
                       child: Column(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
                               color: Colors.purple.shade100,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: const Icon(
                               Icons.qr_code_scanner,
                               color: Colors.purple,
-                              size: 28,
+                              size: 20,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 6),
                           Text(
                             loc.checkInventory,
                             style: AppTextStyles.subtitle1.copyWith(
@@ -3962,7 +3941,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           _buildSectionHeader(loc.management),
           _tabMenuItem(
             loc.pendingConfirmation,
@@ -4040,31 +4019,32 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         children: [
           // Header Section
           _buildTabHeader(loc.staffManagement, Icons.people, Colors.teal),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           // Quick Action - Chấm công
           _buildSectionHeader(loc.quickActions),
           Card(
             color: Colors.teal.shade50,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(10),
               side: BorderSide(color: Colors.teal.shade200),
             ),
             child: ListTile(
+              dense: true,
               leading: Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.teal.shade100,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.fingerprint,
                   color: Colors.teal,
-                  size: 28,
+                  size: 22,
                 ),
               ),
               title: Text(
@@ -4076,11 +4056,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
               subtitle: Text(
                 loc.recordWorkingHours,
-                style: AppTextStyles.body1,
+                style: AppTextStyles.caption,
               ),
               trailing: const Icon(
                 Icons.arrow_forward_ios,
-                size: 16,
+                size: 14,
                 color: Colors.teal,
               ),
               onTap: () => Navigator.push(
@@ -4090,7 +4070,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           _buildSectionHeader(loc.staffManagement),
 
           // Grid 2x2 cho các chức năng chính
@@ -4098,9 +4078,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.5,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 1.8,
             children: [
               _staffQuickCard(
                 loc.staffListLabel,
@@ -4148,7 +4128,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           _buildSectionHeader(loc.report),
           _tabMenuItem(
             loc.attendanceTracking,
@@ -4318,7 +4298,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Row(
           children: [
             Container(
@@ -4471,54 +4451,88 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
             const SizedBox(height: 20),
 
-            // THAO TÁC NHANH - Chốt quỹ
+            // THAO TÁC NHANH - Chốt quỹ + Thanh toán
             _buildSectionHeader(loc.quickActions),
-            Card(
-              color: Colors.green.shade50,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-                side: BorderSide(color: Colors.green.shade200),
-              ),
-              child: ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(12),
+            Row(
+              children: [
+                Expanded(
+                  child: Card(
+                    color: Colors.green.shade50,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      side: BorderSide(color: Colors.green.shade200),
+                    ),
+                    child: InkWell(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CashClosingView()),
+                      ),
+                      borderRadius: BorderRadius.circular(15),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          children: [
+                            Icon(Icons.account_balance_wallet, color: Colors.green, size: 28),
+                            const SizedBox(height: 8),
+                            Text(
+                              loc.cashClosingToday,
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.bold,
+                                fontSize: AppTextStyles.body1.fontSize,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.account_balance_wallet,
-                    color: Colors.green,
-                    size: 28,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Card(
+                    color: Colors.blue.shade50,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      side: BorderSide(color: Colors.blue.shade200),
+                    ),
+                    child: InkWell(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PendingPaymentsListView(),
+                        ),
+                      ),
+                      borderRadius: BorderRadius.circular(15),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          children: [
+                            Icon(Icons.payments, color: Colors.blue, size: 28),
+                            const SizedBox(height: 8),
+                            Text(
+                              loc.payment,
+                              style: TextStyle(
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.bold,
+                                fontSize: AppTextStyles.body1.fontSize,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                title: Text(
-                  loc.cashClosingToday,
-                  style: const TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                subtitle: Text(
-                  loc.reconcileCashAndBank,
-                  style: AppTextStyles.body1,
-                ),
-                trailing: const Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: Colors.green,
-                ),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CashClosingView()),
-                ),
-              ),
+              ],
             ),
 
             const SizedBox(height: 20),
             _buildSectionHeader(loc.reportAndAnalysis),
 
-            // Grid 2x2 cho các chức năng chính
+            // Grid 2x2 - Main financial views (no duplicates)
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -4537,17 +4551,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 _financeQuickCard(
-                  loc.financialReport,
-                  Icons.assessment,
-                  Colors.purple,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FinancialReportView(),
-                    ),
-                  ),
-                ),
-                _financeQuickCard(
                   loc.debtManagement,
                   Icons.account_balance,
                   Colors.orange,
@@ -4557,29 +4560,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 _financeQuickCard(
-                  loc.bankInstallmentStats,
-                  Icons.account_balance_wallet,
-                  Colors.indigo,
+                  loc.financialReport,
+                  Icons.assessment,
+                  Colors.purple,
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const BankInstallmentReportView(),
+                      builder: (_) => const FinancialHubView(),
                     ),
                   ),
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-            // Row 2: Warranty
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.5,
-              children: [
                 _financeQuickCard(
                   loc.warrantyTracking,
                   Icons.verified_user,
@@ -4590,63 +4580,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
               ],
-            ),
-
-            const SizedBox(height: 20),
-            _buildSectionHeader(loc.management),
-            _tabMenuItem(
-              loc.payment,
-              Icons.account_balance_wallet,
-              Colors.green,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const PendingPaymentsListView(),
-                ),
-              ),
-              subtitle: loc.manageAllTransactions,
-            ),
-            _tabMenuItem(
-              loc.expenseManagement,
-              Icons.money_off,
-              Colors.red,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ExpenseView()),
-              ),
-              subtitle: loc.addTrackShopExpenses,
-            ),
-            _tabMenuItem(
-              loc.debtManagementInOut,
-              Icons.swap_horiz,
-              Colors.amber.shade700,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DebtView()),
-              ),
-              subtitle: loc.recordPayDebts,
-            ),
-            _tabMenuItem(
-              loc.financialReportLabel,
-              Icons.assessment,
-              Colors.teal,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const FinancialReportView()),
-              ),
-              subtitle: loc.summarizeAllTransactions,
-            ),
-            _tabMenuItem(
-              loc.financialActivityLog,
-              Icons.receipt_long,
-              Colors.indigo,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const FinancialActivityLogView(),
-                ),
-              ),
-              subtitle: loc.trackAllIncomeExpenseActivities,
             ),
           ],
         ),
@@ -4711,48 +4644,47 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   /// Tab Header đẹp với gradient
   Widget _buildTabHeader(String title, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [color, color.withOpacity(0.7)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: color.withOpacity(0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: Colors.white, size: 32),
+            child: Icon(icon, color: Colors.white, size: 22),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: AppTextStyles.headline1.copyWith(
+                  style: AppTextStyles.headline3.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 4),
                 Text(
-                  DateFormat('EEEE, dd/MM/yyyy', 'vi').format(DateTime.now()),
-                  style: AppTextStyles.subtitle1.copyWith(
+                  DateFormat('EEEE, dd/MM', 'vi').format(DateTime.now()),
+                  style: AppTextStyles.caption.copyWith(
                     color: Colors.white.withOpacity(0.8),
                   ),
                 ),
@@ -4767,10 +4699,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   // Finance Overview Section with modern cards
   Widget _financeOverviewSection() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow.withOpacity(0.1),
@@ -4847,7 +4779,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           // LỢI NHUẬN RÒNG
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: _todayNetProfit >= 0
@@ -5045,13 +4977,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(10),
         children: [
           Text(
             loc.settings,
-            style: AppTextStyles.headline5.copyWith(color: AppColors.onSurface),
+            style: AppTextStyles.headline6.copyWith(color: AppColors.onSurface),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           // ====== SHOP SWITCHER (Owner với nhiều shop) ======
           ShopSwitcherWidget(
@@ -5059,6 +4991,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               // Reload data when shop changes
               _loadStats();
               _loadUserAndShopInfo();
+              _loadShopSettings(); // Ensure shop settings reload after switch
             },
           ),
 
@@ -5360,25 +5293,28 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     String? subtitle,
   }) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 6),
       color: color.withOpacity(0.05),
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: color.withOpacity(0.2)),
       ),
       child: ListTile(
+        dense: true,
+        visualDensity: const VisualDensity(vertical: -2),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
         leading: Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: color, size: 22),
+          child: Icon(icon, color: color, size: 18),
         ),
         title: Text(
           title,
-          style: AppTextStyles.headline4.copyWith(
+          style: AppTextStyles.body1.copyWith(
             color: color,
             fontWeight: FontWeight.bold,
           ),
@@ -5386,13 +5322,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         subtitle: subtitle != null
             ? Text(
                 subtitle,
-                style: AppTextStyles.body1.copyWith(color: Colors.grey),
+                style: AppTextStyles.caption.copyWith(color: Colors.grey),
               )
             : null,
         trailing: Icon(
           Icons.arrow_forward_ios,
           color: color.withOpacity(0.5),
-          size: 16,
+          size: 14,
         ),
         onTap: onTap,
       ),
@@ -5425,7 +5361,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       width: double.infinity,
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow.withOpacity(0.15),
@@ -5493,7 +5429,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white24,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,

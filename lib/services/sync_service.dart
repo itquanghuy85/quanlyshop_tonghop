@@ -18,6 +18,7 @@ import 'encryption_service.dart';
 import 'sync_orchestrator.dart';
 import 'event_bus.dart';
 import 'claims_service.dart';
+import 'shop_deletion_service.dart';
 
 class SyncService {
   static final _db = FirebaseFirestore.instance;
@@ -1233,6 +1234,12 @@ class SyncService {
     onChanged,
     required VoidCallback onBatchDone,
   }) {
+    // Skip nếu shop đang bị xóa
+    if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
+      debugPrint("⏭️ Skipping subscribe to $collection - shop $shopId is being deleted");
+      return;
+    }
+    
     Query<Map<String, dynamic>> query = _db.collection(collection);
     if (shopId != null) {
       query = query.where('shopId', isEqualTo: shopId);
@@ -1248,6 +1255,12 @@ class SyncService {
 
     final sub = query.snapshots().listen(
       (snapshot) async {
+        // Double check shop không bị xóa trong lúc đang xử lý
+        if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
+          debugPrint("⏭️ Ignoring snapshot for $collection - shop $shopId is being deleted");
+          return;
+        }
+        
         // Log initial sync or updates
         debugPrint(
           "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
@@ -1272,10 +1285,28 @@ class SyncService {
         debugPrint("❌ Sync error in $collection: $errorStr");
         _subscriptionStatus[collection] = false;
 
-        // Don't retry for permission-denied errors - this is a rules issue, not temporary
-        if (errorStr.contains('permission-denied')) {
+        // Check for permission-denied errors
+        final isPermissionError = errorStr.contains('permission-denied') ||
+            errorStr.contains('PERMISSION_DENIED') ||
+            errorStr.contains('Missing or insufficient permissions');
+        
+        if (isPermissionError) {
           debugPrint(
-            "⚠️ Permission denied for $collection - skipping re-subscribe (check Firestore rules)",
+            "🔒 Permission denied for $collection - shop may be deleted or user lost access",
+          );
+          
+          // Emit event để UI biết
+          EventBus().emit('permission_denied:$collection');
+          
+          // Nếu đây là collection repairs và shopId đang bị xóa, không retry
+          if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
+            debugPrint("⏭️ Shop is being deleted, not retrying");
+            return;
+          }
+          
+          // Không retry cho permission errors - đây là lỗi cấu hình hoặc shop bị xóa
+          debugPrint(
+            "⚠️ Permission denied for $collection - skipping re-subscribe (check Firestore rules or shop status)",
           );
           return;
         }

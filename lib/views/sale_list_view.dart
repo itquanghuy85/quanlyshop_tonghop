@@ -12,6 +12,7 @@ import 'create_sale_view.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
+import '../utils/vietnamese_utils.dart';
 
 class SaleListView extends StatefulWidget {
   final bool todayOnly;
@@ -143,10 +144,9 @@ class _SaleListViewState extends State<SaleListView> {
     var list = _sales.where((s) {
       // Search filter
       if (_search.isNotEmpty) {
-        final searchLower = _search.toUpperCase();
-        if (!s.customerName.toUpperCase().contains(searchLower) &&
-            !s.productNames.toUpperCase().contains(searchLower) &&
-            !s.productImeis.toUpperCase().contains(searchLower)) {
+        if (!VietnameseUtils.containsVietnamese(s.customerName, _search) &&
+            !VietnameseUtils.containsVietnamese(s.productNames, _search) &&
+            !s.productImeis.toUpperCase().contains(_search.toUpperCase())) {
           return false;
         }
       }
@@ -217,7 +217,7 @@ class _SaleListViewState extends State<SaleListView> {
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -402,7 +402,7 @@ class _SaleListViewState extends State<SaleListView> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? AppColors.primary

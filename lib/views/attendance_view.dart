@@ -13,6 +13,7 @@ import '../services/storage_service.dart';
 import 'work_schedule_settings_view.dart'; // Import màn hình cài đặt lịch
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/custom_app_bar.dart';
 import '../l10n/app_localizations.dart';
 
 class AttendanceView extends StatefulWidget {
@@ -334,20 +335,8 @@ class _AttendanceViewState extends State<AttendanceView>
 
     if (!_hasPermission) {
       return Scaffold(
-        appBar: AppBar(
-          flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          title: Text(AppLocalizations.of(context)?.attendance ?? "ATTENDANCE"),
+        appBar: CustomAppBar.build(
+          title: AppLocalizations.of(context)?.attendance ?? "ATTENDANCE",
         ),
         body: Center(
           child: Text(
@@ -361,40 +350,9 @@ class _AttendanceViewState extends State<AttendanceView>
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              AppLocalizations.of(context)?.attendance ?? "ATTENDANCE",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: AppTextStyles.headline2.fontSize,
-              ),
-            ),
-            Text(
-              AppLocalizations.of(context)?.attendanceManagement ??
-                  "Manage work hours",
-              style: TextStyle(
-                fontSize: AppTextStyles.body1.fontSize,
-                color: Colors.white70,
-              ),
-            ),
-          ],
-        ),
-        automaticallyImplyLeading: true,
+      appBar: CustomAppBar.build(
+        title: AppLocalizations.of(context)?.attendance ?? "ATTENDANCE",
+        subtitle: AppLocalizations.of(context)?.attendanceManagement ?? "Manage work hours",
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -421,11 +379,11 @@ class _AttendanceViewState extends State<AttendanceView>
 
   Widget _buildTodayTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(12),
       child: Column(
         children: [
           _buildClockCard(),
-          const SizedBox(height: 30),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -437,7 +395,7 @@ class _AttendanceViewState extends State<AttendanceView>
                   enabled: _today?.checkInAt == null,
                 ),
               ),
-              const SizedBox(width: 15),
+              const SizedBox(width: 10),
               Expanded(
                 child: _checkBtn(
                   "CHECK-OUT",
@@ -450,10 +408,10 @@ class _AttendanceViewState extends State<AttendanceView>
               ),
             ],
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 12),
           if (_today != null) _buildTodaySummary(),
           if (_role == 'owner' || _role == 'manager') ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             const Divider(),
             ListTile(
               leading: const Icon(
@@ -488,14 +446,14 @@ class _AttendanceViewState extends State<AttendanceView>
     final now = DateTime.now();
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(30),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.primaryDark, AppColors.primary],
         ),
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
-          BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 15),
+          BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8),
         ],
       ),
       child: Column(
@@ -537,18 +495,18 @@ class _AttendanceViewState extends State<AttendanceView>
         backgroundColor: color,
         foregroundColor: AppColors.onPrimary,
         disabledBackgroundColor: AppColors.inactive.withOpacity(0.3),
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
   Widget _buildTodaySummary() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -560,7 +518,7 @@ class _AttendanceViewState extends State<AttendanceView>
               color: AppColors.onSurface.withOpacity(0.7),
             ),
           ),
-          const Divider(height: 30),
+          const Divider(height: 16),
           _rowInfo(
             "Check-in / Giờ vào",
             _today?.checkInAt != null
@@ -693,7 +651,7 @@ class _AttendanceViewState extends State<AttendanceView>
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -921,7 +879,7 @@ class _AttendanceViewState extends State<AttendanceView>
               loadingBuilder: (ctx, child, progress) {
                 if (progress == null) return child;
                 return const Padding(
-                  padding: EdgeInsets.all(50),
+                  padding: EdgeInsets.all(12),
                   child: CircularProgressIndicator(),
                 );
               },
@@ -936,7 +894,7 @@ class _AttendanceViewState extends State<AttendanceView>
     int totalDays = _history.length;
     int lateDays = _history.where((h) => h.isLate == 1).length;
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(12),
       child: Column(
         children: [
           _statCard(
@@ -944,7 +902,7 @@ class _AttendanceViewState extends State<AttendanceView>
             "$totalDays",
             AppColors.primary,
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 8),
           _statCard(
             "LATE COUNT / SỐ LẦN ĐI MUỘN",
             "$lateDays",
@@ -957,10 +915,10 @@ class _AttendanceViewState extends State<AttendanceView>
 
   Widget _statCard(String l, String v, Color c) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: AppColors.surface,
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(10),
     ),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

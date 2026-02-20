@@ -58,16 +58,32 @@ service cloud.firestore {
     }
     
     // Check if user owns a specific shop (for multi-shop owners)
+    // Also checks that shop exists and is not deleted
     function isShopOwner(shopId) {
+      return exists(/databases/$(database)/documents/shops/$(shopId)) &&
+             get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid == uid() &&
+             get(/databases/$(database)/documents/shops/$(shopId)).data.deleted != true;
+    }
+    
+    // Check if user owns a shop regardless of deleted state
+    // Used for cleanup operations (deleting data from a deleted shop)
+    function isShopOwnerAnyState(shopId) {
       return exists(/databases/$(database)/documents/shops/$(shopId)) &&
              get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid == uid();
     }
     
+    // Check if shop exists and is active (not deleted)
+    function shopExistsAndActive(shopId) {
+      return exists(/databases/$(database)/documents/shops/$(shopId)) &&
+             get(/databases/$(database)/documents/shops/$(shopId)).data.deleted != true;
+    }
+    
     function belongsTo(shopId) {
-      // Allow if: super admin, claims match, OR user owns this shop
+      // Allow if: super admin, user owns this shop, OR claims match
+      // isShopOwner first to short-circuit before myShopId() which can fail
       return isSuperAdmin() || 
-             myShopId() == shopId || 
-             isShopOwner(shopId);
+             isShopOwner(shopId) ||
+             (shopExistsAndActive(shopId) && myShopId() == shopId);
     }
     
     function docInMyShop() {
@@ -75,6 +91,15 @@ service cloud.firestore {
              ('shopId' in resource.data && (
                resource.data.shopId == myShopId() || 
                isShopOwner(resource.data.shopId)
+             ));
+    }
+    
+    // Cho phép owner xóa data kể cả khi shop đã bị soft-delete
+    function docInMyShopForDelete() {
+      return isSuperAdmin() || 
+             ('shopId' in resource.data && (
+               resource.data.shopId == myShopId() || 
+               isShopOwnerAnyState(resource.data.shopId)
              ));
     }
     
@@ -253,8 +278,11 @@ service cloud.firestore {
                        (isSuperAdmin() || resource.data.ownerUid == uid()) &&
                        !changed('ownerUid');
       
-      // DELETE: Never
-      allow delete: if false;
+      // DELETE: Owner or super admin only
+      // Client MUST cancel all subscriptions before deleting
+      // to avoid PERMISSION_DENIED errors on active listeners
+      allow delete: if isAuth() && 
+                       (isSuperAdmin() || resource.data.ownerUid == uid());
 
       // ─────────── SUBCOLLECTION: custom_salary_adjustments ───────────
       // Stores custom bonuses/deductions per employee per month
@@ -273,8 +301,8 @@ service cloud.firestore {
                          belongsTo(shopId) && 
                          isOwner();
         
-        // DELETE: Owner only (remove adjustments)
-        allow delete: if isAuth() && belongsTo(shopId) && isOwner();
+        // DELETE: Owner only (remove adjustments, also during shop cleanup)
+        allow delete: if isAuth() && (belongsTo(shopId) || isShopOwnerAnyState(shopId)) && isOwner();
       }
 
       // ─────────── SUBCOLLECTION: settings (Multi-industry) ───────────
@@ -283,13 +311,14 @@ service cloud.firestore {
         // READ: Any shop member
         allow read: if isAuth() && belongsTo(shopId);
         
-        // WRITE: Owner only
+        // WRITE: Shop owner can always create/update settings (even before claims refresh)
+        // Also allow any owner-role user who belongs to this shop
         allow create, update: if isAuth() && 
-                         belongsTo(shopId) && 
-                         isOwner();
+                         (isShopOwner(shopId) || 
+                          (belongsTo(shopId) && isOwner()));
         
-        // DELETE: Never
-        allow delete: if false;
+        // DELETE: Owner only (during shop deletion cleanup)
+        allow delete: if isAuth() && isShopOwnerAnyState(shopId) && isOwner();
       }
 
       // ─────────── SUBCOLLECTION: product_categories (Multi-industry) ───────────
@@ -309,8 +338,8 @@ service cloud.firestore {
                          belongsTo(shopId) && 
                          isManager();
         
-        // DELETE: Owner only (soft delete preferred)
-        allow delete: if isAuth() && belongsTo(shopId) && isOwner();
+        // DELETE: Owner only (soft delete preferred, also during shop cleanup)
+        allow delete: if isAuth() && (belongsTo(shopId) || isShopOwnerAnyState(shopId)) && isOwner();
       }
     }
 
@@ -360,7 +389,8 @@ service cloud.firestore {
                        optNumGte0('price') &&
                        optNumGte0('cost');
       
-      allow delete: if false;
+      // DELETE: Owner/super admin only (for shop deletion cleanup)
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
     }
 
     // ═══════════ 3.2 SALES ═══════════
@@ -381,7 +411,8 @@ service cloud.firestore {
                        numGte0('totalPrice') &&
                        optNumGte0('totalCost');
       
-      allow delete: if false;
+      // DELETE: Owner/super admin only (for shop deletion cleanup)
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
     }
 
     // ═══════════ 3.3 PRODUCTS ═══════════
@@ -404,7 +435,8 @@ service cloud.firestore {
                        optNumGte0('price') &&
                        optNumGte0('quantity');
       
-      allow delete: if false;
+      // DELETE: Owner/super admin only (for shop deletion cleanup)
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
     }
 
     // ═══════════ 3.3.1 PRODUCT VARIANTS (Multi-industry) ═══════════
@@ -491,7 +523,8 @@ service cloud.firestore {
                        shopIdLocked() &&
                        numGte0('amount');
       
-      allow delete: if false;
+      // DELETE: Owner only (for shop deletion cleanup)
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
     }
 
     // ═══════════ 4.2 DEBTS ═══════════
@@ -512,7 +545,8 @@ service cloud.firestore {
                        numGte0('totalAmount') &&
                        optNumGte0('paidAmount');
       
-      allow delete: if false;
+      // DELETE: Owner only (for shop deletion cleanup)
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
     }
 
     // ═══════════ 4.3 DEBT_PAYMENTS ═══════════
@@ -532,7 +566,8 @@ service cloud.firestore {
                        shopIdLocked() &&
                        numGte0('amount');
       
-      allow delete: if false;
+      // DELETE: Owner only (for shop deletion cleanup)
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
     }
 
     // ═══════════ 4.4 CASH_CLOSINGS ═══════════
@@ -549,7 +584,8 @@ service cloud.firestore {
                        isManager() &&
                        shopIdLocked();
       
-      allow delete: if false;
+      // DELETE: Owner only (for shop deletion cleanup)
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
     }
 
     // ═══════════ 4.5 ADJUSTMENT_ENTRIES (điều chỉnh quỹ) ═══════════
@@ -566,7 +602,8 @@ service cloud.firestore {
                        isManager() &&
                        shopIdLocked();
       
-      allow delete: if false;
+      // DELETE: Owner only (for shop deletion cleanup)
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
     }
 
     // ═══════════ 4.6 PAYMENT_INTENTS (yêu cầu thanh toán) ═══════════
@@ -608,7 +645,8 @@ service cloud.firestore {
                        docInMyShop() &&
                        shopIdLocked();
       
-      allow delete: if false;
+      // DELETE: Owner only (for shop deletion cleanup)
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
     }
 
     // ═══════════ 5.2 SUPPLIER_PAYMENTS ═══════════
@@ -627,7 +665,8 @@ service cloud.firestore {
                        shopIdLocked() &&
                        numGte0('amount');
       
-      allow delete: if false;
+      // DELETE: Owner only (for shop deletion cleanup)
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
     }
 
     // ═══════════ 5.3 PURCHASE_ORDERS ═══════════
@@ -678,7 +717,7 @@ service cloud.firestore {
                        shopIdLocked() &&
                        numGte0('price');
       
-      allow delete: if isAuth() && docInMyShop() && isManager();
+      allow delete: if isAuth() && docInMyShopForDelete() && isManager();
     }
 
     // ┌──────────────────────────────────────────────────────────────────┐
@@ -884,7 +923,7 @@ service cloud.firestore {
       allow update: if isAuth() && docInMyShop();
       
       // DELETE: Manager+ can clear old notifications
-      allow delete: if isAuth() && docInMyShop() && isManager();
+      allow delete: if isAuth() && docInMyShopForDelete() && isManager();
     }
 
     // ┌──────────────────────────────────────────────────────────────────┐
@@ -924,7 +963,7 @@ service cloud.firestore {
                        shopIdLocked();
       
       // DELETE: Allowed for cleanup
-      allow delete: if isAuth() && docInMyShop();
+      allow delete: if isAuth() && docInMyShopForDelete();
     }
 
     // ═══════════ 10.3 REPAIR_PARTS ═══════════
@@ -1014,7 +1053,7 @@ service cloud.firestore {
       allow update: if isAuth() && docInMyShop() && isManager() && shopIdLocked();
       
       // DELETE: Owner only (sensitive data)
-      allow delete: if isAuth() && docInMyShop() && isOwner();
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
     }
 
     // ═══════════ 11.3 SHOP_SALARY_DEFAULTS ═══════════

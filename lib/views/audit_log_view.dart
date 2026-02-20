@@ -310,7 +310,7 @@ class _AuditLogViewState extends State<AuditLogView> {
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

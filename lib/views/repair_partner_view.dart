@@ -215,10 +215,10 @@ class _RepairPartnerViewState extends State<RepairPartnerView> {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 500),
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,10 +335,10 @@ class _RepairPartnerViewState extends State<RepairPartnerView> {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 500),
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -590,7 +590,7 @@ class _RepairPartnerViewState extends State<RepairPartnerView> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: AppColors.primary.withOpacity(0.1),
               shape: BoxShape.circle,
@@ -644,7 +644,7 @@ class _RepairPartnerViewState extends State<RepairPartnerView> {
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow.withOpacity(0.1),

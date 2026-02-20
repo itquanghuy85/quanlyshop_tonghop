@@ -11,7 +11,8 @@ import '../theme/app_text_styles.dart';
 /// Chỉ xem, không sửa - có bộ lọc
 class FinancialActivityLogView extends StatefulWidget {
   final int initialTab; // 0 = tài chính, 1 = hệ thống
-  const FinancialActivityLogView({super.key, this.initialTab = 0});
+  final bool embedded;
+  const FinancialActivityLogView({super.key, this.initialTab = 0, this.embedded = false});
 
   @override
   State<FinancialActivityLogView> createState() =>
@@ -40,7 +41,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   bool _auditLoading = true;
 
   // Bộ lọc
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
+  DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
   String? _selectedType;
   String? _selectedDirection;
@@ -236,12 +237,16 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) => Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+          ),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(12),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -262,9 +267,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                         tempDirection = null;
                       });
                       setState(() {
-                        _startDate = DateTime.now().subtract(
-                          const Duration(days: 30),
-                        );
+                        _startDate = DateTime.now();
                         _endDate = DateTime.now();
                         _selectedType = null;
                         _selectedDirection = null;
@@ -396,6 +399,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
               SizedBox(height: MediaQuery.of(ctx).padding.bottom + 10),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -423,13 +427,16 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.embedded) {
+      return _buildEmbeddedContent();
+    }
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: CustomAppBar.build(
         title: 'NHẬT KÝ',
         subtitle: _tabController.index == 0
-            ? '${_activities.length} hoạt động tài chính'
-            : '${_auditLogs.length} log hệ thống',
+            ? '${_activities.length} hoạt động'
+            : '${_auditLogs.length} log',
         accentColor: AppBarAccents.finance,
         actions: [
           if (_tabController.index == 0) ...[
@@ -442,12 +449,12 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                     _searchQuery.isNotEmpty,
                 child: const Icon(
                   Icons.filter_list_rounded,
-                  size: 22,
+                  size: 20,
                   color: AppBarAccents.finance,
                 ),
               ),
               tooltip: 'Bộ lọc',
-              splashRadius: 20,
+              splashRadius: 18,
             ),
           ],
           IconButton(
@@ -460,103 +467,16 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
             },
             icon: const Icon(
               Icons.refresh_rounded,
-              size: 22,
+              size: 20,
               color: AppBarAccents.finance,
             ),
             tooltip: 'Làm mới',
-            splashRadius: 20,
+            splashRadius: 18,
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(100),
-          child: Column(
-            children: [
-              // TabBar
-              Container(
-                color: Colors.white,
-                child: TabBar(
-                  controller: _tabController,
-                  labelColor: AppBarAccents.finance,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: AppBarAccents.finance,
-                  indicatorWeight: 3,
-                  labelStyle: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: AppTextStyles.headline5.fontSize,
-                  ),
-                  unselectedLabelStyle: TextStyle(
-                    fontWeight: FontWeight.normal,
-                    fontSize: AppTextStyles.headline5.fontSize,
-                  ),
-                  tabs: const [
-                    Tab(
-                      icon: Icon(Icons.account_balance_wallet, size: 18),
-                      text: 'Tài chính',
-                    ),
-                    Tab(icon: Icon(Icons.history, size: 18), text: 'Hệ thống'),
-                  ],
-                  onTap: (_) => setState(() {}),
-                ),
-              ),
-              // Search bar only for tab 0
-              if (_tabController.index == 0)
-                Container(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                  color: Colors.white,
-                  child: Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      onSubmitted: (v) {
-                        _searchQuery = v.trim();
-                        _loadData();
-                      },
-                      style: TextStyle(
-                        color: CustomAppBar.kTextPrimary,
-                        fontSize: AppTextStyles.headline4.fontSize,
-                      ),
-                      cursorColor: AppBarAccents.finance,
-                      decoration: InputDecoration(
-                        hintText: 'Tìm theo tên, SĐT, mô tả...',
-                        hintStyle: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: AppTextStyles.headline5.fontSize,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.search_rounded,
-                          color: AppBarAccents.finance,
-                          size: 18,
-                        ),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(
-                                  Icons.close_rounded,
-                                  color: Colors.grey.shade500,
-                                  size: 18,
-                                ),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _searchQuery = '';
-                                  _loadData();
-                                },
-                                splashRadius: 16,
-                              )
-                            : null,
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          preferredSize: Size.fromHeight(_tabController.index == 0 ? 82 : 40),
+          child: _buildStandaloneTabBar(),
         ),
       ),
       body: TabBarView(
@@ -566,63 +486,308 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     );
   }
 
-  /// Tab Tài chính
-  Widget _buildFinancialTab() {
+  /// TabBar for standalone mode (used in AppBar bottom)
+  Widget _buildStandaloneTabBar() {
     return Column(
       children: [
-        // Summary cards
-        _buildSummarySection(),
-
-        // Date range indicator
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: Colors.white,
+          child: TabBar(
+            controller: _tabController,
+            labelColor: AppBarAccents.finance,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: AppBarAccents.finance,
+            indicatorWeight: 2,
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: AppTextStyles.subtitle1.fontSize,
+            ),
+            unselectedLabelStyle: TextStyle(
+              fontWeight: FontWeight.normal,
+              fontSize: AppTextStyles.subtitle1.fontSize,
+            ),
+            tabs: const [
+              Tab(height: 36, text: 'Tài chính'),
+              Tab(height: 36, text: 'Hệ thống'),
+            ],
+            onTap: (_) => setState(() {}),
+          ),
+        ),
+        if (_tabController.index == 0)
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+            color: Colors.white,
+            child: Container(
+              height: 34,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onSubmitted: (v) {
+                  _searchQuery = v.trim();
+                  _loadData();
+                },
+                style: TextStyle(
+                  color: CustomAppBar.kTextPrimary,
+                  fontSize: AppTextStyles.subtitle1.fontSize,
+                ),
+                cursorColor: AppBarAccents.finance,
+                decoration: InputDecoration(
+                  hintText: 'Tìm theo tên, SĐT, mô tả...',
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: AppBarAccents.finance,
+                    size: 16,
+                  ),
+                  prefixIconConstraints: const BoxConstraints(minWidth: 34),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: Colors.grey.shade500,
+                            size: 16,
+                          ),
+                          onPressed: () {
+                            _searchController.clear();
+                            _searchQuery = '';
+                            _loadData();
+                          },
+                          splashRadius: 14,
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Embedded mode - no Scaffold/AppBar, compact inline tabs
+  Widget _buildEmbeddedContent() {
+    return Column(
+      children: [
+        // TabBar + actions in one row
+        _buildTabBarAndSearch(),
+        // Body
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [_buildFinancialTab(), _buildAuditLogTab()],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Shared TabBar + Search widget
+  Widget _buildTabBarAndSearch() {
+    return Column(
+      children: [
+        Container(
+          color: Colors.white,
           child: Row(
             children: [
-              Icon(Icons.date_range, size: 16, color: Colors.grey[600]),
-              const SizedBox(width: 6),
-              Text(
-                '${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: AppTextStyles.subtitle1.fontSize,
+              Expanded(
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: AppBarAccents.finance,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: AppBarAccents.finance,
+                  indicatorWeight: 2,
+                  labelStyle: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                  ),
+                  unselectedLabelStyle: TextStyle(
+                    fontWeight: FontWeight.normal,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                  ),
+                  tabs: const [
+                    Tab(
+                      height: 36,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [Icon(Icons.account_balance_wallet, size: 16), SizedBox(width: 6), Text('Tài chính')],
+                      ),
+                    ),
+                    Tab(
+                      height: 36,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [Icon(Icons.history, size: 16), SizedBox(width: 6), Text('Hệ thống')],
+                      ),
+                    ),
+                  ],
+                  onTap: (_) => setState(() {}),
                 ),
               ),
-              const Spacer(),
-              Text(
-                '${_activities.length} hoạt động',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: AppTextStyles.subtitle1.fontSize,
+              if (_tabController.index == 0)
+                IconButton(
+                  onPressed: _showFilterSheet,
+                  icon: Badge(
+                    isLabelVisible:
+                        _selectedType != null ||
+                        _selectedDirection != null ||
+                        _searchQuery.isNotEmpty,
+                    child: Icon(
+                      Icons.filter_list_rounded,
+                      size: 18,
+                      color: AppBarAccents.finance,
+                    ),
+                  ),
+                  tooltip: 'Bộ lọc',
+                  splashRadius: 16,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 ),
+              IconButton(
+                onPressed: () {
+                  if (_tabController.index == 0) {
+                    _loadData();
+                  } else {
+                    _loadAuditLogs();
+                  }
+                },
+                icon: Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: AppBarAccents.finance,
+                ),
+                tooltip: 'Làm mới',
+                splashRadius: 16,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
+              const SizedBox(width: 4),
             ],
           ),
         ),
-
-        // Activity list
-        Expanded(
-          child: _loading && _activities.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : _activities.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: _activities.length + (_hasMore ? 1 : 0),
-                  itemBuilder: (ctx, i) {
-                    if (i >= _activities.length) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      );
-                    }
-                    return _buildActivityCard(_activities[i]);
-                  },
+        if (_tabController.index == 0)
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+            color: Colors.white,
+            child: Container(
+              height: 34,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onSubmitted: (v) {
+                  _searchQuery = v.trim();
+                  _loadData();
+                },
+                style: TextStyle(
+                  color: CustomAppBar.kTextPrimary,
+                  fontSize: AppTextStyles.subtitle1.fontSize,
                 ),
-        ),
+                cursorColor: AppBarAccents.finance,
+                decoration: InputDecoration(
+                  hintText: 'Tìm theo tên, SĐT, mô tả...',
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: AppBarAccents.finance,
+                    size: 16,
+                  ),
+                  prefixIconConstraints: const BoxConstraints(minWidth: 34),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: Colors.grey.shade500,
+                            size: 16,
+                          ),
+                          onPressed: () {
+                            _searchController.clear();
+                            _searchQuery = '';
+                            _loadData();
+                          },
+                          splashRadius: 14,
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
+    );
+  }
+
+  /// Tab Tài chính - dùng single scrollable list tránh bottom overflow
+  Widget _buildFinancialTab() {
+    if (_loading && _activities.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_activities.isEmpty) {
+      return _buildEmptyState();
+    }
+    // Header count: summary (0) + date range (1) = 2
+    final headerCount = 2;
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      itemCount: headerCount + _activities.length + (_hasMore ? 1 : 0),
+      itemBuilder: (ctx, i) {
+        if (i == 0) return _buildSummarySection();
+        if (i == 1) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            child: Row(
+              children: [
+                Icon(Icons.date_range, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 6),
+                Text(
+                  '${DateFormat('dd/MM/yyyy').format(_startDate)} - ${DateFormat('dd/MM/yyyy').format(_endDate)}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${_activities.length} hoạt động',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        final actIndex = i - headerCount;
+        if (actIndex >= _activities.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+        return _buildActivityCard(_activities[actIndex]);
+      },
     );
   }
 
@@ -779,46 +944,51 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
             Row(
               children: [
                 // User badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.person_outline,
-                        size: 14,
-                        color: Colors.blue.shade700,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        log['userName'] ?? 'Unknown',
-                        style: TextStyle(
-                          fontSize: AppTextStyles.caption.fontSize,
-                          fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.person_outline,
+                          size: 12,
                           color: Colors.blue.shade700,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(
+                            log['userName'] ?? '?',
+                            style: TextStyle(
+                              fontSize: AppTextStyles.caption.fontSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade700,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 // EntityType badge
                 if (entityType.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 6,
+                      vertical: 3,
                     ),
                     decoration: BoxDecoration(
                       color: _getEntityTypeColor(entityType).withAlpha(25),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       _getEntityTypeName(entityType),
@@ -832,16 +1002,16 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                 const Spacer(),
                 // Date
                 Text(
-                  DateFormat('dd/MM/yyyy').format(date),
+                  DateFormat('dd/MM').format(date),
                   style: TextStyle(
                     fontSize: AppTextStyles.caption.fontSize,
                     color: Colors.grey.shade600,
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 2),
                 Icon(
                   Icons.chevron_right,
-                  size: 16,
+                  size: 14,
                   color: Colors.grey.shade400,
                 ),
               ],
@@ -872,7 +1042,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1112,31 +1282,33 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  '💵 Lãi thực: ',
+                  '💵 Lãi: ',
                   style: TextStyle(
                     color: Colors.white.withAlpha(200),
-                    fontSize: AppTextStyles.subtitle1.fontSize,
+                    fontSize: AppTextStyles.caption.fontSize,
                   ),
                 ),
-                Text(
-                  _formatMoney(totalIn - totalOut),
-                  style: TextStyle(
-                    color: (totalIn - totalOut) >= 0
-                        ? Colors.greenAccent
-                        : Colors.redAccent,
-                    fontWeight: FontWeight.bold,
-                    fontSize: AppTextStyles.headline4.fontSize,
+                Flexible(
+                  child: Text(
+                    _formatMoney(totalIn - totalOut),
+                    style: TextStyle(
+                      color: (totalIn - totalOut) >= 0
+                          ? Colors.greenAccent
+                          : Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 8),
                 Text(
-                  '📊 $totalCount giao dịch',
+                  '📊 $totalCount GD',
                   style: TextStyle(
                     color: Colors.white.withAlpha(200),
-                    fontSize: AppTextStyles.subtitle1.fontSize,
+                    fontSize: AppTextStyles.caption.fontSize,
                   ),
                 ),
               ],
@@ -1155,21 +1327,24 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   }) {
     return Column(
       children: [
-        Icon(icon, color: iconColor, size: 20),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: AppTextStyles.headline4.fontSize,
+        Icon(icon, color: iconColor, size: 18),
+        const SizedBox(height: 2),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: AppTextStyles.subtitle1.fontSize,
+            ),
           ),
         ),
         Text(
           label,
           style: TextStyle(
             color: Colors.white.withAlpha(200),
-            fontSize: AppTextStyles.body1.fontSize,
+            fontSize: AppTextStyles.caption.fontSize,
           ),
         ),
       ],
@@ -1284,11 +1459,14 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                             color: Colors.grey[500],
                           ),
                           const SizedBox(width: 3),
-                          Text(
-                            activity.customerName!,
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: AppTextStyles.body1.fontSize,
+                          Flexible(
+                            child: Text(
+                              activity.customerName!,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: AppTextStyles.body1.fontSize,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -1300,7 +1478,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                         ),
                         const SizedBox(width: 3),
                         Text(
-                          DateFormat('dd/MM/yyyy').format(date),
+                          DateFormat('dd/MM').format(date),
                           style: TextStyle(
                             color: Colors.grey[500],
                             fontSize: AppTextStyles.body1.fontSize,
@@ -1354,8 +1532,10 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                         ),
 
                         // Payment method + Type
-                        Row(
-                          children: [
+                        Flexible(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
@@ -1371,6 +1551,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                                   color: Colors.grey[700],
                                   fontSize: AppTextStyles.caption.fontSize,
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 4),
@@ -1395,6 +1576,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
                               ),
                             ),
                           ],
+                          ),
                         ),
                       ],
                     ),
@@ -1416,11 +1598,15 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+        ),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.all(20),
+        child: SingleChildScrollView(
+        padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1520,6 +1706,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
 
             SizedBox(height: MediaQuery.of(ctx).padding.bottom + 16),
           ],
+        ),
         ),
       ),
     );

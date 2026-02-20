@@ -2560,7 +2560,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSyncDesc => 'Safe data, access anytime, anywhere';
 
   @override
-  String get version => 'Version 10.0.6';
+  String get version => 'Version 10.0.8';
 
   @override
   String get salaryCalculationGuide => 'SALARY CALCULATION GUIDE';

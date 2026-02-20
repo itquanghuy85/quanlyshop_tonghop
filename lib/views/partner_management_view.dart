@@ -19,6 +19,7 @@ import '../services/user_service.dart';
 import '../widgets/validated_text_field.dart';
 import '../constants/partner_constants.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_localizations.dart';
 
 class PartnerManagementView extends StatefulWidget {
   const PartnerManagementView({super.key});
@@ -615,11 +616,10 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
                 return;
               }
               if (phoneCtrl.text.trim().isNotEmpty) {
-                try {
-                  UserService.validatePhone(phoneCtrl.text.trim());
-                } catch (e) {
+                final phoneError = UserService.validatePhone(phoneCtrl.text.trim(), AppLocalizations.of(ctx)!);
+                if (phoneError != null) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Số điện thoại không hợp lệ: $e')),
+                    SnackBar(content: Text(phoneError)),
                   );
                   return;
                 }
@@ -676,11 +676,10 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
               
               try {
                 if (phoneCtrl.text.trim().isNotEmpty) {
-                  try {
-                    UserService.validatePhone(phoneCtrl.text.trim());
-                  } catch (e) {
+                  final phoneError = UserService.validatePhone(phoneCtrl.text.trim(), AppLocalizations.of(ctx)!);
+                  if (phoneError != null) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text('Số điện thoại không hợp lệ: $e')),
+                      SnackBar(content: Text(phoneError)),
                     );
                     return;
                   }
@@ -864,11 +863,10 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
                 return;
               }
               if (phoneCtrl.text.trim().isNotEmpty) {
-                try {
-                  UserService.validatePhone(phoneCtrl.text.trim());
-                } catch (e) {
+                final phoneError = UserService.validatePhone(phoneCtrl.text.trim(), AppLocalizations.of(ctx)!);
+                if (phoneError != null) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Số điện thoại không hợp lệ: $e')),
+                    SnackBar(content: Text(phoneError)),
                   );
                   return;
                 }
@@ -948,11 +946,10 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
                 return;
               }
               if (phoneCtrl.text.trim().isNotEmpty) {
-                try {
-                  UserService.validatePhone(phoneCtrl.text.trim());
-                } catch (e) {
+                final phoneError = UserService.validatePhone(phoneCtrl.text.trim(), AppLocalizations.of(ctx)!);
+                if (phoneError != null) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Số điện thoại không hợp lệ: $e')),
+                    SnackBar(content: Text(phoneError)),
                   );
                   return;
                 }

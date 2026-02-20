@@ -152,7 +152,7 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
 
   Widget _buildConnectTab() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       child: Column(
         children: [
           _sectionCard("LOẠI GIẤY / TEM", [
@@ -210,7 +210,7 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
 
   Widget _buildLabelTab() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       child: Column(
         children: [
           _labelPreview(),
@@ -304,7 +304,7 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
 
   Widget _buildReceiptTab() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       child: Column(
         children: [
           _receiptPreview(),
@@ -359,7 +359,7 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
   Widget _sectionCard(String title, List<Widget> children, {Color color = Colors.blueGrey}) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 5)]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 5)]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: AppTextStyles.body1.fontSize)),
         const SizedBox(height: 12),

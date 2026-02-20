@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/current_shop_service.dart';
 import '../services/user_service.dart';
-import '../services/category_service.dart';
+import '../services/shop_deletion_service.dart';
 import '../models/shop_settings_model.dart';
 import '../l10n/app_localizations.dart';
 
@@ -406,14 +406,6 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
                     value: 'fashion',
                     child: Text('👗 Thời trang & May mặc'),
                   ),
-                  DropdownMenuItem(
-                    value: 'food',
-                    child: Text('🍎 Thực phẩm & Đồ tươi sống'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'general',
-                    child: Text('🏪 Tổng hợp'),
-                  ),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -458,7 +450,7 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) throw Exception('Not logged in');
 
-      // Create new shop document
+      // Step 1: Create shop document first (must exist before settings)
       final newShopRef = FirebaseFirestore.instance.collection('shops').doc();
       final shopId = newShopRef.id;
       
@@ -471,16 +463,23 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
         'shopId': shopId,
         'businessType': businessType,
       });
+      debugPrint('✅ Shop document created: $shopId');
 
-      // Create shop_settings document with selected business type
-      final settings = ShopSettings.fromBusinessType(businessType, shopId);
-      final settingsRef = FirebaseFirestore.instance
-          .collection('shops')
-          .doc(shopId)
-          .collection('settings')
-          .doc('shop_settings');
-      await settingsRef.set(settings.toFirestoreMap());
-      debugPrint('✅ Created shop_settings for $shopId with businessType=$businessType');
+      // Step 2: Create shop_settings (rules check isShopOwner which needs shop to exist)
+      try {
+        final settings = ShopSettings.fromBusinessType(businessType, shopId);
+        final settingsRef = FirebaseFirestore.instance
+            .collection('shops')
+            .doc(shopId)
+            .collection('settings')
+            .doc('shop_settings');
+        await settingsRef.set(settings.toFirestoreMap());
+        debugPrint('✅ Shop settings created for $shopId');
+      } catch (e) {
+        // Settings creation failed but shop was created - non-critical
+        // CategoryService will auto-create defaults from shop businessType
+        debugPrint('⚠️ Settings creation failed (non-critical): $e');
+      }
 
       // Invalidate cache and reload
       _shopService.invalidateCache();
@@ -495,6 +494,7 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
         );
       }
     } catch (e) {
+      debugPrint('❌ Error creating branch: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -652,62 +652,68 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
     setState(() => _loading = true);
 
     try {
-      final firestore = FirebaseFirestore.instance;
-      final batch = firestore.batch();
+      // Kiểm tra quyền xóa
+      final canDelete = await ShopDeletionService.canDeleteShop(shopId);
+      if (!canDelete) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ Bạn không có quyền xóa chi nhánh này'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
 
-      // Delete main shop document
-      batch.delete(firestore.collection('shops').doc(shopId));
-
-      // Delete all related data in sub-collections
-      final collections = [
-        'repairs',
-        'products',
-        'sales',
-        'expenses',
-        'debts',
-        'debt_payments',
-        'customers',
-        'suppliers',
-        'attendance',
-        'quick_input_codes',
-        'repair_partners',
-        'repair_parts',
-        'supplier_payments',
-        'repair_partner_payments',
-        'supplier_import_history',
-        'audit_logs',
-        'notifications',
-      ];
-
-      for (final collection in collections) {
-        final docs = await firestore
-            .collection('shops')
-            .doc(shopId)
-            .collection(collection)
-            .limit(500)
-            .get();
-
-        for (final doc in docs.docs) {
-          batch.delete(doc.reference);
+      // Tìm fallback shop
+      String? fallbackShopId;
+      for (final shop in _shops) {
+        if (shop['id'] != shopId) {
+          fallbackShopId = shop['id'];
+          break;
         }
       }
 
-      await batch.commit();
+      // Sử dụng ShopDeletionService để xóa an toàn
+      final result = await ShopDeletionService.deleteShopSafe(
+        shopId: shopId,
+        shopName: shopName,
+        fallbackShopId: fallbackShopId,
+        onNavigateAway: () {
+          // Nếu đang ở trong dialog, đóng tất cả dialogs
+          if (mounted && Navigator.of(context).canPop()) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        },
+      );
 
-      // Invalidate cache and reload
-      _shopService.invalidateCache();
-      await _loadShops();
+      if (result.success) {
+        // Invalidate cache and reload
+        _shopService.invalidateCache();
+        await _loadShops();
 
-      // Notify parent to reload data
-      widget.onShopChanged?.call();
+        // Notify parent to reload data
+        widget.onShopChanged?.call();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Đã xóa chi nhánh: $shopName'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Đã xóa chi nhánh: $shopName'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Lỗi xóa chi nhánh: ${result.errorMessage}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -720,7 +726,7 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
       }
     }
 
-    setState(() => _loading = false);
+    if (mounted) setState(() => _loading = false);
   }
 }
 

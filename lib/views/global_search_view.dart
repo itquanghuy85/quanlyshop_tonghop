@@ -13,6 +13,7 @@ import 'sale_detail_view.dart';
 import 'inventory_view.dart';
 import 'customer_history_view.dart';
 import 'quick_input_codes_view.dart';
+import '../utils/vietnamese_utils.dart';
 
 class GlobalSearchView extends StatefulWidget {
   final String role;
@@ -72,51 +73,50 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
     setState(() => _isLoading = true);
 
     try {
-      final lowerQuery = query.toLowerCase();
       List<dynamic> allResults = [];
 
       // Search customers (from repairs)
       final repairs = await db.getAllRepairs();
       final customerResults = repairs.where((repair) {
-        return repair.customerName.toLowerCase().contains(lowerQuery) ||
-               repair.phone.contains(lowerQuery);
+        return VietnameseUtils.containsVietnamese(repair.customerName, query) ||
+               repair.phone.contains(query);
       }).toList();
 
       // Search repairs
       final repairResults = repairs.where((repair) {
-        return repair.model.toLowerCase().contains(lowerQuery) ||
-               repair.issue.toLowerCase().contains(lowerQuery) ||
-               repair.customerName.toLowerCase().contains(lowerQuery) ||
-               repair.phone.contains(lowerQuery);
+        return VietnameseUtils.containsVietnamese(repair.model, query) ||
+               VietnameseUtils.containsVietnamese(repair.issue, query) ||
+               VietnameseUtils.containsVietnamese(repair.customerName, query) ||
+               repair.phone.contains(query);
       }).toList();
 
       // Search sales
       final sales = await db.getAllSales();
       final saleResults = sales.where((sale) {
-        return sale.customerName.toLowerCase().contains(lowerQuery) ||
-               sale.phone.contains(lowerQuery) ||
-               sale.productNames.toLowerCase().contains(lowerQuery) ||
-               (sale.productImeis ?? '').contains(lowerQuery);
+        return VietnameseUtils.containsVietnamese(sale.customerName, query) ||
+               sale.phone.contains(query) ||
+               VietnameseUtils.containsVietnamese(sale.productNames, query) ||
+               (sale.productImeis ?? '').contains(query);
       }).toList();
 
       // Search products
       final products = await db.getAllProducts();
       final productResults = products.where((product) {
-        return product.name.toLowerCase().contains(lowerQuery) ||
-               (product.imei ?? '').contains(lowerQuery) ||
-               product.description.toLowerCase().contains(lowerQuery) ||
-               (product.color ?? '').toLowerCase().contains(lowerQuery) ||
-               (product.capacity ?? '').toLowerCase().contains(lowerQuery);
+        return VietnameseUtils.containsVietnamese(product.name, query) ||
+               (product.imei ?? '').contains(query) ||
+               VietnameseUtils.containsVietnamese(product.description, query) ||
+               VietnameseUtils.containsVietnamese(product.color ?? '', query) ||
+               VietnameseUtils.containsVietnamese(product.capacity ?? '', query);
       }).toList();
 
       // Search quick input codes
       final quickInputCodes = await db.getQuickInputCodes();
       final quickInputCodeResults = quickInputCodes.where((code) {
-        return code.name.toLowerCase().contains(lowerQuery) ||
-               (code.brand ?? '').toLowerCase().contains(lowerQuery) ||
-               (code.model ?? '').toLowerCase().contains(lowerQuery) ||
-               (code.description ?? '').toLowerCase().contains(lowerQuery) ||
-               (code.supplier ?? '').toLowerCase().contains(lowerQuery);
+        return VietnameseUtils.containsVietnamese(code.name, query) ||
+               VietnameseUtils.containsVietnamese(code.brand ?? '', query) ||
+               VietnameseUtils.containsVietnamese(code.model ?? '', query) ||
+               VietnameseUtils.containsVietnamese(code.description ?? '', query) ||
+               VietnameseUtils.containsVietnamese(code.supplier ?? '', query);
       }).toList();
 
       // Filter by category

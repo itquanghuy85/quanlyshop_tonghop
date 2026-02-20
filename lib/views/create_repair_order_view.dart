@@ -197,15 +197,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
   Future<void> _selectCustomer() async {
     debugPrint("_selectCustomer: bắt đầu chọn khách hàng");
-    // Sync customers from cloud first (ignore errors)
-    debugPrint("_selectCustomer: bắt đầu sync từ cloud");
-    try {
-      await SyncService.syncCustomersFromCloud();
-      debugPrint("_selectCustomer: đã sync xong từ cloud");
-    } catch (e) {
-      debugPrint("_selectCustomer: lỗi sync từ cloud (ignored): $e");
-    }
 
+    // Load local data first (fast) - don't block on cloud sync
     List<Customer> customers = [];
     try {
       customers = await customerService.getCustomers();
@@ -239,6 +232,11 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       }
     }
     if (!mounted) return;
+
+    // Fire-and-forget cloud sync for next time
+    SyncService.syncCustomersFromCloud().catchError((e) {
+      debugPrint("_selectCustomer: background sync error (ignored): $e");
+    });
 
     showDialog(
       context: context,
@@ -887,15 +885,15 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   _buildCompactMainSection(),
                   const SizedBox(height: 8),
 
-                  // === DỊCH VỤ (ExpansionTile nếu chưa có) ===
+                  // === DỊCH VỤ ===
                   _buildCompactServicesSection(),
                   const SizedBox(height: 8),
 
-                  // === COMPACT: BẢO MẬT + PHỤ KIỆN trong 1 Card ===
+                  // === BẢO MẬT + PHỤ KIỆN ===
                   _buildCompactSecurityAccessoriesSection(),
                   const SizedBox(height: 8),
 
-                  // === GHI CHÚ + HÌNH ẢNH (ExpansionTile) ===
+                  // === GHI CHÚ + HÌNH ẢNH ===
                   _buildCompactNotesImagesSection(),
 
                   const SizedBox(height: 16),
@@ -1026,74 +1024,64 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   Widget _buildCompactServicesSection() {
     return Card(
       margin: EdgeInsets.zero,
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-        dense: true,
-        leading: const Icon(Icons.handyman, color: Colors.teal, size: 20),
-        title: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(loc.services, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            if (_services.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: Colors.teal, borderRadius: BorderRadius.circular(10)),
-                child: Text("${_services.length}", style: const TextStyle(color: Colors.white, fontSize: 11)),
-              ),
-            ],
+            Row(
+              children: [
+                const Icon(Icons.handyman, color: Colors.teal, size: 20),
+                const SizedBox(width: 8),
+                Text(loc.services, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                if (_services.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.teal, borderRadius: BorderRadius.circular(10)),
+                    child: Text("${_services.length}", style: const TextStyle(color: Colors.white, fontSize: 11)),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            ..._buildServicesSection(),
           ],
         ),
-        initiallyExpanded: _services.isNotEmpty,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: Column(children: _buildServicesSection()),
-          ),
-        ],
       ),
     );
   }
 
   /// COMPACT: Bảo mật + Phụ kiện trong ExpansionTile (thu gọn được)
   Widget _buildCompactSecurityAccessoriesSection() {
-    final hasContent = passCtrl.text.isNotEmpty || _selectedAccs.isNotEmpty || accCtrl.text.isNotEmpty;
     return Card(
       margin: EdgeInsets.zero,
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-        dense: true,
-        leading: Icon(Icons.lock_outline, color: Colors.red.shade400, size: 20),
-        title: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(loc.securityAccessories, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            if (hasContent) ...[
-              const SizedBox(width: 8),
-              const Icon(Icons.check_circle, color: Colors.green, size: 16),
-            ],
-          ],
-        ),
-        initiallyExpanded: false, // Mặc định thu gọn để tiết kiệm không gian
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: Column(
+            Row(
               children: [
-                _compactInput(passCtrl, loc.screenPassword, Icons.lock),
-                const SizedBox(height: 8),
-                // Quick accs chips
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: quickAccs.map((acc) {
-                    return _compactChip(acc, _selectedAccs.contains(acc), () => _toggleAcc(acc));
-                  }).toList(),
-                ),
-                const SizedBox(height: 6),
-                _compactInput(accCtrl, loc.otherAccessories, Icons.add_box_outlined, caps: true),
+                Icon(Icons.lock_outline, color: Colors.red.shade400, size: 20),
+                const SizedBox(width: 8),
+                Text(loc.securityAccessories, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            _compactInput(passCtrl, loc.screenPassword, Icons.lock),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: quickAccs.map((acc) {
+                return _compactChip(acc, _selectedAccs.contains(acc), () => _toggleAcc(acc));
+              }).toList(),
+            ),
+            const SizedBox(height: 6),
+            _compactInput(accCtrl, loc.otherAccessories, Icons.add_box_outlined, caps: true),
+          ],
+        ),
       ),
     );
   }
@@ -1124,41 +1112,34 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   Widget _buildCompactNotesImagesSection() {
     return Card(
       margin: EdgeInsets.zero,
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-        dense: true,
-        leading: const Icon(Icons.note_alt_outlined, color: Colors.blueGrey, size: 20),
-        title: Row(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(loc.notesAndImages, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            if (_images.isNotEmpty || notesCtrl.text.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              const Icon(Icons.check_circle, color: Colors.green, size: 16),
-            ],
-          ],
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: Column(
+            Row(
               children: [
-                TextFormField(
-                  controller: notesCtrl,
-                  maxLines: 2,
-                  style: const TextStyle(fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: loc.notesPlaceholder,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.all(10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _imageRow(),
+                const Icon(Icons.note_alt_outlined, color: Colors.blueGrey, size: 20),
+                const SizedBox(width: 8),
+                Text(loc.notesAndImages, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: notesCtrl,
+              maxLines: 2,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: loc.notesPlaceholder,
+                isDense: true,
+                contentPadding: const EdgeInsets.all(10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _imageRow(),
+          ],
+        ),
       ),
     );
   }

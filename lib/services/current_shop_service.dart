@@ -158,7 +158,7 @@ class CurrentShopService {
         final data = doc.data();
         data['id'] = doc.id;
         return data;
-      }).toList();
+      }).where((shop) => shop['deleted'] != true).toList();
 
       debugPrint(
         'CurrentShopService: Found ${_cachedShops!.length} shops by ownerUid',
@@ -314,5 +314,38 @@ class CurrentShopService {
   void invalidateCache() {
     _cachedShops = null;
     debugPrint('CurrentShopService: Cache invalidated');
+  }
+
+  /// Clear active shop selection (dùng khi xóa shop cuối cùng hoặc logout)
+  Future<void> clearActiveShop() async {
+    try {
+      // 1. Cancel sync subscriptions
+      await SyncService.cancelAllSubscriptions();
+      
+      // 2. Clear in-memory cache
+      _activeShopId = null;
+      _activeShopUid = null;
+      _cachedShops = null;
+      
+      // 3. Clear SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefKey);
+      await prefs.remove(_prefKeyUid);
+      
+      // 4. Clear UserService cache
+      UserService.updateCachedShopId(null);
+      
+      // 5. Clear local SQLite
+      await _clearLocalCache();
+      
+      // 6. Clear other caches
+      CategoryService().clearCache();
+      BusinessTypeHelper().clearCache();
+      LabelSettingsService().clearCache();
+      
+      debugPrint('CurrentShopService: Active shop cleared');
+    } catch (e) {
+      debugPrint('CurrentShopService clearActiveShop error: $e');
+    }
   }
 }

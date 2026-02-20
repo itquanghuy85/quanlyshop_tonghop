@@ -7,12 +7,12 @@ import '../theme/app_text_styles.dart';
 class CustomAppBar {
   CustomAppBar._();
 
-  // ========== CONSTANTS - COMPACT ==========
-  static const double kAppBarHeight = 48.0; // Giảm từ 56 xuống 48
+  // ========== CONSTANTS - ULTRA COMPACT ==========
+  static const double kAppBarHeight = 44.0;
   static const double kAppBarElevation = 0.0;
-  static const double kTabBarHeight = 36.0; // Giảm từ 44 xuống 36
-  static const double kTitleFontSize = 15.0; // Giảm từ 17 xuống 15
-  static const double kSubtitleFontSize = 11.0; // Giảm từ 12 xuống 11
+  static const double kTabBarHeight = 32.0;
+  static const double kTitleFontSize = 14.0;
+  static const double kSubtitleFontSize = 10.0;
 
   // ========== COLOR SCHEME ==========
   static const Color kPrimaryColor = Color(0xFF1976D2); // Blue 700

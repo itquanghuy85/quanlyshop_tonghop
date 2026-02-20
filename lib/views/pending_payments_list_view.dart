@@ -583,7 +583,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               '$count giao dịch',
@@ -1035,7 +1035,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

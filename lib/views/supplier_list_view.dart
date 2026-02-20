@@ -504,7 +504,7 @@ class _SupplierListViewState extends State<SupplierListView>
                 ...filtered.map(_buildCard),
                 if (filtered.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(16),
                     child: Center(
                       child: Text(
                         'Không tìm thấy NCC phù hợp',
@@ -535,7 +535,7 @@ class _SupplierListViewState extends State<SupplierListView>
                 ...filtered.map(_buildPartnerCard),
                 if (filtered.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(16),
                     child: Center(
                       child: Text(
                         'Không tìm thấy đối tác phù hợp',

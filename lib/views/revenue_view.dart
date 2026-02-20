@@ -15,6 +15,7 @@ import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import '../services/category_service.dart';
 import '../widgets/currency_text_field.dart';
+import '../widgets/custom_app_bar.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -365,7 +366,7 @@ class _RevenueViewState extends State<RevenueView>
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,7 +468,7 @@ class _RevenueViewState extends State<RevenueView>
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? AppColors.primary
@@ -510,7 +511,7 @@ class _RevenueViewState extends State<RevenueView>
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? AppColors.primary
@@ -549,84 +550,40 @@ class _RevenueViewState extends State<RevenueView>
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "QUẢN LÝ TÀI CHÍNH",
-              style: AppTextStyles.headline5.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            Text(
-              "Tổng quan doanh thu, chi phí",
-              style: AppTextStyles.caption.copyWith(color: Colors.white70),
-            ),
-          ],
-        ),
-        automaticallyImplyLeading: true,
+      appBar: CustomAppBar.build(
+        title: 'TÀI CHÍNH',
+        subtitle: 'Doanh thu · Chi phí',
+        accentColor: AppBarAccents.finance,
         actions: [
-          // Filter button with badge
-          Stack(
-            children: [
-              IconButton(
-                onPressed: _showFilterSheet,
-                icon: const Icon(
-                  Icons.filter_list_rounded,
-                  color: Colors.white,
-                ),
-                tooltip: 'Lọc theo thời gian',
-              ),
-              Positioned(
-                right: 6,
-                top: 6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.orange,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _getFilterLabel(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: AppTextStyles.overlineSize,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+          IconButton(
+            onPressed: _showFilterSheet,
+            icon: Badge(
+              label: Text(
+                _getFilterLabel(),
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ],
+              backgroundColor: Colors.orange,
+              child: const Icon(
+                Icons.filter_list_rounded,
+                size: 20,
+                color: AppBarAccents.finance,
+              ),
+            ),
+            tooltip: 'Lọc theo thời gian',
+            splashRadius: 18,
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                onPressed: _isSyncing ? null : _syncWithFirebase,
-                icon: Icon(
-                  _isSyncing ? Icons.sync : Icons.sync_outlined,
-                  color: _isSyncing ? Colors.orange : Colors.white,
-                ),
-                tooltip: 'Đồng bộ với Firebase',
-              ),
-            ],
+          IconButton(
+            onPressed: _isSyncing ? null : _syncWithFirebase,
+            icon: Icon(
+              _isSyncing ? Icons.sync : Icons.sync_outlined,
+              size: 20,
+              color: _isSyncing ? Colors.orange : AppBarAccents.finance,
+            ),
+            tooltip: 'Đồng bộ với Firebase',
+            splashRadius: 18,
           ),
         ],
       ),
@@ -846,7 +803,7 @@ class _RevenueViewState extends State<RevenueView>
                           _todayClosing!['isLocked'] == true)
                   ? Colors.green.shade100
                   : Colors.orange.shade100,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -2634,7 +2591,7 @@ class _RevenueViewState extends State<RevenueView>
                 ),
                 decoration: BoxDecoration(
                   color: Colors.purple.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   "${NumberFormat('#,###').format(totalReceivables)} đ",
@@ -2721,7 +2678,7 @@ class _RevenueViewState extends State<RevenueView>
     final total = salesIncome + repairsIncome + expenses + cost;
     if (total == 0) {
       return Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.grey.shade100,
           borderRadius: BorderRadius.circular(16),
@@ -3056,7 +3013,7 @@ class _RevenueViewState extends State<RevenueView>
   );
   Widget _mainProfitCard(int p, String periodLabel) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       gradient: LinearGradient(
         colors: p >= 0

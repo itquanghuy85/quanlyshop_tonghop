@@ -698,8 +698,8 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                 initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Loại sản phẩm'),
                 items: [
-                  DropdownMenuItem(value: 'DIEN_THOAI', child: Text(_terms.category1)),
-                  DropdownMenuItem(value: 'PHỤ KIỆN', child: Text('${_terms.category2}/${_terms.category3}')),
+                  DropdownMenuItem(value: 'DIEN_THOAI', child: Text('Điện thoại')),
+                  DropdownMenuItem(value: 'PHỤ KIỆN', child: Text('Phụ kiện/Linh kiện')),
                 ],
                 onChanged: (val) => setState(() => _type = val!),
                 validator: (val) => val == null ? 'Vui lòng chọn loại' : null,

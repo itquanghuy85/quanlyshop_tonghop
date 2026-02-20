@@ -94,7 +94,7 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
             'Thêm danh mục để phân loại sản phẩm',
             style: TextStyle(color: Colors.grey.shade500),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 10),
           ElevatedButton.icon(
             onPressed: () => _showAddEditDialog(),
             icon: const Icon(Icons.add),
@@ -385,7 +385,7 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
                 ),
               )).toList(),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 10),
           ],
         ),
       ),

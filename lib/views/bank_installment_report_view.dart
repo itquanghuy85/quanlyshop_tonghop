@@ -12,7 +12,8 @@ import 'sale_detail_view.dart';
 /// - Lọc theo thời gian (ngày, tuần, tháng, tùy chọn)
 /// - Hiển thị tổng tiền, đã nhận, chờ nhận
 class BankInstallmentReportView extends StatefulWidget {
-  const BankInstallmentReportView({super.key});
+  final bool embedded;
+  const BankInstallmentReportView({super.key, this.embedded = false});
 
   @override
   State<BankInstallmentReportView> createState() => _BankInstallmentReportViewState();
@@ -221,7 +222,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
 
   Future<void> _selectDateRange() async {
     final initialRange = DateTimeRange(
-      start: _customStartDate ?? DateTime.now().subtract(const Duration(days: 30)),
+      start: _customStartDate ?? DateTime.now(),
       end: _customEndDate ?? DateTime.now(),
     );
     
@@ -248,6 +249,22 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
     final totals = _calculateTotals(filteredSales);
     final byBank = _calculateByBank(filteredSales);
     
+    final body = _loading
+        ? const Center(child: CircularProgressIndicator())
+        : Column(
+            children: [
+              _buildFilters(),
+              _buildSummaryCards(totals),
+              Expanded(
+                child: _selectedBank == 'all'
+                    ? _buildBankBreakdown(byBank)
+                    : _buildSalesList(filteredSales),
+              ),
+            ],
+          );
+
+    if (widget.embedded) return body;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
       appBar: AppBar(
@@ -275,24 +292,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Filters
-                _buildFilters(),
-                
-                // Summary Cards
-                _buildSummaryCards(totals),
-                
-                // Content
-                Expanded(
-                  child: _selectedBank == 'all'
-                      ? _buildBankBreakdown(byBank)
-                      : _buildSalesList(filteredSales),
-                ),
-              ],
-            ),
+      body: body,
     );
   }
 

@@ -69,7 +69,7 @@ class _SplashViewState extends State<SplashView> {
           children: [
             // LOGO APP (Bạn có thể thay bằng Image.asset nếu có file ảnh)
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFF2962FF).withAlpha(25),
                 shape: BoxShape.circle,

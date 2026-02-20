@@ -16,7 +16,8 @@ import '../l10n/app_localizations.dart';
 /// - Công nợ (thu/chi)
 /// - Thanh toán nợ
 class FinancialReportView extends StatefulWidget {
-  const FinancialReportView({super.key});
+  final bool embedded;
+  const FinancialReportView({super.key, this.embedded = false});
 
   @override
   State<FinancialReportView> createState() => _FinancialReportViewState();
@@ -59,7 +60,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
   bool _loading = true;
 
   // Filters
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
+  DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
   final Set<String> _selectedTypes = {};
   bool _showIncomeOnly = false;
@@ -170,14 +171,14 @@ class _FinancialReportViewState extends State<FinancialReportView>
           // Tính số tiền THỰC NHẬN (không tính công nợ)
           // - Nếu trả góp: downPayment + settlementAmount (tiền từ NH)
           // - Nếu CÔNG NỢ: 0đ (chưa nhận tiền)
-          // - Nếu tiền mặt/CK: toàn bộ totalPrice
+          // - Nếu tiền mặt/CK: toàn bộ finalPrice (sau giảm giá)
           final int actualPaid;
           if (sale.isInstallment) {
             actualPaid = sale.downPayment + sale.settlementAmount;
           } else if (isCongNo) {
             actualPaid = 0; // Công nợ - chưa nhận tiền
           } else {
-            actualPaid = sale.totalPrice;
+            actualPaid = sale.finalPrice;
           }
 
           // Chỉ ghi nhận THU khi thực sự nhận được tiền
@@ -367,8 +368,86 @@ class _FinancialReportViewState extends State<FinancialReportView>
     }).toList();
   }
 
+  /// Compact filter chip for embedded mode
+  Widget _directionChip(String label, int index) {
+    final isSelected = (index == 0 && !_showIncomeOnly && !_showExpenseOnly) ||
+        (index == 1 && _showIncomeOnly) ||
+        (index == 2 && _showExpenseOnly);
+    return ChoiceChip(
+      label: Text(label, style: TextStyle(fontSize: AppTextStyles.caption.fontSize)),
+      selected: isSelected,
+      onSelected: (_) {
+        setState(() {
+          _showIncomeOnly = index == 1;
+          _showExpenseOnly = index == 2;
+        });
+        _loadData();
+      },
+      selectedColor: const Color(0xFF6A1B9A),
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.grey.shade700,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bodyContent = _loading
+        ? const Expanded(child: Center(child: CircularProgressIndicator()))
+        : Expanded(
+            child: Column(
+              children: [
+                _buildSummaryCard(),
+                _buildDateRangeBar(),
+                _buildQuickFilters(),
+                Expanded(child: _buildTransactionList()),
+              ],
+            ),
+          );
+
+    if (widget.embedded) {
+      return Column(
+        children: [
+          // Compact filter row: chips + action buttons
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            color: Colors.white,
+            child: Row(
+              children: [
+                _directionChip(AppLocalizations.of(context)?.all ?? 'Tất cả', 0),
+                const SizedBox(width: 4),
+                _directionChip(AppLocalizations.of(context)?.income ?? 'Thu', 1),
+                const SizedBox(width: 4),
+                _directionChip(AppLocalizations.of(context)?.expense ?? 'Chi', 2),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.filter_list, size: 20),
+                  onPressed: _showFilterDialog,
+                  tooltip: 'Bộ lọc',
+                  splashRadius: 18,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, size: 20),
+                  onPressed: _loadData,
+                  tooltip: 'Làm mới',
+                  splashRadius: 18,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                ),
+              ],
+            ),
+          ),
+          bodyContent,
+        ],
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -435,8 +514,8 @@ class _FinancialReportViewState extends State<FinancialReportView>
   Widget _buildSummaryCard() {
     final net = _totalIncome - _totalExpense;
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: net >= 0
@@ -445,46 +524,56 @@ class _FinancialReportViewState extends State<FinancialReportView>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: (net >= 0 ? Colors.green : Colors.red).withValues(
               alpha: 0.3,
             ),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _summaryItem('Thu vào', _totalIncome, Icons.arrow_downward),
-              Container(width: 1, height: 40, color: Colors.white30),
-              _summaryItem('Chi ra', _totalExpense, Icons.arrow_upward),
-            ],
-          ),
-          const Divider(color: Colors.white30, height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                net >= 0 ? Icons.trending_up : Icons.trending_down,
-                color: Colors.white,
-                size: 28,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Lợi nhuận: ${MoneyUtils.formatCurrency(net)}',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: AppTextStyles.headline2.fontSize,
-                  fontWeight: FontWeight.bold,
+          Expanded(child: _summaryItem('Thu', _totalIncome, Icons.arrow_downward)),
+          Container(width: 1, height: 36, color: Colors.white30),
+          Expanded(child: _summaryItem('Chi', _totalExpense, Icons.arrow_upward)),
+          Container(width: 1, height: 36, color: Colors.white30),
+          Expanded(
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      net >= 0 ? Icons.trending_up : Icons.trending_down,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Lãi',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  MoneyUtils.formatCurrency(net),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: AppTextStyles.body1.fontSize,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -495,9 +584,11 @@ class _FinancialReportViewState extends State<FinancialReportView>
     return Column(
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.white, size: 16),
-            const SizedBox(width: 4),
+            Icon(icon, color: Colors.white, size: 14),
+            const SizedBox(width: 3),
             Text(
               label,
               style: TextStyle(
@@ -507,12 +598,12 @@ class _FinancialReportViewState extends State<FinancialReportView>
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           MoneyUtils.formatCurrency(amount),
           style: TextStyle(
             color: Colors.white,
-            fontSize: AppTextStyles.headline3.fontSize,
+            fontSize: AppTextStyles.body1.fontSize,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -523,21 +614,21 @@ class _FinancialReportViewState extends State<FinancialReportView>
   Widget _buildDateRangeBar() {
     final df = DateFormat('dd/MM/yyyy');
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 12),
       child: InkWell(
         onTap: _selectDateRange,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
-              const Icon(Icons.date_range, color: AppColors.primary),
-              const SizedBox(width: 12),
+              const Icon(Icons.date_range, color: AppColors.primary, size: 18),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '${df.format(_startDate)} - ${df.format(_endDate)}',
@@ -556,11 +647,11 @@ class _FinancialReportViewState extends State<FinancialReportView>
 
   Widget _buildQuickFilters() {
     return Container(
-      height: 50,
-      margin: const EdgeInsets.symmetric(vertical: 12),
+      height: 40,
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         children: [
           _filterChip('Tất cả', null, _selectedTypes.isEmpty),
           ..._typeFilters.map(
@@ -1008,7 +1099,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1119,7 +1210,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) => Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

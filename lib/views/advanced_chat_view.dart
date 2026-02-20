@@ -265,7 +265,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(12),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -808,7 +808,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               height: 40,
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: TextField(
                 autofocus: true,
@@ -1432,7 +1432,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
           message.message,

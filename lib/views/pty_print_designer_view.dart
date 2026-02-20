@@ -851,7 +851,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1176,7 +1176,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: colorScheme.secondaryContainer.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

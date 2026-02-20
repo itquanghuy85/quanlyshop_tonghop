@@ -4627,6 +4627,54 @@ class DBHelper {
     });
   }
 
+  /// Xóa dữ liệu local theo shopId cụ thể
+  /// Dùng khi xóa shop mà không muốn ảnh hưởng data shop khác
+  Future<void> deleteDataByShopId(String shopId) async {
+    final db = await database;
+    
+    // Chỉ các bảng CÓ cột shopId trong schema (đã kiểm tra CREATE TABLE)
+    // repairs, sales, purchase_orders, cash_closings KHÔNG có cột shopId
+    final tablesWithShopId = [
+      'products',
+      'customers',
+      'suppliers',
+      'expenses',
+      'debts',
+      'attendance',
+      'audit_logs',
+      'work_schedules',
+      'debt_payments',
+      'quick_input_codes',
+      'repair_parts',
+      'supplier_payments',
+      'repair_partner_payments',
+      'repair_partners',
+      'partner_repair_history',
+      'supplier_product_prices',
+      'supplier_import_history',
+    ];
+    
+    await db.transaction((txn) async {
+      for (var table in tablesWithShopId) {
+        try {
+          final count = await txn.delete(
+            table,
+            where: 'shopId = ?',
+            whereArgs: [shopId],
+          );
+          if (count > 0) {
+            debugPrint('deleteDataByShopId: Deleted $count rows from $table');
+          }
+        } catch (e) {
+          // Table may not have shopId column or not exist
+          debugPrint('deleteDataByShopId: $table error: $e');
+        }
+      }
+    });
+    
+    debugPrint('deleteDataByShopId: Completed for shop $shopId');
+  }
+
   // --- LỊCH SỬ TRẢ NỢ ---
   Future<void> upsertDebtPayment(Map<String, dynamic> p) async {
     final firestoreId = p['firestoreId'] ?? "debt_payment_${p['paidAt']}";

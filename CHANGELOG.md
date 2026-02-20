@@ -4,50 +4,35 @@ Tất cả thay đổi đáng chú ý của dự án sẽ được ghi lại tro
 
 ---
 
-## [10.0.6] - 2026-02-08
+## [10.0.8] - 2026-02-11
 
-### ✨ Tính năng mới
+### Sửa lỗi & Tối ưu
+- Sửa tràn bottom overflow tab Nhật ký tài chính (embedded mode)
+- Giới hạn loại hình kinh doanh tạo chi nhánh: chỉ Điện tử & Thời trang
+- Đổi mặc định khoảng thời gian từ 30 ngày sang hôm nay (Báo cáo, Nhật ký, Trả góp)
+- Sửa 30+ lỗi biên dịch: thiếu khóa đa ngữ, validatePhone, biến sai phạm vi
+- Dọn code thừa, xóa import không dùng
 
-#### 1. Hoa hồng theo bậc (Tiered Commission)
-- Thêm loại hoa hồng mới "Theo bậc" cho nhân viên bán hàng
-- Cấu hình 3 bậc dựa trên giá trị đơn hàng:
-  - Bậc 1: Đơn hàng dưới 10 triệu → 20,000đ/đơn
-  - Bậc 2: Đơn hàng 10-50 triệu → 50,000đ/đơn
-  - Bậc 3: Đơn hàng trên 50 triệu → 100,000đ/đơn
-- Hỗ trợ cài đặt riêng cho từng nhân viên hoặc mặc định toàn shop
+### Tối ưu giao diện Tài chính
+- Tạo FinancialHubView gộp 4 tab: Báo cáo, Chi phí, Trả góp, Nhật ký
+- Thêm chế độ embedded cho 4 view tài chính
+- Gộp menu tài chính trang chủ: 10 mục giảm còn 6
+- Xóa 2 view mồ côi (transaction_detail, financial_reconciliation)
 
-#### 2. Đơn sửa chữa linh hoạt
-- Cho phép tạo đơn sửa chữa mà không cần nhập SĐT khách ngay
-- Yêu cầu cập nhật thông tin khách hàng trước khi giao máy
-- Hiển thị dialog nhắc nhở khi chốt đơn chưa có thông tin khách
+---
 
-#### 3. Đa ngữ cải tiến
-- Sửa lỗi các tab trang chủ không chuyển ngôn ngữ khi đổi VI↔EN
-- Tab "TRANG CHỦ", "BÁN", "KHO"... giờ hiển thị đúng ngôn ngữ đã chọn
+## [10.0.7] - 2026-02-08
 
-### 🐛 Sửa lỗi
+### Tính năng mới
+- Hoa hồng theo bậc (3 bậc dựa trên giá trị đơn hàng)
+- Đơn sửa chữa không cần SĐT khách ngay (nhắc khi giao máy)
+- Sửa lỗi tab trang chủ không chuyển ngôn ngữ VI/EN
 
-#### Tính lương & Hoa hồng
-- Sửa lỗi tính hoa hồng theo bậc với giá trị đơn hàng thực tế
-- Sửa lỗi số ngày nghỉ (absentDays) âm khi NV làm nhiều hơn ngày chuẩn
-- Tính ngày làm việc theo cấu hình workDays của nhân viên (T2-CN tùy chọn)
-
-#### Tab Lịch làm việc (Trung tâm hoạt động)
-- Sửa lỗi tab "LỊCH LÀM VIỆC" hiển thị trắng (BoxConstraints infinite width)
-- Đơn giản hóa layout để tương thích tốt hơn
-
-#### Real-time Sync
-- Thêm sync cho `work_schedules` và `employee_salary_settings`
-- Cập nhật cài đặt lương đồng bộ giữa các thiết bị
-
-### 📚 Tài liệu
-- Thêm `MULTI_INDUSTRY_EXPANSION_GUIDE.md` - Hướng dẫn mở rộng đa ngành
-- Cập nhật `DEVELOPER_ONBOARDING.md` với link tài liệu mới
-- Cập nhật `copilot-instructions.md` với hướng dẫn mở rộng
-
-### 🧪 Tests
+### Sửa lỗi
+- Sửa tính hoa hồng theo bậc, ngày nghỉ âm, ngày làm việc theo cấu hình
+- Sửa tab Lịch làm việc trắng (BoxConstraints infinite width)
+- Thêm sync work_schedules và employee_salary_settings
 - Thêm 28 unit tests cho salary và financial logic
-- Test coverage cho tiered commission, attendance, deductions
 
 ---
 

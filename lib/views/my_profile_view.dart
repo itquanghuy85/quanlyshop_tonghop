@@ -109,7 +109,7 @@ class _MyProfileViewState extends State<MyProfileView> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 children: [
                   Row(

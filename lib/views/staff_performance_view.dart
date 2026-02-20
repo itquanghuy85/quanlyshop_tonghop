@@ -62,7 +62,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
         builder: (_) => const Center(
           child: Card(
             child: Padding(
-              padding: EdgeInsets.all(20),
+              padding: EdgeInsets.all(12),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1004,7 +1004,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
         builder: (_) => const Center(
           child: Card(
             child: Padding(
-              padding: EdgeInsets.all(20),
+              padding: EdgeInsets.all(12),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1064,7 +1064,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
         builder: (_) => const Center(
           child: Card(
             child: Padding(
-              padding: EdgeInsets.all(20),
+              padding: EdgeInsets.all(12),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

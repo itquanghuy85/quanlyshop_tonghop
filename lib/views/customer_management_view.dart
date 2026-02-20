@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/global_search_bar.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/vietnamese_utils.dart';
 
 class CustomerManagementView extends StatefulWidget {
   const CustomerManagementView({super.key});
@@ -62,7 +63,7 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
         _filteredCustomers = _customers;
       } else {
         _filteredCustomers = _customers.where((customer) {
-          return customer.name.toLowerCase().contains(query.toLowerCase()) ||
+          return VietnameseUtils.containsVietnamese(customer.name, query) ||
                  customer.phone.contains(query);
         }).toList();
       }
@@ -251,7 +252,7 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
                               size: 64,
                               color: Colors.grey.shade400,
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 8),
                             Text(
                               _searchQuery.isEmpty
                                   ? AppLocalizations.of(context)!.noCustomersYet
@@ -299,7 +300,7 @@ class CustomerListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: AppColors.primary.withOpacity(0.1),
@@ -466,7 +467,7 @@ class _CustomerFormDialogState extends State<CustomerFormDialog> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _phoneController,
                 decoration: const InputDecoration(
@@ -481,7 +482,7 @@ class _CustomerFormDialogState extends State<CustomerFormDialog> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
@@ -490,7 +491,7 @@ class _CustomerFormDialogState extends State<CustomerFormDialog> {
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _addressController,
                 decoration: const InputDecoration(
@@ -499,7 +500,7 @@ class _CustomerFormDialogState extends State<CustomerFormDialog> {
                 ),
                 maxLines: 2,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _notesController,
                 decoration: const InputDecoration(
@@ -634,7 +635,7 @@ class CustomerHistoryDialog extends StatelessWidget {
               ],
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
 
             // History list
             Expanded(
@@ -648,7 +649,7 @@ class CustomerHistoryDialog extends StatelessWidget {
                             size: 48,
                             color: Colors.grey.shade400,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
                           Text(
                             'Chưa có lịch sử',
                             style: AppTextStyles.body1.copyWith(

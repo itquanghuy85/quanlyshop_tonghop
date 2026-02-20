@@ -451,7 +451,7 @@ class _HelpCenterViewState extends State<HelpCenterView> {
           builder: (context, scrollController) {
             return SingleChildScrollView(
               controller: scrollController,
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

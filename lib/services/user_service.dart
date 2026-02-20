@@ -521,9 +521,37 @@ class UserService {
           'ownerUid': uid,
           'ownerEmail': email,
           'name': extra?['shopName'] ?? 'Cửa hàng mới',
+          'businessType': 'electronics', // Default cho shop mới
           'createdAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
         debugPrint('✅ syncUserInfo: Shop document created successfully');
+        
+        // Tạo shop_settings subcollection doc cho shop mới
+        try {
+          final settings = {
+            'shopId': shopId,
+            'businessType': 'electronics',
+            'businessTypeName': 'Điện thoại & Điện tử',
+            'enableRepair': true,
+            'enableSerial': true,
+            'enableWarranty': true,
+            'enableExpiry': false,
+            'enableVariants': false,
+            'enableBatch': false,
+            'defaultUnit': 'cái',
+            'expiryWarningDays': 7,
+            'lowStockWarning': 5,
+            'createdAt': DateTime.now().toIso8601String(),
+            'updatedAt': DateTime.now().toIso8601String(),
+          };
+          await _db.collection('shops').doc(shopId)
+              .collection('settings').doc('shop_settings')
+              .set(settings);
+          debugPrint('✅ syncUserInfo: shop_settings created for new shop');
+        } catch (e) {
+          debugPrint('⚠️ syncUserInfo: Failed to create shop_settings: $e');
+          // Non-critical, CategoryService will auto-create from shop doc businessType
+        }
       } catch (e) {
         debugPrint('❌ syncUserInfo: Failed to create shop: $e');
         rethrow; // Không tiếp tục nếu không tạo được shop

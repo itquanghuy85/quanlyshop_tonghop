@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../data/db_helper.dart';
 import '../constants/product_constants.dart';
+import '../utils/vietnamese_utils.dart';
 import '../models/product_model.dart';
 import '../models/inventory_check_model.dart';
 import '../models/payment_intent_model.dart';
@@ -360,7 +361,7 @@ class _InventoryViewState extends State<InventoryView>
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1923,7 +1924,7 @@ class _InventoryViewState extends State<InventoryView>
     var filteredList = _products
         .where(
           (p) =>
-              p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              VietnameseUtils.containsVietnamese(p.name, _searchQuery) ||
               (p.imei ?? "").contains(_searchQuery),
         )
         .toList();
@@ -2551,12 +2552,12 @@ class _InventoryViewState extends State<InventoryView>
           });
         }
       },
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? color.withOpacity(0.15) : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? color : Colors.grey.shade300,
             width: isSelected ? 2 : 1,
@@ -2603,14 +2604,14 @@ class _InventoryViewState extends State<InventoryView>
 
     return InkWell(
       onTap: () => setState(() => _showOnlyPending = !_showOnlyPending),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
               ? Colors.orange.withOpacity(0.15)
               : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? Colors.orange : Colors.grey.shade300,
             width: isSelected ? 2 : 1,

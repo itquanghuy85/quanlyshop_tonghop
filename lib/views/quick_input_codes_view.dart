@@ -532,7 +532,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
       selectedColor: color,
       checkmarkColor: Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: color.withOpacity(0.3)),
       ),
     );
@@ -1118,7 +1118,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
     final isEditing = widget.code != null;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
         width: MediaQuery.of(context).size.width * 0.9,
         constraints: BoxConstraints(
@@ -1129,7 +1129,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.blue.shade700,
                 borderRadius: const BorderRadius.only(
@@ -1164,7 +1164,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
             // Form
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(12),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -1346,7 +1346,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                                   color: isSelected
                                       ? color.withOpacity(0.2)
                                       : Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isSelected
                                         ? color
@@ -1624,7 +1624,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
 
             // Buttons
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
                 borderRadius: const BorderRadius.only(

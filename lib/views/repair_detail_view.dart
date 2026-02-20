@@ -216,7 +216,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         )
                         .toList(),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
                   Text(
                     dialogLoc.selectPaymentMethod,
                     style: AppTextStyles.caption.copyWith(
@@ -502,7 +502,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   /// Nhân viên submit đơn chờ duyệt giao (pendingDeliveryApproval = true)
   Future<void> _submitForDeliveryApproval() async {
     // Kiểm tra thông tin khách hàng trước khi giao máy
-    if (r.phone.isEmpty || r.customerName.isEmpty || r.customerName == 'KHÁCH VÃNG LAI') {
+    // Khách vãng lai (isWalkIn) được phép giao mà không cần thông tin đầy đủ
+    if (!r.isWalkIn && (r.phone.isEmpty || r.customerName.isEmpty)) {
       final shouldEdit = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -591,7 +592,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       )
                       .toList(),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
                 Text(
                   dialogLoc.selectPaymentMethod,
                   style: AppTextStyles.caption.copyWith(
@@ -716,7 +717,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   /// Quản lý duyệt đơn giao máy (pendingDeliveryApproval -> status 4)
   Future<void> _approveDelivery() async {
     // Kiểm tra thông tin khách hàng trước khi giao máy
-    if (r.phone.isEmpty || r.customerName.isEmpty || r.customerName == 'KHÁCH VÃNG LAI') {
+    // Khách vãng lai (isWalkIn) được phép giao mà không cần thông tin đầy đủ
+    if (!r.isWalkIn && (r.phone.isEmpty || r.customerName.isEmpty)) {
       final shouldEdit = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -1599,10 +1601,16 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 ),
                 TextFormField(
                   controller: phoneC,
-                  decoration: InputDecoration(labelText: dialogLoc.phoneLabel),
+                  decoration: InputDecoration(
+                    labelText: r.isWalkIn
+                        ? '${dialogLoc.phoneLabel} (không bắt buộc)'
+                        : dialogLoc.phoneLabel,
+                  ),
                   keyboardType: TextInputType.phone,
                   validator: (v) {
                     final text = v?.trim() ?? '';
+                    // Khách vãng lai không bắt buộc nhập SĐT
+                    if (r.isWalkIn && text.isEmpty) return null;
                     if (text.isEmpty) return dialogLoc.phoneRequired2;
                     final err = UserService.validatePhone(text, dialogLoc);
                     return err;
@@ -2108,7 +2116,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               ),
             ),
 
-            const SizedBox(height: 60),
+            const SizedBox(height: 10),
           ],
         ),
       ),
@@ -2341,10 +2349,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
@@ -2819,10 +2827,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Widget _buildFinancialSummary() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
@@ -2948,10 +2956,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Widget _buildServicesSection() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3493,10 +3501,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Widget _buildCustomerCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [

@@ -75,19 +75,37 @@ class CategoryService {
       debugPrint('Error getting shop settings from Firestore: $e');
     }
 
+    // Fallback: Kiểm tra shop doc có chứa businessType không
+    // (Shop tạo qua _createNewShop lưu businessType vào shop doc)
+    try {
+      final shopDoc = await _firestore.collection('shops').doc(shopId).get();
+      if (shopDoc.exists) {
+        final shopData = shopDoc.data();
+        final businessType = shopData?['businessType'] as String?;
+        if (businessType != null && businessType.isNotEmpty) {
+          debugPrint('📦 CategoryService: Found businessType=$businessType in shop doc, auto-creating settings');
+          final settings = ShopSettings.fromBusinessType(businessType, shopId);
+          await saveShopSettings(settings);
+          _cachedSettings = settings;
+          return _cachedSettings;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error reading shop doc for businessType: $e');
+    }
+
     // Check if shop has existing data (products, repairs) → existing shop → auto-create electronics
     // New shop without data → return null to show wizard
     try {
+      // Query top-level collections with shopId filter (NOT subcollections)
       final productsDoc = await _firestore
-          .collection('shops')
-          .doc(shopId)
           .collection('products')
+          .where('shopId', isEqualTo: shopId)
           .limit(1)
           .get();
       final repairsDoc = await _firestore
-          .collection('shops')
-          .doc(shopId)
           .collection('repairs')
+          .where('shopId', isEqualTo: shopId)
           .limit(1)
           .get();
       

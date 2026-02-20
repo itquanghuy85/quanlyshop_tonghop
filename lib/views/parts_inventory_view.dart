@@ -414,7 +414,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               height: 40,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4),
                 ],
@@ -805,7 +805,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         expand: false,
         builder: (_, scrollController) => SingleChildScrollView(
           controller: scrollController,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -850,7 +850,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
               // Stats
               Container(
                 padding: const EdgeInsets.all(16),
@@ -880,7 +880,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
               // Actions
               Row(
                 children: [

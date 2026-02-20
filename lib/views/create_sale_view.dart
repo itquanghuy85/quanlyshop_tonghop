@@ -36,6 +36,7 @@ import '../theme/app_button_styles.dart';
 import 'smart_stock_in_view.dart';
 import 'supplier_list_view.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/vietnamese_utils.dart';
 
 class CreateSaleView extends StatefulWidget {
   final Product? preSelectedProduct;
@@ -196,15 +197,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     debugPrint("_selectCustomer: bắt đầu chọn khách hàng");
     final customerService = CustomerService();
 
-    // Sync customers from cloud first (ignore errors)
-    debugPrint("_selectCustomer: bắt đầu sync từ cloud");
-    try {
-      await SyncService.syncCustomersFromCloud();
-      debugPrint("_selectCustomer: đã sync xong từ cloud");
-    } catch (e) {
-      debugPrint("_selectCustomer: lỗi sync từ cloud (ignored): $e");
-    }
-
+    // Load local data first (fast) - don't block on cloud sync
     List<Customer> customers = [];
     try {
       customers = await customerService.getCustomers();
@@ -239,6 +232,11 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     }
 
     if (!mounted) return;
+
+    // Fire-and-forget cloud sync for next time
+    SyncService.syncCustomersFromCloud().catchError((e) {
+      debugPrint("_selectCustomer: background sync error (ignored): $e");
+    });
 
     final selectedCustomer = await showDialog<Customer>(
       context: context,
@@ -453,6 +451,24 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     _calculateInstallment();
   }
 
+  /// Build gifts string for SaleOrder.gifts field
+  String? _buildGiftsString() {
+    final giftItems = <String>[];
+    for (final item in _selectedItems) {
+      final product = item['product'] as Product;
+      final isGift = item['isGift'] as bool? ?? false;
+      final originalPrice = item['originalPrice'] as int? ?? product.price;
+      final sellPrice = item['sellPrice'] as int? ?? originalPrice;
+      final isDiscounted = !isGift && sellPrice < originalPrice;
+      if (isGift) {
+        giftItems.add('${product.name} (Tặng)');
+      } else if (isDiscounted) {
+        giftItems.add('${product.name} (Giảm ${MoneyUtils.formatCurrency(originalPrice - sellPrice)})');
+      }
+    }
+    return giftItems.isNotEmpty ? giftItems.join(', ').toUpperCase() : null;
+  }
+
   /// Tính số tiền khách thực trả (sau giảm giá)
   int get _finalPrice {
     int total = _parseCurrency(priceCtrl.text);
@@ -492,6 +508,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         'product': p,
         'isGift': false,
         'sellPrice': p.price,
+        'originalPrice': p.price,
         'quantity': 1,
         'imei': p.imei ?? '',
       });
@@ -566,12 +583,14 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     final imeiController = TextEditingController(text: p.imei ?? '');
     final imeiFocusNode = FocusNode();
 
+    final itemPrice = selectedVariant?.salePrice ?? p.price;
     setState(() {
       _selectedItems.add({
         'product': p,
         'variant': selectedVariant,  // null for non-variant products
         'isGift': false,
-        'sellPrice': selectedVariant?.salePrice ?? p.price,
+        'sellPrice': itemPrice,
+        'originalPrice': itemPrice,
         'quantity': 1,
         'imei': p.imei ?? '',
         // Store variant display name for UI
@@ -803,9 +822,20 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             ? normalizedPhone
             : null,
         address: addressCtrl.text.trim().toUpperCase(),
-        productNames: _selectedItems
-            .map((e) => "${(e['product'] as Product).name} x${e['quantity']}")
-            .join(', '),
+        productNames: _selectedItems.map((e) {
+              final name = (e['product'] as Product).name;
+              final qty = e['quantity'] as int;
+              final isGift = e['isGift'] as bool? ?? false;
+              final origPrice = e['originalPrice'] as int? ?? 0;
+              final curPrice = e['sellPrice'] as int? ?? origPrice;
+              final isDisc = !isGift && curPrice < origPrice;
+              if (isGift) {
+                return "$name x$qty (Tặng)";
+              } else if (isDisc) {
+                return "$name x$qty (Giảm ${MoneyUtils.formatCurrency(origPrice - curPrice)})";
+              }
+              return "$name x$qty";
+            }).join(', '),
         productImeis: _selectedItems
             .map((e) {
               final product = e['product'] as Product;
@@ -843,6 +873,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         loanAmount2: _hasSecondBank ? _parseCurrency(loanAmountCtrl2.text) : 0,
         notes: noteCtrl.text,
         warranty: _saleWarranty,
+        gifts: _buildGiftsString(),
       );
 
       // Validate IMEI trước khi thực hiện transaction
@@ -1427,7 +1458,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               () => _filteredInStock = _allInStock
                                   .where(
                                     (p) =>
-                                        p.name.contains(v.toUpperCase()) ||
+                                        VietnameseUtils.containsVietnamese(p.name, v) ||
                                         (p.imei ?? "").contains(v),
                                   )
                                   .toList(),
@@ -2391,6 +2422,167 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     );
   }
 
+  /// Show bottom sheet for gift/discount options
+  Future<void> _showGiftDiscountSheet(Map<String, dynamic> item) async {
+    final product = item['product'] as Product;
+    final isGift = item['isGift'] as bool;
+    final originalPrice = item['originalPrice'] as int;
+    final sellPrice = item['sellPrice'] as int;
+    final hasPromotion = isGift || sellPrice < originalPrice;
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Ưu đãi: ${product.name}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.card_giftcard, color: Colors.green),
+                title: const Text('Tặng miễn phí (0đ)'),
+                subtitle: const Text('Không tính tiền sản phẩm này'),
+                selected: isGift,
+                onTap: () => Navigator.pop(ctx, 'gift'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.discount, color: Colors.orange),
+                title: const Text('Giảm giá sản phẩm'),
+                subtitle: Text('Giá gốc: ${MoneyUtils.formatCurrency(originalPrice)}'),
+                selected: !isGift && sellPrice < originalPrice && sellPrice > 0,
+                onTap: () => Navigator.pop(ctx, 'discount'),
+              ),
+              if (hasPromotion)
+                ListTile(
+                  leading: const Icon(Icons.undo, color: Colors.grey),
+                  title: const Text('Bỏ ưu đãi'),
+                  subtitle: Text('Khôi phục giá ${MoneyUtils.formatCurrency(originalPrice)}'),
+                  onTap: () => Navigator.pop(ctx, 'reset'),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null) return;
+
+    switch (action) {
+      case 'gift':
+        setState(() {
+          item['isGift'] = true;
+          item['sellPrice'] = 0;
+          _calculateTotal();
+        });
+        break;
+      case 'discount':
+        // Wait for next frame to avoid _dependents.isEmpty assertion
+        await Future.delayed(const Duration(milliseconds: 50));
+        if (!mounted) return;
+        _showDiscountPriceDialog(item);
+        break;
+      case 'reset':
+        setState(() {
+          item['isGift'] = false;
+          item['sellPrice'] = originalPrice;
+          _calculateTotal();
+        });
+        break;
+    }
+  }
+
+  /// Show dialog to enter discounted price
+  Future<void> _showDiscountPriceDialog(Map<String, dynamic> item) async {
+    final originalPrice = item['originalPrice'] as int;
+    final currentPrice = item['sellPrice'] as int;
+    final controller = TextEditingController(
+      text: _formatCurrency(currentPrice > 0 && currentPrice < originalPrice ? currentPrice : originalPrice),
+    );
+
+    final newPrice = await showDialog<int>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Nhập giá ưu đãi'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Giá gốc: ${MoneyUtils.formatCurrency(originalPrice)}',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Giá bán mới',
+                  suffixText: 'đ',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+                onChanged: (value) {
+                  final parsed = _parseCurrency(value);
+                  final formatted = _formatCurrency(parsed);
+                  if (formatted != value) {
+                    controller.value = TextEditingValue(
+                      text: formatted,
+                      selection: TextSelection.collapsed(offset: formatted.length),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('HỦY'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final price = _parseCurrency(controller.text);
+                if (price < 0) {
+                  NotificationService.showSnackBar('Giá không hợp lệ', color: Colors.red);
+                  return;
+                }
+                if (price >= originalPrice) {
+                  NotificationService.showSnackBar(
+                    'Giá ưu đãi phải thấp hơn giá gốc (${MoneyUtils.formatCurrency(originalPrice)})',
+                    color: Colors.orange,
+                  );
+                  return;
+                }
+                Navigator.pop(ctx, price);
+              },
+              child: const Text('XÁC NHẬN'),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+    if (!mounted || newPrice == null) return;
+    setState(() {
+      item['isGift'] = false;
+      item['sellPrice'] = newPrice;
+      _calculateTotal();
+    });
+  }
+
   Widget _buildSelectedItemsList() {
     return Column(
       children: _selectedItems.map((item) {
@@ -2398,8 +2590,13 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         final quantity = item['quantity'] as int? ?? 1;
         final variant = item['variant'] as ProductVariant?;
         final variantName = item['variantName'] as String?;
+        final isGift = item['isGift'] as bool? ?? false;
+        final originalPrice = item['originalPrice'] as int? ?? product.price;
+        final sellPrice = item['sellPrice'] as int? ?? originalPrice;
+        final isDiscounted = !isGift && sellPrice < originalPrice;
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4),
+          color: isGift ? Colors.green.shade50 : (isDiscounted ? Colors.orange.shade50 : null),
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
@@ -2411,9 +2608,42 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            product.name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  product.name,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              if (isGift) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'TẶNG',
+                                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ] else if (isDiscounted) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '-${MoneyUtils.formatCurrency(originalPrice - sellPrice)}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                           // Show variant info if available
                           if (variantName != null) ...[
@@ -2437,6 +2667,14 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                           ],
                         ],
                       ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.card_giftcard,
+                        color: isGift ? Colors.green : (isDiscounted ? Colors.orange : Colors.grey),
+                      ),
+                      tooltip: 'Tặng / Giảm giá',
+                      onPressed: () => _showGiftDiscountSheet(item),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete, color: AppColors.error),
@@ -2467,9 +2705,40 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   ),
                   const SizedBox(height: 4),
                 ],
-                Text(
-                  "Giá bán: ${MoneyUtils.formatCurrency(item['sellPrice'])}",
-                ),
+                if (isGift)
+                  Text(
+                    'Giá gốc: ${MoneyUtils.formatCurrency(originalPrice)} → MIỄN PHÍ',
+                    style: TextStyle(
+                      color: Colors.green.shade700,
+                      decoration: TextDecoration.lineThrough,
+                      decorationColor: Colors.green.shade700,
+                    ),
+                  )
+                else if (isDiscounted)
+                  Row(
+                    children: [
+                      Text(
+                        '${MoneyUtils.formatCurrency(originalPrice)}',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          decoration: TextDecoration.lineThrough,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Giá bán: ${MoneyUtils.formatCurrency(sellPrice)}',
+                        style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    "Giá bán: ${MoneyUtils.formatCurrency(item['sellPrice'])}",
+                  ),
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -2585,7 +2854,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
 
   Widget _buildEmptyStockGuidance() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.symmetric(vertical: 16),
       decoration: BoxDecoration(
         color: AppColors.warning.withOpacity(0.1),
@@ -2671,7 +2940,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
         _filteredCustomers = widget.customers;
       } else {
         _filteredCustomers = widget.customers.where((customer) {
-          return customer.name.toLowerCase().contains(query.toLowerCase()) ||
+          return VietnameseUtils.containsVietnamese(customer.name, query) ||
               customer.phone.contains(query);
         }).toList();
       }

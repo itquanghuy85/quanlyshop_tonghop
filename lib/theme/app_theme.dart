@@ -51,12 +51,12 @@ class AppTheme {
         titleTextStyle: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,
-          fontSize: 16,
+          fontSize: 14,
           letterSpacing: -0.3,
         ),
-        iconTheme: IconThemeData(color: Colors.white, size: 22),
-        actionsIconTheme: IconThemeData(color: Colors.white, size: 22),
-        toolbarHeight: 56,
+        iconTheme: IconThemeData(color: Colors.white, size: 20),
+        actionsIconTheme: IconThemeData(color: Colors.white, size: 20),
+        toolbarHeight: 44,
       ),
 
       // ========== BOTTOM NAVIGATION BAR ==========

@@ -61,9 +61,8 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      final loc = AppLocalizations.of(context)!;
       NotificationService.showSnackBar(
-        loc.imeiListLoadError(e.toString()),
+        'Lỗi tải danh sách IMEI: ${e.toString()}',
         color: Colors.red,
       );
     }
@@ -96,9 +95,8 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
 
   Future<void> _printItems(List<Product> items) async {
     if (items.isEmpty) {
-      final loc = AppLocalizations.of(context)!;
       NotificationService.showSnackBar(
-        loc.noImeiToPrint,
+        'Không có IMEI nào để in',
         color: Colors.orange,
       );
       return;
@@ -124,7 +122,7 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
       paddingLines: _paddingLines,
       qrSize: _qrSize,
       columns: _columns,
-      defaultProductName: loc.defaultProductName,
+      defaultProductName: 'Sản phẩm',
       imeiPrefix: loc.imeiPrefix,
       imeiLabel: loc.imei,
     );
@@ -133,8 +131,8 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
 
     NotificationService.showSnackBar(
       ok
-          ? AppLocalizations.of(context)!.printQrImeiSuccess
-          : AppLocalizations.of(context)!.printQrImeiFail,
+          ? 'In QR IMEI thành công'
+          : 'In QR IMEI thất bại',
       color: ok ? Colors.green : Colors.red,
     );
   }
@@ -145,10 +143,10 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
     final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text(loc.printQrImeiInventory),
+        title: Text('In QR IMEI kho hàng'),
         actions: [
           IconButton(
-            tooltip: loc.designQrLabel,
+            tooltip: 'Thiết kế nhãn QR',
             icon: const Icon(Icons.design_services),
             onPressed: () {
               Navigator.push(
@@ -174,7 +172,7 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
                     controller: _searchCtrl,
                     onChanged: _applySearch,
                     decoration: InputDecoration(
-                      hintText: loc.searchImeiNameModel,
+                      hintText: 'Tìm IMEI, tên, model...',
                       prefixIcon: const Icon(Icons.search),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -188,7 +186,7 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
                     children: [
                       Expanded(
                         child: Text(
-                          loc.imeiTotalCount(_filteredItems.length),
+                          'Tổng: ${_filteredItems.length} IMEI',
                           style: AppTextStyles.body2,
                         ),
                       ),
@@ -212,7 +210,7 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            loc.labelCustomization,
+                            'Tùy chỉnh nhãn',
                             style: AppTextStyles.subtitle1.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -220,26 +218,26 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              Text(loc.qrSize),
+                              Text('Kích thước QR'),
                               const SizedBox(width: 12),
                               DropdownButton<String>(
                                 value: _qrSize,
                                 items: [
                                   DropdownMenuItem(
                                     value: 'xsmall',
-                                    child: Text(loc.qrSizeXSmall),
+                                    child: Text('Rất nhỏ'),
                                   ),
                                   DropdownMenuItem(
                                     value: 'small',
-                                    child: Text(loc.qrSizeSmall),
+                                    child: Text('Nhỏ'),
                                   ),
                                   DropdownMenuItem(
                                     value: 'medium',
-                                    child: Text(loc.qrSizeMedium),
+                                    child: Text('Vừa'),
                                   ),
                                   DropdownMenuItem(
                                     value: 'large',
-                                    child: Text(loc.qrSizeLarge),
+                                    child: Text('Lớn'),
                                   ),
                                 ],
                                 onChanged: (v) {
@@ -248,7 +246,7 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
                                 },
                               ),
                               const SizedBox(width: 12),
-                              Text(loc.columns),
+                              Text('Cột'),
                               const SizedBox(width: 8),
                               DropdownButton<int>(
                                 value: _columns,
@@ -276,7 +274,7 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
                                 },
                               ),
                               const Spacer(),
-                              Text('${loc.padding}: $_paddingLines'),
+                              Text('Khoảng cách: $_paddingLines'),
                             ],
                           ),
                           Slider(
@@ -298,7 +296,7 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
                                     setState(() => _showName = v),
                               ),
                               FilterChip(
-                                label: Text(loc.modelDetail),
+                                label: Text('Model/Chi tiết'),
                                 selected: _showDetail,
                                 onSelected: (v) =>
                                     setState(() => _showDetail = v),
@@ -356,7 +354,7 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
                                 ? null
                                 : () => _printItems(_filteredItems),
                             icon: const Icon(Icons.print),
-                            label: Text(loc.printAll),
+                            label: Text('In tất cả'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue,
                               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -378,7 +376,7 @@ class _ImeiQrPrintViewState extends State<ImeiQrPrintView> {
                                   },
                             icon: const Icon(Icons.check_circle),
                             label: Text(
-                              '${loc.printSelected} (${selectedCount})',
+                              'In đã chọn (${selectedCount})',
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green,

@@ -12,6 +12,7 @@ import '../models/shop_settings_model.dart';
 import '../services/event_bus.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
+import '../utils/vietnamese_utils.dart';
 import '../widgets/gradient_fab.dart';
 import 'repair_detail_view.dart';
 import 'create_repair_order_view.dart';
@@ -209,10 +210,11 @@ class OrderListViewState extends State<OrderListView> {
         : filtered
             .where(
               (r) =>
-                  r.customerName.toLowerCase().contains(val.toLowerCase()) ||
+                  VietnameseUtils.containsVietnamese(r.customerName, val) ||
                   r.phone.contains(val) ||
-                  r.model.toLowerCase().contains(val.toLowerCase()) ||
-                  r.issue.toLowerCase().contains(val.toLowerCase()),
+                  VietnameseUtils.containsVietnamese(r.model, val) ||
+                  VietnameseUtils.containsVietnamese(r.issue, val) ||
+                  (r.notes != null && VietnameseUtils.containsVietnamese(r.notes!, val)),
             )
             .toList();
 
@@ -315,7 +317,7 @@ class OrderListViewState extends State<OrderListView> {
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,7 +376,7 @@ class OrderListViewState extends State<OrderListView> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
               // TIME FILTER
               Text(
@@ -425,7 +427,7 @@ class OrderListViewState extends State<OrderListView> {
                         color: _timeFilter == 'custom'
                             ? const Color(0xFF2962FF)
                             : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: _timeFilter == 'custom'
                               ? const Color(0xFF2962FF)
@@ -473,7 +475,7 @@ class OrderListViewState extends State<OrderListView> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -536,7 +538,7 @@ class OrderListViewState extends State<OrderListView> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? color : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: isSelected ? color : Colors.grey.shade300),
         ),
         child: Row(
@@ -576,7 +578,7 @@ class OrderListViewState extends State<OrderListView> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? color : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: isSelected ? color : Colors.grey.shade300),
         ),
         child: Row(
@@ -608,7 +610,7 @@ class OrderListViewState extends State<OrderListView> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF2962FF) : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? const Color(0xFF2962FF) : Colors.grey.shade300,
           ),
@@ -1016,7 +1018,7 @@ class OrderListViewState extends State<OrderListView> {
             child: TextField(
               onChanged: _onSearch,
               decoration: InputDecoration(
-                hintText: "Tìm khách, model, SĐT...",
+                hintText: "Tìm khách, model, lỗi, SĐT...",
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,
@@ -1286,10 +1288,20 @@ class OrderListViewState extends State<OrderListView> {
                       fontSize: 10,
                     ),
                     // Lỗi / Vấn đề
-                    _repairInfoChip(
-                      '🔧 ${r.issue.split('|').first}',
-                      Colors.red.shade100,
-                    ),
+                    if (r.issue.isNotEmpty)
+                      _repairInfoChip(
+                        '🔧 ${r.issue.split('|').first}',
+                        Colors.red.shade100,
+                        maxLines: 2,
+                      ),
+                    // Mô tả lỗi chi tiết (phần sau dấu |)
+                    if (r.issue.contains('|') && r.issue.split('|').length > 1)
+                      _repairInfoChip(
+                        '📋 ${r.issue.split('|').sublist(1).join(', ')}',
+                        Colors.orange.shade50,
+                        textColor: Colors.orange.shade900,
+                        maxLines: 2,
+                      ),
                     // Giá
                     if (r.price > 0)
                       _repairInfoChip(
@@ -1318,6 +1330,7 @@ class OrderListViewState extends State<OrderListView> {
     Color textColor = Colors.black,
     FontWeight fontWeight = FontWeight.w500,
     double fontSize = 10,
+    int maxLines = 1,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1331,7 +1344,7 @@ class OrderListViewState extends State<OrderListView> {
           color: textColor,
           fontWeight: fontWeight,
         ),
-        maxLines: 1,
+        maxLines: maxLines,
         overflow: TextOverflow.ellipsis,
       ),
     );
