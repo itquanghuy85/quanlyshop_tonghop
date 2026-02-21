@@ -1671,7 +1671,7 @@ Salary: Monthly/Daily/Hourly base + Commission + Allowances - Deductions
 
 ---
 
-## � CẬP NHẬT: GỘP TRANG QUẢN LÝ TÀI CHÍNH (v10.0.8 - 02/2026)
+## � CẬP NHẬT: GỘP TRANG QUẢN LÝ TÀI CHÍNH (v10.0.9 - 02/2026)
 
 ### Tổng quan thay đổi
 

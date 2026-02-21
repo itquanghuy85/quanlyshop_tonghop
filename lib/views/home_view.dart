@@ -1182,24 +1182,25 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       final cachedShopName = prefs.getString('cached_shopName_${user.uid}');
       debugPrint('_loadUserAndShopInfo: Cache - userName=$cachedUserName, shopName=$cachedShopName');
       
-      // Hiển thị cache ngay lập tức (nếu có)
-      if (cachedUserName != null || cachedShopName != null) {
+      // Hiển thị cache ngay lập tức (nếu có và không rỗng)
+      if ((cachedUserName != null && cachedUserName.isNotEmpty) || 
+          (cachedShopName != null && cachedShopName.isNotEmpty)) {
         if (mounted) {
           setState(() {
-            if (cachedUserName != null) _userName = cachedUserName;
-            if (cachedShopName != null) _shopName = cachedShopName;
+            if (cachedUserName != null && cachedUserName.isNotEmpty) _userName = cachedUserName;
+            if (cachedShopName != null && cachedShopName.isNotEmpty) _shopName = cachedShopName;
           });
           debugPrint('_loadUserAndShopInfo: Set state from cache - userName=$_userName, shopName=$_shopName');
         }
       }
 
-      // Lấy tên hiển thị qua UserService (kiểm tra Auth displayName + Firestore + email fallback)
+      // Lấy tên hiển thị qua UserService (Auth displayName -> Firestore -> email fallback)
       debugPrint('_loadUserAndShopInfo: Getting displayName via UserService...');
       String displayName = await UserService.getCurrentUserName();
       debugPrint('_loadUserAndShopInfo: displayName=$displayName');
 
-      // Nếu UserService trả về 'Unknown', thử fallback email
-      if (displayName == 'Unknown' && user.email != null) {
+      // Nếu vẫn rỗng, dùng email prefix làm tên
+      if (displayName.trim().isEmpty && user.email != null) {
         displayName = user.email!.split('@').first;
         if (displayName.isNotEmpty) {
           displayName = displayName[0].toUpperCase() + displayName.substring(1);

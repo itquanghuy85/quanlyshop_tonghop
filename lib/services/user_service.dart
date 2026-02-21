@@ -152,22 +152,33 @@ class UserService {
   /// Lấy tên hiển thị của user hiện tại
   static Future<String> getCurrentUserName() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return 'Unknown';
+    if (user == null) return '';
 
-    // Thử lấy từ Firebase Auth displayName
-    if (user.displayName != null && user.displayName!.isNotEmpty) {
-      return user.displayName!;
+    // 1. Thử lấy từ Firebase Auth displayName
+    if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
+      return user.displayName!.trim();
     }
 
-    // Lấy từ Firestore
+    // 2. Lấy từ Firestore (kiểm tra cả displayName và name, bỏ qua chuỗi rỗng)
     try {
       final info = await getUserInfo(user.uid);
-      final name =
-          info['displayName'] ?? info['name'] ?? info['email'] ?? 'Unknown';
-      return name.toString();
+      final displayName = (info['displayName'] ?? '').toString().trim();
+      if (displayName.isNotEmpty) return displayName;
+      final name = (info['name'] ?? '').toString().trim();
+      if (name.isNotEmpty) return name;
     } catch (e) {
-      return user.email ?? 'Unknown';
+      debugPrint('getCurrentUserName error: $e');
     }
+
+    // 3. Fallback: capitalize phần trước @ của email
+    if (user.email != null && user.email!.isNotEmpty) {
+      final prefix = user.email!.split('@').first;
+      if (prefix.isNotEmpty) {
+        return prefix[0].toUpperCase() + prefix.substring(1);
+      }
+    }
+
+    return '';
   }
 
   /// Lấy danh sách tất cả shops (chỉ dùng cho super admin)

@@ -4,7 +4,7 @@ Tất cả thay đổi đáng chú ý của dự án sẽ được ghi lại tro
 
 ---
 
-## [10.0.8] - 2026-02-11
+## [10.0.9] - 2026-02-11
 
 ### Sửa lỗi & Tối ưu
 - Sửa tràn bottom overflow tab Nhật ký tài chính (embedded mode)

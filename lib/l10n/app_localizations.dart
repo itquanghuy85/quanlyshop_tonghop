@@ -5060,7 +5060,7 @@ abstract class AppLocalizations {
   /// No description provided for @version.
   ///
   /// In en, this message translates to:
-  /// **'Version 10.0.8'**
+  /// **'Version 10.0.9'**
   String get version;
 
   /// No description provided for @salaryCalculationGuide.
