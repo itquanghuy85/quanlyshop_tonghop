@@ -219,20 +219,42 @@ class _RevenueViewState extends State<RevenueView>
     final supplierPayments = await db.getAllSupplierPayments();
 
     final dbRaw = await db.database;
-    final closings = await dbRaw.query(
-      'cash_closings',
-      orderBy: 'createdAt DESC',
-      limit: 10,
-    );
+    final effectiveShopId = shopId ?? UserService.getShopIdSync();
+    List<Map<String, dynamic>> closings;
+    if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
+      closings = await dbRaw.query(
+        'cash_closings',
+        where: 'shopId = ? OR shopId IS NULL',
+        whereArgs: [effectiveShopId],
+        orderBy: 'createdAt DESC',
+        limit: 10,
+      );
+    } else {
+      closings = await dbRaw.query(
+        'cash_closings',
+        orderBy: 'createdAt DESC',
+        limit: 10,
+      );
+    }
 
     // Lấy thông tin chốt quỹ của ngày hôm nay
     final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final todayClosingResult = await dbRaw.query(
-      'cash_closings',
-      where: 'dateKey = ?',
-      whereArgs: [todayKey],
-      limit: 1,
-    );
+    List<Map<String, dynamic>> todayClosingResult;
+    if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
+      todayClosingResult = await dbRaw.query(
+        'cash_closings',
+        where: 'dateKey = ? AND (shopId = ? OR shopId IS NULL)',
+        whereArgs: [todayKey, effectiveShopId],
+        limit: 1,
+      );
+    } else {
+      todayClosingResult = await dbRaw.query(
+        'cash_closings',
+        where: 'dateKey = ?',
+        whereArgs: [todayKey],
+        limit: 1,
+      );
+    }
 
     // Lấy chốt quỹ của ngày trước làm số dư đầu kỳ
     final prevClosing = await db.getPreviousDayClosing(todayKey);

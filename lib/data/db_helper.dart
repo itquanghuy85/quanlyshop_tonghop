@@ -3466,8 +3466,19 @@ class DBHelper {
       _upsert('debts', d.toMap(), d.firestoreId ?? "debt_${d.createdAt}");
   Future<int> insertDebt(Map<String, dynamic> d) async =>
       (await database).insert('debts', d);
-  Future<List<Map<String, dynamic>>> getAllDebts() async =>
-      (await database).query('debts', orderBy: 'status ASC, createdAt DESC');
+  Future<List<Map<String, dynamic>>> getAllDebts() async {
+    final shopId = UserService.getShopIdSync();
+    final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      return db.query(
+        'debts',
+        where: 'shopId = ? OR shopId IS NULL',
+        whereArgs: [shopId],
+        orderBy: 'status ASC, createdAt DESC',
+      );
+    }
+    return db.query('debts', orderBy: 'status ASC, createdAt DESC');
+  }
   Future<List<Map<String, dynamic>>> getPurchaseDebts() async =>
       (await database).query(
         'purchase_orders',
@@ -3576,7 +3587,18 @@ class DBHelper {
   Future<Map<String, dynamic>?> getPreviousDayClosing(
     String todayDateKey,
   ) async {
+    final shopId = UserService.getShopIdSync();
     final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      final res = await db.query(
+        'cash_closings',
+        where: '(dateKey < ? AND isLocked = 1) AND (shopId = ? OR shopId IS NULL)',
+        whereArgs: [todayDateKey, shopId],
+        orderBy: 'dateKey DESC',
+        limit: 1,
+      );
+      return res.isNotEmpty ? res.first : null;
+    }
     final res = await db.query(
       'cash_closings',
       where: 'dateKey < ? AND isLocked = 1',
@@ -3589,7 +3611,17 @@ class DBHelper {
 
   /// Lấy chốt quỹ theo dateKey
   Future<Map<String, dynamic>?> getClosingByDateKey(String dateKey) async {
+    final shopId = UserService.getShopIdSync();
     final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      final res = await db.query(
+        'cash_closings',
+        where: 'dateKey = ? AND (shopId = ? OR shopId IS NULL)',
+        whereArgs: [dateKey, shopId],
+        limit: 1,
+      );
+      return res.isNotEmpty ? res.first : null;
+    }
     final res = await db.query(
       'cash_closings',
       where: 'dateKey = ?',
@@ -3601,7 +3633,16 @@ class DBHelper {
 
   /// Lấy tất cả các chốt quỹ
   Future<List<Map<String, dynamic>>> getAllCashClosings() async {
+    final shopId = UserService.getShopIdSync();
     final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      return db.query(
+        'cash_closings',
+        where: 'shopId = ? OR shopId IS NULL',
+        whereArgs: [shopId],
+        orderBy: 'dateKey DESC',
+      );
+    }
     return db.query('cash_closings', orderBy: 'dateKey DESC');
   }
 
@@ -4697,7 +4738,17 @@ class DBHelper {
   }
 
   Future<List<Map<String, dynamic>>> getAllDebtPaymentsWithDetails() async {
+    final shopId = UserService.getShopIdSync();
     final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      return await db.rawQuery('''
+        SELECT p.*, d.type as debtType, d.personName 
+        FROM debt_payments p
+        JOIN debts d ON p.debtId = d.id
+        WHERE p.shopId = ? OR p.shopId IS NULL
+        ORDER BY p.paidAt DESC
+      ''', [shopId]);
+    }
     return await db.rawQuery('''
       SELECT p.*, d.type as debtType, d.personName 
       FROM debt_payments p
@@ -4972,7 +5023,16 @@ class DBHelper {
 
   /// Lấy tất cả thanh toán NCC để hiển thị trong chốt quỹ
   Future<List<Map<String, dynamic>>> getAllSupplierPayments() async {
+    final shopId = UserService.getShopIdSync();
     final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      return await db.query(
+        'supplier_payments',
+        where: '(deleted = 0 OR deleted IS NULL) AND (shopId = ? OR shopId IS NULL)',
+        whereArgs: [shopId],
+        orderBy: 'paidAt DESC',
+      );
+    }
     return await db.query(
       'supplier_payments',
       where: 'deleted = 0 OR deleted IS NULL',

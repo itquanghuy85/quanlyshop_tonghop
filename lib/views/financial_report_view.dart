@@ -165,7 +165,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
       final sales = await _db.getAllSales();
       for (final sale in sales) {
         final soldAt = sale.soldAt;
-        if (soldAt >= startMs && soldAt <= endMs && sale.isSynced != false) {
+        if (soldAt >= startMs && soldAt <= endMs) {
           final isCongNo = sale.paymentMethod.toUpperCase() == 'CÔNG NỢ';
 
           // Tính số tiền THỰC NHẬN (không tính công nợ)
@@ -240,14 +240,14 @@ class _FinancialReportViewState extends State<FinancialReportView>
       // 3. Chi phí
       final expenses = await _db.getAllExpenses();
       for (final e in expenses) {
-        final createdAt = (e['createdAt'] as int?) ?? 0;
-        if (createdAt >= startMs &&
-            createdAt <= endMs &&
+        final expenseDate = (e['date'] as int?) ?? (e['createdAt'] as int?) ?? 0;
+        if (expenseDate >= startMs &&
+            expenseDate <= endMs &&
             (e['deleted'] ?? 0) != 1) {
           allTransactions.add(
             TransactionItem(
               id: 'expense_${e['id']}',
-              timestamp: createdAt,
+              timestamp: expenseDate,
               type: 'EXPENSE',
               category: (e['category'] as String?) ?? 'Chi phí khác',
               description:
@@ -280,7 +280,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
           for (final p in payments) {
             final paidAt = (p['paidAt'] as int?) ?? 0;
             if (paidAt >= startMs && paidAt <= endMs) {
-              if (debtType == 'CUSTOMER_OWES') {
+              if (debtType == 'CUSTOMER_OWES' || debtType == 'OTHER_CUSTOMER_OWES') {
                 // Thu nợ từ khách - ĐÂY LÀ THU TIỀN THỰC
                 allTransactions.add(
                   TransactionItem(
@@ -295,7 +295,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
                     note: p['note'] as String?,
                   ),
                 );
-              } else if (debtType == 'SHOP_OWES') {
+              } else if (debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES' || debtType == 'OWED') {
                 // Trả nợ NCC/Đối tác - ĐÂY LÀ CHI TIỀN THỰC
                 allTransactions.add(
                   TransactionItem(
