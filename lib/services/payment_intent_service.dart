@@ -23,6 +23,8 @@ import 'money_validation_service.dart';
 import 'money_transaction_service.dart';
 import '../constants/financial_constants.dart';
 import 'user_service.dart';
+import 'sync_service.dart';
+import 'event_bus.dart';
 
 /// Result of a payment execution
 class PaymentExecutionResult {
@@ -265,6 +267,9 @@ class PaymentIntentService {
       }
     }
 
+    // Sync to Firestore so other devices see the new intent immediately
+    _syncToCloudAfterPayment();
+
     return intent;
   }
 
@@ -378,8 +383,24 @@ class PaymentIntentService {
     // Move to history
     await _moveToHistory(intent);
 
+    // Sync cancellation to other devices
+    _syncToCloudAfterPayment();
+
     debugPrint('🚫 PaymentIntent cancelled: $intentId');
     return true;
+  }
+
+  /// Fire-and-forget sync to Firestore after payment execution/cancellation
+  /// Runs asynchronously so it doesn't block UI
+  static void _syncToCloudAfterPayment() {
+    Future.microtask(() async {
+      try {
+        await SyncService.syncPaymentRelatedData();
+        EventBus().emit('payment_intents_changed');
+      } catch (e) {
+        debugPrint('⚠️ Background sync after payment failed: $e');
+      }
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -566,6 +587,9 @@ class PaymentIntentService {
       await _moveToHistory(intent);
 
       debugPrint('✅ Payment executed: ${intent.id} - ${intent.amount}đ');
+
+      // 8. Immediately sync to Firestore so other devices see the change
+      _syncToCloudAfterPayment();
 
       return PaymentExecutionResult.success(
         ledgerEntryId: ledgerEntryId,

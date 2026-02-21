@@ -1428,6 +1428,228 @@ class SyncService {
     }
   }
 
+  /// Sync payment-related data immediately after payment execution
+  /// Targets: payment_intents, debt_payments, expenses, financial_activity_log
+  /// Much faster than syncAllToCloud() since it only syncs payment-related tables
+  static Future<void> syncPaymentRelatedData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final String? shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return;
+
+      // Super admin only views
+      if (UserService.isCurrentUserSuperAdmin()) return;
+
+      final dbHelper = DBHelper();
+      debugPrint('⚡ syncPaymentRelatedData: starting targeted sync...');
+
+      // 1. Sync payment_intents
+      try {
+        final paymentIntents = await dbHelper.getPaymentIntentsForSync();
+        if (paymentIntents.isNotEmpty) {
+          final WriteBatch batch = _db.batch();
+          for (var intentMap in paymentIntents) {
+            final firestoreId = intentMap['firestoreId'];
+            final isSynced = intentMap['isSynced'] == 1 || intentMap['isSynced'] == true;
+            if (firestoreId != null && firestoreId.toString().isNotEmpty && isSynced) continue;
+
+            final data = Map<String, dynamic>.from(intentMap);
+            data['shopId'] = shopId;
+            data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
+            final localId = data['id'];
+            data.remove('id');
+
+            final docId = firestoreId ?? "pi_${data['intentId'] ?? data['createdAt']}_${data['type'] ?? 'unknown'}";
+            batch.set(_db.collection('payment_intents').doc(docId), data, SetOptions(merge: true));
+            await dbHelper.updatePaymentIntentSynced(localId, docId);
+          }
+          await batch.commit();
+          debugPrint('  -> Synced ${paymentIntents.length} payment intents');
+        }
+      } catch (e) {
+        debugPrint('  -> Error syncing payment_intents: $e');
+      }
+
+      // 2. Sync debt_payments
+      try {
+        final debtPayments = await dbHelper.getAllDebtPaymentsForSync();
+        if (debtPayments.isNotEmpty) {
+          final WriteBatch batch = _db.batch();
+          int count = 0;
+          for (var dp in debtPayments) {
+            final firestoreId = dp['firestoreId'];
+            final isSynced = dp['isSynced'] == 1 || dp['isSynced'] == true;
+            if (firestoreId != null && firestoreId.toString().isNotEmpty && isSynced) continue;
+
+            final data = Map<String, dynamic>.from(dp);
+            data['shopId'] = shopId;
+            final localId = data['id'];
+            data.remove('id');
+
+            final docId = firestoreId ?? "dp_${data['debtId']}_${data['paidAt'] ?? data['createdAt']}";
+            batch.set(_db.collection('debt_payments').doc(docId), data, SetOptions(merge: true));
+            await dbHelper.updateDebtPaymentSynced(localId as int, docId);
+            count++;
+          }
+          if (count > 0) {
+            await batch.commit();
+            debugPrint('  -> Synced $count debt payments');
+          }
+        }
+      } catch (e) {
+        debugPrint('  -> Error syncing debt_payments: $e');
+      }
+
+      // 3. Sync debts (status may have changed after payment)
+      try {
+        final debts = await dbHelper.getAllDebts();
+        final unsyncedDebts = debts.where((d) => d['isSynced'] != 1 && d['isSynced'] != true).toList();
+        if (unsyncedDebts.isNotEmpty) {
+          final WriteBatch batch = _db.batch();
+          int count = 0;
+          for (var debt in unsyncedDebts) {
+            final firestoreId = debt['firestoreId'];
+            if (firestoreId == null || firestoreId.toString().isEmpty) continue;
+
+            final data = Map<String, dynamic>.from(debt);
+            data['shopId'] = shopId;
+            data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
+            data.remove('id');
+
+            batch.set(_db.collection('debts').doc(firestoreId), data, SetOptions(merge: true));
+            count++;
+          }
+          if (count > 0) {
+            await batch.commit();
+            debugPrint('  -> Synced $count debts');
+          }
+        }
+      } catch (e) {
+        debugPrint('  -> Error syncing debts: $e');
+      }
+
+      // 4. Sync expenses (in case payment created an expense)
+      try {
+        final expenses = await dbHelper.getAllExpensesForSync();
+        final unsyncedExpenses = expenses.where((e) => e.isSynced != 1).toList();
+        if (unsyncedExpenses.isNotEmpty) {
+          final WriteBatch batch = _db.batch();
+          int count = 0;
+          for (var expense in unsyncedExpenses) {
+            final data = expense.toMap();
+            data['shopId'] = shopId;
+            data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
+            final localId = data['id'];
+            data.remove('id');
+
+            final docId = expense.firestoreId ?? "exp_${expense.date}_${expense.amount}";
+            batch.set(_db.collection('expenses').doc(docId), data, SetOptions(merge: true));
+
+            // Mark as synced
+            final updatedExpense = Expense.fromMap({...expense.toMap(), 'firestoreId': docId, 'isSynced': 1});
+            await dbHelper.updateExpense(updatedExpense);
+            count++;
+          }
+          if (count > 0) {
+            await batch.commit();
+            debugPrint('  -> Synced $count expenses');
+          }
+        }
+      } catch (e) {
+        debugPrint('  -> Error syncing expenses: $e');
+      }
+
+      // 5. Sync financial_activity_log
+      try {
+        final activities = await dbHelper.getUnsyncedFinancialActivities();
+        if (activities.isNotEmpty) {
+          final WriteBatch batch = _db.batch();
+          int count = 0;
+          for (var act in activities) {
+            final data = Map<String, dynamic>.from(act);
+            data['shopId'] = shopId;
+            final localId = data['id'];
+            data.remove('id');
+
+            final docId = data['firestoreId'] ?? "fal_${data['createdAt']}_${data['activityType'] ?? 'unknown'}";
+            batch.set(_db.collection('financial_activity_log').doc(docId), data, SetOptions(merge: true));
+
+            // Mark as synced
+            await dbHelper.updateFinancialActivitySynced(localId as int, docId);
+            count++;
+          }
+          if (count > 0) {
+            await batch.commit();
+            debugPrint('  -> Synced $count financial activities');
+          }
+        }
+      } catch (e) {
+        debugPrint('  -> Error syncing financial_activity_log: $e');
+      }
+
+      // 6. Sync supplier_payments and repair_partner_payments
+      try {
+        final supplierPayments = await dbHelper.getSupplierPaymentsForSync();
+        final unsyncedSP = supplierPayments.where((sp) => sp['isSynced'] != 1 && sp['isSynced'] != true).toList();
+        if (unsyncedSP.isNotEmpty) {
+          final WriteBatch batch = _db.batch();
+          int count = 0;
+          for (var sp in unsyncedSP) {
+            final firestoreId = sp['firestoreId'];
+            final data = Map<String, dynamic>.from(sp);
+            data['shopId'] = shopId;
+            data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
+            final localId = data['id'];
+            data.remove('id');
+
+            final docId = firestoreId ?? "sp_${data['supplierId']}_${data['paidAt']}";
+            batch.set(_db.collection('supplier_payments').doc(docId), data, SetOptions(merge: true));
+            count++;
+          }
+          if (count > 0) {
+            await batch.commit();
+            debugPrint('  -> Synced $count supplier payments');
+          }
+        }
+      } catch (e) {
+        debugPrint('  -> Error syncing supplier_payments: $e');
+      }
+
+      try {
+        final partnerPayments = await dbHelper.getRepairPartnerPaymentsForSync();
+        final unsyncedPP = partnerPayments.where((pp) => pp['isSynced'] != 1 && pp['isSynced'] != true).toList();
+        if (unsyncedPP.isNotEmpty) {
+          final WriteBatch batch = _db.batch();
+          int count = 0;
+          for (var pp in unsyncedPP) {
+            final firestoreId = pp['firestoreId'];
+            final data = Map<String, dynamic>.from(pp);
+            data['shopId'] = shopId;
+            data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
+            final localId = data['id'];
+            data.remove('id');
+
+            final docId = firestoreId ?? "rpp_${data['partnerId']}_${data['paidAt']}";
+            batch.set(_db.collection('repair_partner_payments').doc(docId), data, SetOptions(merge: true));
+            count++;
+          }
+          if (count > 0) {
+            await batch.commit();
+            debugPrint('  -> Synced $count repair partner payments');
+          }
+        }
+      } catch (e) {
+        debugPrint('  -> Error syncing repair_partner_payments: $e');
+      }
+
+      debugPrint('⚡ syncPaymentRelatedData: completed');
+    } catch (e) {
+      debugPrint('⚡ syncPaymentRelatedData error: $e');
+    }
+  }
+
   /// Đẩy dữ liệu từ Local lên Cloud (Dùng khi có mạng trở lại)
   static Future<void> syncAllToCloud() async {
     debugPrint("Bắt đầu syncAllToCloud...");

@@ -6333,6 +6333,27 @@ class DBHelper {
     }
   }
 
+  /// Lấy các financial activities chưa được sync lên cloud
+  Future<List<Map<String, dynamic>>> getUnsyncedFinancialActivities() async {
+    final db = await database;
+    return await db.query(
+      'financial_activity_log',
+      where: 'isSynced = 0 OR isSynced IS NULL',
+      orderBy: 'createdAt DESC',
+    );
+  }
+
+  /// Đánh dấu financial activity đã sync
+  Future<void> updateFinancialActivitySynced(int id, String firestoreId) async {
+    final db = await database;
+    await db.update(
+      'financial_activity_log',
+      {'firestoreId': firestoreId, 'isSynced': 1},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   // =====================================================================
   // PAYMENT INTENTS METHODS
   // =====================================================================
