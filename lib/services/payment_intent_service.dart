@@ -137,6 +137,32 @@ class PaymentIntentService {
     _currentShopId = null;
     await initialize();
   }
+
+  /// Reload in-memory cache from database without full reinitialize
+  /// Call this when sync updates arrive to refresh stale cache
+  static Future<void> reloadFromDb() async {
+    debugPrint('💳 Reloading PaymentIntentService from DB...');
+    _pendingIntents.clear();
+    _historyIntents.clear();
+    
+    try {
+      final pendingRows = await _db.getPendingPaymentIntents();
+      for (final row in pendingRows) {
+        final intent = _intentFromDbRow(row);
+        _pendingIntents[intent.id] = intent;
+      }
+      
+      final historyRows = await _db.getPaymentIntentsHistory(limit: 100);
+      for (final row in historyRows) {
+        final intent = _intentFromDbRow(row);
+        _historyIntents.add(intent);
+      }
+      
+      debugPrint('💳 Reloaded: ${_pendingIntents.length} pending, ${_historyIntents.length} history');
+    } catch (e) {
+      debugPrint('❌ PaymentIntentService reload error: $e');
+    }
+  }
   
   /// Clear all cached data (call on logout)
   static void clearCache() {
@@ -584,12 +610,13 @@ class PaymentIntentService {
             'firestoreId': 'dp_${intent.id}',
             'debtId': debtId,
             'debtFirestoreId': debtFirestoreId,
-            'debtType': debtType, // FIX: Add debtType for proper filtering
+            'debtType': debtType,
             'amount': intent.amount,
             'paymentMethod': paymentMethod.code,
             'paidAt': now,
             'createdBy': intent.paidBy,
             'note': intent.notes,
+            'shopId': UserService.getShopIdSync(),
             'isSynced': 0,
           });
           
@@ -650,12 +677,13 @@ class PaymentIntentService {
             'firestoreId': 'dp_${intent.id}',
             'debtId': debtId,
             'debtFirestoreId': debtFirestoreId,
-            'debtType': debtType, // FIX: Add debtType for proper filtering
+            'debtType': debtType,
             'amount': intent.amount,
             'paymentMethod': paymentMethod.code,
             'paidAt': now,
             'createdBy': intent.paidBy,
             'note': intent.notes,
+            'shopId': UserService.getShopIdSync(),
             'isSynced': 0,
           });
           
@@ -678,6 +706,7 @@ class PaymentIntentService {
             'paymentMethod': paymentMethod.code,
             'paidAt': now,
             'note': intent.notes,
+            'shopId': UserService.getShopIdSync(),
             'isSynced': 0,
           });
         }

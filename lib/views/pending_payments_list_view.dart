@@ -126,6 +126,8 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
     try {
       // Ensure PaymentIntentService is initialized (loads from DB)
       await PaymentIntentService.initialize();
+      // Reload from DB to pick up any sync changes
+      await PaymentIntentService.reloadFromDb();
       
       // Get ALL intents from service (pending + history)
       final intents = await PaymentIntentService.getAllIntents();
