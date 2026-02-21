@@ -1650,6 +1650,95 @@ class SyncService {
     }
   }
 
+  /// Sync repair data immediately after repair status changes
+  /// Targets: repairs table only - much faster than syncAllToCloud()
+  /// Ensures status updates (chờ duyệt, giao máy, etc.) sync to other devices immediately
+  static Future<void> syncRepairData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final String? shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return;
+
+      // Super admin only views
+      if (UserService.isCurrentUserSuperAdmin()) return;
+
+      final dbHelper = DBHelper();
+      debugPrint('⚡ syncRepairData: starting targeted repair sync...');
+
+      // Sync unsynced repairs
+      final repairs = await dbHelper.getAllRepairs();
+      final unsyncedRepairs = repairs.where((r) => !r.isSynced || (r.imagePath?.contains('cache') ?? false)).toList();
+
+      if (unsyncedRepairs.isEmpty) {
+        debugPrint('⚡ syncRepairData: no unsynced repairs');
+        return;
+      }
+
+      debugPrint('⚡ syncRepairData: found ${unsyncedRepairs.length} unsynced repairs');
+      final WriteBatch batch = _db.batch();
+      final List<Repair> toMarkSynced = [];
+
+      for (var r in unsyncedRepairs) {
+        try {
+          Map<String, dynamic> data = r.toMap();
+          data['shopId'] = shopId;
+          data.remove('id');
+          data['updatedAt'] = FieldValue.serverTimestamp();
+          data.remove('isSynced');
+          data.remove('firestoreId');
+
+          // Upload local images if needed
+          if (r.imagePath != null &&
+              r.imagePath!.isNotEmpty &&
+              !r.imagePath!.startsWith('http')) {
+            try {
+              List<String> urls = await StorageService.uploadMultipleImages(
+                r.imagePath!.split(',').where((path) => !path.startsWith('http')).toList(),
+                'repairs/${r.createdAt}',
+              ).timeout(
+                const Duration(seconds: 15),
+                onTimeout: () => <String>[],
+              );
+              List<String> allUrls = r.imagePath!.split(',').where((path) => path.startsWith('http')).toList();
+              allUrls.addAll(urls);
+              data['imagePath'] = allUrls.join(',');
+            } catch (e) {
+              debugPrint('⚡ syncRepairData: image upload failed for ${r.id}: $e');
+            }
+          }
+
+          final docId = r.firestoreId ?? "repair_${r.createdAt}_${r.phone}_${r.id ?? 0}";
+          batch.set(
+            _db.collection('repairs').doc(docId),
+            data,
+            SetOptions(merge: true),
+          );
+
+          r.firestoreId = docId;
+          r.imagePath = data['imagePath'];
+          toMarkSynced.add(r);
+        } catch (e) {
+          debugPrint('⚡ syncRepairData: error preparing repair ${r.id}: $e');
+        }
+      }
+
+      try {
+        await batch.commit();
+        for (var r in toMarkSynced) {
+          r.isSynced = true;
+          await dbHelper.updateRepair(r);
+        }
+        debugPrint('⚡ syncRepairData: ✅ synced ${toMarkSynced.length} repairs to cloud');
+      } catch (e) {
+        debugPrint('⚡ syncRepairData: ❌ batch commit failed: $e - will retry next sync');
+      }
+    } catch (e) {
+      debugPrint('⚡ syncRepairData error: $e');
+    }
+  }
+
   /// Đẩy dữ liệu từ Local lên Cloud (Dùng khi có mạng trở lại)
   static Future<void> syncAllToCloud() async {
     debugPrint("Bắt đầu syncAllToCloud...");
@@ -1692,6 +1781,8 @@ class SyncService {
       final repairs = await dbHelper.getAllRepairs();
       debugPrint("syncAllToCloud: có ${repairs.length} repairs cần sync");
       final WriteBatch repairBatch = _db.batch();
+      // FIX: Collect items to mark synced AFTER batch commit succeeds
+      final List<Repair> repairsToMarkSynced = [];
       for (var r in repairs) {
         if (r.isSynced && !(r.imagePath?.contains('cache') ?? false)) continue;
 
@@ -1699,6 +1790,11 @@ class SyncService {
           Map<String, dynamic> data = r.toMap();
           data['shopId'] = shopId;
           data.remove('id');
+          // FIX: Add updatedAt for conflict resolution on receiving devices
+          data['updatedAt'] = FieldValue.serverTimestamp();
+          // FIX: Remove local-only fields from cloud data
+          data.remove('isSynced');
+          data.remove('firestoreId');
 
           // Xử lý upload ảnh nếu là ảnh local với timeout
           if (r.imagePath != null &&
@@ -1737,21 +1833,32 @@ class SyncService {
             SetOptions(merge: true),
           );
 
-          r.isSynced = true;
+          // FIX: Defer marking synced - collect for after commit
           r.firestoreId = docId;
           r.imagePath = data['imagePath'];
-          await dbHelper.updateRepair(r);
+          repairsToMarkSynced.add(r);
         } catch (e) {
           debugPrint("Lỗi sync repair ${r.id}: $e");
           // Tiếp tục với repair tiếp theo thay vì dừng toàn bộ
         }
       }
-      await repairBatch.commit();
+      try {
+        await repairBatch.commit();
+        // FIX: Only mark synced AFTER batch commit succeeds
+        for (var r in repairsToMarkSynced) {
+          r.isSynced = true;
+          await dbHelper.updateRepair(r);
+        }
+        debugPrint("✅ Synced ${repairsToMarkSynced.length} repairs to cloud");
+      } catch (e) {
+        debugPrint("❌ Batch commit repairs failed: $e - repairs will retry next sync");
+      }
 
       // Sync SALES
       final sales = await dbHelper.getAllSales();
       debugPrint("syncAllToCloud: có ${sales.length} sales cần sync");
       final WriteBatch saleBatch = _db.batch();
+      final List<SaleOrder> salesToMarkSynced = [];
       for (var s in sales) {
         if (s.isSynced) continue;
 
@@ -1759,6 +1866,9 @@ class SyncService {
           Map<String, dynamic> data = s.toMap();
           data['shopId'] = shopId;
           data.remove('id');
+          data['updatedAt'] = FieldValue.serverTimestamp();
+          data.remove('isSynced');
+          data.remove('firestoreId');
 
           final docId =
               s.firestoreId ?? "sale_${s.soldAt}_${s.phone}_${s.id ?? 0}";
@@ -1768,15 +1878,23 @@ class SyncService {
             SetOptions(merge: true),
           );
 
-          s.isSynced = true;
           s.firestoreId = docId;
-          await dbHelper.updateSale(s);
+          salesToMarkSynced.add(s);
         } catch (e) {
           debugPrint("Lỗi sync sale ${s.id}: $e");
           // Tiếp tục với sale tiếp theo
         }
       }
-      await saleBatch.commit();
+      try {
+        await saleBatch.commit();
+        for (var s in salesToMarkSynced) {
+          s.isSynced = true;
+          await dbHelper.updateSale(s);
+        }
+        debugPrint("✅ Synced ${salesToMarkSynced.length} sales to cloud");
+      } catch (e) {
+        debugPrint("❌ Batch commit sales failed: $e - sales will retry next sync");
+      }
 
       // Sync EXPENSES (Chi phí)
       try {
@@ -1786,6 +1904,7 @@ class SyncService {
         );
         if (expenses.isNotEmpty) {
           final WriteBatch expenseBatch = _db.batch();
+          final List<dynamic> expensesToMarkSynced = [];
           for (var expense in expenses) {
             // Skip nếu đã có firestoreId và đã sync
             final firestoreId = expense.firestoreId;
@@ -1799,6 +1918,9 @@ class SyncService {
               Map<String, dynamic> data = expense.toMap();
               data['shopId'] = shopId;
               data.remove('id');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              data.remove('isSynced');
+              data.remove('firestoreId');
 
               final docId =
                   firestoreId ??
@@ -1809,15 +1931,23 @@ class SyncService {
                 SetOptions(merge: true),
               );
 
-              // Update local với firestoreId và isSynced
+              // Defer marking synced
               expense.firestoreId = docId;
-              expense.isSynced = true;
-              await dbHelper.updateExpense(expense);
+              expensesToMarkSynced.add(expense);
             } catch (e) {
               debugPrint("Lỗi sync expense ${expense.id}: $e");
             }
           }
-          await expenseBatch.commit();
+          try {
+            await expenseBatch.commit();
+            for (var expense in expensesToMarkSynced) {
+              expense.isSynced = true;
+              await dbHelper.updateExpense(expense);
+            }
+            debugPrint("✅ Synced ${expensesToMarkSynced.length} expenses to cloud");
+          } catch (e) {
+            debugPrint("❌ Batch commit expenses failed: $e - expenses will retry next sync");
+          }
         }
       } catch (e) {
         debugPrint("Lỗi sync expenses collection: $e");
@@ -1827,6 +1957,7 @@ class SyncService {
       final products = await dbHelper.getAllProducts();
       debugPrint("syncAllToCloud: có ${products.length} products cần sync");
       final WriteBatch productBatch = _db.batch();
+      final List<Product> productsToMarkSynced = [];
       for (var p in products) {
         if (p.isSynced) continue;
 
@@ -1834,6 +1965,9 @@ class SyncService {
           Map<String, dynamic> data = p.toMap();
           data['shopId'] = shopId;
           data.remove('id');
+          data['updatedAt'] = FieldValue.serverTimestamp();
+          data.remove('isSynced');
+          data.remove('firestoreId');
 
           // Xử lý upload ảnh nếu là ảnh local với timeout
           if (p.images != null &&
@@ -1867,16 +2001,24 @@ class SyncService {
             SetOptions(merge: true),
           );
 
-          p.isSynced = true;
           p.firestoreId = docId;
           p.images = data['images'];
-          await dbHelper.updateProduct(p);
+          productsToMarkSynced.add(p);
         } catch (e) {
           debugPrint("Lỗi sync product ${p.id}: $e");
           // Tiếp tục với product tiếp theo
         }
       }
-      await productBatch.commit();
+      try {
+        await productBatch.commit();
+        for (var p in productsToMarkSynced) {
+          p.isSynced = true;
+          await dbHelper.updateProduct(p);
+        }
+        debugPrint("✅ Synced ${productsToMarkSynced.length} products to cloud");
+      } catch (e) {
+        debugPrint("❌ Batch commit products failed: $e - products will retry next sync");
+      }
 
       // Sync ATTENDANCE
       try {
@@ -1885,6 +2027,7 @@ class SyncService {
           "syncAllToCloud: có ${attendance.length} attendance cần sync",
         );
         final WriteBatch attendanceBatch = _db.batch();
+        final List<dynamic> attendanceToMarkSynced = [];
         for (var a in attendance) {
           if (a.firestoreId != null && a.firestoreId!.isNotEmpty) {
             continue; // Đã sync rồi
@@ -1894,6 +2037,9 @@ class SyncService {
             Map<String, dynamic> data = a.toMap();
             data['shopId'] = shopId;
             data.remove('id');
+            data['updatedAt'] = FieldValue.serverTimestamp();
+            data.remove('isSynced');
+            data.remove('firestoreId');
 
             // Xử lý upload ảnh check-in/out nếu là ảnh local
             if (a.photoIn != null &&
@@ -1943,13 +2089,21 @@ class SyncService {
             a.firestoreId = docId;
             a.photoIn = data['photoIn'];
             a.photoOut = data['photoOut'];
-            await dbHelper.updateAttendance(a);
+            attendanceToMarkSynced.add(a);
           } catch (e) {
             debugPrint("Lỗi sync attendance ${a.id}: $e");
             // Tiếp tục với attendance tiếp theo
           }
         }
-        await attendanceBatch.commit();
+        try {
+          await attendanceBatch.commit();
+          for (var a in attendanceToMarkSynced) {
+            await dbHelper.updateAttendance(a);
+          }
+          debugPrint("✅ Synced ${attendanceToMarkSynced.length} attendance to cloud");
+        } catch (e) {
+          debugPrint("❌ Batch commit attendance failed: $e - attendance will retry next sync");
+        }
       } catch (e) {
         debugPrint("Lỗi sync attendance collection: $e");
       }
@@ -1962,6 +2116,7 @@ class SyncService {
         );
         if (quickInputCodes.isNotEmpty) {
           final WriteBatch quickInputBatch = _db.batch();
+          final List<dynamic> qicToMarkSynced = [];
           for (var code in quickInputCodes) {
             if (code.isSynced) continue;
 
@@ -1969,6 +2124,9 @@ class SyncService {
               Map<String, dynamic> data = code.toMap();
               data['shopId'] = shopId;
               data.remove('id');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              data.remove('isSynced');
+              data.remove('firestoreId');
 
               final docId =
                   code.firestoreId ??
@@ -1981,13 +2139,21 @@ class SyncService {
 
               code.firestoreId = docId;
               code.shopId = shopId;
-              code.isSynced = true;
-              await dbHelper.updateQuickInputCode(code);
+              qicToMarkSynced.add(code);
             } catch (e) {
               debugPrint("Lỗi sync quick input code ${code.id}: $e");
             }
           }
-          await quickInputBatch.commit();
+          try {
+            await quickInputBatch.commit();
+            for (var code in qicToMarkSynced) {
+              code.isSynced = true;
+              await dbHelper.updateQuickInputCode(code);
+            }
+            debugPrint("✅ Synced ${qicToMarkSynced.length} quick input codes to cloud");
+          } catch (e) {
+            debugPrint("❌ Batch commit quick input codes failed: $e");
+          }
         }
       } catch (e) {
         debugPrint("Lỗi sync quick input codes collection: $e");
@@ -2001,6 +2167,7 @@ class SyncService {
         );
         if (suppliers.isNotEmpty) {
           final WriteBatch supplierBatch = _db.batch();
+          final List<Map<String, dynamic>> suppliersToMarkSynced = [];
           for (var supplierMap in suppliers) {
             // Skip nếu đã có firestoreId (đã sync)
             if (supplierMap['firestoreId'] != null &&
@@ -2014,24 +2181,34 @@ class SyncService {
               );
               data['shopId'] = shopId;
               data.remove('id');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              data.remove('isSynced');
+              data.remove('firestoreId');
 
               final docId =
-                  "supplier_${data['createdAt']}_${data['name'].toString().replaceAll(' ', '_')}";
+                  "supplier_${supplierMap['createdAt']}_${supplierMap['name'].toString().replaceAll(' ', '_')}";
               supplierBatch.set(
                 _db.collection('suppliers').doc(docId),
                 data,
                 SetOptions(merge: true),
               );
 
-              // Update local với firestoreId (tạo map mới vì supplierMap là read-only)
-              final updateData = Map<String, dynamic>.from(supplierMap);
-              updateData['firestoreId'] = docId;
-              await dbHelper.upsertSupplier(updateData);
+              suppliersToMarkSynced.add({'supplierMap': supplierMap, 'docId': docId});
             } catch (e) {
               debugPrint("Lỗi sync supplier ${supplierMap['id']}: $e");
             }
           }
-          await supplierBatch.commit();
+          try {
+            await supplierBatch.commit();
+            for (var item in suppliersToMarkSynced) {
+              final updateData = Map<String, dynamic>.from(item['supplierMap']);
+              updateData['firestoreId'] = item['docId'];
+              await dbHelper.upsertSupplier(updateData);
+            }
+            debugPrint("✅ Synced ${suppliersToMarkSynced.length} suppliers to cloud");
+          } catch (e) {
+            debugPrint("❌ Batch commit suppliers failed: $e");
+          }
         }
       } catch (e) {
         debugPrint("Lỗi sync suppliers collection: $e");
@@ -2045,6 +2222,7 @@ class SyncService {
         );
         if (partners.isNotEmpty) {
           final WriteBatch partnerBatch = _db.batch();
+          final List<Map<String, dynamic>> partnersToMarkSynced = [];
           for (var partnerMap in partners) {
             // Skip nếu đã có firestoreId (đã sync)
             if (partnerMap['firestoreId'] != null &&
@@ -2056,24 +2234,34 @@ class SyncService {
               Map<String, dynamic> data = Map<String, dynamic>.from(partnerMap);
               data['shopId'] = shopId;
               data.remove('id');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              data.remove('isSynced');
+              data.remove('firestoreId');
 
               final docId =
-                  "rp_${data['createdAt']}_${data['name'].toString().replaceAll(' ', '_')}";
+                  "rp_${partnerMap['createdAt']}_${partnerMap['name'].toString().replaceAll(' ', '_')}";
               partnerBatch.set(
                 _db.collection('repair_partners').doc(docId),
                 data,
                 SetOptions(merge: true),
               );
 
-              // Update local với firestoreId (tạo map mới vì partnerMap là read-only)
-              final updateData = Map<String, dynamic>.from(partnerMap);
-              updateData['firestoreId'] = docId;
-              await dbHelper.upsertRepairPartner(updateData);
+              partnersToMarkSynced.add({'partnerMap': partnerMap, 'docId': docId});
             } catch (e) {
               debugPrint("Lỗi sync repair partner ${partnerMap['id']}: $e");
             }
           }
-          await partnerBatch.commit();
+          try {
+            await partnerBatch.commit();
+            for (var item in partnersToMarkSynced) {
+              final updateData = Map<String, dynamic>.from(item['partnerMap']);
+              updateData['firestoreId'] = item['docId'];
+              await dbHelper.upsertRepairPartner(updateData);
+            }
+            debugPrint("✅ Synced ${partnersToMarkSynced.length} repair partners to cloud");
+          } catch (e) {
+            debugPrint("❌ Batch commit repair partners failed: $e");
+          }
         }
       } catch (e) {
         debugPrint("Lỗi sync repair partners collection: $e");
@@ -2087,6 +2275,7 @@ class SyncService {
         );
         if (supplierPayments.isNotEmpty) {
           final WriteBatch supplierPaymentBatch = _db.batch();
+          final List<Map<String, dynamic>> supPayToMarkSynced = [];
           for (var paymentMap in supplierPayments) {
             final firestoreId = paymentMap['firestoreId'];
             final isSynced =
@@ -2102,6 +2291,9 @@ class SyncService {
               data['shopId'] = shopId;
               data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
               data.remove('id');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              data.remove('isSynced');
+              data.remove('firestoreId');
 
               final docId = firestoreId ??
                   "sup_pay_${data['paidAt']}_${data['supplierId'] ?? 'sup'}";
@@ -2111,15 +2303,23 @@ class SyncService {
                 SetOptions(merge: true),
               );
 
-              await dbHelper.updateSupplierPayment(
-                paymentMap['id'],
-                {'firestoreId': docId, 'isSynced': 1},
-              );
+              supPayToMarkSynced.add({'id': paymentMap['id'], 'docId': docId});
             } catch (e) {
               debugPrint("Lỗi sync supplier payment ${paymentMap['id']}: $e");
             }
           }
-          await supplierPaymentBatch.commit();
+          try {
+            await supplierPaymentBatch.commit();
+            for (var item in supPayToMarkSynced) {
+              await dbHelper.updateSupplierPayment(
+                item['id'],
+                {'firestoreId': item['docId'], 'isSynced': 1},
+              );
+            }
+            debugPrint("✅ Synced ${supPayToMarkSynced.length} supplier payments to cloud");
+          } catch (e) {
+            debugPrint("❌ Batch commit supplier payments failed: $e");
+          }
         }
       } catch (e) {
         debugPrint("Lỗi sync supplier payments collection: $e");
@@ -2133,6 +2333,7 @@ class SyncService {
         );
         if (partnerPayments.isNotEmpty) {
           final WriteBatch partnerPaymentBatch = _db.batch();
+          final List<Map<String, dynamic>> partPayToMarkSynced = [];
           for (var paymentMap in partnerPayments) {
             final firestoreId = paymentMap['firestoreId'];
             final isSynced =
@@ -2148,6 +2349,9 @@ class SyncService {
               data['shopId'] = shopId;
               data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
               data.remove('id');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              data.remove('isSynced');
+              data.remove('firestoreId');
 
               final docId = firestoreId ??
                   "part_pay_${data['paidAt']}_${data['partnerId'] ?? 'partner'}";
@@ -2157,17 +2361,25 @@ class SyncService {
                 SetOptions(merge: true),
               );
 
-              await dbHelper.updateRepairPartnerPayment(
-                paymentMap['id'],
-                {'firestoreId': docId, 'isSynced': 1},
-              );
+              partPayToMarkSynced.add({'id': paymentMap['id'], 'docId': docId});
             } catch (e) {
               debugPrint(
                 "Lỗi sync repair partner payment ${paymentMap['id']}: $e",
               );
             }
           }
-          await partnerPaymentBatch.commit();
+          try {
+            await partnerPaymentBatch.commit();
+            for (var item in partPayToMarkSynced) {
+              await dbHelper.updateRepairPartnerPayment(
+                item['id'],
+                {'firestoreId': item['docId'], 'isSynced': 1},
+              );
+            }
+            debugPrint("✅ Synced ${partPayToMarkSynced.length} repair partner payments to cloud");
+          } catch (e) {
+            debugPrint("❌ Batch commit repair partner payments failed: $e");
+          }
         }
       } catch (e) {
         debugPrint("Lỗi sync repair partner payments collection: $e");
@@ -2181,6 +2393,7 @@ class SyncService {
         );
         if (debts.isNotEmpty) {
           final WriteBatch debtBatch = _db.batch();
+          final List<Map<String, dynamic>> debtsToMarkSynced = [];
           for (var debtMap in debts) {
             // Skip nếu đã có firestoreId và đã sync
             final firestoreId = debtMap['firestoreId'];
@@ -2196,23 +2409,33 @@ class SyncService {
               Map<String, dynamic> data = Map<String, dynamic>.from(debtMap);
               data['shopId'] = shopId;
               data.remove('id');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              data.remove('isSynced');
+              data.remove('firestoreId');
 
               final docId =
                   firestoreId ??
-                  "debt_${data['createdAt']}_${data['phone'] ?? 'ncc'}";
+                  "debt_${debtMap['createdAt']}_${debtMap['phone'] ?? 'ncc'}";
               debtBatch.set(
                 _db.collection('debts').doc(docId),
                 data,
                 SetOptions(merge: true),
               );
 
-              // Update local với firestoreId và isSynced
-              await dbHelper.updateDebtSynced(debtMap['id'], docId);
+              debtsToMarkSynced.add({'id': debtMap['id'], 'docId': docId});
             } catch (e) {
               debugPrint("Lỗi sync debt ${debtMap['id']}: $e");
             }
           }
-          await debtBatch.commit();
+          try {
+            await debtBatch.commit();
+            for (var item in debtsToMarkSynced) {
+              await dbHelper.updateDebtSynced(item['id'], item['docId']);
+            }
+            debugPrint("✅ Synced ${debtsToMarkSynced.length} debts to cloud");
+          } catch (e) {
+            debugPrint("❌ Batch commit debts failed: $e");
+          }
         }
       } catch (e) {
         debugPrint("Lỗi sync debts collection: $e");
@@ -2226,6 +2449,7 @@ class SyncService {
         );
         if (debtPayments.isNotEmpty) {
           final WriteBatch paymentBatch = _db.batch();
+          final List<Map<String, dynamic>> debtPayToMarkSynced = [];
           for (var paymentMap in debtPayments) {
             // Skip nếu đã có firestoreId và đã sync
             final firestoreId = paymentMap['firestoreId'];
@@ -2241,6 +2465,9 @@ class SyncService {
               Map<String, dynamic> data = Map<String, dynamic>.from(paymentMap);
               data['shopId'] = shopId;
               data.remove('id');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              data.remove('isSynced');
+              data.remove('firestoreId');
 
               final docId =
                   firestoreId ??
@@ -2251,13 +2478,20 @@ class SyncService {
                 SetOptions(merge: true),
               );
 
-              // Update local với firestoreId và isSynced
-              await dbHelper.updateDebtPaymentSynced(paymentMap['id'], docId);
+              debtPayToMarkSynced.add({'id': paymentMap['id'], 'docId': docId});
             } catch (e) {
               debugPrint("Lỗi sync debt payment ${paymentMap['id']}: $e");
             }
           }
-          await paymentBatch.commit();
+          try {
+            await paymentBatch.commit();
+            for (var item in debtPayToMarkSynced) {
+              await dbHelper.updateDebtPaymentSynced(item['id'], item['docId']);
+            }
+            debugPrint("✅ Synced ${debtPayToMarkSynced.length} debt payments to cloud");
+          } catch (e) {
+            debugPrint("❌ Batch commit debt payments failed: $e");
+          }
         }
       } catch (e) {
         debugPrint("Lỗi sync debt payments collection: $e");
@@ -2271,11 +2505,15 @@ class SyncService {
         );
         if (auditLogs.isNotEmpty) {
           final WriteBatch auditBatch = _db.batch();
+          final List<String> auditDocsToMarkSynced = [];
           for (var logMap in auditLogs) {
             try {
               Map<String, dynamic> data = Map<String, dynamic>.from(logMap);
               data['shopId'] = shopId;
               data.remove('id');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              data.remove('isSynced');
+              data.remove('firestoreId');
 
               final docId =
                   logMap['firestoreId'] ??
@@ -2286,13 +2524,20 @@ class SyncService {
                 SetOptions(merge: true),
               );
 
-              // Update local với isSynced
-              await dbHelper.updateAuditLogSynced(docId);
+              auditDocsToMarkSynced.add(docId);
             } catch (e) {
               debugPrint("Lỗi sync audit log ${logMap['id']}: $e");
             }
           }
-          await auditBatch.commit();
+          try {
+            await auditBatch.commit();
+            for (var docId in auditDocsToMarkSynced) {
+              await dbHelper.updateAuditLogSynced(docId);
+            }
+            debugPrint("✅ Synced ${auditDocsToMarkSynced.length} audit logs to cloud");
+          } catch (e) {
+            debugPrint("❌ Batch commit audit logs failed: $e");
+          }
         }
       } catch (e) {
         debugPrint("Lỗi sync audit logs collection: $e");
@@ -2306,12 +2551,16 @@ class SyncService {
         );
         if (repairParts.isNotEmpty) {
           final WriteBatch partsBatch = _db.batch();
+          final List<Map<String, dynamic>> partsToMarkSynced = [];
           for (var partMap in repairParts) {
             try {
               Map<String, dynamic> data = Map<String, dynamic>.from(partMap);
               data['shopId'] = shopId;
               final localId = data['id'];
               data.remove('id');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              data.remove('isSynced');
+              data.remove('firestoreId');
 
               final docId =
                   partMap['firestoreId'] ??
@@ -2322,13 +2571,20 @@ class SyncService {
                 SetOptions(merge: true),
               );
 
-              // Update local với firestoreId và isSynced
-              await dbHelper.updateRepairPartSynced(localId, docId);
+              partsToMarkSynced.add({'localId': localId, 'docId': docId});
             } catch (e) {
               debugPrint("Lỗi sync repair part ${partMap['id']}: $e");
             }
           }
-          await partsBatch.commit();
+          try {
+            await partsBatch.commit();
+            for (var item in partsToMarkSynced) {
+              await dbHelper.updateRepairPartSynced(item['localId'], item['docId']);
+            }
+            debugPrint("✅ Synced ${partsToMarkSynced.length} repair parts to cloud");
+          } catch (e) {
+            debugPrint("❌ Batch commit repair parts failed: $e");
+          }
         }
       } catch (e) {
         debugPrint("Lỗi sync repair parts collection: $e");
@@ -2343,6 +2599,7 @@ class SyncService {
         );
         if (paymentIntents.isNotEmpty) {
           final WriteBatch intentBatch = _db.batch();
+          final List<Map<String, dynamic>> intentsToMarkSynced = [];
           for (var intentMap in paymentIntents) {
             final firestoreId = intentMap['firestoreId'];
             final isSynced =
@@ -2359,6 +2616,9 @@ class SyncService {
               data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
               final localId = data['id'];
               data.remove('id');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              data.remove('isSynced');
+              data.remove('firestoreId');
 
               final docId = firestoreId ??
                   "pi_${data['intentId'] ?? data['createdAt']}_${data['type'] ?? 'unknown'}";
@@ -2368,12 +2628,20 @@ class SyncService {
                 SetOptions(merge: true),
               );
 
-              await dbHelper.updatePaymentIntentSynced(localId, docId);
+              intentsToMarkSynced.add({'localId': localId, 'docId': docId});
             } catch (e) {
               debugPrint("Lỗi sync payment intent ${intentMap['id']}: $e");
             }
           }
-          await intentBatch.commit();
+          try {
+            await intentBatch.commit();
+            for (var item in intentsToMarkSynced) {
+              await dbHelper.updatePaymentIntentSynced(item['localId'], item['docId']);
+            }
+            debugPrint("✅ Synced ${intentsToMarkSynced.length} payment intents to cloud");
+          } catch (e) {
+            debugPrint("❌ Batch commit payment intents failed: $e");
+          }
         }
       } catch (e) {
         debugPrint("Lỗi sync payment intents collection: $e");

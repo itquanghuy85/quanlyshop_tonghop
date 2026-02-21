@@ -26,6 +26,7 @@ import '../models/printer_types.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../services/notification_service.dart';
 import '../services/sync_orchestrator.dart';
+import '../services/sync_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_service.dart';
 import '../data/db_helper.dart';
@@ -399,6 +400,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         // Best-effort: push ngay để thiết bị quản lý nhận được trạng thái "CHỜ DUYỆT" ổn định hơn
         // ignore: unawaited_futures
         SyncOrchestrator().syncAll();
+        // FIX: Also trigger targeted repair sync for reliability
+        // ignore: unawaited_futures
+        SyncService.syncRepairData();
       }
 
       debugPrint('Repair status updated successfully');
@@ -669,6 +673,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         // Best-effort: push ngay để các thiết bị khác nhận update nhanh và đồng nhất
         // ignore: unawaited_futures
         SyncOrchestrator().syncAll();
+        // FIX: Also trigger targeted repair sync for reliability
+        // ignore: unawaited_futures
+        SyncService.syncRepairData();
       }
 
       final user = FirebaseAuth.instance.currentUser;
@@ -943,6 +950,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         // Best-effort: push ngay để các thiết bị khác nhận update nhanh
         // ignore: unawaited_futures
         SyncOrchestrator().syncAll();
+        // FIX: Also trigger targeted repair sync for reliability
+        // ignore: unawaited_futures
+        SyncService.syncRepairData();
       }
 
       // Log
@@ -1003,6 +1013,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         // Best-effort: push ngay để các thiết bị khác nhận update nhanh
         // ignore: unawaited_futures
         SyncOrchestrator().syncAll();
+        // FIX: Also trigger targeted repair sync for reliability
+        // ignore: unawaited_futures
+        SyncService.syncRepairData();
       }
 
       final user = FirebaseAuth.instance.currentUser;
@@ -1063,6 +1076,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         // Đẩy sync ngay để trạng thái/lệnh lưu phản chiếu lên thiết bị khác
         // ignore: unawaited_futures
         SyncOrchestrator().syncAll();
+        // FIX: Also trigger targeted repair sync for reliability
+        // ignore: unawaited_futures
+        SyncService.syncRepairData();
       }
 
       // Update debt if payment method is debt and repair is delivered
@@ -1280,6 +1296,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             firestoreId: r.firestoreId,
             operation: SyncOperation.update,
           );
+          // FIX: Also trigger targeted repair sync for reliability
+          // ignore: unawaited_futures
+          SyncService.syncRepairData();
         }
 
         NotificationService.showSnackBar(
@@ -3393,6 +3412,20 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         color: AppColors.success,
       );
       EventBus().emit('repair_services_changed');
+      // FIX: Enqueue repair sync after saving service
+      if (r.id != null) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.repair,
+          entityId: r.id!,
+          firestoreId: r.firestoreId,
+          operation: SyncOperation.update,
+          data: r.toMap(),
+        );
+        // ignore: unawaited_futures
+        SyncOrchestrator().syncAll();
+        // ignore: unawaited_futures
+        SyncService.syncRepairData();
+      }
     } catch (e) {
       NotificationService.showSnackBar('${loc.error}: $e', color: AppColors.error);
     }
@@ -3409,6 +3442,20 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
       r.isSynced = false;
       await db.upsertRepair(r);
+      // FIX: Enqueue repair sync after deleting service
+      if (r.id != null) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.repair,
+          entityId: r.id!,
+          firestoreId: r.firestoreId,
+          operation: SyncOperation.update,
+          data: r.toMap(),
+        );
+        // ignore: unawaited_futures
+        SyncOrchestrator().syncAll();
+        // ignore: unawaited_futures
+        SyncService.syncRepairData();
+      }
       NotificationService.showSnackBar(
         loc.serviceDeleted,
         color: AppColors.warning,
