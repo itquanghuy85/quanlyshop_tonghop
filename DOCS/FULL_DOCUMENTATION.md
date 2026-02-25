@@ -1,5 +1,5 @@
-# 📚 TÀI LIỆU TỔNG HỢP DỰ ÁN QUANLYSHOP (HULUCA)
-
+# 📚 TÀI LIỆU TỔNG HỢP DỰ ÁN QUANLYSHOP (HULUCA) 
+AI khi sửa hay báo cáo phải viết tiếng việt để trong khung chat để người chat hiểu không dùng tiếng anh hay bất kỳ ngôn ngữ khác.
 > **Phần mềm Quản lý Tiệm Sửa chữa & Mua bán Điện thoại / Shop Đa Ngành**
 > Phiên bản: 3.4.0+10 | Flutter + Firebase
 > Cập nhật: 02/2026
@@ -1671,7 +1671,7 @@ Salary: Monthly/Daily/Hourly base + Commission + Allowances - Deductions
 
 ---
 
-## � CẬP NHẬT: GỘP TRANG QUẢN LÝ TÀI CHÍNH (v10.0.9 - 02/2026)
+## � CẬP NHẬT: GỘP TRANG QUẢN LÝ TÀI CHÍNH (v10.0.11 - 02/2026)
 
 ### Tổng quan thay đổi
 

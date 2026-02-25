@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
@@ -31,6 +32,7 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
   bool _isLoading = false;
   String _selectedCategory = 'Tất cả';
   ShopSettings? _shopSettings;
+  Timer? _debounceTimer;
   BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   List<String> get _categories => ['Tất cả', 'Khách hàng', 'Đơn sửa chữa', 'Đơn bán hàng', _terms.productLabel, 'Mã nhập nhanh'];
@@ -55,13 +57,17 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
     super.dispose();
   }
 
   void _onSearchChanged() {
-    _performSearch(_searchCtrl.text);
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _performSearch(_searchCtrl.text);
+    });
   }
 
   Future<void> _performSearch(String query) async {
@@ -79,7 +85,8 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
       final repairs = await db.getAllRepairs();
       final customerResults = repairs.where((repair) {
         return VietnameseUtils.containsVietnamese(repair.customerName, query) ||
-               repair.phone.contains(query);
+               repair.phone.contains(query) ||
+               VietnameseUtils.containsVietnamese(repair.address, query);
       }).toList();
 
       // Search repairs
@@ -87,7 +94,8 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
         return VietnameseUtils.containsVietnamese(repair.model, query) ||
                VietnameseUtils.containsVietnamese(repair.issue, query) ||
                VietnameseUtils.containsVietnamese(repair.customerName, query) ||
-               repair.phone.contains(query);
+               repair.phone.contains(query) ||
+               VietnameseUtils.containsVietnamese(repair.address, query);
       }).toList();
 
       // Search sales

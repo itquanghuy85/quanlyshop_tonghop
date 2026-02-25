@@ -799,30 +799,40 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       elevation: 0,
-      scrolledUnderElevation: 0.5,
+      scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
-      backgroundColor: Colors.white,
-      foregroundColor: CustomAppBar.kTextPrimary,
+      backgroundColor: Colors.transparent,
+      foregroundColor: Colors.white,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppBarAccents.chat, AppBarAccents.chat.withOpacity(0.8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      ),
       title: _isSearching
           ? Container(
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: TextField(
                 autofocus: true,
                 style: TextStyle(
-                  color: CustomAppBar.kTextPrimary,
+                  color: Colors.white,
                   fontSize: AppTextStyles.headline3.fontSize,
                 ),
-                cursorColor: AppBarAccents.chat,
+                cursorColor: Colors.white,
                 decoration: InputDecoration(
                   hintText: 'Tìm tin nhắn...',
-                  hintStyle: TextStyle(color: Colors.grey.shade500),
+                  hintStyle: TextStyle(color: Colors.white70),
                   prefixIcon: const Icon(
                     Icons.search,
-                    color: AppBarAccents.chat,
+                    color: Colors.white70,
                     size: 20,
                   ),
                   border: InputBorder.none,
@@ -842,7 +852,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                   style: TextStyle(
                     fontSize: AppTextStyles.headline3.fontSize,
                     fontWeight: FontWeight.w600,
-                    color: CustomAppBar.kTextPrimary,
+                    color: Colors.white,
                   ),
                 ),
                 if (_onlineUsers.isNotEmpty)
@@ -851,7 +861,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                     style: TextStyle(
                       fontSize: AppTextStyles.subtitle1.fontSize,
                       fontWeight: FontWeight.w400,
-                      color: AppBarAccents.chat,
+                      color: Colors.white70,
                     ),
                   ),
               ],
@@ -861,13 +871,13 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           icon: Icon(
             _isSearching ? Icons.close : Icons.search_rounded,
             size: 22,
-            color: AppBarAccents.chat,
+            color: Colors.white,
           ),
           onPressed: _toggleSearch,
           splashRadius: 20,
         ),
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, size: 22, color: AppBarAccents.chat),
+          icon: const Icon(Icons.more_vert, size: 22, color: Colors.white),
           splashRadius: 20,
           onSelected: (value) {
             switch (value) {
@@ -892,7 +902,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
-        child: Container(color: CustomAppBar.kDivider, height: 1),
+        child: Container(color: Colors.white.withOpacity(0.2), height: 1),
       ),
     );
   }

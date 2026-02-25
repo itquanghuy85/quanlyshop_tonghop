@@ -1555,11 +1555,12 @@ class _InventoryViewState extends State<InventoryView>
   // ===== INVENTORY CHECK METHODS =====
   Future<void> _loadOrCreateCurrentCheck() async {
     try {
-      final checks = await db.getInventoryChecks();
+      // Lọc theo checkType để tránh lấy nhầm check của loại khác
+      final checks = await db.getInventoryChecks(checkType: _selectedType);
       final today = DateTime.now();
       final todayKey = DateFormat('yyyy-MM-dd').format(today);
 
-      // Find today's check or create new one
+      // Find today's check for this type or create new one
       _currentCheck = checks.cast<InventoryCheck?>().firstWhere(
         (check) =>
             check != null &&
@@ -1591,6 +1592,7 @@ class _InventoryViewState extends State<InventoryView>
       _items = await db.getItemsForInventoryCheck(_selectedType);
       _updateCheckItems();
     } catch (e) {
+      debugPrint('Lỗi tải kiểm kho: $e');
       NotificationService.showSnackBar(
         'Lỗi tải danh sách: $e',
         color: Colors.red,
@@ -2046,7 +2048,7 @@ class _InventoryViewState extends State<InventoryView>
             children: [
               // Type selector - dynamic based on business type
               DropdownButtonFormField<String>(
-                initialValue: _selectedType,
+                value: _selectedType,
                 decoration: InputDecoration(
                   labelText: "Loại ${_terms.productLabel.toLowerCase()} kiểm kho",
                   prefixIcon: const Icon(Icons.category),
@@ -2216,7 +2218,7 @@ class _InventoryViewState extends State<InventoryView>
                               Text("${_terms.specialField1Label}: ${item.imei}")
                             else
                               Text(
-                                _selectedType == 'PHỤ KIỆN' 
+                                _selectedType == 'PHU_KIEN' 
                                     ? "${_terms.category2} sửa chữa" 
                                     : _selectedType == 'LINH_KIEN'
                                         ? "${_terms.category3} (không ${_terms.specialField1Label})"
@@ -2543,14 +2545,10 @@ class _InventoryViewState extends State<InventoryView>
     return InkWell(
       onTap: () async {
         setState(() => _filterType = type);
-        // Reload summary khi thay đổi filter
-        final summary = await db.getInventorySummary(type: type == 'TẤT CẢ' ? null : type);
-        if (mounted) {
-          setState(() {
-            _totalQtyFromDB = summary['totalQty'] ?? 0;
-            _totalCapitalFromDB = summary['totalCapital'] ?? 0;
-          });
-        }
+        // CRITICAL: Phải reload data khi thay đổi filter
+        // Vì khi filter != TẤT CẢ, cần load TẤT CẢ products (không paginated)
+        // Khi filter = TẤT CẢ, chuyển lại chế độ paginated
+        await _refreshLocalData();
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -3822,9 +3820,45 @@ class _InventoryViewState extends State<InventoryView>
     final priceC = TextEditingController(
       text: CurrencyTextField.formatDisplay(p.price),
     );
-    // Chi tiết tách riêng: capacity và color
-    final detailC = TextEditingController(text: ProductConstants.mapCapacity(p.capacity));
-    final colorC = TextEditingController(text: ProductConstants.mapColor(p.color));
+    // Chi tiết tách riêng: capacity, color, condition - dùng dropdown thay vì text
+    final mappedCapacity = ProductConstants.mapCapacity(p.capacity);
+    String? selectedCapacity = ProductConstants.capacities.contains(mappedCapacity)
+        ? mappedCapacity
+        : (mappedCapacity.isNotEmpty ? mappedCapacity : null);
+    final mappedColor = p.color != null && p.color!.isNotEmpty
+        ? ProductConstants.mapColor(p.color)
+        : null;
+    String? selectedColor = mappedColor != null && ProductConstants.colors.contains(mappedColor)
+        ? mappedColor
+        : null;
+    final mappedCondition = p.condition.isNotEmpty
+        ? ProductConstants.mapConditionShort(p.condition)
+        : null;
+    String? selectedCondition = mappedCondition != null && ProductConstants.conditionsShort.contains(mappedCondition)
+        ? mappedCondition
+        : null;
+
+    // Fallback: nếu color/capacity/condition chưa được lưu riêng (sản phẩm cũ),
+    // thử parse từ description (= detail trong Firestore), format: "256GB - ĐEN - MỚI"
+    if (selectedColor == null && selectedCapacity == null && p.description.isNotEmpty) {
+      final parts = p.description.split(' - ');
+      for (final part in parts) {
+        final trimmed = part.trim().toUpperCase();
+        // Parse capacity (kết thúc bằng GB hoặc TB)
+        if (selectedCapacity == null && (trimmed.endsWith('GB') || trimmed.endsWith('TB'))) {
+          final cap = ProductConstants.mapCapacity(trimmed);
+          if (ProductConstants.capacities.contains(cap)) selectedCapacity = cap;
+        }
+        // Parse color
+        if (selectedColor == null && ProductConstants.colors.contains(trimmed)) {
+          selectedColor = trimmed;
+        }
+        // Parse condition
+        if (selectedCondition == null && ProductConstants.conditionsShort.contains(trimmed)) {
+          selectedCondition = trimmed;
+        }
+      }
+    }
     final labelInfoC = TextEditingController(text: p.labelInfo ?? '');
     final qtyC = TextEditingController(text: p.quantity.toString());
     // Brand chọn riêng - giữ từ sản phẩm gốc
@@ -3871,9 +3905,9 @@ class _InventoryViewState extends State<InventoryView>
               final generatedName = ProductConstants.generateProductName(
                 brand: selectedBrand,
                 model: nameC.text.trim(), // nameC chứa model
-                capacity: detailC.text.trim(),
-                color: colorC.text.trim(),
-                condition: p.condition, // Giữ nguyên condition
+                capacity: selectedCapacity,
+                color: selectedColor,
+                condition: selectedCondition,
               );
 
               final updatedP = p.copyWith(
@@ -3885,8 +3919,9 @@ class _InventoryViewState extends State<InventoryView>
                 imei: imeiC.text.trim(),
                 cost: newCost,
                 price: CurrencyTextField.parseValue(priceC.text),
-                capacity: ProductConstants.mapCapacity(detailC.text.trim()),
-                color: ProductConstants.mapColor(colorC.text.trim()),
+                capacity: selectedCapacity ?? '',
+                color: selectedColor ?? '',
+                condition: selectedCondition ?? p.condition,
                 labelInfo: labelInfoC.text.trim(),
                 quantity: int.tryParse(qtyC.text) ?? 1,
                 type: type,
@@ -3995,21 +4030,77 @@ class _InventoryViewState extends State<InventoryView>
                   _input(nameC, _isElectronics ? "Model (VD: 15 PRO MAX)" : "Tên ${_terms.productLabel.toLowerCase()}", 
                     _isElectronics ? Icons.phone_android : Icons.inventory_2, caps: true),
 
-                  // Dung lượng/Size - hiện cho electronics và fashion
+                  // Dung lượng/Size + Màu sắc (dropdown)
                   if (_isElectronics || _isFashion)
-                    _input(
-                      detailC,
-                      _isFashion ? "Kích thước / Size" : "Dung lượng (VD: 256GB)",
-                      _isFashion ? Icons.straighten : Icons.storage,
-                      caps: true,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _isFashion
+                                ? (ProductConstants.clothingSizes.contains(selectedCapacity) ? selectedCapacity : null)
+                                : (ProductConstants.capacities.contains(selectedCapacity) ? selectedCapacity : null),
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: _isFashion ? 'Kích thước' : 'Dung lượng',
+                              prefixIcon: Icon(_isFashion ? Icons.straighten : Icons.storage, size: 18),
+                              border: const OutlineInputBorder(),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            items: (_isFashion ? ProductConstants.clothingSizes : ProductConstants.capacities)
+                                .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize))))
+                                .toList(),
+                            onChanged: (v) => setS(() => selectedCapacity = v),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: ProductConstants.colors.contains(selectedColor) ? selectedColor : null,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Màu sắc',
+                              prefixIcon: Icon(Icons.color_lens, size: 18),
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            items: ProductConstants.colors
+                                .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize))))
+                                .toList(),
+                            onChanged: (v) => setS(() => selectedColor = v),
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (!_isElectronics && !_isFashion)
+                    DropdownButtonFormField<String>(
+                      value: ProductConstants.colors.contains(selectedColor) ? selectedColor : null,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Màu sắc',
+                        prefixIcon: Icon(Icons.color_lens, size: 18),
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      items: ProductConstants.colors
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize))))
+                          .toList(),
+                      onChanged: (v) => setS(() => selectedColor = v),
                     ),
 
-                  // Màu sắc
-                  _input(
-                    colorC,
-                    "Màu sắc",
-                    Icons.color_lens,
-                    caps: true,
+                  // Tình trạng (MỚI, 99, 98...)
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedCondition,
+                    decoration: const InputDecoration(
+                      labelText: 'Tình trạng',
+                      prefixIcon: Icon(Icons.grade, size: 18),
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: ProductConstants.conditionsShort
+                        .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize))))
+                        .toList(),
+                    onChanged: (v) => setS(() => selectedCondition = v),
                   ),
 
                   // Thông tin in trên tem

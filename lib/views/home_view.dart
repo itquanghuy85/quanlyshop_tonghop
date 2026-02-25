@@ -20,6 +20,7 @@ import 'supplier_list_view.dart';
 import 'quick_input_codes_view.dart';
 import 'sale_list_view.dart';
 import 'expense_view.dart';
+import 'financial_hub_view.dart';
 import 'debt_view.dart';
 import 'warranty_view.dart';
 import 'shop_settings_view.dart';
@@ -115,7 +116,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         (_) => _syncNow(silent: true),
       );
 
-      EventBus().stream.listen((event) {
+      _eventBusSub = EventBus().stream.listen((event) {
         debugPrint('HomeView: Received event: $event');
         if ((event == 'debts_changed' ||
                 event == 'sales_changed' ||
@@ -174,6 +175,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   Timer? _autoSyncTimer;
   Timer? _statsDebounceTimer; // Add debounce timer
+  StreamSubscription? _eventBusSub; // EventBus subscription
   Map<String, bool> _permissions = {};
   List<dynamic> _lockedByAdmin = []; // Danh sách quyền bị Admin khóa
   List<dynamic> _lockedByOwner = []; // Danh sách quyền bị Chủ shop khóa
@@ -203,7 +205,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   bool get _enableExpiry => _shopSettings?.enableExpiry ?? false;
   bool get _enableVariants => _shopSettings?.enableVariants ?? false;
   bool get _enableSerial => _shopSettings?.enableSerial ?? false;
-  bool get _enableWarranty => _shopSettings?.enableWarranty ?? false;
+  bool get _enableWarranty => _shopSettings?.enableWarranty ?? true; // Default true for backwards compat
   String get _businessType => _shopSettings?.businessType ?? 'electronics';
   bool get _isElectronics => _businessType == 'electronics';
   bool get _isFashion => _businessType == 'fashion';
@@ -1107,6 +1109,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _eventBusSub?.cancel();
     _autoSyncTimer?.cancel();
     _statsDebounceTimer?.cancel();
     _phoneSearchCtrl.dispose();
@@ -1420,6 +1423,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   int _todaySaleOrderCount = 0; // Số đơn bán hàng hôm nay
   int _todayExpenseCount = 0; // Số chi phí hôm nay
   int _todayStockInCost = 0; // Chi phí nhập kho hôm nay (tiền mặt/CK)
+  int _todayDebtPaidToSupplier = 0; // Trả nợ NCC hôm nay
+  int _todayExpenseOnly = 0; // Chi phí hoạt động thuần (không gồm trả nợ NCC)
 
   Future<void> _loadStats() async {
     // Guard chống load nhiều lần liên tiếp
@@ -1749,6 +1754,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _todaySaleOrderCount = fSales.length;
           _todayExpenseCount = fExpenses.length;
           _todayStockInCost = stockInCost; // Chi phí nhập kho hôm nay
+          _todayDebtPaidToSupplier = debtPaidToSupplier;
+          _todayExpenseOnly = totalOut; // Chi phí thuần (không gồm trả nợ NCC)
           _totalLocalRecords = totalRecords; // Cập nhật tổng records
           unreadChatCount = unread; // Gộp vào 1 setState
           // Cập nhật tin nhắn mới nhất
@@ -1884,9 +1891,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ],
         ),
         body: IndexedStack(
-          key: ValueKey(
-            'indexed_stack_$_rebuildCounter',
-          ), // Force rebuild when stats change
           index: _currentIndex,
           children: _tabWidgets,
         ),
@@ -3304,7 +3308,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         ),
         const SizedBox(height: 6),
 
-        // BẢO HÀNH
+        // BẢO HÀNH - Only show for electronics shops (repair/warranty enabled)
+        if (_enableWarranty)
         Card(
           color: Colors.amber.shade50,
           shape: RoundedRectangleBorder(
@@ -4558,6 +4563,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
+                // Warranty tracking - only show for shops with warranty enabled
+                if (_enableWarranty)
                 _financeQuickCard(
                   loc.warrantyTracking,
                   Icons.verified_user,
@@ -4565,6 +4572,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const WarrantyView()),
+                  ),
+                ),
+                // Alternative card for fashion/food shops without warranty
+                if (!_enableWarranty)
+                _financeQuickCard(
+                  'Nhà cung cấp',
+                  Icons.local_shipping,
+                  Colors.teal,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SupplierListView()),
                   ),
                 ),
               ],
@@ -4710,7 +4728,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   label: loc.todayIncome,
                   value: _todayTotalIn,
                   color: AppColors.success,
-                  detail: "$_todaySaleOrderCount ${loc.sales} + $_todayRepairCount ${loc.repair}",
+                  detail: _enableRepair
+                      ? "$_todaySaleOrderCount ${loc.sales} + $_todayRepairCount ${loc.repair}"
+                      : "$_todaySaleOrderCount ${loc.sales}",
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const FinancialHubView(initialTab: 0)),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -4720,10 +4744,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   label: loc.todayExpense,
                   value: _todayTotalOut,
                   color: AppColors.error,
-                  detail: "$_todayExpenseCount ${loc.expenseItems}",
+                  detail: _buildExpenseDetail(loc),
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ExpenseView()),
+                    MaterialPageRoute(builder: (_) => const FinancialHubView(initialTab: 0)),
                   ),
                 ),
               ),
@@ -4892,6 +4916,22 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   // Finance stat card for the overview section
+
+  /// Chi tiết breakdown chi phí hôm nay
+  String _buildExpenseDetail(AppLocalizations loc) {
+    final parts = <String>[];
+    if (_todayExpenseOnly > 0) {
+      parts.add('$_todayExpenseCount ${loc.expenseItems}: ${MoneyUtils.formatVND(_todayExpenseOnly)}đ');
+    } else if (_todayExpenseCount > 0) {
+      parts.add('$_todayExpenseCount ${loc.expenseItems}');
+    }
+    if (_todayDebtPaidToSupplier > 0) {
+      parts.add('Trả nợ NCC: ${MoneyUtils.formatVND(_todayDebtPaidToSupplier)}đ');
+    }
+    if (parts.isEmpty) return '0 ${loc.expenseItems}';
+    return parts.join(' · ');
+  }
+
   Widget _financeStatCard({
     required IconData icon,
     required String label,
@@ -5456,8 +5496,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         label: loc.todayIncome,
                         value: _todayTotalIn,
                         color: AppColors.success,
-                        subLabel:
-                            "$_todaySaleOrderCount ${loc.saleOrders} + $_todayRepairCount ${loc.repairOrders}",
+                        subLabel: _enableRepair
+                            ? "$_todaySaleOrderCount ${loc.saleOrders} + $_todayRepairCount ${loc.repairOrders}"
+                            : "$_todaySaleOrderCount ${loc.saleOrders}",
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const FinancialHubView(initialTab: 0),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -5467,11 +5514,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         label: loc.todayExpense,
                         value: _todayTotalOut,
                         color: AppColors.error,
-                        subLabel: "$_todayExpenseCount ${loc.expenseItems}",
+                        subLabel: _buildExpenseDetail(loc),
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const ExpenseView(),
+                            builder: (_) => const FinancialHubView(initialTab: 0),
                           ),
                         ),
                       ),
@@ -5875,7 +5922,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Widget _buildAlerts() {
-    if (expiringWarranties == 0) return const SizedBox();
+    // Only show warranty alerts for shops with warranty enabled (electronics)
+    if (!_enableWarranty || expiringWarranties == 0) return const SizedBox();
     return InkWell(
       onTap: () => Navigator.push(
         context,

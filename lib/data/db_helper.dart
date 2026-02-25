@@ -20,6 +20,22 @@ class DBHelper {
   DBHelper._internal();
   factory DBHelper() => _instance;
 
+  /// Helper: build SQL WHERE clause that matches both old (Vietnamese) and new (ASCII) type values
+  /// e.g. 'LINH_KIEN' → "(type = 'LINH_KIEN' OR type = 'LINH KIỆN')"
+  static String _typeWhereClause(String type, List<dynamic> args) {
+    switch (type) {
+      case 'LINH_KIEN':
+        args.addAll(['LINH_KIEN', 'LINH KIỆN']);
+        return '(type = ? OR type = ?)';
+      case 'PHU_KIEN':
+        args.addAll(['PHU_KIEN', 'PHỤ KIỆN']);
+        return '(type = ? OR type = ?)';
+      default:
+        args.add(type);
+        return 'type = ?';
+    }
+  }
+
   /// Helper để lấy shopId hiện tại (dùng cho query, không throw exception)
   /// Trả về shopId hoặc null nếu không có
   Future<String?> _getCurrentShopId() async {
@@ -68,7 +84,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 77,
+      version: 79,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
@@ -77,7 +93,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, size TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, isSynced INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, cashAmount INTEGER DEFAULT 0, transferAmount INTEGER DEFAULT 0, isSynced INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT UNIQUE, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
@@ -95,7 +111,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS attendance(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, dateKey TEXT, checkInAt INTEGER, checkOutAt INTEGER, overtimeOn INTEGER DEFAULT 0, photoIn TEXT, photoOut TEXT, note TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, locked INTEGER DEFAULT 0, createdAt INTEGER, location TEXT, isLate INTEGER DEFAULT 0, isEarlyLeave INTEGER DEFAULT 0, workSchedule TEXT, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, userName TEXT, action TEXT, targetType TEXT, targetId TEXT, description TEXT, createdAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, summary TEXT, role TEXT, email TEXT, payload TEXT, entityType TEXT, entityId TEXT)',
+          'CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, userName TEXT, action TEXT, targetType TEXT, targetId TEXT, description TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, summary TEXT, role TEXT, email TEXT, payload TEXT, entityType TEXT, entityId TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS inventory_checks(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, type TEXT, checkDate INTEGER, itemsJson TEXT, status TEXT, createdBy TEXT, isSynced INTEGER DEFAULT 0, isCompleted INTEGER DEFAULT 0)',
@@ -760,6 +776,40 @@ class DBHelper {
             debugPrint('v77 error (size): $e');
           }
           debugPrint('v77: Fashion size column complete');
+        }
+        if (oldV < 78) {
+          // v78: Add updatedAt column to audit_logs for Firestore sync compatibility
+          debugPrint('DB upgrade v78: Adding updatedAt to audit_logs...');
+          try {
+            await db.execute(
+              'ALTER TABLE audit_logs ADD COLUMN updatedAt INTEGER',
+            );
+            debugPrint('v78: added updatedAt to audit_logs');
+          } catch (e) {
+            debugPrint('v78 error (audit_logs updatedAt): $e');
+          }
+          debugPrint('v78: audit_logs updatedAt complete');
+        }
+        if (oldV < 79) {
+          // v79: Add cashAmount and transferAmount to sales for combined payment support
+          debugPrint('DB upgrade v79: Adding cashAmount and transferAmount to sales...');
+          try {
+            await db.execute(
+              'ALTER TABLE sales ADD COLUMN cashAmount INTEGER DEFAULT 0',
+            );
+            debugPrint('v79: added cashAmount to sales');
+          } catch (e) {
+            debugPrint('v79 error (cashAmount): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE sales ADD COLUMN transferAmount INTEGER DEFAULT 0',
+            );
+            debugPrint('v79: added transferAmount to sales');
+          } catch (e) {
+            debugPrint('v79 error (transferAmount): $e');
+          }
+          debugPrint('v79: Combined payment columns complete');
         }
         if (oldV < 26) {
           // Migration to remove kpkPrice and pkPrice columns from products and quick_input_codes tables
@@ -2951,6 +3001,29 @@ class DBHelper {
     return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
   }
 
+  /// Lấy repair_parts (phụ tùng sửa chữa) dưới dạng Product
+  /// Dùng cho FastInventoryCheckView để kiểm kho phụ kiện
+  Future<List<Product>> getRepairPartsAsProducts() async {
+    final db = await database;
+    final parts = await db.query(
+      'repair_parts',
+      where: '(deleted = 0 OR deleted IS NULL) AND quantity > 0',
+      orderBy: 'createdAt DESC',
+    );
+    return parts.map((p) => Product(
+      id: p['id'] as int?,
+      firestoreId: p['firestoreId']?.toString(),
+      name: p['partName']?.toString() ?? p['name']?.toString() ?? '',
+      type: 'PHU_KIEN',
+      quantity: (p['quantity'] as num?)?.toInt() ?? 0,
+      cost: (p['cost'] as num?)?.toInt() ?? 0,
+      price: (p['price'] as num?)?.toInt() ?? 0,
+      createdAt: (p['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+      status: 1,
+      isSynced: p['isSynced'] == 1,
+    )).toList();
+  }
+
   /// Get products with pagination support for lazy loading
   /// Returns [limit] products starting from [offset], ordered by createdAt DESC
   Future<List<Product>> getProductsPaged(int limit, int offset, {String? type, bool inStockOnly = false}) async {
@@ -2965,8 +3038,7 @@ class DBHelper {
     }
     
     if (type != null) {
-      where += ' AND type = ?';
-      whereArgs.add(type);
+      where += ' AND ${_typeWhereClause(type, whereArgs)}';
     }
     
     if (inStockOnly) {
@@ -2997,8 +3069,7 @@ class DBHelper {
     }
     
     if (type != null) {
-      where += ' AND type = ?';
-      args.add(type);
+      where += ' AND ${_typeWhereClause(type, args)}';
     }
     
     if (inStockOnly) {
@@ -3032,14 +3103,14 @@ class DBHelper {
     ''';
     
     if (type != null && type != 'TẤT CẢ') {
+      final typeClause = _typeWhereClause(type, args);
       query = '''
         SELECT 
           COALESCE(SUM(quantity), 0) as totalQty,
           COALESCE(SUM(cost * quantity), 0) as totalCapital
         FROM products 
-        WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)$shopFilter AND type = ?
+        WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)$shopFilter AND $typeClause
       ''';
-      args.add(type);
     }
     
     final result = await (await database).rawQuery(query, args);
@@ -3078,8 +3149,9 @@ class DBHelper {
     bool inStockOnly = true,
   }) async {
     final shopId = UserService.getShopIdSync();
-    String where = 'type = ? AND (deleted = 0 OR deleted IS NULL)';
-    List<dynamic> whereArgs = [type];
+    List<dynamic> whereArgs = [];
+    final typeClause = _typeWhereClause(type, whereArgs);
+    String where = '$typeClause AND (deleted = 0 OR deleted IS NULL)';
     
     // Add shopId filter for multi-shop support
     if (shopId != null && shopId.isNotEmpty) {
@@ -3153,6 +3225,31 @@ class DBHelper {
       return true;
     }
     return false;
+  }
+
+  /// Khôi phục số lượng linh kiện theo tên (tìm trong cả repair_parts và products type=LINH_KIEN)
+  Future<bool> restorePartQuantityByNameUnified(String partName, int quantity) async {
+    // Try repair_parts first
+    final restored = await restorePartQuantityByName(partName, quantity);
+    if (restored) return true;
+
+    // Fallback: try products table (type = LINH_KIEN)
+    final db = await database;
+    final products = await db.query(
+      'products',
+      where: 'UPPER(name) = ? AND (deleted = 0 OR deleted IS NULL)',
+      whereArgs: [partName.toUpperCase()],
+      limit: 1,
+    );
+    if (products.isEmpty) {
+      debugPrint('⚠️ restorePartQuantityByNameUnified: Not found in either table: $partName');
+      return false;
+    }
+
+    final productId = products.first['id'] as int;
+    await addProductQuantity(productId, quantity);
+    debugPrint('✅ Restored product quantity: $partName, +$quantity');
+    return true;
   }
 
   Future<Product?> getProductByFirestoreId(String firestoreId) async {
@@ -3962,15 +4059,32 @@ class DBHelper {
     String type,
   ) async {
     final db = await database;
+
     if (type == 'DIEN_THOAI') {
-      // Điện thoại - có IMEI, từ bảng products với status = 1 (còn hàng)
       return await db.query('products', where: 'status = 1 AND type = ?', whereArgs: ['DIEN_THOAI']);
     } else if (type == 'LINH_KIEN') {
-      // Linh kiện - từ bảng products với type = 'LINH KIỆN' hoặc 'LINH_KIEN'
+      // Linh kiện - match cả giá trị cũ 'LINH KIỆN' và mới 'LINH_KIEN'
       return await db.query('products', where: 'status = 1 AND (type = ? OR type = ?)', whereArgs: ['LINH KIỆN', 'LINH_KIEN']);
     }
-    // PHỤ KIỆN - từ bảng repair_parts (kho phụ tùng sửa chữa)
-    return await db.query('repair_parts', where: '(deleted = 0 OR deleted IS NULL) AND quantity > 0');
+    // PHU_KIEN - gộp cả hai nguồn:
+    // 1. Products có type = PHU_KIEN hoặc PHỤ KIỆN
+    // 2. repair_parts (phụ tùng kho sửa chữa)
+    final List<Map<String, dynamic>> results = [];
+
+    // Phụ kiện từ bảng products (match cả format cũ và mới)
+    final productPK = await db.query('products', where: 'status = 1 AND (type = ? OR type = ?)', whereArgs: ['PHU_KIEN', 'PHỤ KIỆN']);
+    results.addAll(productPK);
+
+    // Phụ tùng từ bảng repair_parts (map partName → name để UI đọc được)
+    final parts = await db.query('repair_parts', where: '(deleted = 0 OR deleted IS NULL) AND quantity > 0');
+    for (final p in parts) {
+      results.add({
+        ...p,
+        'name': p['partName'] ?? p['name'] ?? '',
+      });
+    }
+
+    return results;
   }
 
   // --- PARTS HELPERS ---
@@ -4166,6 +4280,16 @@ class DBHelper {
           cleanData['updatedAt'] ?? DateTime.now().millisecondsSinceEpoch;
       cleanData['createdAt'] =
           cleanData['createdAt'] ?? DateTime.now().millisecondsSinceEpoch;
+
+      // Convert Firestore boolean → SQLite integer
+      if (cleanData['deleted'] is bool) {
+        cleanData['deleted'] = cleanData['deleted'] == true ? 1 : 0;
+      }
+      // Nếu cloud không gửi deleted (record chưa xóa), đặt = 0
+      cleanData['deleted'] ??= 0;
+      if (cleanData['isSynced'] is bool) {
+        cleanData['isSynced'] = cleanData['isSynced'] == true ? 1 : 0;
+      }
 
       // Ensure numeric fields are integers
       if (cleanData['cost'] != null) {
@@ -6697,6 +6821,31 @@ class DBHelper {
     );
     debugPrint('DB: Force marked $result repair_parts as synced');
     return result;
+  }
+
+  /// Fix repair_parts bị stuck deleted=1 do bug soft-delete cũ
+  /// Records có firestoreId nhưng bị đánh deleted=1 nhầm → reset về deleted=0
+  /// Real-time sync sẽ xử lý đúng nếu record thực sự bị xóa trên cloud
+  Future<int> fixStuckDeletedRepairParts() async {
+    final db = await database;
+    final stuck = await db.query(
+      'repair_parts',
+      where: 'deleted = 1 AND firestoreId IS NOT NULL AND firestoreId != ""',
+    );
+    if (stuck.isEmpty) return 0;
+
+    debugPrint('DB: Found ${stuck.length} repair_parts stuck with deleted=1:');
+    for (var p in stuck) {
+      debugPrint('  - firestoreId=${p['firestoreId']}, partName=${p['partName']}');
+    }
+
+    final fixed = await db.update(
+      'repair_parts',
+      {'deleted': 0, 'isSynced': 1},
+      where: 'deleted = 1 AND firestoreId IS NOT NULL AND firestoreId != ""',
+    );
+    debugPrint('DB: Fixed $fixed stuck deleted repair_parts → deleted=0');
+    return fixed;
   }
 
   // === MULTI-INDUSTRY EXPANSION - Phase 1 (v75) ===

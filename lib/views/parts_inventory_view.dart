@@ -5,7 +5,6 @@ import '../data/db_helper.dart';
 import '../services/user_service.dart';
 import '../services/event_bus.dart';
 import '../services/audit_service.dart';
-import '../services/adjustment_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/payment_intent_service.dart';
 import '../services/financial_activity_service.dart';
@@ -18,6 +17,8 @@ import '../core/utils/money_utils.dart';
 import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
+import '../utils/vietnamese_utils.dart';
+import 'supplier_form_view.dart';
 
 /// Widget content để embed vào InventoryView tab - Phiên bản chuyên nghiệp
 class PartsInventoryViewContent extends StatefulWidget {
@@ -947,11 +948,14 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   Future<void> _deleteSelectedParts() async {
     if (_selectedIds.isEmpty) return;
     
+    final count = _selectedIds.length;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc muốn xóa ${_selectedIds.length} ${_terms.category3} đã chọn?'),
+        content: Text(
+          'Bạn có chắc muốn xóa $count ${_terms.category3} đã chọn?\n\nHành động này không thể hoàn tác.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -968,21 +972,59 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     
     if (confirm != true) return;
     
-    final database = await db.database;
-    for (final id in _selectedIds) {
-      await database.delete('repair_parts', where: 'id = ?', whereArgs: [id]);
-    }
-    
-    setState(() {
-      _selectedIds.clear();
-      _isSelectionMode = false;
-    });
-    
-    _refreshParts();
-    
-    if (mounted) {
+    try {
+      final database = await db.database;
+      int deletedCount = 0;
+
+      for (final id in _selectedIds) {
+        // Soft delete - đánh dấu deleted để sync lên cloud
+        await database.update(
+          'repair_parts',
+          {
+            'deleted': 1,
+            'isSynced': 0,
+            'updatedAt': DateTime.now().millisecondsSinceEpoch,
+          },
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+        deletedCount++;
+
+        // Log audit
+        final part = _parts.firstWhere(
+          (p) => p['id'] == id,
+          orElse: () => {},
+        );
+        if (part.isNotEmpty) {
+          await AuditService.logAction(
+            action: 'DELETE_PART',
+            entityType: 'repair_parts',
+            entityId: part['firestoreId'] ?? id.toString(),
+            summary: 'Xóa ${_terms.category3}: ${part['partName']}',
+          );
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _selectedIds.clear();
+        _isSelectionMode = false;
+      });
+      
+      _refreshParts();
+      EventBus().emit('repair_parts_changed');
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đã xóa ${_terms.category3}'), backgroundColor: Colors.green),
+        SnackBar(
+          content: Text('Đã xóa $deletedCount ${_terms.category3}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi xóa: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -1084,6 +1126,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
   }
 
   void _showAddPartDialog({Map<String, dynamic>? part}) {
+    final isEdit = part != null;
     final nameC = TextEditingController(text: part?['partName']);
     final modelC = TextEditingController(text: part?['compatibleModels']);
     final costC = TextEditingController(
@@ -1098,27 +1141,20 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
     final formKey = GlobalKey<FormState>();
     int? selectedSupplierId = part?['supplierId'] as int?;
     String paymentMethod = 'TIỀN MẶT';
-    bool isLockedDay = false;
+
+    // Flag tránh đăng ký listener nhiều lần trong StatefulBuilder
+    bool _listenerAdded = false;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) {
-          nameC.addListener(() => setS(() {}));
-          // Check locked day for edit
-          if (part != null) {
-            final createdAt =
-                part['createdAt'] as int? ??
-                DateTime.now().millisecondsSinceEpoch;
-            AdjustmentService.canEditDirectly(createdAt).then((can) {
-              if (!mounted) return;
-              if (isLockedDay != !can) {
-                setS(() => isLockedDay = !can);
-              }
-            });
+          if (!_listenerAdded) {
+            _listenerAdded = true;
+            nameC.addListener(() => setS(() {}));
           }
           return AlertDialog(
-            title: Text(part == null ? "NHẬP ${_terms.category3.toUpperCase()} MỚI" : "SỬA ${_terms.category3.toUpperCase()}"),
+            title: Text(isEdit ? "SỬA ${_terms.category3.toUpperCase()}" : "NHẬP ${_terms.category3.toUpperCase()} MỚI"),
             content: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -1140,40 +1176,42 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       uppercase: true,
                     ),
                     const SizedBox(height: 12),
-                    if (isLockedDay)
+                    // Edit mode: banner hướng dẫn nhập thêm
+                    if (isEdit)
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(10),
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.12),
+                          color: Colors.blue.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: Colors.orange.withOpacity(0.5),
+                            color: Colors.blue.withOpacity(0.3),
                           ),
                         ),
                         child: const Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Icon(
-                              Icons.lock_clock,
-                              color: Colors.orange,
+                              Icons.info_outline,
+                              color: Colors.blue,
                               size: 18,
                             ),
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Ngày đã chốt quỹ. Sửa sẽ cần lý do điều chỉnh và tạo bút toán.',
+                                'Chỉ sửa thông tin & giá bán. Muốn nhập thêm số lượng → dùng nút NHẬP THÊM ở danh sách.',
                                 style: TextStyle(
-                                  color: Colors.orange,
+                                  color: Colors.blue,
                                   height: 1.3,
+                                  fontSize: 12,
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    if (_suppliers.isEmpty)
+                    if (!isEdit && _suppliers.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -1183,49 +1221,102 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             color: Colors.orange.withOpacity(0.3),
                           ),
                         ),
-                        child: const Row(
+                        child: Column(
                           children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Colors.orange,
-                              size: 18,
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange,
+                                  size: 18,
+                                ),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Chưa có nhà cung cấp.',
+                                  ),
+                                ),
+                              ],
                             ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Chưa có nhà cung cấp, thêm trong trang NCC.',
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final result = await Navigator.push(
+                                    ctx,
+                                    MaterialPageRoute(
+                                      builder: (_) => const SupplierFormView(),
+                                    ),
+                                  );
+                                  if (result == true) {
+                                    await _loadSuppliers();
+                                    setS(() {});
+                                  }
+                                },
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('THÊM NCC MỚI'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.orange,
+                                  side: const BorderSide(color: Colors.orange),
+                                ),
                               ),
                             ),
                           ],
                         ),
                       )
-                    else
-                      DropdownButtonFormField<int?>(
-                        initialValue: selectedSupplierId,
-                        decoration: InputDecoration(
-                          labelText: "Nhà cung cấp (${_suppliers.length} NCC)",
-                          prefixIcon: const Icon(Icons.store),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    else if (!isEdit)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Supplier search & select
+                          _SupplierSearchField(
+                            suppliers: _suppliers,
+                            selectedSupplierId: selectedSupplierId,
+                            onChanged: (v) => setS(() => selectedSupplierId = v),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        items: [
-                          const DropdownMenuItem<int?>(
-                            value: null,
-                            child: Text('-- Chọn NCC --'),
-                          ),
-                          ..._suppliers.map(
-                            (s) => DropdownMenuItem<int?>(
-                              value: s['id'] as int?,
-                              child: Text(s['name']?.toString() ?? 'N/A'),
+                          const SizedBox(height: 6),
+                          // Shortcut to add new supplier
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () async {
+                                final result = await Navigator.push(
+                                  ctx,
+                                  MaterialPageRoute(
+                                    builder: (_) => const SupplierFormView(),
+                                  ),
+                                );
+                                if (result == true) {
+                                  await _loadSuppliers();
+                                  setS(() {});
+                                }
+                              },
+                              icon: const Icon(Icons.add_circle_outline, size: 16),
+                              label: const Text('Thêm NCC mới', style: TextStyle(fontSize: 12)),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.teal,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                visualDensity: VisualDensity.compact,
+                              ),
                             ),
                           ),
                         ],
-                        onChanged: (v) => setS(() => selectedSupplierId = v),
+                      ),
+                    // Edit mode: show read-only supplier info
+                    if (isEdit && selectedSupplierId != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.local_shipping, size: 16, color: Colors.grey),
+                            const SizedBox(width: 8),
+                            Text(
+                              'NCC: ${_getSupplierName(selectedSupplierId)}',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
                       ),
                     const SizedBox(height: 12),
                     Row(
@@ -1234,8 +1325,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           Expanded(
                             child: CurrencyTextField(
                               controller: costC,
-                              label: "Giá vốn",
+                              label: isEdit ? "Giá vốn (không sửa)" : "Giá vốn",
                               icon: Icons.attach_money,
+                              enabled: !isEdit,
                             ),
                           ),
                         if (_canViewCostPrice)
@@ -1250,18 +1342,38 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: qtyC,
-                      decoration: const InputDecoration(
-                        labelText: "Số lượng nhập",
+                    if (isEdit)
+                      // Edit mode: show quantity as read-only info
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.inventory_2, size: 18, color: Colors.grey),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Tồn kho: ${part?['quantity'] ?? 0}',
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      TextFormField(
+                        controller: qtyC,
+                        decoration: const InputDecoration(
+                          labelText: "Số lượng nhập",
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (v) {
+                          final parsed = int.tryParse((v ?? '').trim()) ?? 0;
+                          if (parsed <= 0) return 'Nhập số lượng hợp lệ';
+                          return null;
+                        },
                       ),
-                      keyboardType: TextInputType.number,
-                      validator: (v) {
-                        final parsed = int.tryParse((v ?? '').trim()) ?? 0;
-                        if (parsed <= 0) return 'Nhập số lượng hợp lệ';
-                        return null;
-                      },
-                    ),
                     const SizedBox(height: 12),
                     if (part == null) ...[
                       const Text(
@@ -1356,7 +1468,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       priceC.text,
                     );
                     final qty = int.tryParse(qtyC.text) ?? 0;
-                    if (qty <= 0) return;
+                    if (!isEdit && qty <= 0) return;
 
                     final data = {
                       'partName': partName,
@@ -1547,314 +1659,51 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         }
                       }
                     } else {
-                      final originalDate = part['createdAt'] as int? ?? now;
-                      final canEditDirectly =
-                          await AdjustmentService.canEditDirectly(originalDate);
-                      final oldCost = part['cost'] as int? ?? 0;
-                      final oldQty = part['quantity'] as int? ?? 0;
-                      final oldPaymentMethod =
-                          part['paymentMethod'] as String? ?? 'TIỀN MẶT';
+                      // ===== EDIT MODE: Chỉ cập nhật thông tin & giá bán =====
+                      // Không cho sửa giá vốn, số lượng, NCC, hình thức TT
+                      // Muốn nhập thêm → dùng _showAddStockDialog
                       final partId = part['id'] as int;
-                      
-                      // Tính toán chênh lệch để cập nhật expense/debt
-                      final oldTotalCost = oldCost * oldQty;
-                      final newTotalCost = cost * qty;
-                      final costDifference = newTotalCost - oldTotalCost;
+                      final editData = {
+                        'partName': partName,
+                        'compatibleModels': modelC.text.toUpperCase(),
+                        'price': price,
+                        'updatedAt': now,
+                        'isSynced': 0,
+                      };
+                      await (await db.database).update(
+                        'repair_parts',
+                        editData,
+                        where: 'id = ?',
+                        whereArgs: [partId],
+                      );
 
-                      if (canEditDirectly) {
-                        data['isSynced'] = 0;
-                        await (await db.database).update(
-                          'repair_parts',
-                          data,
-                          where: 'id = ?',
-                          whereArgs: [partId],
-                        );
-
-                        // Queue sync update to cloud via SyncOrchestrator
-                        final partFirestoreId = part['firestoreId'] as String?;
-                        if (partFirestoreId != null &&
-                            partFirestoreId.isNotEmpty) {
-                          await SyncOrchestrator().enqueue(
-                            entityType: SyncEntityType.repairPart,
-                            entityId: partId,
-                            firestoreId: partFirestoreId,
-                            operation: SyncOperation.update,
-                            data: {
-                              ...data,
-                              'id': partId,
-                              'firestoreId': partFirestoreId,
-                            },
-                          );
-                        }
-
-                        // *** FIX: Cập nhật expense/debt khi sửa số lượng ***
-                        if (costDifference != 0) {
-                          final database = await db.database;
-                          
-                          if (oldPaymentMethod == 'CÔNG NỢ') {
-                            // Tìm và cập nhật debt liên quan
-                            final debts = await database.query(
-                              'debts',
-                              where: 'relatedPartId = ?',
-                              whereArgs: [partId],
-                            );
-                            if (debts.isNotEmpty) {
-                              final debtId = debts.first['id'] as int;
-                              final debtFirestoreId = debts.first['firestoreId'] as String?;
-                              await database.update(
-                                'debts',
-                                {
-                                  'totalAmount': newTotalCost,
-                                  'note': 'Nhập ${_terms.category3}: $partName x$qty',
-                                  'updatedAt': now,
-                                  'isSynced': 0,
-                                },
-                                where: 'id = ?',
-                                whereArgs: [debtId],
-                              );
-                              // Enqueue debt sync
-                              if (debtFirestoreId != null && debtFirestoreId.isNotEmpty) {
-                                await SyncOrchestrator().enqueue(
-                                  entityType: SyncEntityType.debt,
-                                  entityId: debtId,
-                                  firestoreId: debtFirestoreId,
-                                  operation: SyncOperation.update,
-                                );
-                              }
-                              EventBus().emit('debts_changed');
-                            }
-                          } else {
-                            // Tìm và cập nhật expense liên quan
-                            final expenses = await database.query(
-                              'expenses',
-                              where: 'relatedPartId = ?',
-                              whereArgs: [partId],
-                            );
-                            if (expenses.isNotEmpty) {
-                              final expenseId = expenses.first['id'] as int;
-                              final expenseFirestoreId = expenses.first['firestoreId'] as String?;
-                              final supplierName = _getSupplierName(selectedSupplierId);
-                              await database.update(
-                                'expenses',
-                                {
-                                  'amount': newTotalCost,
-                                  'description': 'Nhập ${_terms.category3}: $partName x$qty${selectedSupplierId != null ? " từ $supplierName" : ""}',
-                                  'updatedAt': now,
-                                  'isSynced': 0,
-                                },
-                                where: 'id = ?',
-                                whereArgs: [expenseId],
-                              );
-                              // Enqueue expense sync
-                              if (expenseFirestoreId != null && expenseFirestoreId.isNotEmpty) {
-                                await SyncOrchestrator().enqueue(
-                                  entityType: SyncEntityType.expense,
-                                  entityId: expenseId,
-                                  firestoreId: expenseFirestoreId,
-                                  operation: SyncOperation.update,
-                                );
-                              }
-                              EventBus().emit('expenses_changed');
-                            }
-                          }
-                          
-                          // Cập nhật thống kê nhà cung cấp nếu có
-                          if (selectedSupplierId != null) {
-                            await db.updateSupplierStats(
-                              selectedSupplierId!,
-                              costDifference,
-                              qty - oldQty,
-                            );
-                            EventBus().emit('suppliers_changed');
-                          }
-                        }
-
-                        await AuditService.logAction(
-                          action: 'PART_UPDATE',
-                          entityType: 'repair_part',
-                          entityId: partId.toString(),
-                          summary: 'Cập nhật ${_terms.category3}: $partName',
-                          payload: {
-                            'partName': partName,
-                            'quantity': qty,
-                            'cost': cost,
-                            'price': price,
-                            'oldQuantity': oldQty,
-                            'oldCost': oldCost,
-                            'costDifference': costDifference,
+                      // Queue sync update to cloud
+                      final partFirestoreId = part['firestoreId'] as String?;
+                      if (partFirestoreId != null && partFirestoreId.isNotEmpty) {
+                        await SyncOrchestrator().enqueue(
+                          entityType: SyncEntityType.repairPart,
+                          entityId: partId,
+                          firestoreId: partFirestoreId,
+                          operation: SyncOperation.update,
+                          data: {
+                            ...editData,
+                            'id': partId,
+                            'firestoreId': partFirestoreId,
                           },
                         );
-                      } else {
-                        final reason = await _showAdjustmentReasonDialog(
-                          context,
-                        );
-                        if (reason == null || reason.isEmpty) return;
-
-                        if (cost != oldCost) {
-                          final result = await AdjustmentService.adjustPartCost(
-                            partId: partId,
-                            partName: partName,
-                            oldCost: oldCost,
-                            newCost: cost,
-                            quantity: oldQty,
-                            originalDate: originalDate,
-                            reason: reason,
-                            supplierId: selectedSupplierId,
-                            supplierName: _getSupplierName(selectedSupplierId),
-                            paymentMethod: oldPaymentMethod,
-                          );
-
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(result.message),
-                                backgroundColor: result.success
-                                    ? Colors.green
-                                    : Colors.red,
-                              ),
-                            );
-                          }
-
-                          if (!result.success) return;
-                        }
-
-                        await (await db.database).update(
-                          'repair_parts',
-                          {
-                            'partName': partName,
-                            'compatibleModels': modelC.text.toUpperCase(),
-                            'cost': cost,
-                            'price': price,
-                            'quantity': qty,
-                            'supplierId': selectedSupplierId,
-                            'paymentMethod': paymentMethod,
-                            'updatedAt': now,
-                            'isSynced': 0,
-                          },
-                          where: 'id = ?',
-                          whereArgs: [partId],
-                        );
-
-                        // Queue sync update to cloud via SyncOrchestrator
-                        final partFirestoreId = part['firestoreId'] as String?;
-                        if (partFirestoreId != null &&
-                            partFirestoreId.isNotEmpty) {
-                          await SyncOrchestrator().enqueue(
-                            entityType: SyncEntityType.repairPart,
-                            entityId: partId,
-                            firestoreId: partFirestoreId,
-                            operation: SyncOperation.update,
-                            data: {
-                              'id': partId,
-                              'firestoreId': partFirestoreId,
-                              'partName': partName,
-                              'compatibleModels': modelC.text.toUpperCase(),
-                              'cost': cost,
-                              'price': price,
-                              'quantity': qty,
-                              'supplierId': selectedSupplierId,
-                              'paymentMethod': paymentMethod,
-                              'updatedAt': now,
-                            },
-                          );
-                        }
-
-                        // *** FIX (locked day): Cập nhật expense/debt khi sửa số lượng qua adjustment ***
-                        // Nếu số lượng thay đổi, tạo bút toán điều chỉnh
-                        if (qty != oldQty && costDifference != 0) {
-                          final database = await db.database;
-                          
-                          if (oldPaymentMethod == 'CÔNG NỢ') {
-                            // Tìm và cập nhật debt liên quan
-                            final debts = await database.query(
-                              'debts',
-                              where: 'relatedPartId = ?',
-                              whereArgs: [partId],
-                            );
-                            if (debts.isNotEmpty) {
-                              final debtId = debts.first['id'] as int;
-                              final debtFirestoreId = debts.first['firestoreId'] as String?;
-                              await database.update(
-                                'debts',
-                                {
-                                  'totalAmount': newTotalCost,
-                                  'note': 'Nhập ${_terms.category3}: $partName x$qty (điều chỉnh: $reason)',
-                                  'updatedAt': now,
-                                  'isSynced': 0,
-                                },
-                                where: 'id = ?',
-                                whereArgs: [debtId],
-                              );
-                              if (debtFirestoreId != null && debtFirestoreId.isNotEmpty) {
-                                await SyncOrchestrator().enqueue(
-                                  entityType: SyncEntityType.debt,
-                                  entityId: debtId,
-                                  firestoreId: debtFirestoreId,
-                                  operation: SyncOperation.update,
-                                );
-                              }
-                              EventBus().emit('debts_changed');
-                            }
-                          } else {
-                            // Tìm và cập nhật expense liên quan
-                            final expenses = await database.query(
-                              'expenses',
-                              where: 'relatedPartId = ?',
-                              whereArgs: [partId],
-                            );
-                            if (expenses.isNotEmpty) {
-                              final expenseId = expenses.first['id'] as int;
-                              final expenseFirestoreId = expenses.first['firestoreId'] as String?;
-                              final supplierName = _getSupplierName(selectedSupplierId);
-                              await database.update(
-                                'expenses',
-                                {
-                                  'amount': newTotalCost,
-                                  'description': 'Nhập ${_terms.category3}: $partName x$qty (điều chỉnh: $reason)${selectedSupplierId != null ? " từ $supplierName" : ""}',
-                                  'updatedAt': now,
-                                  'isSynced': 0,
-                                },
-                                where: 'id = ?',
-                                whereArgs: [expenseId],
-                              );
-                              if (expenseFirestoreId != null && expenseFirestoreId.isNotEmpty) {
-                                await SyncOrchestrator().enqueue(
-                                  entityType: SyncEntityType.expense,
-                                  entityId: expenseId,
-                                  firestoreId: expenseFirestoreId,
-                                  operation: SyncOperation.update,
-                                );
-                              }
-                              EventBus().emit('expenses_changed');
-                            }
-                          }
-                          
-                          // Log điều chỉnh số lượng
-                          await AuditService.logAction(
-                            action: 'PART_QTY_ADJUST',
-                            entityType: 'repair_part',
-                            entityId: partId.toString(),
-                            summary: 'Điều chỉnh số lượng ${_terms.category3}: $partName ($oldQty -> $qty)',
-                            payload: {
-                              'partName': partName,
-                              'oldQuantity': oldQty,
-                              'newQuantity': qty,
-                              'costDifference': costDifference,
-                              'reason': reason,
-                            },
-                          );
-                          
-                          // Cập nhật thống kê nhà cung cấp nếu có
-                          if (selectedSupplierId != null) {
-                            await db.updateSupplierStats(
-                              selectedSupplierId!,
-                              costDifference,
-                              qty - oldQty,
-                            );
-                            EventBus().emit('suppliers_changed');
-                          }
-                        }
                       }
+
+                      await AuditService.logAction(
+                        action: 'PART_INFO_UPDATE',
+                        entityType: 'repair_part',
+                        entityId: partId.toString(),
+                        summary: 'Cập nhật thông tin ${_terms.category3}: $partName',
+                        payload: {
+                          'partName': partName,
+                          'price': price,
+                          'oldPrice': part['price'],
+                        },
+                      );
                     }
 
                     if (!mounted) return;
@@ -1870,6 +1719,422 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                   }
                 },
                 child: const Text("XÁC NHẬN"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Dialog nhập thêm số lượng cho linh kiện đã có - tạo bản ghi tài chính mới ngày hôm nay
+  void _showAddStockDialog(Map<String, dynamic> part) {
+    final partName = part['partName'] as String? ?? '';
+    final currentQty = part['quantity'] as int? ?? 0;
+    final currentCost = part['cost'] as int? ?? 0;
+    final partId = part['id'] as int;
+    
+    final addQtyC = TextEditingController(text: '1');
+    final costC = TextEditingController(
+      text: CurrencyTextField.formatDisplay(currentCost),
+    );
+    final formKey = GlobalKey<FormState>();
+    int? selectedSupplierId = part['supplierId'] as int?;
+    String paymentMethod = 'TIỀN MẶT';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          return AlertDialog(
+            title: Text('NHẬP THÊM: $partName'),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Info hiện tại
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.teal.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.inventory_2, size: 18, color: Colors.teal),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Tồn kho hiện tại: $currentQty',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.teal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Số lượng nhập thêm
+                    TextFormField(
+                      controller: addQtyC,
+                      decoration: const InputDecoration(
+                        labelText: 'Số lượng nhập thêm',
+                        prefixIcon: Icon(Icons.add_shopping_cart),
+                      ),
+                      keyboardType: TextInputType.number,
+                      autofocus: true,
+                      validator: (v) {
+                        final parsed = int.tryParse((v ?? '').trim()) ?? 0;
+                        if (parsed <= 0) return 'Nhập số lượng hợp lệ (> 0)';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    if (_canViewCostPrice)
+                      CurrencyTextField(
+                        controller: costC,
+                        label: 'Giá vốn / đơn vị',
+                        icon: Icons.attach_money,
+                      ),
+                    const SizedBox(height: 12),
+                    // Supplier
+                    if (_suppliers.isNotEmpty) ...[
+                      _SupplierSearchField(
+                        suppliers: _suppliers,
+                        selectedSupplierId: selectedSupplierId,
+                        onChanged: (v) => setS(() => selectedSupplierId = v),
+                      ),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              ctx,
+                              MaterialPageRoute(
+                                builder: (_) => const SupplierFormView(),
+                              ),
+                            );
+                            if (result == true) {
+                              await _loadSuppliers();
+                              setS(() {});
+                            }
+                          },
+                          icon: const Icon(Icons.add_circle_outline, size: 16),
+                          label: const Text('Thêm NCC mới', style: TextStyle(fontSize: 12)),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.teal,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    // Payment method
+                    const Text(
+                      'Hình thức thanh toán:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'].map((m) {
+                        final selected = paymentMethod == m;
+                        return ChoiceChip(
+                          label: Text(
+                            m,
+                            style: TextStyle(
+                              color: selected ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          selected: selected,
+                          selectedColor: Colors.purple,
+                          onSelected: (_) => setS(() => paymentMethod = m),
+                        );
+                      }).toList(),
+                    ),
+                    if (paymentMethod == 'CÔNG NỢ' && selectedSupplierId != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Sẽ tạo công nợ với: ${_getSupplierName(selectedSupplierId)}',
+                                style: const TextStyle(color: Colors.orange),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (paymentMethod == 'CÔNG NỢ' && selectedSupplierId == null)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red, size: 18),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Chọn nhà cung cấp để ghi nhận công nợ.',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('HỦY'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  CurrencyTextField.finalizeAll();
+                  if (!(formKey.currentState?.validate() ?? false)) return;
+
+                  try {
+                    final now = DateTime.now().millisecondsSinceEpoch;
+                    final addQty = int.tryParse(addQtyC.text.trim()) ?? 0;
+                    if (addQty <= 0) return;
+                    final cost = CurrencyTextField.parseValueWithMultiply(costC.text);
+                    final totalCost = cost * addQty;
+                    final newQty = currentQty + addQty;
+                    final supplierName = _getSupplierName(selectedSupplierId);
+                    final shopId = await UserService.getCurrentShopId();
+
+                    // 1. Cập nhật số lượng trong bảng repair_parts
+                    await (await db.database).update(
+                      'repair_parts',
+                      {
+                        'quantity': newQty,
+                        'cost': cost, // cập nhật giá vốn mới nhất
+                        'updatedAt': now,
+                        'isSynced': 0,
+                      },
+                      where: 'id = ?',
+                      whereArgs: [partId],
+                    );
+
+                    // Queue sync
+                    final partFirestoreId = part['firestoreId'] as String?;
+                    if (partFirestoreId != null && partFirestoreId.isNotEmpty) {
+                      await SyncOrchestrator().enqueue(
+                        entityType: SyncEntityType.repairPart,
+                        entityId: partId,
+                        firestoreId: partFirestoreId,
+                        operation: SyncOperation.update,
+                        data: {
+                          'id': partId,
+                          'firestoreId': partFirestoreId,
+                          'quantity': newQty,
+                          'cost': cost,
+                          'updatedAt': now,
+                        },
+                      );
+                    }
+
+                    // 2. Audit log
+                    await AuditService.logAction(
+                      action: 'PART_ADD_STOCK',
+                      entityType: 'repair_part',
+                      entityId: partId.toString(),
+                      summary:
+                          'Nhập thêm ${_terms.category3}: $partName +$addQty (${NumberFormat('#,###').format(totalCost)}đ) - $paymentMethod',
+                      payload: {
+                        'partName': partName,
+                        'addedQuantity': addQty,
+                        'newQuantity': newQty,
+                        'cost': cost,
+                        'totalCost': totalCost,
+                        'paymentMethod': paymentMethod,
+                        'supplierName': supplierName,
+                      },
+                    );
+
+                    // 3. Lịch sử nhập hàng NCC
+                    if (selectedSupplierId != null) {
+                      final user = FirebaseAuth.instance.currentUser;
+                      final userName =
+                          user?.email?.split('@').first.toUpperCase() ?? 'NV';
+                      final importHistory = {
+                        'supplierId': selectedSupplierId,
+                        'supplierName': supplierName,
+                        'productName': partName,
+                        'productBrand': _terms.category3.toUpperCase(),
+                        'productModel': part['compatibleModels'] ?? '',
+                        'imei': null,
+                        'quantity': addQty,
+                        'costPrice': cost,
+                        'totalAmount': totalCost,
+                        'paymentMethod': paymentMethod,
+                        'importDate': now,
+                        'importedBy': userName,
+                        'notes': 'Nhập thêm vào kho ${_terms.category3}',
+                        'shopId': shopId,
+                        'isSynced': 0,
+                      };
+                      final importHistoryId =
+                          await db.insertSupplierImportHistory(importHistory);
+                      if (importHistoryId > 0) {
+                        await SyncOrchestrator().enqueueSupplierImportHistory(
+                          importHistoryId,
+                          firestoreId:
+                              importHistory['firestoreId'] as String?,
+                          operation: SyncOperation.create,
+                        );
+                      }
+
+                      await db.updateSupplierStats(
+                        selectedSupplierId!,
+                        totalCost,
+                        addQty,
+                      );
+                      EventBus().emit('suppliers_changed');
+                    }
+
+                    // 4. Tài chính — tạo BẢN GHI MỚI ngày hôm nay
+                    if (totalCost > 0) {
+                      final user = FirebaseAuth.instance.currentUser;
+                      if (paymentMethod == 'CÔNG NỢ') {
+                        // Công nợ NCC
+                        final debtFId =
+                            'debt_part_${now}_${selectedSupplierId ?? 0}';
+                        final debtData = {
+                          'firestoreId': debtFId,
+                          'personName': supplierName,
+                          'phone': '',
+                          'totalAmount': totalCost,
+                          'paidAmount': 0,
+                          'type': 'SHOP_OWES',
+                          'status': 'ACTIVE',
+                          'createdAt': now,
+                          'note':
+                              'Nhập thêm ${_terms.category3}: $partName x$addQty',
+                          'linkedId': null,
+                          'isSynced': 0,
+                          'shopId': shopId,
+                        };
+                        final debtId = await db.insertDebt(debtData);
+                        if (debtId > 0) {
+                          await SyncOrchestrator().enqueue(
+                            entityType: SyncEntityType.debt,
+                            entityId: debtId,
+                            firestoreId: debtFId,
+                            operation: SyncOperation.create,
+                            data: debtData,
+                          );
+                        }
+
+                        final intent = PaymentIntent(
+                          id: 'pi_part_debt_${now}_$partName',
+                          type: PaymentIntentType.supplierDebt,
+                          amount: totalCost,
+                          description:
+                              'Trả nợ nhập ${_terms.category3}: $partName - $supplierName',
+                          referenceId: debtFId,
+                          referenceType: 'part_debt',
+                          personName: supplierName,
+                          createdBy: user?.uid ?? 'unknown',
+                          createdAt: now,
+                          metadata: {
+                            'partName': partName,
+                            'quantity': addQty,
+                            'debtId': debtId,
+                            'debtFirestoreId': debtFId,
+                            'debtType': 'SHOP_OWES',
+                          },
+                        );
+                        await PaymentIntentService.createIntent(intent);
+                        debugPrint(
+                          '💳 Created PaymentIntent for add-stock debt: ${intent.id}',
+                        );
+                        EventBus().emit('debts_changed');
+                      } else {
+                        // TIỀN MẶT / CHUYỂN KHOẢN → expense
+                        final expFId = 'exp_part_${now}_$partName';
+                        final expenseData = {
+                          'firestoreId': expFId,
+                          'title':
+                              'Nhập thêm ${_terms.category3}: $partName',
+                          'description':
+                              'NCC: $supplierName - SL: $addQty',
+                          'amount': totalCost,
+                          'category':
+                              'NHẬP ${_terms.category3.toUpperCase()}',
+                          'date': now,
+                          'note':
+                              'Nhập thêm vào kho ${_terms.category3} - $paymentMethod',
+                          'paymentMethod': paymentMethod,
+                          'createdAt': now,
+                          'shopId': shopId,
+                          'isSynced': 0,
+                        };
+                        final expenseId =
+                            await db.insertExpense(expenseData);
+                        if (expenseId > 0) {
+                          await SyncOrchestrator().enqueue(
+                            entityType: SyncEntityType.expense,
+                            entityId: expenseId,
+                            firestoreId: expFId,
+                            operation: SyncOperation.create,
+                            data: expenseData,
+                          );
+                        }
+
+                        await FinancialActivityService.logPurchase(
+                          firestoreId: expFId,
+                          amount: totalCost,
+                          productName: partName,
+                          quantity: addQty,
+                          paymentMethod: paymentMethod,
+                          supplierName: supplierName,
+                        );
+
+                        EventBus().emit('expenses_changed');
+                        debugPrint(
+                          'PartsInventory: Created expense for add-stock $paymentMethod: $totalCost',
+                        );
+                      }
+                    }
+
+                    if (!mounted) return;
+                    Navigator.of(context).pop();
+                    await _refreshParts();
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Đã nhập thêm $addQty $partName (tổng: $newQty)',
+                          ),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Lỗi: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.add_shopping_cart, size: 18),
+                label: const Text('NHẬP THÊM'),
               ),
             ],
           );
@@ -2140,13 +2405,43 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           ),
                           trailing: _isSelectionMode
                               ? null
-                              : Text(
-                                  "${NumberFormat('#,###').format(p['price'] ?? 0)} đ",
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.red,
+                              : _isAdmin
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Nút nhập thêm
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.add_shopping_cart,
+                                          color: Colors.teal,
+                                          size: 20,
+                                        ),
+                                        tooltip: 'Nhập thêm',
+                                        onPressed: () => _showAddStockDialog(p),
+                                        visualDensity: VisualDensity.compact,
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 32,
+                                          minHeight: 32,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "${NumberFormat('#,###').format(p['price'] ?? 0)} đ",
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Text(
+                                    "${NumberFormat('#,###').format(p['price'] ?? 0)} đ",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red,
+                                    ),
                                   ),
-                                ),
                           onTap: _isSelectionMode
                               ? (partId != null
                                     ? () => _toggleSelection(partId)
@@ -2181,34 +2476,174 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                 : null),
     );
   }
+}
 
-  Future<String?> _showAdjustmentReasonDialog(BuildContext ctx) async {
-    final reasonC = TextEditingController();
-    return showDialog<String>(
-      context: ctx,
-      barrierDismissible: false,
-      builder: (dCtx) => AlertDialog(
-        title: const Text('Lý do điều chỉnh sau ngày chốt quỹ'),
-        content: TextField(
-          controller: reasonC,
-          maxLines: 3,
-          decoration: const InputDecoration(hintText: 'Nhập lý do điều chỉnh'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dCtx),
-            child: const Text('HỦY'),
+/// Widget tìm kiếm và chọn NCC - hỗ trợ tìm kiếm có dấu và không dấu
+class _SupplierSearchField extends StatefulWidget {
+  final List<Map<String, dynamic>> suppliers;
+  final int? selectedSupplierId;
+  final ValueChanged<int?> onChanged;
+
+  const _SupplierSearchField({
+    required this.suppliers,
+    required this.selectedSupplierId,
+    required this.onChanged,
+  });
+
+  @override
+  State<_SupplierSearchField> createState() => _SupplierSearchFieldState();
+}
+
+class _SupplierSearchFieldState extends State<_SupplierSearchField> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  bool _showDropdown = false;
+
+  String _getSelectedName() {
+    if (widget.selectedSupplierId == null) return '';
+    final s = widget.suppliers.firstWhere(
+      (e) => e['id'] == widget.selectedSupplierId,
+      orElse: () => {},
+    );
+    return s['name']?.toString() ?? '';
+  }
+
+  List<Map<String, dynamic>> _filteredSuppliers() {
+    final query = _searchCtrl.text.trim();
+    if (query.isEmpty) return widget.suppliers;
+    return widget.suppliers.where((s) {
+      final name = s['name']?.toString() ?? '';
+      return VietnameseUtils.containsVietnamese(name, query);
+    }).toList();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedName = _getSelectedName();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Selected supplier display + tap to change
+        InkWell(
+          onTap: () => setState(() {
+            _showDropdown = !_showDropdown;
+            if (_showDropdown) _searchCtrl.clear();
+          }),
+          borderRadius: BorderRadius.circular(12),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: "Nhà cung cấp (${widget.suppliers.length} NCC)",
+              prefixIcon: const Icon(Icons.store),
+              suffixIcon: Icon(
+                _showDropdown ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+            ),
+            child: Text(
+              selectedName.isEmpty ? '-- Chọn NCC --' : selectedName,
+              style: TextStyle(
+                color: selectedName.isEmpty ? Colors.grey : Colors.black87,
+              ),
+            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              final val = reasonC.text.trim();
-              if (val.isEmpty) return;
-              Navigator.pop(dCtx, val);
-            },
-            child: const Text('XÁC NHẬN'),
+        ),
+        // Dropdown search area
+        if (_showDropdown) ...[
+          const SizedBox(height: 8),
+          TextField(
+            controller: _searchCtrl,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: 'Tìm NCC (có dấu hoặc không dấu)...',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            constraints: const BoxConstraints(maxHeight: 160),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              children: [
+                // Option to clear selection
+                ListTile(
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  title: const Text(
+                    '-- Bỏ chọn --',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  onTap: () {
+                    widget.onChanged(null);
+                    setState(() => _showDropdown = false);
+                  },
+                ),
+                ..._filteredSuppliers().map((s) {
+                  final id = s['id'] as int?;
+                  final name = s['name']?.toString() ?? 'N/A';
+                  final isSelected = id == widget.selectedSupplierId;
+                  return ListTile(
+                    dense: true,
+                    visualDensity: VisualDensity.compact,
+                    selected: isSelected,
+                    selectedTileColor: Colors.purple.withOpacity(0.1),
+                    leading: Icon(
+                      isSelected ? Icons.check_circle : Icons.store_outlined,
+                      size: 18,
+                      color: isSelected ? Colors.purple : Colors.grey,
+                    ),
+                    title: Text(
+                      name,
+                      style: TextStyle(
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    onTap: () {
+                      widget.onChanged(id);
+                      setState(() => _showDropdown = false);
+                    },
+                  );
+                }),
+                if (_filteredSuppliers().isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text(
+                      'Không tìm thấy NCC',
+                      style: TextStyle(color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
-      ),
+      ],
     );
   }
 }

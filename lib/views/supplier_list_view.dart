@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -47,6 +48,7 @@ class _SupplierListViewState extends State<SupplierListView>
   final _db = DBHelper();
   final _searchCtrl = TextEditingController();
   final _partnerSearchCtrl = TextEditingController();
+  StreamSubscription? _eventBusSub;
 
   List<_SupplierCardData> _items = [];
   bool _loading = true;
@@ -88,9 +90,10 @@ class _SupplierListViewState extends State<SupplierListView>
     _loadShopSettings();
     _load();
     _loadPartners();
-    EventBus().stream
+    _eventBusSub = EventBus().stream
         .where((e) => e == 'suppliers_changed' || e == 'debts_changed')
         .listen((_) {
+      if (!mounted) return;
       _load();
       _loadPartners();
     });
@@ -159,6 +162,7 @@ class _SupplierListViewState extends State<SupplierListView>
 
   @override
   void dispose() {
+    _eventBusSub?.cancel();
     _tabController.dispose();
     _searchCtrl.dispose();
     _partnerSearchCtrl.dispose();
@@ -166,6 +170,7 @@ class _SupplierListViewState extends State<SupplierListView>
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     try {
       final suppliers = await _supplierService.getSuppliers();
@@ -261,6 +266,7 @@ class _SupplierListViewState extends State<SupplierListView>
         );
       }
 
+      if (!mounted) return;
       setState(() {
         _items = data;
         _totalSuppliers = suppliers.length;
@@ -270,6 +276,7 @@ class _SupplierListViewState extends State<SupplierListView>
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       NotificationService.showSnackBar(
         'Lỗi tải danh sách NCC: $e',
         color: Colors.red,
@@ -279,6 +286,7 @@ class _SupplierListViewState extends State<SupplierListView>
   }
 
   Future<void> _loadPartners() async {
+    if (!mounted) return;
     setState(() => _partnerLoading = true);
     try {
       final partners = await _partnerService.getRepairPartners();
@@ -309,6 +317,7 @@ class _SupplierListViewState extends State<SupplierListView>
         );
       }
 
+      if (!mounted) return;
       setState(() {
         _partners = data;
         _totalPartners = partners.length;
@@ -318,6 +327,7 @@ class _SupplierListViewState extends State<SupplierListView>
         _partnerLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       NotificationService.showSnackBar(
         'Lỗi tải danh sách đối tác: $e',
         color: Colors.red,

@@ -163,6 +163,25 @@ class CategoryService {
       debugPrint('Error saving shop settings to Firestore: $e');
     }
 
+    // Also update shop doc for correct businessType fallback
+    try {
+      await _firestore.collection('shops').doc(shopId).set({
+        'businessType': settingsWithShop.businessType,
+        'businessTypeName': settingsWithShop.businessTypeName,
+        'enableRepair': settingsWithShop.enableRepair,
+        'enableSerial': settingsWithShop.enableSerial,
+        'enableWarranty': settingsWithShop.enableWarranty,
+        'enableExpiry': settingsWithShop.enableExpiry,
+        'enableBatch': settingsWithShop.enableBatch,
+        'enableVariants': settingsWithShop.enableVariants,
+        'defaultUnit': settingsWithShop.defaultUnit,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint('💾 CategoryService: Updated shop doc businessType');
+    } catch (e) {
+      debugPrint('Error updating shop doc businessType: $e');
+    }
+
     // Save locally
     await _saveSettingsLocally(settingsWithShop);
 
@@ -318,6 +337,28 @@ class CategoryService {
 
       final savedCategory =
           categoryWithShop.copyWith(firestoreId: docRef.id, isSynced: true);
+
+      // Also update shop doc for correct businessType fallback
+      try {
+        final currentSettings = await getShopSettings();
+        if (currentSettings != null) {
+          await _firestore.collection('shops').doc(shopId).set({
+            'businessType': currentSettings.businessType,
+            'businessTypeName': currentSettings.businessTypeName,
+            'enableRepair': currentSettings.enableRepair,
+            'enableSerial': currentSettings.enableSerial,
+            'enableWarranty': currentSettings.enableWarranty,
+            'enableExpiry': currentSettings.enableExpiry,
+            'enableBatch': currentSettings.enableBatch,
+            'enableVariants': currentSettings.enableVariants,
+            'defaultUnit': currentSettings.defaultUnit,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+          debugPrint('💾 CategoryService: Updated shop doc businessType');
+        }
+      } catch (e) {
+        debugPrint('Error updating shop doc businessType: $e');
+      }
 
       // Save locally
       await _saveCategoryLocally(savedCategory);
@@ -499,3 +540,4 @@ class CategoryService {
     return settings?.enableSerial ?? true;
   }
 }
+

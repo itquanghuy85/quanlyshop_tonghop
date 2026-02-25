@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
 import '../models/shop_settings_model.dart';
@@ -117,6 +119,13 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     }
     // CRITICAL: Load inventory data AFTER shop settings so _businessType is correct
     await _loadInventoryData();
+
+    // Kiểm tra bản nháp kiểm kho đã lưu
+    if (mounted && await _hasDraft()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _promptRestoreDraft();
+      });
+    }
   }
 
   Future<void> _loadShopSettings() async {
@@ -187,7 +196,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         return (['SAN_PHAM'], ['DICH_VU']);
       case 'electronics':
       default:
-        return (['DIEN_THOAI'], ['PHU_KIEN', 'LINH_KIEN']);
+        return (['DIEN_THOAI'], ['PHU_KIEN']);
     }
   }
 
@@ -224,7 +233,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       for (final accessory in accessoryProducts) {
         final code = accessory.firestoreId ?? accessory.id.toString();
         _expectedAccessoryCounts[code] =
-            (_expectedAccessoryCounts[code] ?? 0) + 1;
+            (_expectedAccessoryCounts[code] ?? 0) + (accessory.quantity > 0 ? accessory.quantity : 1);
       }
       _expectedAccessories = accessoryProducts;
 
@@ -1009,6 +1018,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     setState(() {
       _checkedPhoneImeis.clear();
       _scannedAccessoryCounts.clear();
+      _scannedItems.clear();
       _totalScanned = 0;
       _currentZone = _inventoryZones.isNotEmpty ? _inventoryZones.first : null;
       // Reset zone progress
@@ -1016,28 +1026,365 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         zone.scannedCounts.clear();
       }
     });
+    // Xóa bản nháp khi reset
+    _deleteDraft();
+  }
+
+  // ==================== LƯU TẠM / KHÔI PHỤC KẾT QUẢ KIỂM KHO ====================
+  static const _draftKey = 'inventory_check_draft';
+
+  /// Kiểm tra có bản nháp đã lưu không
+  Future<bool> _hasDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_draftKey);
+  }
+
+  /// Lưu tạm kết quả kiểm kho
+  Future<void> _saveDraft({bool silent = false}) async {
+    // Chỉ lưu khi có tiến trình
+    if (_totalScanned == 0 && _checkedPhoneImeis.isEmpty && _scannedAccessoryCounts.isEmpty) {
+      if (!silent) {
+        NotificationService.showSnackBar('Chưa có dữ liệu kiểm kho để lưu', color: Colors.orange);
+      }
+      return;
+    }
+
+    try {
+      final draft = {
+        'savedAt': DateTime.now().toIso8601String(),
+        'businessType': _businessType,
+        'totalScanned': _totalScanned,
+        'checkedPhoneImeis': _checkedPhoneImeis.toList(),
+        'scannedAccessoryCounts': _scannedAccessoryCounts,
+        'expectedAccessoryCounts': _expectedAccessoryCounts,
+        'currentZoneId': _currentZone?.id,
+        'zones': _inventoryZones.map((z) => z.toMap()).toList(),
+        'scannedItems': _scannedItems.map((item) {
+          return {
+            'type': item['type'],
+            'name': item['name'],
+            'identifier': item['identifier'],
+            'status': item['status'],
+            'timestamp': (item['timestamp'] as DateTime).toIso8601String(),
+          };
+        }).toList(),
+      };
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_draftKey, jsonEncode(draft));
+
+      if (!silent && mounted) {
+        NotificationService.showSnackBar(
+          '💾 Đã lưu tạm kiểm kho (${_totalScanned} mục đã quét)',
+          color: Colors.green,
+        );
+      }
+    } catch (e) {
+      if (!silent && mounted) {
+        NotificationService.showSnackBar('Lỗi lưu tạm: $e', color: Colors.red);
+      }
+    }
+  }
+
+  /// Khôi phục kết quả kiểm kho từ bản nháp
+  Future<bool> _loadDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString(_draftKey);
+      if (jsonStr == null) return false;
+
+      final draft = jsonDecode(jsonStr) as Map<String, dynamic>;
+
+      // Kiểm tra cùng loại hình kinh doanh
+      if (draft['businessType'] != _businessType) {
+        await _deleteDraft();
+        return false;
+      }
+
+      setState(() {
+        // Khôi phục IMEI đã quét
+        _checkedPhoneImeis.clear();
+        _checkedPhoneImeis.addAll(
+          List<String>.from(draft['checkedPhoneImeis'] ?? []),
+        );
+
+        // Khôi phục số lượng phụ kiện đã quét
+        _scannedAccessoryCounts.clear();
+        _scannedAccessoryCounts.addAll(
+          Map<String, int>.from(draft['scannedAccessoryCounts'] ?? {}),
+        );
+
+        // Khôi phục expected counts
+        if (draft['expectedAccessoryCounts'] != null) {
+          // Merge: giữ lại giá trị mới từ DB, chỉ bổ sung nếu thiếu
+          final savedExpected = Map<String, int>.from(draft['expectedAccessoryCounts']);
+          for (final entry in savedExpected.entries) {
+            _expectedAccessoryCounts.putIfAbsent(entry.key, () => entry.value);
+          }
+        }
+
+        _totalScanned = draft['totalScanned'] ?? 0;
+
+        // Khôi phục zone progress
+        final savedZones = (draft['zones'] as List?)?.map(
+          (z) => InventoryZone.fromMap(Map<String, dynamic>.from(z)),
+        ).toList();
+        if (savedZones != null) {
+          for (final savedZone in savedZones) {
+            final idx = _inventoryZones.indexWhere((z) => z.id == savedZone.id);
+            if (idx != -1) {
+              _inventoryZones[idx] = _inventoryZones[idx].copyWith(
+                scannedCounts: savedZone.scannedCounts,
+                completedAt: savedZone.completedAt,
+                isActive: savedZone.isActive,
+              );
+            }
+          }
+        }
+
+        // Khôi phục zone hiện tại
+        final savedZoneId = draft['currentZoneId'];
+        if (savedZoneId != null) {
+          _currentZone = _inventoryZones.firstWhere(
+            (z) => z.id == savedZoneId,
+            orElse: () => _inventoryZones.first,
+          );
+        }
+
+        // Khôi phục danh sách đã quét
+        _scannedItems.clear();
+        final savedItems = draft['scannedItems'] as List?;
+        if (savedItems != null) {
+          for (final item in savedItems) {
+            _scannedItems.add({
+              'type': item['type'] ?? '',
+              'name': item['name'] ?? '',
+              'identifier': item['identifier'] ?? '',
+              'status': item['status'] ?? '✅',
+              'timestamp': DateTime.tryParse(item['timestamp'] ?? '') ?? DateTime.now(),
+            });
+          }
+        }
+      });
+
+      return true;
+    } catch (e) {
+      debugPrint('Lỗi khôi phục bản nháp kiểm kho: $e');
+      await _deleteDraft();
+      return false;
+    }
+  }
+
+  /// Xóa bản nháp
+  Future<void> _deleteDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_draftKey);
+    } catch (_) {}
+  }
+
+  /// Hỏi người dùng có muốn khôi phục bản nháp không
+  Future<void> _promptRestoreDraft() async {
+    if (!mounted) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString(_draftKey);
+      if (jsonStr == null) return;
+
+      final draft = jsonDecode(jsonStr) as Map<String, dynamic>;
+      if (draft['businessType'] != _businessType) {
+        await _deleteDraft();
+        return;
+      }
+
+      final savedAt = DateTime.tryParse(draft['savedAt'] ?? '');
+      final totalScanned = draft['totalScanned'] ?? 0;
+      if (totalScanned == 0) return;
+
+      final timeAgo = savedAt != null
+          ? _formatTimeAgo(savedAt)
+          : 'trước đó';
+
+      if (!mounted) return;
+
+      final restore = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.restore, color: Colors.purple),
+              SizedBox(width: 8),
+              Expanded(child: Text('Khôi phục kiểm kho')),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Bạn có phiên kiểm kho chưa hoàn tất:'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('📊 Đã quét: $totalScanned mục',
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('🕐 Lưu: $timeAgo',
+                        style: TextStyle(color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('Bạn muốn tiếp tục hay bắt đầu mới?'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx, false);
+              },
+              child: const Text('BẮT ĐẦU MỚI'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.restore, size: 18),
+              label: const Text('TIẾP TỤC'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (restore == true) {
+        final restored = await _loadDraft();
+        if (restored && mounted) {
+          NotificationService.showSnackBar(
+            '✅ Đã khôi phục phiên kiểm kho ($totalScanned mục)',
+            color: Colors.green,
+          );
+        }
+      } else {
+        await _deleteDraft();
+      }
+    } catch (e) {
+      debugPrint('Lỗi kiểm tra bản nháp: $e');
+    }
+  }
+
+  String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'vừa xong';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
+    if (diff.inHours < 24) return '${diff.inHours} giờ trước';
+    return '${diff.inDays} ngày trước';
+  }
+
+  /// Hỏi lưu tạm khi rời trang
+  Future<bool> _onWillPop() async {
+    if (_totalScanned == 0) return true;
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Đang kiểm kho'),
+          ],
+        ),
+        content: Text(
+          'Bạn đã quét $_totalScanned mục. Muốn lưu tạm để tiếp tục sau?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'discard'),
+            child: const Text('BỎ QUA', style: TextStyle(color: Colors.red)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'cancel'),
+            child: const Text('Ở LẠI'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, 'save'),
+            icon: const Icon(Icons.save, size: 18),
+            label: const Text('LƯU TẠM'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (result == 'save') {
+      await _saveDraft();
+      return true;
+    } else if (result == 'discard') {
+      await _deleteDraft();
+      return true;
+    }
+    return false; // cancel = stay
   }
 
   Map<String, int> _getPhoneResults() {
-    final expectedImeis = _expectedPhones.map((p) => p.imei!).toSet();
-    final checkedImeis = _checkedPhoneImeis;
-    final missing = expectedImeis.difference(checkedImeis).length;
-    final extra = checkedImeis.difference(expectedImeis).length;
-    final checked = expectedImeis.intersection(checkedImeis).length;
-
+    // Đếm theo danh sách phone (không dùng toSet() vì có thể trùng IMEI)
+    int checked = 0;
+    int missing = 0;
+    for (final phone in _expectedPhones) {
+      if (phone.imei != null && _checkedPhoneImeis.contains(phone.imei)) {
+        checked++;
+      } else {
+        missing++;
+      }
+    }
+    // Thừa = IMEI đã scan nhưng không có trong danh sách kho
+    final expectedImeis = _expectedPhones
+        .where((p) => p.imei != null)
+        .map((p) => p.imei!)
+        .toSet();
+    final extra = _checkedPhoneImeis.difference(expectedImeis).length;
     return {'checked': checked, 'missing': missing, 'extra': extra};
   }
 
   Map<String, int> _getAccessoryResults() {
-    // For accessories, we just count total scanned items since each scan represents checking one item
-    final totalScanned = _scannedAccessoryCounts.values.fold(
-      0,
-      (sum, count) => sum + count,
-    );
+    int checked = 0;
+    int missing = 0;
+    int extra = 0;
 
-    // Since accessories can be scanned multiple times for same type, we don't calculate missing/extra
-    // All scanned accessories are considered "checked"
-    return {'checked': totalScanned, 'missing': 0, 'extra': 0};
+    // Đếm từng mặt hàng phụ kiện: đã kiểm đủ / thiếu / thừa
+    for (final entry in _expectedAccessoryCounts.entries) {
+      final code = entry.key;
+      final expected = entry.value;
+      final scanned = _scannedAccessoryCounts[code] ?? 0;
+      if (scanned >= expected) {
+        checked++;
+        if (scanned > expected) extra++;
+      } else {
+        missing++;
+      }
+    }
+
+    // Phụ kiện scan mà không có trong kho (thừa)
+    for (final code in _scannedAccessoryCounts.keys) {
+      if (!_expectedAccessoryCounts.containsKey(code)) {
+        extra++;
+      }
+    }
+
+    return {'checked': checked, 'missing': missing, 'extra': extra};
   }
 
   void _updateZoneProgress(String productCode, int count) {
@@ -1074,6 +1421,21 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     });
   }
 
+  /// Tính số checked/total theo zone hiện tại cho header checklist
+  String _getChecklistCount() {
+    final zoneId = _currentZone?.id;
+    if (zoneId == 'phones' || zoneId == 'food' || zoneId == 'clothing' || zoneId == 'products') {
+      // Zone chính (phones/food/clothing): đếm phones
+      return '${_checkedPhoneImeis.length}/${_expectedPhones.length}';
+    } else if (zoneId == 'accessories' || zoneId == 'drinks' || zoneId == 'shoes' || zoneId == 'ingredients') {
+      // Zone phụ (accessories): đếm accessories
+      final scanned = _scannedAccessoryCounts.values.fold(0, (a, b) => a + b);
+      return '$scanned/${_expectedAccessories.length}';
+    }
+    // Zone đặc biệt hoặc null: tổng
+    return '${_checkedPhoneImeis.length + _scannedAccessoryCounts.values.fold(0, (a, b) => a + b)}/${_expectedPhones.length + _expectedAccessories.length}';
+  }
+
   void _selectZone(InventoryZone zone) {
     setState(() {
       // Deactivate all zones
@@ -1096,48 +1458,93 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     NotificationService.showSnackBar('Đã chuyển sang zone: ${zone.name}');
   }
 
-  /// Build TOÀN BỘ danh sách kho với trạng thái đã kiểm/chưa kiểm
-  /// Sắp xếp: Chưa kiểm lên đầu, đã kiểm xuống cuối (với gạch ngang)
+  /// Build danh sách kho THEO ZONE hiện tại với trạng thái đã kiểm/chưa kiểm
   Widget _buildFullInventoryList() {
-    // Gộp điện thoại và phụ kiện thành 1 list
     final allItems = <Map<String, dynamic>>[];
+    final zoneId = _currentZone?.id;
 
-    // Thêm điện thoại
-    for (final phone in _expectedPhones) {
-      final isChecked = _checkedPhoneImeis.contains(phone.imei);
-      // Lấy 5 số cuối IMEI một cách an toàn
-      String imeiSuffix = '';
-      if (phone.imei != null && phone.imei!.isNotEmpty) {
-        final imeiLen = phone.imei!.length;
-        imeiSuffix = imeiLen >= 5
-            ? phone.imei!.substring(imeiLen - 5)
-            : phone.imei!;
+    // Zone "phones"/"clothing"/... → chỉ hiện phones
+    // Zone "accessories"/"shoes"/... → chỉ hiện accessories
+    // Zone null hoặc khác → hiện tất cả
+    final showPhones = zoneId == null || zoneId == 'phones' || zoneId == 'food' || zoneId == 'clothing' || zoneId == 'products';
+    final showAccessories = zoneId == null || zoneId == 'accessories' || zoneId == 'drinks' || zoneId == 'shoes' || zoneId == 'ingredients';
+
+    // Thêm điện thoại (nếu zone phù hợp)
+    if (showPhones && !showAccessories) {
+      for (final phone in _expectedPhones) {
+        final isChecked = _checkedPhoneImeis.contains(phone.imei);
+        String imeiSuffix = '';
+        if (phone.imei != null && phone.imei!.isNotEmpty) {
+          final imeiLen = phone.imei!.length;
+          imeiSuffix = imeiLen >= 5
+              ? phone.imei!.substring(imeiLen - 5)
+              : phone.imei!;
+        }
+        allItems.add({
+          'type': '📱',
+          'name': phone.name,
+          'identifier': imeiSuffix,
+          'fullImei': phone.imei,
+          'isChecked': isChecked,
+          'isPhone': true,
+          'product': phone,
+        });
       }
-      allItems.add({
-        'type': '📱',
-        'name': phone.name,
-        'identifier': imeiSuffix,
-        'fullImei': phone.imei,
-        'isChecked': isChecked,
-        'isPhone': true,
-        'product': phone,
-      });
     }
 
-    // Thêm phụ kiện
-    for (final acc in _expectedAccessories) {
-      final code = acc.firestoreId ?? acc.id.toString();
-      final scanned = _scannedAccessoryCounts[code] ?? 0;
-      final expected = _expectedAccessoryCounts[code] ?? 1;
-      allItems.add({
-        'type': '🔧',
-        'name': acc.name,
-        'identifier': 'SL: $scanned/$expected',
-        'code': code,
-        'isChecked': scanned >= expected,
-        'isPhone': false,
-        'product': acc,
-      });
+    // Thêm phụ kiện (nếu zone phù hợp)
+    if (showAccessories && !showPhones) {
+      for (final acc in _expectedAccessories) {
+        final code = acc.firestoreId ?? acc.id.toString();
+        final scanned = _scannedAccessoryCounts[code] ?? 0;
+        final expected = _expectedAccessoryCounts[code] ?? 1;
+        allItems.add({
+          'type': '🔧',
+          'name': acc.name,
+          'identifier': 'SL: $scanned/$expected',
+          'code': code,
+          'isChecked': scanned >= expected,
+          'isPhone': false,
+          'product': acc,
+        });
+      }
+    }
+
+    // Zone null hoặc zone đặc biệt → hiện tất cả
+    if (showPhones && showAccessories) {
+      for (final phone in _expectedPhones) {
+        final isChecked = _checkedPhoneImeis.contains(phone.imei);
+        String imeiSuffix = '';
+        if (phone.imei != null && phone.imei!.isNotEmpty) {
+          final imeiLen = phone.imei!.length;
+          imeiSuffix = imeiLen >= 5
+              ? phone.imei!.substring(imeiLen - 5)
+              : phone.imei!;
+        }
+        allItems.add({
+          'type': '📱',
+          'name': phone.name,
+          'identifier': imeiSuffix,
+          'fullImei': phone.imei,
+          'isChecked': isChecked,
+          'isPhone': true,
+          'product': phone,
+        });
+      }
+      for (final acc in _expectedAccessories) {
+        final code = acc.firestoreId ?? acc.id.toString();
+        final scanned = _scannedAccessoryCounts[code] ?? 0;
+        final expected = _expectedAccessoryCounts[code] ?? 1;
+        allItems.add({
+          'type': '🔧',
+          'name': acc.name,
+          'identifier': 'SL: $scanned/$expected',
+          'code': code,
+          'isChecked': scanned >= expected,
+          'isPhone': false,
+          'product': acc,
+        });
+      }
     }
 
     if (allItems.isEmpty) {
@@ -1538,7 +1945,16 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     final phoneResults = _getPhoneResults();
     final accessoryResults = _getAccessoryResults();
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final canLeave = await _onWillPop();
+        if (canLeave && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         flexibleSpace: Container(
           decoration: const BoxDecoration(
@@ -1589,6 +2005,13 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             onPressed: _showManualInputDialog,
             tooltip: 'Nhập ${_terms.specialField1Label} thủ công',
           ),
+          // NÚT LƯU TẠM - lưu kết quả kiểm kho để tiếp tục sau
+          if (_totalScanned > 0)
+            IconButton(
+              icon: const Icon(Icons.save_outlined),
+              onPressed: () => _saveDraft(),
+              tooltip: 'Lưu tạm ($_totalScanned mục)',
+            ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: _showScanSettings,
@@ -1615,44 +2038,13 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
           // Zone Progress
           if (_currentZone != null) _buildZoneProgress(),
 
-          // Status bar
+          // Status bar - chỉ hiện stats phù hợp với zone hiện tại
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.blue.shade50,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatusItem(
-                  '📱 Đã kiểm',
-                  phoneResults['checked']!,
-                  Colors.green,
-                ),
-                _buildStatusItem(
-                  '📱 Thiếu',
-                  phoneResults['missing']!,
-                  Colors.red,
-                ),
-                _buildStatusItem(
-                  '📱 Thừa',
-                  phoneResults['extra']!,
-                  Colors.orange,
-                ),
-                _buildStatusItem(
-                  '🔧 Đã kiểm',
-                  accessoryResults['checked']!,
-                  Colors.green,
-                ),
-                _buildStatusItem(
-                  '🔧 Thiếu',
-                  accessoryResults['missing']!,
-                  Colors.red,
-                ),
-                _buildStatusItem(
-                  '🔧 Thừa',
-                  accessoryResults['extra']!,
-                  Colors.orange,
-                ),
-              ],
+              children: _buildZoneStats(phoneResults, accessoryResults),
             ),
           ),
 
@@ -1880,7 +2272,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  'Kho (${_checkedPhoneImeis.length + _scannedAccessoryCounts.values.fold(0, (a, b) => a + b)}/${_expectedPhones.length + _expectedAccessories.length})',
+                                  '${_currentZone?.name ?? 'Kho'} (${_getChecklistCount()})',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: AppTextStyles.subtitle1.fontSize,
@@ -1934,7 +2326,38 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             ),
         ],
       ),
+    ),
     );
+  }
+
+  /// Build stats chỉ hiện cho zone hiện tại
+  List<Widget> _buildZoneStats(
+    Map<String, int> phoneResults,
+    Map<String, int> accessoryResults,
+  ) {
+    final zoneId = _currentZone?.id;
+    final showPhones = zoneId == null || zoneId == 'phones' || zoneId == 'food' || zoneId == 'clothing' || zoneId == 'products' || zoneId == 'special';
+    final showAccessories = zoneId == null || zoneId == 'accessories' || zoneId == 'drinks' || zoneId == 'shoes' || zoneId == 'ingredients' || zoneId == 'special';
+
+    final items = <Widget>[];
+
+    if (showPhones) {
+      items.addAll([
+        _buildStatusItem('📱 Đã kiểm', phoneResults['checked']!, Colors.green),
+        _buildStatusItem('📱 Thiếu', phoneResults['missing']!, Colors.red),
+        _buildStatusItem('📱 Thừa', phoneResults['extra']!, Colors.orange),
+      ]);
+    }
+
+    if (showAccessories) {
+      items.addAll([
+        _buildStatusItem('🔧 Đã kiểm', accessoryResults['checked']!, Colors.green),
+        _buildStatusItem('🔧 Thiếu', accessoryResults['missing']!, Colors.red),
+        _buildStatusItem('🔧 Thừa', accessoryResults['extra']!, Colors.orange),
+      ]);
+    }
+
+    return items;
   }
 
   Widget _buildStatusItem(String label, int count, Color color) {

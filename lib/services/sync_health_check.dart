@@ -11,6 +11,7 @@ import '../models/attendance_model.dart';
 import '../models/quick_input_code_model.dart';
 import 'user_service.dart';
 import 'sync_service.dart';
+import 'encryption_service.dart';
 
 /// Global notifier để các widget có thể theo dõi sync health
 /// true = healthy, false = có vấn đề, null = chưa kiểm tra
@@ -351,6 +352,32 @@ class SyncHealthCheck {
       ),
     );
 
+    // Check DEBT_PAYMENTS (Lịch sử thanh toán công nợ)
+    results.add(
+      await _checkCollection(
+        collection: 'debt_payments',
+        shopId: shopId,
+        getLocalIds: () async {
+          final db = await _localDb.database;
+          final payments = await db.query('debt_payments');
+          return payments
+              .where((p) => p['firestoreId'] != null)
+              .map((p) => p['firestoreId'] as String)
+              .toList();
+        },
+        getLocalCount: () async {
+          final db = await _localDb.database;
+          final payments = await db.query('debt_payments');
+          return payments.length;
+        },
+        getUnsyncedCount: () async {
+          final db = await _localDb.database;
+          final payments = await db.query('debt_payments');
+          return payments.where((p) => p['isSynced'] != 1).length;
+        },
+      ),
+    );
+
     // Tính tổng
     for (var r in results) {
       totalLocal += r.localCount;
@@ -434,16 +461,45 @@ class SyncHealthCheck {
       final localOnly = localIds.difference(cloudIds).length;
       final cloudOnly = cloudIds.difference(localIds).length;
 
+      // AUTO-FIX: Tự động download records thiếu trên local
+      if (cloudOnly > 0) {
+        debugPrint('   🔧 Auto-fix: Tải $cloudOnly records thiếu cho $collection...');
+        final missingIds = cloudIds.difference(localIds);
+        int fixed = 0;
+        for (final docId in missingIds) {
+          try {
+            final doc = cloudSnap.docs.firstWhere((d) => d.id == docId);
+            var data = Map<String, dynamic>.from(doc.data());
+            data = EncryptionService.decryptMap(data);
+            data['firestoreId'] = docId;
+            data['isSynced'] = 1;
+            data['deleted'] = data['deleted'] ?? 0;
+            SyncService.convertTimestampFieldsPublic(data);
+            await _upsertToLocal(collection, data);
+            fixed++;
+          } catch (e) {
+            debugPrint('   ❌ Không tải được $docId: $e');
+          }
+        }
+        debugPrint('   ✅ Đã tải $fixed/$cloudOnly records thiếu cho $collection');
+      }
+
+      // Re-count sau auto-fix
+      final localIdsAfter = (await getLocalIds()).toSet();
+      final localCountAfter = await getLocalCount();
+      final matchedAfter = localIdsAfter.intersection(cloudIds).length;
+      final cloudOnlyAfter = cloudIds.difference(localIdsAfter).length;
+
       return SyncCheckResult(
         collection: collection,
-        localCount: localCount,
+        localCount: localCountAfter,
         cloudCount: cloudIds.length,
-        localOnly: localOnly,
-        cloudOnly: cloudOnly,
-        matched: matched,
-        unsyncedLocal: unsyncedCount,
-        missingOnCloud: localIds.difference(cloudIds).take(10).toList(),
-        missingOnLocal: cloudIds.difference(localIds).take(10).toList(),
+        localOnly: localIdsAfter.difference(cloudIds).length,
+        cloudOnly: cloudOnlyAfter,
+        matched: matchedAfter,
+        unsyncedLocal: await getUnsyncedCount(),
+        missingOnCloud: localIdsAfter.difference(cloudIds).take(10).toList(),
+        missingOnLocal: cloudIds.difference(localIdsAfter).take(10).toList(),
       );
     } catch (e) {
       debugPrint('❌ Lỗi kiểm tra $collection: $e');
@@ -495,6 +551,7 @@ class SyncHealthCheck {
       'suppliers',
       'quick_input_codes',
       'repair_parts', // Kho linh kiện
+      'debt_payments', // Lịch sử thanh toán công nợ
     ];
 
     for (var collection in collections) {
@@ -517,11 +574,13 @@ class SyncHealthCheck {
         int collectionFixed = 0;
         int collectionUpdated = 0;
         for (var doc in activeCloudDocs) {
-          final data = Map<String, dynamic>.from(doc.data());
+          var data = Map<String, dynamic>.from(doc.data());
+          data = EncryptionService.decryptMap(data);
           
           data['firestoreId'] = doc.id;
           data['isSynced'] = 1; // Đánh dấu đã sync
           data['deleted'] = data['deleted'] ?? 0; // Ensure deleted field exists
+          SyncService.convertTimestampFieldsPublic(data);
           
           try {
             // Upsert tất cả - cả records mới lẫn records cần cập nhật isSynced
@@ -578,7 +637,7 @@ class SyncHealthCheck {
     final db = await _localDb.database;
     
     // Cập nhật isSynced = 1 cho tất cả records có firestoreId
-    final tables = ['repairs', 'sales', 'products', 'expenses', 'debts', 'attendance', 'customers', 'suppliers', 'quick_input_codes', 'repair_parts'];
+    final tables = ['repairs', 'sales', 'products', 'expenses', 'debts', 'attendance', 'customers', 'suppliers', 'quick_input_codes', 'repair_parts', 'debt_payments'];
     
     for (var table in tables) {
       try {
@@ -628,6 +687,9 @@ class SyncHealthCheck {
       case 'repair_parts':
         final parts = await dbInstance.query('repair_parts', where: '(deleted = 0 OR deleted IS NULL)');
         return parts.where((p) => p['firestoreId'] != null).map((p) => p['firestoreId'] as String).toSet();
+      case 'debt_payments':
+        final payments = await dbInstance.query('debt_payments');
+        return payments.where((p) => p['firestoreId'] != null).map((p) => p['firestoreId'] as String).toSet();
       default:
         return {};
     }
@@ -670,6 +732,9 @@ class SyncHealthCheck {
         break;
       case 'repair_parts':
         await db.upsertRepairPart(data);
+        break;
+      case 'debt_payments':
+        await db.upsertDebtPayment(data);
         break;
     }
   }

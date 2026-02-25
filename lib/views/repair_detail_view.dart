@@ -29,6 +29,7 @@ import '../services/sync_orchestrator.dart';
 import '../services/sync_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_service.dart';
+import '../services/audit_service.dart';
 import '../data/db_helper.dart';
 import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
@@ -124,6 +125,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _updateStatus(int newStatus) async {
+    if (_isUpdating) return; // Guard chống double-tap
     debugPrint(
       'Starting status update from ${r.status} to $newStatus for repair ${r.firestoreId}',
     );
@@ -505,6 +507,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   /// Nhân viên submit đơn chờ duyệt giao (pendingDeliveryApproval = true)
   Future<void> _submitForDeliveryApproval() async {
+    if (_isUpdating) return; // Guard chống double-tap
     // Kiểm tra thông tin khách hàng trước khi giao máy
     // Khách vãng lai (isWalkIn) được phép giao mà không cần thông tin đầy đủ
     if (!r.isWalkIn && (r.phone.isEmpty || r.customerName.isEmpty)) {
@@ -723,6 +726,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   /// Quản lý duyệt đơn giao máy (pendingDeliveryApproval -> status 4)
   Future<void> _approveDelivery() async {
+    if (_isUpdating) return; // Guard chống double-tap
     // Kiểm tra thông tin khách hàng trước khi giao máy
     // Khách vãng lai (isWalkIn) được phép giao mà không cần thông tin đầy đủ
     if (!r.isWalkIn && (r.phone.isEmpty || r.customerName.isEmpty)) {
@@ -1145,9 +1149,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   /// Dialog chọn phụ tùng từ kho và tự động trừ kho
   /// LƯU Ý: Mỗi lần chọn và xác nhận sẽ THÊM vào đơn và TRỪ KHO ngay lập tức
-  Future<void> _selectPartsFromInventory() async {
+  /// [skipWarning] = true khi gọi từ flow đổi PT (đã xác nhận ở bước trước)
+  Future<void> _selectPartsFromInventory({bool skipWarning = false}) async {
     // Hiển thị cảnh báo nếu đã có phụ tùng
-    if (r.partsUsed.isNotEmpty) {
+    if (!skipWarning && r.partsUsed.isNotEmpty) {
       final proceed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -1451,6 +1456,328 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         color: Colors.green,
       );
     }
+  }
+
+  /// Xóa phụ tùng khỏi đơn sửa chữa và trả lại kho
+  Future<void> _removePartFromRepair() async {
+    if (r.partsUsed.isEmpty) {
+      NotificationService.showSnackBar(
+        'Đơn sửa chữa chưa có phụ tùng nào.',
+        color: Colors.orange,
+      );
+      return;
+    }
+
+    // Parse partsUsed string: "PIN IPHONE 11 x1, MÀN HÌNH IP12 x2"
+    final parts = r.partsUsed
+        .split(', ')
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) return;
+
+    // Show dialog to select which part to remove
+    final selectedIndex = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.delete_sweep, color: Colors.red),
+            SizedBox(width: 8),
+            Text('XÓA PHỤ TÙNG', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Chọn phụ tùng cần xóa và trả lại kho:',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              ...parts.asMap().entries.map((entry) {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  child: ListTile(
+                    dense: true,
+                    leading: const Icon(
+                      Icons.build,
+                      size: 18,
+                      color: Colors.purple,
+                    ),
+                    title: Text(
+                      entry.value,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(
+                        Icons.remove_circle,
+                        color: Colors.red,
+                      ),
+                      onPressed: () => Navigator.pop(ctx, entry.key),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('ĐÓNG'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedIndex == null) return;
+
+    final removedPart = parts[selectedIndex];
+
+    // Parse part name and quantity from "PART_NAME xQTY"
+    String partName = removedPart;
+    int partQty = 1;
+    final xMatch = RegExp(r'^(.+)\s+x(\d+)$').firstMatch(removedPart);
+    if (xMatch != null) {
+      partName = xMatch.group(1)!.trim();
+      partQty = int.tryParse(xMatch.group(2)!) ?? 1;
+    }
+
+    // Confirm
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: Text(
+          'Xóa "$removedPart" khỏi đơn sửa và trả lại $partQty vào kho?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('HỦY'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text(
+              'XÁC NHẬN XÓA',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // 1. Restore part quantity to inventory
+    final restored = await db.restorePartQuantityByNameUnified(
+      partName,
+      partQty,
+    );
+    if (restored) {
+      debugPrint('✅ Restored $partName x$partQty to inventory');
+    } else {
+      debugPrint('⚠️ Could not find part "$partName" in inventory to restore');
+    }
+
+    // 2. Estimate cost of the removed part (from parts data if possible)
+    int removedCost = 0;
+    final allParts = await db.getAllPartsUnified();
+    for (final p in allParts) {
+      final pName = (p['partName'] ?? '').toString().toUpperCase();
+      if (pName == partName.toUpperCase()) {
+        removedCost = (p['cost'] as int? ?? 0) * partQty;
+        break;
+      }
+    }
+
+    // 3. Update partsUsed string
+    parts.removeAt(selectedIndex);
+    r.partsUsed = parts.join(', ');
+
+    // 4. Reduce cost
+    r.cost = (r.cost - removedCost).clamp(0, r.cost);
+    r.isSynced = false;
+    await db.updateRepair(r);
+
+    // 5. Sync
+    if (r.firestoreId != null && r.id != null) {
+      SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.repair,
+        entityId: r.id!,
+        firestoreId: r.firestoreId,
+        operation: SyncOperation.update,
+      );
+    }
+
+    // 6. Log audit
+    await AuditService.logAction(
+      action: 'PART_REMOVED',
+      entityType: 'repair',
+      entityId: r.id?.toString() ?? '',
+      summary: 'Xóa phụ tùng: $removedPart (trả kho: ${restored ? "OK" : "Không tìm thấy"})',
+      payload: {
+        'partName': partName,
+        'quantity': partQty,
+        'removedCost': removedCost,
+        'restored': restored,
+      },
+    );
+
+    NotificationService.showSnackBar(
+      'Đã xóa $removedPart${restored ? " và trả lại kho" : ""}',
+      color: Colors.green,
+    );
+
+    if (mounted) setState(() {});
+  }
+
+  /// Đổi phụ tùng: xóa linh kiện cũ (trả kho) → chọn linh kiện mới thay thế
+  Future<void> _swapPartInRepair() async {
+    if (r.partsUsed.isEmpty) {
+      NotificationService.showSnackBar(
+        'Đơn sửa chữa chưa có phụ tùng nào để đổi.',
+        color: Colors.orange,
+      );
+      return;
+    }
+
+    // Parse partsUsed
+    final parts = r.partsUsed
+        .split(', ')
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) return;
+
+    // Bước 1: Chọn phụ tùng cần đổi
+    final selectedIndex = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.swap_horiz, color: Colors.deepPurple),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text('ĐỔI PHỤ TÙNG', style: TextStyle(fontSize: 16)),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Chọn phụ tùng cần đổi:',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              ...parts.asMap().entries.map((entry) {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  child: ListTile(
+                    dense: true,
+                    leading: const Icon(
+                      Icons.build,
+                      size: 18,
+                      color: Colors.purple,
+                    ),
+                    title: Text(
+                      entry.value,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(
+                        Icons.swap_horiz,
+                        color: Colors.deepPurple,
+                      ),
+                      onPressed: () => Navigator.pop(ctx, entry.key),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('ĐÓNG'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedIndex == null) return;
+
+    final removedPart = parts[selectedIndex];
+
+    // Parse tên và số lượng: "PART_NAME xQTY"
+    String partName = removedPart;
+    int partQty = 1;
+    final xMatch = RegExp(r'^(.+)\s+x(\d+)$').firstMatch(removedPart);
+    if (xMatch != null) {
+      partName = xMatch.group(1)!.trim();
+      partQty = int.tryParse(xMatch.group(2)!) ?? 1;
+    }
+
+    // Bước 2: Xóa phụ tùng cũ + trả kho
+    final restored = await db.restorePartQuantityByNameUnified(
+      partName,
+      partQty,
+    );
+    debugPrint(restored
+        ? '✅ Đổi PT - Đã trả kho: $partName x$partQty'
+        : '⚠️ Đổi PT - Không tìm thấy "$partName" trong kho để trả');
+
+    // Tính giá vốn phụ tùng bị xóa
+    int removedCost = 0;
+    final allParts = await db.getAllPartsUnified();
+    for (final p in allParts) {
+      final pName = (p['partName'] ?? '').toString().toUpperCase();
+      if (pName == partName.toUpperCase()) {
+        removedCost = (p['cost'] as int? ?? 0) * partQty;
+        break;
+      }
+    }
+
+    // Cập nhật repair: xóa phụ tùng cũ khỏi danh sách
+    parts.removeAt(selectedIndex);
+    r.partsUsed = parts.join(', ');
+    r.cost = (r.cost - removedCost).clamp(0, r.cost);
+    r.isSynced = false;
+    await db.updateRepair(r);
+
+    // Log xóa
+    await AuditService.logAction(
+      action: 'PART_SWAP_REMOVE',
+      entityType: 'repair',
+      entityId: r.id?.toString() ?? '',
+      summary: 'Đổi PT - xóa: $removedPart (trả kho: ${restored ? "OK" : "Không tìm thấy"})',
+      payload: {
+        'partName': partName,
+        'quantity': partQty,
+        'removedCost': removedCost,
+        'restored': restored,
+      },
+    );
+
+    if (mounted) setState(() {});
+
+    // Bước 3: Tự động mở dialog chọn phụ tùng mới (bỏ qua cảnh báo)
+    if (!mounted) return;
+    NotificationService.showSnackBar(
+      'Đã xóa "$removedPart" — chọn phụ tùng thay thế.',
+      color: Colors.blue,
+    );
+    await _selectPartsFromInventory(skipWarning: true);
   }
 
   Future<void> _editFinancials() async {
@@ -1865,7 +2192,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.success.withOpacity(0.1),
+                              color: ((r.price - r.cost) >= 0 ? AppColors.success : AppColors.error).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Column(
@@ -1874,14 +2201,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                                 Text(
                                   loc.profitLabel,
                                   style: AppTextStyles.overline.copyWith(
-                                    color: AppColors.success,
+                                    color: (r.price - r.cost) >= 0 ? AppColors.success : AppColors.error,
                                   ),
                                 ),
                                 Text(
                                   "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
                                   style: AppTextStyles.body2.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.success,
+                                    color: (r.price - r.cost) >= 0 ? AppColors.success : AppColors.error,
                                   ),
                                 ),
                               ],
@@ -1936,6 +2263,20 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                             Colors.teal,
                             _navigateToPartsInventory,
                           ),
+                          if (r.partsUsed.isNotEmpty)
+                            _quickAction(
+                              'Đổi PT',
+                              Icons.swap_horiz,
+                              Colors.deepPurple,
+                              _swapPartInRepair,
+                            ),
+                          if (r.partsUsed.isNotEmpty)
+                            _quickAction(
+                              'Xóa PT',
+                              Icons.delete_sweep,
+                              Colors.red,
+                              _removePartFromRepair,
+                            ),
                           _quickAction(
                             loc.techShort,
                             Icons.note_add,
@@ -2583,6 +2924,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Widget _buildFinancialContent() {
+    final profit = r.price - r.cost;
+    final profitColor = profit >= 0 ? AppColors.success : AppColors.error;
     return Column(
       children: [
         Row(
@@ -2593,8 +2936,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold),
             ),
             Text(
-              "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
-              style: AppTextStyles.headline5.copyWith(color: AppColors.success),
+              "${MoneyUtils.formatCurrency(profit)} đ",
+              style: AppTextStyles.headline5.copyWith(color: profitColor),
             ),
           ],
         ),
@@ -2651,6 +2994,34 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   style: AppTextStyles.caption.copyWith(color: Colors.teal),
                 ),
               ),
+              // Đổi phụ tùng chọn nhầm
+              if (r.partsUsed.isNotEmpty)
+                TextButton.icon(
+                  onPressed: _swapPartInRepair,
+                  icon: const Icon(
+                    Icons.swap_horiz,
+                    size: 14,
+                    color: Colors.deepPurple,
+                  ),
+                  label: Text(
+                    'Đổi PT',
+                    style: AppTextStyles.caption.copyWith(color: Colors.deepPurple),
+                  ),
+                ),
+              // Xóa phụ tùng đã chọn nhầm
+              if (r.partsUsed.isNotEmpty)
+                TextButton.icon(
+                  onPressed: _removePartFromRepair,
+                  icon: const Icon(
+                    Icons.delete_sweep,
+                    size: 14,
+                    color: Colors.red,
+                  ),
+                  label: Text(
+                    'Xóa PT',
+                    style: AppTextStyles.caption.copyWith(color: Colors.red),
+                  ),
+                ),
               TextButton.icon(
                 onPressed: _editTechnicianNotes,
                 icon: const Icon(
@@ -2865,7 +3236,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               Text(
                 "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
                 style: AppTextStyles.headline5.copyWith(
-                  color: AppColors.success,
+                  color: (r.price - r.cost) >= 0 ? AppColors.success : AppColors.error,
                 ),
               ),
             ],
@@ -2927,6 +3298,34 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     style: AppTextStyles.caption.copyWith(color: Colors.teal),
                   ),
                 ),
+                // Đổi phụ tùng chọn nhầm
+                if (r.partsUsed.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: _swapPartInRepair,
+                    icon: const Icon(
+                      Icons.swap_horiz,
+                      size: 14,
+                      color: Colors.deepPurple,
+                    ),
+                    label: Text(
+                      'Đổi PT',
+                      style: AppTextStyles.caption.copyWith(color: Colors.deepPurple),
+                    ),
+                  ),
+                // Xóa phụ tùng đã chọn nhầm
+                if (r.partsUsed.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: _removePartFromRepair,
+                    icon: const Icon(
+                      Icons.delete_sweep,
+                      size: 14,
+                      color: Colors.red,
+                    ),
+                    label: Text(
+                      'Xóa PT',
+                      style: AppTextStyles.caption.copyWith(color: Colors.red),
+                    ),
+                  ),
                 TextButton.icon(
                   onPressed: _editFinancials,
                   icon: const Icon(Icons.edit, size: 14),
@@ -3843,6 +4242,59 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
             child: Text(
               loc.selectPartsTitle,
               style: AppTextStyles.headline3,
+            ),
+          ),
+          // Shortcut to add new part from PartsInventoryView
+          Material(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PartsInventoryView(),
+                  ),
+                );
+                // Refresh parts list after returning from PartsInventoryView
+                if (mounted) {
+                  final db = DBHelper();
+                  final updatedParts = await db.getAllPartsUnified();
+                  if (mounted) {
+                    setState(() {
+                      widget.parts
+                        ..clear()
+                        ..addAll(updatedParts);
+                    });
+                  }
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.add_circle,
+                      color: Colors.orange.shade700,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'NHẬP LK MỚI',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],

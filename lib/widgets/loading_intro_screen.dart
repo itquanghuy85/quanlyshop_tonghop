@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../l10n/app_localizations.dart';
+import '../utils/app_info.dart';
 
 /// Màn hình loading với animation giới thiệu app
 /// Hiển thị khi đăng nhập thành công và đang load dữ liệu
@@ -283,12 +284,21 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
               
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  AppLocalizations.of(context)!.version,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.5),
-                  ),
+                child: FutureBuilder<String>(
+                  future: AppInfo.getVersion(),
+                  builder: (context, snapshot) {
+                    final loc = AppLocalizations.of(context)!;
+                    final versionText = snapshot.data != null && snapshot.data!.isNotEmpty
+                        ? loc.versionFormat(snapshot.data!)
+                        : loc.version;
+                    return Text(
+                      versionText,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.5),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],

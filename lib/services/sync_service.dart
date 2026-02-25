@@ -72,6 +72,10 @@ class SyncService {
     }
   }
 
+  /// Public wrapper cho _convertTimestampFields (dùng bởi SyncHealthCheck.autoFix)
+  static void convertTimestampFieldsPublic(Map<String, dynamic> data) =>
+      _convertTimestampFields(data);
+
   /// Helper: So sánh updatedAt để quyết định có ghi đè local hay không
   /// Returns: true nếu cloud data mới hơn hoặc bằng, false nếu local mới hơn
   static Future<bool> _shouldAcceptCloudData({
@@ -156,20 +160,15 @@ class SyncService {
       return true;
     }
 
-    // Local có thay đổi chưa sync → so sánh timestamp
-    if (cloudTime >= localUpdatedAt) {
-      debugPrint(
-        '✅ SYNC: $collection/$firestoreId - Cloud mới hơn (cloud: $cloudTime >= local: $localUpdatedAt), accept cloud',
-      );
-      return true;
-    } else {
-      debugPrint(
-        '🔒 SYNC: $collection/$firestoreId - Local mới hơn (local: $localUpdatedAt > cloud: $cloudTime), SKIP cloud, enqueue local',
-      );
-      // Enqueue local data để push lên cloud
-      await _enqueueLocalForSync(collection, firestoreId);
-      return false;
-    }
+    // Local có thay đổi chưa sync (isSynced=false) → LUÔN giữ local
+    // Đây là fix cho race condition: khi vừa cập nhật status, cloud listener
+    // có thể trả về data cũ (echo) và ghi đè local changes
+    debugPrint(
+      '🔒 SYNC: $collection/$firestoreId - Local chưa sync (isSynced=false), SKIP cloud (cloud: $cloudTime, local: $localUpdatedAt), enqueue local',
+    );
+    // Enqueue local data để push lên cloud
+    await _enqueueLocalForSync(collection, firestoreId);
+    return false;
   }
 
   /// Helper: Enqueue local data để push lên cloud khi local mới hơn
@@ -333,13 +332,15 @@ class SyncService {
     }
 
     // AUTO-CLEANUP: Xóa orphan repair_parts bị stuck (không có firestoreId)
-    // và force mark các records có firestoreId là đã sync
+    // force mark các records có firestoreId là đã sync
+    // và fix records bị stuck deleted=1 do bug cũ
     try {
       final dbHelper = DBHelper();
       final orphansCleaned = await dbHelper.cleanupOrphanRepairParts();
       final forceMarked = await dbHelper.forceMarkRepairPartsSynced();
-      if (orphansCleaned > 0 || forceMarked > 0) {
-        debugPrint("🧹 Auto-cleanup: removed $orphansCleaned orphans, force-marked $forceMarked synced");
+      final stuckFixed = await dbHelper.fixStuckDeletedRepairParts();
+      if (orphansCleaned > 0 || forceMarked > 0 || stuckFixed > 0) {
+        debugPrint("🧹 Auto-cleanup: removed $orphansCleaned orphans, force-marked $forceMarked synced, fixed $stuckFixed stuck-deleted");
       }
     } catch (e) {
       debugPrint("⚠️ Auto-cleanup failed: $e");
@@ -473,6 +474,11 @@ class SyncService {
                   data['isPending'] = 1;
                   data['pendingSupplier'] = existingProduct.pendingSupplier;
                 }
+              }
+
+              // Map 'detail' → 'description' nếu cloud chỉ có 'detail' (backward compat)
+              if (data['description'] == null && data['detail'] != null) {
+                data['description'] = data['detail'];
               }
 
               await db.upsertProduct(Product.fromMap(data));

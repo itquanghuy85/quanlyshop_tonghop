@@ -1034,7 +1034,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkBluetoothOn => 'Check if Bluetooth is on...';
 
   @override
-  String get appVersion => 'Version 2.6.0+100';
+  String get appVersion => 'App Version';
 
   @override
   String get saving => 'Saving...';
@@ -2560,7 +2560,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSyncDesc => 'Safe data, access anytime, anywhere';
 
   @override
-  String get version => 'Version 10.0.9';
+  String get version => 'Version';
 
   @override
   String get salaryCalculationGuide => 'SALARY CALCULATION GUIDE';

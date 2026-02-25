@@ -21,29 +21,62 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
   final CustomerService _customerService = CustomerService();
   List<Customer> _customers = [];
   List<Customer> _filteredCustomers = [];
+  List<Customer> _displayedCustomers = []; // Danh sách hiển thị (phân trang)
   bool _isLoading = true;
   String _searchQuery = '';
+  static const int _pageSize = 50;
+  bool _hasMore = true;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadCustomers();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && _hasMore && !_isLoading) {
+      _loadMoreItems();
+    }
+  }
+
+  void _loadMoreItems() {
+    final currentLen = _displayedCustomers.length;
+    if (currentLen >= _filteredCustomers.length) {
+      setState(() => _hasMore = false);
+      return;
+    }
+    final nextBatch = _filteredCustomers.skip(currentLen).take(_pageSize).toList();
+    setState(() {
+      _displayedCustomers.addAll(nextBatch);
+      _hasMore = _displayedCustomers.length < _filteredCustomers.length;
+    });
   }
 
   Future<void> _loadCustomers() async {
     setState(() => _isLoading = true);
     try {
-      // Sync customers from cloud first (ignore errors)
-      try {
-        await SyncService.syncCustomersFromCloud();
-      } catch (syncError) {
-        debugPrint('Sync customers error (ignored): $syncError');
-      }
+      // Sync customers from cloud (non-blocking, chạy nền)
+      SyncService.syncCustomersFromCloud().catchError((e) {
+        debugPrint('Sync customers error (ignored): $e');
+      }).then((_) {
+        // Sau khi sync xong, reload lại nếu có data mới
+        if (mounted) _reloadCustomersQuiet();
+      });
       
       final customers = await _customerService.getCustomers();
       setState(() {
         _customers = customers;
         _filteredCustomers = customers;
+        _displayedCustomers = customers.take(_pageSize).toList();
+        _hasMore = customers.length > _pageSize;
         _isLoading = false;
       });
     } catch (e) {
@@ -56,6 +89,17 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
     }
   }
 
+  /// Reload khi sync xong (không hiển loading)
+  Future<void> _reloadCustomersQuiet() async {
+    try {
+      final customers = await _customerService.getCustomers();
+      if (mounted && customers.length != _customers.length) {
+        _customers = customers;
+        _filterCustomers(_searchQuery);
+      }
+    } catch (_) {}
+  }
+
   void _filterCustomers(String query) {
     setState(() {
       _searchQuery = query;
@@ -64,9 +108,12 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
       } else {
         _filteredCustomers = _customers.where((customer) {
           return VietnameseUtils.containsVietnamese(customer.name, query) ||
-                 customer.phone.contains(query);
+                 customer.phone.contains(query) ||
+                 VietnameseUtils.containsVietnamese(customer.address ?? '', query);
         }).toList();
       }
+      _displayedCustomers = _filteredCustomers.take(_pageSize).toList();
+      _hasMore = _displayedCustomers.length < _filteredCustomers.length;
     });
   }
 
@@ -265,9 +312,16 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
                         ),
                       )
                     : ListView.builder(
-                        itemCount: _filteredCustomers.length,
+                        controller: _scrollController,
+                        itemCount: _displayedCustomers.length + (_hasMore ? 1 : 0),
                         itemBuilder: (context, index) {
-                          final customer = _filteredCustomers[index];
+                          if (index >= _displayedCustomers.length) {
+                            return const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                            );
+                          }
+                          final customer = _displayedCustomers[index];
                           return CustomerListItem(
                             customer: customer,
                             onEdit: () => _editCustomer(customer),

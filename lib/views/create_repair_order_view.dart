@@ -17,6 +17,7 @@ import '../services/first_time_guide_service.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
 import '../utils/money_utils.dart';
+import '../utils/vietnamese_utils.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/validated_text_field.dart';
 import '../models/repair_partner_model.dart';
@@ -999,6 +1000,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
               ],
             ),
             const SizedBox(height: 8),
+            // Địa chỉ khách hàng
+            _compactInput(addressCtrl, 'Địa chỉ KH (tùy chọn)', Icons.location_on, caps: true),
+            const SizedBox(height: 8),
             // Row 2: Quick brands + Model
             _quick(brands, modelCtrl, issueF),
             _compactInput(modelCtrl, loc.deviceModel, Icons.phone_android, caps: true),
@@ -1356,8 +1360,9 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
         _filteredCustomers = widget.customers;
       } else {
         _filteredCustomers = widget.customers.where((customer) {
-          return customer.name.toLowerCase().contains(query.toLowerCase()) ||
-              customer.phone.contains(query);
+          return VietnameseUtils.containsVietnamese(customer.name, query) ||
+              customer.phone.contains(query) ||
+              VietnameseUtils.containsVietnamese(customer.address ?? '', query);
         }).toList();
       }
     });

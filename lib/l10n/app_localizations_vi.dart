@@ -1034,7 +1034,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get checkBluetoothOn => 'Kiểm tra Bluetooth có bật...';
 
   @override
-  String get appVersion => 'Phiên bản 10.0.9';
+  String get appVersion => 'Phiên bản ứng dụng';
 
   @override
   String get saving => 'Đang lưu...';
@@ -2560,7 +2560,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get cloudSyncDesc => 'Dữ liệu an toàn, truy cập mọi lúc mọi nơi';
 
   @override
-  String get version => 'Phiên bản 10.0.9';
+  String get version => 'Phiên bản';
 
   @override
   String get salaryCalculationGuide => 'HƯỚNG DẪN TÍNH LƯƠNG';

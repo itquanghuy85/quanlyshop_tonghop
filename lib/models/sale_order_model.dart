@@ -36,6 +36,10 @@ class SaleOrder {
   String? settlementNote; // Ghi chú tất toán
   String? settlementCode; // Mã hồ sơ/biên nhận từ NH
 
+  // --- TRƯỜNG KẾT HỢP THANH TOÁN (TIỀN MẶT + CHUYỂN KHOẢN) ---
+  int cashAmount; // Phần tiền mặt (khi paymentMethod = KẾT HỢP)
+  int transferAmount; // Phần chuyển khoản (khi paymentMethod = KẾT HỢP)
+
   SaleOrder({
     this.id,
     this.firestoreId,
@@ -70,6 +74,8 @@ class SaleOrder {
     this.settlementFee = 0,
     this.settlementNote,
     this.settlementCode,
+    this.cashAmount = 0,
+    this.transferAmount = 0,
     this.isSynced = false,
   });
 
@@ -121,6 +127,8 @@ class SaleOrder {
       'settlementFee': settlementFee,
       'settlementNote': settlementNote,
       'settlementCode': settlementCode?.toUpperCase(),
+      'cashAmount': cashAmount,
+      'transferAmount': transferAmount,
       'isSynced': isSynced ? 1 : 0,
     };
   }
@@ -149,6 +157,10 @@ class SaleOrder {
     final loanAmount2 = loanAmount2Raw < 0 ? 0 : loanAmount2Raw;
     final settlementAmount = settlementAmountRaw < 0 ? 0 : settlementAmountRaw;
     final settlementFee = settlementFeeRaw < 0 ? 0 : settlementFeeRaw;
+    final cashAmountRaw = map['cashAmount'] is int ? map['cashAmount'] : 0;
+    final transferAmountRaw = map['transferAmount'] is int ? map['transferAmount'] : 0;
+    final cashAmount = cashAmountRaw < 0 ? 0 : cashAmountRaw;
+    final transferAmount = transferAmountRaw < 0 ? 0 : transferAmountRaw;
 
     return SaleOrder(
       id: map['id'],
@@ -184,6 +196,8 @@ class SaleOrder {
       settlementFee: settlementFee,
       settlementNote: map['settlementNote'],
       settlementCode: map['settlementCode'],
+      cashAmount: cashAmount,
+      transferAmount: transferAmount,
       isSynced: map['isSynced'] == 1 || map['isSynced'] == true,
     );
   }

@@ -67,6 +67,11 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   bool _hasSecondBank = false;
   String _downPaymentMethod = "TIỀN MẶT"; // Phương thức trả trước
 
+  // Kết hợp thanh toán (Tiền mặt + Chuyển khoản)
+  bool _isCombined = false;
+  final cashAmountCtrl = TextEditingController(text: "0");
+  final transferAmountCtrl = TextEditingController(text: "0");
+
   String _paymentMethod = "TIỀN MẶT";
   String _saleWarranty = "12 THÁNG";
   bool _autoCalcTotal = true;
@@ -185,6 +190,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     discountCtrl.dispose();
     bankCtrl2.dispose();
     loanAmountCtrl2.dispose();
+    cashAmountCtrl.dispose();
+    transferAmountCtrl.dispose();
 
     // Dispose IMEI controllers và focus nodes
     _imeiControllers.forEach((_, controller) => controller.dispose());
@@ -358,6 +365,12 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     _paymentMethod = sale.paymentMethod;
     _saleWarranty = sale.warranty;
     _isInstallment = sale.isInstallment;
+    _isCombined = (sale.paymentMethod == "KẾT HỢP");
+    if (_isCombined) {
+      cashAmountCtrl.text = _formatCurrency(sale.cashAmount);
+      transferAmountCtrl.text = _formatCurrency(sale.transferAmount);
+      downPaymentCtrl.text = _formatCurrency(sale.cashAmount + sale.transferAmount);
+    }
     if (_isInstallment) {
       downPaymentCtrl.text = _formatCurrency(sale.downPayment);
       loanAmountCtrl.text = _formatCurrency(sale.loanAmount);
@@ -435,6 +448,27 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     } else {
       loanAmountCtrl.text = _formatCurrency(loanTotal > 0 ? loanTotal : 0);
     }
+  }
+
+  /// Tính lại số tiền kết hợp khi chọn KẾT HỢP
+  void _recalcCombinedPayment() {
+    int total = _parseCurrency(priceCtrl.text);
+    int discount = _parseCurrency(discountCtrl.text);
+    int finalPrice = total - discount > 0 ? total - discount : 0;
+    // Mặc định: đặt tiền mặt = 0 để user nhập, transfer = tổng
+    cashAmountCtrl.text = _formatCurrency(0);
+    transferAmountCtrl.text = _formatCurrency(finalPrice);
+    // Cập nhật downPaymentCtrl = tổng (để logic lưu sale đúng)
+    downPaymentCtrl.text = _formatCurrency(finalPrice);
+  }
+
+  /// Khi user thay đổi số tiền mặt/CK trong kết hợp
+  void _onCombinedAmountChanged() {
+    int cashAmt = _parseCurrency(cashAmountCtrl.text);
+    int transferAmt = _parseCurrency(transferAmountCtrl.text);
+    // Cập nhật downPaymentCtrl = tổng tiền thực nhận
+    downPaymentCtrl.text = _formatCurrency(cashAmt + transferAmt);
+    setState(() {});
   }
 
   void _calculateTotal() {
@@ -521,14 +555,16 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       _filteredInStock = _allInStock;
     });
 
-    // Tự động focus vào IMEI field sau khi thêm sản phẩm
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted && _imeiFocusNodes[productId.toString()]?.context != null) {
-        FocusScope.of(
-          context,
-        ).requestFocus(_imeiFocusNodes[productId.toString()]);
-      }
-    });
+    // Tự động focus vào IMEI field sau khi thêm sản phẩm (only for phones)
+    if (_enableSerial && p.type == 'DIEN_THOAI') {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted && _imeiFocusNodes[productId.toString()]?.context != null) {
+          FocusScope.of(
+            context,
+          ).requestFocus(_imeiFocusNodes[productId.toString()]);
+        }
+      });
+    }
   }
 
   /// Add product to sale - with variant support for fashion shops
@@ -603,8 +639,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       _calculateTotal();
     });
 
-    // Tự động focus vào IMEI field (only for serial-enabled products)
-    if (_enableSerial) {
+    // Tự động focus vào IMEI field (only for phones, skip accessories)
+    if (_enableSerial && p.type == 'DIEN_THOAI') {
       Future.delayed(const Duration(milliseconds: 100), () {
         if (mounted && _imeiFocusNodes[productId.toString()]?.context != null) {
           FocusScope.of(
@@ -772,7 +808,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
 
       // FIX: paidAmount phải dựa trên finalPrice (sau giảm giá), không phải totalPrice
       int paidAmount = _parseCurrency(downPaymentCtrl.text);
-      if (_paymentMethod != "CÔNG NỢ" &&
+      if (_isCombined) {
+        // Kết hợp: paidAmount = tiền mặt + chuyển khoản
+        paidAmount = _parseCurrency(cashAmountCtrl.text) + _parseCurrency(transferAmountCtrl.text);
+      } else if (_paymentMethod != "CÔNG NỢ" &&
           _paymentMethod != "TRẢ GÓP (NH)" &&
           paidAmount == 0) {
         paidAmount = finalPrice; // FIX: Dùng finalPrice thay vì totalPrice
@@ -874,6 +913,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         notes: noteCtrl.text,
         warranty: _saleWarranty,
         gifts: _buildGiftsString(),
+        cashAmount: _isCombined ? _parseCurrency(cashAmountCtrl.text) : 0,
+        transferAmount: _isCombined ? _parseCurrency(transferAmountCtrl.text) : 0,
       );
 
       // Validate IMEI trước khi thực hiện transaction
@@ -1174,6 +1215,68 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             debugPrint(
               '✅ Created PaymentIntent for installment down payment: ${intent.id}',
             );
+          }
+        } else if (_isCombined) {
+          // Kết hợp tiền mặt + chuyển khoản - tạo 2 PaymentIntent
+          final cashAmt = _parseCurrency(cashAmountCtrl.text);
+          final transferAmt = _parseCurrency(transferAmountCtrl.text);
+
+          if (cashAmt > 0) {
+            final intentCash = PaymentIntent(
+              id: 'pi_sale_cash_${saleRef}_$now',
+              type: PaymentIntentType.salePayment,
+              amount: cashAmt,
+              description:
+                  'Bán hàng (tiền mặt): $payerName - ${_selectedItems.length} SP',
+              referenceId: saleRef,
+              referenceType: 'sale',
+              status: PaymentIntentStatus.completed,
+              createdBy: userName,
+              createdAt: now,
+              paidAt: now,
+              paymentMethod: PaymentMethod.cash,
+              personName: payerName,
+              personPhone: payerPhone,
+              metadata: {
+                'customerName': payerName,
+                'phone': payerPhone,
+                'productNames': sale.productNames,
+                'isCombined': true,
+                'combinedCash': cashAmt,
+                'combinedTransfer': transferAmt,
+              },
+            );
+            await PaymentIntentService.createIntent(intentCash);
+            debugPrint('✅ Created PaymentIntent for combined CASH: ${intentCash.id}');
+          }
+
+          if (transferAmt > 0) {
+            final intentTransfer = PaymentIntent(
+              id: 'pi_sale_transfer_${saleRef}_$now',
+              type: PaymentIntentType.salePayment,
+              amount: transferAmt,
+              description:
+                  'Bán hàng (chuyển khoản): $payerName - ${_selectedItems.length} SP',
+              referenceId: saleRef,
+              referenceType: 'sale',
+              status: PaymentIntentStatus.completed,
+              createdBy: userName,
+              createdAt: now + 1, // +1ms to avoid duplicate
+              paidAt: now,
+              paymentMethod: PaymentMethod.transfer,
+              personName: payerName,
+              personPhone: payerPhone,
+              metadata: {
+                'customerName': payerName,
+                'phone': payerPhone,
+                'productNames': sale.productNames,
+                'isCombined': true,
+                'combinedCash': cashAmt,
+                'combinedTransfer': transferAmt,
+              },
+            );
+            await PaymentIntentService.createIntent(intentTransfer);
+            debugPrint('✅ Created PaymentIntent for combined TRANSFER: ${intentTransfer.id}');
           }
         } else {
           // Tiền mặt / Chuyển khoản - đã nhận đủ tiền
@@ -1581,6 +1684,22 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                 ),
                             ],
                           ),
+                          // Địa chỉ khách hàng
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: addressCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Địa chỉ KH (tùy chọn)',
+                              prefixIcon: Icon(Icons.location_on, size: 18),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                            ),
+                            textCapitalization: TextCapitalization.characters,
+                            style: AppTextStyles.body2,
+                          ),
                           _buildCustomerSuggestions(),
                         ],
                       ),
@@ -1768,7 +1887,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         Wrap(
           spacing: 6,
           runSpacing: 4,
-          children: ["TIỀN MẶT", "CHUYỂN KHOẢN", "CÔNG NỢ", "TRẢ GÓP (NH)"]
+          children: ["TIỀN MẶT", "CHUYỂN KHOẢN", "KẾT HỢP", "CÔNG NỢ", "TRẢ GÓP (NH)"]
               .map(
                 (e) => ChoiceChip(
                   label: Text(
@@ -1779,7 +1898,12 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   onSelected: (v) => setState(() {
                     _paymentMethod = e;
                     _isInstallment = (e == "TRẢ GÓP (NH)");
+                    _isCombined = (e == "KẾT HỢP");
                     if (!_isInstallment) _hasSecondBank = false;
+                    if (_isCombined) {
+                      // Auto-fill cash + transfer = total
+                      _recalcCombinedPayment();
+                    }
                   }),
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -1790,12 +1914,102 @@ class _CreateSaleViewState extends State<CreateSaleView> {
 
         const Divider(height: 12),
 
-        // Số tiền thu thực tế
+        // Số tiền thu thực tế (ẩn khi KẾT HỢP vì có UI riêng)
+        if (!_isCombined)
         _moneyInput(
           downPaymentCtrl,
           _isInstallment ? "KHÁCH TRẢ" : "SỐ TIỀN",
           AppColors.secondary,
         ),
+
+        // === KẾT HỢP THANH TOÁN (TIỀN MẶT + CHUYỂN KHOẢN) ===
+        if (_isCombined)
+          Card(
+            margin: const EdgeInsets.only(top: 6),
+            color: Colors.teal.shade50,
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 8),
+              dense: true,
+              initiallyExpanded: true,
+              leading: Icon(
+                Icons.swap_horiz,
+                color: Colors.teal.shade700,
+                size: 18,
+              ),
+              title: Text(
+                "TIỀN MẶT + CHUYỂN KHOẢN",
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.teal.shade700,
+                  fontSize: 12,
+                ),
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  child: Column(
+                    children: [
+                      _moneyInput(
+                        cashAmountCtrl,
+                        "💵 TIỀN MẶT",
+                        Colors.green,
+                        onChanged: (_) => _onCombinedAmountChanged(),
+                      ),
+                      const SizedBox(height: 6),
+                      _moneyInput(
+                        transferAmountCtrl,
+                        "🏦 CHUYỂN KHOẢN",
+                        Colors.blue,
+                        onChanged: (_) => _onCombinedAmountChanged(),
+                      ),
+                      const SizedBox(height: 8),
+                      // Hiển thị tổng và so sánh với giá trị đơn hàng
+                      Builder(builder: (context) {
+                        final cashAmt = _parseCurrency(cashAmountCtrl.text);
+                        final transferAmt = _parseCurrency(transferAmountCtrl.text);
+                        final total = cashAmt + transferAmt;
+                        final finalPrice = _parseCurrency(priceCtrl.text) - _parseCurrency(discountCtrl.text);
+                        final diff = total - finalPrice;
+                        return Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: diff == 0 ? Colors.green.shade50 : Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: diff == 0 ? Colors.green.shade300 : Colors.red.shade300,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "TỔNG: ${MoneyUtils.formatCurrency(total)}",
+                                style: AppTextStyles.caption.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: diff == 0 ? Colors.green.shade700 : Colors.red.shade700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              if (diff != 0)
+                                Text(
+                                  diff > 0 ? "(Dư ${MoneyUtils.formatCurrency(diff)})" : "(Thiếu ${MoneyUtils.formatCurrency(-diff)})",
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: Colors.red.shade700,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              if (diff == 0)
+                                Icon(Icons.check_circle, color: Colors.green.shade700, size: 16),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
 
         // Phương thức trả trước (trả góp) - Gộp trong ExpansionTile
         if (_isInstallment)
@@ -1896,7 +2110,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                       Wrap(
                         spacing: 4,
                         runSpacing: 4,
-                        children: ["FE", "HOME", "MIRAE", "HD", "F83", "T86"]
+                        children: ["FE", "HOME", "MIRAE", "HD", "MB", "F83", "T86"]
                             .map(
                               (b) => ActionChip(
                                 label: Text(
@@ -1977,7 +2191,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                         Wrap(
                           spacing: 4,
                           runSpacing: 4,
-                          children: ["FE", "HOME", "MIRAE", "HD", "F83", "T86"]
+                          children: ["FE", "HOME", "MIRAE", "HD", "MB", "F83", "T86"]
                               .map(
                                 (b) => ActionChip(
                                   label: Text(
@@ -2245,7 +2459,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
-            children: ["FE", "HOME", "MIRAE", "HD", "F83", "T86"]
+            children: ["FE", "HOME", "MIRAE", "HD", "MB", "F83", "T86"]
                 .map(
                   (b) => ActionChip(
                     label: Text(b, style: AppTextStyles.caption),
@@ -2303,7 +2517,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
-              children: ["FE", "HOME", "MIRAE", "HD", "F83", "T86"]
+              children: ["FE", "HOME", "MIRAE", "HD", "MB", "F83", "T86"]
                   .map(
                     (b) => ActionChip(
                       label: Text(b, style: AppTextStyles.caption),
@@ -2354,16 +2568,16 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     String label,
     Color color, {
     bool enabled = true,
-    Function()? onChanged,
+    Function(String)? onChanged,
   }) {
     return CurrencyTextField(
       controller: ctrl,
       label: label,
       icon: Icons.money,
       enabled: enabled,
-      onChanged: (_) {
+      onChanged: (val) {
         _calculateInstallment();
-        if (onChanged != null) onChanged();
+        if (onChanged != null) onChanged(val);
       },
     );
   }
@@ -2690,7 +2904,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 ),
                 const SizedBox(height: 4),
                 // Multi-Industry: Only show serial field if enabled
-                if (_enableSerial)
+                // Hide IMEI for accessories (PHU_KIEN) - only show for phones
+                if (_enableSerial && product.type == 'DIEN_THOAI')
                 Row(
                   children: [
                     Text("${_terms.specialField1Label}: "),
@@ -2837,7 +3052,8 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
       } else {
         _filteredCustomers = widget.customers.where((customer) {
           return VietnameseUtils.containsVietnamese(customer.name, query) ||
-              customer.phone.contains(query);
+              customer.phone.contains(query) ||
+              VietnameseUtils.containsVietnamese(customer.address ?? '', query);
         }).toList();
       }
     });

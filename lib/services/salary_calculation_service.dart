@@ -419,10 +419,16 @@ class SalaryCalculationService {
     // (3) HOA HỒNG SỬA CHỮA
     double calculatedRepairComm = 0;
     if (settings.repairCommType == 'percent') {
-      calculatedRepairComm = repairProfit * (settings.repairCommValue / 100);
+      // Guard: negative profit should not generate negative commission
+      final effectiveRepairProfit = repairProfit > 0 ? repairProfit : 0.0;
+      calculatedRepairComm = effectiveRepairProfit * (settings.repairCommValue / 100);
       if (repairProfit > 0) {
         notes.add(
           '🔧 HH sửa: ${_formatCurrency(repairProfit)} × ${settings.repairCommValue}% = ${_formatCurrency(calculatedRepairComm)}',
+        );
+      } else if (repairProfit < 0) {
+        notes.add(
+          '🔧 HH sửa: Lợi nhuận âm ${_formatCurrency(repairProfit)} → HH = 0',
         );
       }
     } else {
@@ -751,8 +757,15 @@ class SalaryCalculationService {
     ShopDeductionSettings settings,
   ) async {
     try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId == null) return false;
+      var shopId = await UserService.getCurrentShopId();
+      if (shopId == null || shopId.isEmpty) {
+        try {
+          shopId = await UserService.ensureShopId(maxRetries: 3);
+        } catch (e) {
+          debugPrint('Error ensuring shopId for saving deduction settings: $e');
+          return false;
+        }
+      }
 
       final data = settings.copyWith(shopId: shopId).toMap();
       return await FirestoreService.saveShopDeductionSettings(shopId, data);
@@ -791,8 +804,15 @@ class SalaryCalculationService {
     CustomSalaryAdjustment adjustment,
   ) async {
     try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId == null) return false;
+      var shopId = await UserService.getCurrentShopId();
+      if (shopId == null || shopId.isEmpty) {
+        try {
+          shopId = await UserService.ensureShopId(maxRetries: 3);
+        } catch (e) {
+          debugPrint('Error ensuring shopId for saving deduction settings: $e');
+          return false;
+        }
+      }
 
       final data = adjustment.toMap();
       data['shopId'] = shopId;
@@ -807,8 +827,15 @@ class SalaryCalculationService {
   /// Xóa khoản thưởng/trừ tùy chỉnh
   static Future<bool> deleteCustomAdjustment(String adjustmentId) async {
     try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId == null) return false;
+      var shopId = await UserService.getCurrentShopId();
+      if (shopId == null || shopId.isEmpty) {
+        try {
+          shopId = await UserService.ensureShopId(maxRetries: 3);
+        } catch (e) {
+          debugPrint('Error ensuring shopId for saving deduction settings: $e');
+          return false;
+        }
+      }
 
       return await FirestoreService.deleteCustomSalaryAdjustment(
         shopId,
@@ -917,3 +944,4 @@ class SalaryCalculationService {
   /// Format tiền tệ (public)
   static String formatCurrency(double amount) => _formatCurrency(amount);
 }
+

@@ -127,6 +127,19 @@ class Product {
     return defaultValue;
   }
   
+  /// Normalize product type to consistent format (ASCII underscore)
+  /// Handles old Vietnamese format: 'LINH KIỆN' → 'LINH_KIEN', 'PHỤ KIỆN' → 'PHU_KIEN'
+  static String _normalizeType(String type) {
+    switch (type) {
+      case 'LINH KIỆN':
+        return 'LINH_KIEN';
+      case 'PHỤ KIỆN':
+        return 'PHU_KIEN';
+      default:
+        return type;
+    }
+  }
+
   /// Helper: parse timestamp từ dynamic (hỗ trợ int, Timestamp, DateTime)
   static int _parseTimestamp(dynamic value, [int defaultValue = 0]) {
     if (value == null) return defaultValue;
@@ -156,13 +169,13 @@ class Product {
       price: _parseInt(map['price']),
       condition: map['condition'] ?? "Mới",
       status: map['status'] is int ? map['status'] : 1,
-      description: map['description'] ?? "",
+      description: map['description'] ?? map['detail'] ?? "",
       images: map['images'],
       warranty: map['warranty'],
       createdAt: _parseTimestamp(map['createdAt'], DateTime.now().millisecondsSinceEpoch),
       updatedAt: map['updatedAt'] != null ? _parseTimestamp(map['updatedAt']) : null,
       supplier: map['supplier'],
-      type: map['type'] ?? 'DIEN_THOAI',
+      type: _normalizeType(map['type'] ?? 'DIEN_THOAI'),
       quantity: _parseInt(map['quantity'], 1),
       color: map['color'],
       capacity: map['capacity'],

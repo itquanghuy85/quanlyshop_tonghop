@@ -504,7 +504,7 @@ class _CashClosingViewState extends State<CashClosingView>
       floating: false,
       pinned: true,
       toolbarHeight: CustomAppBar.kAppBarHeight,
-      backgroundColor: Colors.white,
+      backgroundColor: CustomAppBar.kSurfaceLight,
       foregroundColor: CustomAppBar.kTextPrimary,
       elevation: 0.5,
       titleSpacing: 8,

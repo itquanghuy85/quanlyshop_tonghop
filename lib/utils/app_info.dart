@@ -1,40 +1,35 @@
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:yaml/yaml.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
+/// Lấy thông tin app từ metadata (tự đồng bộ theo pubspec.yaml khi build).
 class AppInfo {
-  static String? _version;
+  static PackageInfo? _packageInfo;
 
+  static Future<PackageInfo> _getPackageInfo() async {
+    _packageInfo ??= await PackageInfo.fromPlatform();
+    return _packageInfo!;
+  }
+
+  /// Trả về version từ pubspec.yaml (VD: "10.0.12")
   static Future<String> getVersion() async {
-    if (_version != null) return _version!;
-
-    try {
-      final pubspecString = await rootBundle.loadString('pubspec.yaml');
-      final pubspec = loadYaml(pubspecString);
-      _version = pubspec['version']?.toString() ?? '10.0.9';
-      return _version!;
-    } catch (e) {
-      // Fallback to hardcoded version if can't read pubspec
-      return '10.0.9';
-    }
+    final info = await _getPackageInfo();
+    return info.version;
   }
 
+  /// Trả về build number từ pubspec.yaml (VD: "168")
+  static Future<String> getBuildNumber() async {
+    final info = await _getPackageInfo();
+    return info.buildNumber;
+  }
+
+  /// Trả về tên app
   static Future<String> getAppName() async {
-    try {
-      final pubspecString = await rootBundle.loadString('pubspec.yaml');
-      final pubspec = loadYaml(pubspecString);
-      return pubspec['name']?.toString() ?? 'QuanLyShop';
-    } catch (e) {
-      return 'QuanLyShop';
-    }
+    final info = await _getPackageInfo();
+    return info.appName;
   }
 
-  static Future<String> getDescription() async {
-    try {
-      final pubspecString = await rootBundle.loadString('pubspec.yaml');
-      final pubspec = loadYaml(pubspecString);
-      return pubspec['description']?.toString() ?? '';
-    } catch (e) {
-      return '';
-    }
+  /// Trả về package name (VD: "com.huluca.shopmanager")
+  static Future<String> getPackageName() async {
+    final info = await _getPackageInfo();
+    return info.packageName;
   }
 }

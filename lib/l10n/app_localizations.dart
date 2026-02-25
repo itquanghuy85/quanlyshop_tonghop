@@ -2120,7 +2120,7 @@ abstract class AppLocalizations {
   /// No description provided for @appVersion.
   ///
   /// In en, this message translates to:
-  /// **'Version 2.6.0+100'**
+  /// **'App Version'**
   String get appVersion;
 
   /// No description provided for @saving.
@@ -5060,7 +5060,7 @@ abstract class AppLocalizations {
   /// No description provided for @version.
   ///
   /// In en, this message translates to:
-  /// **'Version 10.0.9'**
+  /// **'Version'**
   String get version;
 
   /// No description provided for @salaryCalculationGuide.

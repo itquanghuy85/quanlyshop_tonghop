@@ -427,11 +427,16 @@ class StockEntryService {
               if (isPhoneWithBatch)
                 'needsImeiUpdate': true, // Đánh dấu cần cập nhật IMEI
               if (isPhoneWithBatch) 'batchIndex': i + 1,
-              // Fashion-specific fields (size, color)
+              // Lưu color, capacity, condition riêng biệt cho MỌI loại sản phẩm
+              if (item.color != null && item.color!.isNotEmpty)
+                'color': item.color,
+              if (item.capacity != null && item.capacity!.isNotEmpty)
+                'capacity': item.capacity,
+              if (item.condition != null && item.condition!.isNotEmpty)
+                'condition': item.condition,
+              // Fashion-specific fields (size)
               if (isFashion && item.size != null && item.size!.isNotEmpty)
                 'size': item.size,
-              if (isFashion && item.color != null && item.color!.isNotEmpty)
-                'color': item.color,
               // SKU for non-phone products
               if (!isFashion && item.sku != null && item.sku!.isNotEmpty)
                 'sku': item.sku,

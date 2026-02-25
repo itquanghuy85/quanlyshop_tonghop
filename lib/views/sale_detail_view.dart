@@ -454,6 +454,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                       const [
                             "TIỀN MẶT",
                             "CHUYỂN KHOẢN",
+                            "KẾT HỢP",
                             "CÔNG NỢ",
                             "TRẢ GÓP (NH)",
                           ]
@@ -925,6 +926,19 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               _item("Nhân viên", s.sellerName),
               _item("Thời gian", _fmtDate(s.soldAt)),
               _item("Hình thức", s.paymentMethod),
+              // Hiển thị chi tiết kết hợp thanh toán
+              if (s.paymentMethod.toUpperCase() == 'KẾT HỢP' && (s.cashAmount > 0 || s.transferAmount > 0)) ...[
+                _item(
+                  "💵 Tiền mặt",
+                  "${MoneyUtils.formatCurrency(s.cashAmount)} Đ",
+                  color: Colors.green,
+                ),
+                _item(
+                  "🏦 Chuyển khoản",
+                  "${MoneyUtils.formatCurrency(s.transferAmount)} Đ",
+                  color: Colors.blue,
+                ),
+              ],
               if (s.notes != null && s.notes!.isNotEmpty)
                 _item("Ghi chú", s.notes!),
               if (s.discount > 0)
