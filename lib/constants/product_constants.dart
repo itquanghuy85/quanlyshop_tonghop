@@ -84,6 +84,16 @@ class ProductConstants {
     'Túi',
     'Mét',
     'Kg',
+    'Lần',
+    'Lọ',
+    'Gói',
+    'Thùng',
+    'Chai',
+    'Lít',
+    'Cây',
+    'Tấm',
+    'Sợi',
+    'Khác',
   ];
   
   /// Danh sách size quần áo (S-M-L)

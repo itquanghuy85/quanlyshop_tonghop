@@ -161,6 +161,15 @@ class UserGuideRepository {
       order: 9,
       targetRoles: ['owner', 'admin'],
     ),
+    const GuideModule(
+      id: 'suppliers',
+      title: 'Quản lý nhà cung cấp',
+      description: 'Thêm NCC, theo dõi công nợ và lịch sử nhập hàng',
+      icon: Icons.local_shipping,
+      color: Color(0xFF6A1B9A),
+      order: 10,
+      targetRoles: ['owner', 'manager'],
+    ),
   ];
 
   // ---------------------------------------------------------------------------
@@ -548,7 +557,7 @@ class UserGuideRepository {
         GuideStep(
           order: 6,
           title: 'Chọn hình thức thanh toán',
-          description: 'Chọn: Tiền mặt, Chuyển khoản, Quẹt thẻ hoặc Công nợ (trả sau).',
+          description: 'Chọn: Tiền mặt, Chuyển khoản, Kết hợp (tiền mặt + CK), Quẹt thẻ, Công nợ (trả sau) hoặc Trả góp (NH). Với "Kết hợp", nhập số tiền mặt và chuyển khoản riêng.',
         ),
         GuideStep(
           order: 7,
@@ -560,7 +569,7 @@ class UserGuideRepository {
         'Dùng "Công nợ" khi khách đặt cọc hoặc trả góp.',
         'Hóa đơn đã lưu sẽ tự động trừ tồn kho.',
       ],
-      relatedSections: ['sales-debt', 'print-receipt'],
+      relatedSections: ['sales-debt', 'sales-combined-payment', 'print-receipt'],
     ),
 
     const GuideSection(
@@ -1298,6 +1307,431 @@ class UserGuideRepository {
           description: 'Nhấn "Lưu" để cập nhật.',
         ),
       ],
+    ),
+
+    // =========================================================================
+    // MODULE: SUPPLIERS (Quản lý nhà cung cấp)
+    // =========================================================================
+    const GuideSection(
+      id: 'sup-add',
+      moduleId: 'suppliers',
+      title: 'Thêm nhà cung cấp mới',
+      description: 'Hướng dẫn thêm thông tin nhà cung cấp để quản lý nhập hàng và công nợ',
+      difficulty: 'Dễ',
+      estimatedTime: '3 phút',
+      isNew: true,
+      steps: [
+        GuideStep(
+          order: 1,
+          title: 'Mở danh sách NCC',
+          description: 'Từ trang tài chính hoặc menu, chọn "Nhà cung cấp" để vào danh sách NCC.',
+        ),
+        GuideStep(
+          order: 2,
+          title: 'Nhấn nút Thêm NCC',
+          description: 'Nhấn nút "Thêm NCC" ở góc phải dưới màn hình để mở form thêm mới.',
+        ),
+        GuideStep(
+          order: 3,
+          title: 'Điền thông tin cơ bản',
+          description: 'Nhập tên NCC (bắt buộc), số điện thoại, địa chỉ, email và ghi chú. Thông tin liên hệ giúp liên lạc nhanh khi cần.',
+        ),
+        GuideStep(
+          order: 4,
+          title: 'Thêm thông tin ngân hàng',
+          description: 'Điền số tài khoản, tên ngân hàng để thanh toán chuyển khoản cho NCC sau này.',
+        ),
+        GuideStep(
+          order: 5,
+          title: 'Lưu nhà cung cấp',
+          description: 'Nhấn "Lưu" để hoàn tất. NCC sẽ tự động đồng bộ lên cloud và hiện trong danh sách.',
+        ),
+      ],
+      tips: [
+        'Nên điền đầy đủ SĐT và tài khoản ngân hàng để thanh toán nhanh khi nhập hàng.',
+        'Đánh dấu NCC ưu tiên (★) để dễ tìm khi nhập hàng thường xuyên.',
+      ],
+      warnings: [
+        'Phải tạo NCC trước khi nhập kho để hệ thống tự theo dõi công nợ chính xác.',
+      ],
+      relatedSections: ['sup-debt', 'inv-add-product'],
+    ),
+    const GuideSection(
+      id: 'sup-debt',
+      moduleId: 'suppliers',
+      title: 'Theo dõi công nợ NCC',
+      description: 'Xem và quản lý công nợ phải trả cho nhà cung cấp',
+      difficulty: 'Trung bình',
+      estimatedTime: '5 phút',
+      isPopular: true,
+      steps: [
+        GuideStep(
+          order: 1,
+          title: 'Xem tổng quan công nợ',
+          description: 'Ở đầu danh sách NCC, xem 4 thẻ thống kê: Tổng NCC, Tổng công nợ, NCC còn nợ, và Đã trả trong tháng.',
+        ),
+        GuideStep(
+          order: 2,
+          title: 'Lọc NCC còn nợ',
+          description: 'Nhấn nút "Còn nợ" để chỉ hiển thị các NCC mà shop đang nợ tiền. Nút "Quá hạn" hiện NCC nợ quá 30 ngày.',
+        ),
+        GuideStep(
+          order: 3,
+          title: 'Xem chi tiết công nợ',
+          description: 'Nhấn vào thẻ NCC để xem chi tiết: danh sách các đơn nhập hàng, số tiền nợ từng đơn, lịch sử thanh toán.',
+        ),
+        GuideStep(
+          order: 4,
+          title: 'Thanh toán công nợ',
+          description: 'Trong chi tiết NCC, nhấn "Thanh toán" để ghi nhận trả tiền. Chọn phương thức (tiền mặt/chuyển khoản) và nhập số tiền.',
+        ),
+        GuideStep(
+          order: 5,
+          title: 'Kiểm tra sau thanh toán',
+          description: 'Số nợ sẽ tự động cập nhật. Nếu trả đủ, trạng thái chuyển thành "Đã tất toán".',
+        ),
+      ],
+      tips: [
+        'Sắp xếp "Nợ cao → thấp" để ưu tiên thanh toán NCC nợ nhiều nhất.',
+        'Kiểm tra mục "Đã trả trong tháng" để theo dõi chi phí thanh toán NCC hàng tháng.',
+      ],
+      warnings: [
+        'Công nợ NCC được tạo tự động khi nhập kho với phương thức "CÔNG NỢ". Không cần tạo thủ công.',
+      ],
+      relatedSections: ['sup-add', 'fin-expense'],
+    ),
+    const GuideSection(
+      id: 'sup-history',
+      moduleId: 'suppliers',
+      title: 'Lịch sử nhập hàng từ NCC',
+      description: 'Xem chi tiết các lần nhập hàng và giá trị nhập từ nhà cung cấp',
+      difficulty: 'Dễ',
+      estimatedTime: '3 phút',
+      steps: [
+        GuideStep(
+          order: 1,
+          title: 'Mở chi tiết NCC',
+          description: 'Từ danh sách NCC, nhấn vào tên NCC cần xem.',
+        ),
+        GuideStep(
+          order: 2,
+          title: 'Xem lịch sử nhập hàng',
+          description: 'Cuộn xuống phần "Lịch sử nhập hàng" để xem danh sách tất cả các đơn nhập từ NCC này. Mỗi đơn hiển thị: ngày nhập, sản phẩm, số lượng, tổng tiền.',
+        ),
+        GuideStep(
+          order: 3,
+          title: 'Kiểm tra thống kê',
+          description: 'Xem tổng giá trị nhập hàng, số đơn nhập, và giá trị trung bình mỗi đơn để đánh giá mức độ hợp tác.',
+        ),
+      ],
+      tips: [
+        'So sánh giá nhập giữa các NCC để chọn nguồn hàng tốt nhất.',
+      ],
+      relatedSections: ['sup-add', 'sup-debt'],
+    ),
+
+    // =========================================================================
+    // ADDITIONAL: SALES - Combined Payment
+    // =========================================================================
+    const GuideSection(
+      id: 'sales-combined-payment',
+      moduleId: 'sales',
+      title: 'Thanh toán kết hợp (Tiền mặt + CK)',
+      description: 'Hướng dẫn chia thanh toán một đơn hàng bằng cả tiền mặt và chuyển khoản',
+      difficulty: 'Trung bình',
+      estimatedTime: '3 phút',
+      isNew: true,
+      isPopular: true,
+      steps: [
+        GuideStep(
+          order: 1,
+          title: 'Tạo đơn bán hàng',
+          description: 'Tạo đơn bán hàng bình thường: thêm sản phẩm, nhập thông tin khách hàng.',
+        ),
+        GuideStep(
+          order: 2,
+          title: 'Chọn "KẾT HỢP"',
+          description: 'Ở phần phương thức thanh toán, nhấn chip "KẾT HỢP" (thay vì Tiền mặt hoặc Chuyển khoản).',
+        ),
+        GuideStep(
+          order: 3,
+          title: 'Nhập số tiền mặt',
+          description: 'Mở phần "Chi tiết thanh toán kết hợp", nhập số tiền khách trả bằng tiền mặt vào ô "Tiền mặt".',
+        ),
+        GuideStep(
+          order: 4,
+          title: 'Nhập số chuyển khoản',
+          description: 'Nhập số tiền chuyển khoản vào ô "Chuyển khoản". Tổng tiền mặt + chuyển khoản phải bằng tổng đơn hàng.',
+          note: 'Hệ thống tự kiểm tra: nếu tổng không khớp sẽ hiện cảnh báo.',
+        ),
+        GuideStep(
+          order: 5,
+          title: 'Xác nhận đơn hàng',
+          description: 'Nhấn "Lưu đơn hàng". Hệ thống sẽ tạo 2 giao dịch riêng biệt: 1 tiền mặt + 1 chuyển khoản, để theo dõi chính xác trong sổ quỹ.',
+        ),
+      ],
+      tips: [
+        'Ví dụ: Đơn 15 triệu → khách trả 5 triệu tiền mặt + 10 triệu chuyển khoản.',
+        'Xem chi tiết đơn hàng sẽ hiển thị rõ ràng số tiền từng phương thức.',
+      ],
+      warnings: [
+        'Tổng tiền mặt + chuyển khoản phải bằng chính xác tổng đơn hàng. Nếu không khớp, đơn sẽ không được lưu.',
+      ],
+      relatedSections: ['sales-create', 'fin-fund'],
+    ),
+
+    // =========================================================================
+    // ADDITIONAL: FINANCE - Cash Closing
+    // =========================================================================
+    const GuideSection(
+      id: 'fin-closing',
+      moduleId: 'finance',
+      title: 'Chốt sổ cuối ngày',
+      description: 'Hướng dẫn chốt quỹ tiền mặt cuối ngày để đối soát doanh thu',
+      difficulty: 'Trung bình',
+      estimatedTime: '5 phút',
+      isPopular: true,
+      steps: [
+        GuideStep(
+          order: 1,
+          title: 'Mở chốt sổ',
+          description: 'Từ tab Tài chính, nhấn "Chốt quỹ hôm nay" trong phần Thao tác nhanh.',
+        ),
+        GuideStep(
+          order: 2,
+          title: 'Xem tóm tắt ngày',
+          description: 'Hệ thống hiển thị: số dư đầu ngày, tổng thu (bán hàng tiền mặt), tổng chi (nhập hàng, chi phí), số dư cuối ngày dự kiến.',
+        ),
+        GuideStep(
+          order: 3,
+          title: 'Nhập số tiền thực tế',
+          description: 'Đếm tiền mặt trong két và nhập số tiền thực tế. Hệ thống tự tính chênh lệch với số dự kiến.',
+        ),
+        GuideStep(
+          order: 4,
+          title: 'Ghi chú chênh lệch',
+          description: 'Nếu có chênh lệch, nhập ghi chú giải thích lý do (ví dụ: sai tiền thừa, thiếu tiền lẻ...).',
+        ),
+        GuideStep(
+          order: 5,
+          title: 'Xác nhận chốt sổ',
+          description: 'Nhấn "Chốt sổ" để hoàn tất. Số dư cuối ngày sẽ là số dư đầu ngày hôm sau.',
+        ),
+      ],
+      tips: [
+        'Nên chốt sổ mỗi ngày vào cuối ca để đảm bảo tiền mặt chính xác.',
+        'Xem lịch sử chốt sổ để theo dõi xu hướng chênh lệch qua các ngày.',
+      ],
+      warnings: [
+        'Sau khi chốt sổ, các giao dịch tiền mặt trong ngày không nên chỉnh sửa để giữ tính chính xác.',
+      ],
+      relatedSections: ['fin-daily', 'fin-expense'],
+    ),
+
+    // =========================================================================
+    // ADDITIONAL: FINANCE - Bank Installment
+    // =========================================================================
+    const GuideSection(
+      id: 'fin-installment',
+      moduleId: 'finance',
+      title: 'Thống kê trả góp ngân hàng',
+      description: 'Theo dõi các đơn bán trả góp qua ngân hàng và tiến độ thanh toán',
+      difficulty: 'Trung bình',
+      estimatedTime: '5 phút',
+      isNew: true,
+      steps: [
+        GuideStep(
+          order: 1,
+          title: 'Mở thống kê trả góp',
+          description: 'Từ tab Tài chính, nhấn "Trả góp NH" trong phần Báo cáo & Phân tích.',
+        ),
+        GuideStep(
+          order: 2,
+          title: 'Xem tổng quan',
+          description: 'Xem tổng số đơn trả góp, tổng giá trị, số tiền đã thu và còn lại cần thu từ ngân hàng.',
+        ),
+        GuideStep(
+          order: 3,
+          title: 'Lọc theo ngân hàng',
+          description: 'Chọn ngân hàng cụ thể (FE, HOME, MIRAE, HD, MB, F83, T86) để xem đơn trả góp của từng NH.',
+        ),
+        GuideStep(
+          order: 4,
+          title: 'Xem chi tiết từng đơn',
+          description: 'Nhấn vào đơn trả góp để xem: khách hàng, sản phẩm, số tiền góp, ngân hàng, và trạng thái.',
+        ),
+      ],
+      tips: [
+        'Kiểm tra thường xuyên để đối soát với bảng kê ngân hàng.',
+        'Đơn trả góp được tạo khi chọn phương thức "TRẢ GÓP (NH)" trong đơn bán hàng.',
+      ],
+      relatedSections: ['sales-create', 'fin-daily'],
+    ),
+
+    // =========================================================================
+    // ADDITIONAL: STAFF - Permissions
+    // =========================================================================
+    const GuideSection(
+      id: 'staff-permissions',
+      moduleId: 'staff',
+      title: 'Phân quyền nhân viên',
+      description: 'Hướng dẫn thiết lập quyền truy cập cho từng nhân viên',
+      difficulty: 'Trung bình',
+      estimatedTime: '5 phút',
+      isNew: true,
+      steps: [
+        GuideStep(
+          order: 1,
+          title: 'Mở danh sách nhân viên',
+          description: 'Từ tab Nhân sự, xem danh sách tất cả nhân viên trong shop.',
+        ),
+        GuideStep(
+          order: 2,
+          title: 'Chọn nhân viên cần phân quyền',
+          description: 'Nhấn vào tên nhân viên → chọn "Phân quyền" hoặc biểu tượng khóa.',
+        ),
+        GuideStep(
+          order: 3,
+          title: 'Bật/tắt từng quyền',
+          description: 'Bật các quyền cần thiết: xem kho, tạo đơn bán, xem tài chính, quản lý nhân viên, xem NCC, xem báo cáo...',
+          note: 'Mỗi quyền có mô tả chi tiết kèm theo.',
+        ),
+        GuideStep(
+          order: 4,
+          title: 'Lưu thay đổi',
+          description: 'Nhấn "Lưu" để áp dụng. Nhân viên cần thoát và đăng nhập lại để quyền mới có hiệu lực.',
+        ),
+      ],
+      tips: [
+        'Nhân viên bán hàng chỉ cần bật: Tạo đơn bán, Xem kho. Không cần bật xem tài chính.',
+        'Chủ shop (owner) luôn có đầy đủ quyền, không thể bị giới hạn.',
+      ],
+      warnings: [
+        'Cẩn thận khi tắt quyền "Quản lý nhân viên" — nhân viên đó sẽ không thể thay đổi thông tin nhân viên khác.',
+      ],
+      relatedSections: ['staff-add', 'staff-attendance'],
+    ),
+
+    // =========================================================================
+    // ADDITIONAL: STAFF - Payroll
+    // =========================================================================
+    const GuideSection(
+      id: 'staff-payroll',
+      moduleId: 'staff',
+      title: 'Quản lý lương & hoa hồng',
+      description: 'Thiết lập mức lương cơ bản, tỷ lệ hoa hồng và xem bảng lương',
+      difficulty: 'Nâng cao',
+      estimatedTime: '10 phút',
+      steps: [
+        GuideStep(
+          order: 1,
+          title: 'Mở cài đặt lương',
+          description: 'Từ tab Nhân sự → nhấn biểu tượng cài đặt lương (⚙) hoặc "Cài đặt lương" trong menu.',
+        ),
+        GuideStep(
+          order: 2,
+          title: 'Thiết lập lương cơ bản',
+          description: 'Nhập mức lương cơ bản cho từng nhân viên hoặc theo chức vụ. Lương tính theo tháng.',
+        ),
+        GuideStep(
+          order: 3,
+          title: 'Cài đặt hoa hồng',
+          description: 'Thiết lập tỷ lệ hoa hồng (%) trên doanh số bán hàng. Có thể cài riêng cho từng nhân viên.',
+        ),
+        GuideStep(
+          order: 4,
+          title: 'Xem bảng lương',
+          description: 'Vào "Bảng lương" để xem tổng lương tháng = Lương cơ bản + Hoa hồng + Phụ cấp - Khấu trừ (nghỉ, phạt...).',
+        ),
+        GuideStep(
+          order: 5,
+          title: 'In phiếu lương',
+          description: 'Nhấn "In phiếu lương" để xuất PDF chi tiết cho từng nhân viên.',
+        ),
+      ],
+      tips: [
+        'Hoa hồng tự động tính dựa trên đơn bán hàng đã hoàn thành.',
+        'Kiểm tra chấm công trước khi chốt lương để đảm bảo chính xác.',
+      ],
+      warnings: [
+        'Không chỉnh sửa lương sau khi đã "Khóa bảng lương" tháng đó.',
+      ],
+      relatedSections: ['staff-add', 'staff-attendance'],
+    ),
+
+    // =========================================================================
+    // ADDITIONAL: SETTINGS - Multi-shop
+    // =========================================================================
+    const GuideSection(
+      id: 'set-multi-shop',
+      moduleId: 'settings',
+      title: 'Quản lý nhiều cửa hàng',
+      description: 'Hướng dẫn tạo và chuyển đổi giữa nhiều shop trên cùng tài khoản',
+      difficulty: 'Nâng cao',
+      estimatedTime: '5 phút',
+      isNew: true,
+      steps: [
+        GuideStep(
+          order: 1,
+          title: 'Mở chuyển shop',
+          description: 'Nhấn vào tên shop ở góc trên trang chủ hoặc vào Cài đặt → "Chuyển shop".',
+        ),
+        GuideStep(
+          order: 2,
+          title: 'Tạo shop mới',
+          description: 'Nhấn "Tạo shop mới" → nhập tên shop, địa chỉ, SĐT. Chọn ngành nghề (điện tử, thời trang, thực phẩm, tổng hợp).',
+        ),
+        GuideStep(
+          order: 3,
+          title: 'Chuyển giữa các shop',
+          description: 'Sau khi tạo, nhấn vào tên shop trong danh sách để chuyển đổi. Dữ liệu mỗi shop hoàn toàn riêng biệt.',
+        ),
+        GuideStep(
+          order: 4,
+          title: 'Mời nhân viên vào shop',
+          description: 'Ở shop mới, thêm nhân viên bằng email. Nhân viên có thể thuộc nhiều shop khác nhau.',
+        ),
+      ],
+      tips: [
+        'Mỗi shop có dữ liệu riêng: sản phẩm, đơn hàng, nhân viên, tài chính đều tách biệt.',
+        'Chủ shop có thể vào Cài đặt để xóa shop không dùng nữa.',
+      ],
+      relatedSections: ['set-shop-info', 'set-business-type'],
+    ),
+    const GuideSection(
+      id: 'set-business-type',
+      moduleId: 'settings',
+      title: 'Chọn ngành nghề kinh doanh',
+      description: 'Thiết lập loại hình kinh doanh để tùy chỉnh giao diện và tính năng phù hợp',
+      difficulty: 'Dễ',
+      estimatedTime: '3 phút',
+      steps: [
+        GuideStep(
+          order: 1,
+          title: 'Mở cài đặt ngành nghề',
+          description: 'Khi tạo shop mới hoặc vào Cài đặt → "Ngành nghề", chọn loại hình kinh doanh.',
+        ),
+        GuideStep(
+          order: 2,
+          title: 'Chọn ngành nghề',
+          description: 'Chọn 1 trong 4 loại: Điện tử (sửa chữa + bảo hành), Thời trang (size + biến thể), Thực phẩm (hạn sử dụng), Tổng hợp.',
+        ),
+        GuideStep(
+          order: 3,
+          title: 'Xem tính năng',
+          description: 'Hệ thống tự bật/tắt tính năng phù hợp. VD: shop thời trang sẽ ẩn tab Sửa chữa, Bảo hành và hiện quản lý Size/Biến thể.',
+        ),
+        GuideStep(
+          order: 4,
+          title: 'Xác nhận',
+          description: 'Nhấn "Lưu" để áp dụng. Giao diện sẽ tự động cập nhật theo ngành nghề đã chọn.',
+        ),
+      ],
+      tips: [
+        'Có thể đổi ngành nghề bất cứ lúc nào. Dữ liệu cũ vẫn được giữ nguyên.',
+        'Mỗi ngành có danh mục sản phẩm mặc định riêng.',
+      ],
+      relatedSections: ['set-multi-shop', 'set-shop-info'],
     ),
   ];
 

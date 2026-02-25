@@ -4563,6 +4563,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
+                _financeQuickCard(
+                  'Trả góp NH',
+                  Icons.credit_score,
+                  Colors.deepOrange,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const BankInstallmentReportView(),
+                    ),
+                  ),
+                ),
                 // Warranty tracking - only show for shops with warranty enabled
                 if (_enableWarranty)
                 _financeQuickCard(

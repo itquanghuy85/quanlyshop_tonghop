@@ -69,6 +69,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   String? _selectedColor;
   String? _selectedCondition;
   String? _selectedUnit;
+  final _customUnitCtrl = TextEditingController();
   String? _selectedSize; // Fashion size (XS, S, M, L, XL, 28, 29, 30...)
   String? _selectedSupplier;
   String? _selectedSupplierId; // Firestore ID
@@ -311,9 +312,14 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         }
       } else {
         _skuCtrl.text = item.sku ?? '';
-        // Validate unit - chỉ set nếu có trong list
-        if (item.unit != null && _units.contains(item.unit)) {
-          _selectedUnit = item.unit;
+        // Validate unit - nếu có trong list thì chọn, không thì chọn "Khác" và điền vào custom
+        if (item.unit != null) {
+          if (_units.contains(item.unit)) {
+            _selectedUnit = item.unit;
+          } else {
+            _selectedUnit = 'Khác';
+            _customUnitCtrl.text = item.unit!;
+          }
         }
         // Fashion: load size and color
         if (_isFashion) {
@@ -358,6 +364,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     _imeiCtrl.dispose();
     _modelCtrl.dispose();
     _skuCtrl.dispose();
+    _customUnitCtrl.dispose();
     super.dispose();
   }
 
@@ -488,7 +495,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       condition: _isPhone ? _selectedCondition : null,
       // Phụ kiện / Thời trang
       sku: !_isPhone ? _skuCtrl.text.trim().toUpperCase() : null,
-      unit: !_isPhone ? _selectedUnit : null,
+      unit: !_isPhone ? (_selectedUnit == 'Khác' ? _customUnitCtrl.text.trim() : _selectedUnit) : null,
       // Fashion
       size: isFashionProduct ? _selectedSize : null,
     );
@@ -1274,7 +1281,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    initialValue: _selectedUnit ?? 'Cái',
+                    value: _selectedUnit ?? 'Cái',
                     decoration: const InputDecoration(
                       labelText: 'Đơn vị',
                       border: OutlineInputBorder(),
@@ -1294,12 +1301,34 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                           ),
                         )
                         .toList(),
-                    onChanged: (v) => setState(() => _selectedUnit = v),
+                    onChanged: (v) => setState(() {
+                      _selectedUnit = v;
+                      if (v != 'Khác') _customUnitCtrl.clear();
+                    }),
                     style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
                   ),
                 ),
               ],
             ),
+            // Custom unit input - hiện khi chọn "Khác"
+            if (_selectedUnit == 'Khác') ...[
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _customUnitCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Nhập đơn vị tùy chỉnh *',
+                  hintText: 'VD: Lần, Viên, Miếng...',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.edit, size: 20),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+                style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
+                textCapitalization: TextCapitalization.sentences,
+              ),
+            ],
             const SizedBox(height: 12),
 
             // Số lượng

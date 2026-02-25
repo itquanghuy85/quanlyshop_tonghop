@@ -107,15 +107,6 @@ class _SupplierListViewState extends State<SupplierListView>
     try {
       final settings = await CategoryService().getShopSettings();
       if (mounted) {
-        final isElectronics = settings?.businessType == 'electronics' || settings?.businessType == null;
-        final newLength = isElectronics ? 2 : 1;
-        if (_tabController.length != newLength) {
-          _tabController.dispose();
-          _tabController = TabController(length: newLength, vsync: this);
-          _tabController.addListener(() {
-            if (mounted) setState(() {});
-          });
-        }
         setState(() => _shopSettings = settings);
       }
     } catch (e) {
@@ -427,7 +418,9 @@ class _SupplierListViewState extends State<SupplierListView>
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline2.fontSize),
             ),
             Text(
-              '${_items.length} NCC • ${_partners.length} đối tác',
+              _isElectronics
+                  ? '${_items.length} NCC • ${_partners.length} đối tác'
+                  : '${_items.length} nhà cung cấp',
               style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.white70),
             ),
           ],
@@ -455,26 +448,26 @@ class _SupplierListViewState extends State<SupplierListView>
             },
           ),
         ],
-        bottom: TabBar(
+        bottom: _isElectronics ? TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          tabs: [
-            const Tab(text: 'NHÀ CUNG CẤP'),
-            if (_isElectronics) const Tab(text: 'ĐỐI TÁC SỬA CHỮA'),
+          tabs: const [
+            Tab(text: 'NHÀ CUNG CẤP'),
+            Tab(text: 'ĐỐI TÁC SỬA CHỮA'),
           ],
-        ),
+        ) : null,
       ),
       floatingActionButton: GradientFab(
         onPressed: () async {
-          if (_tabController.index == 0) {
+          if (!_isElectronics || _tabController.index == 0) {
             await Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SupplierFormView()),
             );
             await _load();
-          } else if (_isElectronics) {
+          } else {
             await Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const RepairPartnerFormView()),
@@ -482,19 +475,21 @@ class _SupplierListViewState extends State<SupplierListView>
             await _loadPartners();
           }
         },
-        icon: _tabController.index == 0 ? Icons.add_business : Icons.handyman,
-        label: _tabController.index == 0 ? 'Thêm NCC' : 'Thêm đối tác',
-        gradientColors: _tabController.index == 0 
+        icon: (!_isElectronics || _tabController.index == 0) ? Icons.add_business : Icons.handyman,
+        label: (!_isElectronics || _tabController.index == 0) ? 'Thêm NCC' : 'Thêm đối tác',
+        gradientColors: (!_isElectronics || _tabController.index == 0)
             ? const [Color(0xFF667eea), Color(0xFF764ba2)]
             : const [Color(0xFF11998e), Color(0xFF38ef7d)],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildSupplierTab(),
-          if (_isElectronics) _buildPartnerTab(),
-        ],
-      ),
+      body: _isElectronics
+          ? TabBarView(
+              controller: _tabController,
+              children: [
+                _buildSupplierTab(),
+                _buildPartnerTab(),
+              ],
+            )
+          : _buildSupplierTab(),
     );
   }
 
