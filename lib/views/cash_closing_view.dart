@@ -504,19 +504,28 @@ class _CashClosingViewState extends State<CashClosingView>
       floating: false,
       pinned: true,
       toolbarHeight: CustomAppBar.kAppBarHeight,
-      backgroundColor: CustomAppBar.kSurfaceLight,
-      foregroundColor: CustomAppBar.kTextPrimary,
-      elevation: 0.5,
+      backgroundColor: CustomAppBar.kGradientStart,
+      foregroundColor: Colors.white,
+      elevation: 0,
       titleSpacing: 8,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [CustomAppBar.kGradientStart, CustomAppBar.kGradientEnd],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      ),
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
+          const Text(
             'CHỐT QUỸ',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: CustomAppBar.kTitleFontSize,
-              color: CustomAppBar.kTextPrimary,
+              color: Colors.white,
             ),
           ),
           const SizedBox(width: 8),
@@ -525,30 +534,30 @@ class _CashClosingViewState extends State<CashClosingView>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
-                color: Colors.indigo.shade50,
+                color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.indigo.shade200),
+                border: Border.all(color: Colors.white.withOpacity(0.3)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.calendar_today,
                     size: 12,
-                    color: Colors.indigo.shade600,
+                    color: Colors.white,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     DateFormat('dd/MM/yyyy', 'vi').format(_selectedDate),
-                    style: TextStyle(
-                      color: Colors.indigo.shade700,
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontWeight: FontWeight.w600,
                       fontSize: CustomAppBar.kSubtitleFontSize + 1,
                     ),
                   ),
-                  Icon(
+                  const Icon(
                     Icons.arrow_drop_down,
-                    color: Colors.indigo.shade600,
+                    color: Colors.white,
                     size: 16,
                   ),
                 ],
@@ -559,10 +568,10 @@ class _CashClosingViewState extends State<CashClosingView>
       ),
       actions: [
         IconButton(
-          icon: Icon(
+          icon: const Icon(
             Icons.calendar_month,
             size: 20,
-            color: Colors.indigo.shade600,
+            color: Colors.white,
           ),
           onPressed: _pickDate,
           splashRadius: 18,
@@ -570,9 +579,9 @@ class _CashClosingViewState extends State<CashClosingView>
       ],
       bottom: TabBar(
         controller: _tabController,
-        labelColor: Colors.indigo.shade700,
-        unselectedLabelColor: Colors.grey,
-        indicatorColor: Colors.indigo.shade700,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white70,
+        indicatorColor: Colors.white,
         indicatorWeight: 2,
         labelPadding: EdgeInsets.zero,
         tabs: [

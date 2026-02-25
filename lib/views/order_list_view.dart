@@ -1268,6 +1268,15 @@ class OrderListViewState extends State<OrderListView> {
                         ],
                       ),
                     ),
+                    // Giá thu khách
+                    Text(
+                      '${NumberFormat.compact(locale: 'vi').format(r.price)}đ',
+                      style: AppTextStyles.subtitle1.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: r.price > 0 ? Colors.green.shade700 : Colors.grey,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
                 
