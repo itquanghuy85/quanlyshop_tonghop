@@ -13,6 +13,8 @@ import '../services/audit_service.dart';
 import '../services/notification_service.dart';
 import '../utils/money_utils.dart';
 import '../widgets/custom_app_bar.dart';
+import 'sale_detail_view.dart';
+import 'repair_detail_view.dart';
 
 /// Helper: Check if debtType is "Shop owes" (NCC) - includes SHOP_OWES and OTHER_SHOP_OWES
 bool _isShopOwesDebt(String? debtType) {
@@ -1670,43 +1672,69 @@ class _CashClosingViewState extends State<CashClosingView>
 
   Widget _buildIncomeTab() {
     final incomeList = _getIncomeTransactions(_selectedDate);
-    final totalIncome = incomeList.fold<int>(
-      0,
-      (sum, t) => sum + (t['amount'] as int),
-    );
+    final totalIncome = incomeList.fold<int>(0, (sum, t) => sum + (t['amount'] as int));
+
+    // Group subtotals
+    final saleTotal = incomeList.where((t) => t['type'] == 'sale').fold<int>(0, (s, t) => s + (t['amount'] as int));
+    final repairTotal = incomeList.where((t) => t['type'] == 'repair').fold<int>(0, (s, t) => s + (t['amount'] as int));
+    final debtTotal = incomeList.where((t) => t['type'] == 'debt_collect').fold<int>(0, (s, t) => s + (t['amount'] as int));
+    final settlementTotal = incomeList.where((t) => t['type'] == 'settlement').fold<int>(0, (s, t) => s + (t['amount'] as int));
+
     return Column(
       children: [
+        // Header summary
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          color: Colors.green.shade50,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.green.shade50, Colors.green.shade100.withOpacity(0.5)],
+            ),
+          ),
+          child: Column(
             children: [
-              const Text(
-                "TỔNG THU HÔM NAY",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('TỔNG THU', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade800, fontSize: AppTextStyles.body1.fontSize)),
+                      Text('${incomeList.length} giao dịch', style: TextStyle(color: Colors.green.shade600, fontSize: AppTextStyles.caption.fontSize)),
+                    ],
+                  ),
+                  Text(
+                    '+${MoneyUtils.formatVND(totalIncome)}',
+                    style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                  ),
+                ],
               ),
-              Text(
-                "+${MoneyUtils.formatVND(totalIncome)}",
-                style: TextStyle(
-                  fontSize: AppTextStyles.headline2.fontSize,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
+              if (incomeList.isNotEmpty) ...[  
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    if (saleTotal > 0) _summaryChip('🛒 Bán hàng', saleTotal, Colors.green),
+                    if (repairTotal > 0) _summaryChip('🔧 Sửa chữa', repairTotal, Colors.green),
+                    if (debtTotal > 0) _summaryChip('💳 Thu nợ', debtTotal, Colors.green),
+                    if (settlementTotal > 0) _summaryChip('🏦 Tất toán', settlementTotal, Colors.green),
+                  ],
                 ),
-              ),
+              ],
             ],
           ),
         ),
         Expanded(
           child: incomeList.isEmpty
-              ? const Center(
-                  child: Text(
-                    "Không có giao dịch thu",
-                    style: TextStyle(color: Colors.grey),
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 8),
+                      Text('Chưa có giao dịch thu', style: TextStyle(color: Colors.grey.shade400)),
+                    ],
                   ),
                 )
               : ListView.separated(
@@ -1722,51 +1750,76 @@ class _CashClosingViewState extends State<CashClosingView>
 
   Widget _buildExpenseTab() {
     final expenseList = _getExpenseTransactions(_selectedDate);
-    final totalExpense = expenseList.fold<int>(
-      0,
-      (sum, t) => sum + (t['amount'] as int),
-    );
+    final totalExpense = expenseList.fold<int>(0, (sum, t) => sum + (t['amount'] as int));
+
+    // Group subtotals
+    final expenseOnly = expenseList.where((t) => t['type'] == 'expense' || t['type'] == 'refund').fold<int>(0, (s, t) => s + (t['amount'] as int));
+    final importTotal = expenseList.where((t) => t['type'] == 'import').fold<int>(0, (s, t) => s + (t['amount'] as int));
+    final supplierPayTotal = expenseList.where((t) => t['type'] == 'supplier_pay' || t['type'] == 'debt_pay').fold<int>(0, (s, t) => s + (t['amount'] as int));
+    final partnerPayTotal = expenseList.where((t) => t['type'] == 'partner_pay').fold<int>(0, (s, t) => s + (t['amount'] as int));
+
     return Column(
       children: [
+        // Header summary
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          color: Colors.red.shade50,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.red.shade50, Colors.red.shade100.withOpacity(0.5)],
+            ),
+          ),
+          child: Column(
             children: [
-              const Text(
-                "TỔNG CHI HÔM NAY",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('TỔNG CHI', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade800, fontSize: AppTextStyles.body1.fontSize)),
+                      Text('${expenseList.length} giao dịch', style: TextStyle(color: Colors.red.shade600, fontSize: AppTextStyles.caption.fontSize)),
+                    ],
+                  ),
+                  Text(
+                    '-${MoneyUtils.formatVND(totalExpense)}',
+                    style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold, color: Colors.red.shade700),
+                  ),
+                ],
               ),
-              Text(
-                "-${MoneyUtils.formatVND(totalExpense)}",
-                style: TextStyle(
-                  fontSize: AppTextStyles.headline2.fontSize,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
+              if (expenseList.isNotEmpty) ...[  
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    if (expenseOnly > 0) _summaryChip('💸 Chi phí', expenseOnly, Colors.red),
+                    if (importTotal > 0) _summaryChip('📦 Nhập hàng', importTotal, Colors.red),
+                    if (supplierPayTotal > 0) _summaryChip('🏭 Trả NCC', supplierPayTotal, Colors.red),
+                    if (partnerPayTotal > 0) _summaryChip('🔧 Đối tác', partnerPayTotal, Colors.red),
+                  ],
                 ),
-              ),
+              ],
             ],
           ),
         ),
         Expanded(
           child: expenseList.isEmpty
-              ? const Center(
-                  child: Text(
-                    "Không có giao dịch chi",
-                    style: TextStyle(color: Colors.grey),
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 8),
+                      Text('Chưa có giao dịch chi', style: TextStyle(color: Colors.grey.shade400)),
+                    ],
                   ),
                 )
               : ListView.separated(
                   padding: const EdgeInsets.all(12),
                   itemCount: expenseList.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) =>
-                      _transactionCard(expenseList[i], false),
+                  itemBuilder: (_, i) => _transactionCard(expenseList[i], false),
                 ),
         ),
       ],
@@ -1775,30 +1828,297 @@ class _CashClosingViewState extends State<CashClosingView>
 
   Widget _transactionCard(Map<String, dynamic> t, bool isIncome) {
     final color = isIncome ? Colors.green : Colors.red;
-    final bgColor = isIncome ? Colors.green.shade50 : Colors.red.shade50;
-    final borderColor = isIncome ? Colors.green.shade300 : Colors.red.shade300;
-    
-    return Card(
-      margin: EdgeInsets.zero,
-      color: bgColor,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: borderColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    final type = t['type'] as String? ?? '';
+    final payMethod = t['paymentMethod'] as String? ?? '';
+    final isCash = payMethod == 'TIỀN MẶT';
+    final customerName = t['customerName'] as String? ?? '';
+    final detail = t['detail'] as String? ?? '';
+    final note = t['note'] as String?;
+    final hasTapAction = type == 'sale' || type == 'settlement' || type == 'repair';
+
+    return GestureDetector(
+      onTap: hasTapAction ? () => _onTransactionTap(t) : () => _showTransactionDetail(t, isIncome),
+      child: Container(
+        margin: EdgeInsets.zero,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header row
+            // Row 1: Icon + Title + Amount
             Row(
               children: [
-                Text(
-                  t['icon'] as String? ?? '💰',
-                  style: TextStyle(fontSize: AppTextStyles.headline1.fontSize),
+                // Type badge
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Center(
+                    child: Text(
+                      t['icon'] as String? ?? '💰',
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 10),
+                // Title + Time
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t['title'] as String? ?? '',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: AppTextStyles.headline5.fontSize,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time, size: 11, color: Colors.grey.shade500),
+                          const SizedBox(width: 3),
+                          Text(
+                            t['time'] as String? ?? '',
+                            style: TextStyle(
+                              fontSize: AppTextStyles.caption.fontSize,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                          if (note != null) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                '• $note',
+                                style: TextStyle(
+                                  fontSize: AppTextStyles.caption.fontSize,
+                                  color: Colors.orange.shade700,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Amount
+                Text(
+                  "${isIncome ? '+' : '-'}${MoneyUtils.formatVND(t['amount'] as int)}",
+                  style: TextStyle(
+                    color: color,
+                    fontSize: AppTextStyles.headline4.fontSize,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            // Row 2: Detail info line
+            if (customerName.isNotEmpty || detail.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    if (customerName.isNotEmpty) ...[
+                      Icon(Icons.person_outline, size: 13, color: Colors.grey.shade600),
+                      const SizedBox(width: 3),
+                      Text(
+                        customerName,
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (detail.isNotEmpty)
+                        Text(
+                          '  •  ',
+                          style: TextStyle(color: Colors.grey.shade400, fontSize: AppTextStyles.caption.fontSize),
+                        ),
+                    ],
+                    if (detail.isNotEmpty)
+                      Expanded(
+                        child: Text(
+                          detail,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.body1.fontSize,
+                            color: Colors.grey.shade700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+            // Row 3: Payment method pill + navigation hint
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                _paymentMethodPill(payMethod, isCash),
+                const Spacer(),
+                if (hasTapAction)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Xem chi tiết',
+                        style: TextStyle(
+                          fontSize: AppTextStyles.caption.fontSize,
+                          color: const Color(0xFF0068FF),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.chevron_right, size: 14, color: Color(0xFF0068FF)),
+                    ],
+                  )
+                else
+                  Icon(Icons.info_outline, size: 14, color: Colors.grey.shade400),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _paymentMethodPill(String method, bool isCash) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isCash ? Colors.amber.shade50 : Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isCash ? Colors.amber.shade200 : Colors.blue.shade200,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            isCash ? '💵' : '🏦',
+            style: const TextStyle(fontSize: 11),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            method.isEmpty ? 'Tiền mặt' : method,
+            style: TextStyle(
+              fontSize: AppTextStyles.caption.fontSize,
+              fontWeight: FontWeight.w500,
+              color: isCash ? Colors.amber.shade900 : Colors.blue.shade900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryChip(String label, int amount, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(
+        '$label: ${MoneyUtils.formatVND(amount)}',
+        style: TextStyle(
+          fontSize: AppTextStyles.caption.fontSize,
+          color: color,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  /// Navigate to detail view for sale/repair transactions
+  void _onTransactionTap(Map<String, dynamic> t) {
+    final type = t['type'] as String? ?? '';
+    if (type == 'sale' || type == 'settlement') {
+      final sale = t['saleOrder'] as SaleOrder?;
+      if (sale != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => SaleDetailView(sale: sale)),
+        );
+      }
+    } else if (type == 'repair') {
+      final repair = t['repair'] as Repair?;
+      if (repair != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => RepairDetailView(repair: repair)),
+        );
+      }
+    }
+  }
+
+  /// Show bottom sheet detail for non-navigable transactions (expenses, debts, imports)
+  void _showTransactionDetail(Map<String, dynamic> t, bool isIncome) {
+    final color = isIncome ? Colors.green : Colors.red;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Icon + Title
+            Row(
+              children: [
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
+                    child: Text(t['icon'] as String? ?? '💰', style: const TextStyle(fontSize: 24)),
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1807,91 +2127,100 @@ class _CashClosingViewState extends State<CashClosingView>
                         t['title'] as String? ?? '',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: AppTextStyles.headline5.fontSize,
+                          fontSize: AppTextStyles.headline3.fontSize,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        t['subtitle'] as String? ?? '',
-                        style: TextStyle(
-                          fontSize: AppTextStyles.body1.fontSize,
-                          color: Colors.grey.shade700,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        '${t['time'] ?? ''} • ${DateFormat('dd/MM/yyyy').format(_selectedDate)}',
+                        style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.body1.fontSize),
                       ),
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        "${isIncome ? '+' : '-'}${MoneyUtils.formatVND(t['amount'] as int)}",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: AppTextStyles.body1.fontSize,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      t['time'] as String? ?? '',
-                      style: TextStyle(
-                        fontSize: AppTextStyles.caption.fontSize,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
-            
-            // Info chips row (if applicable)
-            if (t['paymentMethod'] != null || t['customerName'] != null) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
+            const SizedBox(height: 16),
+            // Amount
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: color.withOpacity(0.2)),
+              ),
+              child: Column(
                 children: [
-                  if (t['paymentMethod'] != null)
-                    _cashClosingInfoChip(
-                      '💳 ${t['paymentMethod']}',
-                      Colors.blue.shade100,
+                  Text(
+                    isIncome ? 'SỐ TIỀN THU' : 'SỐ TIỀN CHI',
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                      fontSize: AppTextStyles.body1.fontSize,
                     ),
-                  if (t['customerName'] != null && (t['customerName'] as String).isNotEmpty)
-                    _cashClosingInfoChip(
-                      '👤 ${t['customerName']}',
-                      Colors.blue.shade100,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "${isIncome ? '+' : '-'}${MoneyUtils.formatVND(t['amount'] as int? ?? 0)}",
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppTextStyles.headline1.fontSize,
                     ),
+                  ),
                 ],
               ),
-            ],
+            ),
+            const SizedBox(height: 12),
+            // Detail rows
+            if ((t['customerName'] as String? ?? '').isNotEmpty)
+              _detailRow(Icons.person_outline, 'Người liên quan', t['customerName'] as String),
+            if ((t['detail'] as String? ?? '').isNotEmpty)
+              _detailRow(Icons.description_outlined, 'Chi tiết', t['detail'] as String),
+            if ((t['paymentMethod'] as String? ?? '').isNotEmpty)
+              _detailRow(
+                (t['paymentMethod'] as String) == 'TIỀN MẶT' ? Icons.money : Icons.account_balance,
+                'Phương thức',
+                t['paymentMethod'] as String,
+              ),
+            if ((t['note'] as String? ?? '').isNotEmpty)
+              _detailRow(Icons.note_outlined, 'Ghi chú', t['note'] as String),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
-  
-  Widget _cashClosingInfoChip(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
+
+  Widget _detailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Colors.grey.shade600),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: AppTextStyles.body1.fontSize,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: AppTextStyles.body1.fontSize,
+              ),
+            ),
+          ),
+        ],
       ),
-      child: Text(text, style: TextStyle(fontSize: AppTextStyles.caption.fontSize)),
     );
   }
 
@@ -2356,15 +2685,19 @@ class _CashClosingViewState extends State<CashClosingView>
     for (var s in _sales.where(
       (s) => _isSameDay(s.soldAt, date) && s.paymentMethod != 'CÔNG NỢ',
     )) {
+      final customerDisplay = s.customerName.isNotEmpty ? s.customerName : 'Khách lẻ';
       list.add({
+        'type': 'sale',
         'icon': '🛒',
-        'title': 'Bán hàng #${s.firestoreId?.substring(0, 8) ?? s.id}',
-        'subtitle':
-            '${s.customerName.isNotEmpty ? s.customerName : 'KH lẻ'} • ${s.paymentMethod == 'TIỀN MẶT' ? '💵' : '🏦'} ${s.paymentMethod}',
-        'time': DateFormat(
-          'HH:mm',
-        ).format(DateTime.fromMillisecondsSinceEpoch(s.soldAt)),
+        'title': 'Bán hàng',
+        'customerName': customerDisplay,
+        'customerPhone': s.phone,
+        'detail': s.productNames.isNotEmpty ? s.productNames : 'Đơn hàng',
+        'paymentMethod': s.paymentMethod,
+        'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(s.soldAt)),
         'amount': s.isInstallment ? s.downPayment : s.finalPrice,
+        'saleOrder': s,
+        'note': s.isInstallment ? 'Trả góp - Đặt cọc' : null,
       });
     }
 
@@ -2376,19 +2709,20 @@ class _CashClosingViewState extends State<CashClosingView>
           _isSameDay(s.settlementReceivedAt!, date) &&
           s.settlementAmount > 0,
     )) {
-      // Tính số tiền thực nhận từ settlement - LUÔN clamp để khớp với _analyzeTransactions
       final actualAmount = s.settlementAmount.clamp(0, s.loanAmount);
-
       if (actualAmount > 0) {
         list.add({
+          'type': 'settlement',
           'icon': '🏦',
-          'title': 'Tất toán NH: ${s.bankName ?? "Ngân hàng"}',
-          'subtitle':
-              '${s.customerName.isNotEmpty ? s.customerName : 'KH'} • Đơn #${s.firestoreId?.substring(0, 8) ?? s.id}',
-          'time': DateFormat('HH:mm').format(
-            DateTime.fromMillisecondsSinceEpoch(s.settlementReceivedAt!),
-          ),
+          'title': 'Tất toán ngân hàng',
+          'customerName': s.customerName.isNotEmpty ? s.customerName : 'KH',
+          'customerPhone': s.phone,
+          'detail': '${s.bankName ?? "Ngân hàng"} • ${s.productNames}',
+          'paymentMethod': 'CHUYỂN KHOẢN',
+          'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(s.settlementReceivedAt!)),
           'amount': actualAmount,
+          'saleOrder': s,
+          'note': 'Trả góp - Nhận tiền từ NH',
         });
       }
     }
@@ -2401,20 +2735,22 @@ class _CashClosingViewState extends State<CashClosingView>
           r.paymentMethod != 'CÔNG NỢ',
     )) {
       list.add({
+        'type': 'repair',
         'icon': '🔧',
-        'title': 'Sửa chữa #${r.firestoreId?.substring(0, 8) ?? r.id}',
-        'subtitle':
-            '${r.customerName.isNotEmpty ? r.customerName : 'KH'} • ${r.paymentMethod == 'TIỀN MẶT' ? '💵' : '🏦'} ${r.paymentMethod}',
-        'time': DateFormat(
-          'HH:mm',
-        ).format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!)),
+        'title': 'Sửa chữa',
+        'customerName': r.customerName.isNotEmpty ? r.customerName : 'KH',
+        'customerPhone': r.phone,
+        'detail': '${r.model} - ${r.issue}',
+        'paymentMethod': r.paymentMethod,
+        'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!)),
         'amount': r.price,
+        'repair': r,
       });
     }
+
     for (var p in _debtPayments.where((p) {
       if (p['paidAt'] == null) return false;
       if (!_isSameDay(p['paidAt'] as int, date)) return false;
-      // FIX: Lookup debtType from payment record, or fallback to _debtTypeMap
       var debtType = p['debtType'] as String?;
       if (debtType == null || debtType.isEmpty) {
         final debtFirestoreId = p['debtFirestoreId'] as String?;
@@ -2424,17 +2760,17 @@ class _CashClosingViewState extends State<CashClosingView>
       return _isCustomerOwesDebt(debtType);
     })) {
       list.add({
+        'type': 'debt_collect',
         'icon': '💳',
-        'title': 'Thu nợ khách hàng',
-        'subtitle':
-            '${p['customerName'] ?? 'KH'} • ${(p['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
-        'time': DateFormat(
-          'HH:mm',
-        ).format(DateTime.fromMillisecondsSinceEpoch(p['paidAt'] as int)),
+        'title': 'Thu nợ khách',
+        'customerName': p['customerName'] as String? ?? 'KH',
+        'detail': p['note'] as String? ?? 'Thanh toán công nợ',
+        'paymentMethod': p['paymentMethod'] as String? ?? 'TIỀN MẶT',
+        'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(p['paidAt'] as int)),
         'amount': p['amount'] as int? ?? 0,
+        'rawData': p,
       });
     }
-    // Settlement đã được add ở loop trên (sau repairs), không cần add lại
     list.sort((a, b) => (b['time'] as String).compareTo(a['time'] as String));
     return list;
   }
@@ -2442,133 +2778,108 @@ class _CashClosingViewState extends State<CashClosingView>
   List<Map<String, dynamic>> _getExpenseTransactions(DateTime date) {
     final list = <Map<String, dynamic>>[];
 
-    // Debug log
-    debugPrint(
-      '=== _getExpenseTransactions for ${DateFormat('dd/MM/yyyy').format(date)} ===',
-    );
-    debugPrint('Total expenses: ${_expenses.length}');
-    debugPrint('Total supplierImports: ${_supplierImports.length}');
-    debugPrint('Total supplierPayments: ${_supplierPayments.length}');
-    debugPrint('Total debtPayments: ${_debtPayments.length}');
-
     // Lưu danh sách expense NHẬP HÀNG để tránh double-count với supplier_imports
     final importExpenseAmounts = <int>{};
 
     // Chi phí thường
     for (var e in _expenses) {
-      // FIX: Check both 'date' and 'createdAt' as fallback
       final expenseDate = (e['date'] ?? e['createdAt']) as int?;
-      if (expenseDate == null) {
-        debugPrint('Skipping expense with null date: ${e['category']}');
-        continue;
-      }
+      if (expenseDate == null) continue;
       if (!_isSameDay(expenseDate, date)) continue;
 
       final category = (e['category'] as String? ?? 'Chi phí').toUpperCase();
       final amount = e['amount'] as int? ?? 0;
 
-      // FIX BUG-CC-003: Thêm 'PURCHASE' vào danh sách category nhập hàng
-      // vì fast_stock_in_view.dart tạo expense với category='PURCHASE'
       if (category.contains('NHẬP') ||
           category.contains('LINH KIỆN') ||
           category.contains('PURCHASE')) {
         importExpenseAmounts.add(amount);
       }
 
-      debugPrint('Adding expense to list: $category, amount=$amount');
-
-      // Xác định icon dựa trên category
       String icon = '💸';
+      String typeName = 'expense';
       if (category.contains('HOÀN TIỀN') || category.contains('TRẢ HÀNG')) {
-        icon = '↩️'; // Icon đặc biệt cho hoàn tiền trả hàng
+        icon = '↩️';
+        typeName = 'refund';
       }
 
       list.add({
+        'type': typeName,
         'icon': icon,
         'title': e['category'] as String? ?? 'Chi phí',
-        'subtitle':
-            '${e['note'] ?? ''} • ${(e['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
-        'time': DateFormat(
-          'HH:mm',
-        ).format(DateTime.fromMillisecondsSinceEpoch(expenseDate)),
+        'detail': e['note'] as String? ?? '',
+        'paymentMethod': e['paymentMethod'] as String? ?? 'TIỀN MẶT',
+        'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(expenseDate)),
         'amount': amount,
+        'rawData': e,
       });
     }
 
-    // Supplier imports - CHỈ hiển thị nếu KHÔNG có expense tương ứng (tránh double-count)
+    // Supplier imports - CHỈ hiển thị nếu KHÔNG có expense tương ứng
     for (var imp in _supplierImports.where(
       (i) =>
           _isSameDay((i['importDate'] ?? i['createdAt'] ?? 0) as int, date) &&
           (i['paymentMethod'] ?? '') != 'CÔNG NỢ',
     )) {
       final amount = (imp['totalAmount'] ?? imp['costPrice'] ?? 0) as int;
-
-      // Kiểm tra xem đã có expense với cùng amount chưa (có thể sai số 1000đ)
       final hasMatchingExpense = importExpenseAmounts.any(
         (expAmount) => (expAmount - amount).abs() < 1000,
       );
-
-      if (hasMatchingExpense) {
-        debugPrint(
-          'Skipping supplier_import (already has matching expense): amount=$amount',
-        );
-        continue;
-      }
+      if (hasMatchingExpense) continue;
 
       list.add({
+        'type': 'import',
         'icon': '📦',
         'title': 'Nhập hàng',
-        'subtitle':
-            '${imp['supplierName'] ?? 'NCC'} • ${(imp['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
-        'time': DateFormat('HH:mm').format(
-          DateTime.fromMillisecondsSinceEpoch(
-            (imp['importDate'] ?? imp['createdAt'] ?? 0) as int,
-          ),
-        ),
+        'customerName': imp['supplierName'] as String? ?? 'NCC',
+        'detail': imp['productName'] as String? ?? imp['note'] as String? ?? 'Hàng nhập',
+        'paymentMethod': imp['paymentMethod'] as String? ?? 'TIỀN MẶT',
+        'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(
+          (imp['importDate'] ?? imp['createdAt'] ?? 0) as int,
+        )),
         'amount': amount,
+        'rawData': imp,
       });
     }
+
     for (var pay in _supplierPayments.where(
       (p) => _isSameDay((p['paidAt'] ?? 0) as int, date),
     )) {
       list.add({
+        'type': 'supplier_pay',
         'icon': '🏭',
         'title': 'Trả nợ NCC',
-        'subtitle':
-            '${pay['supplierName'] ?? 'NCC'} • ${(pay['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
-        'time': DateFormat('HH:mm').format(
-          DateTime.fromMillisecondsSinceEpoch((pay['paidAt'] ?? 0) as int),
-        ),
+        'customerName': pay['supplierName'] as String? ?? 'NCC',
+        'detail': pay['note'] as String? ?? 'Thanh toán công nợ NCC',
+        'paymentMethod': pay['paymentMethod'] as String? ?? 'TIỀN MẶT',
+        'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch((pay['paidAt'] ?? 0) as int)),
         'amount': (pay['amount'] ?? 0) as int,
+        'rawData': pay,
       });
     }
-    // FIX: Thêm thanh toán đối tác sửa chữa vào tab Chi
+
+    // Thanh toán đối tác sửa chữa
     for (var pay in _repairPartnerPayments.where(
       (p) => _isSameDay((p['paidAt'] ?? 0) as int, date),
     )) {
-      // Lấy tên đối tác từ payment hoặc mặc định
-      String partnerName = 'Đối tác sửa chữa';
-      if (pay['partnerName'] != null) {
-        partnerName = pay['partnerName'] as String;
-      }
       list.add({
+        'type': 'partner_pay',
         'icon': '🔧',
-        'title': 'Trả đối tác sửa chữa',
-        'subtitle':
-            '$partnerName • ${(pay['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
-        'time': DateFormat('HH:mm').format(
-          DateTime.fromMillisecondsSinceEpoch((pay['paidAt'] ?? 0) as int),
-        ),
+        'title': 'Trả đối tác SC',
+        'customerName': pay['partnerName'] as String? ?? 'Đối tác sửa chữa',
+        'detail': pay['note'] as String? ?? 'Thanh toán đối tác',
+        'paymentMethod': pay['paymentMethod'] as String? ?? 'TIỀN MẶT',
+        'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch((pay['paidAt'] ?? 0) as int)),
         'amount': (pay['amount'] ?? 0) as int,
+        'rawData': pay,
       });
     }
-    // FIX BUG-CC-004: debt_payments với debtType='SHOP_OWES' hoặc 'OTHER_SHOP_OWES' là trả nợ NCC
-    // (thanh toán NCC từ trang Công nợ NCC lưu vào debt_payments, không phải supplier_payments)
+
+    // debt_payments với debtType SHOP_OWES = trả nợ NCC
     for (var p in _debtPayments.where((p) {
       final paidAt = p['paidAt'];
       if (paidAt == null) return false;
       if (!_isSameDay(paidAt as int, date)) return false;
-      // FIX: Lookup debtType from payment record, or fallback to _debtTypeMap
       var debtType = p['debtType'] as String?;
       if (debtType == null || debtType.isEmpty) {
         final debtFirestoreId = p['debtFirestoreId'] as String?;
@@ -2578,14 +2889,15 @@ class _CashClosingViewState extends State<CashClosingView>
       return _isShopOwesDebt(debtType);
     })) {
       list.add({
+        'type': 'debt_pay',
         'icon': '🏭',
         'title': 'Trả nợ NCC',
-        'subtitle':
-            '${p['personName'] ?? p['customerName'] ?? 'NCC'} • ${(p['paymentMethod'] ?? 'TIỀN MẶT') == 'TIỀN MẶT' ? '💵' : '🏦'}',
-        'time': DateFormat(
-          'HH:mm',
-        ).format(DateTime.fromMillisecondsSinceEpoch(p['paidAt'] as int)),
+        'customerName': p['personName'] as String? ?? p['customerName'] as String? ?? 'NCC',
+        'detail': p['note'] as String? ?? 'Thanh toán công nợ',
+        'paymentMethod': p['paymentMethod'] as String? ?? 'TIỀN MẶT',
+        'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(p['paidAt'] as int)),
         'amount': p['amount'] as int? ?? 0,
+        'rawData': p,
       });
     }
     list.sort((a, b) => (b['time'] as String).compareTo(a['time'] as String));
