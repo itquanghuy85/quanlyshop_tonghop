@@ -20,7 +20,6 @@ import 'supplier_list_view.dart';
 import 'quick_input_codes_view.dart';
 import 'sale_list_view.dart';
 import 'expense_view.dart';
-import 'financial_hub_view.dart';
 import 'debt_view.dart';
 import 'warranty_view.dart';
 import 'shop_settings_view.dart';
@@ -42,17 +41,12 @@ import 'create_repair_order_view.dart';
 import 'about_developer_view.dart';
 import 'cash_closing_view.dart';
 import 'bank_installment_report_view.dart';
-import 'financial_activity_log_view.dart';
-import 'financial_report_view.dart';
-import 'financial_hub_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
-import 'pending_payments_list_view.dart';
 import 'user_guide_view.dart';
 import '../data/db_helper.dart';
 import '../widgets/pending_stock_widget.dart';
-import '../widgets/pending_payments_widget.dart';
 import '../widgets/unified_sync_button.dart';
 import '../widgets/notification_badge.dart';
 import '../widgets/simple_sync_indicator.dart';
@@ -2784,17 +2778,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(width: 10),
-              // Thanh toán
+              // Thu Chi
               Expanded(
                 child: _buildPinnedCard(
                   icon: Icons.account_balance_wallet,
-                  title: loc.payment,
-                  subtitle: loc.incomeExpense,
+                  title: loc.incomeExpense,
+                  subtitle: 'Ghi thu chi',
                   color: Colors.green,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const PendingPaymentsListView(),
+                      builder: (_) => const ExpenseView(),
                     ),
                   ),
                 ),
@@ -3726,10 +3720,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _buildTabHeader(loc.inventoryManagement, Icons.inventory_2, Colors.orange),
           const SizedBox(height: 8),
 
-          // Pending Payments Widget (Thanh toán chờ xử lý)
-          const PendingPaymentsWidget(),
-          const SizedBox(height: 8),
-
           // Pending Stock Widget (Hàng chờ xác nhận)
           const PendingStockWidget(),
           const SizedBox(height: 12),
@@ -4465,10 +4455,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         padding: const EdgeInsets.all(14),
                         child: Column(
                           children: [
-                            Icon(Icons.account_balance_wallet, color: Colors.green, size: 28),
+                            Icon(Icons.menu_book, color: Colors.green, size: 28),
                             const SizedBox(height: 8),
                             Text(
-                              loc.cashClosingToday,
+                              'Sổ quỹ',
                               style: TextStyle(
                                 color: Colors.green.shade700,
                                 fontWeight: FontWeight.bold,
@@ -4494,7 +4484,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const PendingPaymentsListView(),
+                          builder: (_) => const ExpenseView(),
                         ),
                       ),
                       borderRadius: BorderRadius.circular(15),
@@ -4502,10 +4492,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         padding: const EdgeInsets.all(14),
                         child: Column(
                           children: [
-                            Icon(Icons.payments, color: Colors.blue, size: 28),
+                            Icon(Icons.swap_vert, color: Colors.blue, size: 28),
                             const SizedBox(height: 8),
                             Text(
-                              loc.payment,
+                              'Thu Chi',
                               style: TextStyle(
                                 color: Colors.blue.shade700,
                                 fontWeight: FontWeight.bold,
@@ -4559,7 +4549,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const FinancialHubView(),
+                      builder: (_) => const ExpenseView(),
                     ),
                   ),
                 ),
@@ -4744,7 +4734,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       : "$_todaySaleOrderCount ${loc.sales}",
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const FinancialHubView(initialTab: 0)),
+                    MaterialPageRoute(builder: (_) => const CashClosingView()),
                   ),
                 ),
               ),
@@ -4758,7 +4748,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   detail: _buildExpenseDetail(loc),
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const FinancialHubView(initialTab: 0)),
+                    MaterialPageRoute(builder: (_) => const CashClosingView()),
                   ),
                 ),
               ),
@@ -5513,7 +5503,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const FinancialHubView(initialTab: 0),
+                            builder: (_) => const CashClosingView(),
                           ),
                         ),
                       ),
@@ -5529,7 +5519,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const FinancialHubView(initialTab: 0),
+                            builder: (_) => const CashClosingView(),
                           ),
                         ),
                       ),

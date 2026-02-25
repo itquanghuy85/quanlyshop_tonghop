@@ -523,7 +523,7 @@ class _CashClosingViewState extends State<CashClosingView>
         mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
-            'CHỐT QUỸ',
+            'SỔ QUỸ',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: CustomAppBar.kTitleFontSize,
