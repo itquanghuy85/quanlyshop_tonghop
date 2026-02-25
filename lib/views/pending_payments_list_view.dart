@@ -527,37 +527,30 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      intent.type.displayName,
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-                    ),
-                    if (methodText.isNotEmpty) ...[
-                      Text(' · ', style: TextStyle(color: Colors.grey.shade400)),
-                      Text(
-                        methodText,
-                        style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-                      ),
-                    ],
-                    Text(' · ', style: TextStyle(color: Colors.grey.shade400)),
-                    Text(
-                      paidAt,
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
-                    ),
-                  ],
+                Text(
+                  [
+                    intent.type.displayName,
+                    if (methodText.isNotEmpty) methodText,
+                    paidAt,
+                  ].join(' · '),
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
           // ── Amount ──
-          Text(
-            '${isIncome ? "+" : "-"}${_currencyFmt.format(intent.amount)}đ',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: isCompleted ? color : Colors.grey,
+          Flexible(
+            flex: 0,
+            child: Text(
+              '${isIncome ? "+" : "-"}${_currencyFmt.format(intent.amount)}đ',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: isCompleted ? color : Colors.grey,
+              ),
             ),
           ),
         ],

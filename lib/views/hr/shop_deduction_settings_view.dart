@@ -59,7 +59,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Đã lưu cài đặt'),
+            content: Text('✅ Đã lưu cài đặt thành công'),
             backgroundColor: Colors.green,
           ),
         );
@@ -67,6 +67,16 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('❌ Lỗi khi lưu cài đặt'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Exception saving deduction settings: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Lỗi: $e'),
             backgroundColor: Colors.red,
           ),
         );
