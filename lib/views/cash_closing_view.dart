@@ -13,6 +13,7 @@ import '../services/audit_service.dart';
 import '../services/notification_service.dart';
 import '../utils/money_utils.dart';
 import '../widgets/custom_app_bar.dart';
+import '../models/financial_activity_model.dart';
 import 'sale_detail_view.dart';
 import 'repair_detail_view.dart';
 
@@ -74,7 +75,7 @@ class _CashClosingViewState extends State<CashClosingView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _loadAllData();
     _initRealTimeSync();
   }
@@ -493,6 +494,7 @@ class _CashClosingViewState extends State<CashClosingView>
                   _buildOverviewTab(),
                   _buildIncomeTab(),
                   _buildExpenseTab(),
+                  _buildTransactionsTab(),
                   _buildHistoryTab(),
                 ],
               ),
@@ -594,7 +596,7 @@ class _CashClosingViewState extends State<CashClosingView>
               children: [
                 Icon(Icons.dashboard, size: 14),
                 SizedBox(width: 4),
-                Text('Tổng quan', style: TextStyle(fontSize: 12)),
+                Text('Tổng quan', style: TextStyle(fontSize: 11)),
               ],
             ),
           ),
@@ -605,7 +607,7 @@ class _CashClosingViewState extends State<CashClosingView>
               children: [
                 Icon(Icons.arrow_downward, size: 14),
                 SizedBox(width: 4),
-                Text('Thu', style: TextStyle(fontSize: 12)),
+                Text('Thu', style: TextStyle(fontSize: 11)),
               ],
             ),
           ),
@@ -616,7 +618,18 @@ class _CashClosingViewState extends State<CashClosingView>
               children: [
                 Icon(Icons.arrow_upward, size: 14),
                 SizedBox(width: 4),
-                Text('Chi', style: TextStyle(fontSize: 12)),
+                Text('Chi', style: TextStyle(fontSize: 11)),
+              ],
+            ),
+          ),
+          Tab(
+            height: CustomAppBar.kTabBarHeight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.receipt_long, size: 14),
+                SizedBox(width: 4),
+                Text('Giao dịch', style: TextStyle(fontSize: 11)),
               ],
             ),
           ),
@@ -627,7 +640,7 @@ class _CashClosingViewState extends State<CashClosingView>
               children: [
                 Icon(Icons.history, size: 14),
                 SizedBox(width: 4),
-                Text('Lịch sử', style: TextStyle(fontSize: 12)),
+                Text('Lịch sử', style: TextStyle(fontSize: 11)),
               ],
             ),
           ),
@@ -2218,6 +2231,284 @@ class _CashClosingViewState extends State<CashClosingView>
                 fontSize: AppTextStyles.body1.fontSize,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── TRANSACTIONS TAB ───────────────────────────────────────
+
+  Widget _buildTransactionsTab() {
+    final startEpoch = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    ).millisecondsSinceEpoch;
+    final endEpoch = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      23, 59, 59, 999,
+    ).millisecondsSinceEpoch;
+
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: db.getFinancialActivities(
+        startDate: startEpoch,
+        endDate: endEpoch,
+        limit: 500,
+      ),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final activities = snapshot.data!
+            .map((m) => FinancialActivity.fromMap(m))
+            .toList();
+        if (activities.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.receipt_long, size: 48, color: Colors.grey[300]),
+                const SizedBox(height: 12),
+                Text(
+                  'Chưa có giao dịch nào trong ngày',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Summary
+        int totalIn = 0, totalOut = 0;
+        for (final a in activities) {
+          if (a.direction == 'IN') totalIn += a.amount;
+          if (a.direction == 'OUT') totalOut += a.amount;
+        }
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Summary cards
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          '${activities.length}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
+                        Text(
+                          'Giao dịch',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.green.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          MoneyUtils.formatVND(totalIn),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                        Text(
+                          'Thu',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.blue.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          MoneyUtils.formatVND(totalOut),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                        Text(
+                          'Chi',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.red.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'LỊCH SỬ GIAO DỊCH',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: AppTextStyles.headline4.fontSize,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...activities.map((a) => _activityTransactionCard(a)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _activityTransactionCard(FinancialActivity a) {
+    final isIn = a.direction == 'IN';
+    final color = isIn ? Colors.green : Colors.red;
+    final timeStr = DateFormat('HH:mm').format(
+      DateTime.fromMillisecondsSinceEpoch(a.createdAt),
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text(a.icon, style: const TextStyle(fontSize: 18)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  a.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      a.activityTypeName,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      ' • $timeStr',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                    if (a.paymentMethod.isNotEmpty) ...[
+                      Text(
+                        ' • ${a.paymentMethod}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (a.customerName != null && a.customerName!.isNotEmpty)
+                  Text(
+                    a.customerName!,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          // Amount
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${isIn ? "+" : "-"}${MoneyUtils.formatVND(a.amount)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: color,
+                ),
+              ),
+              if (a.direction == 'DEBT')
+                Text(
+                  'Công nợ',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.orange[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+            ],
           ),
         ],
       ),

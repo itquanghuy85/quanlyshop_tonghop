@@ -571,6 +571,7 @@ class PaymentIntentService {
         referenceId: intent.referenceId ?? intent.id,
         notes: intent.description,
         createdBy: executedBy,
+        title: intent.description ?? intent.type.displayName,
       );
 
       // 5. Update intent status

@@ -362,23 +362,42 @@ class FinancialActivity {
   String get icon {
     switch (activityType) {
       case 'SALE':
+      case 'SALE_PAYMENT':
+      case 'SALE_INSTALLMENT':
         return '🛒';
       case 'PURCHASE':
+      case 'INVENTORY_PURCHASE':
+      case 'SUPPLIER_PURCHASE':
+      case 'PARTS_STOCK_IN':
         return '📦';
       case 'EXPENSE':
+      case 'OPERATING_EXPENSE':
+      case 'UTILITY_EXPENSE':
+      case 'OTHER_EXPENSE':
         return '💸';
       case 'DEBT_COLLECT':
+      case 'CUSTOMER_DEBT_COLLECT':
         return '💰';
       case 'DEBT_PAY':
+      case 'SUPPLIER_DEBT':
+      case 'REPAIR_PARTNER_DEBT':
+      case 'OTHER_DEBT':
         return '💳';
       case 'SETTLEMENT':
         return '🏦';
       case 'REPAIR':
+      case 'REPAIR_SERVICE':
         return '🔧';
       case 'REFUND':
+      case 'CUSTOMER_REFUND':
         return '↩️';
       case 'ADJUSTMENT':
         return '⚙️';
+      case 'SALARY_PAYMENT':
+      case 'BONUS_PAYMENT':
+        return '👷';
+      case 'OTHER_INCOME':
+        return '💵';
       default:
         return '📝';
     }
@@ -388,23 +407,49 @@ class FinancialActivity {
   String get activityTypeName {
     switch (activityType) {
       case 'SALE':
+      case 'SALE_PAYMENT':
         return 'Bán hàng';
+      case 'SALE_INSTALLMENT':
+        return 'Trả góp';
       case 'PURCHASE':
+      case 'INVENTORY_PURCHASE':
+      case 'SUPPLIER_PURCHASE':
         return 'Nhập hàng';
+      case 'PARTS_STOCK_IN':
+        return 'Nhập linh kiện';
       case 'EXPENSE':
+      case 'OPERATING_EXPENSE':
         return 'Chi phí';
+      case 'UTILITY_EXPENSE':
+        return 'Tiện ích';
+      case 'OTHER_EXPENSE':
+        return 'Chi khác';
       case 'DEBT_COLLECT':
+      case 'CUSTOMER_DEBT_COLLECT':
         return 'Thu nợ';
       case 'DEBT_PAY':
+      case 'SUPPLIER_DEBT':
         return 'Trả nợ NCC';
+      case 'REPAIR_PARTNER_DEBT':
+        return 'Trả nợ đ.tác';
+      case 'OTHER_DEBT':
+        return 'Trả nợ khác';
       case 'SETTLEMENT':
         return 'Tất toán NH';
       case 'REPAIR':
+      case 'REPAIR_SERVICE':
         return 'Sửa chữa';
       case 'REFUND':
+      case 'CUSTOMER_REFUND':
         return 'Hoàn tiền';
       case 'ADJUSTMENT':
         return 'Điều chỉnh';
+      case 'SALARY_PAYMENT':
+        return 'Lương';
+      case 'BONUS_PAYMENT':
+        return 'Thưởng';
+      case 'OTHER_INCOME':
+        return 'Thu khác';
       default:
         return 'Khác';
     }

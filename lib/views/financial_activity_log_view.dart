@@ -40,8 +40,8 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   List<Map<String, dynamic>> _auditLogs = [];
   bool _auditLoading = true;
 
-  // Bộ lọc
-  DateTime _startDate = DateTime.now();
+  // Bộ lọc - mặc định 30 ngày gần nhất
+  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _endDate = DateTime.now();
   String? _selectedType;
   String? _selectedDirection;
@@ -50,16 +50,27 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
 
-  // Danh sách loại activity - dynamic based on shop settings
+  // Search cho tab hệ thống
+  String _auditSearchQuery = '';
+  final _auditSearchController = TextEditingController();
+
+  // Danh sách loại activity - bao gồm cả types từ FinancialActivityService và PaymentIntentService
   List<Map<String, String>> get _activityTypes => [
     {'value': '', 'label': 'Tất cả'},
     {'value': 'SALE', 'label': '🛒 Bán hàng'},
+    {'value': 'SALE_PAYMENT', 'label': '🛒 Thanh toán bán hàng'},
     {'value': 'PURCHASE', 'label': '📦 Nhập hàng'},
+    {'value': 'INVENTORY_PURCHASE', 'label': '📦 Nhập kho'},
     {'value': 'EXPENSE', 'label': '💸 Chi phí'},
+    {'value': 'OPERATING_EXPENSE', 'label': '💸 Chi phí vận hành'},
+    {'value': 'UTILITY_EXPENSE', 'label': '💸 Chi phí tiện ích'},
     {'value': 'DEBT_COLLECT', 'label': '💰 Thu nợ'},
+    {'value': 'CUSTOMER_DEBT_COLLECT', 'label': '💰 Thu nợ khách'},
     {'value': 'DEBT_PAY', 'label': '💳 Trả NCC'},
+    {'value': 'SUPPLIER_DEBT', 'label': '💳 Trả nợ NCC'},
     {'value': 'SETTLEMENT', 'label': '🏦 Tất toán'},
     if (_enableRepair) {'value': 'REPAIR', 'label': '🔧 Sửa chữa'},
+    if (_enableRepair) {'value': 'REPAIR_SERVICE', 'label': '🔧 Thanh toán sửa chữa'},
   ];
 
   final List<Map<String, String>> _directions = [
@@ -105,6 +116,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _auditSearchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -791,34 +803,109 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     );
   }
 
+  /// Filtered audit logs based on search
+  List<Map<String, dynamic>> get _filteredAuditLogs {
+    if (_auditSearchQuery.isEmpty) return _auditLogs;
+    final q = _auditSearchQuery.toLowerCase();
+    return _auditLogs.where((log) {
+      final action = (log['action'] ?? '').toString().toLowerCase();
+      final description = (log['description'] ?? log['summary'] ?? '').toString().toLowerCase();
+      final userName = (log['userName'] ?? '').toString().toLowerCase();
+      final entityType = (log['targetType'] ?? log['entityType'] ?? '').toString().toLowerCase();
+      final entityId = (log['targetId'] ?? log['entityId'] ?? '').toString().toLowerCase();
+      return action.contains(q) || description.contains(q) || userName.contains(q) || entityType.contains(q) || entityId.contains(q);
+    }).toList();
+  }
+
   /// Tab Nhật ký hệ thống
   Widget _buildAuditLogTab() {
     if (_auditLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_auditLogs.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.history_toggle_off_rounded,
-              size: 80,
-              color: Colors.grey[300],
+    final filtered = _filteredAuditLogs;
+    return Column(
+      children: [
+        // Search bar
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          color: Colors.white,
+          child: Container(
+            height: 38,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(19),
             ),
-            const SizedBox(height: 10),
-            const Text(
-              "Chưa có ghi chép hoạt động nào",
-              style: TextStyle(color: Colors.grey),
+            child: TextField(
+              controller: _auditSearchController,
+              onChanged: (v) {
+                setState(() => _auditSearchQuery = v.trim());
+              },
+              style: TextStyle(
+                color: Colors.black87,
+                fontSize: AppTextStyles.subtitle1.fontSize,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Tìm theo hành động, người dùng, mô tả...',
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: AppTextStyles.subtitle1.fontSize,
+                ),
+                prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Colors.grey),
+                prefixIconConstraints: const BoxConstraints(minWidth: 40),
+                suffixIcon: _auditSearchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.close_rounded, size: 16, color: Colors.grey.shade500),
+                        onPressed: () {
+                          _auditSearchController.clear();
+                          setState(() => _auditSearchQuery = '');
+                        },
+                        splashRadius: 14,
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              ),
             ),
-          ],
+          ),
         ),
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _auditLogs.length,
-      itemBuilder: (ctx, i) => _buildAuditLogCard(_auditLogs[i], i + 1),
+        // Count
+        if (_auditSearchQuery.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                Text(
+                  'Tìm thấy ${filtered.length} kết quả',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+        // Content
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.history_toggle_off_rounded, size: 80, color: Colors.grey[300]),
+                      const SizedBox(height: 10),
+                      Text(
+                        _auditSearchQuery.isNotEmpty
+                            ? 'Không tìm thấy kết quả cho "$_auditSearchQuery"'
+                            : 'Chưa có ghi chép hoạt động nào',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filtered.length,
+                  itemBuilder: (ctx, i) => _buildAuditLogCard(filtered[i], i + 1),
+                ),
+        ),
+      ],
     );
   }
 
