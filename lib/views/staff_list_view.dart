@@ -1385,10 +1385,17 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     }
   }
 
+  int get _tabCount => _enableRepair ? 4 : 2; // repair: ĐÃ NHẬN, ĐÃ GIAO, ĐÃ BÁN, LỊCH; no repair: ĐÃ BÁN, LỊCH
+
   Future<void> _loadShopSettings() async {
     final settings = await CategoryService().getShopSettings();
     if (!mounted) return;
-    setState(() => _shopSettings = settings);
+    setState(() {
+      _shopSettings = settings;
+      // Recreate tab controller with correct length based on enableRepair
+      _tabController.dispose();
+      _tabController = TabController(length: _tabCount, vsync: this);
+    });
   }
 
   Future<void> _loadCurrentShop() async {
@@ -2055,6 +2062,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                 onChanged: (v) =>
                                     setState(() => _canViewInventory = v),
                               ),
+                              if (_enableRepair)
                               SwitchListTile(
                                 title: Text(
                                   "KHO LINH KIỆN SỬA CHỮA",
@@ -2253,17 +2261,19 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
               fontSize: AppTextStyles.body1.fontSize,
               fontWeight: FontWeight.bold,
             ),
-            tabs: const [
-              Tab(
-                text: "ĐÃ NHẬN",
-                icon: Icon(Icons.move_to_inbox_rounded, size: 20),
-              ),
-              Tab(text: "ĐÃ GIAO", icon: Icon(Icons.outbox_rounded, size: 20)),
-              Tab(
+            tabs: [
+              if (_enableRepair)
+                const Tab(
+                  text: "ĐÃ NHẬN",
+                  icon: Icon(Icons.move_to_inbox_rounded, size: 20),
+                ),
+              if (_enableRepair)
+                const Tab(text: "ĐÃ GIAO", icon: Icon(Icons.outbox_rounded, size: 20)),
+              const Tab(
                 text: "ĐÃ BÁN",
                 icon: Icon(Icons.shopping_cart_checkout_rounded, size: 20),
               ),
-              Tab(text: "LỊCH LÀM VIỆC", icon: Icon(Icons.schedule, size: 20)),
+              const Tab(text: "LỊCH LÀM VIỆC", icon: Icon(Icons.schedule, size: 20)),
             ],
           ),
 
@@ -2271,8 +2281,8 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildRepairList(_repairsReceived),
-                _buildRepairList(_repairsDelivered),
+                if (_enableRepair) _buildRepairList(_repairsReceived),
+                if (_enableRepair) _buildRepairList(_repairsDelivered),
                 _buildSaleList(_sales),
                 _buildWorkScheduleTab(),
               ],

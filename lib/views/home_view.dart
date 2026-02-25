@@ -8,6 +8,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/utils/money_utils.dart';
+import '../utils/money_utils.dart' as input_money;
 import '../l10n/app_localizations.dart';
 import '../services/event_bus.dart';
 import '../services/current_shop_service.dart';
@@ -68,7 +69,12 @@ import '../services/category_service.dart';
 import '../services/expiry_alert_service.dart';
 import '../services/variant_service.dart';
 import '../services/business_type_helper.dart';
+import '../services/payment_intent_service.dart';
+import '../services/adjustment_service.dart';
 import '../models/shop_settings_model.dart';
+import '../models/payment_intent_model.dart';
+import '../constants/financial_constants.dart';
+import '../widgets/currency_text_field.dart';
 import 'food/expiry_management_view.dart';
 import 'fashion/variant_management_view.dart';
 import 'onboarding/business_type_wizard.dart';
@@ -2741,6 +2747,317 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // QUICK EXPENSE/INCOME DIALOGS — shortcuts from home screen
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  bool _quickSaving = false;
+
+  void _showQuickExpenseDialog() async {
+    if (_quickSaving) return;
+
+    // Check if day is already closed
+    final today = DateTime.now();
+    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    if (!canEdit && mounted) {
+      NotificationService.showSnackBar(
+        '❌ Ngày hôm nay đã chốt quỹ! Không thể thêm chi phí mới.',
+        color: Colors.red,
+      );
+      return;
+    }
+
+    final formKey = GlobalKey<FormState>();
+    final titleC = TextEditingController();
+    final amountC = TextEditingController();
+    final noteC = TextEditingController();
+    String category = "PHÁT SINH";
+    String payMethod = "TIỀN MẶT";
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: Icon(Icons.remove_circle, color: Colors.red.shade700, size: 20),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(child: Text("GHI CHI PHÍ NHANH", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red))),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("PHÂN LOẠI", style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: ["CỐ ĐỊNH", "PHÁT SINH", "LƯƠNG", "MẶT BẰNG", "ĐIỆN NƯỚC", "KHÁC"].map(
+                        (c) => ChoiceChip(
+                          label: Text(c, style: const TextStyle(fontSize: 11)),
+                          selected: category == c,
+                          onSelected: (v) => setS(() => category = c),
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ).toList(),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: titleC,
+                      decoration: const InputDecoration(
+                        labelText: "Nội dung chi *",
+                        prefixIcon: Icon(Icons.edit_note, size: 20),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      style: const TextStyle(fontSize: 13),
+                      textCapitalization: TextCapitalization.characters,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Nhập nội dung' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    CurrencyTextField(
+                      controller: amountC,
+                      label: "Số tiền (VNĐ) *",
+                      icon: Icons.payments,
+                      validator: (v) => input_money.MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: noteC,
+                      decoration: const InputDecoration(
+                        labelText: "Ghi chú",
+                        prefixIcon: Icon(Icons.description, size: 20),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 10),
+                    Text("THANH TOÁN", style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: ["TIỀN MẶT", "CHUYỂN KHOẢN"].map(
+                        (m) => Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: ChoiceChip(
+                              label: Text(m, style: const TextStyle(fontSize: 11)),
+                              selected: payMethod == m,
+                              onSelected: (v) => setS(() => payMethod = m),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ),
+                      ).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY")),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: _quickSaving ? null : () async {
+                  if (!(formKey.currentState?.validate() ?? false)) return;
+                  setState(() => _quickSaving = true);
+                  final amount = input_money.MoneyUtils.parseCurrency(amountC.text);
+                  final user = FirebaseAuth.instance.currentUser;
+                  final method = payMethod == 'CHUYỂN KHOẢN' ? PaymentMethod.transfer : PaymentMethod.cash;
+                  Navigator.of(ctx).pop();
+                  final result = await PaymentIntentService.executePaymentDirect(
+                    type: (category == 'ĐIỆN NƯỚC' || category == 'INTERNET')
+                        ? PaymentIntentType.utilityExpense
+                        : PaymentIntentType.operatingExpense,
+                    amount: amount,
+                    paymentMethod: method,
+                    description: '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
+                    executedBy: user?.displayName ?? user?.email ?? 'unknown',
+                    metadata: {'category': category, 'title': titleC.text.toUpperCase(), 'note': noteC.text},
+                  );
+                  if (result != null && result.success) {
+                    EventBus().emit('expenses_changed');
+                    NotificationService.showSnackBar("✅ Đã lưu chi phí!", color: AppColors.success);
+                  }
+                  if (mounted) setState(() => _quickSaving = false);
+                },
+                icon: const Icon(Icons.save, size: 16),
+                label: const Text("LƯU CHI PHÍ"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showQuickIncomeDialog() async {
+    if (_quickSaving) return;
+
+    final today = DateTime.now();
+    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    if (!canEdit && mounted) {
+      NotificationService.showSnackBar(
+        '❌ Ngày hôm nay đã chốt quỹ! Không thể thêm thu phát sinh.',
+        color: Colors.red,
+      );
+      return;
+    }
+
+    final formKey = GlobalKey<FormState>();
+    final titleC = TextEditingController();
+    final amountC = TextEditingController();
+    final noteC = TextEditingController();
+    String category = "PHÁT SINH";
+    String payMethod = "TIỀN MẶT";
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: Icon(Icons.add_circle, color: Colors.green.shade700, size: 20),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(child: Text("GHI THU PHÁT SINH", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green))),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("PHÂN LOẠI", style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: ["PHÁT SINH", "DỊCH VỤ", "HOÀN TIỀN", "BÁN TÀI SẢN", "KHÁC"].map(
+                        (c) => ChoiceChip(
+                          label: Text(c, style: const TextStyle(fontSize: 11)),
+                          selected: category == c,
+                          onSelected: (v) => setS(() => category = c),
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ).toList(),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: titleC,
+                      decoration: const InputDecoration(
+                        labelText: "Nội dung thu *",
+                        prefixIcon: Icon(Icons.edit_note, size: 20),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      style: const TextStyle(fontSize: 13),
+                      textCapitalization: TextCapitalization.characters,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Nhập nội dung' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    CurrencyTextField(
+                      controller: amountC,
+                      label: "Số tiền (VNĐ) *",
+                      icon: Icons.payments,
+                      validator: (v) => input_money.MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: noteC,
+                      decoration: const InputDecoration(
+                        labelText: "Ghi chú",
+                        prefixIcon: Icon(Icons.description, size: 20),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 10),
+                    Text("THANH TOÁN", style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: ["TIỀN MẶT", "CHUYỂN KHOẢN"].map(
+                        (m) => Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: ChoiceChip(
+                              label: Text(m, style: const TextStyle(fontSize: 11)),
+                              selected: payMethod == m,
+                              onSelected: (v) => setS(() => payMethod = m),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ),
+                      ).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY")),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Colors.green),
+                onPressed: _quickSaving ? null : () async {
+                  if (!(formKey.currentState?.validate() ?? false)) return;
+                  setState(() => _quickSaving = true);
+                  final amount = input_money.MoneyUtils.parseCurrency(amountC.text);
+                  final user = FirebaseAuth.instance.currentUser;
+                  final method = payMethod == 'CHUYỂN KHOẢN' ? PaymentMethod.transfer : PaymentMethod.cash;
+                  Navigator.of(ctx).pop();
+                  final result = await PaymentIntentService.executePaymentDirect(
+                    type: PaymentIntentType.otherIncome,
+                    amount: amount,
+                    paymentMethod: method,
+                    description: '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
+                    executedBy: user?.displayName ?? user?.email ?? 'unknown',
+                    metadata: {'category': category, 'title': titleC.text.toUpperCase(), 'note': noteC.text},
+                  );
+                  if (result != null && result.success) {
+                    EventBus().emit('expenses_changed');
+                    NotificationService.showSnackBar("✅ Đã lưu thu phát sinh!", color: AppColors.success);
+                  }
+                  if (mounted) setState(() => _quickSaving = false);
+                },
+                icon: const Icon(Icons.save, size: 16),
+                label: const Text("LƯU THU"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   /// Widget hiển thị 2 lối tắt quan trọng: Hàng chờ xác nhận & Thanh toán
   Widget _buildPinnedShortcutsSection() {
     final loc = AppLocalizations.of(context)!;
@@ -3296,6 +3613,106 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         ),
                         Text(
                           loc.checkInOut,
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+
+        // Row: Thêm chi phí & Thêm thu phát sinh
+        Row(
+          children: [
+            Expanded(
+              child: Card(
+                color: Colors.red.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(color: Colors.red.shade300, width: 2),
+                ),
+                child: InkWell(
+                  onTap: _showQuickExpenseDialog,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.remove_circle_outline,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Thêm chi',
+                          style: AppTextStyles.subtitle1.copyWith(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Ghi nhanh khoản chi',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Card(
+                color: Colors.green.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(color: Colors.green.shade300, width: 2),
+                ),
+                child: InkWell(
+                  onTap: _showQuickIncomeDialog,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.add_circle_outline,
+                            color: Colors.green,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Thêm thu',
+                          style: AppTextStyles.subtitle1.copyWith(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Ghi nhanh khoản thu',
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.grey,
                           ),

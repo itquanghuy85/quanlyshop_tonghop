@@ -293,7 +293,7 @@ class _PayrollViewState extends State<PayrollView> {
     await _load();
   }
 
-  bool get _isManager => _role == 'admin';
+  bool get _isManager => _role == 'admin' || _role == 'owner' || _role == 'manager';
 
   Future<void> _toggleLock() async {
     if (!_isManager) return;
@@ -380,7 +380,8 @@ class _PayrollViewState extends State<PayrollView> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text('BẢNG LƯƠNG'),
+        toolbarHeight: 44,
+        title: const Text('BẢNG LƯƠNG', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         automaticallyImplyLeading: true,
       ),
       body: _loading
@@ -388,55 +389,115 @@ class _PayrollViewState extends State<PayrollView> {
           : Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   child: Column(
                     children: [
                       Row(
                         children: [
-                          Expanded(child: OutlinedButton.icon(onPressed: _pickFrom, icon: const Icon(Icons.calendar_today), label: Text(DateFormat('dd/MM/yyyy').format(_from)))),
-                          const SizedBox(width: 8),
-                          Expanded(child: OutlinedButton.icon(onPressed: _pickTo, icon: const Icon(Icons.calendar_today), label: Text(DateFormat('dd/MM/yyyy').format(_to)))),
+                          Expanded(
+                            child: SizedBox(
+                              height: 34,
+                              child: OutlinedButton.icon(
+                                onPressed: _pickFrom,
+                                icon: const Icon(Icons.calendar_today, size: 14),
+                                label: Text(DateFormat('dd/MM/yyyy').format(_from), style: const TextStyle(fontSize: 12)),
+                                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: SizedBox(
+                              height: 34,
+                              child: OutlinedButton.icon(
+                                onPressed: _pickTo,
+                                icon: const Icon(Icons.calendar_today, size: 14),
+                                label: Text(DateFormat('dd/MM/yyyy').format(_to), style: const TextStyle(fontSize: 12)),
+                                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       Row(
                         children: [
                           Expanded(
-                            child: DropdownButtonFormField<String>(
-                              initialValue: _selectedStaff,
-                              decoration: const InputDecoration(labelText: 'Chọn nhân viên', border: OutlineInputBorder()),
-                              items: _staffList.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                              onChanged: (v) => setState(() => _selectedStaff = v),
+                            child: SizedBox(
+                              height: 38,
+                              child: DropdownButtonFormField<String>(
+                                initialValue: _selectedStaff,
+                                decoration: const InputDecoration(
+                                  labelText: 'Chọn nhân viên',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                  isDense: true,
+                                  labelStyle: TextStyle(fontSize: 12),
+                                ),
+                                style: const TextStyle(fontSize: 12, color: Colors.black87),
+                                items: _staffList.map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 12)))).toList(),
+                                onChanged: (v) => setState(() => _selectedStaff = v),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Expanded(
-                            child: TextField(
-                              controller: _customStaff,
-                              decoration: const InputDecoration(labelText: 'Hoặc gõ tên', border: OutlineInputBorder()),
-                              onChanged: (_) => setState(() {}),
+                            child: SizedBox(
+                              height: 38,
+                              child: TextField(
+                                controller: _customStaff,
+                                decoration: const InputDecoration(
+                                  labelText: 'Hoặc gõ tên',
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                  isDense: true,
+                                  labelStyle: TextStyle(fontSize: 12),
+                                ),
+                                style: const TextStyle(fontSize: 12),
+                                onChanged: (_) => setState(() {}),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       Align(
                         alignment: Alignment.centerRight,
                         child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                          spacing: 6,
+                          runSpacing: 4,
                           children: [
-                            ElevatedButton.icon(onPressed: (!_isManager || _monthLocked) ? null : _openRuleDialog, icon: const Icon(Icons.rule), label: const Text('Cài công thức')),
-                            ElevatedButton.icon(
-                              onPressed: _selectedStaffName.isEmpty ? null : () => _openAdjustmentDialog(),
-                              icon: const Icon(Icons.card_giftcard),
-                              label: const Text('Thưởng/Trừ'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
+                            SizedBox(
+                              height: 30,
+                              child: ElevatedButton.icon(
+                                onPressed: (!_isManager || _monthLocked) ? null : _openRuleDialog,
+                                icon: const Icon(Icons.rule, size: 14),
+                                label: const Text('Công thức', style: TextStyle(fontSize: 11)),
+                                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
                               ),
                             ),
-                            ElevatedButton.icon(onPressed: () => _exportCsv(summary), icon: const Icon(Icons.file_download), label: const Text('Xuất CSV')),
+                            SizedBox(
+                              height: 30,
+                              child: ElevatedButton.icon(
+                                onPressed: _selectedStaffName.isEmpty ? null : () => _openAdjustmentDialog(),
+                                icon: const Icon(Icons.card_giftcard, size: 14),
+                                label: const Text('Thưởng/Trừ', style: TextStyle(fontSize: 11)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              height: 30,
+                              child: ElevatedButton.icon(
+                                onPressed: () => _exportCsv(summary),
+                                icon: const Icon(Icons.file_download, size: 14),
+                                label: const Text('CSV', style: TextStyle(fontSize: 11)),
+                                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -444,32 +505,44 @@ class _PayrollViewState extends State<PayrollView> {
                   ),
                 ),
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius), boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 6)]),
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius), boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 4)]),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('TỔNG HỢP', style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface)),
-                      const SizedBox(height: 6),
                       Row(
                         children: [
-                          Chip(label: Text(_monthLocked ? 'THÁNG ĐÃ KHÓA' : 'THÁNG CHƯA KHÓA'), backgroundColor: _monthLocked ? AppColors.warning.withOpacity(0.2) : AppColors.success.withOpacity(0.2)),
-                          const SizedBox(width: 8),
+                          Text('TỔNG HỢP', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.onSurface)),
+                          const Spacer(),
+                          Chip(
+                            label: Text(_monthLocked ? 'ĐÃ KHÓA' : 'CHƯA KHÓA', style: const TextStyle(fontSize: 10)),
+                            backgroundColor: _monthLocked ? AppColors.warning.withOpacity(0.2) : AppColors.success.withOpacity(0.2),
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                          ),
                           if (_isManager)
-                            TextButton.icon(onPressed: _toggleLock, icon: Icon(_monthLocked ? Icons.lock_open : Icons.lock), label: Text(_monthLocked ? 'Mở khóa' : 'Khóa tháng')),
+                            SizedBox(
+                              height: 28,
+                              child: TextButton.icon(
+                                onPressed: _toggleLock,
+                                icon: Icon(_monthLocked ? Icons.lock_open : Icons.lock, size: 14),
+                                label: Text(_monthLocked ? 'Mở' : 'Khóa', style: const TextStyle(fontSize: 11)),
+                                style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)),
+                              ),
+                            ),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      Text('Ngày công: ${summary['days']}'),
-                      Text('Giờ chuẩn: ${summary['regularHours'].toStringAsFixed(2)}h'),
-                      Text('Giờ OT: ${summary['otHours'].toStringAsFixed(2)}h (hệ số ${summary['otRate']})'),
-                      const Divider(),
-                      Text('Lương tạm tính: ${NumberFormat('#,###').format(summary['salary'].round())} đ', style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold, color: AppColors.success)),
+                      const SizedBox(height: 4),
+                      Text('Ngày công: ${summary['days']}   •   Chuẩn: ${summary['regularHours'].toStringAsFixed(1)}h   •   OT: ${summary['otHours'].toStringAsFixed(1)}h (x${summary['otRate']})', style: const TextStyle(fontSize: 12)),
+                      const Divider(height: 12),
+                      Text('Lương tạm tính: ${NumberFormat('#,###').format(summary['salary'].round())} đ', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.success)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 Expanded(
                   child: ListView(
                     children: _filteredAtt.map((a) {
@@ -479,10 +552,13 @@ class _PayrollViewState extends State<PayrollView> {
                           ? ((outMs - inMs) / (1000 * 60 * 60))
                           : 0.0;
                       return ListTile(
-                        leading: const Icon(Icons.calendar_today, size: 18),
-                        title: Text(a.dateKey ?? ''),
-                        subtitle: Text('In: ${inMs == null ? '--' : DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(inMs))} • Out: ${outMs == null ? '--' : DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(outMs))} • ${hrs.toStringAsFixed(2)}h'),
-                        trailing: Text((a.overtimeOn ?? 0) == 1 ? 'OT' : ''),
+                        dense: true,
+                        visualDensity: VisualDensity.compact,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                        leading: const Icon(Icons.calendar_today, size: 15),
+                        title: Text(a.dateKey ?? '', style: const TextStyle(fontSize: 12)),
+                        subtitle: Text('${inMs == null ? '--' : DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(inMs))} → ${outMs == null ? '--' : DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(outMs))} • ${hrs.toStringAsFixed(1)}h', style: const TextStyle(fontSize: 11)),
+                        trailing: (a.overtimeOn ?? 0) == 1 ? const Text('OT', style: TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold)) : null,
                       );
                     }).toList(),
                   ),

@@ -472,7 +472,7 @@ class _InventoryViewState extends State<InventoryView>
                   : "N/A",
               color: Colors.grey,
             ),
-            if (repairs.isNotEmpty && _businessType == 'electronics') ...[
+            if (repairs.isNotEmpty && _enableRepair) ...[
               const Divider(height: 30),
               Text(
                 "LỊCH SỬ SỬA CHỮA",

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/shop_deduction_settings.dart';
 import '../../services/salary_calculation_service.dart';
+import '../../services/user_service.dart';
 import '../../theme/app_text_styles.dart';
+import 'add_custom_adjustment_dialog.dart';
 
 /// Màn hình cài đặt Khấu trừ, Thuế, Bảo hiểm của shop
 class ShopDeductionSettingsView extends StatefulWidget {
@@ -20,12 +22,18 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
   bool _isLoading = true;
   bool _isSaving = false;
 
+  // Custom adjustments tab state
+  List<CustomSalaryAdjustment> _adjustments = [];
+  bool _loadingAdjustments = false;
+  int _adjMonth = DateTime.now().month;
+  int _adjYear = DateTime.now().year;
+
   final _currencyFormat = NumberFormat('#,###', 'vi_VN');
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadSettings();
   }
 
@@ -47,6 +55,25 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
       debugPrint('Error loading deduction settings: $e');
     } finally {
       setState(() => _isLoading = false);
+    }
+    _loadAdjustments();
+  }
+
+  Future<void> _loadAdjustments() async {
+    setState(() => _loadingAdjustments = true);
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return;
+      final data = await SalaryCalculationService.getAllShopAdjustments(
+        shopId: shopId,
+        month: _adjMonth,
+        year: _adjYear,
+      );
+      if (mounted) setState(() => _adjustments = data);
+    } catch (e) {
+      debugPrint('Error loading adjustments: $e');
+    } finally {
+      if (mounted) setState(() => _loadingAdjustments = false);
     }
   }
 
@@ -109,6 +136,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             Tab(icon: Icon(Icons.warning_amber_rounded), text: 'Khấu trừ'),
             Tab(icon: Icon(Icons.health_and_safety_rounded), text: 'Bảo hiểm'),
             Tab(icon: Icon(Icons.receipt_long_rounded), text: 'Thuế TNCN'),
+            Tab(icon: Icon(Icons.card_giftcard_rounded), text: 'Thưởng/Trừ'),
           ],
         ),
         actions: [
@@ -137,6 +165,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                 _buildDeductionTab(),
                 _buildInsuranceTab(),
                 _buildTaxTab(),
+                _buildCustomAdjustmentsTab(),
               ],
             ),
     );
@@ -647,6 +676,270 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
         ],
       ),
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TAB 4: THƯỞNG / KHẤU TRỪ KHÁC
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildCustomAdjustmentsTab() {
+    final bonuses = _adjustments.where((a) => a.isBonus).toList();
+    final deductions = _adjustments.where((a) => a.isDeduction).toList();
+    final totalBonus = bonuses.fold<double>(0, (s, a) => s + a.amount);
+    final totalDeduction = deductions.fold<double>(0, (s, a) => s + a.amount);
+
+    return Column(
+      children: [
+        // Month/Year picker row
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: Colors.grey[50],
+          child: Row(
+            children: [
+              const Icon(Icons.date_range, size: 18, color: Colors.grey),
+              const SizedBox(width: 8),
+              DropdownButton<int>(
+                value: _adjMonth,
+                underline: const SizedBox(),
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                items: List.generate(12, (i) => DropdownMenuItem(
+                  value: i + 1,
+                  child: Text('Tháng ${i + 1}'),
+                )),
+                onChanged: (v) {
+                  if (v != null) {
+                    setState(() => _adjMonth = v);
+                    _loadAdjustments();
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              DropdownButton<int>(
+                value: _adjYear,
+                underline: const SizedBox(),
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                items: List.generate(5, (i) {
+                  final y = DateTime.now().year - 2 + i;
+                  return DropdownMenuItem(value: y, child: Text('$y'));
+                }),
+                onChanged: (v) {
+                  if (v != null) {
+                    setState(() => _adjYear = v);
+                    _loadAdjustments();
+                  }
+                },
+              ),
+              const Spacer(),
+              FilledButton.icon(
+                onPressed: _addNewAdjustment,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Thêm', style: TextStyle(fontSize: 12)),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  minimumSize: Size.zero,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Summary bar
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  children: [
+                    const Text('Thưởng', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '+${_currencyFormat.format(totalBonus)}đ',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
+                    ),
+                    Text('${bonuses.length} khoản', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              Container(width: 1, height: 36, color: Colors.grey[300]),
+              Expanded(
+                child: Column(
+                  children: [
+                    const Text('Khấu trừ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '-${_currencyFormat.format(totalDeduction)}đ',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red),
+                    ),
+                    Text('${deductions.length} khoản', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // List
+        Expanded(
+          child: _loadingAdjustments
+              ? const Center(child: CircularProgressIndicator())
+              : _adjustments.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.inbox_outlined, size: 48, color: Colors.grey[300]),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Chưa có khoản thưởng/trừ nào\ntháng $_adjMonth/$_adjYear',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: _addNewAdjustment,
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Thêm mới', style: TextStyle(fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      itemCount: _adjustments.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 6),
+                      itemBuilder: (context, index) {
+                        final adj = _adjustments[index];
+                        final isBonus = adj.isBonus;
+                        return Dismissible(
+                          key: Key(adj.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.red[400],
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          confirmDismiss: (_) async {
+                            return await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Xác nhận xóa'),
+                                content: Text('Xóa "${adj.name}" - ${_currencyFormat.format(adj.amount)}đ?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY')),
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                    child: const Text('XÓA'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          onDismissed: (_) => _deleteAdjustment(adj),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isBonus ? Colors.green.withOpacity(0.3) : Colors.red.withOpacity(0.3),
+                              ),
+                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 2))],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: (isBonus ? Colors.green : Colors.red).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    isBonus ? Icons.trending_up : Icons.trending_down,
+                                    color: isBonus ? Colors.green : Colors.red,
+                                    size: 18,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        adj.name,
+                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${adj.staffName}${adj.note != null && adj.note!.isNotEmpty ? ' • ${adj.note}' : ''}',
+                                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '${isBonus ? '+' : '-'}${_currencyFormat.format(adj.amount)}đ',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: isBonus ? Colors.green : Colors.red,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addNewAdjustment() async {
+    // Use same dialog pattern as payroll_view
+    final result = await showAddCustomAdjustmentDialog(
+      context,
+      staffId: '', // empty = user picks from the dialog
+      staffName: '',
+      month: _adjMonth,
+      year: _adjYear,
+    );
+    if (result == true && mounted) {
+      _loadAdjustments();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Đã thêm khoản thưởng/trừ'), backgroundColor: Colors.green),
+      );
+    }
+  }
+
+  Future<void> _deleteAdjustment(CustomSalaryAdjustment adj) async {
+    final ok = await SalaryCalculationService.deleteCustomAdjustment(adj.id);
+    if (mounted) {
+      if (ok) {
+        setState(() => _adjustments.removeWhere((a) => a.id == adj.id));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã xóa'), backgroundColor: Colors.orange),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❌ Lỗi khi xóa'), backgroundColor: Colors.red),
+        );
+        _loadAdjustments(); // Reload to restore
+      }
+    }
   }
 
   Widget _buildSectionCard({

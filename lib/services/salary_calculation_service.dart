@@ -842,6 +842,25 @@ class SalaryCalculationService {
     }
   }
 
+  /// Lấy tất cả khoản thưởng/trừ của shop trong tháng (all staff)
+  static Future<List<CustomSalaryAdjustment>> getAllShopAdjustments({
+    required String shopId,
+    required int month,
+    required int year,
+  }) async {
+    try {
+      final data = await FirestoreService.getAllCustomSalaryAdjustments(
+        shopId: shopId,
+        month: month,
+        year: year,
+      );
+      return data.map((e) => CustomSalaryAdjustment.fromMap(e)).toList();
+    } catch (e) {
+      debugPrint('Error getting all shop adjustments: $e');
+      return [];
+    }
+  }
+
   /// Tính số ngày làm việc trong tháng theo config workDays
   /// workDays: [1,2,3,4,5,6] = Mon-Sat, [1,2,3,4,5,6,7] = Mon-Sun
   static int _getWorkingDaysInMonth(int year, int month, [List<int> workDays = const [1, 2, 3, 4, 5, 6]]) {
