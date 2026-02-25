@@ -1,503 +1,333 @@
-// Pending Payments List View - Central hub for ALL payment operations
+// Pending Payments List View - Compact & Professional Design
 //
 // PURPOSE:
-// - Display ALL pending payment intents in one place
-// - Allow users to select and execute payments
-// - Filter by payment type (income/expense/debt)
-// - Track payment history
+// - Display all pending payment intents (THU / CHI / LỊCH SỬ)
+// - Inline payment execution via bottom sheet (no separate page)
+// - Swipe to cancel, tap to pay
 //
-// RULES:
-// - This is the ONLY entry point for viewing pending payments
-// - All business modules redirect here instead of handling payments directly
-// - Payments are executed through UnifiedPaymentPage
-//
-// Created: 2026-01-22
-// Author: AI Assistant (Phase 7 - Centralized Payment Hub)
+// Created: 2026-01-22 | Redesigned: 2026-02-25
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../models/payment_intent_model.dart';
-import '../constants/financial_constants.dart';
-import '../theme/app_text_styles.dart';
 import '../services/payment_intent_service.dart';
-import '../services/first_time_guide_service.dart';
+import '../services/user_service.dart';
+import '../services/notification_service.dart';
+import '../constants/financial_constants.dart';
 import '../services/event_bus.dart';
-import 'unified_payment_page.dart';
+import '../widgets/custom_app_bar.dart';
 
-/// Central payment hub - displays ALL pending payments
 class PendingPaymentsListView extends StatefulWidget {
-  /// Optional filter to show only specific payment types
-  final PaymentIntentType? filterType;
-
-  const PendingPaymentsListView({super.key, this.filterType});
+  const PendingPaymentsListView({super.key});
 
   @override
-  State<PendingPaymentsListView> createState() => _PendingPaymentsListViewState();
+  State<PendingPaymentsListView> createState() =>
+      _PendingPaymentsListViewState();
 }
 
 class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<PaymentIntent> _allIntents = [];
+  List<PaymentIntent> _incomeIntents = [];
+  List<PaymentIntent> _expenseIntents = [];
+  List<PaymentIntent> _historyIntents = [];
   bool _isLoading = true;
+  StreamSubscription<String>? _eventSub;
 
-  // Filter - reserved for future filtering feature
-  // ignore: unused_field
-  String? _filterCategory; // 'income', 'expense', 'debt', null = all
-
-  // FIX: EventBus subscription để lắng nghe khi data từ cloud sync thay đổi
-  StreamSubscription? _eventSubscription;
+  final _currencyFmt = NumberFormat('#,###', 'vi');
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadData();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showFirstTimeGuide();
-    });
-    
-    // FIX: Lắng nghe event khi payment_intents thay đổi từ sync
-    _eventSubscription = EventBus().stream.listen((event) {
-      if (event == 'payment_intents_changed') {
-        debugPrint('📡 PendingPaymentsListView: Received payment_intents_changed event, reloading...');
-        _loadData();
-      }
-    });
+    _eventSub = EventBus().on('payment_intents_changed', (_) => _loadData());
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _eventSubscription?.cancel();
+    _eventSub?.cancel();
     super.dispose();
   }
 
-  /// Show first time guide
-  Future<void> _showFirstTimeGuide() async {
-    await FirstTimeGuideService.showGuideIfNeeded(
-      context: context,
-      screenKey: 'pending_payments',
-      title: 'Quản Lý Thanh Toán',
-      icon: Icons.account_balance_wallet,
-      color: Colors.green,
-      steps: const [
-        GuideStep(
-          title: '💰 Trung tâm thanh toán',
-          description:
-              'Đây là nơi tập trung TẤT CẢ các khoản thanh toán của shop. '
-              'Mọi giao dịch tiền đều phải qua đây.',
-          icon: Icons.hub,
-          iconColor: Colors.blue,
-        ),
-        GuideStep(
-          title: '📊 Ba loại giao dịch',
-          description:
-              '• CHỜ THU: Tiền khách cần trả\n'
-              '• CHỜ CHI: Tiền shop cần trả\n'
-              '• LỊCH SỬ: Các giao dịch đã hoàn thành',
-          icon: Icons.category,
-          iconColor: Colors.blue,
-        ),
-        GuideStep(
-          title: '✅ Xác nhận thanh toán',
-          description:
-              'Nhấn vào giao dịch để xem chi tiết và xác nhận thanh toán. '
-              'Chọn phương thức: Tiền mặt, Chuyển khoản, hoặc Quẹt thẻ.',
-          icon: Icons.check_circle,
-          iconColor: Colors.green,
-        ),
-        GuideStep(
-          title: '🔒 An toàn tài chính',
-          description:
-              'Mỗi giao dịch chỉ được thực hiện MỘT LẦN. '
-              'Hệ thống tự động ghi sổ và không thể sửa đổi.',
-          icon: Icons.security,
-          iconColor: Colors.orange,
-        ),
-      ],
-    );
-  }
-
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      // Ensure PaymentIntentService is initialized (loads from DB)
-      await PaymentIntentService.initialize();
-      // Reload from DB to pick up any sync changes
-      await PaymentIntentService.reloadFromDb();
-      
-      // Get ALL intents from service (pending + history)
-      final intents = await PaymentIntentService.getAllIntents();
+      final results = await Future.wait([
+        PaymentIntentService.getPendingIncomeIntents(),
+        PaymentIntentService.getPendingExpenseIntents(),
+        PaymentIntentService.getHistoryIntents(),
+      ]);
+      if (!mounted) return;
       setState(() {
-        _allIntents = intents;
+        _incomeIntents = results[0]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        _expenseIntents = results[1]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        _historyIntents = results[2];
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('❌ Error loading payment intents: $e');
-      setState(() => _isLoading = false);
+      debugPrint('❌ Load payment intents error: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// Get pending income payments (money coming in)
-  List<PaymentIntent> get _pendingIncome {
-    return _allIntents
-        .where((i) => i.status == PaymentIntentStatus.pending && i.isIncome)
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-  }
+  // ──────────────────────────────────────────────────
+  // PAYMENT EXECUTION - Inline bottom sheet
+  // ──────────────────────────────────────────────────
 
-  /// Get pending expense payments (money going out)
-  List<PaymentIntent> get _pendingExpense {
-    return _allIntents
-        .where((i) => i.status == PaymentIntentStatus.pending && i.isExpense)
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-  }
-
-  /// Get completed/cancelled payments (history)
-  List<PaymentIntent> get _history {
-    return _allIntents
-        .where((i) => i.status != PaymentIntentStatus.pending)
-        .toList()
-      ..sort((a, b) => (b.paidAt ?? b.createdAt).compareTo(a.paidAt ?? a.createdAt));
-  }
-
-  /// Execute payment via UnifiedPaymentPage
   Future<void> _executePayment(PaymentIntent intent) async {
-    final result = await Navigator.push<PaymentExecutionResult>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => UnifiedPaymentPage(intent: intent),
-      ),
-    );
-
-    // Luôn reload sau khi thoát trang thanh toán để đồng bộ UI với trạng thái intent
-    await _loadData();
-
+    // If method is preset, execute directly
+    if (intent.paymentMethod != null) {
+      await _doExecute(intent, intent.paymentMethod!);
+      return;
+    }
+    // Show method selection bottom sheet
     if (!mounted) return;
-
-    if (result != null && result.success) {
-      _showSuccessDialog(intent);
+    final method = await showModalBottomSheet<PaymentMethod>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PaymentMethodSheet(intent: intent),
+    );
+    if (method != null) {
+      await _doExecute(intent, method);
     }
   }
 
-  /// Quick execute payment with default/suggested method (TIỀN MẶT)
-  Future<void> _quickExecutePayment(PaymentIntent intent) async {
-    // Use suggested method from metadata or default to cash
-    final suggestedStr = intent.metadata?['suggestedMethod'] as String? ?? 'TIỀN MẶT';
-    final method = suggestedStr == 'CHUYỂN KHOẢN' 
-        ? PaymentMethod.transfer 
-        : PaymentMethod.cash;
-    
-    final user = FirebaseAuth.instance.currentUser;
-    final result = await PaymentIntentService.executePayment(
-      intentId: intent.id,
-      paymentMethod: method,
-      executedBy: user?.displayName ?? user?.email ?? 'unknown',
-    );
-    
-    await _loadData();
-    
+  Future<void> _doExecute(PaymentIntent intent, PaymentMethod method) async {
+    // Show loading overlay
     if (!mounted) return;
-    
-    if (result.success) {
-      _showSuccessDialog(intent);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.errorMessage ?? 'Có lỗi xảy ra'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  /// Show success dialog after payment
-  void _showSuccessDialog(PaymentIntent intent) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
-        title: const Text('Thanh toán thành công!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              intent.description,
-              style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                  .format(intent.amount),
-              style: TextStyle(
-                fontSize: AppTextStyles.headline1.fontSize,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Đóng'),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.white)),
     );
+
+    try {
+      final userName = await UserService.getCurrentUserName();
+      final result = await PaymentIntentService.executePayment(
+        intentId: intent.id,
+        paymentMethod: method,
+        executedBy: userName ?? 'Unknown',
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // dismiss loading
+
+      if (result.success) {
+        NotificationService.showSnackBar(
+          intent.isIncome ? '✅ Thu tiền thành công!' : '✅ Thanh toán thành công!',
+          color: Colors.green,
+        );
+        _loadData();
+      } else {
+        NotificationService.showSnackBar(
+          '❌ ${result.errorMessage ?? "Có lỗi xảy ra"}',
+          color: Colors.red,
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop();
+      NotificationService.showSnackBar('❌ Lỗi: $e', color: Colors.red);
+    }
   }
 
-  /// Cancel a payment intent
-  /// 
-  /// NOTE: Hủy payment intent chỉ xóa khỏi hàng đợi thanh toán.
-  /// KHÔNG tự động hoàn trả tiền hay thay đổi trạng thái liên quan (đơn sửa, công nợ, etc.)
-  /// Nếu cần hoàn tiền, người dùng phải làm thủ công thông qua các chức năng khác.
-  Future<void> _cancelIntent(PaymentIntent intent) async {
+  /// Quick pay with cash - one tap
+  Future<void> _quickPay(PaymentIntent intent) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Hủy thanh toán?', style: TextStyle(fontSize: AppTextStyles.headline3.fontSize)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(intent.description, style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
-            const SizedBox(height: 8),
-            Text(
-              NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                  .format(intent.amount),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.shade300),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 18, color: Colors.amber.shade800),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Lưu ý: Hủy chỉ xóa yêu cầu thanh toán này khỏi danh sách. '
-                      'Tiền và trạng thái giao dịch liên quan (công nợ, đơn sửa) KHÔNG bị ảnh hưởng.',
-                      style: TextStyle(
-                        fontSize: AppTextStyles.body1.fontSize,
-                        color: Colors.amber.shade900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        title: Text(intent.isIncome ? 'Thu tiền mặt?' : 'Chi tiền mặt?'),
+        content: Text(
+          '${intent.description}\n${_currencyFmt.format(intent.amount)}đ',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Không'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Hủy giao dịch', style: TextStyle(color: Colors.white)),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Hủy')),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Xác nhận'),
           ),
         ],
       ),
     );
-
     if (confirm == true) {
-      PaymentIntentService.cancelIntent(intent.id, reason: 'Người dùng hủy');
-      await _loadData();
+      await _doExecute(intent, PaymentMethod.cash);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final stats = PaymentIntentService.getStatistics();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Text(
-              'THANH TOÁN',
-              style: TextStyle(
-                fontSize: AppTextStyles.headline3.fontSize,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 8),
-            if (stats['pending']! > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${stats['pending']}',
-                  style: TextStyle(
-                    fontSize: AppTextStyles.subtitle1.fontSize,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1B5E20), Color(0xFF4CAF50)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
+  Future<void> _cancelPayment(PaymentIntent intent) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hủy thanh toán?'),
+        content: Text(intent.description),
         actions: [
-          IconButton(
-            onPressed: _loadData,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Làm mới',
-          ),
-          IconButton(
-            onPressed: _showStatistics,
-            icon: const Icon(Icons.bar_chart),
-            tooltip: 'Thống kê',
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Không')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Hủy thanh toán'),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          tabs: [
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.arrow_downward, size: 16),
-                  const SizedBox(width: 4),
-                  const Text('THU', style: TextStyle(fontSize: 13)),
-                  if (_pendingIncome.isNotEmpty) ...[
-                    const SizedBox(width: 4),
-                    _buildBadge(_pendingIncome.length, Colors.blue),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.arrow_upward, size: 16),
-                  const SizedBox(width: 4),
-                  const Text('CHI', style: TextStyle(fontSize: 13)),
-                  if (_pendingExpense.isNotEmpty) ...[
-                    const SizedBox(width: 4),
-                    _buildBadge(_pendingExpense.length, Colors.orange),
-                  ],
-                ],
-              ),
-            ),
-            const Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.history, size: 16),
-                  SizedBox(width: 4),
-                  Text('SỬ', style: TextStyle(fontSize: 13)),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
+    );
+    if (confirm == true) {
+      final ok = await PaymentIntentService.cancelIntent(intent.id, reason: 'Hủy thủ công');
+      if (ok) {
+        NotificationService.showSnackBar('Đã hủy thanh toán', color: Colors.orange);
+        _loadData();
+      }
+    }
+  }
+
+  // ──────────────────────────────────────────────────
+  // BUILD
+  // ──────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: _buildAppBar(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
               children: [
-                // Tab 1: Pending Income
-                _buildPaymentList(_pendingIncome, isIncome: true),
-                // Tab 2: Pending Expense
-                _buildPaymentList(_pendingExpense, isIncome: false),
-                // Tab 3: History
+                _buildList(_incomeIntents, isIncome: true),
+                _buildList(_expenseIntents, isIncome: false),
                 _buildHistoryList(),
               ],
             ),
     );
   }
 
-  Widget _buildBadge(int count, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(10),
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [CustomAppBar.kGradientStart, CustomAppBar.kGradientEnd],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
       ),
-      child: Text(
-        '$count',
-        style: TextStyle(
-          fontSize: AppTextStyles.caption.fontSize,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
+      backgroundColor: Colors.transparent,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      iconTheme: const IconThemeData(color: Colors.white),
+      title: const Text(
+        'Thanh Toán',
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.bar_chart_rounded, size: 22),
+          tooltip: 'Thống kê',
+          onPressed: _showStats,
+        ),
+        IconButton(
+          icon: const Icon(Icons.refresh, size: 22),
+          tooltip: 'Tải lại',
+          onPressed: _loadData,
+        ),
+      ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(36),
+        child: Container(
+          height: 36,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          child: TabBar(
+            controller: _tabController,
+            indicatorSize: TabBarIndicatorSize.tab,
+            indicatorWeight: 2.5,
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white60,
+            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            unselectedLabelStyle: const TextStyle(fontSize: 12),
+            tabs: [
+              Tab(text: 'THU (${_incomeIntents.length})'),
+              Tab(text: 'CHI (${_expenseIntents.length})'),
+              Tab(text: 'LỊCH SỬ (${_historyIntents.length})'),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildPaymentList(List<PaymentIntent> intents, {required bool isIncome}) {
-    if (intents.isEmpty) {
-      return _buildEmptyState(isIncome);
+  // ──────────────────────────────────────────────────
+  // PENDING LIST (THU / CHI)
+  // ──────────────────────────────────────────────────
+
+  Widget _buildList(List<PaymentIntent> items, {required bool isIncome}) {
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+              size: 48,
+              color: Colors.grey.shade300,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isIncome ? 'Không có khoản thu chờ xử lý' : 'Không có khoản chi chờ xử lý',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+            ),
+          ],
+        ),
+      );
     }
 
-    // Group by type
-    final grouped = <PaymentIntentType, List<PaymentIntent>>{};
-    for (final intent in intents) {
-      grouped.putIfAbsent(intent.type, () => []).add(intent);
-    }
-
-    // Calculate totals
-    final totalAmount = intents.fold<int>(0, (sum, i) => sum + i.amount);
+    final totalAmount = items.fold<int>(0, (sum, i) => sum + i.amount);
 
     return Column(
       children: [
-        // Summary header
-        _buildSummaryHeader(
-          count: intents.length,
-          total: totalAmount,
-          isIncome: isIncome,
+        // ── Compact summary bar ──
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: isIncome ? Colors.green.shade50 : Colors.red.shade50,
+          child: Row(
+            children: [
+              Icon(
+                isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                size: 16,
+                color: isIncome ? Colors.green.shade700 : Colors.red.shade700,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${items.length} khoản',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isIncome ? Colors.green.shade700 : Colors.red.shade700,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${_currencyFmt.format(totalAmount)}đ',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isIncome ? Colors.green.shade700 : Colors.red.shade700,
+                ),
+              ),
+            ],
+          ),
         ),
-        const Divider(height: 1),
-        // List
+        // ── Items ──
         Expanded(
           child: RefreshIndicator(
             onRefresh: _loadData,
-            child: ListView.builder(
-              padding: const EdgeInsets.only(bottom: 80),
-              itemCount: intents.length,
-              itemBuilder: (ctx, index) {
-                return _buildPaymentCard(intents[index]);
-              },
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const Divider(height: 1, indent: 60),
+              itemBuilder: (ctx, i) => _buildCompactCard(items[i]),
             ),
           ),
         ),
@@ -505,17 +335,135 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
     );
   }
 
+  Widget _buildCompactCard(PaymentIntent intent) {
+    final isIncome = intent.isIncome;
+    final color = isIncome ? Colors.green : Colors.red;
+    final date = DateTime.fromMillisecondsSinceEpoch(intent.createdAt);
+    final dateStr = DateFormat('dd/MM HH:mm').format(date);
+
+    return Dismissible(
+      key: Key(intent.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: Colors.red.shade400,
+        child: const Icon(Icons.cancel, color: Colors.white),
+      ),
+      confirmDismiss: (_) async {
+        await _cancelPayment(intent);
+        return false; // We handle removal ourselves via _loadData
+      },
+      child: InkWell(
+        onTap: () => _executePayment(intent),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              // ── Icon ──
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _typeIcon(intent.type),
+                  color: color,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              // ── Info ──
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      intent.description,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        if (intent.personName != null) ...[
+                          Icon(Icons.person_outline, size: 12, color: Colors.grey.shade500),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              intent.personName!,
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(
+                          dateStr,
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // ── Amount + Quick pay ──
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${isIncome ? "+" : "-"}${_currencyFmt.format(intent.amount)}đ',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  InkWell(
+                    onTap: () => _quickPay(intent),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Tiền mặt',
+                        style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────
+  // HISTORY LIST
+  // ──────────────────────────────────────────────────
+
   Widget _buildHistoryList() {
-    if (_history.isEmpty) {
+    if (_historyIntents.isEmpty) {
       return Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.history, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
+            Icon(Icons.history, size: 48, color: Colors.grey.shade300),
+            const SizedBox(height: 8),
             Text(
               'Chưa có lịch sử thanh toán',
-              style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, color: Colors.grey.shade600),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
             ),
           ],
         ),
@@ -524,648 +472,413 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
 
     return RefreshIndicator(
       onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 80),
-        itemCount: _history.length,
-        itemBuilder: (ctx, index) {
-          return _buildHistoryCard(_history[index]);
-        },
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        itemCount: _historyIntents.length,
+        separatorBuilder: (_, __) => const Divider(height: 1, indent: 60),
+        itemBuilder: (ctx, i) => _buildHistoryTile(_historyIntents[i]),
       ),
     );
   }
 
-  Widget _buildSummaryHeader({
-    required int count,
-    required int total,
-    required bool isIncome,
-  }) {
-    final color = isIncome ? Colors.blue : Colors.orange;
-    final icon = isIncome ? Icons.arrow_downward : Icons.arrow_upward;
-    final label = isIncome ? 'Cần thu' : 'Cần chi';
+  Widget _buildHistoryTile(PaymentIntent intent) {
+    final isCompleted = intent.status == PaymentIntentStatus.completed;
+    final isIncome = intent.isIncome;
+    final color = isCompleted
+        ? (isIncome ? Colors.green : Colors.blue)
+        : Colors.grey;
+    final statusIcon = isCompleted ? Icons.check_circle : Icons.cancel;
+    final paidAt = intent.paidAt != null
+        ? DateFormat('dd/MM HH:mm').format(
+            DateTime.fromMillisecondsSinceEpoch(intent.paidAt!))
+        : DateFormat('dd/MM HH:mm').format(
+            DateTime.fromMillisecondsSinceEpoch(intent.createdAt));
+    final methodText = intent.paymentMethod?.displayName ?? '';
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: color.withOpacity(0.1),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
+          // ── Status icon ──
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(statusIcon, color: color, size: 20),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 10),
+          // ── Info ──
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label,
+                  intent.description,
                   style: TextStyle(
-                    fontSize: AppTextStyles.subtitle1.fontSize,
-                    color: Colors.grey.shade600,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    decoration: isCompleted ? null : TextDecoration.lineThrough,
+                    color: isCompleted ? null : Colors.grey,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                      .format(total),
-                  style: TextStyle(
-                    fontSize: AppTextStyles.headline1.fontSize,
-                    fontWeight: FontWeight.bold,
-                    color: isIncome ? Colors.blue.shade700 : Colors.orange.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '$count giao dịch',
-              style: TextStyle(
-                fontSize: AppTextStyles.subtitle1.fontSize,
-                fontWeight: FontWeight.bold,
-                color: isIncome ? Colors.blue.shade700 : Colors.orange.shade700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(bool isIncome) {
-    final color = isIncome ? Colors.blue : Colors.orange;
-    final icon = isIncome ? Icons.payments_outlined : Icons.money_off_outlined;
-    final text = isIncome
-        ? 'Không có khoản thu nào chờ xử lý'
-        : 'Không có khoản chi nào chờ xử lý';
-    final subtext = isIncome
-        ? 'Các khoản thu từ bán hàng, sửa chữa sẽ hiển thị ở đây'
-        : 'Các khoản chi cho NCC, chi phí sẽ hiển thị ở đây';
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: color.withOpacity(0.5)),
-          const SizedBox(height: 16),
-          Text(
-            text,
-            style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtext,
-            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade500),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentCard(PaymentIntent intent) {
-    final dateStr = DateFormat('dd/MM HH:mm')
-        .format(DateTime.fromMillisecondsSinceEpoch(intent.createdAt));
-
-    // Determine card styling based on type
-    final isIncome = intent.isIncome;
-    final bgColor = isIncome ? Colors.blue.shade50 : Colors.orange.shade50;
-    final borderColor = isIncome ? Colors.blue.shade200 : Colors.orange.shade200;
-    final accentColor = isIncome ? Colors.blue : Colors.orange;
-
-    // Type icon
-    final typeIcon = _getTypeIcon(intent.type);
-
-    // Age warning
-    final age = DateTime.now().millisecondsSinceEpoch - intent.createdAt;
-    final daysSinceCreated = age ~/ (1000 * 60 * 60 * 24);
-    final hasWarning = daysSinceCreated > 3;
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: bgColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: borderColor),
-      ),
-      child: InkWell(
-        onTap: () => _executePayment(intent),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header row
-              Row(
-                children: [
-                  // Type icon
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(typeIcon, style: TextStyle(fontSize: AppTextStyles.headline1.fontSize)),
-                  ),
-                  const SizedBox(width: 12),
-                  // Description and person
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          intent.description,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: AppTextStyles.headline4.fontSize,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (intent.personName != null) ...[
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.person_outline,
-                                size: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  intent.personName!,
-                                  style: TextStyle(
-                                    fontSize: AppTextStyles.subtitle1.fontSize,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (intent.personPhone != null) ...[
-                                const SizedBox(width: 8),
-                                Icon(
-                                  Icons.phone_outlined,
-                                  size: 12,
-                                  color: Colors.grey.shade600,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  intent.personPhone!,
-                                  style: TextStyle(
-                                    fontSize: AppTextStyles.body1.fontSize,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  // Amount
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                            .format(intent.amount),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: AppTextStyles.headline3.fontSize,
-                          color: isIncome ? Colors.blue.shade700 : Colors.orange.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        dateStr,
-                        style: TextStyle(
-                          fontSize: AppTextStyles.caption.fontSize,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 8),
-
-              // Info chips
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: [
-                  _infoChip(
-                    intent.type.displayName,
-                    accentColor.withOpacity(0.2),
-                  ),
-                  if (intent.referenceId != null)
-                    _infoChip(
-                      '🔗 ${intent.referenceType ?? "ref"}',
-                      Colors.grey.shade200,
-                    ),
-                  if (hasWarning)
-                    _infoChip(
-                      '⚠️ $daysSinceCreated ngày',
-                      daysSinceCreated > 7
-                          ? Colors.red.shade100
-                          : Colors.yellow.shade100,
-                    ),
-                ],
-              ),
-
-              const Divider(height: 12),
-
-              // Action buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // Cancel button
-                  TextButton(
-                    onPressed: () => _cancelIntent(intent),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      minimumSize: const Size(0, 32),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.close, size: 14),
-                        const SizedBox(width: 4),
-                        Text('Hủy', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Quick pay button (tiền mặt by default)
-                  OutlinedButton(
-                    onPressed: () => _quickExecutePayment(intent),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: accentColor,
-                      side: BorderSide(color: accentColor),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      minimumSize: const Size(0, 32),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.flash_on, size: 14),
-                        const SizedBox(width: 4),
-                        Text('Nhanh', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Pay button (with options)
-                  ElevatedButton(
-                    onPressed: () => _executePayment(intent),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accentColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      minimumSize: const Size(0, 32),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isIncome ? Icons.download : Icons.upload,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          isIncome ? 'Thu tiền' : 'Thanh toán',
-                          style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHistoryCard(PaymentIntent intent) {
-    final isCompleted = intent.isCompleted;
-    final dateStr = intent.paidAt != null
-        ? DateFormat('dd/MM/yyyy HH:mm')
-            .format(DateTime.fromMillisecondsSinceEpoch(intent.paidAt!))
-        : DateFormat('dd/MM/yyyy HH:mm')
-            .format(DateTime.fromMillisecondsSinceEpoch(intent.createdAt));
-
-    final bgColor = isCompleted ? Colors.green.shade50 : Colors.grey.shade100;
-    final borderColor =
-        isCompleted ? Colors.green.shade200 : Colors.grey.shade300;
-    final statusColor = isCompleted ? Colors.green : Colors.grey;
-    final statusIcon = isCompleted ? Icons.check_circle : Icons.cancel;
-    final statusText = intent.status.displayName;
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: bgColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: borderColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            // Status icon
-            Icon(statusIcon, color: statusColor, size: 32),
-            const SizedBox(width: 12),
-            // Details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    intent.description,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: AppTextStyles.headline5.fontSize,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          intent.type.displayName,
-                          style: TextStyle(
-                            fontSize: AppTextStyles.body1.fontSize,
-                            color: Colors.grey.shade600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (intent.paymentMethod != null) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          '• ${intent.paymentMethod!.displayName}',
-                          style: TextStyle(
-                            fontSize: AppTextStyles.body1.fontSize,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  Text(
-                    dateStr,
-                    style: TextStyle(
-                      fontSize: AppTextStyles.caption.fontSize,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Amount and status
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                      .format(intent.amount),
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: AppTextStyles.headline4.fontSize,
-                    color: statusColor,
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    statusText,
-                    style: TextStyle(
-                      fontSize: AppTextStyles.caption.fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
+                Row(
+                  children: [
+                    Text(
+                      intent.type.displayName,
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                     ),
-                  ),
+                    if (methodText.isNotEmpty) ...[
+                      Text(' · ', style: TextStyle(color: Colors.grey.shade400)),
+                      Text(
+                        methodText,
+                        style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                      ),
+                    ],
+                    Text(' · ', style: TextStyle(color: Colors.grey.shade400)),
+                    Text(
+                      paidAt,
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          // ── Amount ──
+          Text(
+            '${isIncome ? "+" : "-"}${_currencyFmt.format(intent.amount)}đ',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: isCompleted ? color : Colors.grey,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _infoChip(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(text, style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
-    );
-  }
+  // ──────────────────────────────────────────────────
+  // STATS
+  // ──────────────────────────────────────────────────
 
-  String _getTypeIcon(PaymentIntentType type) {
-    switch (type) {
-      case PaymentIntentType.supplierDebt:
-      case PaymentIntentType.supplierPurchase:
-        return '🏭';
-      case PaymentIntentType.customerDebtCollection:
-        return '👤';
-      case PaymentIntentType.customerRefund:
-        return '↩️';
-      case PaymentIntentType.repairService:
-        return '🔧';
-      case PaymentIntentType.repairPartnerDebt:
-        return '🤝';
-      case PaymentIntentType.salePayment:
-      case PaymentIntentType.saleInstallment:
-        return '🛒';
-      case PaymentIntentType.inventoryPurchase:
-      case PaymentIntentType.partsStockIn:
-        return '📦';
-      case PaymentIntentType.operatingExpense:
-      case PaymentIntentType.utilityExpense:
-        return '💡';
-      case PaymentIntentType.salaryPayment:
-      case PaymentIntentType.bonusPayment:
-        return '💰';
-      case PaymentIntentType.otherDebt:
-        return '📝';
-      case PaymentIntentType.otherExpense:
-        return '💸';
-      case PaymentIntentType.otherIncome:
-        return '💵';
-    }
-  }
-
-  void _showStatistics() {
-    final stats = PaymentIntentService.getStatistics();
-    final totalPendingIncome =
-        _pendingIncome.fold<int>(0, (sum, i) => sum + i.amount);
-    final totalPendingExpense =
-        _pendingExpense.fold<int>(0, (sum, i) => sum + i.amount);
-    final netPending = totalPendingIncome - totalPendingExpense;
+  void _showStats() {
+    final totalIncome = _incomeIntents.fold<int>(0, (s, i) => s + i.amount);
+    final totalExpense = _expenseIntents.fold<int>(0, (s, i) => s + i.amount);
+    final net = totalIncome - totalExpense;
+    final completedCount = _historyIntents
+        .where((i) => i.status == PaymentIntentStatus.completed)
+        .length;
 
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(12),
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Thống kê thanh toán',
-              style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            const Text(
+              'Thống Kê Thanh Toán',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
             // Stats grid
             Row(
               children: [
-                _buildStatCard(
-                  'Chờ thu',
-                  stats['pending']! > 0
-                      ? _pendingIncome.length.toString()
-                      : '0',
-                  NumberFormat.compact(locale: 'vi').format(totalPendingIncome),
-                  Colors.blue,
-                ),
-                const SizedBox(width: 12),
-                _buildStatCard(
-                  'Chờ chi',
-                  stats['pending']! > 0
-                      ? _pendingExpense.length.toString()
-                      : '0',
-                  NumberFormat.compact(locale: 'vi').format(totalPendingExpense),
-                  Colors.orange,
-                ),
+                _statChip('Chờ thu', _incomeIntents.length, Colors.green),
+                const SizedBox(width: 8),
+                _statChip('Chờ chi', _expenseIntents.length, Colors.red),
+                const SizedBox(width: 8),
+                _statChip('Đã xử lý', completedCount, Colors.blue),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                _buildStatCard(
-                  'Hoàn thành',
-                  '${stats['completed']}',
-                  null,
-                  Colors.green,
-                ),
-                const SizedBox(width: 12),
-                _buildStatCard(
-                  'Đã hủy',
-                  '${stats['cancelled']}',
-                  null,
-                  Colors.grey,
-                ),
+                _amountChip('Tổng thu', totalIncome, Colors.green),
+                const SizedBox(width: 8),
+                _amountChip('Tổng chi', totalExpense, Colors.red),
               ],
             ),
-            const SizedBox(height: 20),
-            // Net pending
+            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(16),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: netPending >= 0
-                    ? Colors.green.shade50
-                    : Colors.red.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: netPending >= 0
-                      ? Colors.green.shade200
-                      : Colors.red.shade200,
-                ),
+                color: net >= 0 ? Colors.green.shade50 : Colors.red.shade50,
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
                 children: [
                   Text(
-                    netPending >= 0 ? 'Sẽ thu thêm:' : 'Sẽ chi thêm:',
-                    style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
+                    'Chênh lệch chờ',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: net >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                    ),
                   ),
                   Text(
-                    NumberFormat.currency(locale: 'vi_VN', symbol: 'đ')
-                        .format(netPending.abs()),
+                    '${net >= 0 ? "+" : ""}${_currencyFmt.format(net)}đ',
                     style: TextStyle(
-                      fontSize: AppTextStyles.headline2.fontSize,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: netPending >= 0 ? Colors.green : Colors.red,
+                      color: net >= 0 ? Colors.green.shade700 : Colors.red.shade700,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatCard(
-    String label,
-    String count,
-    String? amount,
-    Color color,
-  ) {
+  Widget _statChip(String label, int count, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           children: [
             Text(
-              label,
-              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: color),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              count,
+              '$count',
               style: TextStyle(
-                fontSize: AppTextStyles.headline1.fontSize,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
-            if (amount != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                '$amountđ',
-                style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: color),
-              ),
-            ],
+            Text(label, style: TextStyle(fontSize: 10, color: color)),
           ],
         ),
       ),
     );
   }
+
+  Widget _amountChip(String label, int amount, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Text(
+              '${_currencyFmt.format(amount)}đ',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(label, style: TextStyle(fontSize: 10, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────
+  // HELPERS
+  // ──────────────────────────────────────────────────
+
+  IconData _typeIcon(PaymentIntentType type) {
+    switch (type) {
+      case PaymentIntentType.supplierDebt:
+      case PaymentIntentType.supplierPurchase:
+        return Icons.local_shipping_outlined;
+      case PaymentIntentType.customerDebtCollection:
+        return Icons.person_outline;
+      case PaymentIntentType.customerRefund:
+        return Icons.replay;
+      case PaymentIntentType.repairService:
+        return Icons.build_outlined;
+      case PaymentIntentType.repairPartnerDebt:
+        return Icons.handyman_outlined;
+      case PaymentIntentType.salePayment:
+      case PaymentIntentType.saleInstallment:
+        return Icons.shopping_bag_outlined;
+      case PaymentIntentType.inventoryPurchase:
+      case PaymentIntentType.partsStockIn:
+        return Icons.inventory_2_outlined;
+      case PaymentIntentType.operatingExpense:
+      case PaymentIntentType.utilityExpense:
+        return Icons.receipt_long_outlined;
+      case PaymentIntentType.salaryPayment:
+      case PaymentIntentType.bonusPayment:
+        return Icons.payments_outlined;
+      default:
+        return Icons.payment;
+    }
+  }
 }
+
+// ════════════════════════════════════════════════════
+// PAYMENT METHOD BOTTOM SHEET
+// ════════════════════════════════════════════════════
+
+class _PaymentMethodSheet extends StatefulWidget {
+  final PaymentIntent intent;
+  const _PaymentMethodSheet({required this.intent});
+
+  @override
+  State<_PaymentMethodSheet> createState() => _PaymentMethodSheetState();
+}
+
+class _PaymentMethodSheetState extends State<_PaymentMethodSheet> {
+  PaymentMethod _selected = PaymentMethod.cash;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.intent.paymentMethod != null) {
+      _selected = widget.intent.paymentMethod!;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final intent = widget.intent;
+    final isIncome = intent.isIncome;
+    final color = isIncome ? Colors.green : const Color(0xFF0068FF);
+    final fmt = NumberFormat('#,###', 'vi');
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Handle ──
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // ── Amount ──
+          Text(
+            '${fmt.format(intent.amount)}đ',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            intent.description,
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 16),
+          // ── Method buttons ──
+          Row(
+            children: [
+              _methodBtn(PaymentMethod.cash, Icons.money, 'Tiền mặt', color),
+              const SizedBox(width: 8),
+              _methodBtn(PaymentMethod.transfer, Icons.account_balance, 'Chuyển khoản', color),
+              const SizedBox(width: 8),
+              _methodBtn(PaymentMethod.debt, Icons.receipt_long, 'Công nợ', color),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // ── Confirm ──
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton(
+              onPressed: () => Navigator.pop(context, _selected),
+              style: FilledButton.styleFrom(
+                backgroundColor: color,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                isIncome ? 'XÁC NHẬN THU' : 'XÁC NHẬN CHI',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _methodBtn(PaymentMethod method, IconData icon, String label, Color activeColor) {
+    final isActive = _selected == method;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _selected = method),
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isActive ? activeColor.withOpacity(0.1) : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isActive ? activeColor : Colors.grey.shade200,
+              width: isActive ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isActive ? activeColor : Colors.grey, size: 24),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                  color: isActive ? activeColor : Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
