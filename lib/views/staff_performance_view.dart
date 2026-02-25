@@ -513,51 +513,12 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             data.staffName.toUpperCase(),
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize),
           ),
-          subtitle: Row(
-            mainAxisSize: MainAxisSize.min,
+          subtitle: Wrap(
+            spacing: 4,
+            runSpacing: 4,
             children: [
               _buildMiniChip('${data.workDays} ngày', Colors.blue),
-              const SizedBox(width: 4),
               _buildMiniChip('${data.totalOrders} đơn', Colors.blue),
-              const SizedBox(width: 4),
-              // Nút thêm thưởng/trừ
-              Tooltip(
-                message: 'Thêm thưởng/trừ',
-                child: InkWell(
-                  onTap: () async {
-                    final result = await showAddCustomAdjustmentDialog(
-                      context,
-                      staffId: data.staffId,
-                      staffName: data.staffName,
-                      month: _selectedMonth.month,
-                      year: _selectedMonth.year,
-                    );
-                    if (result == true) {
-                      _loadReport();
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withAlpha(30),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.green.withAlpha(100)),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.add_circle_outline, size: 13, color: Colors.green),
-                        SizedBox(width: 2),
-                        Text(
-                          'Thưởng/Trừ',
-                          style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
           trailing: Column(

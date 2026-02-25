@@ -1,9 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
 import '../models/financial_activity_model.dart';
+import '../models/repair_model.dart';
+import '../models/sale_order_model.dart';
 import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
+import '../services/user_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../theme/app_text_styles.dart';
 
@@ -148,6 +152,12 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     });
 
     try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
+
       final startMs = DateTime(
         _startDate.year,
         _startDate.month,
@@ -162,29 +172,204 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
         59,
       ).millisecondsSinceEpoch;
 
-      // Lấy summary
-      final summary = await db.getFinancialActivitySummary(
-        startDate: startMs,
-        endDate: endMs,
-      );
+      final firestore = FirebaseFirestore.instance;
 
-      // Lấy danh sách
-      final data = await db.getFinancialActivities(
-        startDate: startMs,
-        endDate: endMs,
-        activityType: _selectedType,
-        direction: _selectedDirection,
-        searchQuery: _searchQuery.isEmpty ? null : _searchQuery,
-        limit: _limit,
-        offset: 0,
-      );
+      // Query all collections in parallel
+      final results = await Future.wait([
+        firestore.collection('sales').where('shopId', isEqualTo: shopId).get(),
+        firestore.collection('repairs').where('shopId', isEqualTo: shopId).get(),
+        firestore.collection('expenses').where('shopId', isEqualTo: shopId).get(),
+        firestore.collection('debt_payments').where('shopId', isEqualTo: shopId).get(),
+        firestore.collection('supplier_payments').where('shopId', isEqualTo: shopId).get(),
+        firestore.collection('supplier_import_history').where('shopId', isEqualTo: shopId).get(),
+      ]);
+
+      final List<FinancialActivity> allActivities = [];
+
+      void convertTimestamps(Map<String, dynamic> data) {
+        for (var key in data.keys.toList()) {
+          if (data[key] is Timestamp) {
+            data[key] = (data[key] as Timestamp).millisecondsSinceEpoch;
+          }
+        }
+      }
+
+      // --- Sales ---
+      for (var doc in results[0].docs) {
+        final data = doc.data();
+        if (data['deleted'] == true) continue;
+        convertTimestamps(data);
+        final soldAt = data['soldAt'] as int? ?? 0;
+        if (soldAt < startMs || soldAt > endMs) continue;
+
+        data['firestoreId'] = doc.id;
+        final sale = SaleOrder.fromMap(data);
+        allActivities.add(FinancialActivity.fromSale(
+          firestoreId: doc.id,
+          amount: sale.finalPrice,
+          paymentMethod: sale.paymentMethod,
+          customerName: sale.customerName,
+          phone: sale.phone,
+          productNames: sale.productNames,
+          sellerName: sale.sellerName,
+          createdAt: sale.soldAt,
+          shopId: shopId,
+          isInstallment: sale.isInstallment,
+          downPayment: sale.downPayment,
+          downPaymentMethod: sale.downPaymentMethod,
+          bankName: sale.bankName,
+        ));
+      }
+
+      // --- Repairs ---
+      if (_enableRepair) {
+        for (var doc in results[1].docs) {
+          final data = doc.data();
+          if (data['deleted'] == true) continue;
+          convertTimestamps(data);
+          final createdAt = data['createdAt'] as int? ?? 0;
+          if (createdAt < startMs || createdAt > endMs) continue;
+
+          data['firestoreId'] = doc.id;
+          final repair = Repair.fromMap(data);
+          if (repair.totalCost <= 0) continue;
+          allActivities.add(FinancialActivity.fromRepair(
+            firestoreId: doc.id,
+            amount: repair.totalCost,
+            paymentMethod: repair.paymentMethod,
+            customerName: repair.customerName,
+            phone: repair.phone,
+            deviceModel: repair.model,
+            createdAt: repair.createdAt,
+            shopId: shopId,
+          ));
+        }
+      }
+
+      // --- Expenses ---
+      for (var doc in results[2].docs) {
+        final data = doc.data();
+        if (data['deleted'] == true) continue;
+        convertTimestamps(data);
+        final createdAt = data['createdAt'] as int? ?? data['date'] as int? ?? 0;
+        if (createdAt < startMs || createdAt > endMs) continue;
+
+        allActivities.add(FinancialActivity.fromExpense(
+          firestoreId: doc.id,
+          amount: (data['amount'] as num?)?.toInt() ?? 0,
+          paymentMethod: data['paymentMethod'] as String? ?? 'TIỀN MẶT',
+          title: data['title'] as String? ?? 'Chi phí',
+          category: data['category'] as String? ?? '',
+          note: data['note'] as String?,
+          createdAt: createdAt,
+          createdBy: data['createdBy'] as String?,
+          shopId: shopId,
+        ));
+      }
+
+      // --- Debt Payments (Thu nợ) ---
+      for (var doc in results[3].docs) {
+        final data = doc.data();
+        if (data['deleted'] == true) continue;
+        convertTimestamps(data);
+        final paidAt = data['paidAt'] as int? ?? data['createdAt'] as int? ?? 0;
+        if (paidAt < startMs || paidAt > endMs) continue;
+
+        allActivities.add(FinancialActivity.fromDebtCollection(
+          firestoreId: doc.id,
+          amount: (data['amount'] as num?)?.toInt() ?? 0,
+          paymentMethod: data['paymentMethod'] as String? ?? 'TIỀN MẶT',
+          customerName: data['customerName'] as String? ?? data['debtorName'] as String? ?? '',
+          phone: data['phone'] as String? ?? '',
+          createdAt: paidAt,
+          createdBy: data['collectedBy'] as String? ?? data['createdBy'] as String?,
+          shopId: shopId,
+          note: data['note'] as String?,
+        ));
+      }
+
+      // --- Supplier Payments (Trả NCC) ---
+      for (var doc in results[4].docs) {
+        final data = doc.data();
+        if (data['deleted'] == true) continue;
+        convertTimestamps(data);
+        final paidAt = data['paidAt'] as int? ?? data['createdAt'] as int? ?? 0;
+        if (paidAt < startMs || paidAt > endMs) continue;
+
+        allActivities.add(FinancialActivity.fromSupplierPayment(
+          firestoreId: doc.id,
+          amount: (data['amount'] as num?)?.toInt() ?? 0,
+          paymentMethod: data['paymentMethod'] as String? ?? 'TIỀN MẶT',
+          supplierName: data['supplierName'] as String? ?? '',
+          createdAt: paidAt,
+          note: data['note'] as String?,
+          createdBy: data['createdBy'] as String?,
+          shopId: shopId,
+        ));
+      }
+
+      // --- Supplier Imports (Nhập hàng) ---
+      for (var doc in results[5].docs) {
+        final data = doc.data();
+        if (data['deleted'] == true) continue;
+        convertTimestamps(data);
+        final importedAt = data['importedAt'] as int? ?? data['createdAt'] as int? ?? 0;
+        if (importedAt < startMs || importedAt > endMs) continue;
+
+        allActivities.add(FinancialActivity.fromPurchase(
+          firestoreId: doc.id,
+          amount: (data['totalAmount'] as num?)?.toInt() ?? (data['amount'] as num?)?.toInt() ?? 0,
+          paymentMethod: data['paymentMethod'] as String? ?? 'TIỀN MẶT',
+          productName: data['productName'] as String? ?? data['note'] as String? ?? 'Nhập hàng',
+          supplierName: data['supplierName'] as String? ?? '',
+          quantity: (data['quantity'] as num?)?.toInt() ?? 1,
+          createdAt: importedAt,
+          createdBy: data['createdBy'] as String?,
+          shopId: shopId,
+        ));
+      }
+
+      // Apply filters
+      var filtered = allActivities;
+      if (_selectedType != null && _selectedType!.isNotEmpty) {
+        filtered = filtered.where((a) => a.activityType == _selectedType).toList();
+      }
+      if (_selectedDirection != null && _selectedDirection!.isNotEmpty) {
+        filtered = filtered.where((a) => a.direction == _selectedDirection).toList();
+      }
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        filtered = filtered.where((a) =>
+          a.title.toLowerCase().contains(q) ||
+          (a.customerName?.toLowerCase().contains(q) ?? false) ||
+          (a.phone?.toLowerCase().contains(q) ?? false) ||
+          (a.description?.toLowerCase().contains(q) ?? false) ||
+          (a.productInfo?.toLowerCase().contains(q) ?? false)
+        ).toList();
+      }
+
+      // Sort by date descending
+      filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      // Compute summary
+      int totalIn = 0, totalOut = 0, totalDebt = 0;
+      for (var a in filtered) {
+        if (a.direction == 'IN') totalIn += a.amount;
+        else if (a.direction == 'OUT') totalOut += a.amount;
+        else if (a.direction == 'DEBT') totalDebt += a.amount;
+      }
 
       if (!mounted) return;
       setState(() {
-        _summary = summary;
-        _activities = data.map((e) => FinancialActivity.fromMap(e)).toList();
-        _offset = data.length;
-        _hasMore = data.length >= _limit;
+        _summary = {
+          'totalIn': totalIn,
+          'totalOut': totalOut,
+          'totalDebt': totalDebt,
+          'totalCount': filtered.length,
+        };
+        _activities = filtered;
+        _offset = filtered.length;
+        _hasMore = false;
         _loading = false;
       });
     } catch (e) {
@@ -196,46 +381,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   }
 
   Future<void> _loadMore() async {
-    if (_loading || !_hasMore) return;
-
-    setState(() => _loading = true);
-
-    try {
-      final startMs = DateTime(
-        _startDate.year,
-        _startDate.month,
-        _startDate.day,
-      ).millisecondsSinceEpoch;
-      final endMs = DateTime(
-        _endDate.year,
-        _endDate.month,
-        _endDate.day,
-        23,
-        59,
-        59,
-      ).millisecondsSinceEpoch;
-
-      final data = await db.getFinancialActivities(
-        startDate: startMs,
-        endDate: endMs,
-        activityType: _selectedType,
-        direction: _selectedDirection,
-        searchQuery: _searchQuery.isEmpty ? null : _searchQuery,
-        limit: _limit,
-        offset: _offset,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _activities.addAll(data.map((e) => FinancialActivity.fromMap(e)));
-        _offset += data.length;
-        _hasMore = data.length >= _limit;
-        _loading = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading more: $e');
-      if (mounted) setState(() => _loading = false);
-    }
+    // All data loaded in _loadData(), no pagination needed
   }
 
   void _showFilterSheet() {

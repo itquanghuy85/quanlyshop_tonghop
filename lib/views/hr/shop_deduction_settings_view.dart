@@ -98,15 +98,17 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
       appBar: AppBar(
         title: const Text('Cài đặt Khấu trừ & Thuế'),
         backgroundColor: colorScheme.primaryContainer,
+        foregroundColor: colorScheme.onPrimaryContainer,
         bottom: TabBar(
           controller: _tabController,
-          labelColor: colorScheme.primary,
-          unselectedLabelColor: colorScheme.onSurfaceVariant,
-          indicatorColor: colorScheme.primary,
+          labelColor: colorScheme.onPrimaryContainer,
+          unselectedLabelColor: colorScheme.onPrimaryContainer.withOpacity(0.5),
+          indicatorColor: colorScheme.onPrimaryContainer,
+          indicatorWeight: 3,
           tabs: const [
-            Tab(icon: Icon(Icons.warning_amber), text: 'Khấu trừ'),
-            Tab(icon: Icon(Icons.health_and_safety), text: 'Bảo hiểm'),
-            Tab(icon: Icon(Icons.receipt_long), text: 'Thuế TNCN'),
+            Tab(icon: Icon(Icons.warning_amber_rounded), text: 'Khấu trừ'),
+            Tab(icon: Icon(Icons.health_and_safety_rounded), text: 'Bảo hiểm'),
+            Tab(icon: Icon(Icons.receipt_long_rounded), text: 'Thuế TNCN'),
           ],
         ),
         actions: [

@@ -1029,11 +1029,11 @@ service cloud.firestore {
     // Stores shop-level salary deduction, insurance, and tax settings
     // Document ID is shopId for easy lookup
     match /shop_deduction_settings/{shopId} {
-      // READ: Manager+ in same shop
-      allow read: if isAuth() && belongsTo(shopId) && isManager();
+      // READ: Any authenticated user in the shop
+      allow read: if isAuth() && (isSuperAdmin() || belongsTo(shopId));
       
-      // CREATE/UPDATE: Manager+ in same shop
-      allow create, update: if isAuth() && belongsTo(shopId) && isManager();
+      // CREATE/UPDATE: Any authenticated user in the shop (settings are per-shop)
+      allow create, update: if isAuth() && (isSuperAdmin() || belongsTo(shopId));
       
       // DELETE: Not allowed - settings should persist
       allow delete: if false;
