@@ -1782,21 +1782,23 @@ class FirestoreService {
     Map<String, dynamic> settings,
   ) async {
     try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      debugPrint('💾 saveShopDeductionSettings: shopId=$shopId, uid=${currentUser?.uid}, email=${currentUser?.email}');
+      
       // Remove updatedAt from toMap() - will be replaced by serverTimestamp
       settings.remove('updatedAt');
       settings['updatedAt'] = FieldValue.serverTimestamp();
-      settings['updatedBy'] =
-          FirebaseAuth.instance.currentUser?.email ?? 'unknown';
+      settings['updatedBy'] = currentUser?.email ?? 'unknown';
 
       await _db
           .collection('shop_deduction_settings')
           .doc(shopId)
           .set(settings, SetOptions(merge: true));
 
-      debugPrint('✅ Saved shop deduction settings');
+      debugPrint('✅ Saved shop deduction settings for shop: $shopId');
       return true;
     } catch (e) {
-      debugPrint('❌ Error saving shop deduction settings: $e');
+      debugPrint('❌ Error saving shop deduction settings: shopId=$shopId, error=$e');
       rethrow; // Propagate error to caller for better UX
     }
   }
