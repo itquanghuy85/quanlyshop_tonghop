@@ -16,6 +16,7 @@ import '../services/payment_intent_service.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
 import '../models/payment_intent_model.dart';
+import '../constants/financial_constants.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 
@@ -239,47 +240,24 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
           );
         }
 
-        // Tạo PaymentIntent cho việc trả nợ NCC sau này (CHỜ CHI)
-        final user = FirebaseAuth.instance.currentUser;
-        final intent = PaymentIntent(
-          id: 'pi_purchase_debt_${DateTime.now().millisecondsSinceEpoch}_${order.orderCode}',
-          type: PaymentIntentType.supplierDebt,
-          amount: order.totalCost,
-          description: 'Trả nợ NCC: ${supplierNameCtrl.text.trim()} - Đơn ${order.orderCode}',
-          referenceId: debt.firestoreId,
-          referenceType: 'purchase_debt',
-          personName: supplierNameCtrl.text.trim(),
-          personPhone: supplierPhoneCtrl.text.trim(),
-          createdBy: user?.uid ?? 'unknown',
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-          metadata: {
-            'orderCode': order.orderCode,
-            'orderFirestoreId': order.firestoreId,
-            'debtId': debtId,
-            'debtFirestoreId': debt.firestoreId,
-            'debtType': 'SHOP_OWES',
-            'supplierName': supplierNameCtrl.text.trim(),
-          },
-        );
-        await PaymentIntentService.createIntent(intent);
-        debugPrint('💳 Created PaymentIntent for purchase debt: ${intent.id}');
+        // Công nợ đã ghi nhận ở bảng debts - không cần PaymentIntent
+        debugPrint('✅ Purchase debt recorded: ${debt.firestoreId}');
 
         // Notify UI update
         EventBus().emit('debts_changed');
       } else {
-        // Thanh toán tiền mặt/chuyển khoản → Tạo PaymentIntent để xác nhận thanh toán (CHỜ CHI)
+        // Thanh toán tiền mặt/chuyển khoản → Ghi nhận trực tiếp
         final user = FirebaseAuth.instance.currentUser;
-        final intent = PaymentIntent(
-          id: 'pi_purchase_${DateTime.now().millisecondsSinceEpoch}_${order.orderCode}',
+        final payResult = await PaymentIntentService.executePaymentDirect(
           type: PaymentIntentType.supplierDebt,
           amount: order.totalCost,
+          paymentMethod: PaymentMethod.fromCode(_paymentMethod),
           description: 'Chi nhập hàng: ${supplierNameCtrl.text.trim()} - Đơn ${order.orderCode}',
+          executedBy: user?.uid ?? 'unknown',
           referenceId: order.orderCode,
           referenceType: 'purchase_order',
           personName: supplierNameCtrl.text.trim(),
           personPhone: supplierPhoneCtrl.text.trim(),
-          createdBy: user?.uid ?? 'unknown',
-          createdAt: DateTime.now().millisecondsSinceEpoch,
           metadata: {
             'orderCode': order.orderCode,
             'orderFirestoreId': order.firestoreId,
@@ -287,8 +265,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
             'paymentMethod': _paymentMethod,
           },
         );
-        await PaymentIntentService.createIntent(intent);
-        debugPrint('💳 Created PaymentIntent for purchase payment: ${intent.id}');
+        debugPrint('💳 Purchase payment ${payResult.success ? "OK" : "FAILED"}: ${order.totalCost}đ');
       }
       // NOTE: Direct insertExpense for PURCHASE BLOCKED
       // Payment for purchase orders must go through PaymentIntentService

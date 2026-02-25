@@ -11,6 +11,7 @@ import '../utils/vietnamese_utils.dart';
 import '../models/product_model.dart';
 import '../models/inventory_check_model.dart';
 import '../models/payment_intent_model.dart';
+import '../constants/financial_constants.dart';
 import 'create_sale_view.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/unified_printer_service.dart';
@@ -3022,43 +3023,21 @@ class _InventoryViewState extends State<InventoryView>
                     );
                   }
                   
-                  // Tạo PaymentIntent cho việc trả nợ sau
-                  final intent = PaymentIntent(
-                    id: 'pi_stockin_debt_${nowTs}_${supplierId ?? 0}',
-                    type: PaymentIntentType.inventoryPurchase,
-                    amount: totalCost,
-                    description: 'Trả nợ nhập kho: $supplier - ${p.name}',
-                    referenceId: debtFId,
-                    referenceType: 'inventory_debt',
-                    personName: supplier,
-                    createdBy: user?.uid ?? 'unknown',
-                    createdAt: nowTs,
-                    metadata: {
-                      'productId': savedProduct?.id,
-                      'productName': p.name,
-                      'quantity': p.quantity,
-                      'supplierId': supplierId,
-                      'debtId': debtId,
-                      'debtFirestoreId': debtFId,
-                      'debtType': 'SHOP_OWES',
-                    },
-                  );
-                  await PaymentIntentService.createIntent(intent);
-                  debugPrint('✅ Created inventory debt: $debtFId');
+                  // Công nợ đã ghi nhận ở bảng debts - không cần PaymentIntent
+                  debugPrint('✅ Inventory debt recorded: $debtFId');
                   EventBus().emit('debts_changed');
                   
                 } else {
-                  // TIỀN MẶT / CHUYỂN KHOẢN - Tạo PaymentIntent để xác nhận chi
-                  final intent = PaymentIntent(
-                    id: 'pi_stockin_${nowTs}_${supplierId ?? 0}',
+                  // TIỀN MẶT / CHUYỂN KHOẢN - ghi nhận thanh toán trực tiếp
+                  final payResult = await PaymentIntentService.executePaymentDirect(
                     type: PaymentIntentType.inventoryPurchase,
                     amount: totalCost,
+                    paymentMethod: PaymentMethod.fromCode(payMethod),
                     description: 'Nhập kho: $supplier - ${p.name} x${p.quantity}',
+                    executedBy: user?.uid ?? 'unknown',
                     referenceId: p.firestoreId,
                     referenceType: 'inventory_stockin',
                     personName: supplier,
-                    createdBy: user?.uid ?? 'unknown',
-                    createdAt: nowTs,
                     metadata: {
                       'productId': savedProduct?.id,
                       'productName': p.name,
@@ -3067,8 +3046,7 @@ class _InventoryViewState extends State<InventoryView>
                       'paymentMethod': payMethod,
                     },
                   );
-                  await PaymentIntentService.createIntent(intent);
-                  debugPrint('💳 Created PaymentIntent for inventory $payMethod: ${intent.id}');
+                  debugPrint('💳 Inventory payment ${payResult.success ? "OK" : "FAILED"}: ${totalCost}đ');
                 }
               }
               if (savedProduct?.id != null) {

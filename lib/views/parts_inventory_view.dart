@@ -1595,27 +1595,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             );
                           }
                           
-                          // Tạo PaymentIntent để trả nợ sau (CHỜ CHI)
-                          final intent = PaymentIntent(
-                            id: 'pi_part_debt_${DateTime.now().millisecondsSinceEpoch}_$partName',
-                            type: PaymentIntentType.supplierDebt,
-                            amount: totalCost,
-                            description: 'Trả nợ nhập ${_terms.category3}: $partName - $supplierName',
-                            referenceId: debtFId,
-                            referenceType: 'part_debt',
-                            personName: supplierName,
-                            createdBy: user?.uid ?? 'unknown',
-                            createdAt: DateTime.now().millisecondsSinceEpoch,
-                            metadata: {
-                              'partName': partName,
-                              'quantity': qty,
-                              'debtId': debtId,
-                              'debtFirestoreId': debtFId,
-                              'debtType': 'SHOP_OWES',
-                            },
-                          );
-                          await PaymentIntentService.createIntent(intent);
-                          debugPrint('💳 Created PaymentIntent for part debt: ${intent.id}');
+                          // Công nợ đã ghi nhận ở bảng debts - không cần PaymentIntent
+                          debugPrint('✅ Part debt recorded (no PaymentIntent needed)');
                           EventBus().emit('debts_changed');
                         } else {
                           // TIỀN MẶT/CHUYỂN KHOẢN → Tạo expense record TRỰC TIẾP
@@ -2038,29 +2019,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           );
                         }
 
-                        final intent = PaymentIntent(
-                          id: 'pi_part_debt_${now}_$partName',
-                          type: PaymentIntentType.supplierDebt,
-                          amount: totalCost,
-                          description:
-                              'Trả nợ nhập ${_terms.category3}: $partName - $supplierName',
-                          referenceId: debtFId,
-                          referenceType: 'part_debt',
-                          personName: supplierName,
-                          createdBy: user?.uid ?? 'unknown',
-                          createdAt: now,
-                          metadata: {
-                            'partName': partName,
-                            'quantity': addQty,
-                            'debtId': debtId,
-                            'debtFirestoreId': debtFId,
-                            'debtType': 'SHOP_OWES',
-                          },
-                        );
-                        await PaymentIntentService.createIntent(intent);
-                        debugPrint(
-                          '💳 Created PaymentIntent for add-stock debt: ${intent.id}',
-                        );
+                        // Công nợ đã ghi nhận ở bảng debts - không cần PaymentIntent
+                        debugPrint('✅ Add-stock debt recorded (no PaymentIntent needed)');
                         EventBus().emit('debts_changed');
                       } else {
                         // TIỀN MẶT / CHUYỂN KHOẢN → expense

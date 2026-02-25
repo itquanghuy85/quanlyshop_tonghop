@@ -27,6 +27,7 @@ import '../services/user_service.dart';
 import '../services/payment_intent_service.dart';
 import '../models/customer_model.dart';
 import '../models/payment_intent_model.dart';
+import '../constants/financial_constants.dart';
 import '../services/customer_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -535,47 +536,24 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 );
               }
               
-              // Tạo PaymentIntent cho việc trả nợ sau này
-              final intent = PaymentIntent(
-                id: 'pi_partner_debt_${nowTs}_${s.partnerId}',
-                type: PaymentIntentType.repairPartnerDebt,
-                amount: s.cost,
-                description: 'Trả nợ đối tác: ${s.partnerName ?? "N/A"} - ${s.serviceName}',
-                referenceId: debtFId,
-                referenceType: 'partner_debt',
-                personName: s.partnerName,
-                createdBy: FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
-                createdAt: nowTs,
-                metadata: {
-                  'repairId': rWithCloudId.id,
-                  'repairFirestoreId': rWithCloudId.firestoreId,
-                  'partnerId': s.partnerId,
-                  'partnerName': s.partnerName,
-                  'serviceName': s.serviceName,
-                  'debtId': debtId,
-                  'debtFirestoreId': debtFId,
-                  'debtType': 'SHOP_OWES',
-                },
-              );
-              await PaymentIntentService.createIntent(intent);
-              debugPrint('✅ Created partner debt record: $debtFId for ${s.partnerName}');
+              // Công nợ đã ghi nhận ở bảng debts - không cần PaymentIntent
+              debugPrint('✅ Partner debt recorded: $debtFId for ${s.partnerName}');
               
             } catch (e) {
               debugPrint('⚠️ Failed to create partner debt: $e');
             }
           } else {
-            // TIỀN MẶT / CHUYỂN KHOẢN → tạo PaymentIntent để xác nhận chi
+            // TIỀN MẶT / CHUYỂN KHOẢN → ghi nhận thanh toán trực tiếp
             try {
-              final intent = PaymentIntent(
-                id: 'pi_partner_service_${nowTs}_${s.partnerId}',
+              final payResult = await PaymentIntentService.executePaymentDirect(
                 type: PaymentIntentType.repairPartnerDebt,
                 amount: s.cost,
+                paymentMethod: PaymentMethod.fromCode(s.paymentMethod),
                 description: 'Trả đối tác: ${s.partnerName ?? "N/A"} - ${s.serviceName}',
+                executedBy: FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
                 referenceId: rWithCloudId.firestoreId,
                 referenceType: 'repair_partner_service',
                 personName: s.partnerName,
-                createdBy: FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
-                createdAt: nowTs,
                 metadata: {
                   'repairId': rWithCloudId.id,
                   'repairFirestoreId': rWithCloudId.firestoreId,
@@ -585,8 +563,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   'paymentMethod': s.paymentMethod,
                 },
               );
-              await PaymentIntentService.createIntent(intent);
-              debugPrint('💳 Created PaymentIntent for partner ${s.paymentMethod}: ${intent.id}');
+              debugPrint('💳 Partner payment ${payResult.success ? "OK" : "FAILED"}: ${s.cost}đ');
             } catch (e) {
               debugPrint('⚠️ Failed to create partner PaymentIntent: $e');
             }

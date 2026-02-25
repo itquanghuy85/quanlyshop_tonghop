@@ -585,31 +585,8 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           data: newDebt,
         );
 
-        // Tạo PaymentIntent cho việc thu nợ sau này (CHỜ THU)
-        final user = FirebaseAuth.instance.currentUser;
-        final intent = PaymentIntent(
-          id: 'pi_sale_debt_${DateTime.now().millisecondsSinceEpoch}_${s.id}',
-          type: PaymentIntentType.customerDebtCollection,
-          amount: debtAmount,
-          description: 'Thu tiền bán hàng: ${s.customerName}',
-          referenceId: debtFId,
-          referenceType: 'sale_debt',
-          personName: s.customerName,
-          personPhone: s.phone,
-          createdBy: user?.uid ?? 'unknown',
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-          metadata: {
-            'saleId': s.id,
-            'saleFirestoreId': s.firestoreId,
-            'debtId': debtId,
-            'debtFirestoreId': debtFId,
-            'debtType': 'CUSTOMER_OWES',
-          },
-        );
-        await PaymentIntentService.createIntent(intent);
-        debugPrint(
-          '💳 Created PaymentIntent for sale debt collection: ${intent.id}',
-        );
+        // Công nợ đã ghi nhận ở bảng debts - không cần PaymentIntent
+        debugPrint('✅ Sale debt recorded: $debtFId');
 
         EventBus().emit('debts_changed');
       }
