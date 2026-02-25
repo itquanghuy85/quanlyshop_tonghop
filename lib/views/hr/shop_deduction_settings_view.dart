@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import '../../models/shop_deduction_settings.dart';
 import '../../services/salary_calculation_service.dart';
 import '../../services/user_service.dart';
-import '../../theme/app_text_styles.dart';
 import 'add_custom_adjustment_dialog.dart';
 
 /// Màn hình cài đặt Khấu trừ, Thuế, Bảo hiểm của shop
@@ -123,7 +122,8 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Cài đặt Khấu trừ & Thuế'),
+        toolbarHeight: 44,
+        title: const Text('Cài đặt Khấu trừ & Thuế', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         backgroundColor: colorScheme.primaryContainer,
         foregroundColor: colorScheme.onPrimaryContainer,
         bottom: TabBar(
@@ -131,12 +131,14 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
           labelColor: colorScheme.onPrimaryContainer,
           unselectedLabelColor: colorScheme.onPrimaryContainer.withOpacity(0.5),
           indicatorColor: colorScheme.onPrimaryContainer,
-          indicatorWeight: 3,
+          indicatorWeight: 2,
+          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: const TextStyle(fontSize: 11),
           tabs: const [
-            Tab(icon: Icon(Icons.warning_amber_rounded), text: 'Khấu trừ'),
-            Tab(icon: Icon(Icons.health_and_safety_rounded), text: 'Bảo hiểm'),
-            Tab(icon: Icon(Icons.receipt_long_rounded), text: 'Thuế TNCN'),
-            Tab(icon: Icon(Icons.card_giftcard_rounded), text: 'Thưởng/Trừ'),
+            Tab(icon: Icon(Icons.warning_amber_rounded, size: 18), text: 'Khấu trừ'),
+            Tab(icon: Icon(Icons.health_and_safety_rounded, size: 18), text: 'Bảo hiểm'),
+            Tab(icon: Icon(Icons.receipt_long_rounded, size: 18), text: 'Thuế TNCN'),
+            Tab(icon: Icon(Icons.card_giftcard_rounded, size: 18), text: 'Thưởng/Trừ'),
           ],
         ),
         actions: [
@@ -176,7 +178,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildDeductionTab() {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       children: [
         // === ĐI MUỘN ===
         _buildSectionCard(
@@ -214,14 +216,14 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             Text(
               'Ví dụ: Miễn 2 lần → Đi muộn 5 lần → Trừ 3 lần',
               style: TextStyle(
-                fontSize: AppTextStyles.subtitle1.fontSize,
+                fontSize: 11,
                 fontStyle: FontStyle.italic,
                 color: Colors.grey[600],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
 
         // === VỀ SỚM ===
         _buildSectionCard(
@@ -257,7 +259,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
 
         // === NGHỈ QUÁ PHÉP ===
         _buildSectionCard(
@@ -295,7 +297,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             Text(
               'Ví dụ: Phép 2 ngày → Nghỉ 5 ngày → Trừ 3 ngày',
               style: TextStyle(
-                fontSize: AppTextStyles.subtitle1.fontSize,
+                fontSize: 11,
                 fontStyle: FontStyle.italic,
                 color: Colors.grey[600],
               ),
@@ -311,42 +313,43 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildInsuranceTab() {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       children: [
         // Info card
         Card(
           color: Colors.blue.shade50,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.info, color: Colors.blue.shade700),
-                    const SizedBox(width: 8),
+                    Icon(Icons.info, color: Colors.blue.shade700, size: 18),
+                    const SizedBox(width: 6),
                     Text(
                       'Tỷ lệ đóng BH người lao động theo luật:',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.blue.shade900,
+                        fontSize: 12,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   '• BHXH: 8% lương đóng BH\n'
                   '• BHYT: 1.5% lương đóng BH\n'
                   '• BHTN: 1% lương đóng BH\n'
                   '• Tổng: 10.5% lương đóng BH',
-                  style: TextStyle(color: Colors.blue.shade800),
+                  style: TextStyle(color: Colors.blue.shade800, fontSize: 11),
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
 
         // Mức lương đóng BH
         _buildSectionCard(
@@ -369,14 +372,14 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             Text(
               'Nếu để 0, hệ thống sẽ dùng lương cơ bản làm mức đóng BH',
               style: TextStyle(
-                fontSize: AppTextStyles.subtitle1.fontSize,
+                fontSize: 11,
                 fontStyle: FontStyle.italic,
                 color: Colors.grey[600],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
 
         // === BHXH ===
         _buildSectionCard(
@@ -401,7 +404,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
 
         // === BHYT ===
         _buildSectionCard(
@@ -426,7 +429,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
 
         // === BHTN ===
         _buildSectionCard(
@@ -451,13 +454,13 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
 
         // Summary
         Card(
           color: Colors.green.shade50,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -466,12 +469,13 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.green.shade900,
+                    fontSize: 12,
                   ),
                 ),
                 Text(
                   '${_settings.totalInsuranceRate.toStringAsFixed(1)}%',
                   style: TextStyle(
-                    fontSize: AppTextStyles.headline1.fontSize,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.green.shade700,
                   ),
@@ -489,30 +493,31 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildTaxTab() {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       children: [
         // Info card
         Card(
           color: Colors.amber.shade50,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.info, color: Colors.amber.shade700),
-                    const SizedBox(width: 8),
+                    Icon(Icons.info, color: Colors.amber.shade700, size: 18),
+                    const SizedBox(width: 6),
                     Text(
                       'Biểu thuế TNCN lũy tiến:',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.amber.shade900,
+                        fontSize: 12,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   '• Đến 5 triệu: 5%\n'
                   '• 5-10 triệu: 10%\n'
@@ -521,13 +526,13 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                   '• 32-52 triệu: 25%\n'
                   '• 52-80 triệu: 30%\n'
                   '• Trên 80 triệu: 35%',
-                  style: TextStyle(color: Colors.amber.shade800, fontSize: AppTextStyles.headline5.fontSize),
+                  style: TextStyle(color: Colors.amber.shade800, fontSize: 11),
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
 
         // === THUẾ TNCN ===
         _buildSectionCard(
@@ -562,7 +567,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             ),
             const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(8),
@@ -572,36 +577,36 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                 children: [
                   const Text(
                     'Công thức tính:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Thu nhập chịu thuế = GROSS - BH - Giảm trừ bản thân - Giảm trừ người phụ thuộc',
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Thuế TNCN = Áp dụng biểu thuế lũy tiến',
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                   ),
                 ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
 
         // Demo calculator
         if (_settings.enablePIT) ...[
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     '📊 Ví dụ tính thuế:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   const Divider(),
                   _buildDemoRow('Thu nhập GROSS', 20000000),
@@ -656,20 +661,24 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
     bool isRed = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                fontSize: 12,
+              ),
             ),
           ),
           Text(
             _formatCurrency(value),
             style: TextStyle(
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              fontSize: 12,
               color: isRed ? Colors.red : (value < 0 ? Colors.grey[600] : null),
             ),
           ),
@@ -953,36 +962,39 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
   }) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: iconColor.withAlpha(50),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, color: iconColor.withAlpha(220), size: 24),
+                  child: Icon(icon, color: iconColor.withAlpha(220), size: 20),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     title,
-                    style: TextStyle(
-                      fontSize: AppTextStyles.headline3.fontSize,
+                    style: const TextStyle(
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 if (showSwitch)
-                  Switch(value: enabled, onChanged: onEnabledChanged),
+                  Transform.scale(
+                    scale: 0.85,
+                    child: Switch(value: enabled, onChanged: onEnabledChanged),
+                  ),
               ],
             ),
             if (enabled && children.isNotEmpty) ...[
-              const Divider(height: 24),
+              const Divider(height: 16),
               ...children,
             ],
           ],
@@ -1044,9 +1056,14 @@ class _CurrencyFieldState extends State<_CurrencyField> {
       controller: _controller,
       focusNode: _focusNode,
       keyboardType: TextInputType.number,
+      style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         labelText: widget.label,
+        labelStyle: const TextStyle(fontSize: 12),
         suffixText: 'đ',
+        suffixStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         border: const OutlineInputBorder(),
       ),
       onChanged: (value) {
@@ -1105,9 +1122,14 @@ class _PercentFieldState extends State<_PercentField> {
       controller: _controller,
       focusNode: _focusNode,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         labelText: widget.label,
+        labelStyle: const TextStyle(fontSize: 12),
         suffixText: '%',
+        suffixStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         border: const OutlineInputBorder(),
       ),
       onChanged: (value) {
@@ -1167,9 +1189,14 @@ class _NumberFieldState extends State<_NumberField> {
       controller: _controller,
       focusNode: _focusNode,
       keyboardType: TextInputType.number,
+      style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         labelText: widget.label,
+        labelStyle: const TextStyle(fontSize: 12),
         suffixText: widget.suffix,
+        suffixStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         border: const OutlineInputBorder(),
       ),
       onChanged: (value) {
