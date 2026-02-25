@@ -1415,6 +1415,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       0; // THU HÔM NAY (totalPrice from sales + price from repairs)
   int _todayTotalOut = 0; // CHI HÔM NAY (expenses)
   int _todayNetProfit = 0; // LỢI NHUẬN RÒNG (totalIn - totalOut - costs)
+  int _todaySalesProfit = 0; // Lợi nhuận bán hàng
+  int _todayRepairProfit = 0; // Lợi nhuận sửa chữa
   int _todayRepairCount = 0; // Số đơn sửa chữa hoàn thành hôm nay
   int _todaySaleOrderCount = 0; // Số đơn bán hàng hôm nay
   int _todayExpenseCount = 0; // Số chi phí hôm nay
@@ -1652,7 +1654,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       // Với accrual basis, lợi nhuận được tính ngay khi giao dịch xảy ra
       // Không phụ thuộc vào việc thu tiền hay chưa
       int profit = totalIn - totalOut - salesCost - repairsCost;
-      debugPrint('profit = $profit');
+      final saleProfit = salesIncome - salesCost;
+      final repairProfit = repairsIncome - repairsCost;
+      debugPrint('profit = $profit (sale=$saleProfit, repair=$repairProfit)');
 
       // Thống kê số lượng
       doneT = fRepairs.length;
@@ -1746,6 +1750,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _todayTotalIn = totalIn;
           _todayTotalOut = todayCashOut; // Hiển thị tiền chi thực (bao gồm trả nợ NCC)
           _todayNetProfit = profit;
+          _todaySalesProfit = saleProfit;
+          _todayRepairProfit = repairProfit;
           _todayRepairCount = fRepairs.length;
           _todaySaleOrderCount = fSales.length;
           _todayExpenseCount = fExpenses.length;
@@ -4860,6 +4866,31 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            '🛒 ${MoneyUtils.formatVND(_todaySalesProfit)}',
+                            style: AppTextStyles.overline.copyWith(
+                              color: Colors.white.withOpacity(0.85),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (_enableRepair) ...[
+                            Text(
+                              '  •  ',
+                              style: AppTextStyles.overline.copyWith(color: Colors.white54),
+                            ),
+                            Text(
+                              '🔧 ${MoneyUtils.formatVND(_todayRepairProfit)}',
+                              style: AppTextStyles.overline.copyWith(
+                                color: Colors.white.withOpacity(0.85),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -5800,6 +5831,33 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
+          ),
+          const SizedBox(height: 6),
+          // Breakdown: sales profit + repair profit
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '🛒 ${MoneyUtils.formatVND(_todaySalesProfit)}',
+                style: AppTextStyles.overline.copyWith(
+                  color: Colors.white.withOpacity(0.85),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (_enableRepair) ...[
+                Text(
+                  '  •  ',
+                  style: AppTextStyles.overline.copyWith(color: Colors.white54),
+                ),
+                Text(
+                  '🔧 ${MoneyUtils.formatVND(_todayRepairProfit)}',
+                  style: AppTextStyles.overline.copyWith(
+                    color: Colors.white.withOpacity(0.85),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 4),
           Text(

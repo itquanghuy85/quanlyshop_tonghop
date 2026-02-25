@@ -1782,6 +1782,8 @@ class FirestoreService {
     Map<String, dynamic> settings,
   ) async {
     try {
+      // Remove updatedAt from toMap() - will be replaced by serverTimestamp
+      settings.remove('updatedAt');
       settings['updatedAt'] = FieldValue.serverTimestamp();
       settings['updatedBy'] =
           FirebaseAuth.instance.currentUser?.email ?? 'unknown';
@@ -1795,7 +1797,7 @@ class FirestoreService {
       return true;
     } catch (e) {
       debugPrint('❌ Error saving shop deduction settings: $e');
-      return false;
+      rethrow; // Propagate error to caller for better UX
     }
   }
 

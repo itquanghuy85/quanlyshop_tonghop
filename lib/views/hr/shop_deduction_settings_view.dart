@@ -667,10 +667,10 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: iconColor.withAlpha(30),
+                    color: iconColor.withAlpha(50),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, color: iconColor, size: 24),
+                  child: Icon(icon, color: iconColor.withAlpha(220), size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

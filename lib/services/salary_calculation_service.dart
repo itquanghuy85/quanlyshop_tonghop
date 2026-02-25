@@ -756,23 +756,18 @@ class SalaryCalculationService {
   static Future<bool> saveShopDeductionSettings(
     ShopDeductionSettings settings,
   ) async {
-    try {
-      var shopId = await UserService.getCurrentShopId();
-      if (shopId == null || shopId.isEmpty) {
-        try {
-          shopId = await UserService.ensureShopId(maxRetries: 3);
-        } catch (e) {
-          debugPrint('Error ensuring shopId for saving deduction settings: $e');
-          return false;
-        }
+    var shopId = await UserService.getCurrentShopId();
+    if (shopId == null || shopId.isEmpty) {
+      try {
+        shopId = await UserService.ensureShopId(maxRetries: 3);
+      } catch (e) {
+        debugPrint('Error ensuring shopId for saving deduction settings: $e');
+        rethrow;
       }
-
-      final data = settings.copyWith(shopId: shopId).toMap();
-      return await FirestoreService.saveShopDeductionSettings(shopId, data);
-    } catch (e) {
-      debugPrint('Error saving shop deduction settings: $e');
-      return false;
     }
+
+    final data = settings.copyWith(shopId: shopId).toMap();
+    return await FirestoreService.saveShopDeductionSettings(shopId, data);
   }
 
   /// Lấy danh sách khoản thưởng/trừ tùy chỉnh của nhân viên trong tháng

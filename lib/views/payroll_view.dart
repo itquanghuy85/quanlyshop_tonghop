@@ -11,6 +11,7 @@ import '../widgets/validated_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
+import 'hr/add_custom_adjustment_dialog.dart';
 
 class PayrollView extends StatefulWidget {
   const PayrollView({super.key});
@@ -111,6 +112,46 @@ class _PayrollViewState extends State<PayrollView> {
   double _getBase(String staff) => _basePerDay[staff] ?? 0;
   double _getHours(String staff) => _hoursPerDay[staff] ?? 8;
   double _getOt(String staff) => _otRate[staff] ?? 150;
+
+  String get _selectedStaffName => (_selectedStaff ?? _customStaff.text).trim();
+
+  /// Get the userId of the selected staff from attendance records
+  String? get _selectedStaffId {
+    final name = _selectedStaffName.toUpperCase();
+    if (name.isEmpty) return null;
+    for (final a in _att) {
+      if ((a.name ?? '').toString().toUpperCase() == name) {
+        return a.userId;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _openAdjustmentDialog() async {
+    final staffName = _selectedStaffName;
+    final staffId = _selectedStaffId;
+    if (staffName.isEmpty || staffId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn nhân viên trước')),
+      );
+      return;
+    }
+    final result = await showAddCustomAdjustmentDialog(
+      context,
+      staffId: staffId,
+      staffName: staffName,
+      month: _from.month,
+      year: _from.year,
+    );
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Đã thêm khoản thưởng/trừ'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
 
   Map<String, dynamic> _calc() {
     final staffKey = (_selectedStaff ?? _customStaff.text).trim().toUpperCase();
@@ -383,8 +424,18 @@ class _PayrollViewState extends State<PayrollView> {
                         alignment: Alignment.centerRight,
                         child: Wrap(
                           spacing: 8,
+                          runSpacing: 8,
                           children: [
                             ElevatedButton.icon(onPressed: (!_isManager || _monthLocked) ? null : _openRuleDialog, icon: const Icon(Icons.rule), label: const Text('Cài công thức')),
+                            ElevatedButton.icon(
+                              onPressed: _selectedStaffName.isEmpty ? null : () => _openAdjustmentDialog(),
+                              icon: const Icon(Icons.card_giftcard),
+                              label: const Text('Thưởng/Trừ'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
                             ElevatedButton.icon(onPressed: () => _exportCsv(summary), icon: const Icon(Icons.file_download), label: const Text('Xuất CSV')),
                           ],
                         ),

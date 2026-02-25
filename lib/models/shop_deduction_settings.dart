@@ -1,3 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Helper to parse DateTime from various sources (int epoch, Firestore Timestamp, String)
+DateTime _parseDateTime(dynamic value) {
+  if (value == null) return DateTime.now();
+  if (value is Timestamp) return value.toDate();
+  if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+  if (value is DateTime) return value;
+  return DateTime.tryParse(value.toString()) ?? DateTime.now();
+}
+
 /// Model cài đặt quy định khấu trừ và thuế của Shop
 /// Bao gồm: Đi muộn, về sớm, nghỉ quá phép, thuế TNCN, BHXH, BHYT, BHTN
 class ShopDeductionSettings {
@@ -98,12 +109,7 @@ class ShopDeductionSettings {
           .toDouble(),
       insuranceBaseSalary: (map['insuranceBaseSalary'] ?? 0).toDouble(),
       shopId: map['shopId'] ?? '',
-      updatedAt: map['updatedAt'] != null
-          ? (map['updatedAt'] is int
-                ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'])
-                : DateTime.tryParse(map['updatedAt'].toString()) ??
-                      DateTime.now())
-          : DateTime.now(),
+      updatedAt: _parseDateTime(map['updatedAt']),
       updatedBy: map['updatedBy'],
     );
   }

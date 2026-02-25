@@ -1032,10 +1032,8 @@ service cloud.firestore {
       // READ: Manager+ in same shop
       allow read: if isAuth() && belongsTo(shopId) && isManager();
       
-      // CREATE/UPDATE: Shop owner (by ownerUid) or role=owner or superAdmin
-      allow create, update: if isAuth() && (
-        isSuperAdmin() || isShopOwner(shopId) || (belongsTo(shopId) && isOwner())
-      );
+      // CREATE/UPDATE: Manager+ in same shop
+      allow create, update: if isAuth() && belongsTo(shopId) && isManager();
       
       // DELETE: Not allowed - settings should persist
       allow delete: if false;
