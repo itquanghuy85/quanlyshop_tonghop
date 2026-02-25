@@ -333,7 +333,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -684,7 +684,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           const Divider(height: 1),
           ListTile(
             dense: true,
-            leading: Icon(Icons.qr_code_2, color: Colors.purple.shade700, size: 22),
+            leading: Icon(Icons.qr_code_2, color: Colors.blue.shade700, size: 22),
             title: const Text('Thiết kế Tem sản phẩm', style: TextStyle(fontSize: 13)),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(
@@ -1215,7 +1215,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   Color _getRoleColor(String? role) {
     switch (role) {
       case 'owner':
-        return Colors.purple;
+        return Colors.blue;
       case 'manager':
         return Colors.blue;
       case 'technician':

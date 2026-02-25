@@ -20,8 +20,8 @@ class CustomAppBar {
   static const Color kPrimaryDark = Color(0xFF1565C0);
 
   // ========== GRADIENT COLORS ==========
-  static const Color kGradientStart = Color(0xFF6A1B9A); // Purple 800
-  static const Color kGradientEnd = Color(0xFF9C27B0); // Purple 500
+  static const Color kGradientStart = Color(0xFF0068FF); // Zalo Blue
+  static const Color kGradientEnd = Color(0xFF0084FF); // Zalo Blue Light
 
   /// Default gradient for AppBar
   static const LinearGradient kDefaultGradient = LinearGradient(

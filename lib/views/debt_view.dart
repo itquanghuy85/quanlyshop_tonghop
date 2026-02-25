@@ -120,7 +120,7 @@ class _DebtViewState extends State<DebtView>
           description:
               'Khi bán hàng/nhập kho chọn "CÔNG NỢ", hệ thống tự tạo khoản nợ tương ứng.',
           icon: Icons.auto_mode,
-          iconColor: Colors.purple,
+          iconColor: Colors.blue,
         ),
       ],
     );
@@ -621,7 +621,7 @@ class _DebtViewState extends State<DebtView>
                   ? Colors.redAccent
                   : _tabController?.index == 1
                   ? Colors.blueAccent
-                  : Colors.purpleAccent,
+                  : Colors.blueAccent,
               tooltip: _tabController?.index == 0
                   ? 'Tạo nợ khách hàng'
                   : _tabController?.index == 1

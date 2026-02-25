@@ -740,7 +740,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       case 3:
         return Colors.green;
       case 4:
-        return Colors.purple;
+        return Colors.blue;
       default:
         return Colors.grey;
     }

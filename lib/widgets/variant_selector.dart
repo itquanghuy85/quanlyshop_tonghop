@@ -331,14 +331,14 @@ class VariantBadge extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: Colors.purple.withOpacity(0.1),
+          color: Colors.blue.withOpacity(0.1),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
           '${summary.totalVariants} biến thể',
           style: const TextStyle(
             fontSize: 10,
-            color: Colors.purple,
+            color: Colors.blue,
           ),
         ),
       );
@@ -355,7 +355,7 @@ class VariantBadge extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.style, size: 16, color: Colors.purple),
+              const Icon(Icons.style, size: 16, color: Colors.blue),
               const SizedBox(width: 4),
               Text(
                 '${summary.totalVariants} biến thể',

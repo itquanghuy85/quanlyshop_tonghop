@@ -1864,7 +1864,7 @@ class _CashClosingViewState extends State<CashClosingView>
                   if (t['customerName'] != null && (t['customerName'] as String).isNotEmpty)
                     _cashClosingInfoChip(
                       '👤 ${t['customerName']}',
-                      Colors.purple.shade100,
+                      Colors.blue.shade100,
                     ),
                 ],
               ),

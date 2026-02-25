@@ -797,7 +797,7 @@ class _SaleListViewState extends State<SaleListView> {
                                           // NV
                                           _saleInfoChip(
                                             '👤 ${s.sellerName}',
-                                            Colors.purple.shade100,
+                                            Colors.blue.shade100,
                                           ),
                                         ],
                                       ),

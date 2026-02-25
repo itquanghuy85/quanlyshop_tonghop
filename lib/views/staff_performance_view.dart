@@ -112,7 +112,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -431,7 +431,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             children: [
               _buildMiniChip('${data.workDays} ngày', Colors.blue),
               const SizedBox(width: 4),
-              _buildMiniChip('${data.totalOrders} đơn', Colors.purple),
+              _buildMiniChip('${data.totalOrders} đơn', Colors.blue),
               const SizedBox(width: 4),
               // Nút thêm thưởng/trừ - dùng icon only để tránh overflow
               InkWell(
@@ -796,7 +796,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
                 _buildInfoItem(
                   'Giờ OT',
                   '${data.overtimeHours.toStringAsFixed(1)}h',
-                  Colors.purple,
+                  Colors.blue,
                 ),
                 _buildInfoItem(
                   'Muộn',

@@ -141,7 +141,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       context: context,
       screenKey: FirstTimeGuideService.keyFastInventoryCheck,
       title: 'Kiểm Kho Nhanh',
-      color: Colors.purple,
+      color: Colors.blue,
       steps: const [
         GuideStep(
           title: '📋 Danh sách cần kiểm',
@@ -155,7 +155,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
           description:
               'Nhấn "Bắt đầu quét" và đưa camera vào mã. Hệ thống tự nhận diện và check.',
           icon: Icons.qr_code_scanner,
-          iconColor: Colors.purple,
+          iconColor: Colors.blue,
         ),
         GuideStep(
           title: '✅ Đã kiểm vs ❌ Thiếu',
@@ -865,7 +865,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.keyboard, color: Colors.purple),
+            const Icon(Icons.keyboard, color: Colors.blue),
             const SizedBox(width: 8),
             Expanded(
               child: Text('NHẬP ${_terms.specialField1Label.toUpperCase()} THỦ CÔNG', style: const TextStyle(fontSize: 16)),
@@ -981,7 +981,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             icon: const Icon(Icons.check, size: 18),
             label: const Text('CHECK VÀO LIST'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
+              backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
             ),
           ),
@@ -1214,7 +1214,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         builder: (ctx) => AlertDialog(
           title: const Row(
             children: [
-              Icon(Icons.restore, color: Colors.purple),
+              Icon(Icons.restore, color: Colors.blue),
               SizedBox(width: 8),
               Expanded(child: Text('Khôi phục kiểm kho')),
             ],
@@ -1228,7 +1228,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
+                  color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -1258,7 +1258,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
               icon: const Icon(Icons.restore, size: 18),
               label: const Text('TIẾP TỤC'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
               ),
             ),
@@ -1321,7 +1321,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             icon: const Icon(Icons.save, size: 18),
             label: const Text('LƯU TẠM'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
+              backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
             ),
           ),
@@ -1768,7 +1768,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
           children: [
             Icon(
               isPhone ? Icons.phone_android : Icons.inventory_2,
-              color: Colors.purple,
+              color: Colors.blue,
             ),
             const SizedBox(width: 8),
             const Expanded(child: Text('CHECK THỦ CÔNG')),
@@ -1959,7 +1959,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),

@@ -107,7 +107,7 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -276,12 +276,12 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [Colors.purple.shade400, Colors.pink.shade400]),
+                  gradient: LinearGradient(colors: [Colors.blue.shade400, Colors.pink.shade400]),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.design_services, color: Colors.white, size: 22),
               ),
-              title: const Text("🎨 THIẾT KẾ TEM", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple)),
+              title: const Text("🎨 THIẾT KẾ TEM", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
               subtitle: const Text("Bố cục, thông tin Shop, công thức CPK"),
               trailing: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -296,7 +296,7 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
                 MaterialPageRoute(builder: (_) => const LabelDesignerView()),
               ),
             ),
-          ], color: Colors.purple),
+          ], color: Colors.blue),
         ],
       ),
     );

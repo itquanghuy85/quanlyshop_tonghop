@@ -88,7 +88,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
       floating: false,
       pinned: true,
       elevation: 0,
-      backgroundColor: const Color(0xFF6A1B9A),
+      backgroundColor: const Color(0xFF0068FF),
       foregroundColor: Colors.white,
       leading: _selectedModuleId != null
           ? IconButton(
@@ -100,7 +100,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
         background: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0), Color(0xFFBA68C8)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF), Color(0xFF42A5F5)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -177,7 +177,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
               decoration: InputDecoration(
                 hintText: AppLocalizations.of(context)!.searchGuides,
                 hintStyle: TextStyle(color: Colors.grey.shade500),
-                prefixIcon: const Icon(Icons.search, color: Colors.purple),
+                prefixIcon: const Icon(Icons.search, color: Colors.blue),
                 suffixIcon: _isSearching
                     ? IconButton(
                         icon: const Icon(Icons.close, color: Colors.grey),
@@ -260,12 +260,12 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.purple.shade50, Colors.blue.shade50],
+          colors: [Colors.blue.shade50, Colors.blue.shade50],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.purple.shade100),
+        border: Border.all(color: Colors.blue.shade100),
       ),
       child: Row(
         children: [
@@ -274,13 +274,13 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
               Icons.folder_outlined,
               '$moduleCount',
               'Chủ đề',
-              Colors.purple,
+              Colors.blue,
             ),
           ),
           Container(
             width: 1,
             height: 40,
-            color: Colors.purple.shade200,
+            color: Colors.blue.shade200,
           ),
           Expanded(
             child: _buildStatItem(
@@ -293,7 +293,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
           Container(
             width: 1,
             height: 40,
-            color: Colors.purple.shade200,
+            color: Colors.blue.shade200,
           ),
           Expanded(
             child: _buildStatItem(
@@ -365,8 +365,8 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              module?.color ?? Colors.purple,
-              (module?.color ?? Colors.purple).withOpacity(0.7),
+              module?.color ?? Colors.blue,
+              (module?.color ?? Colors.blue).withOpacity(0.7),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -374,7 +374,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: (module?.color ?? Colors.purple).withOpacity(0.3),
+              color: (module?.color ?? Colors.blue).withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -428,12 +428,12 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: (module?.color ?? Colors.purple).withOpacity(0.1),
+            color: (module?.color ?? Colors.blue).withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Stack(
             children: [
-              Center(child: Icon(module?.icon ?? Icons.article, color: module?.color ?? Colors.purple)),
+              Center(child: Icon(module?.icon ?? Icons.article, color: module?.color ?? Colors.blue)),
               Positioned(
                 top: 0,
                 right: 0,
@@ -710,7 +710,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                         const SizedBox(width: 8),
                         _buildInfoChip(Icons.signal_cellular_alt, section.difficulty, _getDifficultyColor(context, section.difficulty)),
                         const SizedBox(width: 8),
-                        _buildInfoChip(Icons.list, '${section.steps.length} bước', Colors.purple),
+                        _buildInfoChip(Icons.list, '${section.steps.length} bước', Colors.blue),
                       ],
                     ),
                   ],
@@ -810,7 +810,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
             final index = entry.key;
             final section = entry.value;
             final module = UserGuideRepository.findModule(section.moduleId);
-            return _buildSectionCard(section, index + 1, module?.color ?? Colors.purple);
+            return _buildSectionCard(section, index + 1, module?.color ?? Colors.blue);
           }),
         ],
       ),
@@ -917,7 +917,7 @@ class _SectionDetailPage extends StatelessWidget {
     
     final module = UserGuideRepository.findModule(section.moduleId);
     final related = UserGuideRepository.getRelatedSections(section);
-    final color = module?.color ?? Colors.purple;
+    final color = module?.color ?? Colors.blue;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -1092,7 +1092,7 @@ class _SectionDetailPage extends StatelessWidget {
                       child: ListTile(
                         leading: Icon(
                           UserGuideRepository.findModule(r.moduleId)?.icon ?? Icons.article,
-                          color: UserGuideRepository.findModule(r.moduleId)?.color ?? Colors.purple,
+                          color: UserGuideRepository.findModule(r.moduleId)?.color ?? Colors.blue,
                         ),
                         title: Text(r.title, style: const TextStyle(fontWeight: FontWeight.w600)),
                         subtitle: Text(r.estimatedTime),

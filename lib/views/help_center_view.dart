@@ -81,7 +81,7 @@ class _HelpCenterViewState extends State<HelpCenterView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -232,8 +232,8 @@ class _HelpCenterViewState extends State<HelpCenterView> {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: Colors.purple.shade100,
-                  child: Icon(category.icon, color: Colors.purple.shade700),
+                  backgroundColor: Colors.blue.shade100,
+                  child: Icon(category.icon, color: Colors.blue.shade700),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -285,7 +285,7 @@ class _HelpCenterViewState extends State<HelpCenterView> {
                   categoryName,
                   style: const TextStyle(
                     fontSize: AppTextStyles.overlineSize,
-                    color: Colors.purple,
+                    color: Colors.blue,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -328,9 +328,9 @@ class _HelpCenterViewState extends State<HelpCenterView> {
 
   Widget _infoChip(IconData icon, String label) {
     return Chip(
-      avatar: Icon(icon, size: 16, color: Colors.purple),
+      avatar: Icon(icon, size: 16, color: Colors.blue),
       label: Text(label),
-      backgroundColor: Colors.purple.shade50,
+      backgroundColor: Colors.blue.shade50,
       visualDensity: VisualDensity.compact,
     );
   }
@@ -358,7 +358,7 @@ class _HelpCenterViewState extends State<HelpCenterView> {
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.verified_user, size: 18, color: Colors.purple),
+              const Icon(Icons.verified_user, size: 18, color: Colors.blue),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -411,7 +411,7 @@ class _HelpCenterViewState extends State<HelpCenterView> {
         label: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: isActive ? Colors.white : Colors.purple),
+            Icon(icon, size: 16, color: isActive ? Colors.white : Colors.blue),
             const SizedBox(width: 6),
             Text(label),
           ],
@@ -421,10 +421,10 @@ class _HelpCenterViewState extends State<HelpCenterView> {
           _activeCategoryId = id;
           _searchCtrl.clear();
         }),
-        selectedColor: Colors.purple,
-        backgroundColor: Colors.purple.shade50,
+        selectedColor: Colors.blue,
+        backgroundColor: Colors.blue.shade50,
         labelStyle: TextStyle(
-          color: isActive ? Colors.white : Colors.purple.shade700,
+          color: isActive ? Colors.white : Colors.blue.shade700,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -472,12 +472,12 @@ class _HelpCenterViewState extends State<HelpCenterView> {
                       children: [
                         Row(
                           children: [
-                            Icon(category.icon, color: Colors.purple),
+                            Icon(category.icon, color: Colors.blue),
                             const SizedBox(width: 8),
                             Text(
                               category.title,
                               style: AppTextStyles.caption.copyWith(
-                                color: Colors.purple,
+                                color: Colors.blue,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -507,12 +507,12 @@ class _HelpCenterViewState extends State<HelpCenterView> {
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                       decoration: BoxDecoration(
-                        color: Colors.purple.shade50,
+                        color: Colors.blue.shade50,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.speed, color: Colors.purple),
+                          const Icon(Icons.speed, color: Colors.blue),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -522,13 +522,13 @@ class _HelpCenterViewState extends State<HelpCenterView> {
                                   Text(
                                     'Thời gian thực hiện: ${topic.estimatedTime}',
                                     style: AppTextStyles.subtitle2.copyWith(
-                                      color: Colors.purple.shade700,
+                                      color: Colors.blue.shade700,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 Text(
                                   'Độ khó: ${topic.difficulty}',
-                                  style: TextStyle(color: Colors.purple.shade700),
+                                  style: TextStyle(color: Colors.blue.shade700),
                                 ),
                               ],
                             ),
@@ -564,10 +564,10 @@ class _HelpCenterViewState extends State<HelpCenterView> {
                         children: [
                           CircleAvatar(
                             radius: 14,
-                            backgroundColor: Colors.purple.shade100,
+                            backgroundColor: Colors.blue.shade100,
                             child: Text(
                               '${i + 1}',
-                              style: TextStyle(color: Colors.purple.shade800),
+                              style: TextStyle(color: Colors.blue.shade800),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -775,15 +775,15 @@ class _HelpCenterViewState extends State<HelpCenterView> {
                     borderRadius: BorderRadius.circular(18),
                     gradient: LinearGradient(
                       colors: [
-                        Colors.purple.shade400,
-                        Colors.purple.shade200,
+                        Colors.blue.shade400,
+                        Colors.blue.shade200,
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.purple.shade100,
+                        color: Colors.blue.shade100,
                         blurRadius: 10,
                         offset: const Offset(0, 6),
                       ),

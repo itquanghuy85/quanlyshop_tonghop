@@ -108,7 +108,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
       'key': 'DEBT_PAY',
       'label': 'Trả nợ',
       'icon': Icons.call_made,
-      'color': Colors.purple,
+      'color': Colors.blue,
     },
   ];
 
@@ -383,7 +383,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
         });
         _loadData();
       },
-      selectedColor: const Color(0xFF6A1B9A),
+      selectedColor: const Color(0xFF0068FF),
       labelStyle: TextStyle(
         color: isSelected ? Colors.white : Colors.grey.shade700,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -454,7 +454,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1082,7 +1082,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
         return Colors.orange;
       case 'DEBT_IN':
       case 'DEBT_OUT':
-        return Colors.purple;
+        return Colors.blue;
       case 'DEBT_COLLECT':
         return Colors.teal;
       case 'DEBT_PAY':

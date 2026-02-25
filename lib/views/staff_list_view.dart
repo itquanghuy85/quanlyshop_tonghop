@@ -909,7 +909,7 @@ class _StaffListViewState extends State<StaffListView> {
           flexibleSpace: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -2569,7 +2569,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                       ),
                       _saleInfoChip(
                         '👤 ${s.sellerName}',
-                        Colors.purple.shade100,
+                        Colors.blue.shade100,
                       ),
                     ],
                   ),
@@ -2606,7 +2606,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       case 3:
         return Colors.green;
       case 4:
-        return Colors.purple;
+        return Colors.blue;
       default:
         return Colors.grey;
     }
@@ -2713,7 +2713,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                 const SizedBox(height: 8),
                 _buildScheduleRow(
                   Icons.calendar_today,
-                  Colors.purple,
+                  Colors.blue,
                   "Ngày làm việc: ${_formatWorkDays(_workSchedule!['workDays'])}",
                 ),
               ],

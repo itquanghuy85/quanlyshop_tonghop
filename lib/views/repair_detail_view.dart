@@ -718,10 +718,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         color: Colors.deepOrange,
       );
       EventBus().emit('repairs_changed');
+      // Trở về danh sách đơn sửa sau khi gửi yêu cầu giao
+      if (mounted) Navigator.pop(context, true);
+      return;
     } catch (e) {
       debugPrint('Error submitting for approval: $e');
     }
-    setState(() => _isUpdating = false);
+    if (mounted) setState(() => _isUpdating = false);
   }
 
   /// Quản lý duyệt đơn giao máy (pendingDeliveryApproval -> status 4)
@@ -986,10 +989,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         color: Colors.green,
       );
       EventBus().emit('repairs_changed');
+      // Trở về danh sách đơn sửa sau khi duyệt giao
+      if (mounted) Navigator.pop(context, true);
+      return;
     } catch (e) {
       debugPrint('Error approving delivery: $e');
     }
-    setState(() => _isUpdating = false);
+    if (mounted) setState(() => _isUpdating = false);
   }
 
   /// Từ chối duyệt giao - reset pendingDeliveryApproval
@@ -1122,6 +1128,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         color: AppColors.success,
       );
       EventBus().emit('repairs_changed');
+      // Trở về danh sách đơn sửa sau khi lưu
+      if (mounted) Navigator.pop(context, true);
+      return;
     } catch (e) {
       NotificationService.showSnackBar(
         loc.errorSaving(e.toString()),
@@ -1172,7 +1181,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Text(r.partsUsed, style: const TextStyle(color: Colors.purple)),
+              Text(r.partsUsed, style: const TextStyle(color: Colors.blue)),
               const SizedBox(height: 16),
               Text(
                 loc.partsWillBeAddedAndDeducted,
@@ -1187,7 +1196,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
               child: Text(
                 loc.continueAddMore,
                 style: const TextStyle(color: Colors.white),
@@ -1506,7 +1515,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     leading: const Icon(
                       Icons.build,
                       size: 18,
-                      color: Colors.purple,
+                      color: Colors.blue,
                     ),
                     title: Text(
                       entry.value,
@@ -1687,7 +1696,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     leading: const Icon(
                       Icons.build,
                       size: 18,
-                      color: Colors.purple,
+                      color: Colors.blue,
                     ),
                     title: Text(
                       entry.value,
@@ -2229,14 +2238,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           const Icon(
                             Icons.build,
                             size: 14,
-                            color: Colors.purple,
+                            color: Colors.blue,
                           ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               loc.partsShort(r.partsUsed),
                               style: AppTextStyles.caption.copyWith(
-                                color: Colors.purple,
+                                color: Colors.blue,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -2254,7 +2263,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           _quickAction(
                             loc.partsLabel,
                             Icons.inventory_2,
-                            Colors.purple,
+                            Colors.blue,
                             _selectPartsFromInventory,
                           ),
                           _quickAction(
@@ -2636,7 +2645,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   Text(
                     loc.partnerLabel(s.partnerName!),
                     style: AppTextStyles.overline.copyWith(
-                      color: Colors.purple,
+                      color: Colors.blue,
                     ),
                   ),
               ],
@@ -2954,12 +2963,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           const Divider(height: 20),
           Row(
             children: [
-              const Icon(Icons.build, size: 16, color: Colors.purple),
+              const Icon(Icons.build, size: 16, color: Colors.blue),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   loc.partsUsedLabel(r.partsUsed),
-                  style: AppTextStyles.caption.copyWith(color: Colors.purple),
+                  style: AppTextStyles.caption.copyWith(color: Colors.blue),
                 ),
               ),
             ],
@@ -2978,11 +2987,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 icon: const Icon(
                   Icons.inventory_2,
                   size: 14,
-                  color: Colors.purple,
+                  color: Colors.blue,
                 ),
                 label: Text(
                   loc.partsLabel,
-                  style: AppTextStyles.caption.copyWith(color: Colors.purple),
+                  style: AppTextStyles.caption.copyWith(color: Colors.blue),
                 ),
               ),
               // Lối tắt vào Kho Linh Kiện
@@ -3103,7 +3112,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           Text(
                             loc.partnerLabel(s.partnerName!),
                             style: AppTextStyles.caption.copyWith(
-                              color: Colors.purple,
+                              color: Colors.blue,
                             ),
                           ),
                       ],
@@ -3254,12 +3263,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             const Divider(height: 20),
             Row(
               children: [
-                const Icon(Icons.build, size: 16, color: Colors.purple),
+                const Icon(Icons.build, size: 16, color: Colors.blue),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     loc.partsUsedLabel(r.partsUsed),
-                    style: AppTextStyles.caption.copyWith(color: Colors.purple),
+                    style: AppTextStyles.caption.copyWith(color: Colors.blue),
                   ),
                 ),
               ],
@@ -3278,11 +3287,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   icon: const Icon(
                     Icons.inventory_2,
                     size: 14,
-                    color: Colors.purple,
+                    color: Colors.blue,
                   ),
                   label: Text(
                     loc.partsLabel,
-                    style: AppTextStyles.caption.copyWith(color: Colors.purple),
+                    style: AppTextStyles.caption.copyWith(color: Colors.blue),
                   ),
                 ),
                 // Lối tắt vào Kho Linh Kiện
@@ -3454,7 +3463,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                             Text(
                               loc.partnerLabel(s.partnerName!),
                               style: AppTextStyles.caption.copyWith(
-                                color: Colors.purple,
+                                color: Colors.blue,
                               ),
                             ),
                         ],
@@ -4236,7 +4245,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          const Icon(Icons.inventory_2, color: Colors.purple),
+          const Icon(Icons.inventory_2, color: Colors.blue),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -4354,7 +4363,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                       children: [
                         Icon(
                           isFromProducts ? Icons.inventory : Icons.build,
-                          color: isFromProducts ? Colors.blue : Colors.purple,
+                          color: isFromProducts ? Colors.blue : Colors.blue,
                           size: 20,
                         ),
                         const SizedBox(width: 8),
@@ -4374,7 +4383,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                           decoration: BoxDecoration(
                             color: isFromProducts
                                 ? Colors.blue.withOpacity(0.2)
-                                : Colors.purple.withOpacity(0.2),
+                                : Colors.blue.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -4382,7 +4391,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                             style: AppTextStyles.caption.copyWith(
                               color: isFromProducts
                                   ? Colors.blue
-                                  : Colors.purple,
+                                  : Colors.blue,
                             ),
                           ),
                         ),
@@ -4538,7 +4547,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                 )
               : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.purple,
+            backgroundColor: Colors.blue,
             disabledBackgroundColor: Colors.grey.shade300,
           ),
           child: Text(

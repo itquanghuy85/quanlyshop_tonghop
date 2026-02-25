@@ -362,7 +362,7 @@ class OrderListViewState extends State<OrderListView> {
                   _statusChipMulti(loc.repairing, 2, setSheetState, Colors.orange),
                   _statusChipMulti(loc.repairDone, 3, setSheetState, Colors.green),
                   _pendingApprovalChip(setSheetState),
-                  _statusChipMulti(loc.delivered, 4, setSheetState, Colors.purple),
+                  _statusChipMulti(loc.delivered, 4, setSheetState, Colors.blue),
                 ],
               ),
               if (_statusFilters.isNotEmpty)
@@ -711,22 +711,22 @@ class OrderListViewState extends State<OrderListView> {
                 padding: const EdgeInsets.all(8),
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
-                  color: Colors.purple.shade50,
+                  color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.purple),
+                  border: Border.all(color: Colors.blue),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.build, color: Colors.purple, size: 20),
+                        const Icon(Icons.build, color: Colors.blue, size: 20),
                         const SizedBox(width: 8),
                         Text(loc.orderHasParts, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(r.partsUsed, style: const TextStyle(fontSize: 11, color: Colors.purple)),
+                    Text(r.partsUsed, style: const TextStyle(fontSize: 11, color: Colors.blue)),
                     const SizedBox(height: 4),
                     Text(
                       loc.partsWillReturn,
@@ -897,7 +897,7 @@ class OrderListViewState extends State<OrderListView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1105,8 +1105,8 @@ class OrderListViewState extends State<OrderListView> {
             : Colors.green.shade300;
         break;
       case 4: // ĐÃ GIAO
-        bgColor = Colors.purple.shade50;
-        borderColor = Colors.purple.shade300;
+        bgColor = Colors.blue.shade50;
+        borderColor = Colors.blue.shade300;
         break;
       default:
         bgColor = Colors.grey.shade50;
@@ -1401,7 +1401,7 @@ class OrderListViewState extends State<OrderListView> {
       case 3:
         return Colors.green;
       case 4:
-        return Colors.purple;
+        return Colors.blue;
       default:
         return Colors.grey;
     }

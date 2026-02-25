@@ -161,7 +161,7 @@ class _RegisterViewState extends State<RegisterView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -420,7 +420,7 @@ class _RegisterViewState extends State<RegisterView> {
           _businessTypeOption('electronics', '📱 Điện tử', 'Điện thoại, laptop, phụ kiện', Colors.blue),
           // Food và General tạm ẩn - chỉ hỗ trợ Electronics và Fashion
           // _businessTypeOption('food', '🍎 Thực phẩm', 'Rau củ, thịt cá, đồ khô', Colors.green),
-          _businessTypeOption('fashion', '👕 Thời trang', 'Quần áo, giày dép, túi xách', Colors.purple),
+          _businessTypeOption('fashion', '👕 Thời trang', 'Quần áo, giày dép, túi xách', Colors.blue),
           // _businessTypeOption('general', '📦 Tổng hợp', 'Các loại khác, tự thiết lập', Colors.orange),
         ],
       ),

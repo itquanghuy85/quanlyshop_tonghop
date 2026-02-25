@@ -332,7 +332,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
 
                           _buildActionTile(
                             icon: Icons.replay,
-                            iconColor: Colors.purple,
+                            iconColor: Colors.blue,
                             title: 'Khởi động lại Realtime',
                             subtitle:
                                 'Kết nối lại listener khi không nhận data',
@@ -374,7 +374,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
 
                           _buildActionTile(
                             icon: Icons.restore,
-                            iconColor: Colors.purple,
+                            iconColor: Colors.blue,
                             title: 'Khôi phục dữ liệu',
                             subtitle: 'Tìm dữ liệu bị "lạc" do đổi shop',
                             onTap: _handleDataRecovery,
@@ -768,7 +768,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
       message:
           'Kết nối lại tất cả listeners để nhận dữ liệu mới từ máy khác.\n\nDùng khi:\n• Không nhận được đơn mới từ máy khác\n• Biểu tượng sync vàng không chuyển xanh\n• Sau khi mất mạng',
       confirmText: 'KHỞI ĐỘNG LẠI',
-      confirmColor: Colors.purple,
+      confirmColor: Colors.blue,
     );
 
     if (confirm != true) return;
@@ -1089,7 +1089,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
       builder: (ctx) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.find_in_page, color: Colors.purple),
+            Icon(Icons.find_in_page, color: Colors.blue),
             SizedBox(width: 8),
             Text('DỮ LIỆU TÌM THẤY'),
           ],

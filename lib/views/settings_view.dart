@@ -423,10 +423,10 @@ class _SettingsViewState extends State<SettingsView> {
                 
                 // Card chính: Hướng dẫn sử dụng đầy đủ
                 Card(
-                  color: Colors.purple.shade50,
+                  color: Colors.blue.shade50,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
-                    side: BorderSide(color: Colors.purple.shade100),
+                    side: BorderSide(color: Colors.blue.shade100),
                   ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(10),
@@ -435,14 +435,14 @@ class _SettingsViewState extends State<SettingsView> {
                       padding: const EdgeInsets.all(7),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Colors.purple.shade400, Colors.purple.shade600],
+                          colors: [Colors.blue.shade400, Colors.blue.shade600],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.purple.withOpacity(0.3),
+                            color: Colors.blue.withOpacity(0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -457,7 +457,7 @@ class _SettingsViewState extends State<SettingsView> {
                     title: Text(
                       loc.userGuideTitle,
                       style: const TextStyle(
-                        color: Colors.purple,
+                        color: Colors.blue,
                         fontWeight: FontWeight.bold,
                         fontSize: 17,
                       ),
@@ -470,7 +470,7 @@ class _SettingsViewState extends State<SettingsView> {
                           loc.userGuideDesc,
                           style: TextStyle(
                             fontSize: AppTextStyles.body1.fontSize,
-                            color: Colors.purple.shade800,
+                            color: Colors.blue.shade800,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -480,7 +480,7 @@ class _SettingsViewState extends State<SettingsView> {
                           children: [
                             _buildFeatureChip(loc.inventoryFeature, Colors.blue),
                             _buildFeatureChip(loc.salesFeature, Colors.orange),
-                            _buildFeatureChip(loc.repairFeature, Colors.purple),
+                            _buildFeatureChip(loc.repairFeature, Colors.blue),
                             _buildFeatureChip(loc.reportFeature, Colors.pink),
                           ],
                         ),
@@ -489,13 +489,13 @@ class _SettingsViewState extends State<SettingsView> {
                     trailing: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.purple.shade100,
+                        color: Colors.blue.shade100,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
                         Icons.arrow_forward_ios,
                         size: 16,
-                        color: Colors.purple,
+                        color: Colors.blue,
                       ),
                     ),
                     onTap: _openUserGuide,

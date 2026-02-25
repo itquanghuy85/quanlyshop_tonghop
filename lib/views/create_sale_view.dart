@@ -153,7 +153,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           description:
               'Bật trả góp để nhập tiền đặt cọc, số tiền vay và ngân hàng hỗ trợ.',
           icon: Icons.credit_card,
-          iconColor: Colors.purple,
+          iconColor: Colors.blue,
         ),
         const GuideStep(
           title: '📝 Công nợ khách hàng',
@@ -1434,7 +1434,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           flexibleSpace: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -1463,7 +1463,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1533,21 +1533,21 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               Icon(
                                 Icons.inventory_2,
                                 size: 18,
-                                color: Colors.purple.shade700,
+                                color: Colors.blue.shade700,
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 _terms.productLabel.toUpperCase(),
                                 style: AppTextStyles.caption.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.purple.shade700,
+                                  color: Colors.blue.shade700,
                                 ),
                               ),
                               const Spacer(),
                               Text(
                                 "${_selectedItems.length} đã chọn",
                                 style: AppTextStyles.caption.copyWith(
-                                  color: Colors.purple,
+                                  color: Colors.blue,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),

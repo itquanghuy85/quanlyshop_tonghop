@@ -150,7 +150,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
           description:
               'Với ${category1.toLowerCase()}, nhấn icon camera để quét barcode $serialLabel tự động.',
           icon: Icons.qr_code_scanner,
-          iconColor: Colors.purple,
+          iconColor: Colors.blue,
         ),
       ],
     );
@@ -650,7 +650,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1204,7 +1204,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                           horizontal: 12,
                           vertical: 8,
                         ),
-                        fillColor: Colors.purple.shade50,
+                        fillColor: Colors.blue.shade50,
                         filled: true,
                       ),
                       items: _fashionSizes
@@ -1235,7 +1235,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                           horizontal: 12,
                           vertical: 8,
                         ),
-                        fillColor: Colors.purple.shade50,
+                        fillColor: Colors.blue.shade50,
                         filled: true,
                       ),
                       items: _colors

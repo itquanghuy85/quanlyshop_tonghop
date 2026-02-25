@@ -271,7 +271,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -435,7 +435,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
                   'Tổng tiền NH',
                   '${MoneyUtils.formatCurrency(totals['totalLoanAmount'] ?? 0)}đ',
                   Icons.account_balance,
-                  Colors.purple,
+                  Colors.blue,
                 ),
               ),
             ],
@@ -623,7 +623,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
                         child: _bankStatItem(
                           'Tổng tiền',
                           '${MoneyUtils.formatCurrency(data['totalAmount'] ?? 0)}đ',
-                          Colors.purple,
+                          Colors.blue,
                         ),
                       ),
                       Expanded(

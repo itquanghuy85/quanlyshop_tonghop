@@ -159,7 +159,7 @@ class _BusinessTypeWizardState extends State<BusinessTypeWizard> {
           '👕 Thời trang & May mặc',
           'Shop quần áo, giày dép, túi xách...\nHỗ trợ: Size, màu sắc, biến thể',
           Icons.checkroom,
-          Colors.purple,
+          Colors.blue,
         ),
         // _buildTypeCard(
         //   'general',
@@ -530,7 +530,7 @@ class BusinessTypeQuickSelector extends StatelessWidget {
           _buildOption(context, 'electronics', '📱 Điện thoại & Điện tử', Icons.phone_android, Colors.blue),
           // Food và General tạm ẩn - chỉ hỗ trợ Electronics và Fashion
           // _buildOption(context, 'food', '🍎 Thực phẩm', Icons.restaurant, Colors.green),
-          _buildOption(context, 'fashion', '👕 Thời trang', Icons.checkroom, Colors.purple),
+          _buildOption(context, 'fashion', '👕 Thời trang', Icons.checkroom, Colors.blue),
           // _buildOption(context, 'general', '📦 Tổng hợp', Icons.store, Colors.orange),
         ],
       ),

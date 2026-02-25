@@ -2117,7 +2117,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     IconData roleIcon;
     if (_isSuperAdmin) {
       roleText = loc.adminRole;
-      roleColor = Colors.purple;
+      roleColor = Colors.blue;
       roleIcon = Icons.admin_panel_settings;
     } else if (widget.role == 'owner') {
       roleText = loc.ownerRole;
@@ -3149,10 +3149,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             const SizedBox(width: 8),
             Expanded(
               child: Card(
-                color: Colors.purple.shade50,
+                color: Colors.blue.shade50,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.purple.shade200),
+                  side: BorderSide(color: Colors.blue.shade200),
                 ),
                 child: InkWell(
                   onTap: () => Navigator.push(
@@ -3169,12 +3169,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         Container(
                           padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
-                            color: Colors.purple.shade100,
+                            color: Colors.blue.shade100,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.qr_code_scanner,
-                            color: Colors.purple,
+                            color: Colors.blue,
                             size: 20,
                           ),
                         ),
@@ -3182,7 +3182,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         Text(
                           loc.checkInventory,
                           style: AppTextStyles.subtitle1.copyWith(
-                            color: Colors.purple,
+                            color: Colors.blue,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -3619,7 +3619,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _tabMenuItem(
             loc.customerManagement,
             Icons.people,
-            Colors.purple,
+            Colors.blue,
             () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const CustomerManagementView()),
@@ -3876,10 +3876,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               const SizedBox(width: 6),
               Expanded(
                 child: Card(
-                  color: Colors.purple.shade50,
+                  color: Colors.blue.shade50,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
-                    side: BorderSide(color: Colors.purple.shade200),
+                    side: BorderSide(color: Colors.blue.shade200),
                   ),
                   child: InkWell(
                     onTap: () => Navigator.push(
@@ -3892,7 +3892,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       loc.checkInventory,
                       loc.checkInventoryGuide,
                       Icons.qr_code_scanner,
-                      Colors.purple,
+                      Colors.blue,
                     ),
                     borderRadius: BorderRadius.circular(10),
                     child: Padding(
@@ -3902,12 +3902,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           Container(
                             padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
-                              color: Colors.purple.shade100,
+                              color: Colors.blue.shade100,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: const Icon(
                               Icons.qr_code_scanner,
-                              color: Colors.purple,
+                              color: Colors.blue,
                               size: 20,
                             ),
                           ),
@@ -3915,7 +3915,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           Text(
                             loc.checkInventory,
                             style: AppTextStyles.subtitle1.copyWith(
-                              color: Colors.purple,
+                              color: Colors.blue,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -4099,7 +4099,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               _staffQuickCard(
                 loc.workSchedule,
                 Icons.schedule,
-                Colors.purple,
+                Colors.blue,
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -4342,7 +4342,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               _buildHelpSection(
                 AppLocalizations.of(context)!.viewDetails,
                 AppLocalizations.of(context)!.viewDetailsDesc,
-                Colors.purple,
+                Colors.blue,
               ),
               _buildHelpSection(
                 AppLocalizations.of(context)!.printSalarySlip,
@@ -4555,7 +4555,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 _financeQuickCard(
                   loc.financialReport,
                   Icons.assessment,
-                  Colors.purple,
+                  Colors.blue,
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -5053,7 +5053,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             _tabMenuItem(
               loc.shopSettings,
               Icons.store,
-              Colors.purple,
+              Colors.blue,
               () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ShopSettingsView()),
@@ -5623,7 +5623,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         icon: Icons.checkroom,
                         label: 'Hết size/màu',
                         value: (_variantWarnings?.outOfStock ?? 0).toString(),
-                        color: Colors.purple,
+                        color: Colors.blue,
                         onTap: () {
                           // Navigate to variant tab
                           final variantTabIndex = _navItems.indexWhere(
@@ -5871,12 +5871,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.purple.shade50, Colors.purple.shade100],
+              colors: [Colors.blue.shade50, Colors.blue.shade100],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.purple.shade200),
+            border: Border.all(color: Colors.blue.shade200),
           ),
           child: Row(
             children: [
@@ -5884,7 +5884,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.purple.shade400, Colors.purple.shade600],
+                    colors: [Colors.blue.shade400, Colors.blue.shade600],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -5904,7 +5904,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     Text(
                       '📚 ${loc.userGuide}',
                       style: const TextStyle(
-                        color: Colors.purple,
+                        color: Colors.blue,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
@@ -5913,7 +5913,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     Text(
                       loc.viewDetailedGuideForEachFeature,
                       style: TextStyle(
-                        color: Colors.purple.shade700,
+                        color: Colors.blue.shade700,
                         fontSize: 13,
                       ),
                     ),
@@ -5922,7 +5922,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
               Icon(
                 Icons.arrow_forward_ios,
-                color: Colors.purple.shade400,
+                color: Colors.blue.shade400,
                 size: 16,
               ),
             ],

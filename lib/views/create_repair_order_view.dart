@@ -155,7 +155,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
           title: '🔧 Dịch vụ & Đối tác',
           description: 'Thêm dịch vụ sửa chữa, chọn đối tác ngoài nếu cần gửi ra. Hệ thống tự tính công nợ.',
           icon: Icons.build,
-          iconColor: Colors.purple,
+          iconColor: Colors.blue,
         ),
         GuideStep(
           title: '💰 Giá dự kiến',

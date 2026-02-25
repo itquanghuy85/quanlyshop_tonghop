@@ -39,10 +39,10 @@ class AppTheme {
       textTheme: AppTextStyles.textTheme,
 
       // ========== APP BAR ==========
-      // Gradient style - sử dụng màu Purple chủ đạo
+      // Gradient style - sử dụng màu Zalo Blue chủ đạo
       // Các screen cần gradient thực sự sử dụng AppUIHelpers.buildGradientAppBar()
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF7B1FA2), // Purple 700 - màu gradient chủ đạo
+        backgroundColor: Color(0xFF0068FF), // Zalo Blue - màu gradient chủ đạo
         foregroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,

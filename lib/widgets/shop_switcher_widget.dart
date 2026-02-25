@@ -324,8 +324,8 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
               icon: const Icon(Icons.add_business, size: 18),
               label: Text(loc?.createNewBranch ?? 'Tạo chi nhánh mới'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.purple,
-                side: const BorderSide(color: Colors.purple),
+                foregroundColor: Colors.blue,
+                side: const BorderSide(color: Colors.blue),
                 minimumSize: const Size(double.infinity, 40),
               ),
             ),
@@ -361,7 +361,7 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
         builder: (context, setDialogState) => AlertDialog(
           title: Row(
             children: [
-              const Icon(Icons.add_business, color: Colors.purple),
+              const Icon(Icons.add_business, color: Colors.blue),
               const SizedBox(width: 8),
               Expanded(child: Text(loc?.createNewBranch ?? 'Create New Branch')),
             ],
@@ -426,7 +426,7 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
                 'address': addressController.text.trim(),
                 'businessType': selectedBusinessType,
               }),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
               child: Text(loc?.create ?? 'Create'),
             ),
           ],

@@ -37,7 +37,7 @@ class SuperAdminView extends StatelessWidget {
           flexibleSpace: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -402,7 +402,7 @@ class _ShopsTabState extends State<ShopsTab> {
             switch (role) {
               case 'owner':
                 roleText = 'Chủ shop';
-                roleColor = Colors.purple;
+                roleColor = Colors.blue;
                 roleIcon = Icons.star;
                 break;
               case 'manager':

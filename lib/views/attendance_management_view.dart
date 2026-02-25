@@ -215,7 +215,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -691,7 +691,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
     switch (role) {
       case 'owner':
         label = AppLocalizations.of(context)!.roleOwnerShort;
-        color = Colors.purple;
+        color = Colors.blue;
         break;
       case 'manager':
         label = AppLocalizations.of(context)!.roleManagerShort;
@@ -722,7 +722,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
   Color _getRoleColor(String? role) {
     switch (role) {
       case 'owner':
-        return Colors.purple;
+        return Colors.blue;
       case 'manager':
         return Colors.blue;
       case 'technician':

@@ -25,7 +25,7 @@ class UIConstants {
   static const Color brandSamsung = Color(0xFF1976D2); // Blue for Samsung
   static const Color brandAccessory = Color(0xFF4CAF50); // Green for Accessories
   static const Color brandParts = Color(0xFFFF9800); // Orange for Parts
-  static const Color brandOther = Color(0xFF9C27B0); // Purple for Other
+  static const Color brandOther = Color(0xFF0068FF); // Blue for Other
 
   // 📊 Inventory Status Colors
   static const Color stockNormal = Color(0xFF2E7D32); // Green for normal stock

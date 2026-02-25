@@ -5,12 +5,12 @@ import 'package:intl/intl.dart';
 /// Áp dụng style thống nhất như Settings View
 class AppUIHelpers {
   /// Gradient colors chủ đạo cho AppBar (2 màu đẹp)
-  static const Color gradientStart = Color(0xFF6A1B9A); // Purple 800
-  static const Color gradientEnd = Color(0xFF9C27B0); // Purple 500
+  static const Color gradientStart = Color(0xFF0068FF); // Zalo Blue
+  static const Color gradientEnd = Color(0xFF0084FF); // Zalo Blue Light
 
   /// Alternative gradients
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+    colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

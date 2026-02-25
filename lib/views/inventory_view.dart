@@ -158,7 +158,7 @@ class _InventoryViewState extends State<InventoryView>
           title: '🔍 Tìm kiếm',
           description: 'Nhấn icon kính lúp để tìm theo tên, ${_terms.specialField1Label}, SKU. Hỗ trợ tìm kiếm toàn cục.',
           icon: Icons.search,
-          iconColor: Colors.purple,
+          iconColor: Colors.blue,
         ),
         GuideStep(
           title: '🛒 Bán hàng nhanh',
@@ -1241,7 +1241,7 @@ class _InventoryViewState extends State<InventoryView>
     if (n.startsWith("SS-")) return Colors.blue; // Samsung
     if (n.startsWith("PIN-")) return Colors.green; // Pin/Linh kiện
     if (n.startsWith("MH-")) return Colors.orange; // Máy khác
-    if (n.startsWith("PK-")) return Colors.purple; // Phụ kiện
+    if (n.startsWith("PK-")) return Colors.blue; // Phụ kiện
     // Fallback cho tên cũ
     if (n.contains("IPHONE")) return Colors.blueGrey;
     if (n.contains("SAMSUNG")) return Colors.blue;
@@ -1740,7 +1740,7 @@ class _InventoryViewState extends State<InventoryView>
           flexibleSpace: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -1904,7 +1904,7 @@ class _InventoryViewState extends State<InventoryView>
                       icon: Icon(Icons.build_circle, size: _iconSize - 2),
                       label: Text(_terms.category3.toUpperCase(), style: AppTextStyles.body1),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF7B1FA2),
+                        backgroundColor: const Color(0xFF0068FF),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         shape: RoundedRectangleBorder(
@@ -2813,7 +2813,7 @@ class _InventoryViewState extends State<InventoryView>
                   if (!isPending)
                     _compactChip('Bán: ${NumberFormat.compact(locale: 'vi').format(p.price)}đ', Colors.green.shade100),
                   if (p.supplier != null && p.supplier!.isNotEmpty)
-                    _compactChip('🏭 ${p.supplier}', Colors.purple.shade50),
+                    _compactChip('🏭 ${p.supplier}', Colors.blue.shade50),
                   if (isPending)
                     _compactChip('⏳ Chờ giá', Colors.yellow.shade100),
                   // Show variant stock badge for fashion products

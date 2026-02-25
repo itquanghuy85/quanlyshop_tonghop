@@ -99,7 +99,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
               '• CHỜ CHI: Tiền shop cần trả\n'
               '• LỊCH SỬ: Các giao dịch đã hoàn thành',
           icon: Icons.category,
-          iconColor: Colors.purple,
+          iconColor: Colors.blue,
         ),
         GuideStep(
           title: '✅ Xác nhận thanh toán',

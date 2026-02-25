@@ -262,7 +262,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
           _terms.productLabel,
           '${_productsWithVariants.length}',
           Icons.inventory_2,
-          Colors.purple,
+          Colors.blue,
         ),
         _buildStatCard(
           'Hết hàng',

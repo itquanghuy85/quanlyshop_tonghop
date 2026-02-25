@@ -266,7 +266,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -316,7 +316,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(
-            colors: [Colors.purple.shade50, Colors.pink.shade50],
+            colors: [Colors.blue.shade50, Colors.pink.shade50],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -330,7 +330,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [Colors.purple.shade400, Colors.pink.shade400]),
+                    gradient: LinearGradient(colors: [Colors.blue.shade400, Colors.pink.shade400]),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.design_services, color: Colors.white, size: 24),
@@ -340,7 +340,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(AppLocalizations.of(context)!.productLabelDesign, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.purple)),
+                      Text(AppLocalizations.of(context)!.productLabelDesign, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue)),
                       Text(AppLocalizations.of(context)!.customizeContentAndFontSize, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
@@ -355,10 +355,10 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.purple.shade100,
+                  color: Colors.blue.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.tune, color: Colors.purple, size: 20),
+                child: const Icon(Icons.tune, color: Colors.blue, size: 20),
               ),
               title: Text(AppLocalizations.of(context)!.labelDesignTitle, style: const TextStyle(fontWeight: FontWeight.w600)),
               subtitle: Text(AppLocalizations.of(context)!.layoutShopInfoFormula),
@@ -399,14 +399,14 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.purple.shade100),
+                border: Border.all(color: Colors.blue.shade100),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.receipt_long, color: Colors.purple.shade600, size: 18),
+                      Icon(Icons.receipt_long, color: Colors.blue.shade600, size: 18),
                       const SizedBox(width: 8),
                       const Text(
                         'MẪU IN HÓA ĐƠN',

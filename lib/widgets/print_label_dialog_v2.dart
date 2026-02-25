@@ -179,7 +179,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
       onExpansionChanged: (expanded) => setState(() => _isCustomMode = expanded),
       leading: Icon(
         Icons.tune,
-        color: _isCustomMode ? Colors.purple : Colors.grey,
+        color: _isCustomMode ? Colors.blue : Colors.grey,
         size: 20,
       ),
       title: Text(
@@ -187,12 +187,12 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
         style: TextStyle(
           fontSize: 14,
           fontWeight: _isCustomMode ? FontWeight.bold : FontWeight.normal,
-          color: _isCustomMode ? Colors.purple : Colors.grey.shade700,
+          color: _isCustomMode ? Colors.blue : Colors.grey.shade700,
         ),
       ),
       trailing: Icon(
         _isCustomMode ? Icons.expand_less : Icons.expand_more,
-        color: _isCustomMode ? Colors.purple : Colors.grey,
+        color: _isCustomMode ? Colors.blue : Colors.grey,
       ),
       children: [
         _buildFieldOptions(),
@@ -209,7 +209,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+          colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
         ),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -264,13 +264,13 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
       children: [
         Row(
           children: [
-            const Icon(Icons.style, size: 18, color: Colors.purple),
+            const Icon(Icons.style, size: 18, color: Colors.blue),
             const SizedBox(width: 8),
             Text(
               'CHỌN MẪU TEM',
               style: AppTextStyles.subtitle2.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.purple,
+                color: Colors.blue,
               ),
             ),
           ],
@@ -296,10 +296,10 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.purple.shade50 : Colors.grey.shade100,
+                    color: isSelected ? Colors.blue.shade50 : Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isSelected ? Colors.purple : Colors.grey.shade300,
+                      color: isSelected ? Colors.blue : Colors.grey.shade300,
                       width: isSelected ? 2 : 1,
                     ),
                   ),
@@ -315,7 +315,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
                         template.name,
                         style: AppTextStyles.caption.copyWith(
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected ? Colors.purple : Colors.grey.shade700,
+                          color: isSelected ? Colors.blue : Colors.grey.shade700,
                         ),
                         textAlign: TextAlign.center,
                         maxLines: 2,
@@ -370,7 +370,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? Colors.purple : Colors.transparent,
+          color: selected ? Colors.blue : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -501,8 +501,8 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
       label: Text(label, style: const TextStyle(fontSize: 11)),
       selected: value,
       onSelected: onChanged,
-      selectedColor: Colors.purple.shade100,
-      checkmarkColor: Colors.purple,
+      selectedColor: Colors.blue.shade100,
+      checkmarkColor: Colors.blue,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
@@ -678,7 +678,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
           IconButton(
             onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
             icon: const Icon(Icons.remove_circle_outline),
-            color: Colors.purple,
+            color: Colors.blue,
             iconSize: 28,
           ),
           Container(
@@ -687,7 +687,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.purple.shade200),
+              border: Border.all(color: Colors.blue.shade200),
             ),
             child: Text(
               '$_quantity',
@@ -698,7 +698,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
           IconButton(
             onPressed: _quantity < 99 ? () => setState(() => _quantity++) : null,
             icon: const Icon(Icons.add_circle_outline),
-            color: Colors.purple,
+            color: Colors.blue,
             iconSize: 28,
           ),
         ],
@@ -994,7 +994,7 @@ class _PrintLabelDialogV2State extends State<PrintLabelDialogV2> {
                   : const Icon(Icons.print),
               label: Text(_isPrinting ? 'ĐANG IN...' : 'IN TEM ($_quantity)'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),

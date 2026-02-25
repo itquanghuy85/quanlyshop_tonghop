@@ -7,14 +7,14 @@ class AppColors {
   AppColors._();
 
   // ========== PRIMARY COLORS ==========
-  /// Màu chính của app - Tím
-  static const Color primary = Color.fromARGB(255, 77, 142, 233); // Purple 700
+  /// Màu chính của app - Xanh Zalo
+  static const Color primary = Color.fromARGB(255, 77, 142, 233); // Blue
 
   /// Màu chính nhạt hơn
-  static const Color primaryLight = Color(0xFFBA68C8); // Purple 300
+  static const Color primaryLight = Color(0xFF42A5F5); // Blue 400
 
   /// Màu chính tối hơn
-  static const Color primaryDark = Color(0xFF6A1B9A); // Purple 800
+  static const Color primaryDark = Color(0xFF0068FF); // Zalo Blue
 
   /// Màu phụ - Cam
   static const Color secondary = Color(0xFFFF9800); // Orange 500
@@ -74,7 +74,7 @@ class AppColors {
   static const Color onWarning = Colors.white;
 
   /// Màu thông tin
-  static const Color info = Color(0xFF9C27B0); // Purple 500
+  static const Color info = Color(0xFF0068FF); // Zalo Blue
 
   /// Màu chữ trên info
   static const Color onInfo = Colors.white;
@@ -128,13 +128,13 @@ class AppColors {
 
   // ========== SPECIAL COLORS ==========
   /// Màu cho border focus
-  static const Color focusBorder = Color(0xFF7B1FA2);
+  static const Color focusBorder = Color(0xFF0068FF);
 
   /// Màu cho hover state
-  static const Color hover = Color(0x1F7B1FA2);
+  static const Color hover = Color(0x1F0068FF);
 
   /// Màu cho ripple effect
-  static const Color ripple = Color(0x337B1FA2);
+  static const Color ripple = Color(0x330068FF);
 
   // ========== UTILITY METHODS ==========
   /// Tạo màu với opacity
@@ -149,7 +149,7 @@ class AppColors {
 
   /// Tạo gradient từ primary colors
   static LinearGradient primaryGradient = const LinearGradient(
-    colors: [Color.fromARGB(255, 221, 233, 4), primaryLight],
+    colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

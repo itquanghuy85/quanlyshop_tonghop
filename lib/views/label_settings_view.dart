@@ -135,12 +135,12 @@ class _LabelSettingsViewState extends State<LabelSettingsView> with SingleTicker
           : Column(
               children: [
                 Container(
-                  color: Colors.purple.shade50,
+                  color: Colors.blue.shade50,
                   child: TabBar(
                     controller: _tabController,
-                    labelColor: Colors.purple,
+                    labelColor: Colors.blue,
                     unselectedLabelColor: Colors.grey,
-                    indicatorColor: Colors.purple,
+                    indicatorColor: Colors.blue,
                     tabs: const [
                       Tab(icon: Icon(Icons.store, size: 18), text: 'Shop'),
                       Tab(icon: Icon(Icons.style, size: 18), text: 'Mẫu Tem'),
@@ -275,7 +275,7 @@ class _LabelSettingsViewState extends State<LabelSettingsView> with SingleTicker
                   : const Icon(Icons.save),
               label: Text(_isSaving ? 'Đang lưu...' : 'LƯU CÀI ĐẶT'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
@@ -360,7 +360,7 @@ class _LabelSettingsViewState extends State<LabelSettingsView> with SingleTicker
       case LabelType.promotion:
         return Colors.orange;
       case LabelType.warranty:
-        return Colors.purple;
+        return Colors.blue;
       case LabelType.custom:
         return Colors.grey;
     }
@@ -369,13 +369,13 @@ class _LabelSettingsViewState extends State<LabelSettingsView> with SingleTicker
   Widget _sectionTitle(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.purple),
+        Icon(icon, size: 20, color: Colors.blue),
         const SizedBox(width: 8),
         Text(
           title,
           style: AppTextStyles.subtitle1.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.purple,
+            color: Colors.blue,
           ),
         ),
       ],
@@ -505,7 +505,7 @@ class _EditTemplateDialogState extends State<_EditTemplateDialog> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.purple.shade50,
+                color: Colors.blue.shade50,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               ),
               child: Row(
@@ -513,7 +513,7 @@ class _EditTemplateDialogState extends State<_EditTemplateDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.purple.shade100,
+                      color: Colors.blue.shade100,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(widget.template.type.icon, style: const TextStyle(fontSize: 20)),
@@ -568,7 +568,7 @@ class _EditTemplateDialogState extends State<_EditTemplateDialog> {
                         label: Text(size.displayName),
                         selected: _size == size,
                         onSelected: (v) => setState(() => _size = size),
-                        selectedColor: Colors.purple.shade100,
+                        selectedColor: Colors.blue.shade100,
                       )).toList(),
                     ),
                     const SizedBox(height: 16),
@@ -674,7 +674,7 @@ class _EditTemplateDialogState extends State<_EditTemplateDialog> {
                         : const Icon(Icons.save),
                       label: Text(_isSaving ? 'Đang lưu...' : 'LƯU MẪU TEM'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purple,
+                        backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
                       ),
                     ),
@@ -695,12 +695,12 @@ class _EditTemplateDialogState extends State<_EditTemplateDialog> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.purple.shade50,
+            color: Colors.blue.shade50,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             title,
-            style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.purple),
+            style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: Colors.blue),
           ),
         ),
         const SizedBox(height: 8),
@@ -721,7 +721,7 @@ class _EditTemplateDialogState extends State<_EditTemplateDialog> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: Colors.purple,
+            activeThumbColor: Colors.blue,
           ),
         ],
       ),

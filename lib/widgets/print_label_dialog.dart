@@ -188,7 +188,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+          colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
         ),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -320,7 +320,7 @@ class _PrintLabelDialogState extends State<PrintLabelDialog> {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: selected ? Colors.purple : Colors.transparent,
+          color: selected ? Colors.blue : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(

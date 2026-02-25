@@ -186,7 +186,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
         _buildSectionCard(
           title: 'Trừ về sớm',
           icon: Icons.exit_to_app,
-          iconColor: Colors.purple,
+          iconColor: Colors.blue,
           enabled: _settings.enableEarlyLeaveDeduction,
           onEnabledChanged: (v) {
             setState(() {

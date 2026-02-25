@@ -64,9 +64,9 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   ];
   
   // Theme colors - đồng bộ với InventoryView
-  static const Color _primaryColor = Color(0xFF7B1FA2); // Purple 700
-  static const Color _gradientStart = Color(0xFF6A1B9A);
-  static const Color _gradientEnd = Color(0xFF9C27B0);
+  static const Color _primaryColor = Color(0xFF0068FF); // Zalo Blue
+  static const Color _gradientStart = Color(0xFF0068FF);
+  static const Color _gradientEnd = Color(0xFF0084FF);
   final Color _backgroundColor = const Color(0xFFF5F5F5);
 
   @override
@@ -1054,7 +1054,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
   final Set<int> _selectedIds = {};
 
   // Theme colors cho màn hình phụ tùng
-  final Color _primaryColor = Colors.purple; // Màu chính cho phụ tùng
+  final Color _primaryColor = Colors.blue; // Màu chính cho phụ tùng
   final Color _backgroundColor = const Color(0xFFF8FAFF);
 
   // Dynamic terminology
@@ -1395,7 +1395,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                               ),
                             ),
                             selected: selected,
-                            selectedColor: Colors.purple,
+                            selectedColor: Colors.blue,
                             onSelected: (_) => setS(() => paymentMethod = m),
                           );
                         }).toList(),
@@ -1854,7 +1854,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             ),
                           ),
                           selected: selected,
-                          selectedColor: Colors.purple,
+                          selectedColor: Colors.blue,
                           onSelected: (_) => setS(() => paymentMethod = m),
                         );
                       }).toList(),
@@ -2274,7 +2274,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
         flexibleSpace: _isSelectionMode ? null : Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -2611,11 +2611,11 @@ class _SupplierSearchFieldState extends State<_SupplierSearchField> {
                     dense: true,
                     visualDensity: VisualDensity.compact,
                     selected: isSelected,
-                    selectedTileColor: Colors.purple.withOpacity(0.1),
+                    selectedTileColor: Colors.blue.withOpacity(0.1),
                     leading: Icon(
                       isSelected ? Icons.check_circle : Icons.store_outlined,
                       size: 18,
-                      color: isSelected ? Colors.purple : Colors.grey,
+                      color: isSelected ? Colors.blue : Colors.grey,
                     ),
                     title: Text(
                       name,

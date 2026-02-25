@@ -267,7 +267,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -341,7 +341,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: Colors.purple.shade400, width: 2),
+            borderSide: BorderSide(color: Colors.blue.shade400, width: 2),
           ),
           isDense: true,
         ),
@@ -624,13 +624,13 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                   if (item.color != null && item.color!.isNotEmpty)
                     _infoChip('🎨 ${item.color}', Colors.pink.shade50),
                   if (item.size != null && item.size!.isNotEmpty)
-                    _infoChip('📏 Size ${item.size}', Colors.purple.shade50),
+                    _infoChip('📏 Size ${item.size}', Colors.blue.shade50),
                   if (item.condition != null && item.condition!.isNotEmpty)
                     _infoChip('📦 ${item.condition}', Colors.cyan.shade50),
                   if (entry.supplierName != null)
                     _infoChip(
                       '🏭 ${entry.supplierName}',
-                      Colors.purple.shade100,
+                      Colors.blue.shade100,
                     ),
                   if (entry.paymentMethod != null)
                     _infoChip(

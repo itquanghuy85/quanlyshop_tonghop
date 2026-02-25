@@ -1073,7 +1073,7 @@ class _RevenueViewState extends State<RevenueView>
               icon: Icons.schedule_rounded,
               label: 'Công nợ (chưa thu)',
               amount: analysis.debtAmount,
-              color: Colors.purple,
+              color: Colors.blue,
               isIncome: false,
               isDebt: true,
             ),
@@ -1137,7 +1137,7 @@ class _RevenueViewState extends State<RevenueView>
             fontSize: AppTextStyles.headline5.fontSize,
             fontWeight: FontWeight.bold,
             color: isDebt
-                ? Colors.purple
+                ? Colors.blue
                 : (isIncome ? Colors.green : Colors.red),
           ),
         ),
@@ -1191,7 +1191,7 @@ class _RevenueViewState extends State<RevenueView>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.indigo.shade50, Colors.purple.shade50],
+          colors: [Colors.indigo.shade50, Colors.blue.shade50],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1432,7 +1432,7 @@ class _RevenueViewState extends State<RevenueView>
                   _buildComparisonRow(
                     label: 'TỔNG',
                     icon: Icons.summarize,
-                    color: Colors.purple,
+                    color: Colors.blue,
                     expected: expectedCash + expectedBank,
                     actual: cashEnd + bankEnd,
                     diff: cashDiff + bankDiff,
@@ -1713,7 +1713,7 @@ class _RevenueViewState extends State<RevenueView>
   Widget _buildTransactionRow(_TransactionItem t) {
     Color methodColor = t.method == "CHUYỂN KHOẢN"
         ? Colors.blue
-        : (t.isDebt ? Colors.purple : Colors.orange);
+        : (t.isDebt ? Colors.blue : Colors.orange);
     IconData icon = t.isDebt
         ? Icons.book_rounded
         : (t.type == "IN"
@@ -2586,12 +2586,12 @@ class _RevenueViewState extends State<RevenueView>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.purple.withOpacity(0.1),
+                  color: Colors.blue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.account_balance_wallet,
-                  color: Colors.purple,
+                  color: Colors.blue,
                   size: 18,
                 ),
               ),
@@ -2602,7 +2602,7 @@ class _RevenueViewState extends State<RevenueView>
                   style: TextStyle(
                     fontSize: AppTextStyles.headline5.fontSize,
                     fontWeight: FontWeight.bold,
-                    color: Colors.purple,
+                    color: Colors.blue,
                   ),
                 ),
               ),
@@ -2612,7 +2612,7 @@ class _RevenueViewState extends State<RevenueView>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.purple.withOpacity(0.1),
+                  color: Colors.blue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -2620,7 +2620,7 @@ class _RevenueViewState extends State<RevenueView>
                   style: TextStyle(
                     fontSize: AppTextStyles.headline4.fontSize,
                     fontWeight: FontWeight.bold,
-                    color: Colors.purple,
+                    color: Colors.blue,
                   ),
                 ),
               ),
@@ -2737,12 +2737,12 @@ class _RevenueViewState extends State<RevenueView>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.purple.withOpacity(0.1),
+                  color: Colors.blue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.pie_chart,
-                  color: Colors.purple,
+                  color: Colors.blue,
                   size: 18,
                 ),
               ),
@@ -2752,7 +2752,7 @@ class _RevenueViewState extends State<RevenueView>
                 style: TextStyle(
                   fontSize: AppTextStyles.headline5.fontSize,
                   fontWeight: FontWeight.bold,
-                  color: Colors.purple,
+                  color: Colors.blue,
                 ),
               ),
             ],

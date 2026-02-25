@@ -341,7 +341,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -730,7 +730,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                 if (code.condition != null && code.condition!.isNotEmpty)
                   _quickCodeInfoChip('📦 ${code.condition}', Colors.cyan.shade50),
                 if (code.supplier != null && code.supplier!.isNotEmpty)
-                  _quickCodeInfoChip('🏭 ${code.supplier}', Colors.purple.shade100),
+                  _quickCodeInfoChip('🏭 ${code.supplier}', Colors.blue.shade100),
                 if (!code.isSynced)
                   _quickCodeInfoChip('☁️ Chưa sync', Colors.orange.shade200),
               ],
@@ -973,7 +973,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
     'XANH': Colors.blue,
     'ĐỎ': Colors.red,
     'VÀNG': Colors.amber,
-    'TÍM': Colors.purple,
+    'TÍM': Colors.blue,
     'HỒNG': Colors.pink,
     'BẠC': const Color(0xFFC0C0C0),
     'XANH LÁ': Colors.green,

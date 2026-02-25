@@ -573,7 +573,7 @@ class _ExpenseViewState extends State<ExpenseView> {
           flexibleSpace: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -1418,7 +1418,7 @@ class _ExpenseViewState extends State<ExpenseView> {
       color = Colors.green;
       icon = Icons.inventory_2;
     } else if (cat == 'Phí NH') {
-      color = Colors.purple;
+      color = Colors.blue;
       icon = Icons.account_balance;
     } else {
       color = Colors.grey;

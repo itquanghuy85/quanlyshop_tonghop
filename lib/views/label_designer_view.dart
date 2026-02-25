@@ -522,7 +522,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
             ),
           ),
         ),
@@ -832,13 +832,13 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.purple.shade50,
+              color: Colors.blue.shade50,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.purple.shade300),
+              border: Border.all(color: Colors.blue.shade300),
             ),
             child: Row(
               children: [
-                Icon(Icons.qr_code, color: Colors.purple.shade700),
+                Icon(Icons.qr_code, color: Colors.blue.shade700),
                 const SizedBox(width: 12),
                 const Text(
                   'Loại mã:',
@@ -874,7 +874,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                         states,
                       ) {
                         if (states.contains(WidgetState.selected)) {
-                          return Colors.purple;
+                          return Colors.blue;
                         }
                         return null;
                       }),
@@ -920,7 +920,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.zoom_in, size: 18, color: Colors.purple),
+              const Icon(Icons.zoom_in, size: 18, color: Colors.blue),
               const SizedBox(width: 8),
               const Text('Phóng to mẫu:', style: TextStyle(fontSize: 12)),
               const SizedBox(width: 8),
@@ -1010,7 +1010,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.purple.withValues(alpha: 0.2),
+                  color: Colors.blue.withValues(alpha: 0.2),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -1023,7 +1023,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Colors.purple.shade100, Colors.purple.shade50],
+                      colors: [Colors.blue.shade100, Colors.blue.shade50],
                     ),
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(16),
@@ -1033,7 +1033,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                     children: [
                       Icon(
                         Icons.label,
-                        color: Colors.purple.shade600,
+                        color: Colors.blue.shade600,
                         size: 20,
                       ),
                       const SizedBox(width: 8),
@@ -1041,7 +1041,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                         'MẪU TEM',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.purple.shade700,
+                          color: Colors.blue.shade700,
                         ),
                       ),
                       const Spacer(),
@@ -1049,7 +1049,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                         sizeLabel,
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.purple.shade500,
+                          color: Colors.blue.shade500,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1058,7 +1058,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                         'Nhấn để chọn',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.purple.shade400,
+                          color: Colors.blue.shade400,
                         ),
                       ),
                     ],
@@ -1161,7 +1161,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
         child = Icon(
           _codeType == 'barcode' ? Icons.view_week : Icons.qr_code_2,
           size: 36 * el.fontSize * paperScale,
-          color: isSelected ? Colors.purple : Colors.black87,
+          color: isSelected ? Colors.blue : Colors.black87,
         );
         break;
       case 'shop_info':
@@ -1189,16 +1189,16 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
           color: isSelected
-              ? Colors.purple.shade50
+              ? Colors.blue.shade50
               : isHover
-              ? Colors.purple.shade100.withValues(alpha: 0.4)
+              ? Colors.blue.shade100.withValues(alpha: 0.4)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
             color: isSelected
-                ? Colors.purple
+                ? Colors.blue
                 : isHover
-                ? Colors.purple.shade300
+                ? Colors.blue.shade300
                 : Colors.transparent,
             width: isSelected || isHover ? 2 : 0,
           ),
@@ -1211,7 +1211,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
               style: TextStyle(
                 fontSize: baseFontSize * el.fontSize,
                 fontWeight: el.bold ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.purple.shade700 : Colors.black87,
+                color: isSelected ? Colors.blue.shade700 : Colors.black87,
               ),
             ),
       );
@@ -1258,20 +1258,20 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.purple.shade200, width: 2),
+        border: Border.all(color: Colors.blue.shade200, width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.edit, color: Colors.purple.shade600, size: 20),
+              Icon(Icons.edit, color: Colors.blue.shade600, size: 20),
               const SizedBox(width: 8),
               Text(
                 'Chỉnh: ${el.label}',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.purple.shade700,
+                  color: Colors.blue.shade700,
                 ),
               ),
               const Spacer(),
@@ -1304,7 +1304,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                 '${el.fontSize.toStringAsFixed(1)}x',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.purple,
+                  color: Colors.blue,
                 ),
               ),
               Expanded(
@@ -1351,7 +1351,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                 label: const Text('Đậm'),
                 selected: el.bold,
                 onSelected: (v) => _updateElement(el.id, bold: v),
-                selectedColor: Colors.purple.shade100,
+                selectedColor: Colors.blue.shade100,
               ),
               const SizedBox(width: 8),
               SegmentedButton<String>(
@@ -1551,8 +1551,8 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                     label: Text(el.label, style: const TextStyle(fontSize: 12)),
                     selected: el.visible,
                     onSelected: (v) => _updateElement(el.id, visible: v),
-                    selectedColor: Colors.purple.shade100,
-                    checkmarkColor: Colors.purple,
+                    selectedColor: Colors.blue.shade100,
+                    checkmarkColor: Colors.blue,
                   ),
                 )
                 .toList(),
@@ -1712,13 +1712,13 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
   Widget _sectionTitle(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.purple),
+        Icon(icon, size: 20, color: Colors.blue),
         const SizedBox(width: 8),
         Text(
           title,
           style: AppTextStyles.subtitle1.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.purple,
+            color: Colors.blue,
           ),
         ),
       ],

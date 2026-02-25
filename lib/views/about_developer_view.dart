@@ -563,13 +563,13 @@ class AboutDeveloperView extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF9C27B0),
-                    Color(0xFF673AB7),
+                    Color(0xFF0068FF),
+                    Color(0xFF0084FF),
                   ],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF9C27B0).withOpacity(0.3),
+                    color: const Color(0xFF0068FF).withOpacity(0.3),
                     spreadRadius: 2,
                     blurRadius: 8,
                     offset: const Offset(0, 4),

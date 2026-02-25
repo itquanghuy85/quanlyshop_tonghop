@@ -171,7 +171,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
           flexibleSpace: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+                colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -205,7 +205,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)],
+              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -263,8 +263,8 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
                 child: ExpansionTile(
                   leading: CircleAvatar(
                     backgroundImage: _safeImageProvider(photoUrl),
-                    backgroundColor: role == 'owner' ? Colors.purple.withAlpha(25) : role == 'manager' ? Colors.orange.withAlpha(25) : role == 'employee' ? Colors.blue.withAlpha(25) : role == 'technician' ? Colors.green.withAlpha(25) : role == 'admin' ? Colors.red.withAlpha(25) : Colors.grey.withAlpha(25),
-                    child: photoUrl == null ? Icon(role == 'owner' ? Icons.business : role == 'manager' ? Icons.supervisor_account : role == 'employee' ? Icons.work : role == 'technician' ? Icons.build : role == 'admin' ? Icons.admin_panel_settings : Icons.person, color: role == 'owner' ? Colors.purple : role == 'manager' ? Colors.orange : role == 'employee' ? Colors.blue : role == 'technician' ? Colors.green : role == 'admin' ? Colors.red : Colors.grey, size: 20) : null,
+                    backgroundColor: role == 'owner' ? Colors.indigo.withAlpha(25) : role == 'manager' ? Colors.orange.withAlpha(25) : role == 'employee' ? Colors.blue.withAlpha(25) : role == 'technician' ? Colors.green.withAlpha(25) : role == 'admin' ? Colors.red.withAlpha(25) : Colors.grey.withAlpha(25),
+                    child: photoUrl == null ? Icon(role == 'owner' ? Icons.business : role == 'manager' ? Icons.supervisor_account : role == 'employee' ? Icons.work : role == 'technician' ? Icons.build : role == 'admin' ? Icons.admin_panel_settings : Icons.person, color: role == 'owner' ? Colors.indigo : role == 'manager' ? Colors.orange : role == 'employee' ? Colors.blue : role == 'technician' ? Colors.green : role == 'admin' ? Colors.red : Colors.grey, size: 20) : null,
                   ),
                   title: Text(displayName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize)),
                   subtitle: Column(
@@ -278,7 +278,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: role == 'owner' ? Colors.purple : role == 'manager' ? Colors.orange : role == 'employee' ? Colors.blue : role == 'technician' ? Colors.green : role == 'admin' ? Colors.red : Colors.grey,
+                              color: role == 'owner' ? Colors.indigo : role == 'manager' ? Colors.orange : role == 'employee' ? Colors.blue : role == 'technician' ? Colors.green : role == 'admin' ? Colors.red : Colors.grey,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(role == 'owner' ? 'CHỦ SHOP' : role == 'manager' ? 'QUẢN LÝ' : role == 'employee' ? 'NHÂN VIÊN' : role == 'technician' ? 'KỸ THUẬT' : role == 'admin' ? 'ADMIN' : role, style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.white, fontWeight: FontWeight.bold)),
@@ -376,7 +376,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
         }
       },
       backgroundColor: Colors.grey.shade100,
-      selectedColor: roleValue == 'owner' ? Colors.purple : roleValue == 'manager' ? Colors.orange : roleValue == 'employee' ? Colors.blue : roleValue == 'technician' ? Colors.green : Colors.grey,
+      selectedColor: roleValue == 'owner' ? Colors.indigo : roleValue == 'manager' ? Colors.orange : roleValue == 'employee' ? Colors.blue : roleValue == 'technician' ? Colors.green : Colors.grey,
       checkmarkColor: Colors.white,
     );
   }
