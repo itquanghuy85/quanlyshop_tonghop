@@ -1,1800 +1,809 @@
-# 📚 TÀI LIỆU TỔNG HỢP DỰ ÁN QUANLYSHOP (HULUCA) 
-AI khi sửa hay báo cáo phải viết tiếng việt để trong khung chat để người chat hiểu không dùng tiếng anh hay bất kỳ ngôn ngữ khác.
-> **Phần mềm Quản lý Tiệm Sửa chữa & Mua bán Điện thoại / Shop Đa Ngành**
-> Phiên bản: 3.4.0+10 | Flutter + Firebase
-> Cập nhật: 02/2026
+# HULUCA Shop Manager (Quản Lý Shop) — Complete Project Structure
+
+> **App Name:** HULUCA Shop Manager  
+> **Package:** `com.huluca.shopmanager`  
+> **Version:** 10.1.0+170  
+> **SDK:** Flutter (Dart) ≥3.10.0 <4.0.0  
+> **Generated:** 2026-02-26  
 
 ---
 
-## 📋 MỤC LỤC TỔNG
+## Table of Contents
 
-### PHẦN A: QUY TẮC & ONBOARDING
-- [A1. Nguyên tắc làm việc](#a1-nguyên-tắc-làm-việc)
-- [A2. Onboarding cho Developer mới](#a2-onboarding-cho-developer-mới)
-
-### PHẦN B: CẤU TRÚC DỰ ÁN
-- [B1. Tổng quan dự án](#b1-tổng-quan-dự-án)
-- [B2. Kiến trúc hệ thống](#b2-kiến-trúc-hệ-thống)
-- [B3. Cấu trúc thư mục chi tiết](#b3-cấu-trúc-thư-mục-chi-tiết)
-- [B4. Database Schema](#b4-database-schema)
-- [B5. Luồng dữ liệu](#b5-luồng-dữ-liệu)
-- [B6. Hệ thống phân quyền](#b6-hệ-thống-phân-quyền)
-- [B7. Các tính năng chính](#b7-các-tính-năng-chính)
-
-### PHẦN C: HỆ THỐNG THANH TOÁN
-- [C1. Unified Payment System](#c1-unified-payment-system)
-- [C2. Báo cáo kiểm tra luồng thanh toán](#c2-báo-cáo-kiểm-tra-luồng-thanh-toán)
-
-### PHẦN D: MULTI-SHOP
-- [D1. Multi-Shop hướng dẫn sử dụng](#d1-multi-shop-hướng-dẫn-sử-dụng)
-- [D2. Multi-Shop Production Checklist](#d2-multi-shop-production-checklist)
-
-### PHẦN E: MỞ RỘNG ĐA NGÀNH
-- [E1. Hướng dẫn mở rộng đa ngành](#e1-hướng-dẫn-mở-rộng-đa-ngành)
-
-### PHẦN F: TRUNG TÂM HƯỚNG DẪN
-- [F1. Help Center Guide](#f1-help-center-guide)
-
-### PHẦN G: HƯỚNG DẪN SỬ DỤNG (USER GUIDE)
-- [G1. Hướng dẫn Tiếng Việt - Phần 1](#g1-hướng-dẫn-tiếng-việt---phần-1)
-- [G2. Hướng dẫn Tiếng Việt - Phần 2](#g2-hướng-dẫn-tiếng-việt---phần-2)
-- [G3. User Guide (English)](#g3-user-guide-english)
+1. [Architecture Overview](#1-architecture-overview)
+2. [Views (lib/views/)](#2-views)
+3. [Models (lib/models/)](#3-models)
+4. [Services (lib/services/)](#4-services)
+5. [Widgets (lib/widgets/)](#5-widgets)
+6. [Data Layer (lib/data/)](#6-data-layer)
+7. [Constants (lib/constants/)](#7-constants)
+8. [Theme (lib/theme/)](#8-theme)
+9. [Controllers (lib/controllers/)](#9-controllers)
+10. [Core (lib/core/)](#10-core)
+11. [Utils (lib/utils/)](#11-utils)
+12. [Assets & Localization (lib/assets/, lib/l10n/)](#12-assets--localization)
+13. [Entry Point (lib/main.dart)](#13-entry-point)
+14. [Dependencies (pubspec.yaml)](#14-dependencies)
+15. [Firestore Collections](#15-firestore-collections)
+16. [SQLite Local Tables](#16-sqlite-local-tables)
+17. [Navigation Structure](#17-navigation-structure)
+18. [Security & Roles](#18-security--roles)
 
 ---
 
----
-
-# PHẦN A: QUY TẮC & ONBOARDING
-
----
-
-## A1. Nguyên tắc làm việc
-
-> Nguồn gốc: `DOCS/nguyentac.md`
-
-App đã product lên CH Play: "Đọc file copilot-instructions.md và DEVELOPER_ONBOARDING.md để hiểu cấu trúc dự án trước khi bắt đầu."
-
-Và thực hiện các yêu cầu nâng cấp hoặc chỉnh sửa các lỗi sau: (app đã product lên store mọi thay đổi đều phải test, flutter run đảm bảo ko lỗi build, git commit kèm theo lý do rõ ràng):
-
-**Mối quan hệ giữa các file tài liệu:**
-
-```
-┌─────────────────────────────┐
-│ copilot-instructions.md    │  ← AI đọc để hiểu cấu trúc
-└─────────────────────────────┘
-              │
-              ▼
-┌─────────────────────────────┐
-│ DEVELOPER_ONBOARDING.md    │  ← Dev mới đọc đầu tiên
-└─────────────────────────────┘
-              │
-    ┌─────────┼─────────┬─────────────────┐
-    ▼         ▼         ▼                 ▼
-┌────────┐ ┌────────┐ ┌────────────┐ ┌────────────────────┐
-│PAYMENT │ │UNIFIED │ │MULTI_SHOP  │ │MULTI_INDUSTRY     │
-│FLOW    │ │PAYMENT │ │GUIDE       │ │EXPANSION_GUIDE    │
-│AUDIT   │ │GUIDE   │ │            │ │                    │
-└────────┘ └────────┘ └────────────┘ └────────────────────┘
-   Audit     Cách sử    Multi-shop     Mở rộng đa ngành
-   tài chính dụng PI    architecture   (thời trang)
-```
-
----
-
-## A2. Onboarding cho Developer mới
-
-> Nguồn gốc: `DOCS/DEVELOPER_ONBOARDING.md`
-
-### A2.1 Tổng Quan Dự Án
-
-#### Công nghệ
-- **Frontend**: Flutter (Dart)
-- **Backend**: Firebase (Auth, Firestore, Storage, Cloud Functions)
-- **Local DB**: SQLite (sqflite) - offline-first với real-time sync
-- **State**: Không dùng state management phức tạp, dùng StatefulWidget + EventBus
-
-#### Chức năng chính
-- Bán hàng (điện thoại, phụ kiện)
-- Sửa chữa (nhận máy, bàn giao, thu tiền)
-- Nhập kho từ NCC (nhà cung cấp)
-- Quản lý công nợ (khách hàng nợ shop, shop nợ NCC)
-- Chốt quỹ hàng ngày
-- Báo cáo tài chính
-- Multi-shop (1 owner nhiều cửa hàng)
-
-### A2.2 Cấu Trúc Thư Mục
+## 1. Architecture Overview
 
 ```
 lib/
-├── main.dart              # Entry point, Firebase init, AuthGate
-├── firebase_options.dart  # Firebase config (auto-generated)
-│
-├── models/                # Data models (toMap/fromMap)
-│   ├── product_model.dart
-│   ├── sale_order_model.dart
-│   ├── repair_model.dart
-│   ├── debt_model.dart
-│   ├── payment_intent_model.dart  # ⭐ QUAN TRỌNG
-│   └── ...
-│
-├── services/              # Business logic & external integrations
-│   ├── firestore_service.dart     # Firestore CRUD
-│   ├── user_service.dart          # Auth, role, shopId
-│   ├── sync_service.dart          # Real-time sync Firestore → SQLite
-│   ├── payment_intent_service.dart # ⭐ Central payment service
-│   ├── money_transaction_service.dart
-│   ├── money_validation_service.dart
-│   ├── current_shop_service.dart  # Multi-shop management
-│   └── ...
-│
-├── data/
-│   └── db_helper.dart     # SQLite wrapper (version 17+)
-│
-├── views/                 # UI screens
-│   ├── home_view.dart
-│   ├── create_sale_view.dart
-│   ├── repair_detail_view.dart
-│   ├── financial_report_view.dart
-│   ├── unified_payment_page.dart  # ⭐ Trang thanh toán chung
-│   └── ...
-│
-├── widgets/               # Reusable UI components
-├── constants/             # App constants, financial_constants.dart
-├── theme/                 # Colors, text styles
-└── l10n/                  # Localization (VI/EN)
+├── main.dart                  # App entry point, Firebase init, AuthGate, global error handling
+├── firebase_options.dart      # Firebase configuration (auto-generated)
+├── assets/                    # Bundled fonts & images
+├── constants/                 # Enums, static constants
+├── controllers/               # MVC controllers
+├── core/                      # App config, payment blocker, core utils
+├── data/                      # SQLite DB helper, repositories
+├── l10n/                      # Localization (Vietnamese/English)
+├── models/                    # Data models (Firestore + SQLite)
+├── services/                  # Business logic, Firebase integration, sync
+├── theme/                     # Colors, text styles, button styles, theme
+├── utils/                     # Utility classes (formatters, validators, parsers)
+├── views/                     # All screens/pages
+│   ├── hr/                    # HR sub-screens (salary, deductions)
+│   ├── fashion/               # Fashion industry screens (variants)
+│   ├── food/                  # Food industry screens (expiry)
+│   └── onboarding/            # Business type wizard
+└── widgets/                   # Reusable UI components
 ```
 
-### A2.3 Kiến Trúc & Nguyên Tắc
-
-#### Service-First Pattern
-```
-❌ KHÔNG: Widget → Firestore/SQLite trực tiếp
-✅ ĐÚNG:  Widget → Service → DBHelper/Firestore
-```
-
-#### Offline-First với Real-Time Sync
-```
-1. User tạo data → Lưu SQLite (isSynced=0)
-2. SyncOrchestrator → Queue sync lên Firestore
-3. SyncService lắng nghe Firestore → Cập nhật SQLite
-```
-
-#### Soft Delete
-```dart
-// KHÔNG xóa thật, chỉ đánh dấu deleted=true
-await db.update('repairs', {'deleted': 1}, where: 'id = ?');
-```
-
-#### EventBus Pattern
-```dart
-// Emit event khi data thay đổi
-EventBus().emit('repairs_changed');
-// Listen trong view
-EventBus().on('repairs_changed', (_) => _loadData());
-```
-
-#### Multi-Tenant Isolation
-```dart
-// MỌI query PHẢI filter theo shopId
-final shopId = UserService.getShopIdSync();
-db.query('repairs', where: 'shopId = ?', whereArgs: [shopId]);
-```
-
-### A2.4 Flow Tài Chính (QUAN TRỌNG)
-
-#### ⚠️ NGUYÊN TẮC VÀNG
-
-> **MỌI giao dịch tiền PHẢI đi qua PaymentIntentService**
-
-#### PaymentIntent Flow
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Business View  │ ──▶ │ PaymentIntent   │ ──▶ │ UnifiedPayment  │
-│  (Sale, Repair) │     │ Service.create  │     │     Page        │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-                                                        │
-                                                        ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Ledger Entry   │ ◀── │ PaymentIntent   │ ◀── │  User confirms  │
-│  (Ghi sổ)       │     │ Service.execute │     │  payment method │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-```
-
-#### PaymentIntent Types
-
-| Type | Mô tả | Direction |
-|------|-------|-----------|
-| `salePayment` | Thu tiền bán hàng | IN |
-| `repairService` | Thu tiền sửa chữa | IN |
-| `customerDebtCollection` | Thu nợ khách hàng | IN |
-| `supplierDebt` | Trả nợ NCC | OUT |
-| `operatingExpense` | Chi phí hoạt động | OUT |
-| `salaryPayment` | Trả lương | OUT |
-
-#### Accrual vs Cash Basis
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    ACCRUAL BASIS (Dồn tích)                 │
-│  - Doanh thu ghi khi BÁN (không phải khi thu tiền)          │
-│  - Chi phí ghi khi PHÁT SINH (không phải khi chi tiền)      │
-│  - Công nợ KHÔNG ảnh hưởng lợi nhuận ngay                   │
-└─────────────────────────────────────────────────────────────┘
-
-Ví dụ:
-- Bán máy 10tr CÔNG NỢ → Doanh thu +10tr, Lợi nhuận tính ngay
-- Thu nợ 10tr → Quỹ +10tr nhưng KHÔNG cộng thêm lợi nhuận
-```
-
-#### Tránh Double-Counting
-
-```
-❌ SAI: Tính "giá vốn hàng bán" + "trả nợ NCC" = tính 2 lần
-
-✅ ĐÚNG:
-- Bán hàng: Doanh thu - Giá vốn = Lợi nhuận gộp
-- Nhập hàng CÔNG NỢ: Chỉ ghi debt, KHÔNG ghi expense
-- Trả nợ NCC: Ghi expense (chi phí thực tế ra quỹ)
-```
-
-### A2.5 Multi-Shop Architecture
-
-#### Cấu trúc
-```
-User (uid: abc123)
-  └── ownerOf: [shopId1, shopId2]
-
-Shop (id: shopId1)
-  └── ownerUid: abc123
-  └── staff: [{uid: xyz, role: employee}, ...]
-```
-
-#### Chuyển Shop
-```dart
-// CurrentShopService.switchShop():
-1. Validate ownership
-2. Cancel sync subscriptions
-3. Clear local SQLite
-4. Update SharedPreferences
-5. Restart sync for new shop
-6. Emit EventBus.shopChanged
-```
-
-#### Firestore Rules
-```javascript
-function isShopOwner(shopId) {
-  return get(/shops/$(shopId)).data.ownerUid == uid();
-}
-function belongsTo(shopId) {
-  return isSuperAdmin() || myShopId() == shopId || isShopOwner(shopId);
-}
-```
-
-### A2.6 Security Rules
-
-#### Custom Claims (set by Cloud Functions)
-```javascript
-{
-  isSuperAdmin: boolean,  // true cho admin@huluca.com
-  shopId: string,         // Shop hiện tại của user
-  role: 'owner' | 'manager' | 'employee' | 'technician'
-}
-```
-
-#### Role Hierarchy
-```
-superAdmin > owner > manager > employee/technician
-```
-
-### A2.7 Checklist Trước Khi Code
-
-**Khi thêm tính năng mới:**
-- [ ] Có filter theo `shopId` chưa?
-- [ ] Có đi qua Service layer chưa?
-- [ ] Nếu liên quan tiền → dùng `PaymentIntentService`?
-- [ ] Có emit EventBus sau khi thay đổi data?
-- [ ] Có log vào `FinancialActivityService` nếu cần?
-- [ ] UI text bằng tiếng Việt, code/comments bằng tiếng Anh?
-
-**Khi sửa financial logic:**
-- [ ] Đọc kỹ phần C (Hệ thống thanh toán)
-- [ ] Kiểm tra không double-counting
-- [ ] Test với cả TIỀN MẶT, CHUYỂN KHOẢN, CÔNG NỢ
-
-**Khi thêm Firestore collection mới:**
-- [ ] Thêm rules vào `firestore.rules`
-- [ ] Thêm vào `SyncService` nếu cần sync
-- [ ] Thêm table vào `db_helper.dart`
+**Key Patterns:**
+- **Offline-first:** SQLite local DB (`sqflite`) + Firestore real-time sync
+- **Multi-tenant:** All data isolated by `shopId`
+- **Role-based:** superAdmin > owner > manager > employee/technician
+- **Multi-industry:** Electronics (default), Fashion, Food — controlled by feature flags
+- **Service-first:** No direct Firebase calls from widgets; all through service classes
 
 ---
 
----
+## 2. Views (lib/views/)
 
-# PHẦN B: CẤU TRÚC DỰ ÁN
+### Root-level Views
 
-> Nguồn gốc: `DOCS/PROJECT_STRUCTURE_VI.md`
+| File | Class | Description |
+|------|-------|-------------|
+| `home_view.dart` | `HomeView` | Main dashboard with bottom navigation (Home/Sales/Repairs/Inventory/Expiry/Variants/Staff/Finance/Settings tabs) |
+| `login_view.dart` | `LoginView` | Firebase Auth login screen |
+| `register_view.dart` | `RegisterView` | User registration screen |
+| `splash_view.dart` | `SplashView` | Splash/loading screen shown at app start |
+| `intro_view.dart` | `IntroView` | App introduction/onboarding carousel |
+| `shop_selector_view.dart` | `ShopSelectorView` | Super admin shop selection screen |
+| `settings_view.dart` | `SettingsView` | App settings (language, theme, data management) |
+| `shop_settings_view.dart` | `ShopSettingsView` | Shop-specific settings (name, business type, modules) |
+| `my_profile_view.dart` | `MyProfileView` | User profile editing |
+| `about_developer_view.dart` | `AboutDeveloperView` | Developer information / about page |
+| `super_admin_view.dart` | `SuperAdminView` | Super admin management panel |
+| `user_guide_view.dart` | `UserGuideView` | In-app user guide / help |
+| `help_center_view.dart` | `HelpCenterView` | Help center with searchable articles |
 
----
+### Sales & Orders
 
-## B1. Tổng quan dự án
+| File | Class | Description |
+|------|-------|-------------|
+| `create_sale_view.dart` | `CreateSaleView` | Create new sale order |
+| `sale_list_view.dart` | `SaleListView` | List all sale orders |
+| `sale_detail_view.dart` | `SaleDetailView` | Sale order detail with edit/cancel |
+| `sale_invoice_preview_view.dart` | `SaleInvoicePreviewView` | Preview sale invoice before printing |
+| `sale_invoice_template_view.dart` | `SaleInvoiceTemplateView` | Customize sale invoice template |
+| `order_list_view.dart` | `OrderListView` | Combined order listing (repairs + sales) |
 
-### Mô tả
-**QuanLyShop** là ứng dụng quản lý toàn diện cho cửa hàng sửa chữa và mua bán điện thoại, được xây dựng trên nền tảng Flutter với backend Firebase.
+### Repairs
 
-### Công nghệ sử dụng
-| Thành phần | Công nghệ |
-|------------|-----------|
-| Frontend | Flutter 3.10+ (Dart) |
-| Backend | Firebase (Auth, Firestore, Storage, Functions, Messaging) |
-| Local DB | SQLite (sqflite) |
-| State Management | StatefulWidget + EventBus |
-| Đa ngôn ngữ | flutter_localizations (vi, en) |
+| File | Class | Description |
+|------|-------|-------------|
+| `create_repair_order_view.dart` | `CreateRepairOrderView` | Create new repair order |
+| `repair_detail_view.dart` | `RepairDetailView` | Repair order detail and status updates |
+| `repair_receipt_view.dart` | `RepairReceiptView` | Generate repair receipt for customer |
+| `repair_invoice_preview_view.dart` | `RepairInvoicePreviewView` | Preview repair invoice |
+| `repair_invoice_template_view.dart` | `RepairInvoiceTemplateView` | Customize repair invoice template |
+| `warranty_view.dart` | `WarrantyView` | Warranty tracking and management |
 
-### Nền tảng hỗ trợ
-- ✅ Android (APK/AAB)
-- ✅ iOS (IPA)
-- ✅ Web
-- ⚠️ Windows (hạn chế một số tính năng)
-- ⚠️ macOS (hạn chế một số tính năng)
+### Repair Partners
 
----
+| File | Class | Description |
+|------|-------|-------------|
+| `repair_partner_view.dart` | `RepairPartnerView` | List repair partners (outsource technicians) |
+| `repair_partner_detail_view.dart` | `RepairPartnerDetailView` | Partner detail with history/payments |
+| `repair_partner_form_view.dart` | `RepairPartnerFormView` | Add/edit repair partner form |
+| `partner_management_view.dart` | `PartnerManagementView` | Partner management dashboard |
 
-## B2. Kiến trúc hệ thống
+### Inventory & Products
 
-### Kiến trúc tổng quan
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        UI LAYER                              │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │                    VIEWS (Screens)                       ││
-│  │  • HomeView • LoginView • InventoryView • SaleListView  ││
-│  │  • RepairDetailView • CustomerView • WarrantyView ...   ││
-│  └─────────────────────────────────────────────────────────┘│
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │                    WIDGETS (Reusable)                    ││
-│  │  • UnifiedSyncButton • NotificationBadge • GradientFab  ││
-│  │  • PerpetualCalendar • LoadingIntroScreen ...           ││
-│  └─────────────────────────────────────────────────────────┘│
-├─────────────────────────────────────────────────────────────┤
-│                     SERVICE LAYER                            │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │                    SERVICES                              ││
-│  │  • FirestoreService (CRUD Firestore)                    ││
-│  │  • UserService (Auth, Roles, Permissions)               ││
-│  │  • SyncService (Real-time Sync)                         ││
-│  │  • NotificationService (Push Notifications)             ││
-│  │  • PrinterService (Bluetooth/WiFi Printing)             ││
-│  └─────────────────────────────────────────────────────────┘│
-├─────────────────────────────────────────────────────────────┤
-│                      DATA LAYER                              │
-│  ┌───────────────────────┐ ┌───────────────────────────────┐│
-│  │   LOCAL DB (SQLite)   │ │      CLOUD (Firebase)         ││
-│  │   • Offline-first     │ │   • Firestore (NoSQL)         ││
-│  │   • Real-time sync    │ │   • Firebase Auth             ││
-│  │   • Soft deletes      │ │   • Firebase Storage          ││
-│  └───────────────────────┘ └───────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
-```
+| File | Class | Description |
+|------|-------|-------------|
+| `inventory_view.dart` | `InventoryView` | Product inventory management (list, search, filter) |
+| `fast_inventory_input_view.dart` | `FastInventoryInputView` | Quick product entry with barcode/QR |
+| `fast_inventory_check_view.dart` | `FastInventoryCheckView` | Physical inventory check/verification |
+| `fast_stock_in_view.dart` | `FastStockInView` | Rapid stock-in entry |
+| `smart_stock_in_view.dart` | `SmartStockInView` | Smart stock entry with supplier integration |
+| `pending_stock_list_view.dart` | `PendingStockListView` | List pending/draft stock entries |
+| `parts_inventory_view.dart` | `PartsInventoryViewContent` | Repair parts inventory management |
+| `category_management_view.dart` | `CategoryManagementView` | Product category CRUD (multi-industry) |
+| `quick_input_codes_view.dart` | `QuickInputCodesView` | Quick input code templates |
+| `quick_input_library_view.dart` | `QuickInputLibraryView` | Library of saved quick input codes |
+| `quick_input_management_view.dart` | `QuickInputManagementView` | Manage quick input code presets |
 
-### Pattern áp dụng
-- **Service-first access**: Tất cả truy cập dữ liệu qua Service classes
-- **Offline-first**: Lưu local trước, sync lên cloud sau
-- **Multi-tenant**: Phân tách dữ liệu theo `shopId`
-- **Soft deletes**: Xóa mềm với flag `deleted: true`
-- **Event-driven updates**: EventBus để thông báo thay đổi dữ liệu
+### Customers
 
----
+| File | Class | Description |
+|------|-------|-------------|
+| `customer_management_view.dart` | `CustomerManagementView` | Customer list/search/CRUD |
+| `customer_history_view.dart` | `CustomerHistoryView` | Customer transaction history |
 
-## B3. Cấu trúc thư mục chi tiết
+### Suppliers
 
-```
-quanlyshop/
-├── 📁 android/                 # Native Android configs
-├── 📁 ios/                     # Native iOS configs
-├── 📁 web/                     # Web platform
-├── 📁 functions/               # Firebase Cloud Functions
-│   ├── index.js               # Notification triggers
-│   └── package.json
-│
-├── 📁 lib/                     # 🎯 SOURCE CODE CHÍNH
-│   ├── main.dart              # Entry point
-│   ├── firebase_options.dart  # Firebase config
-│   ├── 📁 views/              # UI Screens (80+ files)
-│   ├── 📁 services/           # Business Logic (35+ files)
-│   ├── 📁 models/             # Data Models (27 files)
-│   ├── 📁 widgets/            # Reusable Components (21 files)
-│   ├── 📁 data/               # Local Database
-│   ├── 📁 theme/              # UI Theme
-│   ├── 📁 utils/              # Utilities
-│   ├── 📁 constants/          # App Constants
-│   ├── 📁 controllers/        # State Controllers
-│   ├── 📁 core/               # Core utilities
-│   └── 📁 l10n/               # Localization
-│
-├── 📁 assets/                  # Resources (images, fonts)
-├── 📁 DOCS/                    # Documentation
-├── 📁 test/                    # Unit tests
-├── pubspec.yaml               # Dependencies
-├── firebase.json              # Firebase config
-├── firestore.rules            # Security rules
-└── firestore.indexes.json     # DB indexes
-```
+| File | Class | Description |
+|------|-------|-------------|
+| `supplier_list_view.dart` | `SupplierListView` | List all suppliers |
+| `supplier_detail_view.dart` | `SupplierDetailView` | Supplier detail with import history |
+| `supplier_details_dialog.dart` | `SupplierDetailsDialog` | Quick supplier info dialog |
+| `supplier_form_view.dart` | `SupplierFormView` | Add/edit supplier form |
+| `create_purchase_order_view.dart` | `CreatePurchaseOrderView` | Create purchase order to supplier |
+| `purchase_order_list_view.dart` | `PurchaseOrderListView` | List all purchase orders |
 
-### Views (Màn hình UI)
+### Finance
 
-#### Màn hình chính
-| File | Mô tả |
-|------|-------|
-| `main.dart` | Entry point - Khởi tạo Firebase, theme, routing |
-| `home_view.dart` | Dashboard, thống kê, menu chính |
-| `login_view.dart` | Email/Password auth |
-| `register_view.dart` | Tạo tài khoản mới |
+| File | Class | Description |
+|------|-------|-------------|
+| `revenue_view.dart` | `RevenueView` | Revenue dashboard with charts |
+| `expense_view.dart` | `ExpenseView` | Expense tracking and management |
+| `debt_view.dart` | `DebtView` | Debt management (customer/shop debts) |
+| `cash_closing_view.dart` | `CashClosingView` | Daily cash closing / reconciliation |
+| `financial_report_view.dart` | `FinancialReportView` | Comprehensive financial reports |
+| `financial_activity_log_view.dart` | `FinancialActivityLogView` | Financial activity audit trail |
+| `bank_installment_report_view.dart` | `BankInstallmentReportView` | Bank installment tracking |
+| `adjustment_history_view.dart` | `AdjustmentHistoryView` | View history of cash adjustments |
 
-#### Module Bán hàng
-| File | Mô tả |
-|------|-------|
-| `sale_list_view.dart` | Danh sách hóa đơn bán |
-| `create_sale_view.dart` | Tạo hóa đơn bán hàng mới |
-| `sale_detail_view.dart` | Xem/sửa chi tiết hóa đơn |
-| `unified_payment_page.dart` | Xử lý thanh toán đa phương thức |
+### HR & Staff
 
-#### Module Sửa chữa
-| File | Mô tả |
-|------|-------|
-| `order_list_view.dart` | Danh sách phiếu sửa chữa |
-| `create_repair_order_view.dart` | Tạo phiếu sửa chữa mới |
-| `repair_detail_view.dart` | Cập nhật trạng thái, linh kiện |
-| `repair_receipt_view.dart` | Thiết kế và in biên lai |
-| `warranty_view.dart` | Quản lý danh sách bảo hành |
+| File | Class | Description |
+|------|-------|-------------|
+| `staff_list_view.dart` | `StaffListView` | Staff roster management |
+| `staff_permissions_view.dart` | `StaffPermissionsView` | Configure staff access permissions |
+| `staff_performance_view.dart` | `StaffPerformanceView` | Staff performance metrics/KPIs |
+| `attendance_view.dart` | `AttendanceView` | Employee attendance check-in/out |
+| `attendance_management_view.dart` | `AttendanceManagementView` | Manager attendance review/approval |
+| `payroll_view.dart` | `PayrollView` | Payroll calculation and salary slips |
+| `hr_salary_settings_view.dart` | `HRSalarySettingsView` | HR salary configuration |
+| `work_schedule_settings_view.dart` | `WorkScheduleSettingsView` | Work schedule / shift configuration |
 
-#### Module Kho hàng
-| File | Mô tả |
-|------|-------|
-| `inventory_view.dart` | Danh sách sản phẩm tồn kho |
-| `stock_in_view.dart` | Nhập sản phẩm mới |
-| `smart_stock_in_view.dart` | Nhập nhanh từ QR/barcode |
-| `fast_inventory_input_view.dart` | Nhập hàng loạt |
-| `fast_inventory_check_view.dart` | Đối chiếu tồn kho |
-| `pending_stock_list_view.dart` | Sản phẩm chờ xác nhận giá |
-| `parts_inventory_view.dart` | Quản lý phụ tùng, linh kiện |
+### Printing & Labels
 
-#### Module Nhà cung cấp
-| File | Mô tả |
-|------|-------|
-| `supplier_list_view.dart` | Danh sách nhà cung cấp |
-| `supplier_form_view.dart` | Form nhập liệu NCC |
-| `supplier_detail_view.dart` | Lịch sử giao dịch |
-| `purchase_order_list_view.dart` | Danh sách đơn nhập hàng |
-| `create_purchase_order_view.dart` | Tạo đơn nhập hàng mới |
+| File | Class | Description |
+|------|-------|-------------|
+| `printer_settings_view.dart` | `PrinterSettingsView` | Printer setup (Bluetooth/WiFi) |
+| `printer_setting_view.dart` | `PrinterSettingView` | Individual printer configuration |
+| `thermal_printer_design_view.dart` | `ThermalPrinterDesignView` | Design thermal print layouts |
+| `label_designer_view.dart` | `LabelDesignerView` | Drag-and-drop label designer |
+| `label_settings_view.dart` | `LabelSettingsView` | Label template settings |
+| `imei_qr_print_view.dart` | `ImeiQrPrintView` | Print IMEI/QR labels |
+| `imei_qr_printer_view.dart` | `ImeiQrPrinterView` | IMEI/QR code printer interface |
+| `pty_print_designer_view.dart` | `PtyPrintDesignerView` | Property label print designer |
+| `invoice_template_view.dart` | `InvoiceTemplateView` | Invoice template customization |
 
-#### Module Khách hàng
-| File | Mô tả |
-|------|-------|
-| `customer_view.dart` | Danh sách khách hàng |
-| `customer_management_view.dart` | Thông tin chi tiết khách |
-| `customer_history_view.dart` | Lịch sử mua hàng/sửa chữa |
+### Communication
 
-#### Module Tài chính
-| File | Mô tả |
-|------|-------|
-| `revenue_view.dart` | Thống kê doanh thu |
-| `expense_view.dart` | Quản lý chi phí (hỗ trợ embedded mode) |
-| `debt_view.dart` | Quản lý nợ khách/NCC |
-| `cash_closing_view.dart` | Kiểm kê tiền cuối ngày |
-| `financial_report_view.dart` | Báo cáo tài chính tổng hợp (hỗ trợ embedded mode) |
-| `financial_activity_log_view.dart` | Log hoạt động tài chính (hỗ trợ embedded mode) |
-| `bank_installment_report_view.dart` | Báo cáo trả góp ngân hàng (hỗ trợ embedded mode) |
-| **`financial_hub_view.dart`** | **⭐ Trang tổng hợp tài chính - gộp 4 view trên vào 1 TabBar** |
-| `pending_payments_list_view.dart` | Trung tâm thanh toán |
-| `unified_payment_page.dart` | Trang thực hiện thanh toán (DO NOT MODIFY) |
+| File | Class | Description |
+|------|-------|-------------|
+| `advanced_chat_view.dart` | `AdvancedChatView` | In-shop team chat with reactions/pins |
+| `notifications_view.dart` | `NotificationsView` | Notification center |
+| `notification_settings_view.dart` | `NotificationSettingsView` | Configure notification preferences |
 
-#### Module Nhân sự
-| File | Mô tả |
-|------|-------|
-| `staff_list_view.dart` | Danh sách nhân viên |
-| `staff_permissions_view.dart` | Cấp quyền cho nhân viên |
-| `staff_performance_view.dart` | Đánh giá hiệu suất NV |
-| `attendance_view.dart` | Điểm danh hàng ngày |
-| `attendance_management_view.dart` | Xem/duyệt chấm công |
-| `payroll_view.dart` | Tính lương nhân viên |
-| `payroll_settings_view.dart` | Thiết lập công thức lương |
-| `hr_salary_settings_view.dart` | Cấu hình HR toàn cục |
-| `work_schedule_settings_view.dart` | Thiết lập lịch làm việc |
+### Search & QR
 
-#### Module Cài đặt & Hệ thống
-| File | Mô tả |
-|------|-------|
-| `settings_view.dart` | Menu cài đặt chung |
-| `shop_settings_view.dart` | Thông tin cửa hàng |
-| `shop_selector_view.dart` | Super admin chọn shop |
-| `printer_setting_view.dart` | Cấu hình máy in |
-| `notification_settings_view.dart` | Cài đặt thông báo |
-| `invoice_template_view.dart` | Thiết kế template in |
-| `super_admin_view.dart` | Quản trị hệ thống |
-| `audit_log_view.dart` | Log hoạt động hệ thống |
+| File | Class | Description |
+|------|-------|-------------|
+| `global_search_view.dart` | `GlobalSearchView` | Cross-module search |
+| `global_search_results_view.dart` | `GlobalSearchResultsView` | Search results display |
+| `qr_scan_view.dart` | `QrScanView` | QR/barcode scanner |
 
-#### Module Tiện ích
-| File | Mô tả |
-|------|-------|
-| `qr_scan_view.dart` | Quét mã QR/barcode |
-| `global_search_view.dart` | Tìm kiếm toàn cục |
-| `chat_view.dart` | Trò chuyện nội bộ |
-| `notifications_view.dart` | Xem danh sách thông báo |
+### Audit
 
-### Services (Business Logic)
+| File | Class | Description |
+|------|-------|-------------|
+| `audit_log_view.dart` | `AuditLogView` | View immutable audit logs |
 
-#### Services cốt lõi
-| File | Chức năng chính |
-|------|-----------------|
-| `firestore_service.dart` | Tất cả operations với Cloud Firestore |
-| `user_service.dart` | Auth, role, permissions, shopId |
-| `sync_service.dart` | Real-time sync Firestore ↔ SQLite |
-| `sync_orchestrator.dart` | Quản lý queue đồng bộ local → cloud |
-| `notification_service.dart` | Push notifications, in-app alerts |
+### Sub-folder: `views/hr/`
 
-#### Services tài chính
-| File | Chức năng chính |
-|------|-----------------|
-| `money_transaction_service.dart` | Xử lý các giao dịch tài chính |
-| `money_validation_service.dart` | Kiểm tra hợp lệ số tiền |
-| `payment_intent_service.dart` | Quản lý thanh toán pending |
-| `financial_activity_service.dart` | Ghi nhận hoạt động tài chính |
-| `salary_calculation_service.dart` | Công thức tính lương nhân viên |
+| File | Class | Description |
+|------|-------|-------------|
+| `shop_deduction_settings_view.dart` | `ShopDeductionSettingsView` | Shop-level salary deduction/insurance/tax settings |
+| `add_custom_adjustment_dialog.dart` | `AddCustomAdjustmentDialog` | Dialog to add custom salary bonus/deduction |
 
-#### Services nghiệp vụ
-| File | Chức năng chính |
-|------|-----------------|
-| `customer_service.dart` | CRUD khách hàng |
-| `supplier_service.dart` | CRUD NCC, lịch sử nhập |
-| `supplier_payment_service.dart` | Xử lý thanh toán cho NCC |
-| `repair_partner_service.dart` | Quản lý đối tác sửa chữa |
-| `stock_entry_service.dart` | Xử lý nghiệp vụ nhập kho |
+### Sub-folder: `views/fashion/`
 
-#### Services tiện ích
-| File | Chức năng chính |
-|------|-----------------|
-| `bluetooth_printer_service.dart` | In qua máy in Bluetooth |
-| `wifi_printer_service.dart` | In qua máy in mạng |
-| `unified_printer_service.dart` | API thống nhất cho in ấn |
-| `chat_service.dart` | Xử lý tin nhắn nội bộ |
-| `storage_service.dart` | Upload/download Firebase Storage |
-| `encryption_service.dart` | Mã hóa dữ liệu nhạy cảm |
-| `connectivity_service.dart` | Kiểm tra trạng thái mạng |
-| `audit_service.dart` | Ghi nhật ký hoạt động |
+| File | Class | Description |
+|------|-------|-------------|
+| `variant_management_view.dart` | `VariantManagementView` | Product variant (size/color) management for fashion shops |
 
-### Models (Data Models)
+### Sub-folder: `views/food/`
 
-#### Models chính
-| File | Class | Mô tả |
-|------|-------|-------|
-| `repair_model.dart` | `Repair` | Phiếu sửa chữa |
-| `product_model.dart` | `Product` | Sản phẩm trong kho |
-| `sale_order_model.dart` | `SaleOrder` | Đơn hàng bán |
-| `customer_model.dart` | `Customer` | Thông tin khách hàng |
-| `expense_model.dart` | `Expense` | Chi phí |
-| `debt_model.dart` | `Debt` | Công nợ |
-| `attendance_model.dart` | `Attendance` | Chấm công |
+| File | Class | Description |
+|------|-------|-------------|
+| `expiry_management_view.dart` | `ExpiryManagementView` | Product expiry date tracking for food shops |
 
-#### Models phụ trợ
-| File | Class | Mô tả |
-|------|-------|-------|
-| `purchase_order_model.dart` | `PurchaseOrder` | Đơn nhập hàng |
-| `supplier_model.dart` | `Supplier` | Nhà cung cấp |
-| `stock_entry_model.dart` | `StockEntry` | Phiếu nhập kho |
-| `repair_partner_model.dart` | `RepairPartner` | Đối tác sửa chữa |
-| `financial_activity_model.dart` | `FinancialActivity` | Hoạt động tài chính |
-| `payment_intent_model.dart` | `PaymentIntent` | Dự định thanh toán |
-| `employee_salary_model.dart` | `EmployeeSalary` | Lương nhân viên |
+### Sub-folder: `views/onboarding/`
 
-### Widgets (UI Components)
-
-| File | Mô tả |
-|------|-------|
-| `unified_sync_button.dart` | Nút sync thống nhất |
-| `notification_badge.dart` | Badge số thông báo |
-| `currency_text_field.dart` | Input tiền tệ |
-| `validated_text_field.dart` | Input có validation |
-| `debounced_search_field.dart` | Ô tìm kiếm có debounce |
-| `gradient_fab.dart` | FAB với gradient |
-| `loading_intro_screen.dart` | Màn hình loading animation |
-| `perpetual_calendar.dart` | Lịch vạn niên |
-| `lazy_load_list_view.dart` | List load lazy |
-| `parts_selection_dialog.dart` | Dialog chọn linh kiện |
-
-### Theme (Giao diện)
-
-**Màu chính:**
-```dart
-primary: Color(0xFF6A1B9A)      // Tím đậm
-secondary: Color(0xFF9C27B0)    // Tím nhạt
-background: Color(0xFFF0F4F8)   // Xám xanh nhạt
-surface: Colors.white
-error: Colors.red
-success: Colors.green
-warning: Colors.orange
-info: Colors.blue
-```
-
-### Constants
-
-| File | Mô tả |
-|------|-------|
-| `financial_constants.dart` | Hằng số tài chính (thuế, phí...) |
-| `product_constants.dart` | Hằng số sản phẩm (loại, trạng thái...) |
-| `partner_constants.dart` | Hằng số đối tác |
-
-### Utils
-
-| File | Functions chính |
-|------|-----------------|
-| `money_utils.dart` | `formatVND()`, `parseAmount()` |
-| `imei_extractor.dart` | `extractIMEI()` |
-| `qr_parser.dart` | `parseQRCode()` |
-| `sku_generator.dart` | `generateSKU()` |
-| `repair_status_validator.dart` | `validateStatusChange()` |
-| `debouncer.dart` | `Debouncer.run()` |
+| File | Class | Description |
+|------|-------|-------------|
+| `business_type_wizard.dart` | `BusinessTypeWizard` | Multi-industry setup wizard (electronics/fashion/food) |
 
 ---
 
-## B4. Database Schema
+## 3. Models (lib/models/)
 
-### Bảng repairs (Phiếu sửa chữa)
-```sql
-CREATE TABLE repairs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  firestoreId TEXT UNIQUE,
-  customerName TEXT,
-  phone TEXT,
-  model TEXT,
-  issue TEXT,
-  accessories TEXT,
-  address TEXT,
-  imagePath TEXT,
-  deliveredImage TEXT,
-  warranty TEXT,
-  partsUsed TEXT,
-  status INTEGER,           -- 1: Đang sửa, 2: Chờ LK, 3: Hoàn thành, 4: Đã trả
-  price INTEGER,
-  cost INTEGER,
-  paymentMethod TEXT,
-  createdAt INTEGER,
-  startedAt INTEGER,
-  finishedAt INTEGER,
-  deliveredAt INTEGER,
-  createdBy TEXT,
-  repairedBy TEXT,
-  deliveredBy TEXT,
-  isSynced INTEGER DEFAULT 0,
-  deleted INTEGER DEFAULT 0,
-  color TEXT,
-  imei TEXT,
-  condition TEXT,
-  services TEXT,
-  notes TEXT,
-  pendingDeliveryApproval INTEGER DEFAULT 0
-);
-```
-
-### Bảng products (Sản phẩm)
-```sql
-CREATE TABLE products (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  firestoreId TEXT UNIQUE,
-  name TEXT,
-  brand TEXT,
-  imei TEXT,
-  cost INTEGER,
-  price INTEGER,
-  condition TEXT,
-  status INTEGER DEFAULT 1,
-  description TEXT,
-  images TEXT,
-  warranty TEXT,
-  createdAt INTEGER,
-  supplier TEXT,
-  type TEXT DEFAULT 'DIEN_THOAI',  -- DIEN_THOAI, PHU_KIEN, LINH_KIEN
-  quantity INTEGER DEFAULT 1,
-  color TEXT,
-  isSynced INTEGER DEFAULT 0,
-  capacity TEXT,
-  paymentMethod TEXT,
-  isPending INTEGER DEFAULT 0,
-  pendingSupplier TEXT
-);
-```
-
-### Bảng sales (Đơn bán)
-```sql
-CREATE TABLE sales (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  firestoreId TEXT UNIQUE,
-  customerName TEXT,
-  phone TEXT,
-  address TEXT,
-  productNames TEXT,
-  productImeis TEXT,
-  totalPrice INTEGER,
-  totalCost INTEGER,
-  discount INTEGER DEFAULT 0,
-  paymentMethod TEXT,
-  sellerName TEXT,
-  soldAt INTEGER,
-  notes TEXT,
-  gifts TEXT,
-  isInstallment INTEGER DEFAULT 0,
-  downPayment INTEGER DEFAULT 0,
-  downPaymentMethod TEXT,
-  loanAmount INTEGER DEFAULT 0,
-  installmentTerm TEXT,
-  bankName TEXT,
-  bankName2 TEXT,
-  loanAmount2 INTEGER DEFAULT 0,
-  warranty TEXT,
-  settlementPlannedAt INTEGER,
-  settlementReceivedAt INTEGER,
-  settlementAmount INTEGER DEFAULT 0,
-  settlementFee INTEGER DEFAULT 0,
-  settlementNote TEXT,
-  settlementCode TEXT,
-  isSynced INTEGER DEFAULT 0
-);
-```
-
-### Tất cả các bảng SQLite
-
-| Bảng | Mô tả | Số cột |
-|------|-------|--------|
-| `repairs` | Phiếu sửa chữa | 35+ |
-| `products` | Sản phẩm | 25+ |
-| `sales` | Đơn bán | 30+ |
-| `customers` | Khách hàng | 15+ |
-| `suppliers` | Nhà cung cấp | 15+ |
-| `expenses` | Chi phí | 12+ |
-| `debts` | Công nợ | 15+ |
-| `attendance` | Chấm công | 20+ |
-| `audit_logs` | Nhật ký | 15+ |
-| `inventory_checks` | Kiểm kho | 8+ |
-| `purchase_orders` | Đơn nhập | 20+ |
-| `purchase_order_items` | Chi tiết đơn nhập | 15+ |
-| `supplier_payments` | Thanh toán NCC | 15+ |
-| `repair_partners` | Đối tác sửa | 15+ |
-| `partner_repair_history` | Lịch sử đối tác | 12+ |
-| `repair_partner_payments` | Thanh toán đối tác | 12+ |
-| `quick_input_codes` | Mã nhập nhanh | 10+ |
-| `financial_activities` | Hoạt động TC | 12+ |
-| `payment_intents` | Dự định TT | 15+ |
-| `stock_entries` | Phiếu nhập | 12+ |
-| `stock_entry_items` | Chi tiết nhập | 10+ |
+| File | Class | Key Fields |
+|------|-------|------------|
+| `repair_model.dart` | `Repair` | customerName, phone, model, issue, status (1-4), price, cost, paymentMethod, partsUsed, createdAt, repairedBy, warranty, imei, services |
+| `product_model.dart` | `Product` | name, brand, model, imei, cost, price, condition, quantity, type (DIEN_THOAI/PHU_KIEN/LINH_KIEN/QUAN_AO/GIAY_DEP), category, expiryDate, batchNumber |
+| `sale_order_model.dart` | `SaleOrder` | customerName, productNames, productImeis, totalPrice, totalCost, discount, paymentMethod, isInstallment, downPayment, installmentMonths |
+| `customer_model.dart` | `Customer` | name, phone, email, address, totalSpent, totalRepairs |
+| `debt_model.dart` | `Debt` | personName, totalAmount, paidAmount, type (CUSTOMER_OWES/SHOP_OWES), status (ACTIVE/PAID/CANCELLED), linkedId |
+| `expense_model.dart` | `Expense` | title, amount, category, date, paymentMethod, type (CHI) |
+| `attendance_model.dart` | `Attendance` | userId, dateKey, checkInAt, checkOutAt, overtimeOn, status (pending/approved/rejected), isLate, isEarlyLeave |
+| `supplier_model.dart` | `Supplier` | name, phone, email, address, active, favorite, importCount, totalAmount |
+| `supplier_payment_model.dart` | `SupplierPayment` | supplierId, amount, paidAt, paymentMethod |
+| `supplier_import_history_model.dart` | `SupplierImportHistory` | supplierId, batchId, importDate, totalQuantity, totalCost |
+| `supplier_product_prices_model.dart` | `SupplierProductPrices` | supplierId, productId, costPrice, sellingPrice, quantity, remainingQuantity |
+| `purchase_order_model.dart` | `PurchaseOrder` / `PurchaseItem` | orderCode, supplierName, items[], totalAmount, status (PENDING/CONFIRMED) |
+| `repair_partner_model.dart` | `RepairPartner` | name, phone, note, active |
+| `repair_partner_payment_model.dart` | `RepairPartnerPayment` | partnerId, amount, paidAt, paymentMethod |
+| `partner_repair_history_model.dart` | `PartnerRepairHistory` | repairOrderId, partnerId, customerName, deviceModel, partnerCost |
+| `employee_salary_model.dart` | `EmployeeSalarySettings` | staffId, baseSalary, dailyRate, salaryType (monthly/daily/hourly), saleCommType, saleCommValue, repairCommType, repairCommValue, transportAllowance, mealAllowance, monthlyTarget, overtimeRate |
+| `salary_breakdown_model.dart` | `SalaryBreakdown` | staffId, workDays, totalWorkHours, overtimeHours, lateDays, saleOrderCount, saleRevenue, baseSalary, calculatedSaleComm, calculatedRepairComm, socialInsurance, healthInsurance, personalIncomeTax, totalSalary |
+| `shop_deduction_settings.dart` | `ShopDeductionSettings` | enableLateDeduction, lateDeductionPerTime, enablePIT, pitDeductionSelf, enableSocialInsurance, socialInsuranceRate, enableHealthInsurance, healthInsuranceRate, insuranceBaseSalary |
+| `payment_intent_model.dart` | `PaymentIntent` | intentId, type, amount, status, metadata — payment pipeline |
+| `financial_activity_model.dart` | `FinancialActivity` | type, amount, relatedType, relatedId — financial ledger entries |
+| `product_category_model.dart` | `ProductCategory` | name, parentId, trackExpiry, trackSerial, hasVariants, hasWarranty, defaultWarrantyDays, customFields, sortOrder |
+| `product_variant_model.dart` | `ProductVariant` | productId, sku, size, color, colorCode, material, style, costPrice, salePrice, quantity, barcode |
+| `shop_settings_model.dart` | `ShopSettings` | businessType (electronics/fashion/food), enableRepair, enableExpiry, enableVariants, enableSerial, enableWarranty, enableBatch, defaultUnit, expiryWarningDays |
+| `stock_entry_model.dart` | `StockEntry` / `StockEntryItem` | items[], status (draft/confirmed/cancelled), name, quantity, cost, imei, brand, model, sku, size, productType |
+| `chat_message_model.dart` | `ChatMessage` | message, senderId, reactions, isPinned, linkedType |
+| `inventory_check_model.dart` | `InventoryCheck` | type, checkDate, itemsJson, status, isCompleted |
+| `inventory_zone_model.dart` | `InventoryZone` | name, expectedProductCodes, scannedCounts |
+| `label_template_model.dart` | `LabelTemplate` | name, type, size, fields, shopInfo, cpkFormula, isDefault |
+| `quick_input_code_model.dart` | `QuickInputCode` | code, name, type, brand, model, capacity, cost, price |
+| `repair_service_model.dart` | `RepairService` | service definition for repair orders |
+| `printer_types.dart` | *(enums)* | Printer type enums (Bluetooth/WiFi) |
 
 ---
 
-## B5. Luồng dữ liệu
+## 4. Services (lib/services/)
 
-### Luồng Đồng bộ (Sync Flow)
+### Authentication & User Management
 
-```
-┌─────────────┐     Real-time      ┌─────────────┐
-│   FIRESTORE │ ◀──────────────▶  │   SQLite    │
-│   (Cloud)   │    Listener        │   (Local)   │
-└─────────────┘                    └─────────────┘
-       │                                  │
-       ▼                                  ▼
-┌─────────────────────────────────────────────────┐
-│                 SyncService                      │
-│  • initRealTimeSync() - Subscribe to changes    │
-│  • _handleFirestoreChanges() - Update local     │
-│  • Soft delete handling (deleted: true)         │
-└─────────────────────────────────────────────────┘
-       │                                  │
-       ▼                                  ▼
-┌─────────────────────────────────────────────────┐
-│              SyncOrchestrator                    │
-│  • enqueue() - Queue local changes              │
-│  • processBatch() - Push to Firestore           │
-│  • Retry on failure                             │
-└─────────────────────────────────────────────────┘
-```
+| File | Class | Key Methods |
+|------|-------|-------------|
+| `user_service.dart` | `UserService` | `syncUserInfo()`, `getUserRole()`, `getCurrentShopId()`, `ensureShopId()`, `isCurrentUserSuperAdmin()`, `validatePhone()`, `validateName()`, `clearCache()` |
+| `claims_service.dart` | `ClaimsService` | `getRoleFromClaims()`, `getShopIdFromClaims()`, `isSuperAdmin()`, `isOwner()`, `forceRefresh()`, `startClaimsSync()` |
+| `current_shop_service.dart` | `CurrentShopService` | `init()`, `getActiveShopId()`, `hasMultipleShops()`, `switchShop()`, `clearActiveShop()` |
 
-### Backbone Đồng bộ
+### Firestore & Sync
 
-**Quy tắc then chốt:**
-- **shopId là "hàng rào dữ liệu"**: listener/query đều filter theo shopId; super admin phải chọn shop trước.
-- **Xung đột ưu tiên local pending**: local chưa sync mà "mới hơn" cloud → **không ghi đè local**, mà **enqueue** để đẩy lên cloud.
-- **Soft delete**: Firestore `deleted: true` → local xoá/đánh dấu xoá tương ứng.
-- **SQLite không nhận Timestamp**: tất cả `Timestamp` phải convert sang milliseconds trước khi upsert.
+| File | Class | Key Methods |
+|------|-------|-------------|
+| `firestore_service.dart` | `FirestoreService` | `addRepair()`, `addSale()`, `addProduct()`, `addPurchaseOrder()`, `upsertRepair()`, `deleteRepair()`, `updateSaleCloud()` — all Firestore CRUD with shopId filtering |
+| `sync_service.dart` | `SyncService` | `initRealTimeSync()`, `downloadAllFromCloud()`, `cancelAllSubscriptions()` — real-time Firestore→SQLite sync |
+| `sync_orchestrator.dart` | `SyncOrchestrator` | `init()`, `enqueue()`, `syncAll()` — local→cloud sync queue |
+| `sync_health_check.dart` | `SyncHealthCheck` | `runFullCheck()`, `autoFix()` — data consistency checker |
+| `sync_control.dart` | *(sync flags)* | Sync control utilities |
+| `connectivity_service.dart` | `ConnectivityService` | `initialize()`, `testConnection()`, `manualSync()` — network state management |
 
-### Backbone Dòng tiền
+### Business Operations
 
-**Quy tắc then chốt:**
-- **Không "tính/validate rải rác"**: validation phải tập trung ở `MoneyValidationService`.
-- **Không "thu/chi trực tiếp" từ module**: thực thi thanh toán phải đi qua `PaymentIntentService` (intent chỉ execute 1 lần).
-- **Sổ cái append-only**: `MoneyTransactionService` chỉ ghi thêm, không update/delete.
-- **Chốt quỹ là "cổng chặn"**: nếu ngày bị khoá thì app chặn giao dịch và thông báo rõ.
+| File | Class | Key Methods |
+|------|-------|-------------|
+| `customer_service.dart` | `CustomerService` | `getCustomers()`, `addCustomer()`, `searchCustomers()`, `getCustomerByPhone()`, `updateCustomerStatsAfterSale()` |
+| `supplier_service.dart` | `SupplierService` | `getSuppliers()`, `addSupplier()`, `getSupplierImportHistory()`, `getSupplierProductPrices()` |
+| `supplier_payment_service.dart` | `SupplierPaymentService` | `getSupplierPayments()`, `addSupplierPayment()` |
+| `repair_partner_service.dart` | `RepairPartnerService` | `getRepairPartners()`, `addRepairPartner()`, `addPartnerRepairHistory()`, `createPartnerHistoryForRepair()` |
+| `repair_partner_payment_service.dart` | `RepairPartnerPaymentService` | `getPartnerPayments()`, `addPartnerPayment()` |
+| `stock_entry_service.dart` | `StockEntryService` | `createEntry()`, `confirmEntry()`, `cancelEntry()`, `getPendingEntries()`, `getPendingCount()` |
+| `category_service.dart` | `CategoryService` | `getShopSettings()`, `saveShopSettings()`, `getCategories()`, `addCategory()` |
+| `variant_service.dart` | `VariantService` | `createVariant()`, `updateVariant()`, `getVariantsByProduct()`, `getVariantByBarcode()`, `updateQuantity()` |
+| `expiry_alert_service.dart` | `ExpiryAlertService` | `getExpiredProducts()`, `getNearExpiryProducts()`, `getExpiryStats()`, `checkAndNotifyExpiry()` |
+| `business_type_helper.dart` | `BusinessTypeHelper` | `getSettings()`, `isElectronics()`, `isFood()`, `isFashion()`, `isRepairEnabled()`, `isExpiryEnabled()` |
+| `chat_service.dart` | `ChatService` | `sendTextMessage()`, `sendImageMessage()`, `addReaction()`, `editMessage()`, `pinMessage()` |
 
-### Luồng Tạo đơn sửa chữa
+### Finance
 
-```
-User tạo đơn → CreateRepairView → UserService (validate) → DBHelper (insert SQLite)
-→ FirestoreService (add Firestore) → NotificationService (push to team)
-```
+| File | Class | Key Methods |
+|------|-------|-------------|
+| `payment_intent_service.dart` | `PaymentIntentService` | `initialize()`, `createIntent()`, `getPendingIntents()`, `getAllIntents()` — centralized payment flow |
+| `financial_activity_service.dart` | `FinancialActivityService` | `logSale()`, `logExpense()`, `logPurchase()`, `logDebtCollection()`, `logRepair()` — financial ledger |
+| `money_transaction_service.dart` | `MoneyTransactionService` | `appendLedger()`, `getLedgerEntries()` |
+| `money_validation_service.dart` | `MoneyValidationService` | `validateAmount()`, `validateSale()`, `validateDebtPayment()`, `validateStockChange()` |
+| `adjustment_service.dart` | `AdjustmentService` | `getLockedDateKey()`, `canEditDirectly()`, `adjustPartCost()`, `adjustPayment()`, `paySupplierDebt()` |
+| `cash_closing_notifier.dart` | `CashClosingNotifier` | `init()`, `isDateLocked()`, `canPerformTransaction()` — real-time cash closing status |
+| `salary_calculation_service.dart` | `SalaryCalculationService` | `calculateMonthlySalary()`, `calculateAllStaffSalaries()`, `getShopDeductionSettings()`, `saveShopDeductionSettings()`, `getCustomAdjustments()` |
+| `salary_slip_pdf_service.dart` | `SalarySlipPdfService` | `generateSalarySlipPdf()`, `printSalarySlipThermal()`, `shareSalarySlip()`, `generateAllStaffSalaryPdf()` |
 
-### Luồng Bán hàng
+### Printing
 
-```
-User tạo đơn → CreateSaleView → Chọn SP (từ kho/QR) → UnifiedPaymentPage
-→ Cập nhật tồn kho → Tạo công nợ (nếu trả góp) → In hóa đơn
-```
+| File | Class | Key Methods |
+|------|-------|-------------|
+| `bluetooth_printer_service.dart` | `BluetoothPrinterService` | `connect()`, `disconnect()`, `getPairedPrinters()`, `printBytes()` |
+| `wifi_printer_service.dart` | `WifiPrinterService` | `connect()`, `printBytes()`, `disconnect()` |
+| `thermal_printer_service.dart` | `ThermalPrinterService` | `printDeviceLabel()`, `printDeviceLabelWifi()`, `testConnection()` |
+| `unified_printer_service.dart` | `UnifiedPrinterService` | Unified print API with template support |
+| `label_settings_service.dart` | `LabelSettingsService` | `getTemplates()`, `getDefaultTemplate()`, `addCustomTemplate()` |
 
----
+### Infrastructure
 
-## B6. Hệ thống phân quyền
-
-### Các vai trò
-| Role | Mô tả | Quyền hạn |
-|------|-------|-----------|
-| `super_admin` | Quản trị viên hệ thống | Toàn quyền, xem tất cả shops |
-| `owner` | Chủ cửa hàng | Toàn quyền trong shop của mình |
-| `admin` | Quản lý | Gần như owner, một số hạn chế |
-| `staff` | Nhân viên | Theo quyền được cấp |
-
-### Các quyền chi tiết
-```dart
-// Quyền xem
-allowViewRepairs, allowViewSales, allowViewInventory,
-allowViewRevenue, allowViewExpenses, allowViewDebts,
-allowViewWarranty, allowViewCustomers, allowViewSuppliers
-
-// Quyền tạo/sửa
-allowCreateRepair, allowUpdateRepair, allowCreateSale,
-allowAddProduct, allowEditProduct, allowDeleteProduct, allowAddExpense
-
-// Quyền quản lý
-allowManageStaff, allowManageSettings, allowApproveDelivery,
-allowPrint, allowExport
-```
-
-### Cơ chế kiểm tra quyền
-```dart
-final permissions = await UserService.getCurrentUserPermissions();
-if (permissions['allowViewRevenue'] == true) {
-  // Cho phép xem doanh thu
-}
-if (UserService.isCurrentUserSuperAdmin()) {
-  // Bypass tất cả quyền
-}
-```
+| File | Class | Key Methods |
+|------|-------|-------------|
+| `notification_service.dart` | `NotificationService` | `init()`, `listenToNotifications()`, `refreshFCMToken()`, `showSnackBar()`, `handleBackgroundMessage()` |
+| `audit_service.dart` | `AuditService` | `logAction()` — immutable action logging |
+| `encryption_service.dart` | `EncryptionService` | `init()`, `encrypt()`, `decrypt()` |
+| `storage_service.dart` | `StorageService` | `uploadAndGetUrl()`, `uploadMultipleImages()` — Firebase Storage |
+| `logging_service.dart` | `LoggingService` | `log()`, `logError()` |
+| `event_bus.dart` | `EventBus` | `emit()`, `on()`, `off()` — in-app event system |
+| `data_migration_service.dart` | `DataMigrationService` | `findOrphanData()`, `findAllOrphanData()` |
+| `shop_deletion_service.dart` | `ShopDeletionService` | `deleteShopSafe()`, `canDeleteShop()` |
+| `first_time_guide_service.dart` | `FirstTimeGuideService` | `hasShownGuide()`, `showGuideIfNeeded()`, `showCarouselGuide()` |
 
 ---
 
-## B7. Các tính năng chính
+## 5. Widgets (lib/widgets/)
 
-### Bán hàng
-- ✅ Tạo đơn bán nhanh, quét QR/barcode
-- ✅ Thanh toán đa phương thức (tiền mặt, chuyển khoản, trả góp)
-- ✅ Trả góp qua ngân hàng (hỗ trợ 2 ngân hàng)
-- ✅ In hóa đơn nhiệt, ghi nhận bảo hành
-
-### Sửa chữa
-- ✅ Tiếp nhận máy sửa với ảnh
-- ✅ Workflow trạng thái (Đang sửa → Chờ LK → Hoàn thành → Đã trả)
-- ✅ Ghi nhận linh kiện, phân công thợ, duyệt trả máy, in phiếu biên nhận
-
-### Kho hàng
-- ✅ Quản lý tồn kho theo IMEI, nhập hàng từ NCC
-- ✅ Kho tạm (sản phẩm chờ giá), nhập nhanh từ QR/barcode, kiểm kê kho
-
-### Tài chính
-- ✅ Thống kê doanh thu, quản lý chi phí, quản lý công nợ
-- ✅ Chốt quỹ cuối ngày, báo cáo tài chính tổng hợp, log hoạt động
-
-### Nhân sự
-- ✅ Quản lý nhân viên, phân quyền chi tiết
-- ✅ Chấm công (check in/out với ảnh), tính lương tự động
-
-### Hệ thống
-- ✅ Đồng bộ real-time (offline-first), Push notifications
-- ✅ Chat nội bộ, tìm kiếm toàn cục, đa ngôn ngữ (vi/en)
-- ✅ In hóa đơn Bluetooth/WiFi
-
----
-
----
-
-# PHẦN C: HỆ THỐNG THANH TOÁN
+| File | Class | Description |
+|------|-------|-------------|
+| `app_ui_helpers.dart` | `AppUIHelpers` | Common UI helper methods |
+| `currency_text_field.dart` | `CurrencyTextField` | Money input with VNĐ formatting |
+| `custom_app_bar.dart` | `CustomAppBar` | Branded app bar with standard styling |
+| `debounced_search_field.dart` | `DebouncedSearchField` | Search input with debounce |
+| `dynamic_form_builder.dart` | `DynamicFormBuilder` | Dynamically generate forms from config |
+| `expiry_badge.dart` | `ExpiryBadge` | Color-coded expiry status badge |
+| `global_search_bar.dart` | `GlobalSearchBar` | Top-level search bar widget |
+| `gradient_fab.dart` | `GradientFAB` | Floating action button with gradient |
+| `imei_scan_result_dialog.dart` | `ImeiScanResultDialog` | Dialog showing IMEI scan results |
+| `lazy_load_list_view.dart` | `LazyLoadListView` | Paginated list with infinite scroll |
+| `loading_intro_screen.dart` | `LoadingIntroScreen` | Animated loading screen during sync |
+| `notification_badge.dart` | `NotificationBadge` | Badge showing unread notification count |
+| `notification_item.dart` | `NotificationItem` | Individual notification list item |
+| `parts_selection_dialog.dart` | `PartsSelectionDialog` | Dialog for selecting repair parts |
+| `pending_stock_widget.dart` | `PendingStockWidget` | Badge/indicator for pending stock entries |
+| `pending_sync_indicator.dart` | `PendingSyncIndicator` | Shows pending sync count |
+| `perpetual_calendar.dart` | `PerpetualCalendar` | Calendar widget for date selection |
+| `printer_selection_dialog.dart` | `PrinterSelectionDialog` | Dialog to choose printer |
+| `print_label_dialog.dart` | `PrintLabelDialog` | Dialog for print label options |
+| `print_label_dialog_v2.dart` | `PrintLabelDialogV2` | Updated label print dialog |
+| `safe_stream_builder.dart` | `SafeStreamBuilder` | StreamBuilder with error handling |
+| `section_card.dart` | `SectionCard` | Styled card for section grouping |
+| `shop_switcher_widget.dart` | `ShopSwitcherWidget` | Multi-shop switcher dropdown |
+| `simple_sync_indicator.dart` | `SimpleSyncIndicator` | Minimal sync status indicator |
+| `sync_status_widget.dart` | `SyncStatusWidget` | Detailed sync status display |
+| `unified_sync_button.dart` | `UnifiedSyncButton` | One-tap sync/refresh button |
+| `validated_text_field.dart` | `ValidatedTextField` | Text field with built-in validation |
+| `variant_selector.dart` | `VariantSelector` | Size/color variant picker (fashion) |
 
 ---
 
-## C1. Unified Payment System
+## 6. Data Layer (lib/data/)
 
-> Nguồn gốc: `DOCS/UNIFIED_PAYMENT_GUIDE.md`
-
-### Tổng quan
-
-Hệ thống thanh toán tập trung đảm bảo **TẤT CẢ** các giao dịch tài chính đều đi qua một luồng duy nhất.
-
-### Luồng xử lý
-
-```
-[Business Module] → PaymentIntentService (PENDING) → PendingPaymentsListView
-→ UnifiedPaymentPage (chọn PTTT) → MoneyTransactionService.appendLedger() (ghi sổ)
-```
-
-### Các tab trên trang Thanh Toán
-
-| Tab | Mô tả | Màu |
-|-----|-------|-----|
-| **CHỜ THU** | Tiền khách cần trả cho shop | Xanh dương 🔵 |
-| **CHỜ CHI** | Tiền shop cần trả (NCC, chi phí) | Cam 🟠 |
-| **LỊCH SỬ** | Giao dịch đã hoàn thành/hủy | Xám/Xanh lá |
-
-### Các loại PaymentIntent
-
-| Type | Mô tả | Hướng tiền |
-|------|-------|-----------|
-| `supplierDebt` | Trả nợ NCC | CHI ⬆️ |
-| `supplierPurchase` | Thanh toán nhập hàng | CHI ⬆️ |
-| `customerDebtCollection` | Thu nợ khách | THU ⬇️ |
-| `customerRefund` | Hoàn tiền khách | CHI ⬆️ |
-| `repairService` | Thanh toán sửa chữa | THU ⬇️ |
-| `repairPartnerDebt` | Trả nợ đối tác SC | CHI ⬆️ |
-| `salePayment` | Thanh toán bán hàng | THU ⬇️ |
-| `saleInstallment` | Thanh toán trả góp | THU ⬇️ |
-| `inventoryPurchase` | Thanh toán nhập kho | CHI ⬆️ |
-| `partsStockIn` | Thanh toán nhập LK | CHI ⬆️ |
-| `operatingExpense` | Chi phí vận hành | CHI ⬆️ |
-| `utilityExpense` | Chi phí tiện ích | CHI ⬆️ |
-| `salaryPayment` | Trả lương | CHI ⬆️ |
-| `bonusPayment` | Thưởng nhân viên | CHI ⬆️ |
-| `otherIncome` | Thu nhập khác | THU ⬇️ |
-
-### Tích hợp cho Developer
-
-```dart
-import '../services/payment_intent_service.dart';
-import '../models/payment_intent_model.dart';
-import '../views/unified_payment_page.dart';
-
-final intent = PaymentIntent(
-  id: 'exp_${DateTime.now().millisecondsSinceEpoch}',
-  type: PaymentIntentType.operatingExpense,
-  amount: 500000,
-  description: 'Tiền điện tháng 1',
-  createdBy: 'user_123',
-  createdAt: DateTime.now().millisecondsSinceEpoch,
-  metadata: {'category': 'ĐIỆN NƯỚC'},
-);
-
-final result = await UnifiedPaymentPage.navigateWithIntent(context, intent);
-```
-
-### ⚠️ Lưu ý quan trọng
-
-1. **KHÔNG BAO GIỜ** gọi trực tiếp `db.insertExpense()`, `db.insertDebtPayment()`, `FinancialActivityService.log*()`
-2. **LUÔN** tạo `PaymentIntent` và dùng `UnifiedPaymentPage.navigateWithIntent()`
-3. Mỗi giao dịch chỉ được thực hiện **MỘT LẦN**
-4. Dữ liệu ledger là **APPEND-ONLY** - không cho phép DELETE hoặc UPDATE
+| File | Class | Description |
+|------|-------|-------------|
+| `db_helper.dart` | `DBHelper` | SQLite database wrapper — singleton, version 80, 25+ tables. Offline-first patterns with `isSynced` flags, `firestoreId` keys, upsert/soft-delete methods |
+| `help_center_repository.dart` | `HelpCategory` / `HelpCenterRepository` | In-app help articles data source |
+| `user_guide_repository.dart` | `GuideModule` / `UserGuideRepository` | User guide content data source |
 
 ---
 
-## C2. Báo cáo kiểm tra luồng thanh toán
+## 7. Constants (lib/constants/)
 
-> Nguồn gốc: `DOCS/PAYMENT_FLOW_AUDIT_REPORT.md`
-
-**Ngày thực hiện:** 2025-01-XX | **Phiên bản:** 10.0.7
-
-### Kết quả
-- ✅ **4 file test/debug đã xóa** (debt_analysis_view, currency_input_demo, payment_intent_test_view, attendance_salary_test_view)
-- ✅ **2 view đã sửa PaymentIntent** (inventory_view, fast_stock_in_view)
-- ⚠️ **4 nhóm view trùng chức năng** (đề xuất hợp nhất - ưu tiên thấp)
-
-### Các PaymentIntentType được sử dụng
-
-| Type | Sử dụng trong |
-|------|---------------|
-| `supplierDebt` | inventory_view, fast_stock_in_view, parts_inventory_view |
-| `customerDebtCollection` | debt_management_view |
-| `repairService` | repair_detail_view |
-| `repairPartnerDebt` | repair_detail_view |
-| `inventoryPurchase` | inventory_view, fast_stock_in_view |
-| `partsStockIn` | parts_inventory_view |
-| `operatingExpense` | expenses_list_view |
-
-### Đề xuất hợp nhất View (ưu tiên thấp)
-
-**Nhóm Nhập Kho** (5 views → 2): Giữ `inventory_view` + `fast_stock_in_view`
-
-**Nhóm Đối Tác** (5 views → 3): Giữ `suppliers_view` + `supplier_transactions_view` + `repair_partners_view`
-
-**Nhóm Tài Chính** (8 views → 4): Giữ `debt_management_view` + `expenses_list_view` + `unified_payment_page` + `financial_activity_log_view`
-
-**Nhóm Cài Đặt** (6 views → 3): Giữ `settings_view` + `admin_settings_view` + `user_management_view`
+| File | Class | Description |
+|------|-------|-------------|
+| `financial_constants.dart` | *(enums)* | `PaymentMethod` enum (cash/transfer/debt/installment/mixed/bank), `DebtType`, `ExpenseCategory`, `FinancialActivityType`, `MoneyDirection` — centralized financial enums |
+| `partner_constants.dart` | `PartnerConstants` | Payment methods for partners, status constants |
+| `product_constants.dart` | `ProductConstants` | Color lists, brand lists (IPHONE/SAMSUNG/OPPO...), capacity list, conditions, product types, size lists |
 
 ---
 
----
+## 8. Theme (lib/theme/)
 
-# PHẦN D: MULTI-SHOP
-
----
-
-## D1. Multi-Shop hướng dẫn sử dụng
-
-> Nguồn gốc: `DOCS/MULTI_SHOP_GUIDE.md`
-
-### Tổng quan
-Multi-Shop Phase 1 cho phép **chủ cửa hàng (owner)** quản lý nhiều chi nhánh từ một tài khoản duy nhất.
-
-### Tính năng
-
-**1. Chuyển đổi Shop**
-- Vị trí: Cài đặt → Chọn cửa hàng
-- Điều kiện: Chỉ hiển thị khi user có role `owner` VÀ sở hữu >= 2 shops
-
-**2. Shop Indicator**
-- Vị trí: AppBar của Home view
-- Chỉ hiển thị khi owner có >= 2 shops
-
-**3. Tạo chi nhánh mới**
-- Vị trí: Settings → Chọn cửa hàng → "Tạo chi nhánh mới"
-- Tự động đặt shop mới làm shop hoạt động
-
-### Data Isolation
-```
-User login → Check ownedShops → if count >= 2 → Show ShopSwitcher
-                              → if count == 1 → Hide ShopSwitcher
-```
-
-### Khi chuyển shop
-1. Cancel tất cả Firestore subscriptions
-2. Clear local SQLite cache
-3. Re-init EncryptionService
-4. Restart SyncService với shopId mới
-5. Emit EventBus.shopChanged
-6. Notify tất cả listeners để reload UI
-
-### API Reference
-
-```dart
-final service = CurrentShopService();
-await service.init();
-String? shopId = await service.getActiveShopId();
-bool success = await service.switchShop(newShopId);
-List<Map<String, dynamic>> shops = await service.getOwnedShops();
-await service.clear();
-
-// Lắng nghe khi shop thay đổi
-EventBus.on(EventBus.shopChanged, (data) {
-  // Reload UI data
-});
-```
-
-### Files chính
-
-| File | Mô tả |
-|------|-------|
-| `lib/services/current_shop_service.dart` | Service quản lý activeShopId |
-| `lib/widgets/shop_switcher_widget.dart` | UI dropdown chọn shop |
-| `lib/views/settings_view.dart` | Tích hợp ShopSwitcher |
-| `lib/views/home_view.dart` | Shop indicator + EventBus listener |
-
-### Troubleshooting
-
-**ShopSwitcher không hiển thị:** Check role phải là `owner`, check ownedShops phải >= 2
-
-**Data không reload sau switch:** Check EventBus listener trong HomeView
-
-**Lỗi khi tạo chi nhánh:** Check Firestore permissions, check internet
-
-### Phase 2 Roadmap
-- [ ] Staff assignment per shop
-- [ ] Shop-level permissions
-- [ ] Cross-shop reporting
-- [ ] Shop transfer ownership
-- [ ] Shop archiving
+| File | Class | Description |
+|------|-------|-------------|
+| `app_theme.dart` | `AppTheme` | `lightTheme` — Material ThemeData for the entire app |
+| `app_colors.dart` | `AppColors` | App color palette (primary, surface, error, background, etc.) |
+| `app_text_styles.dart` | `AppTextStyles` | Typography styles (headline, subtitle, body, caption) |
+| `app_button_styles.dart` | `AppButtonStyles` | Reusable button styles (primary, secondary, outline, danger) |
 
 ---
 
-## D2. Multi-Shop Production Checklist
+## 9. Controllers (lib/controllers/)
 
-> Nguồn gốc: `DOCS/MULTI_SHOP_PHASE1_CHECKLIST.md`
-
-### Files Created/Modified
-
-**New Files:**
-- `lib/services/current_shop_service.dart`
-- `lib/widgets/shop_switcher_widget.dart`
-
-**Modified Files:**
-- `lib/main.dart` - Added CurrentShopService import and init
-- `lib/views/settings_view.dart` - Integrated ShopSwitcherWidget
-- `lib/l10n/app_en.arb` - Added localization keys
-- `lib/l10n/app_vi.arb` - Added Vietnamese translations
-
-### Test Cases
-
-1. **Single Shop User** → NO shop switcher, all data loads normally
-2. **Owner with ONE Shop** → NO shop switcher
-3. **Owner with MULTIPLE Shops** → ShopSwitcher shows, can switch, data reloads
-4. **App Restart Persistence** → Still on selected shop after kill/reopen
-5. **Cache Clear on Switch** → Old data NOT visible, new shop data loads
-6. **Firestore Security Rules** → Cannot read Shop B data while on Shop A
-7. **Super Admin** → Can select any shop
-8. **Logout/Login Cycle** → Cleared on logout, persisted on login
-
-### Rollback Plan
-1. Remove ShopSwitcherWidget from settings_view.dart
-2. Remove CurrentShopService.init() from main.dart
-3. Remove CurrentShopService.clear() calls
-
-### Deployment Steps
-1. `flutter test`
-2. `flutter build apk --release`
-3. Test APK on physical device
-4. Upload to Play Console internal testing
-5. Promote to production after 24h testing
+| File | Class | Description |
+|------|-------|-------------|
+| `fast_inventory_input_controller.dart` | `FastInventoryInputController` | Business logic controller for fast inventory input |
 
 ---
 
----
+## 10. Core (lib/core/)
 
-# PHẦN E: MỞ RỘNG ĐA NGÀNH
+| File | Class | Description |
+|------|-------|-------------|
+| `app_config.dart` | `AppConfig` / `EnvConfig` | App-wide config: sync timeouts, cache settings, image compression, pagination, feature flags. `EnvConfig` for app name, package name, support email |
+| `payment_blocker.dart` | `PaymentBlocker` / `PaymentBlockedError` | Guards against direct payment operations that bypass `PaymentIntentService` |
 
-> Nguồn gốc: `DOCS/MULTI_INDUSTRY_EXPANSION_GUIDE.md`
+### Sub-folder: `core/utils/`
 
----
-
-## E1. Hướng dẫn mở rộng đa ngành
-
-### Mục tiêu: Từ "Phone Shop" → "Multi-Industry Shop"
-
-```
-         HIỆN TẠI                          SAU MỞ RỘNG
-    ┌─────────────┐                   ┌─────────────────┐
-    │   📱 ĐIỆN   │                   │    🏪 SHOP      │
-    │   THOẠI     │                   │    ĐA NGÀNH     │
-    └─────────────┘                   └────────┬────────┘
-                                              │
-                               ┌──────────────┼──────────────┐
-                               ▼              ▼              ▼
-                        ┌───────────┐ ┌───────────┐ ┌───────────┐
-                        │ 📱 ĐIỆN TỬ│ │🍎THỰC PHẨM│ │👕THỜI TRANG│
-                        └───────────┘ └───────────┘ └───────────┘
-```
-
-### Nguyên tắc vàng
-- ✅ **BACKWARD COMPATIBLE**: Shops hiện tại KHÔNG bị ảnh hưởng
-- ✅ **MODULAR**: Tính năng theo ngành, bật/tắt linh hoạt
-- ✅ **EXTENSIBLE**: Dễ thêm ngành mới trong tương lai
-- ✅ **DATA SAFE**: Migration không mất dữ liệu cũ
-
-### Module hóa theo ngành
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        SHOP CORE                             │
-│  (Auth, Multi-shop, Payment, Reporting, Sync, HR)           │
-│  ✓ Không thay đổi logic tài chính                           │
-│  ✓ PaymentIntentService giữ nguyên                          │
-└─────────────────────────────────────────────────────────────┘
-                               │
-         ┌─────────────────────┼─────────────────────┐
-         ▼                     ▼                     ▼
-┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│  📱 ĐIỆN TỬ     │   │  🍎 THỰC PHẨM   │   │  👕 THỜI TRANG  │
-│ IMEI, Sửa chữa │   │ HSD, Quản lý lô │   │ Size/màu, SKU  │
-│ Bảo hành       │   │ Đơn vị (kg)     │   │ Tồn kho matrix │
-└─────────────────┘   └─────────────────┘   └─────────────────┘
-```
-
-### Bảng so sánh tính năng
-
-| Tính năng | 📱 Điện tử | 🍎 Thực phẩm | 👕 Thời trang | 📦 Tổng hợp |
-|-----------|-----------|-------------|--------------|-------------|
-| IMEI/Serial | ✅ | ❌ | ❌ | Tùy chọn |
-| Sửa chữa | ✅ | ❌ | ❌ | Tùy chọn |
-| Bảo hành | ✅ | ❌ | ❌ | Tùy chọn |
-| Hạn sử dụng | ❌ | ✅ | ❌ | Tùy chọn |
-| Quản lý lô | ❌ | ✅ | ❌ | Tùy chọn |
-| Đơn vị tính | ❌ | ✅ | ❌ | Tùy chọn |
-| Size | ❌ | ❌ | ✅ | Tùy chọn |
-| Màu sắc | ✅ | ❌ | ✅ | Tùy chọn |
-| Biến thể (SKU) | ❌ | ❌ | ✅ | Tùy chọn |
-
-### Danh mục mặc định theo ngành
-
-**📱 Điện tử**: Điện thoại, Máy tính bảng, Laptop, Phụ kiện, Linh kiện
-
-**🍎 Thực phẩm**: Rau củ, Trái cây, Thịt cá, Đồ khô, Đồ hộp, Đồ uống, Đông lạnh
-
-**👕 Thời trang**: Áo, Quần, Váy/Đầm, Giày dép, Túi xách, Phụ kiện
-
-**📦 Tổng hợp**: Tự do tạo danh mục
-
-### Schema Database mới
-
-#### Bảng `shop_settings`
-```sql
-CREATE TABLE shop_settings (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  firestoreId TEXT UNIQUE,
-  shopId TEXT NOT NULL,
-  businessType TEXT NOT NULL,  -- 'electronics', 'food', 'fashion', 'general'
-  enableRepair INTEGER DEFAULT 0,
-  enableExpiry INTEGER DEFAULT 0,
-  enableVariants INTEGER DEFAULT 0,
-  enableSerial INTEGER DEFAULT 0,
-  defaultUnit TEXT DEFAULT 'cái',
-  expiryWarningDays INTEGER DEFAULT 7,
-  createdAt INTEGER,
-  updatedAt INTEGER,
-  isSynced INTEGER DEFAULT 0
-);
-```
-
-#### Bảng `categories`
-```sql
-CREATE TABLE categories (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  firestoreId TEXT UNIQUE,
-  shopId TEXT NOT NULL,
-  name TEXT NOT NULL,
-  parentId TEXT,
-  icon TEXT,
-  color TEXT,
-  sortOrder INTEGER DEFAULT 0,
-  trackExpiry INTEGER DEFAULT 0,
-  trackSerial INTEGER DEFAULT 0,
-  hasVariants INTEGER DEFAULT 0,
-  hasWarranty INTEGER DEFAULT 0,
-  defaultUnit TEXT DEFAULT 'cái',
-  customFields TEXT,  -- JSON
-  isActive INTEGER DEFAULT 1,
-  deleted INTEGER DEFAULT 0,
-  createdAt INTEGER,
-  updatedAt INTEGER,
-  isSynced INTEGER DEFAULT 0
-);
-```
-
-#### Bảng `product_variants`
-```sql
-CREATE TABLE product_variants (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  firestoreId TEXT UNIQUE,
-  shopId TEXT NOT NULL,
-  productId TEXT NOT NULL,
-  sku TEXT,
-  size TEXT,
-  color TEXT,
-  cost INTEGER,
-  price INTEGER,
-  quantity INTEGER DEFAULT 0,
-  barcode TEXT,
-  isActive INTEGER DEFAULT 1,
-  deleted INTEGER DEFAULT 0,
-  createdAt INTEGER,
-  updatedAt INTEGER,
-  isSynced INTEGER DEFAULT 0
-);
-```
-
-### Giai đoạn triển khai
-
-**Phase 1: Core Extension (2-3 tuần)**
-- ShopSettings model + service
-- Category model + service + UI
-- Mở rộng Product với categoryId, customData
-- Migrate type → categoryId
-- Update db_helper, sync_service, firestore.rules
-
-**Phase 2: Module Thực phẩm (2-3 tuần)**
-- expiryDate, batchNumber vào Product
-- ExpiryAlertService
-- UI "Sắp hết hạn", đơn vị tính động
-
-**Phase 3: Module Thời trang (2-3 tuần)**
-- ProductVariant model + service
-- UI quản lý variants (size, color)
-- Barcode cho từng variant
-
-**Phase 4: Tổng quát hóa (1-2 tuần)**
-- Custom fields UI builder
-- Onboarding wizard chọn ngành
-- Ẩn/hiện module theo businessType
-
-**Phase 5: Testing & QA (1-2 tuần)**
-
-**TOTAL: ~2.5-3 tháng**
-
-### Quy tắc phát triển
-
-#### KHÔNG phá vỡ logic hiện tại
-```
-❌ KHÔNG SỬA: PaymentIntentService, SalaryCalculationService, Repair flow
-✅ CHỈ THÊM MỚI: Models mới, Views mới, Services mới
-```
-
-#### Feature Flags
-```dart
-class FeatureFlags {
-  static bool hasRepairModule(String businessType) => businessType == 'electronics';
-  static bool hasExpiryTracking(String businessType) => businessType == 'food';
-  static bool hasVariants(String businessType) => businessType == 'fashion';
-}
-```
-
-### Files quan trọng
-
-| File | Sửa? |
-|------|------|
-| `lib/models/product_model.dart` | ✅ Thêm fields |
-| `lib/data/db_helper.dart` | ✅ Thêm tables |
-| `lib/services/sync_service.dart` | ✅ Thêm collections |
-| `lib/services/payment_intent_service.dart` | ❌ KHÔNG SỬA |
-| `lib/services/salary_calculation_service.dart` | ❌ KHÔNG SỬA |
-| `firestore.rules` | ✅ Thêm rules |
+| File | Class | Description |
+|------|-------|-------------|
+| `money_utils.dart` | `MoneyUtils` | VNĐ formatting, parsing, compact display (canonical money utility) |
 
 ---
 
----
+## 11. Utils (lib/utils/)
 
-# PHẦN F: TRUNG TÂM HƯỚNG DẪN
-
-> Nguồn gốc: `DOCS/HELP_CENTER_GUIDE.md`
-
----
-
-## F1. Help Center Guide
-
-### Mục tiêu
-- Cung cấp tài liệu chính thức cho nhân sự sử dụng app Shopmanager.
-- Đảm bảo nội dung luôn đồng bộ giữa dữ liệu nội bộ và giao diện người dùng.
-- Chuẩn hóa quy trình thêm/chỉnh sửa các chủ đề hướng dẫn mới.
-
-### Kiến trúc tính năng
-
-**Tệp nguồn dữ liệu:** `lib/data/help_center_repository.dart` chứa danh sách `HelpCategory` và `HelpTopic`.
-
-Mỗi `HelpTopic` bao gồm:
-- `id`: định danh duy nhất, dạng `topic_ten_chu_de`
-- `categoryId`: trỏ về `HelpCategory.id`
-- `title`, `summary`, `steps`: nội dung hiển thị chính
-- Metadata: `difficulty`, `estimatedTime`, `prerequisites`, `resources`, `tips`, `audience`, `relatedTopicIds`, `isFeatured`
-
-**Giao diện:** `lib/views/help_center_view.dart` - tìm kiếm, danh mục, chủ đề nổi bật, chi tiết từng bước.
-
-### Quy trình bổ sung nội dung
-
-1. **Xác định danh mục**
-2. **Tạo/Chỉnh sửa HelpTopic** với đầy đủ trường bắt buộc
-3. **Rà soát ngôn ngữ**: Nội dung hiển thị tiếng Việt, comment code tiếng Anh
-4. **Kiểm thử**: `flutter run` hoặc `flutter test`
-
-### Best Practices
-- `summary` súc tích 2-3 câu
-- `steps` dạng mệnh lệnh, mỗi bước < 120 ký tự
-- `difficulty`: Dễ, Trung bình, Nâng cao
-- `isFeatured` tối đa 4 chủ đề
-- Đảm bảo `relatedTopicIds` trỏ đúng topic đã tồn tại
-
-### Lộ trình
-- Kết nối `resources` với URL hoặc viewer
-- Đồng bộ nội dung với Firestore
-- Bổ sung hình ảnh/video minh họa
+| File | Class | Description |
+|------|-------|-------------|
+| `app_info.dart` | `AppInfo` | App version, build number from `package_info_plus` |
+| `app_logger.dart` | `AppLogger` | Structured logging utility |
+| `debouncer.dart` | `Debouncer` | Configurable debounce utility |
+| `imei_extractor.dart` | `IMEIExtractResult` | Extract IMEI numbers from scanned text |
+| `money_input_formatter.dart` | `MoneyInputFormatter` | `TextInputFormatter` for VNĐ input (dot separators) |
+| `money_utils.dart` | `MoneyUtils` | *(duplicate of core/utils — legacy compatibility)* |
+| `qr_parser.dart` | `QRParser` | Parse QR code content into structured data |
+| `qr_router.dart` | `QRRouter` | Route to appropriate screen based on QR content |
+| `repair_status_validator.dart` | `RepairStatusValidator` | Validate repair status transitions (1→2→3→4) |
+| `sku_generator.dart` | `SKUGenerator` | Auto-generate SKU codes for products |
+| `ui_constants.dart` | `UIConstants` | Shared UI dimension/spacing constants |
+| `vietnamese_utils.dart` | `VietnameseUtils` | Vietnamese string normalization, diacritics handling |
 
 ---
 
+## 12. Assets & Localization
+
+### `lib/assets/`
+- `fonts/Roboto-Bold.ttf` — Bold font for PDF generation
+- `fonts/Roboto-Regular.ttf` — Regular font for PDF generation
+- `images/icon.png` — App icon
+
+### `lib/l10n/` (Localization)
+
+| File | Description |
+|------|-------------|
+| `app_vi.arb` | Vietnamese translations (template) |
+| `app_en.arb` | English translations |
+| `app_localizations.dart` | Generated localization delegate |
+| `app_localizations_vi.dart` | Generated Vietnamese localization |
+| `app_localizations_en.dart` | Generated English localization |
+
+**Supported locales:** `vi` (Vietnamese, default), `en` (English)
+
 ---
 
-# PHẦN G: HƯỚNG DẪN SỬ DỤNG (USER GUIDE)
+## 13. Entry Point (lib/main.dart)
+
+**Flow:**
+1. `main()` → `runZonedGuarded()` for global error handling
+2. Initialize Firebase (deferred on iOS for faster splash)
+3. Initialize `NotificationService`, `ConnectivityService`
+4. Run `MyApp` → `MaterialApp` with `SplashView` as home
+5. `SplashView` → `AuthGate`
+6. `AuthGate` listens to `FirebaseAuth.authStateChanges()`:
+   - **Not logged in** → `LoginView`
+   - **Super admin** → `ShopSelectorView`
+   - **Normal user** → sync data → `HomeView`
+7. Background init: `SyncService.downloadAllFromCloud()`, `SyncOrchestrator`, `CashClosingNotifier`, `PaymentIntentService`
 
 ---
 
-## G1. Hướng dẫn Tiếng Việt - Phần 1
+## 14. Dependencies (pubspec.yaml)
 
-> Nguồn gốc: `DOCS/hdsd/USER_GUIDE_PART1_VI.md`
+### Firebase
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `firebase_core` | ^3.15.2 | Firebase initialization |
+| `firebase_auth` | ^5.3.0 | Authentication |
+| `cloud_firestore` | ^5.3.0 | NoSQL database |
+| `cloud_functions` | ^5.3.0 | Cloud Functions |
+| `firebase_messaging` | ^15.1.0 | Push notifications |
+| `firebase_storage` | ^12.4.10 | File/image storage |
 
-### 1. Giới thiệu chung
+### Data & Storage
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `sqflite` | ^2.3.0 | SQLite local database |
+| `shared_preferences` | ^2.5.4 | Key-value persistent storage |
+| `path` | ^1.8.3 | File path utilities |
+| `path_provider` | ^2.1.5 | App directory paths |
 
-**QuanLyShop** là phần mềm quản lý toàn diện dành cho các cửa hàng sửa chữa và mua bán điện thoại:
-- 📱 Quản lý bán hàng: Tạo hóa đơn, theo dõi doanh thu, quản lý trả góp
-- 🔧 Quản lý sửa chữa: Tiếp nhận máy, theo dõi tiến độ, quản lý bảo hành
-- 📦 Quản lý kho: Nhập/xuất hàng, kiểm kê, theo dõi tồn kho
-- 💰 Quản lý tài chính: Doanh thu, chi phí, công nợ, báo cáo
-- 👥 Quản lý nhân sự: Nhân viên, chấm công, tính lương
-- 🖨️ In hóa đơn: Hỗ trợ máy in nhiệt Bluetooth/WiFi
+### UI & Charts
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `cupertino_icons` | ^1.0.6 | iOS-style icons |
+| `fl_chart` | ^0.66.0 | Charts (revenue, performance) |
+| `photo_view` | ^0.15.0 | Zoomable image viewer |
+| `introduction_screen` | ^3.1.14 | Onboarding carousel |
+| `qr_flutter` | ^4.1.0 | QR code generation |
 
-**Yêu cầu:** Android 6.0+ | iOS 12.0+ | Web (Chrome, Firefox, Safari)
+### Printing & Labels
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `print_bluetooth_thermal` | ^1.1.0 | Bluetooth thermal printing |
+| `flutter_esc_pos_utils` | ^1.0.1 | ESC/POS command generation |
+| `pdf` | ^3.11.0 | PDF generation |
+| `printing` | ^5.14.0 | PDF printing/sharing |
+| `barcode` | ^2.2.6 | Barcode generation |
+| `barcode_image` | ^2.0.2 | Barcode-to-image |
 
-### 2. Đăng ký & Đăng nhập
+### Scanning & Input
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `mobile_scanner` | ^7.0.1 | Camera barcode/QR scanner |
+| `image_picker` | ^1.0.7 | Camera/gallery image picker |
+| `file_picker` | ^8.0.0 | File selection |
 
-**Đăng ký:** Chỉ chủ shop đăng ký → Nhập email, mật khẩu, tên shop, SĐT → Xác nhận email
+### Data Processing
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `intl` | 0.20.2 | Date/number formatting |
+| `excel` | ^4.0.0 | Excel import/export |
+| `csv` | ^6.0.0 | CSV import/export |
+| `encrypt` | ^5.0.3 | Data encryption |
+| `crypto` | ^3.0.3 | Cryptographic hashing |
 
-**Đăng nhập:** Email + Mật khẩu → Nhấn "ĐĂNG NHẬP"
+### Sharing & Communication
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `share_plus` | ^12.0.1 | Native share sheet |
+| `url_launcher` | ^6.3.2 | Open URLs/phone/email |
+| `gal` | ^2.3.2 | Save to gallery |
+| `screenshot` | ^3.0.0 | Widget screenshot capture |
 
-**Quên mật khẩu:** Nhấn "Quên mật khẩu?" → Nhập email → Kiểm tra email đặt lại
+### Platform & Connectivity
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `connectivity_plus` | ^6.0.0 | Network status monitoring |
+| `permission_handler` | ^11.3.1 | Runtime permission management |
+| `geolocator` | ^12.0.0 | GPS/location services |
+| `flutter_blue_plus` | ^1.35.3 | Bluetooth Low Energy |
+| `package_info_plus` | ^8.0.0 | App meta info |
+| `flutter_image_compress` | ^2.3.0 | Image compression |
+| `flutter_local_notifications` | ^17.1.2 | Local notifications |
+| `timezone` | ^0.9.2 | Timezone handling |
+| `flutter_keyboard_visibility` | *(transitive)* | Keyboard state |
 
-### 3. Màn hình chính (Home)
+### Dev Dependencies
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `flutter_test` | SDK | Unit/widget testing |
+| `flutter_lints` | ^3.0.0 | Lint rules |
+| `flutter_launcher_icons` | ^0.11.0 | App icon generation |
 
+---
+
+## 15. Firestore Collections
+
+All collections use `shopId` for multi-tenant isolation. Super admin bypasses filtering.
+
+### Auth & Users (`SECTION 2`)
+| Collection | Document ID | Key Fields | Access |
+|------------|-------------|------------|--------|
+| `users` | `{userId}` | email, role, shopId, name | Any auth user (read) |
+| `shops` | `{shopId}` | ownerUid, name | Shop members + owner |
+| `shops/{shopId}/settings` | `{settingId}` | businessType, enableRepair, enableExpiry, enableVariants | Shop members |
+| `shops/{shopId}/custom_salary_adjustments` | `{adjustmentId}` | staffId, amount, name | Owner only |
+| `shops/{shopId}/product_categories` | `{categoryId}` | name, shopId | Manager+ |
+| `invites` | `{inviteCode}` | shopId, role, createdBy, used | Any auth (read) |
+
+### Core Business (`SECTION 3`)
+| Collection | Key Fields | Access |
+|------------|------------|--------|
+| `repairs` | customerName, phone, model, issue, status (1-4), price, cost | Shop members |
+| `sales` | customerName, productNames, totalPrice, totalCost, soldAt | Employee+ |
+| `products` | name, cost, price, quantity, type | Employee+ |
+| `product_variants` | productId, sku, size, color, costPrice, salePrice, quantity | Employee+ |
+| `stock_entries` | status (draft/confirmed/cancelled), items, shopId | Employee+ |
+| `customers` | name, phone | Shop members |
+
+### Finance (`SECTION 4`)
+| Collection | Key Fields | Access |
+|------------|------------|--------|
+| `expenses` | title, amount, category, date | Manager+ |
+| `debts` | personName, totalAmount, paidAmount, type | Shop members |
+| `debt_payments` | amount, paidAt | Staff |
+| `cash_closings` | shopId, date, cashStart, cashEnd | Manager+ |
+| `adjustment_entries` | shopId, amount, type | Manager+ |
+| `payment_intents` | intentId, type, amount | Staff |
+
+### Suppliers (`SECTION 5`)
+| Collection | Key Fields | Access |
+|------------|------------|--------|
+| `suppliers` | name, phone | Employee+ |
+| `supplier_payments` | supplierId, amount, paidAt | Manager+ |
+| `purchase_orders` | shopId | Manager+ |
+| `supplier_import_history` | supplierId | Employee+ |
+| `supplier_product_prices` | supplierId, productName, price | Employee+ |
+
+### Repair Partners (`SECTION 6`)
+| Collection | Key Fields | Access |
+|------------|------------|--------|
+| `repair_partners` | name, phone | Employee+ |
+| `repair_partner_payments` | partnerId, amount, paidAt | Manager+ |
+| `partner_repair_history` | partnerId, repairId | Employee+ |
+
+### HR & Attendance (`SECTION 7`)
+| Collection | Key Fields | Access |
+|------------|------------|--------|
+| `attendance` | userId, dateKey, checkInAt, checkOutAt, status | Own records or Manager+ |
+| `work_schedules` | userId, startTime, endTime, workDays | Shop members |
+
+### Chat & Messaging (`SECTION 8`)
+| Collection | Key Fields | Access |
+|------------|------------|--------|
+| `chats` | message, senderId | Shop members |
+| `chat_messages` | message, senderId | Shop members |
+| `chat_online` | userId | Any auth |
+| `chat_typing` | userId | Any auth |
+
+### Notifications (`SECTION 9`)
+| Collection | Key Fields | Access |
+|------------|------------|--------|
+| `notifications` | userId, shopId | Own or shop-wide |
+| `shop_notifications` | shopId | Shop members |
+
+### System Data (`SECTION 10`)
+| Collection | Key Fields | Access |
+|------------|------------|--------|
+| `audit_logs` | action, userId, createdAt — **IMMUTABLE** | Manager+ (read), any auth (create) |
+| `quick_input_codes` | code, shopId | Shop members |
+| `repair_parts` | partName | Employee+ |
+| `financial_activities` | type, amount | Manager+ |
+| `supplier_debts` | supplierId, amount | Employee+ |
+
+### HR & Salary Settings (`SECTION 11`)
+| Collection | Document ID | Key Fields | Access |
+|------------|-------------|------------|--------|
+| `shop_deduction_settings` | `{shopId}` | deduction/insurance/tax config | Owner (write), Manager+ (read) |
+| `employee_salary_settings` | `{settingId}` | staffId, baseSalary, commissions | Manager+ |
+| `shop_salary_defaults` | `{shopId}` | working hours, overtime rate | Owner |
+
+---
+
+## 16. SQLite Local Tables
+
+Database: `repair_shop_v22.db` (version 80)
+
+| Table | Key Columns | Purpose |
+|-------|-------------|---------|
+| `repairs` | firestoreId, customerName, phone, model, issue, status, price, cost | Repair orders (offline cache) |
+| `products` | firestoreId, name, brand, model, imei, cost, price, quantity, type, category, expiryDate | Product inventory |
+| `sales` | firestoreId, customerName, productNames, totalPrice, discount, isInstallment | Sale orders |
+| `customers` | firestoreId, name, phone, totalSpent, totalRepairs | Customer records |
+| `suppliers` | firestoreId, name, phone, importCount, totalAmount | Supplier records |
+| `expenses` | firestoreId, title, amount, category, date, type | Expense entries |
+| `debts` | firestoreId, personName, totalAmount, paidAmount, type, status | Debt tracking |
+| `debt_payments` | firestoreId, debtId, amount, paidAt | Debt payment records |
+| `attendance` | firestoreId, userId, dateKey, checkInAt, checkOutAt, status | Attendance records |
+| `audit_logs` | firestoreId, action, userId, description | Audit trail |
+| `inventory_checks` | firestoreId, type, checkDate, itemsJson, status | Inventory verification |
+| `supplier_payments` | firestoreId, supplierId, amount, paidAt | Supplier payment records |
+| `repair_partner_payments` | firestoreId, partnerId, amount, paidAt | Partner payment records |
+| `cash_closings` | dateKey, cashStart, cashEnd, bankStart, bankEnd | Daily cash reconciliation |
+| `payroll_settings` | baseSalary, saleCommPercent, repairProfitPercent | Payroll configuration |
+| `payroll_locks` | monthKey, locked, lockedBy | Monthly payroll lock |
+| `employee_salary_settings` | staffId, baseSalary, salaryType, commissions, allowances | Per-employee salary config |
+| `purchase_orders` | firestoreId, orderCode, supplierName, itemsJson, status | Purchase orders |
+| `work_schedules` | userId, startTime, endTime, workDays | Work schedule config |
+| `quick_input_codes` | firestoreId, code, name, type, brand, cost, price | Quick input templates |
+| `supplier_product_prices` | supplierId, productName, costPrice | Supplier price tracking |
+| `supplier_import_history` | supplierId, productName, imei, quantity, costPrice | Import history |
+| `repair_partners` | firestoreId, name, phone, active | Repair partner records |
+| `partner_repair_history` | repairOrderId, partnerId, partnerCost | Partner repair history |
+| `repair_parts` | firestoreId, partName, cost, price, quantity | Repair parts inventory |
+| `sync_queue` | entityType, entityId, operation, status, retryCount | Pending sync operations |
+| `sales_returns` | salesOrderId, returnDate, totalReturnAmount | Sale returns |
+| `product_categories` | firestoreId, name, parentId, trackExpiry, hasVariants | Dynamic categories |
+| `product_variants` | firestoreId, productId, sku, size, color, quantity | Product variants |
+
+All tables include `isSynced INTEGER DEFAULT 0` for sync tracking.
+
+---
+
+## 17. Navigation Structure
+
+### App Flow
 ```
-┌─────────────────────────────────────┐
-│  🔔 Thông báo     🔍 Tìm kiếm      │
-├─────────────────────────────────────┤
-│     📊 THỐNG KÊ NHANH               │
-│     • Doanh thu hôm nay            │
-│     • Đơn sửa chưa xong            │
-│     • Đơn bán hôm nay              │
-├─────────────────────────────────────┤
-│     📱 SHORTCUTS                    │
-│     • Tạo đơn sửa nhanh            │
-│     • Bán hàng nhanh               │
-│     • Quét QR                       │
-├─────────────────────────────────────┤
-│  🏠  🛒  🔧  📦  👥  💰  ⚙️       │
-│ Home Bán Sửa Kho HR  TC  Cài      │
-└─────────────────────────────────────┘
-```
-
-**Đồng bộ:** Xanh = OK | Vàng = Đang sync | Đỏ = Lỗi
-
-### 4. Module Bán hàng
-
-**Tạo đơn bán:**
-1. Chọn khách hàng (tìm hoặc tạo mới)
-2. Chọn sản phẩm (từ kho / quét QR / nhập IMEI)
-3. Xác nhận giá bán, chiết khấu
-4. Chọn PTTT: Tiền mặt / Chuyển khoản / Trả góp ngân hàng
-5. Nhập bảo hành
-6. Xác nhận → In hóa đơn
-
-**Trả góp ngân hàng:** Nhập trả trước + ngân hàng + số tiền vay + kỳ hạn
-
-**In hóa đơn:** Bluetooth/WiFi thermal printer, tùy chỉnh mẫu in tại Cài đặt → Thiết kế hóa đơn
-
-### 5. Module Sửa chữa
-
-**Trạng thái đơn sửa:**
-| Trạng thái | Màu | Mô tả |
-|------------|-----|-------|
-| 🟠 Đang sửa | Cam | Đang sửa |
-| 🔵 Chờ linh kiện | Xanh | Chờ LK |
-| 🟢 Hoàn thành | Xanh lá | Sửa xong |
-| 🔴 Đã trả máy | Đỏ | Đã giao |
-
-**Tiếp nhận máy:** Nhập thông tin khách → Thông tin máy (model, IMEI, tình trạng) → Mô tả lỗi → Phụ kiện kèm theo → Chụp ảnh → Ước tính giá → Tạo phiếu
-
-**Cập nhật tiến độ:** Chuyển trạng thái → Ghi linh kiện → Phân công thợ
-
-**Trả máy:** Kiểm tra trước mặt khách → Thu tiền → Chụp ảnh trả → Nhấn "TRẢ MÁY"
-
-**Bảo hành:** Xem tại "Siêu trung tâm bảo hành" - Xanh > 30 ngày, Cam 10-30 ngày, Đỏ < 10 ngày
-
-### 6. Module Khách hàng
-
-- Tự động tạo khi tạo đơn sửa/bán
-- Xem lịch sử sửa chữa + mua hàng
-- Chỉ xóa khách KHÔNG có lịch sử giao dịch
-
----
-
-## G2. Hướng dẫn Tiếng Việt - Phần 2
-
-> Nguồn gốc: `DOCS/hdsd/USER_GUIDE_PART2_VI.md`
-
-### 7. Module Kho hàng
-
-**Loại sản phẩm:** Điện thoại (IMEI, dung lượng) | Phụ kiện | Linh kiện
-
-**Thêm SP:** Chọn loại → Nhập thông tin → Giá vốn/bán → NCC, bảo hành → Chụp ảnh → Lưu
-
-**Nhập nhanh:** Quét QR/barcode liên tiếp → Điều chỉnh → Xác nhận
-
-**Kho tạm:** SP chưa định giá → Badge "TẠM" cam → Nhập giá bán → Chuyển kho chính
-
-**Kiểm kê kho:** Tạo phiên → Nhập số thực tế → So sánh → Điều chỉnh tự động
-
-**Linh kiện:** Kho riêng cho sửa chữa, tự động trừ khi cập nhật đơn sửa
-
-### 8. Module Nhà cung cấp
-
-**Thêm NCC:** Tên, người liên hệ, SĐT, email, địa chỉ
-
-**Tạo đơn nhập:** Chọn NCC → Thêm SP → Thanh toán (trả ngay hoặc công nợ) → Tự động nhập kho
-
-**Thanh toán NCC:** Vào chi tiết NCC → Xem công nợ → Thanh toán → Chọn PTTT
-
-### 9. Module Tài chính
-
-**Doanh thu:** Từ bán hàng + sửa chữa, lọc theo ngày/tuần/tháng
-
-**Chi phí:** Danh mục: Mặt bằng, Nhân sự, Hàng hóa, Thiết bị, Marketing, Khác
-
-**Công nợ:** Nợ khách (phải thu) + Nợ NCC (phải trả), thu/thanh toán từng phần
-
-**Chốt quỹ cuối ngày:**
-```
-Tiền đầu ngày + Thu trong ngày - Chi trong ngày = Lý thuyết
-→ Nhập thực tế → So sánh chênh lệch → Chốt
-```
-
-**Báo cáo:** Doanh thu, Lợi nhuận, Công nợ, Trả góp → Xuất Excel/PDF
-
-### 10. Module Nhân sự
-
-**Quản lý NV:** Thêm bằng email + mật khẩu, phân vai trò (Owner/Admin/Staff)
-
-**Phân quyền:** Bật/tắt từng quyền (xem, tạo/sửa, quản lý)
-
-**Chấm công:** Check in/out với ảnh → Quản lý xem thống kê
-
-**Tính lương:** Lương cơ bản + Phụ cấp + Hoa hồng - Khấu trừ (BHXH, BHYT) = Thực lãnh
-
-### 11. Module Cài đặt
-
-- **Thông tin shop**: Tên, địa chỉ, SĐT, logo
-- **Máy in**: Bluetooth hoặc WiFi thermal printer
-- **Thiết kế hóa đơn**: Header, nội dung, footer, QR
-- **Thông báo**: Bật/tắt từng loại
-- **Ngôn ngữ**: Tiếng Việt / English
-- **Sao lưu/Khôi phục**: Backup lên Firebase Storage
-
-### 12. Tính năng nâng cao
-
-- **Quét QR/Barcode**: Sản phẩm, IMEI, QR thanh toán
-- **Mã nhập nhanh**: Tạo QR tùy chỉnh → Quét → Auto fill
-- **Chat nội bộ**: Text + hình ảnh + liên kết đơn hàng
-- **Tìm kiếm toàn cục**: Khách, đơn sửa, đơn bán, sản phẩm
-- **Đối tác sửa chữa**: Quản lý tiệm khác gửi máy sửa
-
-### 13. Xử lý sự cố
-
-| Vấn đề | Giải pháp |
-|--------|-----------|
-| Không đăng nhập được | Kiểm tra email/mật khẩu, đặt lại mật khẩu, kiểm tra mạng |
-| Dữ liệu không đồng bộ | Kiểm tra mạng, sync thủ công, đăng xuất/đăng nhập lại |
-| Máy in không hoạt động | Kiểm tra Bluetooth/WiFi, pin, kết nối lại |
-| App chạy chậm | Đóng app khác, xóa cache, cập nhật phiên bản mới |
-| Mất dữ liệu | Khôi phục từ bản backup gần nhất |
-
-### 14. FAQ
-
-| Câu hỏi | Trả lời |
-|---------|---------|
-| Thêm nhân viên? | Nhân sự → + Thêm → Nhập thông tin → Tạo tài khoản → Phân quyền |
-| Dùng nhiều thiết bị? | Có, đăng nhập cùng tài khoản → tự động đồng bộ |
-| Xuất báo cáo? | Tài chính → Báo cáo → Chọn loại → Icon 📤 → Excel/PDF |
-| Hoàn tác xóa nhầm? | Hệ thống xóa mềm, liên hệ admin khôi phục trong 30 ngày |
-| Không xem được doanh thu? | Cần quyền "Xem doanh thu", liên hệ Chủ shop |
-| In hóa đơn từ ĐT? | Kết nối Bluetooth thermal printer → In từ chi tiết đơn |
-| Tạo QR sản phẩm? | Chi tiết SP → Icon QR → Lưu/in |
-
----
-
-## G3. User Guide (English)
-
-> Nguồn gốc: `DOCS/hdsd/USER_GUIDE_EN.md`
-
-### 1. Introduction
-
-**QuanLyShop (Huluca)** is a comprehensive management software for phone repair and sales shops:
-- 📱 Sales Management, 🔧 Repair Management, 📦 Inventory Management
-- 💰 Finance Management, 👥 HR Management, 🖨️ Invoice Printing
-
-**Requirements:** Android 6.0+ | iOS 12.0+ | Web (latest browsers)
-
-### 2. Registration & Login
-
-Only shop owners register. Staff accounts are created by the owner.
-
-Steps: Open app → "REGISTER" → Fill info → "REGISTER" → Verify email → Login
-
-### 3. Home Dashboard
-
-| Tab | Function |
-|-----|----------|
-| 🏠 Home | Dashboard, overview |
-| 🛒 Sales | Sales management |
-| 🔧 Repair | Repair orders |
-| 📦 Inventory | Stock management |
-| 👥 HR | Staff, attendance |
-| 💰 Finance | Revenue, expenses, debts |
-| ⚙️ Settings | Shop and system settings |
-
-### 4. Sales Module
-
-Create Sales Order → Select Customer → Add Products (scan/search) → Payment → Confirm → Print
-
-Warranty Types: 1-to-1 exchange | Standard repair | No warranty
-
-Installment: Select "Installment" → Enter down payment → System calculates debt
-
-### 5. Repair Module
-
-| Status | Color |
-|--------|-------|
-| Waiting/Queued | 🟡 Yellow |
-| In Progress | 🔵 Blue |
-| Completed | 🟢 Green |
-| Delivered | ⚪ Gray |
-| Cancelled | 🔴 Red |
-
-Receive Device → Update Status → Add Parts → Complete → Notify Customer → Deliver → Print Warranty
-
-### 6. Inventory Module
-
-Categories: Phones (IMEI tracked) | Accessories | Parts
-
-Pending Stock: Products without price → Orange badge → Set price → Move to main stock
-
-### 7. Finance Module
-
-- Revenue tracking (Sales + Repairs)
-- Expense management (categorized)
-- Debt management (Customer receivable + Supplier payable)
-- Daily cash closing (reconciliation)
-- Reports (Daily, Monthly, Product Performance, Staff Performance, Debt Aging)
-
-### 8. HR Module
-
-Role Permissions: Owner (full) > Manager (configurable) > Employee (configurable)
-
-Attendance: Check-in/out with selfie + location
-
-Salary: Monthly/Daily/Hourly base + Commission + Allowances - Deductions
-
-### 9. Settings
-
-- Shop Profile, Printer Setup (58mm/80mm Bluetooth/WiFi thermal)
-- Notifications, Data Sync
-
-### 10. Troubleshooting
-
-| Error | Solution |
-|-------|----------|
-| "Network Error" | Check internet |
-| "Permission Denied" | Contact admin |
-| "Sync Failed" | Check connection, retry |
-| "Invalid Data" | Check required fields |
-
-### Status Colors
-
-| Color | Meaning |
-|-------|---------|
-| 🟢 Green | Success, Paid, Completed |
-| 🟡 Yellow | Pending, Warning |
-| 🔵 Blue | In Progress, Info |
-| 🟠 Orange | Partial, Staging |
-| 🔴 Red | Error, Cancelled, Overdue |
-
----
-
----
-
-## � CẬP NHẬT: GỘP TRANG QUẢN LÝ TÀI CHÍNH (v10.0.11 - 02/2026)
-
-### Tổng quan thay đổi
-
-Trang Tài chính trên trang chủ đã được **tinh gọn** đáng kể, gộp nhiều trang rời rạc vào một giao diện duy nhất mà **không mất bất kỳ tính năng nào**.
-
-### Trước vs Sau
-
-| Mục | Trước | Sau |
-|-----|-------|-----|
-| Số điểm điều hướng | 10 (có 2 bị trùng) | 6 (không trùng) |
-| Quick Actions | Chỉ có Chốt quỹ | Chốt quỹ + Thanh toán |
-| Báo cáo + Chi phí + Trả góp + Nhật ký | 4 mục riêng biệt | Gộp vào 1 trang "Báo cáo TC" |
-| Grid báo cáo | 2x2 + 2x1 + 5 menu item | 1 grid 2x2 gọn gàng |
-| View mồ côi | 2 (không ai dùng) | Đã xóa |
-
-### Cách sử dụng mới
-
-#### 1. Tab Tài chính trên Trang chủ (đã gọn hơn)
-
-Khi bấm vào tab **Tài chính** ở thanh điều hướng dưới cùng, bạn sẽ thấy giao diện mới gọn hơn:
-
-```
-┌─────────────────────────────────────┐
-│ 💰 QUẢN LÝ TÀI CHÍNH              │
-├─────────────────────────────────────┤
-│ 📊 Tổng quan hôm nay               │
-│ ┌──────────┐ ┌──────────┐          │
-│ │ THU: xx  │ │ CHI: xx  │          │
-│ └──────────┘ └──────────┘          │
-│ ┌───── LỢI NHUẬN RÒNG ───────┐    │
-│ │         xxx,xxxđ            │    │
-│ └─────────────────────────────┘    │
-│ ┌───── CÔNG NỢ ──────────────┐    │
-│ │         xxx,xxxđ     ▷     │    │
-│ └─────────────────────────────┘    │
-├─────────────────────────────────────┤
-│ ⚡ Thao tác nhanh                   │
-│ ┌──────────┐ ┌──────────┐          │
-│ │ Chốt quỹ │ │Thanh toán│          │
-│ └──────────┘ └──────────┘          │
-├─────────────────────────────────────┤
-│ 📈 Báo cáo & Phân tích             │
-│ ┌──────────┐ ┌──────────┐          │
-│ │Tổng quan │ │ Công nợ  │          │
-│ │ doanh thu│ │          │          │
-│ ├──────────┤ ├──────────┤          │
-│ │ Báo cáo  │ │ Bảo hành │          │
-│ │ tài chính│ │          │          │
-│ └──────────┘ └──────────┘          │
-└─────────────────────────────────────┘
+SplashView → AuthGate
+  ├── (Not logged in) → LoginView ↔ RegisterView
+  ├── (Super Admin) → ShopSelectorView → HomeView
+  └── (Normal User) → HomeView
 ```
 
-**4 ô grid:**
-- **Tổng quan doanh thu** → Mở trang Revenue (giữ nguyên)
-- **Công nợ** → Mở trang Debt (giữ nguyên)
-- **Báo cáo tài chính** → ⭐ Mở trang **Financial Hub mới** (gộp 4 view)
-- **Bảo hành** → Mở trang Warranty (giữ nguyên)
-
-#### 2. Trang Báo cáo Tài chính (Financial Hub) - MỚI
-
-Khi bấm vào ô **"Báo cáo tài chính"**, bạn sẽ vào trang tổng hợp mới với **4 tab ở trên cùng**:
-
+### HomeView Bottom Navigation Tabs
 ```
-┌─────────────────────────────────────┐
-│ ← Quản lý Tài chính                │
-├─────────────────────────────────────┤
-│ 📊Báo cáo │ 💸Chi phí │ 🏦Trả góp │ 📋Nhật ký │
-├─────────────────────────────────────┤
-│                                     │
-│    (Nội dung thay đổi theo tab)     │
-│                                     │
-└─────────────────────────────────────┘
+┌─────────┬─────────┬──────────┬───────────┬─────────┬──────────┬──────────┐
+│  Home   │  Sales  │ Repairs* │ Inventory │ HSD/Var†│  Staff‡  │ Finance§ │ Settings │
+└─────────┴─────────┴──────────┴───────────┴─────────┴──────────┴──────────┘
+  * Repairs tab: only visible when enableRepair=true (electronics shops)
+  † HSD tab: visible when enableExpiry=true (food); Variants tab: when enableVariants=true (fashion)
+  ‡ Staff tab: requires allowManageStaff permission
+  § Finance tab: requires allowViewRevenue permission
 ```
 
-**Tab 1: Báo cáo** (Financial Report)
-- Xem tất cả giao dịch tiền: bán hàng, sửa chữa, chi phí, nhập hàng, thu nợ, trả nợ
-- Lọc theo: Tất cả / Thu / Chi
-- Bộ lọc nâng cao: theo loại giao dịch, khoảng thời gian, tìm kiếm
-- Summary card: Tổng thu - Tổng chi = Lợi nhuận
+### Home Tab — Dashboard Cards & Quick Actions
+Links to:
+- `CreateSaleView` — New sale
+- `CreateRepairOrderView` — New repair
+- `OrderListView` — All orders
+- `SaleListView` — Sale list
+- `RevenueView` — Revenue dashboard
+- `ExpenseView` — Expenses
+- `DebtView` — Debts
+- `WarrantyView` — Warranty
+- `FastInventoryInputView` — Quick stock entry
+- `SmartStockInView` — Smart stock entry
+- `PendingStockListView` — Pending stock
+- `SupplierListView` — Suppliers
+- `CustomerManagementView` — Customers
+- `GlobalSearchView` — Search
+- `AdvancedChatView` — Team chat
+- `AttendanceView` — Check-in/out
+- `StaffPerformanceView` — Staff KPIs
+- `NotificationsView` — Notifications
+- `CashClosingView` — Cash closing
+- `FinancialReportView` — Financial reports
+- `FinancialActivityLogView` — Activity log
+- `BankInstallmentReportView` — Installments
+- `PrinterSettingsView` — Printer setup
+- `QrScanView` — QR scanner
+- `ExpiryManagementView` — Expiry (food)
+- `VariantManagementView` — Variants (fashion)
+- `HRSalarySettingsView` — Salary settings
+- `PayrollView` — Payroll
+- `UserGuideView` — Help
+- `AboutDeveloperView` — About
 
-**Tab 2: Chi phí** (Expense)
-- Xem danh sách chi phí shop (cố định, phát sinh, lương, mặt bằng...)
-- Thêm chi phí mới bằng nút ➕ ở góc dưới phải
-- Lọc theo: Ngày / Tuần / Tháng
-- Biểu đồ thống kê chi phí
-- Truy cập nhanh trang Nhập kho
-
-**Tab 3: Trả góp** (Bank Installment)
-- Thống kê tất cả đơn bán trả góp qua ngân hàng
-- Lọc theo ngân hàng, theo thời gian
-- Xem tổng tiền, đã nhận, chờ nhận cho từng ngân hàng
-
-**Tab 4: Nhật ký** (Activity Log)
-- **Sub-tab Tài chính**: Xem log thu/chi/nợ theo thời gian, có tìm kiếm + bộ lọc
-- **Sub-tab Hệ thống**: Xem log hành động của người dùng (thêm/sửa/xóa)
-
-#### 3. Các trang vẫn truy cập riêng được
-
-Tất cả 4 view bên trong Financial Hub vẫn hoạt động bình thường nếu mở riêng lẻ từ nơi khác trong app. Chế độ `embedded: true` chỉ tắt AppBar riêng khi view được nhúng vào Financial Hub.
-
-### Các view đã xóa
-
-| View | Lý do |
-|------|-------|
-| `transaction_detail_view.dart` | View mồ côi - không có nút nào trong app dẫn tới. Chức năng đã được bao phủ bởi `financial_report_view.dart` |
-| `financial_reconciliation_view.dart` | View mồ côi - không có nút nào trong app dẫn tới. Chức năng đối soát đã có trong `cash_closing_view.dart` |
-
-### Lưu ý cho Developer
-
-- Khi thêm view tài chính mới, cân nhắc thêm vào Financial Hub như một tab thay vì tạo trang riêng
-- 4 view hỗ trợ `embedded` parameter: set `embedded: true` khi nhúng vào container khác (không có Scaffold)
-- `unified_payment_page.dart` và `PaymentIntentService` **KHÔNG ĐƯỢC SỬA** theo quy định dự án
+### Settings Tab
+Links to:
+- `ShopSettingsView` — Shop config
+- `StaffPermissionsView` — Permissions
+- `WorkScheduleSettingsView` — Schedules
+- `NotificationSettingsView` — Notification prefs
+- `PrinterSettingsView` — Printer config
+- `LabelSettingsView` — Label templates
+- `CategoryManagementView` — Categories
+- `QuickInputManagementView` — Quick inputs
+- `AuditLogView` — Audit logs
+- `SuperAdminView` — Admin panel (super admin only)
+- Language switch (vi/en)
 
 ---
 
-## �📞 THÔNG TIN LIÊN HỆ
+## 18. Security & Roles
 
-**Nhà phát triển:** Huluca Tech
-- **Email:** itquanghuy85@gmail.com / admin@huluca.com
-- **Hotline:** +84964.09.59.79
-- **GitHub:** https://github.com/itquanghuy85/quanlyshop
+### Role Hierarchy
+```
+superAdmin (admin@huluca.com)
+  └── owner (shop creator)
+      └── manager
+          ├── employee
+          └── technician
+```
+
+### Custom Claims (set by Cloud Functions)
+- `isSuperAdmin: boolean`
+- `shopId: string`
+- `role: owner | manager | employee | technician | user`
+
+### Key Security Rules
+- **Multi-tenant isolation:** All queries filtered by `shopId` (from claims or users collection)
+- **Super admin bypass:** `admin@huluca.com` has full access
+- **Protected fields:** `shopId`, `isAdmin`, `balance`, `ownerUid` cannot be changed by client
+- **Audit logs:** Write-once, immutable (no update or delete)
+- **Catch-all deny:** Any undefined collection returns `false`
+- **Soft deletes:** Records marked `deleted: true` rather than removed
 
 ---
 
-*Tài liệu tổng hợp được tạo: 02/2026*
-*Phiên bản app: 3.4.0+10*
+*End of Project Structure Documentation*

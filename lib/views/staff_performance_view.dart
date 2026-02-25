@@ -136,57 +136,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          // Nút in bảng lương
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.print, color: Colors.white),
-            tooltip: 'In bảng lương',
-            onSelected: (value) => _handlePrintAction(value),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'print_all',
-                child: Row(
-                  children: [
-                    Icon(Icons.table_chart, color: Colors.blue),
-                    SizedBox(width: 8),
-                    Text('In bảng lương tổng hợp'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'share_all',
-                child: Row(
-                  children: [
-                    Icon(Icons.share, color: Colors.green),
-                    SizedBox(width: 8),
-                    Text('Chia sẻ PDF tổng hợp'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const ShopDeductionSettingsView(),
-              ),
-            ).then((_) => _loadReport()),
-            icon: const Icon(Icons.account_balance_wallet, color: Colors.white),
-            tooltip: 'Cài đặt Khấu trừ/Thuế',
-          ),
-          IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const HRSalarySettingsView()),
-            ).then((_) => _loadReport()),
-            icon: const Icon(Icons.settings, color: Colors.white),
-            tooltip: 'Cài đặt lương',
-          ),
-          IconButton(
-            onPressed: () => _selectMonth(context),
-            icon: const Icon(Icons.calendar_month, color: Colors.white),
-            tooltip: 'Chọn tháng',
-          ),
+          // Chỉ giữ refresh trên AppBar
           IconButton(
             onPressed: _loadReport,
             icon: const Icon(Icons.refresh, color: Colors.white),
@@ -194,6 +144,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
           ),
         ],
       ),
+      bottomNavigationBar: _buildBottomActionBar(),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -259,6 +210,142 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             icon: const Icon(Icons.chevron_right, color: Colors.white),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Bottom action bar with labeled buttons
+  Widget _buildBottomActionBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(20),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: SafeArea(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _bottomAction(
+              icon: Icons.print,
+              label: 'In lương',
+              color: Colors.blue,
+              onTap: () => _showPrintMenu(),
+            ),
+            _bottomAction(
+              icon: Icons.receipt_long,
+              label: 'Khấu trừ',
+              color: Colors.orange,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ShopDeductionSettingsView(),
+                ),
+              ).then((_) => _loadReport()),
+            ),
+            _bottomAction(
+              icon: Icons.settings,
+              label: 'Cài đặt',
+              color: Colors.teal,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HRSalarySettingsView()),
+              ).then((_) => _loadReport()),
+            ),
+            _bottomAction(
+              icon: Icons.calendar_month,
+              label: 'Chọn tháng',
+              color: Colors.indigo,
+              onTap: () => _selectMonth(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withAlpha(25),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPrintMenu() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.table_chart, color: Colors.blue),
+              title: const Text('In bảng lương tổng hợp'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _handlePrintAction('print_all');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share, color: Colors.green),
+              title: const Text('Chia sẻ PDF tổng hợp'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _handlePrintAction('share_all');
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
@@ -433,32 +520,41 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
               const SizedBox(width: 4),
               _buildMiniChip('${data.totalOrders} đơn', Colors.blue),
               const SizedBox(width: 4),
-              // Nút thêm thưởng/trừ - dùng icon only để tránh overflow
-              InkWell(
-                onTap: () async {
-                  final result = await showAddCustomAdjustmentDialog(
-                    context,
-                    staffId: data.staffId,
-                    staffName: data.staffName,
-                    month: _selectedMonth.month,
-                    year: _selectedMonth.year,
-                  );
-                  if (result == true) {
-                    _loadReport();
-                  }
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withAlpha(30),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.green.withAlpha(100)),
-                  ),
-                  child: const Icon(
-                    Icons.add_circle_outline,
-                    size: 14,
-                    color: Colors.green,
+              // Nút thêm thưởng/trừ
+              Tooltip(
+                message: 'Thêm thưởng/trừ',
+                child: InkWell(
+                  onTap: () async {
+                    final result = await showAddCustomAdjustmentDialog(
+                      context,
+                      staffId: data.staffId,
+                      staffName: data.staffName,
+                      month: _selectedMonth.month,
+                      year: _selectedMonth.year,
+                    );
+                    if (result == true) {
+                      _loadReport();
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withAlpha(30),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.withAlpha(100)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_circle_outline, size: 13, color: Colors.green),
+                        SizedBox(width: 2),
+                        Text(
+                          'Thưởng/Trừ',
+                          style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

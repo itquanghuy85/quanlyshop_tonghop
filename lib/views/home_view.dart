@@ -41,6 +41,8 @@ import 'create_repair_order_view.dart';
 import 'about_developer_view.dart';
 import 'cash_closing_view.dart';
 import 'bank_installment_report_view.dart';
+import 'financial_report_view.dart';
+import 'financial_activity_log_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
@@ -4549,7 +4551,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const ExpenseView(),
+                      builder: (_) => const FinancialReportView(),
                     ),
                   ),
                 ),
@@ -4561,6 +4563,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const BankInstallmentReportView(),
+                    ),
+                  ),
+                ),
+                _financeQuickCard(
+                  'Nhật ký',
+                  Icons.history,
+                  Colors.purple,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FinancialActivityLogView(),
                     ),
                   ),
                 ),

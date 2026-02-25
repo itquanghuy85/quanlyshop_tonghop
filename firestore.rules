@@ -1029,11 +1029,13 @@ service cloud.firestore {
     // Stores shop-level salary deduction, insurance, and tax settings
     // Document ID is shopId for easy lookup
     match /shop_deduction_settings/{shopId} {
-      // READ: Owner+ in same shop
-      allow read: if isAuth() && belongsTo(shopId) && isOwner();
+      // READ: Manager+ in same shop
+      allow read: if isAuth() && belongsTo(shopId) && isManager();
       
-      // CREATE/UPDATE: Owner only (sensitive HR settings)
-      allow create, update: if isAuth() && belongsTo(shopId) && isOwner();
+      // CREATE/UPDATE: Shop owner (by ownerUid) or role=owner or superAdmin
+      allow create, update: if isAuth() && (
+        isSuperAdmin() || isShopOwner(shopId) || (belongsTo(shopId) && isOwner())
+      );
       
       // DELETE: Not allowed - settings should persist
       allow delete: if false;
