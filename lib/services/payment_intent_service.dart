@@ -736,6 +736,25 @@ class PaymentIntentService {
         }
         break;
 
+      case PaymentIntentType.otherIncome:
+        // Thu phát sinh (miscellaneous income) - save as expense with type 'THU'
+        final shopIdIncome = UserService.getShopIdSync();
+        await _db.insertExpense({
+          'firestoreId': 'inc_${intent.id}',
+          'amount': intent.amount,
+          'title': intent.description,
+          'description': intent.description,
+          'note': intent.notes,
+          'paymentMethod': paymentMethod.code,
+          'date': now,
+          'createdAt': now,
+          'category': intent.metadata?['category'] ?? 'PHÁT SINH',
+          'type': 'THU',
+          'shopId': shopIdIncome,
+          'isSynced': 0,
+        });
+        break;
+
       default:
         // For other types, the ledger entry is sufficient
         break;

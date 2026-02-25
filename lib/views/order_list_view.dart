@@ -1147,6 +1147,27 @@ class OrderListViewState extends State<OrderListView> {
             );
             if (res == true) _loadInitialData();
           },
+          onLongPress: () {
+            if (!canDelete) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Chỉ admin/chủ cửa hàng mới có quyền xóa đơn'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+              return;
+            }
+            if (r.status >= 4) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('❌ Không thể xóa đơn ĐÃ GIAO. Chỉ xóa đơn chưa giao.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return;
+            }
+            _confirmDelete(r);
+          },
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.all(10),

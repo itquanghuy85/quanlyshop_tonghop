@@ -7,6 +7,7 @@ class Expense {
   int date;
   String? note;
   String paymentMethod;
+  String type; // 'CHI' (expense) or 'THU' (income)
   bool isSynced;
 
   Expense({
@@ -18,6 +19,7 @@ class Expense {
     required this.date,
     this.note,
     this.paymentMethod = "TIỀN MẶT",
+    this.type = 'CHI',
     this.isSynced = false,
   });
 
@@ -31,6 +33,7 @@ class Expense {
       'date': date,
       'note': note,
       'paymentMethod': paymentMethod,
+      'type': type,
       'isSynced': isSynced ? 1 : 0,
     };
   }
@@ -53,6 +56,7 @@ class Expense {
       date: date,
       note: map['note'],
       paymentMethod: map['paymentMethod'] ?? "TIỀN MẶT",
+      type: map['type'] ?? 'CHI',
       isSynced: map['isSynced'] == 1 || map['isSynced'] == true,
     );
   }
@@ -65,6 +69,7 @@ class Expense {
       'date': date,
       'note': note,
       'paymentMethod': paymentMethod,
+      'type': type,
     };
   }
 
@@ -81,6 +86,7 @@ class Expense {
       date: data['date'] ?? 0,
       note: data['note'],
       paymentMethod: data['paymentMethod'] ?? "TIỀN MẶT",
+      type: data['type'] ?? 'CHI',
       isSynced: true,
     );
   }

@@ -42,6 +42,9 @@ class _ExpenseViewState extends State<ExpenseView> {
       'Đã đồng bộ'; // 'Đã đồng bộ', 'Đang đồng bộ...', 'Lỗi đồng bộ'
   bool _hasPermission = false;
 
+  // THU/CHI toggle
+  String _viewMode = 'CHI'; // 'CHI' or 'THU'
+
   // Filter options
   String _filterType = 'THÁNG'; // NGÀY, TUẦN, THÁNG
   DateTime _selectedDate = DateTime.now();
@@ -160,9 +163,15 @@ class _ExpenseViewState extends State<ExpenseView> {
     DateTime now = DateTime.now();
     List<Map<String, dynamic>> filtered = [];
 
+    // First filter by THU/CHI type
+    final typeFiltered = _expenses.where((e) {
+      final eType = (e['type'] ?? 'CHI').toString();
+      return eType == _viewMode;
+    }).toList();
+
     switch (_filterType) {
       case 'NGÀY':
-        filtered = _expenses.where((e) {
+        filtered = typeFiltered.where((e) {
           final d = DateTime.fromMillisecondsSinceEpoch(e['date']);
           return d.day == _selectedDate.day &&
               d.month == _selectedDate.month &&
@@ -175,21 +184,21 @@ class _ExpenseViewState extends State<ExpenseView> {
           Duration(days: _selectedDate.weekday - 1),
         );
         DateTime endOfWeek = startOfWeek.add(const Duration(days: 6));
-        filtered = _expenses.where((e) {
+        filtered = typeFiltered.where((e) {
           final d = DateTime.fromMillisecondsSinceEpoch(e['date']);
           return d.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
               d.isBefore(endOfWeek.add(const Duration(days: 1)));
         }).toList();
         break;
       case 'THÁNG':
-        filtered = _expenses.where((e) {
+        filtered = typeFiltered.where((e) {
           final d = DateTime.fromMillisecondsSinceEpoch(e['date']);
           return d.month == _selectedDate.month && d.year == _selectedDate.year;
         }).toList();
         break;
       default:
         // Default to current month if no filter
-        filtered = _expenses.where((e) {
+        filtered = typeFiltered.where((e) {
           final d = DateTime.fromMillisecondsSinceEpoch(e['date']);
           return d.month == now.month && d.year == now.year;
         }).toList();
@@ -228,6 +237,9 @@ class _ExpenseViewState extends State<ExpenseView> {
   }
 
   Future<void> _handleDeleteExpense(Map<String, dynamic> exp) async {
+    final isIncome = (exp['type'] ?? 'CHI') == 'THU';
+    final label = isIncome ? 'thu phát sinh' : 'chi phí';
+    
     if (exp['isPurchaseDebt'] == true) {
       NotificationService.showSnackBar(
         "Không thể xóa chi phí từ đơn nhập hàng!",
@@ -236,13 +248,13 @@ class _ExpenseViewState extends State<ExpenseView> {
       return;
     }
     
-    // Kiểm tra ngày của chi phí đã chốt quỹ chưa
+    // Kiểm tra ngày đã chốt quỹ chưa
     final expenseTimestamp = exp['date'] is int ? exp['date'] : DateTime.now().millisecondsSinceEpoch;
     final canEdit = await AdjustmentService.canEditDirectly(expenseTimestamp);
     if (!canEdit && mounted) {
       final expenseDate = DateTime.fromMillisecondsSinceEpoch(expenseTimestamp);
       NotificationService.showSnackBar(
-        '❌ Ngày ${DateFormat('dd/MM/yyyy').format(expenseDate)} đã chốt quỹ! Không thể xóa chi phí.',
+        '❌ Ngày ${DateFormat('dd/MM/yyyy').format(expenseDate)} đã chốt quỹ! Không thể xóa $label.',
         color: Colors.red,
       );
       return;
@@ -253,7 +265,7 @@ class _ExpenseViewState extends State<ExpenseView> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          "XÁC NHẬN XÓA CHI PHÍ",
+          isIncome ? "XÁC NHẬN XÓA KHOẢN THU" : "XÁC NHẬN XÓA CHI PHÍ",
           style: AppTextStyles.headline5.copyWith(
             color: AppColors.error,
             fontWeight: FontWeight.bold,
@@ -263,7 +275,7 @@ class _ExpenseViewState extends State<ExpenseView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              "Bạn đang xóa khoản chi: ${exp['title']}\nSố tiền: ${MoneyUtils.formatCurrency(exp['amount'])}",
+              "Bạn đang xóa khoản ${isIncome ? 'thu' : 'chi'}: ${exp['title']}\nSố tiền: ${MoneyUtils.formatCurrency(exp['amount'])}",
             ),
             const SizedBox(height: 15),
             TextField(
@@ -326,13 +338,13 @@ class _ExpenseViewState extends State<ExpenseView> {
           await db.logAction(
             userId: user?.uid ?? "0",
             userName: email.split('@').first.toUpperCase(),
-            action: "XÓA CHI PHÍ",
+            action: isIncome ? "XÓA THU PHÁT SINH" : "XÓA CHI PHÍ",
             type: "FINANCE",
-            desc: "Đã xóa khoản chi ${exp['title']} số tiền ${exp['amount']}đ",
+            desc: "Đã xóa khoản ${isIncome ? 'thu' : 'chi'} ${exp['title']} số tiền ${exp['amount']}đ",
           );
 
           NotificationService.showSnackBar(
-            "Đã xóa chi phí thành công",
+            isIncome ? "Đã xóa khoản thu thành công" : "Đã xóa chi phí thành công",
             color: AppColors.success,
           );
           _refresh();
@@ -590,8 +602,12 @@ class _ExpenseViewState extends State<ExpenseView> {
 
     final body = Column(
       children: [
+        // THU/CHI toggle
+        _buildViewModeToggle(),
         _buildFilterBar(),
-        _buildProfessionalHeader(totalAmount, _filteredExpenses),
+        _viewMode == 'CHI'
+            ? _buildProfessionalHeader(totalAmount, _filteredExpenses)
+            : _buildIncomeHeader(totalAmount, _filteredExpenses),
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -609,10 +625,13 @@ class _ExpenseViewState extends State<ExpenseView> {
 
     final fab = kIsWeb
         ? null
-        : GradientFab.danger(
-            onPressed: _showAddExpenseDialog,
-            icon: Icons.add_circle_outline,
-            label: 'Chi phí mới',
+        : GradientFab(
+            onPressed: _viewMode == 'CHI' ? _showAddExpenseDialog : _showAddIncomeDialog,
+            icon: _viewMode == 'CHI' ? Icons.add_circle_outline : Icons.add_card,
+            label: _viewMode == 'CHI' ? 'Chi phí mới' : 'Thu phát sinh',
+            gradientColors: _viewMode == 'CHI'
+                ? [const Color(0xFFD32F2F), const Color(0xFFEF5350)]
+                : [const Color(0xFF2E7D32), const Color(0xFF66BB6A)],
           );
 
     if (widget.embedded) {
@@ -632,9 +651,11 @@ class _ExpenseViewState extends State<ExpenseView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
       appBar: CustomAppBar.build(
-        title: 'QUẢN LÝ CHI PHÍ',
-        subtitle: '${_filteredExpenses.length} khoản chi',
-        accentColor: AppBarAccents.staff,
+        title: _viewMode == 'CHI' ? 'QUẢN LÝ CHI PHÍ' : 'THU PHÁT SINH',
+        subtitle: _viewMode == 'CHI'
+            ? '${_filteredExpenses.length} khoản chi'
+            : '${_filteredExpenses.length} khoản thu',
+        accentColor: _viewMode == 'CHI' ? AppBarAccents.staff : const Color(0xFF2E7D32),
         actions: [
           IconButton(
             onPressed: () => Navigator.push(
@@ -671,6 +692,385 @@ class _ExpenseViewState extends State<ExpenseView> {
       ),
       body: body,
       floatingActionButton: fab,
+    );
+  }
+
+  Widget _buildViewModeToggle() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: AppColors.shadow.withOpacity(0.08), blurRadius: 6),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                if (_viewMode != 'CHI') {
+                  setState(() => _viewMode = 'CHI');
+                  _filterExpenses();
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _viewMode == 'CHI' ? const Color(0xFFD32F2F) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.arrow_downward,
+                      size: 18,
+                      color: _viewMode == 'CHI' ? Colors.white : Colors.grey,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'CHI PHÍ',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: _viewMode == 'CHI' ? Colors.white : Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                if (_viewMode != 'THU') {
+                  setState(() => _viewMode = 'THU');
+                  _filterExpenses();
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _viewMode == 'THU' ? const Color(0xFF2E7D32) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.arrow_upward,
+                      size: 18,
+                      color: _viewMode == 'THU' ? Colors.white : Colors.grey,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'THU PHÁT SINH',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: _viewMode == 'THU' ? Colors.white : Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIncomeHeader(int total, List<Map<String, dynamic>> list) {
+    int phatSinh = list
+        .where((e) => e['category'] == 'PHÁT SINH')
+        .fold(0, (sum, e) => sum + (e['amount'] as int));
+    int dichVu = list
+        .where((e) => e['category'] == 'DỊCH VỤ')
+        .fold(0, (sum, e) => sum + (e['amount'] as int));
+    int hoanTien = list
+        .where((e) => e['category'] == 'HOÀN TIỀN')
+        .fold(0, (sum, e) => sum + (e['amount'] as int));
+    int khac = list
+        .where((e) =>
+            e['category'] != 'PHÁT SINH' &&
+            e['category'] != 'DỊCH VỤ' &&
+            e['category'] != 'HOÀN TIỀN')
+        .fold(0, (sum, e) => sum + (e['amount'] as int));
+
+    String headerTitle = _filterType == 'NGÀY'
+        ? 'TỔNG THU PHÁT SINH HÔM NAY'
+        : _filterType == 'TUẦN'
+        ? 'TỔNG THU PHÁT SINH TUẦN NÀY'
+        : 'TỔNG THU PHÁT SINH THÁNG NÀY';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1B5E20), Color(0xFF43A047)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withAlpha(77),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            headerTitle,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: AppTextStyles.body1.fontSize,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            MoneyUtils.formatCurrency(total),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: AppTextStyles.headline1.fontSize,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 15),
+          Row(
+            children: [
+              _miniStatGreen("Phát sinh", phatSinh),
+              const SizedBox(width: 10),
+              _miniStatGreen("Dịch vụ", dichVu),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _miniStatGreen("Hoàn tiền", hoanTien),
+              const SizedBox(width: 10),
+              _miniStatGreen("Khác", khac),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniStatGreen(String label, int val) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white60, fontSize: AppTextStyles.overlineSize)),
+        Text(
+          MoneyUtils.formatCurrency(val),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: AppTextStyles.body1.fontSize,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAddIncomeDialog() async {
+    if (_isSaving) return;
+
+    // Kiểm tra ngày hôm nay đã chốt quỹ chưa
+    final today = DateTime.now();
+    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    if (!canEdit && mounted) {
+      NotificationService.showSnackBar(
+        '❌ Ngày hôm nay đã chốt quỹ! Không thể thêm thu phát sinh mới.',
+        color: Colors.red,
+      );
+      return;
+    }
+
+    final formKey = GlobalKey<FormState>();
+    final titleC = TextEditingController();
+    final amountC = TextEditingController();
+    final noteC = TextEditingController();
+    String category = "PHÁT SINH";
+    String payMethod = "TIỀN MẶT";
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          titleC.addListener(() => setS(() {}));
+          amountC.addListener(() => setS(() {}));
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            title: Text(
+              "GHI CHÉP THU PHÁT SINH",
+              style: AppTextStyles.headline5.copyWith(
+                color: const Color(0xFF2E7D32),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "PHÂN LOẠI",
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        "PHÁT SINH",
+                        "DỊCH VỤ",
+                        "HOÀN TIỀN",
+                        "BÁN TÀI SẢN",
+                        "KHÁC",
+                      ].map(
+                        (c) => ChoiceChip(
+                          label: Text(
+                            c,
+                            style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize),
+                          ),
+                          selected: category == c,
+                          selectedColor: const Color(0xFF66BB6A),
+                          onSelected: (v) => setS(() => category = c),
+                        ),
+                      ).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: titleC,
+                      decoration: const InputDecoration(labelText: "Nội dung thu *", prefixIcon: Icon(Icons.edit_note)),
+                      textCapitalization: TextCapitalization.characters,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập nội dung thu' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    CurrencyTextField(
+                      controller: amountC,
+                      label: "Số tiền (VNĐ) *",
+                      icon: Icons.payments,
+                      validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: noteC,
+                      decoration: const InputDecoration(labelText: "Ghi chú thêm", prefixIcon: Icon(Icons.description)),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "THANH TOÁN BẰNG",
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: ["TIỀN MẶT", "CHUYỂN KHOẢN"]
+                          .map(
+                            (m) => Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: ChoiceChip(
+                                  label: Text(m, style: AppTextStyles.caption),
+                                  selected: payMethod == m,
+                                  onSelected: (v) => setS(() => payMethod = m),
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("HỦY"),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2E7D32),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _isSaving
+                    ? null
+                    : () async {
+                        if (!(formKey.currentState?.validate() ?? false)) return;
+                        setS(() => _isSaving = true);
+
+                        final amount = MoneyUtils.parseCurrency(amountC.text);
+                        final user = FirebaseAuth.instance.currentUser;
+                        final navigator = Navigator.of(ctx);
+
+                        final method = payMethod == 'CHUYỂN KHOẢN'
+                            ? PaymentMethod.transfer
+                            : PaymentMethod.cash;
+
+                        navigator.pop(); // Close dialog first
+
+                        // Execute payment as income (direction IN)
+                        final result = await PaymentIntentService.executePaymentDirect(
+                          type: PaymentIntentType.otherIncome,
+                          amount: amount,
+                          paymentMethod: method,
+                          description: '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
+                          executedBy: user?.displayName ?? user?.email ?? 'unknown',
+                          metadata: {
+                            'category': category,
+                            'title': titleC.text.toUpperCase(),
+                            'note': noteC.text,
+                          },
+                        );
+
+                        if (result != null && result.success) {
+                          EventBus().emit('expenses_changed');
+                          NotificationService.showSnackBar(
+                            "Đã lưu thu phát sinh!",
+                            color: AppColors.success,
+                          );
+                        }
+
+                        setState(() {
+                          _isSaving = false;
+                        });
+                        await _refresh();
+                      },
+                child: Text(
+                  "LƯU KHOẢN THU",
+                  style: AppTextStyles.button.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -981,10 +1381,29 @@ class _ExpenseViewState extends State<ExpenseView> {
 
   Widget _expenseProfessionalCard(Map<String, dynamic> e) {
     final cat = (e['category'] ?? 'KHÁC').toString();
+    final isIncome = (e['type'] ?? 'CHI') == 'THU';
     Color color;
     IconData icon;
 
-    if (cat == 'CỐ ĐỊNH' ||
+    if (isIncome) {
+      // Income card colors
+      if (cat == 'PHÁT SINH') {
+        color = Colors.green;
+        icon = Icons.trending_up;
+      } else if (cat == 'DỊCH VỤ') {
+        color = Colors.teal;
+        icon = Icons.miscellaneous_services;
+      } else if (cat == 'HOÀN TIỀN') {
+        color = Colors.cyan;
+        icon = Icons.replay;
+      } else if (cat == 'BÁN TÀI SẢN') {
+        color = Colors.amber.shade700;
+        icon = Icons.sell;
+      } else {
+        color = Colors.green.shade700;
+        icon = Icons.attach_money;
+      }
+    } else if (cat == 'CỐ ĐỊNH' ||
         cat == 'LƯƠNG' ||
         cat == 'MẶT BẰNG' ||
         cat == 'ĐIỆN NƯỚC') {
@@ -1054,9 +1473,9 @@ class _ExpenseViewState extends State<ExpenseView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              "-${MoneyUtils.formatCurrency(e['amount'])}",
+              "${isIncome ? '+' : '-'}${MoneyUtils.formatCurrency(e['amount'])}",
               style: TextStyle(
-                color: Colors.redAccent,
+                color: isIncome ? Colors.green : Colors.redAccent,
                 fontWeight: FontWeight.w900,
                 fontSize: AppTextStyles.headline3.fontSize,
               ),
@@ -1082,12 +1501,18 @@ class _ExpenseViewState extends State<ExpenseView> {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.money_off_rounded, size: 80, color: Colors.grey[200]),
+        Icon(
+          _viewMode == 'THU' ? Icons.account_balance_wallet_outlined : Icons.money_off_rounded,
+          size: 80,
+          color: Colors.grey[200],
+        ),
         const SizedBox(height: 16),
         Text(
           kIsWeb
-              ? "Tính năng quản lý chi phí không khả dụng trên trình duyệt web.\nVui lòng sử dụng ứng dụng di động."
-              : "Không có chi phí nào trong ${_filterType.toLowerCase()} này",
+              ? "Tính năng này không khả dụng trên trình duyệt web.\nVui lòng sử dụng ứng dụng di động."
+              : _viewMode == 'THU'
+                  ? "Không có khoản thu phát sinh nào trong ${_filterType.toLowerCase()} này"
+                  : "Không có chi phí nào trong ${_filterType.toLowerCase()} này",
           style: const TextStyle(color: Colors.grey),
           textAlign: TextAlign.center,
         ),
