@@ -739,11 +739,17 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           if (imei.toUpperCase().startsWith("PKX")) {
             qtyToRestore = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
           }
-          // Tách tên sản phẩm từ productNames (bỏ " xN", "(Tặng)", "(Giảm ...)")
+          // Tách tên sản phẩm từ productNames (bỏ " xN"/" XN", "(Tặng)", "(Giảm ...)")
           if (i < names.length) {
             final nameEntry = names[i].trim();
-            final nameMatch = RegExp(r'^(.+?)\s+x\d+').firstMatch(nameEntry);
-            final productName = nameMatch != null ? nameMatch.group(1)!.trim() : nameEntry;
+            // Regex case-insensitive: match "Tên SP x2" hoặc "Tên SP X2"
+            final nameMatch = RegExp(r'^(.+?)\s+[xX]\d+').firstMatch(nameEntry);
+            var productName = nameMatch != null ? nameMatch.group(1)!.trim() : nameEntry;
+            // Bỏ hậu tố (TẶNG) hoặc (GIẢM ...) nếu còn dính
+            productName = productName.replaceAll(RegExp(r'\s*\(TẶNG\)\s*$', caseSensitive: false), '');
+            productName = productName.replaceAll(RegExp(r'\s*\(GIẢM\s+[\d,.]+\)\s*$', caseSensitive: false), '');
+            productName = productName.trim();
+            debugPrint('🔍 Tìm sản phẩm theo tên: "$productName" (từ: "$nameEntry")');
             product = await db.getProductByName(productName);
             if (product == null) {
               debugPrint('⚠️ Không tìm thấy sản phẩm theo tên: $productName');

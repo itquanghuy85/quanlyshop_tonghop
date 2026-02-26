@@ -673,8 +673,14 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         }
         if (i < names.length) {
           final nameEntry = names[i].trim();
-          final nameMatch = RegExp(r'^(.+?)\s+x\d+').firstMatch(nameEntry);
-          final productName = nameMatch != null ? nameMatch.group(1)!.trim() : nameEntry;
+          // Regex case-insensitive: match "Tên SP x2" hoặc "Tên SP X2"
+          final nameMatch = RegExp(r'^(.+?)\s+[xX]\d+').firstMatch(nameEntry);
+          var productName = nameMatch != null ? nameMatch.group(1)!.trim() : nameEntry;
+          // Bỏ hậu tố (TẶNG) hoặc (GIẢM ...) nếu còn dính
+          productName = productName.replaceAll(RegExp(r'\s*\(TẶNG\)\s*$', caseSensitive: false), '');
+          productName = productName.replaceAll(RegExp(r'\s*\(GIẢM\s+[\d,.]+\)\s*$', caseSensitive: false), '');
+          productName = productName.trim();
+          debugPrint('🔍 Tìm sản phẩm theo tên: "$productName" (từ: "$nameEntry")');
           product = await db.getProductByName(productName);
           if (product == null) {
             debugPrint('⚠️ Không tìm thấy sản phẩm theo tên: $productName');
