@@ -1718,6 +1718,7 @@ class _CashClosingViewState extends State<CashClosingView>
     final repairTotal = incomeList.where((t) => t['type'] == 'repair').fold<int>(0, (s, t) => s + (t['amount'] as int));
     final debtTotal = incomeList.where((t) => t['type'] == 'debt_collect').fold<int>(0, (s, t) => s + (t['amount'] as int));
     final settlementTotal = incomeList.where((t) => t['type'] == 'settlement').fold<int>(0, (s, t) => s + (t['amount'] as int));
+    final miscIncomeTotal = incomeList.where((t) => t['type'] == 'misc_income').fold<int>(0, (s, t) => s + (t['amount'] as int));
 
     return Column(
       children: [
@@ -1758,6 +1759,7 @@ class _CashClosingViewState extends State<CashClosingView>
                     if (_enableRepair && repairTotal > 0) _summaryChip('🔧 Sửa chữa', repairTotal, Colors.green),
                     if (debtTotal > 0) _summaryChip('💳 Thu nợ', debtTotal, Colors.green),
                     if (settlementTotal > 0) _summaryChip('🏦 Tất toán', settlementTotal, Colors.green),
+                    if (miscIncomeTotal > 0) _summaryChip('💰 Thu phát sinh', miscIncomeTotal, Colors.green),
                   ],
                 ),
               ],
