@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../models/shop_deduction_settings.dart';
 import '../../services/salary_calculation_service.dart';
 import '../../services/user_service.dart';
+import '../../utils/money_input_formatter.dart';
 import 'add_custom_adjustment_dialog.dart';
 
 /// Màn hình cài đặt Khấu trừ, Thuế, Bảo hiểm của shop
@@ -1026,12 +1028,14 @@ class _CurrencyField extends StatefulWidget {
 class _CurrencyFieldState extends State<_CurrencyField> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
-  final _format = NumberFormat('#,###', 'vi_VN');
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: _format.format(widget.value));
+    final initial = widget.value > 0
+        ? MoneyInputFormatter.formatValue(widget.value.toInt())
+        : '';
+    _controller = TextEditingController(text: initial);
     _focusNode = FocusNode();
   }
 
@@ -1046,7 +1050,10 @@ class _CurrencyFieldState extends State<_CurrencyField> {
   void didUpdateWidget(_CurrencyField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!_focusNode.hasFocus && widget.value != oldWidget.value) {
-      _controller.text = _format.format(widget.value);
+      final text = widget.value > 0
+          ? MoneyInputFormatter.formatValue(widget.value.toInt())
+          : '';
+      _controller.text = text;
     }
   }
 
@@ -1056,6 +1063,7 @@ class _CurrencyFieldState extends State<_CurrencyField> {
       controller: _controller,
       focusNode: _focusNode,
       keyboardType: TextInputType.number,
+      inputFormatters: [MoneyInputFormatter()],
       style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         labelText: widget.label,
@@ -1067,8 +1075,7 @@ class _CurrencyFieldState extends State<_CurrencyField> {
         border: const OutlineInputBorder(),
       ),
       onChanged: (value) {
-        final cleaned = value.replaceAll(RegExp(r'[^0-9]'), '');
-        final parsed = double.tryParse(cleaned) ?? 0;
+        final parsed = MoneyInputFormatter.parseRaw(value).toDouble();
         widget.onChanged(parsed);
       },
     );
