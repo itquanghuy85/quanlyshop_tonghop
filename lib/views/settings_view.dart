@@ -797,7 +797,11 @@ class _SettingsViewState extends State<SettingsView> {
                             )
                           else
                             DropdownButtonFormField<String>(
-                              value: _selectedShopId,
+                              // Safety: ensure value exists in items to prevent assertion error
+                              value: _selectedShopId != null &&
+                                      _allShops.any((s) => s['id'] == _selectedShopId)
+                                  ? _selectedShopId
+                                  : null,
                               decoration: InputDecoration(
                                 labelText: localizations.selectShopLabel,
                                 border: OutlineInputBorder(

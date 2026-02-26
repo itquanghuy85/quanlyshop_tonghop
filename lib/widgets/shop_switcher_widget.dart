@@ -98,14 +98,25 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
       final shops = await _shopService.getOwnedShops();
       final currentShopId = await _shopService.getActiveShopId();
 
+      // Validate currentShopId exists in shops list to prevent DropdownButton assertion
+      final validShopId = currentShopId != null &&
+              shops.any((s) => s['id'] == currentShopId)
+          ? currentShopId
+          : (shops.isNotEmpty ? shops.first['id'] as String? : null);
+
       setState(() {
         _shops = shops;
-        _currentShopId = currentShopId;
+        _currentShopId = validShopId;
         // Show for owner/admin to allow creating new branches
         // Show even if shops list is empty so owner can create their first branch
         _shouldShow = isOwnerOrAdmin;
         _loading = false;
       });
+
+      // If we had to correct the shopId, persist the valid one
+      if (validShopId != null && validShopId != currentShopId) {
+        await _shopService.switchShop(validShopId);
+      }
     } catch (e) {
       setState(() {
         _shouldShow = false;
@@ -264,7 +275,11 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
             // Only show dropdown if there are shops
             if (_shops.isNotEmpty) ...[
               DropdownButtonFormField<String>(
-                value: _currentShopId,
+                // Safety: ensure value exists in items to prevent assertion error
+                value: _currentShopId != null &&
+                        _shops.any((s) => s['id'] == _currentShopId)
+                    ? _currentShopId
+                    : null,
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,

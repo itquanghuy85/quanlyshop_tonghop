@@ -214,8 +214,9 @@ class _CashClosingViewState extends State<CashClosingView>
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) {
-        setState(() => _isLoading = false);
+        // FIX: Fallback to local DB when shopId is null instead of showing empty
         _isLoadingFromFirestore = false;
+        if (mounted) await _loadAllDataFromLocalDB();
         return;
       }
 
@@ -2743,7 +2744,8 @@ class _CashClosingViewState extends State<CashClosingView>
       final now = DateTime.now().millisecondsSinceEpoch;
       final closedBy = FirebaseAuth.instance.currentUser?.email ?? 'unknown';
 
-      // Data cho local DB - bao gồm closedAt/closedBy để hiển thị đúng khi offline
+      // FIX: Include shopId in local data for proper data isolation
+      final shopId = await UserService.getCurrentShopId();
       final localData = {
         'dateKey': dateKey,
         'cashEnd': int.tryParse(cashEndCtrl.text) ?? 0,
@@ -2752,13 +2754,13 @@ class _CashClosingViewState extends State<CashClosingView>
         'createdAt': now,
         'closedAt': now,
         'closedBy': closedBy,
+        if (shopId != null) 'shopId': shopId,
       };
 
       // Lưu local trước
       await db.upsertCashClosing(localData);
 
       // Sync to Firestore (best effort)
-      final shopId = await UserService.getCurrentShopId();
       if (shopId != null) {
         try {
           final firestoreData = {
