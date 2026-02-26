@@ -704,8 +704,8 @@ class _FastStockInViewState extends State<FastStockInView> {
     setState(() => _saving = true);
 
     try {
-      // Generate SKU (reserved for future barcode printing)
-      await SKUGenerator.generateSKU(
+      // Generate SKU (saved to product for tracking & barcode printing)
+      final generatedSku = await SKUGenerator.generateSKU(
         nhom: _getNhomFromBrand(selectedBrand!),
         model: modelCtrl.text.trim(),
         thongtin: null,
@@ -749,6 +749,7 @@ class _FastStockInViewState extends State<FastStockInView> {
             : selectedPaymentMethod, // Chỉ gán khi không pending
         isPending: isPending,
         pendingSupplier: isPending ? selectedSupplier : null, // Lưu NCC tạm
+        sku: generatedSku, // Mã SKU tự động sinh
         // Không còn đồng bộ giá KPK và CPK nữa
       );
 
@@ -1367,6 +1368,45 @@ class _FastStockInViewState extends State<FastStockInView> {
     return CurrencyTextField(controller: controller, label: title, icon: icon);
   }
 
+  /// Build prominent Quick Input Code picker at top of form
+  Widget _buildQuickInputPicker() {
+    return InkWell(
+      onTap: _selectFromLibrary,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.blue.shade50,
+              Colors.indigo.shade50,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.blue.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.flash_on, color: Colors.blue.shade700, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Chọn mã nhập nhanh để điền tự động',
+                style: TextStyle(
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, 
+              color: Colors.blue.shade400, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _selectFromLibrary() async {
     final codes = await db.getQuickInputCodes();
     final activeCodes = codes.where((c) => c.isActive).toList();
@@ -1578,6 +1618,9 @@ class _FastStockInViewState extends State<FastStockInView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // === Quick Input Code Picker (trong form body) ===
+                  _buildQuickInputPicker(),
+                  const SizedBox(height: 8),
                   _buildChipRow(
                     'Loại hàng',
                     brands,

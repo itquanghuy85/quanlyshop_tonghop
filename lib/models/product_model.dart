@@ -35,6 +35,7 @@ class Product {
   String? batchNumber; // Số lô hàng - cho thực phẩm
   String? variantParentId; // ID sản phẩm cha (nếu là biến thể)
   String? customData; // JSON string cho dữ liệu tùy chỉnh theo ngành
+  String? sku; // Mã SKU tự động sinh: [NHOM]-[MODEL]-[INFO]-[STT]
 
   Product({
     this.id,
@@ -72,6 +73,7 @@ class Product {
     this.batchNumber,
     this.variantParentId,
     this.customData,
+    this.sku,
   });
 
   Map<String, dynamic> toMap() {
@@ -111,6 +113,7 @@ class Product {
       'batchNumber': batchNumber,
       'variantParentId': variantParentId,
       'customData': customData,
+      'sku': sku,
     };
   }
 
@@ -193,6 +196,7 @@ class Product {
       batchNumber: map['batchNumber'],
       variantParentId: map['variantParentId'],
       customData: map['customData'],
+      sku: map['sku'],
     );
   }
 
@@ -232,6 +236,7 @@ class Product {
     String? batchNumber,
     String? variantParentId,
     String? customData,
+    String? sku,
   }) {
     return Product(
       id: id ?? this.id,
@@ -269,6 +274,7 @@ class Product {
       batchNumber: batchNumber ?? this.batchNumber,
       variantParentId: variantParentId ?? this.variantParentId,
       customData: customData ?? this.customData,
+      sku: sku ?? this.sku,
     );
   }
 

@@ -2956,6 +2956,7 @@ class _InventoryViewState extends State<InventoryView>
                 createdAt: ts,
                 supplier: supplier,
                 status: 1,
+                sku: skuC.text.toUpperCase(), // Save generated SKU
                 // Phase 2: Food module - Expiry & Batch
                 expiryDate: expiryDate?.millisecondsSinceEpoch,
                 batchNumber: batchC.text.trim().isNotEmpty ? batchC.text.trim() : null,
