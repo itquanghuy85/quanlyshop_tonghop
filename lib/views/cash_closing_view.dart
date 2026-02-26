@@ -390,6 +390,10 @@ class _CashClosingViewState extends State<CashClosingView>
           ? closingResults[1].data()
           : null;
 
+      // FIX: Convert Timestamp fields in closing data from Firestore
+      if (previousClosing != null) _convertTimestampFields(previousClosing);
+      if (todayClosing != null) _convertTimestampFields(todayClosing);
+
       // Fallback to local DB for closing records not yet synced to Firestore
       if (previousClosing == null) {
         previousClosing = await db.getClosingByDateKey(yesterdayKey);
@@ -1250,8 +1254,11 @@ class _CashClosingViewState extends State<CashClosingView>
       // Lưu như là chốt quỹ ngày hôm trước
       final yesterday = _selectedDate.subtract(const Duration(days: 1));
       final dateKey = DateFormat('yyyy-MM-dd').format(yesterday);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final closedBy = FirebaseAuth.instance.currentUser?.email ?? 'unknown';
+      final shopId = await UserService.getCurrentShopId();
 
-      // Data cho local DB - chỉ dùng fields có trong schema
+      // Data cho local DB - bao gồm shopId + closedAt/closedBy
       final localData = {
         'dateKey': dateKey,
         'cashStart': 0,
@@ -1261,37 +1268,40 @@ class _CashClosingViewState extends State<CashClosingView>
         'expectedCashDelta': 0,
         'expectedBankDelta': 0,
         'note': 'Số dư đầu kỳ được nhập thủ công',
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'createdAt': now,
+        'closedAt': now,
+        'closedBy': closedBy,
+        if (shopId != null) 'shopId': shopId,
       };
 
       debugPrint('Saving to local DB: $localData');
       await db.upsertCashClosing(localData);
       debugPrint('Local DB saved successfully');
 
-      // Data cho Firestore - có thể chứa thêm metadata
-      final firestoreData = {
-        ...localData,
-        'closedBy': FirebaseAuth.instance.currentUser?.email ?? 'unknown',
-        'isManualOpening': true,
-      };
-
       // Sync to Firestore (best effort - local already saved)
-      final shopId = await UserService.getCurrentShopId();
       debugPrint('Shop ID: $shopId');
       if (shopId != null) {
         try {
           debugPrint('Saving to Firestore...');
-          // Use root collection with shopId field instead of subcollection
           final firestoreDoc = {
-            ...firestoreData,
+            ...localData,
             'shopId': shopId,
             'firestoreId': 'closing_${shopId}_$dateKey',
+            'isManualOpening': true,
+            'isSynced': true,
           };
           await FirebaseFirestore.instance
               .collection('cash_closings')
               .doc('closing_${shopId}_$dateKey')
               .set(firestoreDoc, SetOptions(merge: true));
           debugPrint('Saved to Firestore successfully');
+
+          // Mark local as synced
+          await db.upsertCashClosing({
+            ...localData,
+            'firestoreId': 'closing_${shopId}_$dateKey',
+            'isSynced': 1,
+          });
         } catch (e) {
           // Firestore sync failed but local is saved - don't show error
           debugPrint('Firestore sync failed (local saved): $e');
@@ -2772,6 +2782,13 @@ class _CashClosingViewState extends State<CashClosingView>
               .collection('cash_closings')
               .doc('closing_${shopId}_$dateKey')
               .set(firestoreData, SetOptions(merge: true));
+
+          // Mark local as synced with firestoreId
+          await db.upsertCashClosing({
+            ...localData,
+            'firestoreId': 'closing_${shopId}_$dateKey',
+            'isSynced': 1,
+          });
         } catch (e) {
           // Firestore sync failed but local is saved - log but don't show error
           debugPrint(

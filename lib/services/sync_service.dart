@@ -2740,6 +2740,7 @@ class SyncService {
         'supplier_product_prices',
         'audit_logs', // FIX: Thêm để device mới download được lịch sử thao tác
         'payment_intents', // FIX: Thêm để đồng bộ các yêu cầu thanh toán giữa các máy
+        'cash_closings', // FIX: Thêm để đồng bộ lịch sử chốt quỹ + số dư đầu kỳ khi switch account
       ];
       // Lưu ý: 'users' và 'shops' không có shopId field nên không tải ở đây
 
@@ -2842,6 +2843,8 @@ class SyncService {
                 await db.upsertAuditLog(data);
               } else if (col == 'payment_intents') {
                 await db.upsertPaymentIntent(data);
+              } else if (col == 'cash_closings') {
+                await db.upsertCashClosing(data);
               }
               successCount++;
             } catch (e) {
