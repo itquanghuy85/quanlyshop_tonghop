@@ -3839,18 +3839,34 @@ class DBHelper {
       'upsertCashClosing: filtered data keys=${filteredData.keys.toList()}',
     );
 
+    // FIX: Use dateKey + shopId as unique key to avoid overwriting other shops' data
+    final shopId = data['shopId'] as String? ?? UserService.getShopIdSync();
+    String whereClause;
+    List<dynamic> whereArgs;
+    if (shopId != null && shopId.isNotEmpty) {
+      whereClause = 'dateKey = ? AND (shopId = ? OR shopId IS NULL)';
+      whereArgs = [dateKey, shopId];
+      // Ensure shopId is in the data
+      if (!filteredData.containsKey('shopId') && validColumns.contains('shopId')) {
+        filteredData['shopId'] = shopId;
+      }
+    } else {
+      whereClause = 'dateKey = ?';
+      whereArgs = [dateKey];
+    }
+
     final existing = await db.query(
       'cash_closings',
-      where: 'dateKey = ?',
-      whereArgs: [dateKey],
+      where: whereClause,
+      whereArgs: whereArgs,
     );
 
     if (existing.isNotEmpty) {
       await db.update(
         'cash_closings',
         filteredData,
-        where: 'dateKey = ?',
-        whereArgs: [dateKey],
+        where: whereClause,
+        whereArgs: whereArgs,
       );
     } else {
       await db.insert('cash_closings', filteredData);

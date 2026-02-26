@@ -1507,6 +1507,11 @@ class _CashClosingViewState extends State<CashClosingView>
                       analysis.debtCollected,
                       Colors.green,
                     ),
+                    _breakdownItem(
+                      "Thu phát sinh",
+                      analysis.miscIncome,
+                      Colors.teal,
+                    ),
                   ],
                 ),
               ),
@@ -3083,6 +3088,7 @@ class _CashClosingViewState extends State<CashClosingView>
   _TransactionAnalysis _analyzeTransactions(DateTime now) {
     int cashIn = 0, cashOut = 0, bankIn = 0, bankOut = 0;
     int saleIncome = 0, repairIncome = 0, debtCollected = 0;
+    int miscIncome = 0; // Thu phát sinh (type=THU)
     int expenseOut = 0, importOut = 0, supplierPaid = 0;
     int saleCost = 0, repairCost = 0;
     int settlementIncome = 0;
@@ -3186,6 +3192,7 @@ class _CashClosingViewState extends State<CashClosingView>
 
       // Thu phát sinh (type=THU) → tính vào income, KHÔNG tính vào expense
       if (eType == 'THU') {
+        miscIncome += amount;
         if (method == 'TIỀN MẶT') {
           cashIn += amount;
         } else {
@@ -3331,7 +3338,8 @@ class _CashClosingViewState extends State<CashClosingView>
     debugPrint('📊 saleIncome=$saleIncome (bao gồm công nợ: $saleDebt)');
     debugPrint('📊 saleCost=$saleCost');
     debugPrint('📊 settlementIncome=$settlementIncome');
-    debugPrint('🔧 repairIncome=$repairIncome (bao gồm công nợ: $repairDebt)');
+    debugPrint('� miscIncome=$miscIncome (thu phát sinh)');
+    debugPrint('�🔧 repairIncome=$repairIncome (bao gồm công nợ: $repairDebt)');
     debugPrint('💳 debtCollected=$debtCollected (chỉ ảnh hưởng quỹ, không ảnh hưởng lợi nhuận)');
     debugPrint(
       '📤 expenseOut=$expenseOut, importOut=$importOut, supplierPaid=$supplierPaid',
@@ -3348,6 +3356,7 @@ class _CashClosingViewState extends State<CashClosingView>
       settlementIncome: settlementIncome,
       repairIncome: repairIncome,
       debtCollected: debtCollected,
+      miscIncome: miscIncome,
       expenseOut: expenseOut,
       importOut: importOut,
       supplierPaid: supplierPaid,
@@ -3360,6 +3369,7 @@ class _CashClosingViewState extends State<CashClosingView>
 class _TransactionAnalysis {
   final int cashIn, cashOut, bankIn, bankOut;
   final int saleIncome, settlementIncome, repairIncome, debtCollected;
+  final int miscIncome; // Thu phát sinh (type=THU trong expenses)
   final int expenseOut, importOut, supplierPaid;
   final int saleCost, repairCost; // Giá vốn hàng đã bán và sửa chữa
   _TransactionAnalysis({
@@ -3371,6 +3381,7 @@ class _TransactionAnalysis {
     required this.settlementIncome,
     required this.repairIncome,
     required this.debtCollected,
+    required this.miscIncome,
     required this.expenseOut,
     required this.importOut,
     required this.supplierPaid,
@@ -3382,10 +3393,12 @@ class _TransactionAnalysis {
   /// - saleIncome đã bao gồm cả bán công nợ (K3)
   /// - KHÔNG cộng debtCollected vì doanh thu đã tính ở K3
   /// - debtCollected chỉ ảnh hưởng quỹ tiền mặt/NH
+  /// - miscIncome = thu phát sinh (type=THU) cũng tính vào lợi nhuận
   int get netProfit =>
       saleIncome +
       settlementIncome +
-      repairIncome -
+      repairIncome +
+      miscIncome -
       expenseOut -
       saleCost -
       repairCost;
