@@ -2890,6 +2890,26 @@ class _CashClosingViewState extends State<CashClosingView>
         'rawData': p,
       });
     }
+    // Thu phát sinh (expenses với type=THU)
+    for (var e in _expenses) {
+      final expenseDate = (e['date'] ?? e['createdAt']) as int?;
+      if (expenseDate == null) continue;
+      if (!_isSameDay(expenseDate, date)) continue;
+      final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
+      if (eType != 'THU') continue;
+
+      list.add({
+        'type': 'misc_income',
+        'icon': '💰',
+        'title': 'Thu phát sinh',
+        'detail': e['title'] as String? ?? e['note'] as String? ?? 'Thu phát sinh',
+        'paymentMethod': e['paymentMethod'] as String? ?? 'TIỀN MẶT',
+        'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(expenseDate)),
+        'amount': e['amount'] as int? ?? 0,
+        'rawData': e,
+      });
+    }
+
     list.sort((a, b) => (b['time'] as String).compareTo(a['time'] as String));
     return list;
   }
@@ -2900,11 +2920,13 @@ class _CashClosingViewState extends State<CashClosingView>
     // Lưu danh sách expense NHẬP HÀNG để tránh double-count với supplier_imports
     final importExpenseAmounts = <int>{};
 
-    // Chi phí thường
+    // Chi phí thường (bỏ qua type=THU vì đó là thu phát sinh)
     for (var e in _expenses) {
       final expenseDate = (e['date'] ?? e['createdAt']) as int?;
       if (expenseDate == null) continue;
       if (!_isSameDay(expenseDate, date)) continue;
+      final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
+      if (eType == 'THU') continue; // Thu phát sinh → hiển thị ở income
 
       final category = (e['category'] as String? ?? 'Chi phí').toUpperCase();
       final amount = e['amount'] as int? ?? 0;
@@ -3127,6 +3149,17 @@ class _CashClosingViewState extends State<CashClosingView>
       final amount = e['amount'] as int? ?? 0;
       final method = e['paymentMethod'] as String? ?? 'TIỀN MẶT';
       final category = (e['category'] ?? '').toString().toUpperCase();
+      final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
+
+      // Thu phát sinh (type=THU) → tính vào income, KHÔNG tính vào expense
+      if (eType == 'THU') {
+        if (method == 'TIỀN MẶT') {
+          cashIn += amount;
+        } else {
+          bankIn += amount;
+        }
+        continue;
+      }
 
       // FIX BUG-CC-003: Thêm 'PURCHASE' vào danh sách category nhập hàng
       // vì fast_stock_in_view.dart tạo expense với category='PURCHASE'

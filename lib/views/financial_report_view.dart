@@ -237,25 +237,29 @@ class _FinancialReportViewState extends State<FinancialReportView>
         }
       }
 
-      // 3. Chi phí
+      // 3. Chi phí & Thu phát sinh
       final expenses = await _db.getAllExpenses();
       for (final e in expenses) {
         final expenseDate = (e['date'] as int?) ?? (e['createdAt'] as int?) ?? 0;
         if (expenseDate >= startMs &&
             expenseDate <= endMs &&
             (e['deleted'] ?? 0) != 1) {
+          final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
+          final isThu = eType == 'THU';
           allTransactions.add(
             TransactionItem(
               id: 'expense_${e['id']}',
               timestamp: expenseDate,
-              type: 'EXPENSE',
-              category: (e['category'] as String?) ?? 'Chi phí khác',
+              type: isThu ? 'INCOME' : 'EXPENSE',
+              category: isThu
+                  ? 'Thu phát sinh'
+                  : (e['category'] as String?) ?? 'Chi phí khác',
               description:
                   (e['description'] as String?) ??
                   (e['category'] as String?) ??
-                  'Chi phí',
+                  (isThu ? 'Thu phát sinh' : 'Chi phí'),
               amount: (e['amount'] as int?) ?? 0,
-              isIncome: false,
+              isIncome: isThu,
               note: e['note'] as String?,
             ),
           );

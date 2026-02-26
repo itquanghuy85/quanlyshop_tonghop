@@ -1897,6 +1897,26 @@ class _RevenueViewState extends State<RevenueView>
           .toString()
           .toUpperCase();
       final amount = e['amount'] as int? ?? 0;
+      final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
+
+      // Thu phát sinh (type=THU) → tính vào income
+      if (eType == 'THU') {
+        final item = _TransactionItem(
+          title: "Thu: ${e['title'] ?? e['description'] ?? 'Thu phát sinh'}",
+          amount: amount,
+          method: e['paymentMethod'] ?? 'TIỀN MẶT',
+          time: (e['date'] ?? e['createdAt']) as int,
+          type: "IN",
+          isDebt: false,
+        );
+        todayTrans.add(item);
+        if (item.method == "TIỀN MẶT") {
+          cashIn += item.amount;
+        } else {
+          bankIn += item.amount;
+        }
+        continue;
+      }
 
       // Lưu lại amount nếu là expense NHẬP HÀNG
       if (category.contains('NHẬP') || category.contains('LINH KIỆN')) {
@@ -2313,12 +2333,21 @@ class _RevenueViewState extends State<RevenueView>
     }
 
     int totalIn = salesIncome + repairsIncome;
-    // CHI PHÍ = tổng expenses (LOẠI TRỪ nhập hàng/purchase vì đã tính trong giá vốn)
+
+    // Thu phát sinh (type=THU) → cộng vào tổng thu
+    int miscIncome = fExpenses
+        .where((e) => (e['type'] ?? 'CHI').toString().toUpperCase() == 'THU')
+        .fold<int>(0, (sum, e) => sum + (e['amount'] as int? ?? 0));
+    totalIn += miscIncome;
+
+    // CHI PHÍ = tổng expenses (LOẠI TRỪ nhập hàng/purchase và thu phát sinh)
     int totalOut = fExpenses
         .where((e) {
+          // Loại trừ thu phát sinh (type=THU)
+          final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
+          if (eType == 'THU') return false;
           final category = (e['category'] as String? ?? '').toUpperCase();
           // Loại trừ các chi phí nhập hàng/purchase vì sẽ được tính qua giá vốn khi bán
-          // Category có thể là: NHẬP HÀNG, PURCHASE, STOCK (auto-created khi nhập kho)
           return !category.contains('NHẬP HÀNG') &&
               !category.contains('PURCHASE') &&
               !category.contains('STOCK') &&
