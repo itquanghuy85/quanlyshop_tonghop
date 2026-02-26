@@ -1493,7 +1493,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       final shopId = UserService.getShopIdSync();
       final fExpenses = await dbConn.query(
         'expenses',
-        columns: ['amount', 'category', 'description', 'title', 'date'],
+        columns: ['amount', 'category', 'description', 'title', 'date', 'type'],
         where: shopId != null && shopId.isNotEmpty
             ? '(date >= ? AND date < ?) AND (shopId = ? OR shopId IS NULL)'
             : 'date >= ? AND date < ?',
@@ -1598,13 +1598,23 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       // totalIn += debtCollected; // BỎ DÒNG NÀY
 
       // CHI HÔM NAY = tổng expenses (LOẠI TRỪ nhập hàng/linh kiện/purchase vì đã tính trong giá vốn)
+      // FIX: Loại trừ type='THU' (thu phát sinh) vì đó là KHOẢN THU, không phải chi
       int totalOut = 0;
+      int totalIncomeExpense = 0; // Thu phát sinh (type=THU)
       int stockInCost = 0; // Chi phí nhập kho hôm nay (tiền mặt/CK)
       for (final e in fExpenses) {
         final category = (e['category'] as String? ?? '').toUpperCase();
         final description = (e['description'] as String? ?? '').toUpperCase();
         final title = (e['title'] as String? ?? '').toUpperCase();
         final amount = (e['amount'] as num?)?.toInt() ?? 0;
+        final type = (e['type'] as String? ?? '').toUpperCase();
+
+        // Thu phát sinh (type=THU) là khoản THU, không tính vào chi
+        if (type == 'THU') {
+          totalIncomeExpense += amount;
+          debugPrint('THU PHÁT SINH (HOME): category=$category, amount=$amount');
+          continue;
+        }
 
         // Loại trừ các chi phí nhập hàng/linh kiện/purchase vì sẽ được tính qua giá vốn khi bán/sửa
         // Kiểm tra cả category, description và title để đảm bảo không bỏ sót
@@ -1638,10 +1648,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       // Lợi nhuận vẫn dùng totalOut (accrual basis, không có trả nợ NCC, không có nhập kho)
       final todayCashOut = totalOut + debtPaidToSupplier;
 
+      // FIX: Thu phát sinh (type=THU) cộng vào doanh thu
+      totalIn += totalIncomeExpense;
+
       // Debug log
       debugPrint('=== TÍNH LỢI NHUẬN (HOME) - ACCRUAL BASIS ===');
       debugPrint('salesIncome=$salesIncome (bao gồm công nợ: $salesDebt)');
       debugPrint('salesCost=$salesCost');
+      debugPrint('totalIncomeExpense=$totalIncomeExpense (thu phát sinh type=THU)');
       debugPrint(
         'repairsIncome=$repairsIncome (bao gồm công nợ: $repairsDebt), repairsCost=$repairsCost',
       );
@@ -1760,7 +1774,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _todayRepairProfit = repairProfit;
           _todayRepairCount = fRepairs.length;
           _todaySaleOrderCount = fSales.length;
-          _todayExpenseCount = fExpenses.length;
+          _todayExpenseCount = fExpenses.where((e) => (e['type'] as String? ?? '').toUpperCase() != 'THU').length;
           _todayStockInCost = stockInCost; // Chi phí nhập kho hôm nay
           _todayDebtPaidToSupplier = debtPaidToSupplier;
           _todayExpenseOnly = totalOut; // Chi phí thuần (không gồm trả nợ NCC)
