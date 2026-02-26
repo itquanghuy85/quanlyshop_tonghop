@@ -989,11 +989,18 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     padding: const EdgeInsets.symmetric(vertical: 6),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(l, style: const TextStyle(color: Colors.grey)),
-        Text(
-          v,
-          style: TextStyle(fontWeight: FontWeight.bold, color: color),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            v,
+            style: TextStyle(fontWeight: FontWeight.bold, color: color),
+            textAlign: TextAlign.end,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     ),
@@ -1002,13 +1009,20 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(l, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
-        Text(
-          v,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: AppTextStyles.headline5.fontSize,
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            v,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: AppTextStyles.headline5.fontSize,
+            ),
+            textAlign: TextAlign.end,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

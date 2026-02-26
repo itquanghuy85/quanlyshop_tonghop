@@ -380,12 +380,22 @@ class _CashClosingViewState extends State<CashClosingView>
             .get(),
       ]);
 
-      final previousClosing = closingResults[0].exists
+      // FIX: Fallback to local DB if Firestore closing records don't exist
+      // This ensures data saved locally (offline) is still reflected
+      var previousClosing = closingResults[0].exists
           ? closingResults[0].data()
           : null;
-      final todayClosing = closingResults[1].exists
+      var todayClosing = closingResults[1].exists
           ? closingResults[1].data()
           : null;
+
+      // Fallback to local DB for closing records not yet synced to Firestore
+      if (previousClosing == null) {
+        previousClosing = await db.getClosingByDateKey(yesterdayKey);
+      }
+      if (todayClosing == null) {
+        todayClosing = await db.getClosingByDateKey(todayKey);
+      }
 
       // FIX K1: Merge expenses chưa sync từ Local DB vào danh sách Firestore
       // Để không bỏ sót các expense vừa tạo offline
@@ -2728,14 +2738,18 @@ class _CashClosingViewState extends State<CashClosingView>
   Future<void> _saveClosing() async {
     try {
       final dateKey = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final closedBy = FirebaseAuth.instance.currentUser?.email ?? 'unknown';
 
-      // Data cho local DB - chỉ dùng fields có trong schema
+      // Data cho local DB - bao gồm closedAt/closedBy để hiển thị đúng khi offline
       final localData = {
         'dateKey': dateKey,
         'cashEnd': int.tryParse(cashEndCtrl.text) ?? 0,
         'bankEnd': int.tryParse(bankEndCtrl.text) ?? 0,
         'note': noteCtrl.text.trim(),
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'createdAt': now,
+        'closedAt': now,
+        'closedBy': closedBy,
       };
 
       // Lưu local trước
@@ -2749,8 +2763,6 @@ class _CashClosingViewState extends State<CashClosingView>
             ...localData,
             'shopId': shopId,
             'firestoreId': 'closing_${shopId}_$dateKey',
-            'closedAt': DateTime.now().millisecondsSinceEpoch,
-            'closedBy': FirebaseAuth.instance.currentUser?.email ?? 'unknown',
           };
           await FirebaseFirestore.instance
               .collection('cash_closings')
@@ -2785,7 +2797,7 @@ class _CashClosingViewState extends State<CashClosingView>
             backgroundColor: Colors.green,
           ),
         );
-        _loadAllData();
+        await _loadAllData();
       }
     } catch (e) {
       debugPrint('Error saving closing: $e');
