@@ -3396,12 +3396,30 @@ class DBHelper {
   }
 
   Future<Product?> getProductByImei(String imei) async {
-    final res = await (await database).query(
-      'products',
-      where: 'imei = ?',
-      whereArgs: [imei],
-      limit: 1,
+    final res = await (await database).rawQuery(
+      'SELECT * FROM products WHERE UPPER(imei) = UPPER(?) LIMIT 1',
+      [imei],
     );
+    return res.isNotEmpty ? Product.fromMap(res.first) : null;
+  }
+
+  /// Tìm sản phẩm theo tên (case-insensitive, dùng cho phụ kiện không có IMEI)
+  /// Ưu tiên sản phẩm cùng shopId, còn hàng (quantity > 0 hoặc status > 0)
+  Future<Product?> getProductByName(String name) async {
+    final shopId = UserService.getShopIdSync();
+    final db = await database;
+    // Thử tìm chính xác (case-insensitive) với shopId
+    var res = await db.rawQuery(
+      'SELECT * FROM products WHERE UPPER(name) = UPPER(?) AND shopId = ? AND (deleted IS NULL OR deleted != 1) ORDER BY quantity DESC LIMIT 1',
+      [name, shopId],
+    );
+    // Fallback: không lọc shopId
+    if (res.isEmpty) {
+      res = await db.rawQuery(
+        'SELECT * FROM products WHERE UPPER(name) = UPPER(?) AND (deleted IS NULL OR deleted != 1) ORDER BY quantity DESC LIMIT 1',
+        [name],
+      );
+    }
     return res.isNotEmpty ? Product.fromMap(res.first) : null;
   }
 

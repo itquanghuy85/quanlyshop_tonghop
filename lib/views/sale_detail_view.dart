@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../utils/money_utils.dart';
 import '../widgets/currency_text_field.dart';
 import '../models/sale_order_model.dart';
+import '../models/product_model.dart';
 import '../data/db_helper.dart';
 import '../services/firestore_service.dart';
 import '../services/sync_orchestrator.dart';
@@ -724,19 +725,37 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       
       // 2A: Khôi phục inventory
       final imeis = s.productImeis.split(', ');
-      for (final imei in imeis) {
-        if (imei.isEmpty || imei == "NO_IMEI") continue;
-        // Phụ kiện dạng PKxN → tách số lượng
-        if (imei.startsWith("PKx")) {
-          final qty = int.tryParse(imei.replaceAll('PKx', '')) ?? 0;
-          // Phụ kiện không track by IMEI, skip
-          if (qty > 0) restoredCount += qty;
-          continue;
+      final names = s.productNames.split(', ');
+      for (int i = 0; i < imeis.length; i++) {
+        final imei = imeis[i].trim();
+        if (imei.isEmpty) continue;
+
+        Product? product;
+        int qtyToRestore = 1;
+
+        if (imei.toUpperCase().startsWith("PKX") || imei == "NO_IMEI") {
+          // Phụ kiện (PKxN) hoặc sản phẩm không có IMEI → tìm theo tên
+          if (imei.toUpperCase().startsWith("PKX")) {
+            qtyToRestore = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
+          }
+          // Tách tên sản phẩm từ productNames (bỏ " xN", "(Tặng)", "(Giảm ...)")
+          if (i < names.length) {
+            final nameEntry = names[i].trim();
+            final nameMatch = RegExp(r'^(.+?)\s+x\d+').firstMatch(nameEntry);
+            final productName = nameMatch != null ? nameMatch.group(1)!.trim() : nameEntry;
+            product = await db.getProductByName(productName);
+            if (product == null) {
+              debugPrint('⚠️ Không tìm thấy sản phẩm theo tên: $productName');
+            }
+          }
+        } else {
+          // Điện thoại có IMEI → tìm theo IMEI
+          product = await db.getProductByImei(imei);
         }
-        final product = await db.getProductByImei(imei);
+
         if (product != null) {
-          await db.addProductQuantity(product.id!, 1);
-          product.quantity += 1;
+          await db.addProductQuantity(product.id!, qtyToRestore);
+          product.quantity += qtyToRestore;
           if (product.status == 0 && product.quantity > 0) {
             product.status = 1;
             await db.updateProductStatus(product.id!, 1);
@@ -748,7 +767,8 @@ class _SaleDetailViewState extends State<SaleDetailView> {
             operation: SyncOperation.update,
             data: product.toMap(),
           );
-          restoredCount++;
+          restoredCount += qtyToRestore;
+          debugPrint('✅ Khôi phục kho: ${product.name} +$qtyToRestore (tổng: ${product.quantity})');
         }
       }
 

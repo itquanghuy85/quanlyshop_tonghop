@@ -657,59 +657,105 @@ class _CreateSaleViewState extends State<CreateSaleView> {
 
     // 1. Hoàn trả inventory dựa trên IMEI của đơn hàng cũ
     final imeis = oldSale.productImeis.split(', ');
-    for (final imei in imeis) {
-      if (imei.isNotEmpty && imei != "NO_IMEI" && !imei.startsWith("PKx")) {
-        // Tìm sản phẩm theo IMEI và tăng quantity
-        final product = await db.getProductByImei(imei);
-        if (product != null) {
-          await db.addProductQuantity(product.id!, 1);
-          // Cập nhật local object
-          product.quantity += 1;
-          if (product.type == 'DIEN_THOAI' &&
-              product.status == 0 &&
-              product.quantity > 0) {
-            product.status = 1; // Đánh dấu là available
-            await db.updateProductStatus(product.id!, 1);
-          }
-          // Enqueue sync lên cloud thay vì gọi trực tiếp
-          await SyncOrchestrator().enqueue(
-            entityType: SyncEntityType.product,
-            entityId: product.id!,
-            firestoreId: product.firestoreId,
-            operation: SyncOperation.update,
-            data: product.toMap(),
-          );
-          debugPrint(
-            'Restored inventory for product: ${product.name}, new quantity: ${product.quantity}',
-          );
+    final names = oldSale.productNames.split(', ');
+    for (int i = 0; i < imeis.length; i++) {
+      final imei = imeis[i].trim();
+      if (imei.isEmpty) continue;
+
+      Product? product;
+      int qtyToRestore = 1;
+
+      if (imei.toUpperCase().startsWith("PKX") || imei == "NO_IMEI") {
+        // Phụ kiện (PKxN) hoặc sản phẩm không có IMEI → tìm theo tên
+        if (imei.toUpperCase().startsWith("PKX")) {
+          qtyToRestore = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
         }
+        if (i < names.length) {
+          final nameEntry = names[i].trim();
+          final nameMatch = RegExp(r'^(.+?)\s+x\d+').firstMatch(nameEntry);
+          final productName = nameMatch != null ? nameMatch.group(1)!.trim() : nameEntry;
+          product = await db.getProductByName(productName);
+          if (product == null) {
+            debugPrint('⚠️ Không tìm thấy sản phẩm theo tên: $productName');
+          }
+        }
+      } else {
+        // Điện thoại có IMEI → tìm theo IMEI
+        product = await db.getProductByImei(imei);
+      }
+
+      if (product != null) {
+        await db.addProductQuantity(product.id!, qtyToRestore);
+        product.quantity += qtyToRestore;
+        if (product.status == 0 && product.quantity > 0) {
+          product.status = 1;
+          await db.updateProductStatus(product.id!, 1);
+        }
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.product,
+          entityId: product.id!,
+          firestoreId: product.firestoreId,
+          operation: SyncOperation.update,
+          data: product.toMap(),
+        );
+        debugPrint(
+          '✅ Restored inventory: ${product.name} +$qtyToRestore (total: ${product.quantity})',
+        );
       }
     }
 
     // 2. Xóa debt cũ nếu có
     if (oldSale.firestoreId != null) {
       final existingDebts = await db.getAllDebts();
-      final linkedDebt = existingDebts
+      final linkedDebts = existingDebts
           .where((d) => d['linkedId'] == oldSale.firestoreId)
-          .firstOrNull;
-      if (linkedDebt != null) {
-        await db.deleteDebtByFirestoreId(linkedDebt['firestoreId']);
-        // Enqueue soft delete lên cloud
-        await SyncOrchestrator().enqueue(
-          entityType: SyncEntityType.debt,
-          entityId: linkedDebt['id'] as int,
-          firestoreId: linkedDebt['firestoreId'] as String?,
-          operation: SyncOperation.delete,
-          data: {...linkedDebt, 'deleted': true},
-        );
-        debugPrint(
-          'Marked old debt as deleted for sale: ${oldSale.firestoreId}',
-        );
+          .toList();
+      for (final linkedDebt in linkedDebts) {
+        final debtFId = linkedDebt['firestoreId'] as String?;
+        if (debtFId != null) {
+          await db.deleteDebtByFirestoreId(debtFId);
+          // Enqueue soft delete lên cloud
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.debt,
+            entityId: linkedDebt['id'] as int,
+            firestoreId: debtFId,
+            operation: SyncOperation.delete,
+            data: {...linkedDebt, 'deleted': true},
+          );
+          debugPrint(
+            'Marked old debt as deleted for sale: ${oldSale.firestoreId}',
+          );
+        }
       }
     }
 
-    // 3. Xóa expense records liên quan đến đơn hàng cũ (nếu có)
-    // Note: Logic này có thể cần điều chỉnh tùy theo cách lưu expense
+    // 3. Xóa PaymentIntents cũ liên quan
+    try {
+      final saleRef = oldSale.firestoreId ?? 'sale_${oldSale.soldAt}';
+      final deleted = await db.deletePaymentIntentsByReferenceId(saleRef);
+      if (deleted > 0) {
+        debugPrint('🗑️ Deleted $deleted old payment intents for sale $saleRef');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to delete old payment intents: $e');
+    }
+
+    // 4. Trừ lại chi tiêu khách hàng cũ (sẽ cộng lại khi lưu đơn mới)
+    try {
+      final phone = oldSale.walkInPhone ?? oldSale.phone;
+      if (phone.isNotEmpty) {
+        final customerService = CustomerService();
+        final customer = await customerService.getCustomerByPhone(phone);
+        if (customer != null && oldSale.finalPrice > 0) {
+          final newTotal = (customer.totalSpent - oldSale.finalPrice).clamp(0, double.maxFinite).toInt();
+          final updated = customer.copyWith(totalSpent: newTotal);
+          await customerService.updateCustomer(updated);
+          debugPrint('📊 Reverted old sale customer totalSpent: ${customer.totalSpent} → $newTotal');
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to revert customer stats: $e');
+    }
   }
 
   Future<void> _processSale() async {
