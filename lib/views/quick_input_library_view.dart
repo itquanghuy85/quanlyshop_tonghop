@@ -695,7 +695,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
             children: [
               // Type selector
               DropdownButtonFormField<String>(
-                initialValue: _type,
+                value: _type,
                 decoration: const InputDecoration(labelText: 'Loại sản phẩm'),
                 items: [
                   DropdownMenuItem(value: 'DIEN_THOAI', child: Text('Điện thoại')),
@@ -741,7 +741,10 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                 const SizedBox(height: 12),
                 // Dropdown cho tình trạng - đồng bộ với fast_stock_in_view
                 DropdownButtonFormField<String>(
-                  initialValue: _conditionCtrl.text.isNotEmpty ? _conditionCtrl.text : null,
+                  value: _conditionCtrl.text.isNotEmpty &&
+                          ['MỚI', '99', 'KHÁC'].contains(_conditionCtrl.text)
+                      ? _conditionCtrl.text
+                      : null,
                   decoration: const InputDecoration(labelText: 'Tình trạng'),
                   items: const [
                     DropdownMenuItem(value: null, child: Text('Chưa chọn')),
@@ -781,7 +784,10 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
 
               // Payment method
               DropdownButtonFormField<String>(
-                initialValue: _paymentMethod,
+                value: _paymentMethod != null &&
+                        ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'].contains(_paymentMethod)
+                    ? _paymentMethod
+                    : null,
                 decoration: const InputDecoration(labelText: 'Phương thức thanh toán'),
                 items: const [
                   DropdownMenuItem(value: null, child: Text('Chưa chọn')),

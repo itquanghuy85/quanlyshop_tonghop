@@ -4994,7 +4994,28 @@ class DBHelper {
 
   Future<int> insertQuickInputCode(QuickInputCode code) async {
     final db = await database;
-    return await db.insert('quick_input_codes', code.toMap());
+    // Generate firestoreId if not present to prevent duplicates on sync
+    if (code.firestoreId == null || code.firestoreId!.isEmpty) {
+      code.firestoreId = "qic_${code.createdAt}_${code.name.replaceAll(' ', '_')}";
+    }
+    // Use upsert to prevent duplicates with same firestoreId
+    final existing = await db.query(
+      'quick_input_codes',
+      where: 'firestoreId = ?',
+      whereArgs: [code.firestoreId],
+      limit: 1,
+    );
+    final data = code.toMap();
+    data.remove('id');
+    if (existing.isNotEmpty) {
+      return await db.update(
+        'quick_input_codes',
+        data,
+        where: 'id = ?',
+        whereArgs: [existing.first['id']],
+      );
+    }
+    return await db.insert('quick_input_codes', data);
   }
 
   Future<int> updateQuickInputCode(QuickInputCode code) async {
