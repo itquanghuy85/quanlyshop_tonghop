@@ -6695,6 +6695,16 @@ class DBHelper {
     );
   }
 
+  /// Delete all payment intents linked to a reference (e.g. sale firestoreId)
+  Future<int> deletePaymentIntentsByReferenceId(String referenceId) async {
+    final db = await database;
+    return await db.delete(
+      'payment_intents',
+      where: 'referenceId = ?',
+      whereArgs: [referenceId],
+    );
+  }
+
   /// Get payment intents history (completed/cancelled/failed) - filtered by current shopId
   Future<List<Map<String, dynamic>>> getPaymentIntentsHistory({int limit = 100}) async {
     final db = await database;

@@ -20,6 +20,9 @@ import '../services/bluetooth_printer_service.dart';
 import '../services/payment_intent_service.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
+import '../services/customer_service.dart';
+import '../services/financial_activity_service.dart';
+import '../services/notification_service.dart';
 import '../models/payment_intent_model.dart';
 import '../models/shop_settings_model.dart';
 import '../models/printer_types.dart';
@@ -632,88 +635,67 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   Future<void> _deleteSale() async {
     if (s.id == null) return;
 
-    // Thử khôi phục inventory dựa trên IMEI
-    bool inventoryRestored = false;
-    try {
-      final imeis = s.productImeis.split(', ');
-      for (final imei in imeis) {
-        if (imei.isNotEmpty && imei != "NO_IMEI" && !imei.startsWith("PKx")) {
-          // Tìm sản phẩm theo IMEI
-          final product = await db.getProductByImei(imei);
-          if (product != null) {
-            // Tăng quantity cho sản phẩm này
-            await db.addProductQuantity(product.id!, 1);
-            // Sync lên cloud
-            product.quantity += 1;
-            if (product.type == 'DIEN_THOAI' &&
-                product.status == 0 &&
-                product.quantity > 0) {
-              product.status = 1; // Đánh dấu là available
-            }
-            // Queue sync via SyncOrchestrator
-            await SyncOrchestrator().enqueue(
-              entityType: SyncEntityType.product,
-              entityId: product.id!,
-              firestoreId: product.firestoreId,
-              operation: SyncOperation.update,
-              data: product.toMap(),
-            );
-            inventoryRestored = true;
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Lỗi khi khôi phục inventory: $e');
-    }
-
+    // === BƯỚC 1: XÁC NHẬN TRƯỚC KHI XÓA ===
+    final saleRef = s.firestoreId ?? 'sale_${s.soldAt}';
+    final finalPrice = s.finalPrice;
+    final hasDebt = s.paymentMethod == 'CÔNG NỢ' || 
+                    (s.paymentMethod == 'TRẢ GÓP (NH)' && s.remainingDebt > 0);
+    
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("XÓA ĐƠN BÁN"),
+        title: Row(
+          children: [
+            Icon(Icons.delete_forever, color: AppColors.error, size: 22),
+            const SizedBox(width: 8),
+            const Text("XÓA ĐƠN BÁN", style: TextStyle(fontSize: 16)),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Bạn chắc chắn muốn xóa đơn này?"),
+            Text(
+              'Đơn hàng: ${s.productNames}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Giá trị: ${NumberFormat('#,###', 'vi').format(finalPrice)}đ',
+              style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: inventoryRestored
-                    ? AppColors.success.withOpacity(0.1)
-                    : AppColors.warning.withOpacity(0.1),
+                color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: inventoryRestored
-                      ? AppColors.success.withOpacity(0.3)
-                      : AppColors.warning.withOpacity(0.3),
-                ),
+                border: Border.all(color: Colors.blue.shade200),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    inventoryRestored
-                        ? Icons.check_circle
-                        : Icons.warning_amber_rounded,
-                    color: inventoryRestored
-                        ? AppColors.success
-                        : AppColors.warning,
-                    size: 20,
+                  const Text(
+                    'Hệ thống sẽ tự động:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      inventoryRestored
-                          ? "Số lượng sản phẩm đã được khôi phục tự động trong kho."
-                          : "Không thể khôi phục tự động số lượng trong kho. Bạn cần cập nhật inventory thủ công.",
-                      style: AppTextStyles.caption.copyWith(
-                        color: inventoryRestored
-                            ? AppColors.success
-                            : AppColors.warning,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: 4),
+                  _infoRow(Icons.inventory, 'Khôi phục số lượng kho'),
+                  if (hasDebt) _infoRow(Icons.account_balance_wallet, 'Xóa công nợ liên quan'),
+                  _infoRow(Icons.receipt_long, 'Xóa bản ghi thanh toán'),
+                  _infoRow(Icons.person, 'Cập nhật lại chi tiêu KH'),
                 ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '⚠️ Hành động này không thể hoàn tác!',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
               ),
             ),
           ],
@@ -726,16 +708,121 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text("XÓA"),
+            child: const Text("XÓA ĐƠN"),
           ),
         ],
       ),
     );
 
-    if (ok == true) {
-      await db.deleteSale(s.id!);
+    if (ok != true) return;
+
+    // === BƯỚC 2: THỰC HIỆN XÓA (sau khi user xác nhận) ===
+    try {
+      int restoredCount = 0;
+      int debtDeleted = 0;
+      int intentDeleted = 0;
+      
+      // 2A: Khôi phục inventory
+      final imeis = s.productImeis.split(', ');
+      for (final imei in imeis) {
+        if (imei.isEmpty || imei == "NO_IMEI") continue;
+        // Phụ kiện dạng PKxN → tách số lượng
+        if (imei.startsWith("PKx")) {
+          final qty = int.tryParse(imei.replaceAll('PKx', '')) ?? 0;
+          // Phụ kiện không track by IMEI, skip
+          if (qty > 0) restoredCount += qty;
+          continue;
+        }
+        final product = await db.getProductByImei(imei);
+        if (product != null) {
+          await db.addProductQuantity(product.id!, 1);
+          product.quantity += 1;
+          if (product.status == 0 && product.quantity > 0) {
+            product.status = 1;
+            await db.updateProductStatus(product.id!, 1);
+          }
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.product,
+            entityId: product.id!,
+            firestoreId: product.firestoreId,
+            operation: SyncOperation.update,
+            data: product.toMap(),
+          );
+          restoredCount++;
+        }
+      }
+
+      // 2B: Xóa công nợ liên quan
       if (s.firestoreId != null) {
-        // Queue delete sync via SyncOrchestrator
+        final existingDebts = await db.getAllDebts();
+        final linkedDebts = existingDebts
+            .where((d) => d['linkedId'] == s.firestoreId)
+            .toList();
+        for (final debt in linkedDebts) {
+          final debtFId = debt['firestoreId'] as String?;
+          if (debtFId != null) {
+            await db.deleteDebtByFirestoreId(debtFId);
+            await SyncOrchestrator().enqueue(
+              entityType: SyncEntityType.debt,
+              entityId: debt['id'] as int,
+              firestoreId: debtFId,
+              operation: SyncOperation.delete,
+              data: {...debt, 'deleted': true},
+            );
+          }
+          debtDeleted++;
+        }
+      }
+
+      // 2C: Xóa PaymentIntents liên quan
+      try {
+        intentDeleted = await db.deletePaymentIntentsByReferenceId(saleRef);
+        debugPrint('🗑️ Deleted $intentDeleted payment intents for sale $saleRef');
+      } catch (e) {
+        debugPrint('⚠️ Failed to delete payment intents: $e');
+      }
+
+      // 2D: Cập nhật lại chi tiêu khách hàng (trừ đi)
+      try {
+        final phone = s.walkInPhone ?? s.phone;
+        if (phone.isNotEmpty) {
+          final customerService = CustomerService();
+          final customer = await customerService.getCustomerByPhone(phone);
+          if (customer != null && finalPrice > 0) {
+            final newTotal = (customer.totalSpent - finalPrice).clamp(0, double.maxFinite).toInt();
+            final updated = customer.copyWith(totalSpent: newTotal);
+            await customerService.updateCustomer(updated);
+            debugPrint('📊 Reverted customer totalSpent: ${customer.totalSpent} → $newTotal');
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ Failed to revert customer stats: $e');
+      }
+
+      // 2E: Log financial reversal
+      try {
+        await FinancialActivityService.logCustomActivity(
+          activityType: 'SALE_VOID',
+          amount: finalPrice,
+          direction: 'OUT',
+          paymentMethod: s.paymentMethod,
+          title: 'HỦY ĐƠN BÁN',
+          description: 'Hủy đơn: ${s.productNames}. KH: ${s.customerName}',
+          customerName: s.customerName,
+          phone: s.walkInPhone ?? s.phone,
+          productInfo: s.productNames,
+          referenceType: 'sale',
+          referenceId: s.firestoreId,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Failed to log financial reversal: $e');
+      }
+
+      // 2F: Xóa sale khỏi local DB
+      await db.deleteSale(s.id!);
+      
+      // 2G: Soft-delete trên cloud
+      if (s.firestoreId != null) {
         await SyncOrchestrator().enqueue(
           entityType: SyncEntityType.sale,
           entityId: s.id!,
@@ -744,20 +831,54 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           data: {'firestoreId': s.firestoreId},
         );
       }
+
+      // 2H: Audit log
       AuditService.logAction(
         action: 'DELETE_SALE',
         entityType: 'sale',
-        entityId: s.firestoreId ?? "sale_${s.soldAt}",
-        summary: s.customerName,
+        entityId: saleRef,
+        summary: '${s.customerName} - ${s.productNames}',
         payload: {
           'totalPrice': s.totalPrice,
-          'inventoryRestored': inventoryRestored,
+          'finalPrice': finalPrice,
+          'inventoryRestored': restoredCount,
+          'debtsDeleted': debtDeleted,
+          'intentsDeleted': intentDeleted,
+          'paymentMethod': s.paymentMethod,
         },
       );
+
+      // 2I: Thông báo thành công
+      NotificationService.showSnackBar(
+        'Đã xóa đơn bán${restoredCount > 0 ? ' • Kho +$restoredCount' : ''}${debtDeleted > 0 ? ' • Xóa $debtDeleted nợ' : ''}',
+        color: Colors.green,
+      );
+
       if (mounted) {
         Navigator.pop(context, true);
       }
+    } catch (e) {
+      debugPrint('❌ Lỗi xóa đơn bán: $e');
+      NotificationService.showSnackBar(
+        'Lỗi xóa đơn bán: $e',
+        color: Colors.red,
+      );
     }
+  }
+
+  Widget _infoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.blue.shade700),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(text, style: TextStyle(fontSize: 11, color: Colors.blue.shade800)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
