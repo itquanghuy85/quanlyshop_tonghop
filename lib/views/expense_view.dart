@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../utils/money_utils.dart';
@@ -319,17 +320,39 @@ class _ExpenseViewState extends State<ExpenseView> {
 
           final expenseId = exp['id'] as int?;
           final firestoreId = exp['firestoreId'] as String?;
-          await db.deleteExpenseByFirestoreId(firestoreId ?? '');
           
-          // Queue delete sync via SyncOrchestrator
-          if (expenseId != null) {
-            await SyncOrchestrator().enqueue(
-              entityType: SyncEntityType.expense,
-              entityId: expenseId,
-              firestoreId: firestoreId,
-              operation: SyncOperation.delete,
-              data: null,
-            );
+          // 1. Delete from local DB (by firestoreId or by id)
+          if (firestoreId != null && firestoreId.isNotEmpty) {
+            await db.deleteExpenseByFirestoreId(firestoreId);
+          } else if (expenseId != null) {
+            await db.deleteExpense(expenseId);
+          }
+          
+          // 2. Soft-delete on Firestore IMMEDIATELY (not just queue)
+          // This prevents the record from being re-synced back
+          if (firestoreId != null && firestoreId.isNotEmpty) {
+            try {
+              await FirebaseFirestore.instance
+                  .collection('expenses')
+                  .doc(firestoreId)
+                  .update({
+                'deleted': true,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+              debugPrint('Firestore soft-delete expense: $firestoreId');
+            } catch (e) {
+              // Firestore delete failed - queue for later sync
+              debugPrint('Firestore delete failed, queuing: $e');
+              if (expenseId != null) {
+                await SyncOrchestrator().enqueue(
+                  entityType: SyncEntityType.expense,
+                  entityId: expenseId,
+                  firestoreId: firestoreId,
+                  operation: SyncOperation.delete,
+                  data: null,
+                );
+              }
+            }
           }
 
           final user = FirebaseAuth.instance.currentUser;
