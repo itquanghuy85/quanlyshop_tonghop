@@ -1390,11 +1390,22 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   Future<void> _loadShopSettings() async {
     final settings = await CategoryService().getShopSettings();
     if (!mounted) return;
+
+    // Calculate new tab count BEFORE setState
+    final newEnableRepair = settings?.enableRepair ?? true;
+    final newCount = newEnableRepair ? 4 : 2;
+
+    // Recreate tab controller if length changed — defer old disposal to after rebuild
+    if (_tabController.length != newCount) {
+      final oldController = _tabController;
+      _tabController = TabController(length: newCount, vsync: this);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        oldController.dispose();
+      });
+    }
+
     setState(() {
       _shopSettings = settings;
-      // Recreate tab controller with correct length based on enableRepair
-      _tabController.dispose();
-      _tabController = TabController(length: _tabCount, vsync: this);
     });
   }
 
