@@ -3723,6 +3723,15 @@ class DBHelper {
   Future<Map<String, dynamic>?> getClosingByDateKey(String dateKey) async {
     final shopId = UserService.getShopIdSync();
     final db = await database;
+    debugPrint('🔍 [DB] getClosingByDateKey: dateKey=$dateKey, shopId=$shopId');
+    
+    // Also check total count in table for debugging
+    final allRows = await db.query('cash_closings');
+    debugPrint('🔍 [DB] cash_closings table has ${allRows.length} total rows');
+    for (var row in allRows) {
+      debugPrint('🔍 [DB]   row: dateKey=${row['dateKey']}, shopId=${row['shopId']}, cashEnd=${row['cashEnd']}, bankEnd=${row['bankEnd']}');
+    }
+    
     if (shopId != null && shopId.isNotEmpty) {
       final res = await db.query(
         'cash_closings',
@@ -3730,6 +3739,7 @@ class DBHelper {
         whereArgs: [dateKey, shopId],
         limit: 1,
       );
+      debugPrint('🔍 [DB] getClosingByDateKey result: ${res.isNotEmpty ? 'FOUND' : 'NOT FOUND'} (with shopId filter)');
       return res.isNotEmpty ? res.first : null;
     }
     final res = await db.query(
@@ -3738,6 +3748,7 @@ class DBHelper {
       whereArgs: [dateKey],
       limit: 1,
     );
+    debugPrint('🔍 [DB] getClosingByDateKey result: ${res.isNotEmpty ? 'FOUND' : 'NOT FOUND'} (without shopId filter)');
     return res.isNotEmpty ? res.first : null;
   }
 

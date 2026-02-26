@@ -574,10 +574,11 @@ service cloud.firestore {
     match /cash_closings/{closingId} {
       allow read: if isAuth() && docInMyShop() && isManager();
       
+      // FIX: Accept either 'date' or 'dateKey' field (app uses dateKey)
       allow create: if isAuth() && 
                        isManager() &&
                        newDocInMyShop() &&
-                       has(['shopId', 'date']);
+                       (has(['shopId', 'date']) || has(['shopId', 'dateKey']));
       
       allow update: if isAuth() && 
                        docInMyShop() &&
