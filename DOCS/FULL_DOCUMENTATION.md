@@ -1266,12 +1266,8 @@ syncUserClaims trigger:
 **File:** `lib/firebase_options.dart`
 
 ```dart
-// Android only configured
-apiKey: 'AIzaSyCajnpTNFifxkq37IqwT7Zj5bA6dJ64FPg'
-appId: '1:51200928212:android:c0d1e9d964b3213b910e41'
-messagingSenderId: '51200928212'
-projectId: 'huyaka-1809'
-storageBucket: 'huyaka-1809.firebasestorage.app'
+// Android only configured — see firebase_options.dart
+// API keys and project IDs are in firebase_options.dart (not committed to docs)
 ```
 
 **Android config:** `android/app/google-services.json`

@@ -2,14 +2,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() async {
-  // Khởi tạo Firebase với options hardcoded
+  // Khởi tạo Firebase - sử dụng env vars hoặc firebase_options
+  // Chạy: dart run --define=API_KEY=xxx --define=APP_ID=xxx
   await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey: 'AIzaSyA5wW6zMHiWB_5xme99MVl0eSj7bhpO-S0',
-      appId: '1:51200928212:android:c0d1e9d964b3213b910e41',
-      messagingSenderId: '51200928212',
-      projectId: 'huyaka-1809',
-      storageBucket: 'huyaka-1809.firebasestorage.app',
+    options: FirebaseOptions(
+      apiKey: const String.fromEnvironment('API_KEY'),
+      appId: const String.fromEnvironment('APP_ID'),
+      messagingSenderId: const String.fromEnvironment('SENDER_ID'),
+      projectId: const String.fromEnvironment('PROJECT_ID'),
+      storageBucket: const String.fromEnvironment('STORAGE_BUCKET'),
     ),
   );
 
