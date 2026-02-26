@@ -3369,9 +3369,10 @@ class DBHelper {
 
   Future<void> addProductQuantity(int id, int amount) async {
     final db = await database;
+    final now = DateTime.now().millisecondsSinceEpoch;
     await db.rawUpdate(
-      'UPDATE products SET quantity = quantity + ? WHERE id = ?',
-      [amount, id],
+      'UPDATE products SET quantity = quantity + ?, isSynced = 0, updatedAt = ? WHERE id = ?',
+      [amount, now, id],
     );
     // Nếu sản phẩm đã bán hết (status = 0) và giờ có hàng lại, có thể cần cập nhật status
     await db.rawUpdate(

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/money_utils.dart';
 import '../widgets/currency_text_field.dart';
@@ -760,13 +761,29 @@ class _SaleDetailViewState extends State<SaleDetailView> {
             product.status = 1;
             await db.updateProductStatus(product.id!, 1);
           }
-          await SyncOrchestrator().enqueue(
-            entityType: SyncEntityType.product,
-            entityId: product.id!,
-            firestoreId: product.firestoreId,
-            operation: SyncOperation.update,
-            data: product.toMap(),
-          );
+          // Sync trực tiếp lên cloud (tránh real-time listener ghi đè)
+          if (product.firestoreId != null && product.firestoreId!.isNotEmpty) {
+            try {
+              await FirebaseFirestore.instance
+                  .collection('products')
+                  .doc(product.firestoreId)
+                  .update({
+                'quantity': product.quantity,
+                'status': product.status,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+              debugPrint('☁️ Synced product quantity to cloud: ${product.firestoreId}');
+            } catch (e) {
+              debugPrint('⚠️ Cloud sync failed, queueing: $e');
+              await SyncOrchestrator().enqueue(
+                entityType: SyncEntityType.product,
+                entityId: product.id!,
+                firestoreId: product.firestoreId,
+                operation: SyncOperation.update,
+                data: product.toMap(),
+              );
+            }
+          }
           restoredCount += qtyToRestore;
           debugPrint('✅ Khôi phục kho: ${product.name} +$qtyToRestore (tổng: ${product.quantity})');
         }
@@ -838,19 +855,26 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         debugPrint('⚠️ Failed to log financial reversal: $e');
       }
 
-      // 2F: Xóa sale khỏi local DB
-      await db.deleteSale(s.id!);
-      
-      // 2G: Soft-delete trên cloud
+      // 2F: Soft-delete trên cloud TRƯỚC (tránh real-time sync tải lại sale)
       if (s.firestoreId != null) {
-        await SyncOrchestrator().enqueue(
-          entityType: SyncEntityType.sale,
-          entityId: s.id!,
-          firestoreId: s.firestoreId,
-          operation: SyncOperation.delete,
-          data: {'firestoreId': s.firestoreId},
-        );
+        try {
+          await FirestoreService.deleteSale(s.firestoreId!);
+          debugPrint('✅ Cloud soft-delete sale: ${s.firestoreId}');
+        } catch (e) {
+          debugPrint('⚠️ Cloud soft-delete failed, queuing: $e');
+          // Fallback: queue delete nếu cloud gọi trực tiếp lỗi
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.sale,
+            entityId: s.id!,
+            firestoreId: s.firestoreId,
+            operation: SyncOperation.delete,
+            data: {'firestoreId': s.firestoreId},
+          );
+        }
       }
+
+      // 2G: Xóa sale khỏi local DB (sau khi cloud đã soft-delete)
+      await db.deleteSale(s.id!);
 
       // 2H: Audit log
       AuditService.logAction(

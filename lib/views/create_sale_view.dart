@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
@@ -691,13 +692,28 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           product.status = 1;
           await db.updateProductStatus(product.id!, 1);
         }
-        await SyncOrchestrator().enqueue(
-          entityType: SyncEntityType.product,
-          entityId: product.id!,
-          firestoreId: product.firestoreId,
-          operation: SyncOperation.update,
-          data: product.toMap(),
-        );
+        // Sync trực tiếp lên cloud (tránh real-time listener ghi đè)
+        if (product.firestoreId != null && product.firestoreId!.isNotEmpty) {
+          try {
+            await FirebaseFirestore.instance
+                .collection('products')
+                .doc(product.firestoreId)
+                .update({
+              'quantity': product.quantity,
+              'status': product.status,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          } catch (e) {
+            debugPrint('⚠️ Cloud sync failed, queueing: $e');
+            await SyncOrchestrator().enqueue(
+              entityType: SyncEntityType.product,
+              entityId: product.id!,
+              firestoreId: product.firestoreId,
+              operation: SyncOperation.update,
+              data: product.toMap(),
+            );
+          }
+        }
         debugPrint(
           '✅ Restored inventory: ${product.name} +$qtyToRestore (total: ${product.quantity})',
         );
