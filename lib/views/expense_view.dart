@@ -1370,48 +1370,41 @@ class _ExpenseViewState extends State<ExpenseView> {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10),
+          BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 6),
         ],
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(15),
+        dense: true,
+        visualDensity: const VisualDensity(horizontal: 0, vertical: -3),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
         leading: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
             color: color.withAlpha(25),
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: color, size: 24),
+          child: Icon(icon, color: color, size: 18),
         ),
         title: Text(
           (e['title'] ?? 'Chi phí không tên').toString(),
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: AppTextStyles.headline4.fontSize,
+            fontSize: 13,
             color: const Color(0xFF1A237E),
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              cat,
-              style: TextStyle(
-                fontSize: AppTextStyles.caption.fontSize,
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              "${DateFormat('HH:mm - dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))} | ${e['isPurchaseDebt'] == true ? 'CÔNG NỢ' : (e['paymentMethod'] ?? 'TIỀN MẶT')}",
-              style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey),
-            ),
-          ],
+        subtitle: Text(
+          "$cat • ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))} • ${e['isPurchaseDebt'] == true ? 'CÔNG NỢ' : (e['paymentMethod'] ?? 'TIỀN MẶT')}",
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1421,19 +1414,23 @@ class _ExpenseViewState extends State<ExpenseView> {
               style: TextStyle(
                 color: isIncome ? Colors.green : Colors.redAccent,
                 fontWeight: FontWeight.w900,
-                fontSize: AppTextStyles.headline3.fontSize,
+                fontSize: 13,
               ),
             ),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(
-                Icons.delete_outline,
-                color: Colors.grey,
-                size: 20,
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.grey,
+                  size: 16,
+                ),
+                onPressed: e['isPurchaseDebt'] == true
+                    ? null
+                    : () => _handleDeleteExpense(e),
               ),
-              onPressed: e['isPurchaseDebt'] == true
-                  ? null
-                  : () => _handleDeleteExpense(e),
             ),
           ],
         ),
