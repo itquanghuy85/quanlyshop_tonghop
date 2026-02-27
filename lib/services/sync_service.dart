@@ -1602,6 +1602,7 @@ class SyncService {
         if (unsyncedSP.isNotEmpty) {
           final WriteBatch batch = _db.batch();
           int count = 0;
+          final List<Map<String, dynamic>> toMarkSynced = [];
           for (var sp in unsyncedSP) {
             final firestoreId = sp['firestoreId'];
             final data = Map<String, dynamic>.from(sp);
@@ -1609,13 +1610,22 @@ class SyncService {
             data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
             final localId = data['id'];
             data.remove('id');
+            data.remove('isSynced');
 
             final docId = firestoreId ?? "sp_${data['supplierId']}_${data['paidAt']}";
             batch.set(_db.collection('supplier_payments').doc(docId), data, SetOptions(merge: true));
+            toMarkSynced.add({'localId': localId, 'firestoreId': docId});
             count++;
           }
           if (count > 0) {
             await batch.commit();
+            // Mark as synced in local DB after successful Firestore commit
+            for (var item in toMarkSynced) {
+              await dbHelper.updateSupplierPayment(
+                item['localId'] as int,
+                {'isSynced': 1, 'firestoreId': item['firestoreId']},
+              );
+            }
             debugPrint('  -> Synced $count supplier payments');
           }
         }
@@ -1629,6 +1639,7 @@ class SyncService {
         if (unsyncedPP.isNotEmpty) {
           final WriteBatch batch = _db.batch();
           int count = 0;
+          final List<Map<String, dynamic>> toMarkSynced = [];
           for (var pp in unsyncedPP) {
             final firestoreId = pp['firestoreId'];
             final data = Map<String, dynamic>.from(pp);
@@ -1636,13 +1647,22 @@ class SyncService {
             data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
             final localId = data['id'];
             data.remove('id');
+            data.remove('isSynced');
 
             final docId = firestoreId ?? "rpp_${data['partnerId']}_${data['paidAt']}";
             batch.set(_db.collection('repair_partner_payments').doc(docId), data, SetOptions(merge: true));
+            toMarkSynced.add({'localId': localId, 'firestoreId': docId});
             count++;
           }
           if (count > 0) {
             await batch.commit();
+            // Mark as synced in local DB after successful Firestore commit
+            for (var item in toMarkSynced) {
+              await dbHelper.updateRepairPartnerPayment(
+                item['localId'] as int,
+                {'isSynced': 1, 'firestoreId': item['firestoreId']},
+              );
+            }
             debugPrint('  -> Synced $count repair partner payments');
           }
         }

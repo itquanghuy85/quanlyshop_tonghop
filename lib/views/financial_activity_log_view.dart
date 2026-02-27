@@ -75,6 +75,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     {'value': 'SETTLEMENT', 'label': '🏦 Tất toán'},
     if (_enableRepair) {'value': 'REPAIR', 'label': '🔧 Sửa chữa'},
     if (_enableRepair) {'value': 'REPAIR_SERVICE', 'label': '🔧 Thanh toán sửa chữa'},
+    if (_enableRepair) {'value': 'REPAIR_PARTNER_DEBT', 'label': '🔧 Trả đối tác SC'},
   ];
 
   final List<Map<String, String>> _directions = [
@@ -182,6 +183,8 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
         firestore.collection('debt_payments').where('shopId', isEqualTo: shopId).get(),
         firestore.collection('supplier_payments').where('shopId', isEqualTo: shopId).get(),
         firestore.collection('supplier_import_history').where('shopId', isEqualTo: shopId).get(),
+        if (_enableRepair)
+          firestore.collection('repair_partner_payments').where('shopId', isEqualTo: shopId).get(),
       ]);
 
       final List<FinancialActivity> allActivities = [];
@@ -327,6 +330,28 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
           createdBy: data['createdBy'] as String?,
           shopId: shopId,
         ));
+      }
+
+      // --- Repair Partner Payments (Trả đối tác sửa chữa) ---
+      if (_enableRepair && results.length > 6) {
+        for (var doc in results[6].docs) {
+          final data = doc.data();
+          if (data['deleted'] == true || data['deleted'] == 1) continue;
+          convertTimestamps(data);
+          final paidAt = data['paidAt'] as int? ?? data['createdAt'] as int? ?? 0;
+          if (paidAt < startMs || paidAt > endMs) continue;
+
+          allActivities.add(FinancialActivity.fromRepairPartnerPayment(
+            firestoreId: doc.id,
+            amount: (data['amount'] as num?)?.toInt() ?? 0,
+            paymentMethod: data['paymentMethod'] as String? ?? 'TIỀN MẶT',
+            partnerName: data['partnerName'] as String? ?? 'Đối tác',
+            createdAt: paidAt,
+            note: data['note'] as String?,
+            createdBy: data['createdBy'] as String?,
+            shopId: shopId,
+          ));
+        }
       }
 
       // Apply filters

@@ -349,6 +349,34 @@ class FinancialActivity {
     );
   }
 
+  /// Helper để tạo activity từ thanh toán đối tác sửa chữa
+  static FinancialActivity fromRepairPartnerPayment({
+    required String firestoreId,
+    required int amount,
+    required String paymentMethod,
+    required String partnerName,
+    required int createdAt,
+    String? note,
+    String? createdBy,
+    String? shopId,
+  }) {
+    return FinancialActivity(
+      firestoreId: 'fa_partner_pay_$firestoreId',
+      activityType: 'REPAIR_PARTNER_DEBT',
+      amount: amount,
+      direction: paymentMethod == 'CÔNG NỢ' ? 'DEBT' : 'OUT',
+      paymentMethod: paymentMethod,
+      referenceType: 'repair_partner_payment',
+      referenceId: firestoreId,
+      title: 'TRẢ ĐỐI TÁC SC: $partnerName',
+      description: note,
+      customerName: partnerName,
+      createdAt: createdAt,
+      createdBy: createdBy,
+      shopId: shopId,
+    );
+  }
+
   static String _formatMoney(int amount) {
     if (amount >= 1000000) {
       return '${(amount / 1000000).toStringAsFixed(1)}tr';
