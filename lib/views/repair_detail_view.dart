@@ -90,7 +90,18 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     final partnerService = RepairPartnerService();
     final partners = await partnerService.getRepairPartners();
     if (!mounted) return;
-    setState(() => _partners = partners);
+    setState(() {
+      _partners = partners;
+      // Resolve partnerName cho các dịch vụ đã có partnerId
+      for (final s in r.services) {
+        if (s.partnerId != null && s.partnerName == null) {
+          final match = partners.where((p) => p.id == s.partnerId);
+          if (match.isNotEmpty) {
+            s.partnerName = match.first.name;
+          }
+        }
+      }
+    });
   }
 
   Future<void> _checkPermission() async {
@@ -3417,6 +3428,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               loc.partnerLabel(s.partnerName!),
                               style: AppTextStyles.caption.copyWith(
                                 color: Colors.blue,
+                              ),
+                            ),
+                          if (s.partnerName != null && s.paymentMethod != null)
+                            Text(
+                              'TT: ${s.paymentMethod}',
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.grey,
+                                fontSize: 11,
                               ),
                             ),
                         ],
