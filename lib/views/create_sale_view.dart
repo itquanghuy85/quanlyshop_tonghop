@@ -1421,6 +1421,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         await customerService.updateCustomerStatsAfterSale(
           phoneCtrl.text.trim(),
           finalPrice, // FIX: Dùng finalPrice
+          address: addressCtrl.text.trim().toUpperCase(),
+          name: nameCtrl.text.trim().toUpperCase(),
         );
       }
 

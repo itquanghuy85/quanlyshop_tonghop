@@ -75,12 +75,20 @@ class CustomerService {
   }
 
   // Update customer stats after sale/repair
-  Future<void> updateCustomerStatsAfterSale(String phone, int saleAmount) async {
+  Future<void> updateCustomerStatsAfterSale(String phone, int saleAmount, {String? address, String? name}) async {
     final customer = await getCustomerByPhone(phone);
     if (customer != null) {
       final updatedCustomer = customer.copyWith(
         totalSpent: customer.totalSpent + saleAmount,
         lastVisitAt: DateTime.now().millisecondsSinceEpoch,
+        // Update address if provided and customer has no address
+        address: (address != null && address.isNotEmpty && (customer.address == null || customer.address!.isEmpty))
+            ? address
+            : customer.address,
+        // Update name if provided and customer has generic name
+        name: (name != null && name.isNotEmpty && (customer.name == 'Khách hàng mới' || customer.name.isEmpty))
+            ? name
+            : customer.name,
       );
       await updateCustomer(updatedCustomer);
     } else {
@@ -96,13 +104,21 @@ class CustomerService {
     }
   }
 
-  Future<void> updateCustomerStatsAfterRepair(String phone, int repairCost) async {
+  Future<void> updateCustomerStatsAfterRepair(String phone, int repairCost, {String? address, String? name}) async {
     final customer = await getCustomerByPhone(phone);
     if (customer != null) {
       final updatedCustomer = customer.copyWith(
         totalRepairs: customer.totalRepairs + 1,
         totalRepairCost: customer.totalRepairCost + repairCost,
         lastVisitAt: DateTime.now().millisecondsSinceEpoch,
+        // Update address if provided and customer has no address
+        address: (address != null && address.isNotEmpty && (customer.address == null || customer.address!.isEmpty))
+            ? address
+            : customer.address,
+        // Update name if provided and customer has generic name
+        name: (name != null && name.isNotEmpty && (customer.name == 'Khách hàng mới' || customer.name.isEmpty))
+            ? name
+            : customer.name,
       );
       await updateCustomer(updatedCustomer);
     } else {

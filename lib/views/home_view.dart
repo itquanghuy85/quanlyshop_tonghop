@@ -1200,6 +1200,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       }
 
       // Lấy tên hiển thị qua UserService (Auth displayName -> Firestore -> email fallback)
+      // Reload Auth trước để đảm bảo displayName mới nhất (quan trọng cho tài khoản mới đăng ký)
+      debugPrint('_loadUserAndShopInfo: Reloading user auth profile...');
+      try {
+        await user.reload();
+      } catch (_) {}
       debugPrint('_loadUserAndShopInfo: Getting displayName via UserService...');
       String displayName = await UserService.getCurrentUserName();
       debugPrint('_loadUserAndShopInfo: displayName=$displayName');
@@ -4413,7 +4418,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Widget _buildStaffTab() {
-    if (!hasFullAccess) {
+    if (!hasFullAccess && _permissions['allowManageStaff'] != true) {
       return Scaffold(
         backgroundColor: AppColors.background,
         body: Center(
@@ -6004,7 +6009,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 const SizedBox(height: 12),
 
                 // LỢI NHUẬN RÒNG - Large Card
-                _profitCard(_todayNetProfit),
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CashClosingView(initialTab: 3),
+                    ),
+                  ),
+                  child: _profitCard(_todayNetProfit),
+                ),
 
                 const SizedBox(height: 16),
                 const Divider(height: 1),

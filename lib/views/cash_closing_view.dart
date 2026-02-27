@@ -32,7 +32,8 @@ bool _isCustomerOwesDebt(String? debtType) {
 
 /// Trang chốt quỹ chuyên nghiệp - Thiết kế lại hoàn toàn
 class CashClosingView extends StatefulWidget {
-  const CashClosingView({super.key});
+  final int initialTab;
+  const CashClosingView({super.key, this.initialTab = 0});
 
   @override
   State<CashClosingView> createState() => _CashClosingViewState();
@@ -80,7 +81,7 @@ class _CashClosingViewState extends State<CashClosingView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 5, vsync: this, initialIndex: widget.initialTab);
     _loadShopSettings();
     _loadAllData();
     _initRealTimeSync();

@@ -1731,16 +1731,32 @@ class _CurrencyFieldWidgetState extends State<_CurrencyFieldWidget> {
       }
       // Format the display text
       _controller.text = widget.currencyFormat.format(_currentValue);
-    } else {
-      // When gaining focus, show raw number for easier editing
-      _controller.text = _currentValue > 0
-          ? _currentValue.toStringAsFixed(0)
-          : '';
-      _controller.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: _controller.text.length,
-      );
     }
+  }
+
+  void _formatLive(String value) {
+    final clean = value.replaceAll(RegExp(r'[^0-9]'), '');
+    _currentValue = double.tryParse(clean) ?? 0;
+    
+    if (clean.isEmpty) {
+      _controller.value = const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+      return;
+    }
+    
+    final formatted = widget.currencyFormat.format(_currentValue);
+    // Preserve cursor position
+    final oldLength = _controller.text.length;
+    final oldCursor = _controller.selection.baseOffset;
+    final newLength = formatted.length;
+    final newCursor = (oldCursor + (newLength - oldLength)).clamp(0, newLength);
+    
+    _controller.value = TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: newCursor),
+    );
   }
 
   @override
@@ -1764,10 +1780,7 @@ class _CurrencyFieldWidgetState extends State<_CurrencyFieldWidget> {
       ),
       keyboardType: TextInputType.number,
       enabled: widget.enabled,
-      onChanged: (v) {
-        final clean = v.replaceAll(RegExp(r'[^0-9]'), '');
-        _currentValue = double.tryParse(clean) ?? 0;
-      },
+      onChanged: _formatLive,
       onFieldSubmitted: (_) {
         widget.onChanged(_currentValue);
       },

@@ -588,6 +588,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         await customerService.updateCustomerStatsAfterRepair(
           phoneCtrl.text.trim(),
           r.price,
+          address: addressCtrl.text.trim().toUpperCase(),
+          name: nameCtrl.text.trim().toUpperCase(),
         );
       } catch (e) {
         debugPrint('Failed to update customer stats: $e');
@@ -753,7 +755,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                     decoration: InputDecoration(
                       labelText: loc.partnerOptional,
                     ),
-                    initialValue: selectedPartner,
+                    value: selectedPartner,
                     items: [
                       DropdownMenuItem(
                         value: null,
@@ -773,7 +775,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                         labelText: loc.partnerPaymentMethod,
                         prefixIcon: const Icon(Icons.payment, size: 20),
                       ),
-                      initialValue: selectedPaymentMethod,
+                      value: selectedPaymentMethod,
                       items: paymentMethods
                           .map(
                             (m) => DropdownMenuItem(value: m, child: Text(m)),
