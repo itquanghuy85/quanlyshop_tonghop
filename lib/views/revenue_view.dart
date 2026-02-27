@@ -13,6 +13,7 @@ import '../services/user_service.dart';
 import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
+import '../utils/perf_monitor.dart';
 import '../services/category_service.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/custom_app_bar.dart';
@@ -189,6 +190,7 @@ class _RevenueViewState extends State<RevenueView>
   }
 
   Future<void> _loadAllData() async {
+    PerfMonitor.start('revenue_loadAllData');
     setState(() => _isLoading = true);
 
     // ===== PERFORMANCE: Load only data within relevant date range =====
@@ -270,6 +272,7 @@ class _RevenueViewState extends State<RevenueView>
     final prevClosing = await db.getPreviousDayClosing(todayKey);
 
     if (!mounted) return;
+    PerfMonitor.stop('revenue_loadAllData');
     setState(() {
       _repairs = repairs;
       _sales = sales;

@@ -27,6 +27,7 @@ import 'services/claims_service.dart'; // Custom claims management
 import 'services/payment_intent_service.dart'; // Payment intents management
 import 'services/current_shop_service.dart'; // Multi-shop support
 import 'data/db_helper.dart'; // Local database helper
+import 'utils/perf_monitor.dart'; // Performance monitoring
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'widgets/loading_intro_screen.dart'; // Loading intro animation
 
@@ -293,6 +294,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     String uid,
     String email,
   ) async {
+    PerfMonitor.start('_getRoleAfterSync');
     debugPrint('🚀 _getRoleAfterSync: START for uid=$uid, email=$email');
 
     try {
@@ -390,6 +392,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     });
 
     final role = await UserService.getUserRole(uid);
+    PerfMonitor.stop('_getRoleAfterSync');
     return {'role': role, 'isSuperAdmin': false};
   }
 

@@ -19,6 +19,7 @@ import 'sync_orchestrator.dart';
 import 'event_bus.dart';
 import 'claims_service.dart';
 import 'shop_deletion_service.dart';
+import '../utils/perf_monitor.dart';
 
 class SyncService {
   static final _db = FirebaseFirestore.instance;
@@ -253,6 +254,7 @@ class SyncService {
 
   /// Khởi tạo đồng bộ thời gian thực
   static Future<void> initRealTimeSync(VoidCallback onDataChanged) async {
+    PerfMonitor.start('initRealTimeSync');
     debugPrint("Khởi tạo real-time sync...");
     // Hủy các subscription cũ nếu có để tránh rò rỉ bộ nhớ hoặc lặp sự kiện
     await cancelAllSubscriptions();
@@ -644,6 +646,7 @@ class SyncService {
     // CRITICAL subscriptions done — mark as initialized so UI can proceed
     // ═══════════════════════════════════════════════════════════════════════
     _isInitialized = true;
+    PerfMonitor.stop('initRealTimeSync');
     debugPrint(
       "✅ Critical sync ready (${_subscriptions.length} subs) — "
       "deferred collections will load in 3s...",
@@ -675,6 +678,7 @@ class SyncService {
     required VoidCallback onDataChanged,
   }) {
     debugPrint("🕐 Starting deferred sync subscriptions...");
+    PerfMonitor.start('deferredSync');
 
     // 8. Đồng bộ ATTENDANCE
     try {
@@ -1259,6 +1263,7 @@ class SyncService {
       debugPrint("Lỗi khởi tạo product_variants sync: $e");
     }
 
+    PerfMonitor.stop('deferredSync');
     debugPrint(
       "✅ Deferred sync done — total ${_subscriptions.length} subscriptions active "
       "for ${isSuperAdmin ? 'super admin' : 'shop: $shopId'}",
