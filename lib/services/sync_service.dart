@@ -639,7 +639,43 @@ class SyncService {
       }
     }, onError: (e) => debugPrint("Sync error in shops/$shopId: $e"));
     _subscriptions.add(shopSub);
-  
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CRITICAL subscriptions done — mark as initialized so UI can proceed
+    // ═══════════════════════════════════════════════════════════════════════
+    _isInitialized = true;
+    debugPrint(
+      "✅ Critical sync ready (${_subscriptions.length} subs) — "
+      "deferred collections will load in 3s...",
+    );
+
+    // Schedule DEFERRED subscriptions after 3s to reduce initial load
+    Future.delayed(const Duration(seconds: 3), () {
+      if (_currentShopId != shopId) {
+        debugPrint('⚠️ Shop changed before deferred sync — skipping');
+        return;
+      }
+      _initDeferredSubscriptions(
+        shopId: shopId,
+        isSuperAdmin: isSuperAdmin,
+        onDataChanged: onDataChanged,
+      );
+    });
+
+    debugPrint(
+      "📊 Subscription status: $_subscriptionStatus",
+    );
+  }
+
+  /// Khởi tạo các subscription KHÔNG CẤP BÁCH sau 3 giây delay
+  /// (attendance, suppliers, audit_logs, cash_closings, v.v.)
+  static void _initDeferredSubscriptions({
+    required String? shopId,
+    required bool isSuperAdmin,
+    required VoidCallback onDataChanged,
+  }) {
+    debugPrint("🕐 Starting deferred sync subscriptions...");
+
     // 8. Đồng bộ ATTENDANCE
     try {
       _subscribeToCollection(
@@ -1223,11 +1259,9 @@ class SyncService {
       debugPrint("Lỗi khởi tạo product_variants sync: $e");
     }
 
-    // Mark as initialized
-    _isInitialized = true;
-
     debugPrint(
-      "✅ Đã khởi tạo real-time sync cho ${isSuperAdmin ? 'super admin' : 'shop: $shopId'} với ${_subscriptions.length} subscriptions",
+      "✅ Deferred sync done — total ${_subscriptions.length} subscriptions active "
+      "for ${isSuperAdmin ? 'super admin' : 'shop: $shopId'}",
     );
     debugPrint("📊 Subscription status: $_subscriptionStatus");
   }
