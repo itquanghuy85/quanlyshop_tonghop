@@ -161,89 +161,80 @@ class _FinancialReportViewState extends State<FinancialReportView>
 
       final List<TransactionItem> allTransactions = [];
 
-      // 1. Bán hàng
-      final sales = await _db.getAllSales();
+      // 1. Bán hàng — chỉ lấy trong khoảng thời gian (thay vì getAllSales)
+      final sales = await _db.getSalesByDateRange(startMs, endMs);
       for (final sale in sales) {
         final soldAt = sale.soldAt;
-        if (soldAt >= startMs && soldAt <= endMs) {
-          final isCongNo = sale.paymentMethod.toUpperCase() == 'CÔNG NỢ';
+        final isCongNo = sale.paymentMethod.toUpperCase() == 'CÔNG NỢ';
 
-          // Tính số tiền THỰC NHẬN (không tính công nợ)
-          // - Nếu trả góp: downPayment + settlementAmount (tiền từ NH)
-          // - Nếu CÔNG NỢ: 0đ (chưa nhận tiền)
-          // - Nếu tiền mặt/CK: toàn bộ finalPrice (sau giảm giá)
-          final int actualPaid;
-          if (sale.isInstallment) {
-            actualPaid = sale.downPayment + sale.settlementAmount;
-          } else if (isCongNo) {
-            actualPaid = 0; // Công nợ - chưa nhận tiền
-          } else {
-            actualPaid = sale.finalPrice;
-          }
-
-          // Chỉ ghi nhận THU khi thực sự nhận được tiền
-          if (actualPaid > 0) {
-            allTransactions.add(
-              TransactionItem(
-                id: 'sale_${sale.id}',
-                timestamp: soldAt,
-                type: 'SALE',
-                category: sale.isInstallment ? 'Bán trả góp' : 'Bán hàng',
-                description: sale.customerName.isNotEmpty
-                    ? sale.customerName
-                    : 'Khách lẻ',
-                amount: actualPaid,
-                isIncome: true,
-                personName: sale.customerName,
-                note: sale.notes,
-              ),
-            );
-          }
-
-          // NOTE: Không tính "giá vốn" ở đây để tránh double-counting với:
-          // - Chi phí nhập hàng (nếu trả tiền mặt)
-          // - Trả nợ NCC (nếu nhập công nợ)
-          // Lợi nhuận thực = Doanh thu bán hàng - Chi phí nhập hàng/Trả nợ NCC
+        // Tính số tiền THỰC NHẬN (không tính công nợ)
+        // - Nếu trả góp: downPayment + settlementAmount (tiền từ NH)
+        // - Nếu CÔNG NỢ: 0đ (chưa nhận tiền)
+        // - Nếu tiền mặt/CK: toàn bộ finalPrice (sau giảm giá)
+        final int actualPaid;
+        if (sale.isInstallment) {
+          actualPaid = sale.downPayment + sale.settlementAmount;
+        } else if (isCongNo) {
+          actualPaid = 0; // Công nợ - chưa nhận tiền
+        } else {
+          actualPaid = sale.finalPrice;
         }
-      }
 
-      // 2. Sửa chữa
-      final repairs = await _db.getAllRepairs();
-      for (final repair in repairs) {
-        final deliveredAt = repair.deliveredAt ?? repair.createdAt;
-        if (deliveredAt >= startMs &&
-            deliveredAt <= endMs &&
-            repair.status == 4 &&
-            !repair.deleted) {
+        // Chỉ ghi nhận THU khi thực sự nhận được tiền
+        if (actualPaid > 0) {
           allTransactions.add(
             TransactionItem(
-              id: 'repair_${repair.id}',
-              timestamp: deliveredAt,
-              type: 'REPAIR',
-              category: 'Sửa chữa',
-              description: '${repair.model} - ${repair.customerName}',
-              amount: repair.price,
+              id: 'sale_${sale.id}',
+              timestamp: soldAt,
+              type: 'SALE',
+              category: sale.isInstallment ? 'Bán trả góp' : 'Bán hàng',
+              description: sale.customerName.isNotEmpty
+                  ? sale.customerName
+                  : 'Khách lẻ',
+              amount: actualPaid,
               isIncome: true,
-              personName: repair.customerName,
-              note: repair.issue,
+              personName: sale.customerName,
+              note: sale.notes,
             ),
           );
-
-          // NOTE: Không tính "chi phí linh kiện" ở đây để tránh double-counting
-          // Chi phí linh kiện đã được ghi nhận khi:
-          // - Nhập linh kiện với tiền mặt (tạo expense)
-          // - Nhập linh kiện với công nợ rồi trả nợ (tạo debt_payment)
-          // Lợi nhuận sửa chữa = Phí sửa - Chi phí nhập linh kiện/Trả nợ NCC
         }
+
+        // NOTE: Không tính "giá vốn" ở đây để tránh double-counting với:
+        // - Chi phí nhập hàng (nếu trả tiền mặt)
+        // - Trả nợ NCC (nếu nhập công nợ)
+        // Lợi nhuận thực = Doanh thu bán hàng - Chi phí nhập hàng/Trả nợ NCC
       }
 
-      // 3. Chi phí & Thu phát sinh
-      final expenses = await _db.getAllExpenses();
+      // 2. Sửa chữa — chỉ lấy đơn đã giao trong khoảng (thay vì getAllRepairs)
+      final repairs = await _db.getDeliveredRepairsByDateRange(startMs, endMs);
+      for (final repair in repairs) {
+        final deliveredAt = repair.deliveredAt ?? repair.createdAt;
+        allTransactions.add(
+          TransactionItem(
+            id: 'repair_${repair.id}',
+            timestamp: deliveredAt,
+            type: 'REPAIR',
+            category: 'Sửa chữa',
+            description: '${repair.model} - ${repair.customerName}',
+            amount: repair.price,
+            isIncome: true,
+            personName: repair.customerName,
+            note: repair.issue,
+          ),
+        );
+
+        // NOTE: Không tính "chi phí linh kiện" ở đây để tránh double-counting
+        // Chi phí linh kiện đã được ghi nhận khi:
+        // - Nhập linh kiện với tiền mặt (tạo expense)
+        // - Nhập linh kiện với công nợ rồi trả nợ (tạo debt_payment)
+        // Lợi nhuận sửa chữa = Phí sửa - Chi phí nhập linh kiện/Trả nợ NCC
+      }
+
+      // 3. Chi phí & Thu phát sinh — chỉ lấy trong khoảng (thay vì getAllExpenses)
+      final expenses = await _db.getExpensesByDateRange(startMs, endMs);
       for (final e in expenses) {
-        final expenseDate = (e['date'] as int?) ?? (e['createdAt'] as int?) ?? 0;
-        if (expenseDate >= startMs &&
-            expenseDate <= endMs &&
-            (e['deleted'] ?? 0) != 1) {
+        if ((e['deleted'] ?? 0) != 1) {
+          final expenseDate = (e['date'] as int?) ?? (e['createdAt'] as int?) ?? 0;
           final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
           final isThu = eType == 'THU';
           allTransactions.add(
@@ -266,57 +257,45 @@ class _FinancialReportViewState extends State<FinancialReportView>
         }
       }
 
-      // 4. Công nợ và thanh toán nợ
-      final debts = await _db.getAllDebts();
-      for (final d in debts) {
-        final debtType = d['type'] as String? ?? '';
-        final personName = d['personName'] as String?;
+      // 4. Thanh toán nợ — JOIN trực tiếp trong SQL (thay vì N+1: getAllDebts → getDebtPayments)
+      // NOTE: Chỉ lấy các lần THANH TOÁN NỢ thực tế, không lấy debt records
+      // DEBT_OUT/CUSTOMER_OWES bản thân không là giao dịch tiền thực
+      final debtPayments = await _db.getDebtPaymentsWithDebtInfoByDateRange(startMs, endMs);
+      for (final p in debtPayments) {
+        final debtType = p['debtType'] as String? ?? '';
+        final personName = p['debtPersonName'] as String?;
+        final paidAt = (p['paidAt'] as int?) ?? 0;
 
-        // NOTE: DEBT_OUT (Shop nợ NCC) - KHÔNG tính vào CHI vì chưa chi tiền thực!
-        // Chỉ khi TRẢ NỢ mới tính là CHI (tránh double counting)
-        // Tương tự CUSTOMER_OWES (Khách nợ shop) - KHÔNG tính vào THU
-        // Chỉ khi THU NỢ mới tính là THU
-
-        // Lấy các lần thanh toán nợ - ĐÂY MỚI LÀ GIAO DỊCH TIỀN THỰC
-        final debtId = d['id'] as int?;
-        if (debtId != null) {
-          final payments = await _db.getDebtPayments(debtId);
-          for (final p in payments) {
-            final paidAt = (p['paidAt'] as int?) ?? 0;
-            if (paidAt >= startMs && paidAt <= endMs) {
-              if (debtType == 'CUSTOMER_OWES' || debtType == 'OTHER_CUSTOMER_OWES') {
-                // Thu nợ từ khách - ĐÂY LÀ THU TIỀN THỰC
-                allTransactions.add(
-                  TransactionItem(
-                    id: 'payment_in_${p['id']}',
-                    timestamp: paidAt,
-                    type: 'DEBT_COLLECT',
-                    category: 'Thu nợ khách',
-                    description: 'Thu nợ: ${personName ?? "Khách"}',
-                    amount: (p['amount'] as int?) ?? 0,
-                    isIncome: true,
-                    personName: personName,
-                    note: p['note'] as String?,
-                  ),
-                );
-              } else if (debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES' || debtType == 'OWED') {
-                // Trả nợ NCC/Đối tác - ĐÂY LÀ CHI TIỀN THỰC
-                allTransactions.add(
-                  TransactionItem(
-                    id: 'payment_out_${p['id']}',
-                    timestamp: paidAt,
-                    type: 'DEBT_PAY',
-                    category: 'Trả nợ NCC',
-                    description: 'Trả nợ: ${personName ?? "NCC"}',
-                    amount: (p['amount'] as int?) ?? 0,
-                    isIncome: false,
-                    personName: personName,
-                    note: p['note'] as String?,
-                  ),
-                );
-              }
-            }
-          }
+        if (debtType == 'CUSTOMER_OWES' || debtType == 'OTHER_CUSTOMER_OWES') {
+          // Thu nợ từ khách - ĐÂY LÀ THU TIỀN THỰC
+          allTransactions.add(
+            TransactionItem(
+              id: 'payment_in_${p['id']}',
+              timestamp: paidAt,
+              type: 'DEBT_COLLECT',
+              category: 'Thu nợ khách',
+              description: 'Thu nợ: ${personName ?? "Khách"}',
+              amount: (p['amount'] as int?) ?? 0,
+              isIncome: true,
+              personName: personName,
+              note: p['note'] as String?,
+            ),
+          );
+        } else if (debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES' || debtType == 'OWED') {
+          // Trả nợ NCC/Đối tác - ĐÂY LÀ CHI TIỀN THỰC
+          allTransactions.add(
+            TransactionItem(
+              id: 'payment_out_${p['id']}',
+              timestamp: paidAt,
+              type: 'DEBT_PAY',
+              category: 'Trả nợ NCC',
+              description: 'Trả nợ: ${personName ?? "NCC"}',
+              amount: (p['amount'] as int?) ?? 0,
+              isIncome: false,
+              personName: personName,
+              note: p['note'] as String?,
+            ),
+          );
         }
       }
 

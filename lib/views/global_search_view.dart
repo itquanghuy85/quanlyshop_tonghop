@@ -80,66 +80,80 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
 
     try {
       List<dynamic> allResults = [];
+      final normalizedQuery = VietnameseUtils.normalize(query);
 
-      // Search customers (from repairs)
-      final repairs = await db.getAllRepairs();
-      final customerResults = repairs.where((repair) {
-        return VietnameseUtils.containsVietnamese(repair.customerName, query) ||
-               repair.phone.contains(query) ||
-               VietnameseUtils.containsVietnamese(repair.address, query);
-      }).toList();
+      // Only search categories that are selected (or all if 'Tất cả')
+      final searchAll = _selectedCategory == 'Tất cả';
 
-      // Search repairs
-      final repairResults = repairs.where((repair) {
-        return VietnameseUtils.containsVietnamese(repair.model, query) ||
-               VietnameseUtils.containsVietnamese(repair.issue, query) ||
-               VietnameseUtils.containsVietnamese(repair.customerName, query) ||
-               repair.phone.contains(query) ||
-               VietnameseUtils.containsVietnamese(repair.address, query);
-      }).toList();
+      // Search customers & repairs (same table, different result grouping)
+      if (searchAll || _selectedCategory == 'Khách hàng' || _selectedCategory == 'Đơn sửa chữa') {
+        final repairs = await db.searchRepairs(query, normalizedQuery, limit: 25);
+        // Post-filter with Vietnamese normalization for precision
+        final filtered = repairs.where((repair) {
+          return VietnameseUtils.containsVietnamese(repair.customerName, query) ||
+                 repair.phone.contains(query) ||
+                 VietnameseUtils.containsVietnamese(repair.model, query) ||
+                 VietnameseUtils.containsVietnamese(repair.issue, query) ||
+                 VietnameseUtils.containsVietnamese(repair.address, query);
+        }).toList();
+
+        if (_selectedCategory == 'Khách hàng') {
+          allResults = filtered;
+        } else if (_selectedCategory == 'Đơn sửa chữa') {
+          allResults = filtered;
+        } else {
+          allResults.addAll(filtered);
+        }
+      }
 
       // Search sales
-      final sales = await db.getAllSales();
-      final saleResults = sales.where((sale) {
-        return VietnameseUtils.containsVietnamese(sale.customerName, query) ||
-               sale.phone.contains(query) ||
-               VietnameseUtils.containsVietnamese(sale.productNames, query) ||
-               (sale.productImeis ?? '').contains(query);
-      }).toList();
+      if (searchAll || _selectedCategory == 'Đơn bán hàng') {
+        final sales = await db.searchSales(query, normalizedQuery, limit: 25);
+        final filtered = sales.where((sale) {
+          return VietnameseUtils.containsVietnamese(sale.customerName, query) ||
+                 sale.phone.contains(query) ||
+                 VietnameseUtils.containsVietnamese(sale.productNames, query) ||
+                 (sale.productImeis ?? '').contains(query);
+        }).toList();
+        if (searchAll) {
+          allResults.addAll(filtered);
+        } else {
+          allResults = filtered;
+        }
+      }
 
       // Search products
-      final products = await db.getAllProducts();
-      final productResults = products.where((product) {
-        return VietnameseUtils.containsVietnamese(product.name, query) ||
-               (product.imei ?? '').contains(query) ||
-               VietnameseUtils.containsVietnamese(product.description, query) ||
-               VietnameseUtils.containsVietnamese(product.color ?? '', query) ||
-               VietnameseUtils.containsVietnamese(product.capacity ?? '', query);
-      }).toList();
+      if (searchAll || _selectedCategory == _terms.productLabel) {
+        final products = await db.searchProducts(query, normalizedQuery, limit: 25);
+        final filtered = products.where((product) {
+          return VietnameseUtils.containsVietnamese(product.name, query) ||
+                 (product.imei ?? '').contains(query) ||
+                 VietnameseUtils.containsVietnamese(product.description, query) ||
+                 VietnameseUtils.containsVietnamese(product.color ?? '', query) ||
+                 VietnameseUtils.containsVietnamese(product.capacity ?? '', query);
+        }).toList();
+        if (searchAll) {
+          allResults.addAll(filtered);
+        } else {
+          allResults = filtered;
+        }
+      }
 
-      // Search quick input codes
-      final quickInputCodes = await db.getQuickInputCodes();
-      final quickInputCodeResults = quickInputCodes.where((code) {
-        return VietnameseUtils.containsVietnamese(code.name, query) ||
-               VietnameseUtils.containsVietnamese(code.brand ?? '', query) ||
-               VietnameseUtils.containsVietnamese(code.model ?? '', query) ||
-               VietnameseUtils.containsVietnamese(code.description ?? '', query) ||
-               VietnameseUtils.containsVietnamese(code.supplier ?? '', query);
-      }).toList();
-
-      // Filter by category
-      if (_selectedCategory == 'Khách hàng') {
-        allResults = customerResults;
-      } else if (_selectedCategory == 'Đơn sửa chữa') {
-        allResults = repairResults;
-      } else if (_selectedCategory == 'Đơn bán hàng') {
-        allResults = saleResults;
-      } else if (_selectedCategory == _terms.productLabel) {
-        allResults = productResults;
-      } else if (_selectedCategory == 'Mã nhập nhanh') {
-        allResults = quickInputCodeResults;
-      } else {
-        allResults = [...customerResults, ...repairResults, ...saleResults, ...productResults, ...quickInputCodeResults];
+      // Search quick input codes (small table, getAll is fine)
+      if (searchAll || _selectedCategory == 'Mã nhập nhanh') {
+        final quickInputCodes = await db.getQuickInputCodes();
+        final filtered = quickInputCodes.where((code) {
+          return VietnameseUtils.containsVietnamese(code.name, query) ||
+                 VietnameseUtils.containsVietnamese(code.brand ?? '', query) ||
+                 VietnameseUtils.containsVietnamese(code.model ?? '', query) ||
+                 VietnameseUtils.containsVietnamese(code.description ?? '', query) ||
+                 VietnameseUtils.containsVietnamese(code.supplier ?? '', query);
+        }).toList();
+        if (searchAll) {
+          allResults.addAll(filtered);
+        } else {
+          allResults = filtered;
+        }
       }
 
       setState(() {

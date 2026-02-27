@@ -2851,6 +2851,62 @@ class DBHelper {
   Future<int> deleteRepairByFirestoreId(String fId) async => (await database)
       .delete('repairs', where: 'firestoreId = ?', whereArgs: [fId]);
   
+  /// Search repairs by query string using SQL LIKE on key columns.
+  /// Searches both original query and Vietnamese-normalized query for accent-insensitive matching.
+  /// Returns max [limit] results ordered by createdAt DESC.
+  Future<List<Repair>> searchRepairs(String query, String normalizedQuery, {int limit = 25}) async {
+    final db = await database;
+    final like = '%$query%';
+    final likeNorm = '%$normalizedQuery%';
+    final maps = await db.rawQuery('''
+      SELECT * FROM repairs
+      WHERE (customerName LIKE ? OR customerName LIKE ?
+        OR phone LIKE ?
+        OR model LIKE ? OR model LIKE ?
+        OR issue LIKE ? OR issue LIKE ?
+        OR address LIKE ? OR address LIKE ?)
+      ORDER BY createdAt DESC
+      LIMIT ?
+    ''', [like, likeNorm, like, like, likeNorm, like, likeNorm, like, likeNorm, limit]);
+    return List.generate(maps.length, (i) => Repair.fromMap(maps[i]));
+  }
+
+  /// Search sales by query string using SQL LIKE on key columns.
+  Future<List<SaleOrder>> searchSales(String query, String normalizedQuery, {int limit = 25}) async {
+    final db = await database;
+    final like = '%$query%';
+    final likeNorm = '%$normalizedQuery%';
+    final maps = await db.rawQuery('''
+      SELECT * FROM sales
+      WHERE (customerName LIKE ? OR customerName LIKE ?
+        OR phone LIKE ?
+        OR productNames LIKE ? OR productNames LIKE ?
+        OR productImeis LIKE ?)
+      ORDER BY soldAt DESC
+      LIMIT ?
+    ''', [like, likeNorm, like, like, likeNorm, like, limit]);
+    return List.generate(maps.length, (i) => SaleOrder.fromMap(maps[i]));
+  }
+
+  /// Search products by query string using SQL LIKE on key columns.
+  Future<List<Product>> searchProducts(String query, String normalizedQuery, {int limit = 25}) async {
+    final db = await database;
+    final like = '%$query%';
+    final likeNorm = '%$normalizedQuery%';
+    final maps = await db.rawQuery('''
+      SELECT * FROM products
+      WHERE (deleted = 0 OR deleted IS NULL)
+        AND (name LIKE ? OR name LIKE ?
+          OR imei LIKE ?
+          OR description LIKE ? OR description LIKE ?
+          OR color LIKE ? OR color LIKE ?
+          OR capacity LIKE ? OR capacity LIKE ?)
+      ORDER BY createdAt DESC
+      LIMIT ?
+    ''', [like, likeNorm, like, like, likeNorm, like, likeNorm, like, likeNorm, limit]);
+    return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
+  }
+
   /// Get repairs with pagination support for lazy loading
   /// Returns [limit] repairs starting from [offset], ordered by createdAt DESC
   Future<List<Repair>> getRepairsPaged(int limit, int offset) async {
@@ -2879,6 +2935,19 @@ class DBHelper {
     final repairs = List.generate(maps.length, (i) => Repair.fromMap(maps[i]));
     debugPrint("DB_TRACE: getAllRepairs returned ${repairs.length} repairs");
     return repairs;
+  }
+
+  /// Get delivered repairs within a date range, for financial report optimization
+  /// Uses COALESCE(deliveredAt, createdAt) to handle NULL deliveredAt
+  Future<List<Repair>> getDeliveredRepairsByDateRange(int startMs, int endMs) async {
+    final db = await database;
+    final maps = await db.query(
+      'repairs',
+      where: 'COALESCE(deliveredAt, createdAt) >= ? AND COALESCE(deliveredAt, createdAt) <= ? AND status = 4 AND deleted = 0',
+      whereArgs: [startMs, endMs],
+      orderBy: 'createdAt DESC',
+    );
+    return List.generate(maps.length, (i) => Repair.fromMap(maps[i]));
   }
 
   Future<Repair?> getRepairById(int id) async {
@@ -2955,6 +3024,18 @@ class DBHelper {
     final sales = List.generate(maps.length, (i) => SaleOrder.fromMap(maps[i]));
     debugPrint("DB_TRACE: getAllSales returned ${sales.length} sales");
     return sales;
+  }
+
+  /// Get sales within a date range (by soldAt), for financial report optimization
+  Future<List<SaleOrder>> getSalesByDateRange(int startMs, int endMs) async {
+    final db = await database;
+    final maps = await db.query(
+      'sales',
+      where: 'soldAt >= ? AND soldAt <= ?',
+      whereArgs: [startMs, endMs],
+      orderBy: 'soldAt DESC',
+    );
+    return List.generate(maps.length, (i) => SaleOrder.fromMap(maps[i]));
   }
 
   Future<SaleOrder?> getSaleByFirestoreId(String firestoreId) async {
@@ -3638,6 +3719,26 @@ class DBHelper {
     }
     // Fallback: nếu không có shopId thì trả về tất cả (super admin)
     return db.query('expenses', orderBy: 'date DESC');
+  }
+
+  /// Get expenses within a date range (by date field), for financial report optimization
+  Future<List<Map<String, dynamic>>> getExpensesByDateRange(int startMs, int endMs) async {
+    final shopId = UserService.getShopIdSync();
+    final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      return db.query(
+        'expenses',
+        where: '(shopId = ? OR shopId IS NULL) AND COALESCE(date, createdAt) >= ? AND COALESCE(date, createdAt) <= ?',
+        whereArgs: [shopId, startMs, endMs],
+        orderBy: 'date DESC',
+      );
+    }
+    return db.query(
+      'expenses',
+      where: 'COALESCE(date, createdAt) >= ? AND COALESCE(date, createdAt) <= ?',
+      whereArgs: [startMs, endMs],
+      orderBy: 'date DESC',
+    );
   }
   
   Future<List<Expense>> getAllExpensesForSync() async {
@@ -5005,6 +5106,30 @@ class DBHelper {
       JOIN debts d ON p.debtId = d.id
       ORDER BY p.paidAt DESC
     ''');
+  }
+
+  /// Get debt payments within a date range with debt info, for financial report optimization
+  /// Replaces the N+1 pattern: getAllDebts() → for each debt getDebtPayments()
+  Future<List<Map<String, dynamic>>> getDebtPaymentsWithDebtInfoByDateRange(int startMs, int endMs) async {
+    final shopId = UserService.getShopIdSync();
+    final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      return await db.rawQuery('''
+        SELECT p.*, d.type as debtType, d.personName as debtPersonName
+        FROM debt_payments p
+        INNER JOIN debts d ON p.debtId = d.id
+        WHERE p.paidAt >= ? AND p.paidAt <= ?
+          AND (p.shopId = ? OR p.shopId IS NULL)
+        ORDER BY p.paidAt DESC
+      ''', [startMs, endMs, shopId]);
+    }
+    return await db.rawQuery('''
+      SELECT p.*, d.type as debtType, d.personName as debtPersonName
+      FROM debt_payments p
+      INNER JOIN debts d ON p.debtId = d.id
+      WHERE p.paidAt >= ? AND p.paidAt <= ?
+      ORDER BY p.paidAt DESC
+    ''', [startMs, endMs]);
   }
 
   /// Lấy tất cả debt payments để sync
