@@ -339,7 +339,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       // Không throw exception, để user vào HomeView nhưng với data rỗng
       // HomeView sẽ hiển thị thông báo lỗi phù hợp
     } else {
-      await _checkAndClearLocalDataIfShopChanged(currentShopId);
+      try {
+        await _checkAndClearLocalDataIfShopChanged(currentShopId);
+      } catch (e) {
+        debugPrint('⚠️ _checkAndClearLocalDataIfShopChanged error (non-fatal): $e');
+      }
     }
 
     // Download dữ liệu từ cloud về (chỉ khi có shopId)
