@@ -4245,7 +4245,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String addressLabel(String address) {
-    return 'Địa chỉ';
+    return 'Địa chỉ: $address';
   }
 
   @override
@@ -4253,7 +4253,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String notesLabel(String notes) {
-    return 'Ghi chú';
+    return 'Ghi chú: $notes';
   }
 
   @override

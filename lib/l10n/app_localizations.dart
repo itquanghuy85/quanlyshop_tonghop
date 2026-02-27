@@ -8156,7 +8156,7 @@ abstract class AppLocalizations {
   /// No description provided for @addressLabel.
   ///
   /// In en, this message translates to:
-  /// **'Address'**
+  /// **'Address: {address}'**
   String addressLabel(String address);
 
   /// No description provided for @enterAddressOptional.
@@ -8168,7 +8168,7 @@ abstract class AppLocalizations {
   /// No description provided for @notesLabel.
   ///
   /// In en, this message translates to:
-  /// **'Notes'**
+  /// **'Notes: {notes}'**
   String notesLabel(String notes);
 
   /// No description provided for @enterNotesOptional.

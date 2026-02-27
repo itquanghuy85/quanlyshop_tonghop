@@ -34,6 +34,7 @@ import '../theme/app_text_styles.dart';
 import '../services/event_bus.dart';
 import '../widgets/custom_app_bar.dart';
 import '../l10n/app_localizations.dart';
+import 'order_list_view.dart';
 
 class CreateRepairOrderView extends StatefulWidget {
   final String role;
@@ -617,8 +618,15 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       // Notify other views about the new repair
       EventBus().emit('repairs_changed');
 
-      debugPrint('🔧 _onlySave: Calling Navigator.pop...');
-      if (mounted) Navigator.pop(context, true);
+      debugPrint('🔧 _onlySave: Navigating to OrderListView...');
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderListView(role: widget.role),
+          ),
+        );
+      }
       NotificationService.showSnackBar(
         loc.orderSavedSuccess,
         color: Colors.green,
@@ -641,7 +649,14 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         'shopAddr': 'HÀ NỘI',
         'shopPhone': '0964095979',
       });
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderListView(role: widget.role),
+          ),
+        );
+      }
     }
   }
 

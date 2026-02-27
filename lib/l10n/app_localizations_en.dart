@@ -4245,7 +4245,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String addressLabel(String address) {
-    return 'Address';
+    return 'Address: $address';
   }
 
   @override
@@ -4253,7 +4253,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notesLabel(String notes) {
-    return 'Notes';
+    return 'Notes: $notes';
   }
 
   @override

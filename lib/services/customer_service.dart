@@ -81,8 +81,8 @@ class CustomerService {
       final updatedCustomer = customer.copyWith(
         totalSpent: customer.totalSpent + saleAmount,
         lastVisitAt: DateTime.now().millisecondsSinceEpoch,
-        // Update address if provided and customer has no address
-        address: (address != null && address.isNotEmpty && (customer.address == null || customer.address!.isEmpty))
+        // Luôn cập nhật địa chỉ nếu có dữ liệu mới
+        address: (address != null && address.isNotEmpty)
             ? address
             : customer.address,
         // Update name if provided and customer has generic name
@@ -111,8 +111,8 @@ class CustomerService {
         totalRepairs: customer.totalRepairs + 1,
         totalRepairCost: customer.totalRepairCost + repairCost,
         lastVisitAt: DateTime.now().millisecondsSinceEpoch,
-        // Update address if provided and customer has no address
-        address: (address != null && address.isNotEmpty && (customer.address == null || customer.address!.isEmpty))
+        // Luôn cập nhật địa chỉ nếu có dữ liệu mới
+        address: (address != null && address.isNotEmpty)
             ? address
             : customer.address,
         // Update name if provided and customer has generic name

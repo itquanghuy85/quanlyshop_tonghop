@@ -1256,6 +1256,23 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         });
         debugPrint('_loadUserAndShopInfo: FINAL setState - userName=$_userName, shopName=$_shopName');
       }
+
+      // Retry: Nếu tên vẫn rỗng (race condition với đăng ký mới), thử lại sau 2s
+      if (displayName.trim().isEmpty || displayName == user.email?.split('@').first) {
+        Future.delayed(const Duration(seconds: 2), () async {
+          if (!mounted) return;
+          try {
+            await user.reload();
+            final retryName = await UserService.getCurrentUserName();
+            if (retryName.isNotEmpty && retryName != displayName && mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('cached_userName_${user.uid}', retryName);
+              setState(() => _userName = retryName);
+              debugPrint('_loadUserAndShopInfo: RETRY got userName=$retryName');
+            }
+          } catch (_) {}
+        });
+      }
     } catch (e) {
       debugPrint('_loadUserAndShopInfo ERROR: $e');
       debugPrint('_loadUserAndShopInfo STACK: ${StackTrace.current}');
