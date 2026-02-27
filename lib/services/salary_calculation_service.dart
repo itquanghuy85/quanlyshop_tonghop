@@ -296,12 +296,13 @@ class SalaryCalculationService {
           // Decrypt if needed
           data = EncryptionService.decryptMap(data);
           
-          final createdBy = (data['createdBy'] ?? '').toString().toUpperCase();
+          // Doanh số sửa chữa chỉ tính cho người sửa xong (repairedBy), không tính cho người nhận/giao
+          final repairedBy = (data['repairedBy'] ?? '').toString().toUpperCase();
           final deleted = data['deleted'] == true;
           final deliveredAt = data['deliveredAt'] as int?;
           
           if (!deleted && 
-              createdBy == staffName.toUpperCase() &&
+              repairedBy == staffName.toUpperCase() &&
               deliveredAt != null &&
               deliveredAt >= startMs &&
               deliveredAt <= endMs) {
@@ -319,7 +320,7 @@ class SalaryCalculationService {
       final allRepairs = await _db.getAllRepairs();
       final staffRepairs = allRepairs
           .where((r) =>
-              r.createdBy?.toUpperCase() == staffName.toUpperCase() &&
+              r.repairedBy?.toUpperCase() == staffName.toUpperCase() &&
               r.status == 4 &&
               r.deliveredAt != null &&
               r.deliveredAt! >= startMs &&

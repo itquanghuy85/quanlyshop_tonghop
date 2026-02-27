@@ -372,6 +372,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     if (newStatus == 3) {
       r.finishedAt = DateTime.now().millisecondsSinceEpoch;
+      // Ghi nhận người sửa xong = user hiện tại
+      final user = FirebaseAuth.instance.currentUser;
+      r.repairedBy = user?.email?.split('@').first.toUpperCase() ?? 'NV';
       // Không tự động set pendingDeliveryApproval = true
       // Để user chủ động bấm nút "GIAO MÁY" sau khi sửa xong
     }
@@ -657,6 +660,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       if (r.status < 3) {
         r.status = 3;
         r.finishedAt = DateTime.now().millisecondsSinceEpoch;
+        // Ghi nhận người sửa xong
+        final currentUser = FirebaseAuth.instance.currentUser;
+        r.repairedBy = currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
       }
       r.pendingDeliveryApproval = true; // Đánh dấu chờ duyệt
       _isUpdating = true;
@@ -861,6 +867,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     final user = FirebaseAuth.instance.currentUser;
     final userName = user?.email?.split('@').first.toUpperCase() ?? "QL";
+
+    // Ghi nhận người giao máy
+    r.deliveredBy = userName;
 
     setState(() {
       r.status = 4; // Đã giao

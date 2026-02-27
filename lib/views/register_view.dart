@@ -36,6 +36,7 @@ class _RegisterViewState extends State<RegisterView> {
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   String _selectedBusinessType = 'electronics'; // Default business type
+  String _selectedRole = 'employee'; // Default role for join shop
 
   @override
   void initState() {
@@ -121,7 +122,7 @@ class _RegisterViewState extends State<RegisterView> {
             'email': email,
             'phone': _phoneC.text.trim(),
             'address': _addressC.text.trim().toUpperCase(),
-            'role': 'employee',
+            'role': _selectedRole,
           }, SetOptions(merge: true));
           // Also set Firebase Auth displayName for fast lookup
           await cred.user!.updateDisplayName(name.toUpperCase());
@@ -269,8 +270,9 @@ class _RegisterViewState extends State<RegisterView> {
           const SizedBox(height: 8),
         ],
         if (_isJoinShop) ...[
-          _input(_inviteCodeC, AppLocalizations.of(context)!.shopInviteCode, Icons.qr_code),
-          Container(
+          _input(_inviteCodeC, AppLocalizations.of(context)!.shopInviteCode, Icons.qr_code),          // Role selection for join shop
+          _buildRoleSelector(),
+          const SizedBox(height: 8),          Container(
             padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.only(top: 8),
             decoration: BoxDecoration(
@@ -387,6 +389,77 @@ class _RegisterViewState extends State<RegisterView> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleSelector() {
+    final roles = [
+      {'value': 'manager', 'label': '👔 Quản lý', 'desc': 'Toàn quyền quản lý cửa hàng'},
+      {'value': 'employee', 'label': '🧑‍💼 Nhân viên', 'desc': 'Bán hàng, nhận đơn sửa'},
+      {'value': 'technician', 'label': '🔧 Kỹ thuật', 'desc': 'Sửa chữa thiết bị'},
+    ];
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.badge, color: Colors.blueAccent, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Vai trò trong cửa hàng',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: AppTextStyles.headline4.fontSize,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...roles.map((r) {
+            final selected = _selectedRole == r['value'];
+            return GestureDetector(
+              onTap: () => setState(() => _selectedRole = r['value'] as String),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: selected ? Colors.blue.withOpacity(0.1) : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: selected ? Colors.blue : Colors.grey.shade200,
+                    width: selected ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Text(r['label'] as String, style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        r['desc'] as String,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(
+                      selected ? Icons.check_circle : Icons.radio_button_off,
+                      color: selected ? Colors.blue : Colors.grey,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );
