@@ -2955,6 +2955,18 @@ class DBHelper {
     return repairs;
   }
 
+  /// Get ALL repairs within a createdAt date range (all statuses)
+  Future<List<Repair>> getRepairsByCreatedAtRange(int startMs, int endMs) async {
+    final db = await database;
+    final maps = await db.query(
+      'repairs',
+      where: 'createdAt >= ? AND createdAt <= ?',
+      whereArgs: [startMs, endMs],
+      orderBy: 'createdAt DESC',
+    );
+    return List.generate(maps.length, (i) => Repair.fromMap(maps[i]));
+  }
+
   /// Get delivered repairs within a date range, for financial report optimization
   /// Uses COALESCE(deliveredAt, createdAt) to handle NULL deliveredAt
   Future<List<Repair>> getDeliveredRepairsByDateRange(int startMs, int endMs) async {
@@ -3576,7 +3588,7 @@ class DBHelper {
   // --- CUSTOMERS & SUPPLIERS ---
   Future<List<Map<String, dynamic>>>
   getCustomerSuggestions() async => (await database).rawQuery(
-    'SELECT DISTINCT customerName, phone, address FROM (SELECT customerName, phone, address FROM repairs UNION SELECT customerName, phone, address FROM sales UNION SELECT name as customerName, phone, address FROM customers) ORDER BY customerName ASC',
+    'SELECT DISTINCT customerName, phone, address FROM (SELECT customerName, phone, address FROM repairs UNION SELECT customerName, phone, address FROM sales UNION SELECT name as customerName, phone, address FROM customers) ORDER BY customerName ASC LIMIT 200',
   );
   Future<List<Map<String, dynamic>>>
   getUniqueCustomersAll() async => (await database).rawQuery(
@@ -5435,6 +5447,17 @@ class DBHelper {
     );
   }
 
+  /// Get ALL supplier import history within a date range (for revenue view)
+  Future<List<Map<String, dynamic>>> getAllSupplierImportHistoryByDateRange(int startMs, int endMs) async {
+    final db = await database;
+    return await db.query(
+      'supplier_import_history',
+      where: 'importDate >= ? AND importDate <= ?',
+      whereArgs: [startMs, endMs],
+      orderBy: 'importDate DESC',
+    );
+  }
+
   /// Lấy tất cả thanh toán NCC để hiển thị trong chốt quỹ
   Future<List<Map<String, dynamic>>> getAllSupplierPayments() async {
     final shopId = UserService.getShopIdSync();
@@ -5450,6 +5473,26 @@ class DBHelper {
     return await db.query(
       'supplier_payments',
       where: 'deleted = 0 OR deleted IS NULL',
+      orderBy: 'paidAt DESC',
+    );
+  }
+
+  /// Get supplier payments within a date range (by paidAt)
+  Future<List<Map<String, dynamic>>> getSupplierPaymentsByDateRange(int startMs, int endMs) async {
+    final db = await database;
+    final shopId = UserService.getShopIdSync();
+    if (shopId != null && shopId.isNotEmpty) {
+      return await db.query(
+        'supplier_payments',
+        where: '(deleted = 0 OR deleted IS NULL) AND (shopId = ? OR shopId IS NULL) AND paidAt >= ? AND paidAt <= ?',
+        whereArgs: [shopId, startMs, endMs],
+        orderBy: 'paidAt DESC',
+      );
+    }
+    return await db.query(
+      'supplier_payments',
+      where: '(deleted = 0 OR deleted IS NULL) AND paidAt >= ? AND paidAt <= ?',
+      whereArgs: [startMs, endMs],
       orderBy: 'paidAt DESC',
     );
   }

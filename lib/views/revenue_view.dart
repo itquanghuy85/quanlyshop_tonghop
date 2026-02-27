@@ -190,10 +190,19 @@ class _RevenueViewState extends State<RevenueView>
 
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
-    final repairs = await db.getAllRepairs();
-    final sales = await db.getAllSales();
-    final expenses = await db.getAllExpenses();
-    final debtPayments = await db.getAllDebtPaymentsWithDetails();
+
+    // ===== PERFORMANCE: Load only data within relevant date range =====
+    // Max filter is "year" (Jan 1 of current year). Load from Jan 1 of
+    // PREVIOUS year to support year-over-year comparisons & custom ranges.
+    final now = DateTime.now();
+    final rangeStart = DateTime(now.year - 1, 1, 1);
+    final startMs = rangeStart.millisecondsSinceEpoch;
+    final endMs = now.add(const Duration(days: 1)).millisecondsSinceEpoch;
+
+    final repairs = await db.getRepairsByCreatedAtRange(startMs, endMs);
+    final sales = await db.getSalesByDateRange(startMs, endMs);
+    final expenses = await db.getExpensesByDateRange(startMs, endMs);
+    final debtPayments = await db.getDebtPaymentsWithDebtInfoByDateRange(startMs, endMs);
     // FIX BUG-007: Load supplier imports từ Firestore để sync giữa các thiết bị
     final shopId = await UserService.getCurrentShopId();
     List<Map<String, dynamic>> supplierImports = [];
@@ -202,6 +211,7 @@ class _RevenueViewState extends State<RevenueView>
         final snapshot = await FirebaseFirestore.instance
             .collection('supplier_import_history')
             .where('shopId', isEqualTo: shopId)
+            .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromMillisecondsSinceEpoch(startMs))
             .get();
         supplierImports = snapshot.docs
             .where((doc) => doc.data()['deleted'] != true)
@@ -213,10 +223,10 @@ class _RevenueViewState extends State<RevenueView>
             .toList();
       } catch (e) {
         debugPrint('Error loading supplier imports from Firestore: $e');
-        supplierImports = await db.getAllSupplierImportHistory();
+        supplierImports = await db.getAllSupplierImportHistoryByDateRange(startMs, endMs);
       }
     }
-    final supplierPayments = await db.getAllSupplierPayments();
+    final supplierPayments = await db.getSupplierPaymentsByDateRange(startMs, endMs);
 
     final dbRaw = await db.database;
     final effectiveShopId = shopId ?? UserService.getShopIdSync();
