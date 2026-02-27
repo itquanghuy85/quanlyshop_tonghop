@@ -145,6 +145,29 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     }
   }
 
+  /// Query Firestore collection with server-side date filter.
+  /// Falls back to unfiltered query if composite index is not ready yet.
+  Future<QuerySnapshot<Map<String, dynamic>>> _queryWithDateFilter(
+    CollectionReference<Map<String, dynamic>> collection,
+    String shopId,
+    String dateField,
+    int startMs,
+    int endMs,
+  ) async {
+    try {
+      return await collection
+          .where('shopId', isEqualTo: shopId)
+          .where(dateField, isGreaterThanOrEqualTo: startMs)
+          .where(dateField, isLessThanOrEqualTo: endMs)
+          .get();
+    } catch (e) {
+      debugPrint('⚠️ Date filter failed for ${collection.path} (index may be building), fallback to full query');
+      return await collection
+          .where('shopId', isEqualTo: shopId)
+          .get();
+    }
+  }
+
   Future<void> _loadData() async {
     setState(() {
       _loading = true;
@@ -175,16 +198,25 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
 
       final firestore = FirebaseFirestore.instance;
 
-      // Query all collections in parallel
+      // Query all collections in parallel — with server-side date filter where safe
+      // Note: expenses & supplier_import_history use unfiltered queries due to
+      // inconsistent timestamp field names (date vs createdAt, importDate vs createdAt)
       final results = await Future.wait([
-        firestore.collection('sales').where('shopId', isEqualTo: shopId).get(),
-        firestore.collection('repairs').where('shopId', isEqualTo: shopId).get(),
+        // sales: composite index (shopId, soldAt) exists
+        _queryWithDateFilter(firestore.collection('sales'), shopId, 'soldAt', startMs, endMs),
+        // repairs: composite index (shopId, createdAt) deployed
+        _queryWithDateFilter(firestore.collection('repairs'), shopId, 'createdAt', startMs, endMs),
+        // expenses: field name varies (date/createdAt) — keep unfiltered for safety
         firestore.collection('expenses').where('shopId', isEqualTo: shopId).get(),
-        firestore.collection('debt_payments').where('shopId', isEqualTo: shopId).get(),
-        firestore.collection('supplier_payments').where('shopId', isEqualTo: shopId).get(),
+        // debt_payments: composite index (shopId, paidAt) deployed
+        _queryWithDateFilter(firestore.collection('debt_payments'), shopId, 'paidAt', startMs, endMs),
+        // supplier_payments: composite index (shopId, paidAt) deployed
+        _queryWithDateFilter(firestore.collection('supplier_payments'), shopId, 'paidAt', startMs, endMs),
+        // supplier_import_history: field name varies (importDate/importedAt/createdAt) — keep unfiltered
         firestore.collection('supplier_import_history').where('shopId', isEqualTo: shopId).get(),
         if (_enableRepair)
-          firestore.collection('repair_partner_payments').where('shopId', isEqualTo: shopId).get(),
+          // repair_partner_payments: composite index (shopId, paidAt) deployed
+          _queryWithDateFilter(firestore.collection('repair_partner_payments'), shopId, 'paidAt', startMs, endMs),
       ]);
 
       final List<FinancialActivity> allActivities = [];

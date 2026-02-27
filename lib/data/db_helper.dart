@@ -84,7 +84,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 81,
+      version: 82,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
@@ -377,6 +377,41 @@ class DBHelper {
         await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_product_variants_shopId ON product_variants(shopId)',
         );
+
+        // === Performance indexes for frequently queried columns ===
+        // repairs
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_createdAt ON repairs(createdAt)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_status ON repairs(status)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_repairedBy ON repairs(repairedBy)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_deleted ON repairs(deleted)');
+        // sales
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_soldAt ON sales(soldAt)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_sellerName ON sales(sellerName)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_deleted ON sales(deleted)');
+        // products
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_products_status ON products(status)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_products_shopId ON products(shopId)');
+        // expenses
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)');
+        // debts
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_createdAt ON debts(createdAt)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_status ON debts(status)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_deleted ON debts(deleted)');
+        // attendance
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_dateKey ON attendance(dateKey)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_userId ON attendance(userId)');
+        // debt_payments
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_paidAt ON debt_payments(paidAt)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_debtId ON debt_payments(debtId)');
+        // supplier_payments
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_supplier_payments_paidAt ON supplier_payments(paidAt)');
+        // repair_partner_payments
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_repair_partner_payments_paidAt ON repair_partner_payments(paidAt)');
+        // customers
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
       },
       onUpgrade: (db, oldV, newV) async {
         debugPrint('Upgrading DB from $oldV to $newV');
@@ -836,6 +871,38 @@ class DBHelper {
             debugPrint('v81 error (products sku): $e');
           }
           debugPrint('v81: Products sku column complete');
+        }
+        if (oldV < 82) {
+          // v82: Add performance indexes for frequently queried columns
+          debugPrint('DB upgrade v82: Adding performance indexes...');
+          try {
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_createdAt ON repairs(createdAt)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_status ON repairs(status)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_repairedBy ON repairs(repairedBy)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_deleted ON repairs(deleted)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_soldAt ON sales(soldAt)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_sellerName ON sales(sellerName)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_deleted ON sales(deleted)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_products_status ON products(status)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_products_shopId ON products(shopId)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_createdAt ON debts(createdAt)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_status ON debts(status)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_deleted ON debts(deleted)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_dateKey ON attendance(dateKey)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_userId ON attendance(userId)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_paidAt ON debt_payments(paidAt)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_debtId ON debt_payments(debtId)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_supplier_payments_paidAt ON supplier_payments(paidAt)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_repair_partner_payments_paidAt ON repair_partner_payments(paidAt)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
+            debugPrint('v82: All performance indexes created');
+          } catch (e) {
+            debugPrint('v82 error (indexes): $e');
+          }
         }
         if (oldV < 26) {
           // Migration to remove kpkPrice and pkPrice columns from products and quick_input_codes tables
@@ -2811,17 +2878,6 @@ class DBHelper {
     );
     final repairs = List.generate(maps.length, (i) => Repair.fromMap(maps[i]));
     debugPrint("DB_TRACE: getAllRepairs returned ${repairs.length} repairs");
-    for (var r in repairs) {
-      final createdDate = DateTime.fromMillisecondsSinceEpoch(
-        r.createdAt,
-      ).toLocal();
-      final deliveredDate = r.deliveredAt != null
-          ? DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!).toLocal()
-          : null;
-      debugPrint(
-        "DB_TRACE: Repair - id: ${r.id}, firestoreId: ${r.firestoreId}, status: ${r.status}, price: ${r.price}, totalCost: ${r.totalCost}, createdAt: ${r.createdAt} ($createdDate), deliveredAt: ${r.deliveredAt} ($deliveredDate)",
-      );
-    }
     return repairs;
   }
 
@@ -2898,12 +2954,6 @@ class DBHelper {
     final maps = await (await database).query('sales', orderBy: 'soldAt DESC');
     final sales = List.generate(maps.length, (i) => SaleOrder.fromMap(maps[i]));
     debugPrint("DB_TRACE: getAllSales returned ${sales.length} sales");
-    for (var s in sales) {
-      final soldDate = DateTime.fromMillisecondsSinceEpoch(s.soldAt).toLocal();
-      debugPrint(
-        "DB_TRACE: Sale - id: ${s.id}, firestoreId: ${s.firestoreId}, totalPrice: ${s.totalPrice}, totalCost: ${s.totalCost}, soldAt: ${s.soldAt} ($soldDate), customerName: ${s.customerName}",
-      );
-    }
     return sales;
   }
 
@@ -3767,13 +3817,6 @@ class DBHelper {
     final shopId = UserService.getShopIdSync();
     final db = await database;
     debugPrint('🔍 [DB] getClosingByDateKey: dateKey=$dateKey, shopId=$shopId');
-    
-    // Also check total count in table for debugging
-    final allRows = await db.query('cash_closings');
-    debugPrint('🔍 [DB] cash_closings table has ${allRows.length} total rows');
-    for (var row in allRows) {
-      debugPrint('🔍 [DB]   row: dateKey=${row['dateKey']}, shopId=${row['shopId']}, cashEnd=${row['cashEnd']}, bankEnd=${row['bankEnd']}');
-    }
     
     if (shopId != null && shopId.isNotEmpty) {
       final res = await db.query(
