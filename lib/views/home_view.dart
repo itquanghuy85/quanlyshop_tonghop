@@ -1474,11 +1474,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     });
   }
 
-  // State variables for accurate financial overview (same as revenue_view.dart)
-  int _todayTotalIn =
-      0; // THU HÔM NAY (totalPrice from sales + price from repairs)
-  int _todayTotalOut = 0; // CHI HÔM NAY (expenses)
-  int _todayNetProfit = 0; // LỢI NHUẬN RÒNG (totalIn - totalOut - costs)
+  // State variables for accurate financial overview (same as cash_closing analysis)
+  int _todayTotalIn = 0; // THU HÔM NAY (tổng thu)
+  int _todayTotalOut = 0; // CHI HÔM NAY (tổng chi thực tế)
+  int _todayNetProfit = 0; // LỢI NHUẬN RÒNG
   int _todaySalesProfit = 0; // Lợi nhuận bán hàng
   int _todayRepairProfit = 0; // Lợi nhuận sửa chữa
   int _todayRepairCount = 0; // Số đơn sửa chữa hoàn thành hôm nay
@@ -1487,6 +1486,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   int _todayStockInCost = 0; // Chi phí nhập kho hôm nay (tiền mặt/CK)
   int _todayDebtPaidToSupplier = 0; // Trả nợ NCC hôm nay
   int _todayExpenseOnly = 0; // Chi phí hoạt động thuần (không gồm trả nợ NCC)
+  // Detail breakdown for Sổ quỹ style display
+  int _todaySaleIncome = 0; // Doanh thu bán hàng
+  int _todayRepairIncome = 0; // Doanh thu sửa chữa
+  int _todayDebtCollected = 0; // Thu nợ khách hàng
+  int _todayMiscIncome = 0; // Thu phát sinh
+  int _todayImportOut = 0; // Chi nhập hàng
+  int _todayPartnerPaid = 0; // TT đối tác sửa chữa
+  int _todaySaleCost = 0; // Giá vốn bán hàng
+  int _todayRepairCost = 0; // Giá vốn sửa chữa
 
   Future<void> _loadStats() async {
     // Guard chống load nhiều lần liên tiếp
@@ -1854,6 +1862,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _todayStockInCost = stockInCost; // Chi phí nhập kho hôm nay
           _todayDebtPaidToSupplier = debtPaidToSupplier;
           _todayExpenseOnly = totalOut; // Chi phí thuần (không gồm trả nợ NCC)
+          // Detail breakdown for Sổ quỹ style
+          _todaySaleIncome = salesIncome;
+          _todayRepairIncome = repairsIncome;
+          _todayDebtCollected = debtCollected;
+          _todayMiscIncome = totalIncomeExpense;
+          _todayImportOut = stockInCost;
+          _todayPartnerPaid = partnerPaid;
+          _todaySaleCost = salesCost;
+          _todayRepairCost = repairsCost;
           _totalLocalRecords = totalRecords; // Cập nhật tổng records
           unreadChatCount = unread; // Gộp vào 1 setState
           // Cập nhật tin nhắn mới nhất
@@ -2161,8 +2178,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           // CHAT NHÓM - ngay dưới lời chào, nổi bật với badge
           _buildChatCard(),
 
-          // TRUY CẬP NHANH QUAN TRỌNG - ghim ra home
-          _buildPinnedShortcutsSection(),
+          // THAO TÁC NHANH - gộp truy cập nhanh + thao tác nhanh
+          _buildUnifiedShortcuts(),
 
           // TỔNG QUAN TÀI CHÍNH - Chỉ hiện cho owner/superadmin
           if (widget.role == 'owner' || _isSuperAdmin) ...[
@@ -2170,10 +2187,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             _buildDashboardOverview(),
             const SizedBox(height: 20),
           ],
-
-          // THAO TÁC NHANH
-          _buildSectionHeader("THAO TÁC NHANH"),
-          _buildQuickActionsNew(),
 
           const SizedBox(height: 20),
 
@@ -3146,6 +3159,101 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// Unified compact shortcuts section - merges pinned shortcuts + quick actions
+  Widget _buildUnifiedShortcuts() {
+    final loc = AppLocalizations.of(context)!;
+
+    // Build list of shortcut items dynamically
+    final items = <_ShortcutItem>[
+      _ShortcutItem(Icons.add_shopping_cart, 'Bán hàng', Colors.green, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView()))),
+      if (_enableRepair)
+        _ShortcutItem(Icons.build_circle, 'Đơn sửa', Colors.blue, () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateRepairOrderView(role: widget.role)))),
+      _ShortcutItem(Icons.add_box, 'Nhập kho', Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartStockInView()))),
+      _ShortcutItem(Icons.pending_actions, 'Chờ XN', Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingStockListView()))),
+      _ShortcutItem(Icons.receipt_long, 'Đơn bán', Colors.indigo, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SaleListView()))),
+      if (_enableRepair)
+        _ShortcutItem(Icons.list_alt, 'DS sửa', Colors.deepPurple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderListView()))),
+      _ShortcutItem(Icons.remove_circle_outline, 'Thêm chi', Colors.red, _showQuickExpenseDialog),
+      _ShortcutItem(Icons.add_circle_outline, 'Thêm thu', Colors.green.shade700, _showQuickIncomeDialog),
+      _ShortcutItem(Icons.qr_code_scanner, 'Kiểm kho', Colors.cyan, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FastInventoryCheckView()))),
+      _ShortcutItem(Icons.bar_chart, 'Báo cáo', Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RevenueView()))),
+      _ShortcutItem(Icons.access_time, 'Chấm công', Colors.teal.shade700, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendanceView()))),
+      if (_enableWarranty)
+        _ShortcutItem(Icons.shield, 'Bảo hành', Colors.amber.shade800, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WarrantyView()))),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Icon(Icons.apps, size: 14, color: Colors.grey.shade600),
+                const SizedBox(width: 6),
+                Text(
+                  'THAO TÁC NHANH',
+                  style: AppTextStyles.body1.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Grid layout - 4 items per row, compact
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: items.map((item) => SizedBox(
+              width: (MediaQuery.of(context).size.width - 32 - 24) / 4, // 4 columns with spacing
+              child: InkWell(
+                onTap: item.onTap,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: item.color.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: item.color.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: item.color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(item.icon, color: item.color, size: 20),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: item.color.withOpacity(0.9),
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )).toList(),
+          ),
+        ],
       ),
     );
   }
@@ -5934,81 +6042,71 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Widget _buildDashboardOverview() {
-    debugPrint(
-      'BUILDING DASHBOARD: totalPendingRepair=$totalPendingRepair, _todayTotalIn=$_todayTotalIn, _todayTotalOut=$_todayTotalOut, _todayNetProfit=$_todayNetProfit',
-    );
+    final totalIncome = _todayTotalIn + _todayDebtCollected;
+    final totalExpense = _todayTotalOut + _todayImportOut;
+    final maxVal = totalIncome > totalExpense ? totalIncome : totalExpense;
+    final incomeRatio = maxVal > 0 ? (totalIncome / maxVal).clamp(0.05, 1.0) : 0.05;
+    final expenseRatio = maxVal > 0 ? (totalExpense / maxVal).clamp(0.05, 1.0) : 0.05;
 
-    return Container(
-      key: UniqueKey(),
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CashClosingView()),
       ),
-      child: Column(
-        children: [
-          // Header Section
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
+      child: Container(
+        key: UniqueKey(),
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadow.withOpacity(0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.analytics_rounded,
-                  color: Colors.white,
-                  size: 28,
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header Section
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primary, AppColors.primaryDark],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        loc.todayFinancialReport,
-                        style: AppTextStyles.body1.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        DateFormat(
-                          'EEEE, dd/MM/yyyy',
-                          'vi',
-                        ).format(DateTime.now()),
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
-                  ),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
                 ),
-                InkWell(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RevenueView()),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.analytics_rounded, color: Colors.white, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          loc.todayFinancialReport,
+                          style: AppTextStyles.body1.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          DateFormat('EEEE, dd/MM/yyyy', 'vi').format(DateTime.now()),
+                          style: AppTextStyles.caption.copyWith(color: Colors.white70),
+                        ),
+                      ],
                     ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white24,
                       borderRadius: BorderRadius.circular(12),
@@ -6016,205 +6114,370 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          loc.details,
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.white,
-                          ),
-                        ),
+                        Text(loc.details, style: AppTextStyles.caption.copyWith(color: Colors.white)),
                         const SizedBox(width: 4),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          color: Colors.white,
-                          size: 12,
+                        const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 12),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // BIẾN ĐỘNG TRONG NGÀY - Bar Chart
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(Icons.bar_chart, color: Colors.orange, size: 18),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "BIẾN ĐỘNG TRONG NGÀY",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                          fontSize: AppTextStyles.body1.fontSize,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Bar chart
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Container(
+                              height: 80,
+                              alignment: Alignment.bottomCenter,
+                              child: Container(
+                                width: 40,
+                                height: 80 * incomeRatio,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [Colors.green.shade300, Colors.green.shade600],
+                                  ),
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text("📥 THU", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.caption.fontSize)),
+                            Text(
+                              "+${MoneyUtils.formatVND(totalIncome)}",
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                                fontSize: AppTextStyles.body1.fontSize,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Container(
+                              height: 80,
+                              alignment: Alignment.bottomCenter,
+                              child: Container(
+                                width: 40,
+                                height: 80 * expenseRatio,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [Colors.red.shade300, Colors.red.shade600],
+                                  ),
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text("📤 CHI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.caption.fontSize)),
+                            Text(
+                              "-${MoneyUtils.formatVND(totalExpense)}",
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                                fontSize: AppTextStyles.body1.fontSize,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 8),
+
+                  // CHI TIẾT THU / CHI
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "📥 CHI TIẾT THU",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: AppTextStyles.caption.fontSize,
+                                color: Colors.green,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            _homeBreakdownItem("Bán hàng", _todaySaleIncome, Colors.green),
+                            if (_enableRepair)
+                              _homeBreakdownItem("Sửa chữa", _todayRepairIncome, Colors.green),
+                            _homeBreakdownItem("Thu nợ KH", _todayDebtCollected, Colors.green),
+                            _homeBreakdownItem("Thu phát sinh", _todayMiscIncome, Colors.teal),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "📤 CHI TIẾT CHI",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: AppTextStyles.caption.fontSize,
+                                color: Colors.red,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            _homeBreakdownItem("Chi phí", _todayExpenseOnly, Colors.red),
+                            _homeBreakdownItem("Nhập hàng", _todayImportOut, Colors.red),
+                            _homeBreakdownItem("Trả nợ NCC", _todayDebtPaidToSupplier, Colors.red),
+                            if (_enableRepair)
+                              _homeBreakdownItem("TT đối tác SC", _todayPartnerPaid, Colors.red),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 8),
+
+                  // LỢI NHUẬN RÒNG
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _todayNetProfit >= 0 ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _todayNetProfit >= 0 ? Colors.green.shade200 : Colors.red.shade200,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "💰 LỢI NHUẬN RÒNG",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: AppTextStyles.body1.fontSize,
+                              ),
+                            ),
+                            Text(
+                              "${_todayNetProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(_todayNetProfit)}",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: AppTextStyles.headline5.fontSize,
+                                color: _todayNetProfit >= 0 ? Colors.green : Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _homeBreakdownItem("Giá vốn bán", _todaySaleCost, Colors.orange),
+                            ),
+                            if (_enableRepair)
+                              Expanded(
+                                child: _homeBreakdownItem("Giá vốn SC", _todayRepairCost, Colors.orange),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "= Doanh thu - Chi phí - Giá vốn",
+                          style: TextStyle(
+                            fontSize: AppTextStyles.overline.fontSize,
+                            color: Colors.grey.shade600,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+
+                  // HOẠT ĐỘNG HÔM NAY
+                  Text(
+                    loc.todayActivity,
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSurface.withOpacity(0.5),
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: [
+                      if (_enableRepair)
+                        Expanded(
+                          child: _activityCard(
+                            icon: Icons.build_circle,
+                            label: loc.pendingRepairs,
+                            value: totalPendingRepair.toString(),
+                            color: AppColors.primary,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OrderListView(
+                                  role: widget.role,
+                                  statusFilter: const [1, 2],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (_enableRepair)
+                        Expanded(
+                          child: _activityCard(
+                            icon: Icons.check_circle,
+                            label: loc.delivered,
+                            value: todayRepairDone.toString(),
+                            color: AppColors.info,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OrderListView(
+                                  role: widget.role,
+                                  statusFilter: const [4],
+                                  todayOnly: true,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (_enableExpiry)
+                        Expanded(
+                          child: _activityCard(
+                            icon: Icons.timer,
+                            label: 'Sắp hết HSD',
+                            value: (_expiryStats?.atRiskCount ?? 0).toString(),
+                            color: Colors.orange,
+                            onTap: () {
+                              final expiryTabIndex = _navItems.indexWhere((item) => item.label == 'HSD');
+                              if (expiryTabIndex != -1) {
+                                setState(() => _currentIndex = expiryTabIndex);
+                              }
+                            },
+                          ),
+                        ),
+                      if (_enableVariants)
+                        Expanded(
+                          child: _activityCard(
+                            icon: Icons.checkroom,
+                            label: 'Hết size/màu',
+                            value: (_variantWarnings?.outOfStock ?? 0).toString(),
+                            color: Colors.blue,
+                            onTap: () {
+                              final variantTabIndex = _navItems.indexWhere((item) => item.label == 'Size/Màu');
+                              if (variantTabIndex != -1) {
+                                setState(() => _currentIndex = variantTabIndex);
+                              }
+                            },
+                          ),
+                        ),
+                      Expanded(
+                        child: _activityCard(
+                          icon: Icons.shopping_cart,
+                          label: loc.saleOrders,
+                          value: todaySaleCount.toString(),
+                          color: AppColors.success,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const SaleListView(todayOnly: true)),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: _activityCard(
+                          icon: Icons.receipt_long,
+                          label: loc.debt,
+                          value: MoneyUtils.formatCompact(totalDebtRemain),
+                          color: AppColors.warning,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const DebtView()),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Breakdown item widget cho home dashboard (kiểu Sổ quỹ)
+  Widget _homeBreakdownItem(String label, int amount, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1.5),
+      child: Row(
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: AppTextStyles.overline.fontSize, color: Colors.black54),
             ),
           ),
-
-          // Main Finance Overview (THU - CHI - LỢI NHUẬN)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // THU và CHI row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _financeMetricCard(
-                        icon: Icons.arrow_downward_rounded,
-                        label: loc.todayIncome,
-                        value: _todayTotalIn,
-                        color: AppColors.success,
-                        subLabel: _enableRepair
-                            ? "$_todaySaleOrderCount ${loc.saleOrders} + $_todayRepairCount ${loc.repairOrders}"
-                            : "$_todaySaleOrderCount ${loc.saleOrders}",
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CashClosingView(),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _financeMetricCard(
-                        icon: Icons.arrow_upward_rounded,
-                        label: loc.todayExpense,
-                        value: _todayTotalOut,
-                        color: AppColors.error,
-                        subLabel: _buildExpenseDetail(loc),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CashClosingView(),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // LỢI NHUẬN RÒNG - Large Card
-                GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const CashClosingView(initialTab: 3),
-                    ),
-                  ),
-                  child: _profitCard(_todayNetProfit),
-                ),
-
-                const SizedBox(height: 16),
-                const Divider(height: 1),
-                const SizedBox(height: 16),
-
-                // Quick Stats Grid
-                Text(
-                  loc.todayActivity,
-                  style: AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurface.withOpacity(0.5),
-                    letterSpacing: 1,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    // Pending repairs - only for electronics
-                    if (_enableRepair)
-                    Expanded(
-                      child: _activityCard(
-                        icon: Icons.build_circle,
-                        label: loc.pendingRepairs,
-                        value: totalPendingRepair.toString(),
-                        color: AppColors.primary,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OrderListView(
-                              role: widget.role,
-                              statusFilter: const [1, 2],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Delivered repairs - only for electronics
-                    if (_enableRepair)
-                    Expanded(
-                      child: _activityCard(
-                        icon: Icons.check_circle,
-                        label: loc.delivered,
-                        value: todayRepairDone.toString(),
-                        color: AppColors.info,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OrderListView(
-                              role: widget.role,
-                              statusFilter: const [4],
-                              todayOnly: true,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Expiry warning - only for food shops
-                    if (_enableExpiry)
-                    Expanded(
-                      child: _activityCard(
-                        icon: Icons.timer,
-                        label: 'Sắp hết HSD',
-                        value: (_expiryStats?.atRiskCount ?? 0).toString(),
-                        color: Colors.orange,
-                        onTap: () {
-                          // Navigate to expiry tab
-                          final expiryTabIndex = _navItems.indexWhere(
-                            (item) => item.label == 'HSD',
-                          );
-                          if (expiryTabIndex != -1) {
-                            setState(() => _currentIndex = expiryTabIndex);
-                          }
-                        },
-                      ),
-                    ),
-                    // Variant warnings - only for fashion shops
-                    if (_enableVariants)
-                    Expanded(
-                      child: _activityCard(
-                        icon: Icons.checkroom,
-                        label: 'Hết size/màu',
-                        value: (_variantWarnings?.outOfStock ?? 0).toString(),
-                        color: Colors.blue,
-                        onTap: () {
-                          // Navigate to variant tab
-                          final variantTabIndex = _navItems.indexWhere(
-                            (item) => item.label == 'Size/Màu',
-                          );
-                          if (variantTabIndex != -1) {
-                            setState(() => _currentIndex = variantTabIndex);
-                          }
-                        },
-                      ),
-                    ),
-                    Expanded(
-                      child: _activityCard(
-                        icon: Icons.shopping_cart,
-                        label: loc.saleOrders,
-                        value: todaySaleCount.toString(),
-                        color: AppColors.success,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SaleListView(todayOnly: true),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: _activityCard(
-                        icon: Icons.receipt_long,
-                        label: loc.debt,
-                        value: MoneyUtils.formatCompact(totalDebtRemain),
-                        color: AppColors.warning,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const DebtView()),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          Text(
+            MoneyUtils.formatVND(amount),
+            style: TextStyle(
+              fontSize: AppTextStyles.overline.fontSize,
+              color: color,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -6566,4 +6829,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       ),
     );
   }
+}
+
+/// Simple data class for shortcut items
+class _ShortcutItem {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _ShortcutItem(this.icon, this.label, this.color, this.onTap);
 }

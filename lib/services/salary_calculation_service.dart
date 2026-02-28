@@ -99,17 +99,17 @@ class SalaryCalculationService {
     deductionSettings ??= await getShopDeductionSettings();
 
     // ===== 2.5 LẤY LỊCH LÀM VIỆC CỦA NHÂN VIÊN =====
-    List<int> configuredWorkDays = [1, 2, 3, 4, 5, 6]; // Default Mon-Sat
+    List<int> configuredWorkDays = [1, 2, 3, 4, 5, 6]; // Default Mon-Sat (Dart weekday)
     try {
-      final schedule = await _db.getWorkSchedule(staffId);
+      // Ưu tiên lịch riêng của nhân viên, fallback sang shop_general
+      var schedule = await _db.getWorkSchedule(staffId);
+      if (schedule == null || schedule['workDays'] == null) {
+        schedule = await _db.getWorkSchedule('shop_general');
+      }
       if (schedule != null && schedule['workDays'] != null) {
         final wd = schedule['workDays'];
-        if (wd is List) {
-          configuredWorkDays = wd.cast<int>();
-        } else if (wd is String) {
-          configuredWorkDays = (List<dynamic>.from(_parseJsonList(wd))).cast<int>();
-        }
-        debugPrint('📊 [SalaryCalc] $staffName: workDays config = $configuredWorkDays');
+        configuredWorkDays = _parseWorkDays(wd);
+        debugPrint('📊 [SalaryCalc] $staffName: workDays config (Dart weekday) = $configuredWorkDays');
       }
     } catch (e) {
       debugPrint('📊 [SalaryCalc] Error loading work schedule: $e');
@@ -914,6 +914,63 @@ class SalaryCalculationService {
     } catch (_) {
       return [1, 2, 3, 4, 5, 6];
     }
+  }
+
+  /// Convert workDays from any stored format to Dart weekday list [1..7]
+  /// Handles:
+  /// - Shop general format: "1,1,1,1,1,1,1" (7 booleans, index 0=CN, 1=T2, ..., 6=T7)
+  /// - Staff individual format: "0,1,2,3,4,5,6" (UI indices where 0=CN, 1=T2, ..., 6=T7)  
+  /// - List<int> format: [0,1,2,3,4,5,6] (same UI indices)
+  /// - JSON string: "[1,2,3,4,5,6]" (Dart weekday format - legacy)
+  /// Returns List<int> with Dart weekday values (1=Mon, 2=Tue, ..., 7=Sun)
+  static List<int> _parseWorkDays(dynamic wd) {
+    // UI index to Dart weekday mapping:
+    // UI: 0=CN(Sun) 1=T2(Mon) 2=T3(Tue) 3=T4(Wed) 4=T5(Thu) 5=T6(Fri) 6=T7(Sat)
+    // Dart: 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat 7=Sun
+    const uiToDartWeekday = [7, 1, 2, 3, 4, 5, 6]; // index=UI, value=Dart
+
+    if (wd is List) {
+      // List format - convert UI indices to Dart weekday
+      final result = <int>[];
+      for (final v in wd) {
+        final idx = (v is int) ? v : int.tryParse(v.toString()) ?? -1;
+        if (idx >= 0 && idx < 7) {
+          result.add(uiToDartWeekday[idx]);
+        }
+      }
+      return result.isNotEmpty ? result : [1, 2, 3, 4, 5, 6];
+    }
+
+    if (wd is String) {
+      final stripped = wd.replaceAll('[', '').replaceAll(']', '').trim();
+      if (stripped.isEmpty) return [1, 2, 3, 4, 5, 6];
+
+      final parts = stripped.split(',').map((s) => s.trim()).toList();
+
+      // Detect format: shop general has exactly 7 items all "0" or "1"
+      if (parts.length == 7 && parts.every((p) => p == '0' || p == '1')) {
+        // Boolean format: "0,1,1,1,1,1,0" or "1,1,1,1,1,1,1"
+        final result = <int>[];
+        for (int i = 0; i < 7; i++) {
+          if (parts[i] == '1') {
+            result.add(uiToDartWeekday[i]);
+          }
+        }
+        return result.isNotEmpty ? result : [1, 2, 3, 4, 5, 6];
+      }
+
+      // Index format: "0,1,2,3,4,5,6" (UI indices)
+      final result = <int>[];
+      for (final p in parts) {
+        final idx = int.tryParse(p) ?? -1;
+        if (idx >= 0 && idx < 7) {
+          result.add(uiToDartWeekday[idx]);
+        }
+      }
+      return result.isNotEmpty ? result : [1, 2, 3, 4, 5, 6];
+    }
+
+    return [1, 2, 3, 4, 5, 6]; // Default Mon-Sat
   }
 
   /// Tính lương cho tất cả nhân viên trong tháng
