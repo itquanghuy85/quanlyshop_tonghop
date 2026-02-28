@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' hide Border;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -106,7 +106,7 @@ class ExcelExportHelper {
     }
   }
 
-  /// Save Excel to temp & share
+  /// Save Excel to Downloads folder & optionally share
   static Future<void> _saveAndShare(
     Excel excel,
     String fileName,
@@ -123,19 +123,105 @@ class ExcelExportHelper {
         return;
       }
 
+      // 1. Lưu vào thư mục Downloads trước
+      String? savedPath;
+      try {
+        Directory? downloadsDir;
+        if (Platform.isAndroid) {
+          downloadsDir = Directory('/storage/emulated/0/Download');
+          if (!await downloadsDir.exists()) {
+            downloadsDir = await getExternalStorageDirectory();
+          }
+        } else {
+          downloadsDir = await getApplicationDocumentsDirectory();
+        }
+        if (downloadsDir != null) {
+          savedPath = '${downloadsDir.path}/$fileName';
+          final savedFile = File(savedPath);
+          await savedFile.writeAsBytes(bytes);
+          debugPrint('Excel saved to: $savedPath');
+        }
+      } catch (e) {
+        debugPrint('Failed to save to Downloads: $e');
+      }
+
+      // 2. Cũng lưu vào temp để share
       final dir = await getTemporaryDirectory();
-      final filePath = '${dir.path}/$fileName';
-      final file = File(filePath);
-      await file.writeAsBytes(bytes);
+      final tempPath = '${dir.path}/$fileName';
+      final tempFile = File(tempPath);
+      await tempFile.writeAsBytes(bytes);
 
       if (!context.mounted) return;
 
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(filePath)],
-          title: fileName,
+      // 3. Hiện thông báo đã lưu + hỏi chia sẻ
+      final shouldShare = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
+          title: const Text('Xuất file thành công!'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (savedPath != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.folder, color: Colors.green.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Đã lưu vào:\n${savedPath.split('/').last}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.green.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Thư mục: ${savedPath.substring(0, savedPath.lastIndexOf('/'))}',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ] else
+                const Text('File đã được tạo sẵn để chia sẻ.'),
+              const SizedBox(height: 12),
+              const Text(
+                'Bạn có muốn chia sẻ file không?',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Đóng'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.share, size: 18),
+              label: const Text('Chia sẻ'),
+            ),
+          ],
         ),
       );
+
+      if (shouldShare == true && context.mounted) {
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(tempPath)],
+            title: fileName,
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('Excel export error: $e');
       if (context.mounted) {

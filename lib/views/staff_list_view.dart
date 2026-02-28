@@ -2668,13 +2668,13 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   Color _repairStatusColor(int status) {
     switch (status) {
       case 1:
-        return Colors.blue;
+        return AppColors.repairReceived;
       case 2:
-        return Colors.orange;
+        return AppColors.repairRepairing;
       case 3:
-        return Colors.green;
+        return AppColors.repairDone;
       case 4:
-        return Colors.blue;
+        return AppColors.repairDelivered;
       default:
         return Colors.grey;
     }

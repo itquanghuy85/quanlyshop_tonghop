@@ -4314,15 +4314,15 @@ class _InventoryViewState extends State<InventoryView>
   Color _getStatusColor(int status) {
     switch (status) {
       case 1:
-        return Colors.orange;
+        return AppColors.repairReceived;
       case 2:
-        return Colors.blue;
+        return AppColors.repairRepairing;
       case 3:
-        return Colors.green;
+        return AppColors.repairDone;
       case 4:
-        return Colors.grey;
+        return AppColors.repairDelivered;
       default:
-        return Colors.black;
+        return Colors.grey;
     }
   }
 }

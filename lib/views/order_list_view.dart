@@ -19,6 +19,7 @@ import 'create_repair_order_view.dart';
 import 'global_search_view.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
+import '../theme/app_colors.dart';
 
 class OrderListView extends StatefulWidget {
   final int? initialStatus;
@@ -360,11 +361,11 @@ class OrderListViewState extends State<OrderListView> {
                 runSpacing: 8,
                 children: [
                   _statusChipMulti(loc.all, null, setSheetState),
-                  _statusChipMulti(loc.received, 1, setSheetState, Colors.blue),
-                  _statusChipMulti(loc.repairing, 2, setSheetState, Colors.orange),
-                  _statusChipMulti(loc.repairDone, 3, setSheetState, Colors.green),
+                  _statusChipMulti(loc.received, 1, setSheetState, AppColors.repairReceived),
+                  _statusChipMulti(loc.repairing, 2, setSheetState, AppColors.repairRepairing),
+                  _statusChipMulti(loc.repairDone, 3, setSheetState, AppColors.repairDone),
                   _pendingApprovalChip(setSheetState),
-                  _statusChipMulti(loc.delivered, 4, setSheetState, Colors.blue),
+                  _statusChipMulti(loc.delivered, 4, setSheetState, AppColors.repairDelivered),
                 ],
               ),
               if (_statusFilters.isNotEmpty)
@@ -1416,17 +1417,17 @@ class OrderListViewState extends State<OrderListView> {
 
   Color _getStatusColor(int status, {bool pendingApproval = false}) {
     if (status == 3 && pendingApproval) {
-      return Colors.deepOrange;
+      return AppColors.repairPendingApproval;
     }
     switch (status) {
       case 1:
-        return Colors.blue;
+        return AppColors.repairReceived;
       case 2:
-        return Colors.orange;
+        return AppColors.repairRepairing;
       case 3:
-        return Colors.green;
+        return AppColors.repairDone;
       case 4:
-        return Colors.blue;
+        return AppColors.repairDelivered;
       default:
         return Colors.grey;
     }

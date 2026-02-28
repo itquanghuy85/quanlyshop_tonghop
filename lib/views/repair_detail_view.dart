@@ -504,17 +504,17 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Color _getStatusColor(int s, {bool pendingApproval = false}) {
     if (s == 3 && pendingApproval) {
-      return Colors.deepOrange; // Màu cho trạng thái chờ duyệt
+      return AppColors.repairPendingApproval;
     }
     switch (s) {
       case 1:
-        return Colors.blue;
+        return AppColors.repairReceived;
       case 2:
-        return Colors.orange;
+        return AppColors.repairRepairing;
       case 3:
-        return AppColors.success;
+        return AppColors.repairDone;
       case 4:
-        return AppColors.primary;
+        return AppColors.repairDelivered;
       default:
         return Colors.grey;
     }

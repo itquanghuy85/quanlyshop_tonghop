@@ -95,6 +95,18 @@ class AppColors {
   /// Màu trạng thái cancelled
   static const Color cancelled = Color(0xFFF44336); // Red 500
 
+  // ========== REPAIR STATUS COLORS ==========
+  /// Đã nhận - Xanh dương
+  static const Color repairReceived = Color(0xFF1976D2); // Blue 700
+  /// Đang sửa - Cam
+  static const Color repairRepairing = Color(0xFFFF9800); // Orange 500
+  /// Đã sửa xong - Xanh lá đậm
+  static const Color repairDone = Color(0xFF2E7D32); // Green 800
+  /// Chờ duyệt giao - Cam đậm
+  static const Color repairPendingApproval = Color(0xFFE65100); // Deep Orange
+  /// Đã giao - Tím
+  static const Color repairDelivered = Color(0xFF7B1FA2); // Purple 700
+
   // ========== GREY SCALE ==========
   /// Grey 50
   static const Color grey50 = Color(0xFFFAFAFA);
