@@ -1310,8 +1310,6 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   ShopSettings? _shopSettings;
   bool get _enableRepair => _shopSettings?.enableRepair ?? true;
 
-  List<Repair> _repairsReceived = [];
-  List<Repair> _repairsDelivered = [];
   List<Repair> _repairsCompleted = [];
   List<SaleOrder> _sales = [];
 
@@ -1322,7 +1320,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     super.initState();
     _loadShopSettings();
     try {
-      _tabController = TabController(length: 5, vsync: this);
+      _tabController = TabController(length: 3, vsync: this);
 
       // Gán dữ liệu ban đầu
       nameCtrl.text = widget.fullData['displayName'] ?? widget.name;
@@ -1361,7 +1359,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     } catch (e) {
       debugPrint('Error in _StaffActivityCenterState.initState: $e');
       // Fallback values
-      _tabController = TabController(length: 5, vsync: this);
+      _tabController = TabController(length: 3, vsync: this);
       nameCtrl.text = widget.name;
       _selectedRole = 'employee';
     }
@@ -1386,7 +1384,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     }
   }
 
-  int get _tabCount => _enableRepair ? 5 : 2; // repair: ĐÃ NHẬN, ĐÃ SỬa, ĐÃ GIAO, ĐÃ BÁN, LỊCH; no repair: ĐÃ BÁN, LỊCH
+  int get _tabCount => _enableRepair ? 3 : 2; // repair: ĐÃ SỬA, ĐÃ BÁN, LỊCH; no repair: ĐÃ BÁN, LỊCH
 
   Future<void> _loadShopSettings() async {
     final settings = await CategoryService().getShopSettings();
@@ -1394,7 +1392,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
 
     // Calculate new tab count BEFORE setState
     final newEnableRepair = settings?.enableRepair ?? true;
-    final newCount = newEnableRepair ? 5 : 2;
+    final newCount = newEnableRepair ? 3 : 2;
 
     // Recreate tab controller if length changed — defer old disposal to after rebuild
     if (_tabController.length != newCount) {
@@ -1449,26 +1447,18 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       }
 
       setState(() {
-        _repairsReceived = allR
-            .where((r) => matchesStaff(r.createdBy))
-            .toList();
-        _repairsDelivered = allR
-            .where((r) => matchesStaff(r.deliveredBy))
-            .toList();
         _repairsCompleted = allR
             .where((r) => matchesStaff(r.repairedBy))
             .toList();
         _sales = allS.where((s) => matchesStaff(s.sellerName)).toList();
       });
       debugPrint(
-        'Staff data loaded: received=${_repairsReceived.length}, completed=${_repairsCompleted.length}, delivered=${_repairsDelivered.length}, sales=${_sales.length} for $emailPrefix / $displayName',
+        'Staff data loaded: completed=${_repairsCompleted.length}, sales=${_sales.length} for $emailPrefix / $displayName',
       );
     } catch (e) {
       debugPrint('Error loading staff data: $e');
       if (!mounted) return;
       setState(() {
-        _repairsReceived = [];
-        _repairsDelivered = [];
         _repairsCompleted = [];
         _sales = [];
       });
@@ -2280,16 +2270,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
             tabs: [
               if (_enableRepair)
                 const Tab(
-                  text: "ĐÃ NHẬN",
-                  icon: Icon(Icons.move_to_inbox_rounded, size: 20),
-                ),
-              if (_enableRepair)
-                const Tab(
                   text: "ĐÃ SỬA",
                   icon: Icon(Icons.build_rounded, size: 20),
                 ),
-              if (_enableRepair)
-                const Tab(text: "ĐÃ GIAO", icon: Icon(Icons.outbox_rounded, size: 20)),
               const Tab(
                 text: "ĐÃ BÁN",
                 icon: Icon(Icons.shopping_cart_checkout_rounded, size: 20),
@@ -2302,9 +2285,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
             child: TabBarView(
               controller: _tabController,
               children: [
-                if (_enableRepair) _buildRepairList(_repairsReceived),
                 if (_enableRepair) _buildRepairList(_repairsCompleted),
-                if (_enableRepair) _buildRepairList(_repairsDelivered),
                 _buildSaleList(_sales),
                 _buildWorkScheduleTab(),
               ],
