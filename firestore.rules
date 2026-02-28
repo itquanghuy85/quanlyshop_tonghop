@@ -262,9 +262,11 @@ service cloud.firestore {
     match /shops/{shopId} {
       // READ: Shop members only
       // Also allow owner to read their own shop (before claims are synced)
+      // Fallback: direct user doc check bypasses stale token claims
       allow read: if isAuth() && (
         belongsTo(shopId) || 
-        resource.data.ownerUid == uid()
+        resource.data.ownerUid == uid() ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.shopId == shopId
       );
       
       // CREATE: Any user can create shop (becomes owner)

@@ -1218,32 +1218,54 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         debugPrint('_loadUserAndShopInfo: Using email fallback displayName=$displayName');
       }
 
-      // Lấy tên shop
-      debugPrint('_loadUserAndShopInfo: Getting shopId...');
-      final shopId = await UserService.getCurrentShopId();
-      debugPrint('_loadUserAndShopInfo: shopId=$shopId');
+      // ====== SET userName NGAY khi đã có displayName (trước khi fetch shop) ======
+      // Đảm bảo tên user luôn hiển thị ngay cả khi bước fetch shop bị lỗi
+      if (displayName.isNotEmpty && mounted) {
+        setState(() {
+          _userName = displayName;
+        });
+        await prefs.setString('cached_userName_${user.uid}', displayName);
+        debugPrint('_loadUserAndShopInfo: SET userName=$displayName (before shop fetch)');
+      }
+
+      // Lấy tên shop (trong try-catch riêng để không ảnh hưởng userName)
       String shopName = '';
-      if (shopId != null) {
-        debugPrint('_loadUserAndShopInfo: Fetching shop doc from Firestore...');
-        final shopDoc = await FirebaseFirestore.instance
-            .collection('shops')
-            .doc(shopId)
-            .get();
-        if (shopDoc.exists) {
-          final shopData = shopDoc.data();
-          debugPrint('_loadUserAndShopInfo: Shop doc data=$shopData');
-          shopName = shopData?['name'] ?? '';
-          debugPrint('_loadUserAndShopInfo: shopName from Firestore=$shopName');
-        } else {
-          debugPrint('_loadUserAndShopInfo: Shop doc does NOT exist');
+      try {
+        debugPrint('_loadUserAndShopInfo: Getting shopId...');
+        final shopId = await UserService.getCurrentShopId();
+        debugPrint('_loadUserAndShopInfo: shopId=$shopId');
+        if (shopId != null) {
+          // Force refresh token claims trước khi đọc shop doc
+          // (tránh stale claims gây permission-denied)
+          try {
+            await user.getIdToken(true);
+            debugPrint('_loadUserAndShopInfo: Token refreshed before shop fetch');
+          } catch (_) {}
+          debugPrint('_loadUserAndShopInfo: Fetching shop doc from Firestore...');
+          final shopDoc = await FirebaseFirestore.instance
+              .collection('shops')
+              .doc(shopId)
+              .get();
+          if (shopDoc.exists) {
+            final shopData = shopDoc.data();
+            debugPrint('_loadUserAndShopInfo: Shop doc data=$shopData');
+            shopName = shopData?['name'] ?? '';
+            debugPrint('_loadUserAndShopInfo: shopName from Firestore=$shopName');
+          } else {
+            debugPrint('_loadUserAndShopInfo: Shop doc does NOT exist');
+          }
+        }
+      } catch (shopError) {
+        debugPrint('_loadUserAndShopInfo: Shop fetch error (userName still safe): $shopError');
+        // Fallback: lấy shopName từ SharedPreferences (set bởi SyncService hoặc ShopSettings)
+        final fallbackShopName = prefs.getString('shop_name') ?? '';
+        if (fallbackShopName.isNotEmpty) {
+          shopName = fallbackShopName;
+          debugPrint('_loadUserAndShopInfo: shopName from SharedPreferences fallback=$shopName');
         }
       }
 
-      // ====== Cache lại để load nhanh lần sau ======
-      if (displayName.isNotEmpty) {
-        await prefs.setString('cached_userName_${user.uid}', displayName);
-        debugPrint('_loadUserAndShopInfo: Cached userName=$displayName');
-      }
+      // ====== Cache & update shopName ======
       if (shopName.isNotEmpty) {
         await prefs.setString('cached_shopName_${user.uid}', shopName);
         debugPrint('_loadUserAndShopInfo: Cached shopName=$shopName');
@@ -1251,7 +1273,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
       if (mounted) {
         setState(() {
-          _userName = displayName;
+          if (displayName.isNotEmpty) _userName = displayName;
           _shopName = shopName;
         });
         debugPrint('_loadUserAndShopInfo: FINAL setState - userName=$_userName, shopName=$_shopName');
@@ -1276,6 +1298,20 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     } catch (e) {
       debugPrint('_loadUserAndShopInfo ERROR: $e');
       debugPrint('_loadUserAndShopInfo STACK: ${StackTrace.current}');
+      // Safety net: nếu _userName vẫn rỗng sau lỗi, dùng email prefix
+      if (_userName.trim().isEmpty && mounted) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user?.email != null) {
+          final emailPrefix = user!.email!.split('@').first;
+          final fallbackName = emailPrefix.isNotEmpty
+              ? emailPrefix[0].toUpperCase() + emailPrefix.substring(1)
+              : '';
+          if (fallbackName.isNotEmpty) {
+            setState(() => _userName = fallbackName);
+            debugPrint('_loadUserAndShopInfo: ERROR FALLBACK userName=$fallbackName');
+          }
+        }
+      }
     }
   }
 
@@ -2248,7 +2284,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _userName.isNotEmpty ? _userName : loc.userLabel,
+                      _userName.isNotEmpty 
+                          ? _userName 
+                          : (FirebaseAuth.instance.currentUser?.email?.split('@').first ?? loc.userLabel),
                       style: AppTextStyles.headline3.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
