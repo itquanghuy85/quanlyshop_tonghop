@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -67,6 +68,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
   // Recent products display
   List<Product> _recentProducts = [];
   bool _showRecent = false;
+  StreamSubscription? _eventBusSub;
 
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
@@ -84,7 +86,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
     _loadInitialData();
 
     // Listen for supplier changes
-    EventBus().stream.listen((event) {
+    _eventBusSub = EventBus().stream.listen((event) {
       if (event == 'suppliers_changed' && mounted) {
         _loadSuppliers();
       }
@@ -182,6 +184,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
 
   @override
   void dispose() {
+    _eventBusSub?.cancel();
     _tabController.dispose();
     _scannerController.dispose();
     _imeiController.dispose();

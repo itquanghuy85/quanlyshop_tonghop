@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../services/user_service.dart';
+import 'dart:async';
 import '../services/event_bus.dart';
 import '../services/audit_service.dart';
 import '../services/sync_orchestrator.dart';
@@ -43,6 +44,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   final Set<int> _selectedIds = {};
   bool _showOutOfStock = false;
   String _sortBy = 'name'; // name, quantity, cost
+  StreamSubscription? _eventBusSub;
   
   // Dynamic terminology
   ShopSettings? _shopSettings;
@@ -77,7 +79,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     _refreshParts();
     _loadSuppliers();
     // Listen for changes
-    EventBus().stream.listen((event) {
+    _eventBusSub = EventBus().stream.listen((event) {
       if (event == 'parts_changed' && mounted) _refreshParts();
     });
     // Scroll controller listener for scroll-to-top button
@@ -101,6 +103,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   
   @override
   void dispose() {
+    _eventBusSub?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     searchCtrl.dispose();
@@ -124,8 +127,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   }
 
   Future<void> _refreshParts() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     final data = await db.getAllParts();
+    if (!mounted) return;
     setState(() {
       _parts = data;
       _applyFilter();
@@ -1087,8 +1092,10 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
   }
 
   Future<void> _refreshParts() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     final data = await db.getAllParts();
+    if (!mounted) return;
     setState(() {
       _parts = data;
       _applyFilter();
@@ -1688,7 +1695,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     }
 
                     if (!mounted) return;
-                    Navigator.of(context).pop();
+                    Navigator.pop(ctx);
                     await _refreshParts();
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -2071,7 +2078,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     }
 
                     if (!mounted) return;
-                    Navigator.of(context).pop();
+                    Navigator.pop(ctx);
                     await _refreshParts();
 
                     if (mounted) {
