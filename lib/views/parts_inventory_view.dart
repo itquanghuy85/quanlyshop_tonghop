@@ -2320,7 +2320,51 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                   ),
                 ),
                 Expanded(
-                  child: ListView.builder(
+                  child: _filteredParts.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Chưa có ${_terms.category3} nào',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _searchQuery.isNotEmpty
+                                    ? 'Không tìm thấy kết quả cho "$_searchQuery"'
+                                    : 'Nhấn nút Nhập LK để thêm ${_terms.category3} mới\nhoặc đợi dữ liệu đồng bộ từ Firestore',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade400,
+                                  height: 1.4,
+                                ),
+                              ),
+                              if (_searchQuery.isEmpty) ...[
+                                const SizedBox(height: 16),
+                                OutlinedButton.icon(
+                                  onPressed: _refreshParts,
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('Tải lại'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: _primaryColor,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 15,
                       vertical: 8,

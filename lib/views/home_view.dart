@@ -208,6 +208,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   // Shortcut Config
   List<ShortcutConfig> _shortcutConfigs = [];
   bool _shortcutConfigLoaded = false;
+  bool _shortcutEditMode = false; // Inline edit mode on shortcuts grid
 
   // Phase 2: Multi-Industry - Shop Settings
   ShopSettings? _shopSettings;
@@ -3468,22 +3469,24 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       }
     }
 
-    // Build items from config
+    // In edit mode, show ALL shortcuts (visible + hidden) for reorder & toggle
+    if (_shortcutEditMode && _shortcutConfigLoaded) {
+      return _buildShortcutEditMode(_getShortcutAction);
+    }
+
+    // Build visible items from config
     final List<_ShortcutItem> items;
     if (_shortcutConfigLoaded && _shortcutConfigs.isNotEmpty) {
       items = <_ShortcutItem>[];
       for (final config in _shortcutConfigs) {
         if (!config.visible) continue;
-        // Skip repair shortcuts if repair disabled
         if (config.requiresRepair && !_enableRepair) continue;
-        // Skip warranty shortcut if warranty disabled
         if (config.requiresWarranty && !_enableWarranty) continue;
         final action = _getShortcutAction(config.type);
         if (action == null) continue;
         items.add(_ShortcutItem(config.icon, config.displayName, config.color, action));
       }
     } else {
-      // Fallback: legacy hardcoded shortcuts
       items = <_ShortcutItem>[
         _ShortcutItem(Icons.add_shopping_cart, 'Bán hàng', Colors.green, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView()))),
         if (_enableRepair)
@@ -3523,10 +3526,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   ),
                 ),
                 const Spacer(),
-                // Inline edit button for shortcuts
                 if (_shortcutConfigLoaded)
                   InkWell(
-                    onTap: _openDashboardSettings,
+                    onTap: () => setState(() => _shortcutEditMode = true),
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -3551,9 +3553,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             spacing: 8,
             runSpacing: 8,
             children: items.map((item) => SizedBox(
-              width: (MediaQuery.of(context).size.width - 32 - 24) / 4, // 4 columns with spacing
+              width: (MediaQuery.of(context).size.width - 32 - 24) / 4,
               child: InkWell(
                 onTap: item.onTap,
+                onLongPress: _shortcutConfigLoaded ? () {
+                  HapticFeedback.mediumImpact();
+                  setState(() => _shortcutEditMode = true);
+                } : null,
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -3591,6 +3597,306 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
             )).toList(),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Edit mode for shortcuts: reorder (drag-drop) + hide (X button) + show hidden
+  Widget _buildShortcutEditMode(VoidCallback? Function(ShortcutType) getAction) {
+    final visibleConfigs = _shortcutConfigs.where((c) => c.visible).toList();
+    final hiddenConfigs = _shortcutConfigs.where((c) => !c.visible).toList();
+    final itemWidth = (MediaQuery.of(context).size.width - 32 - 24) / 4;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with Done button
+          Row(
+            children: [
+              Icon(Icons.edit, size: 14, color: Colors.blue.shade700),
+              const SizedBox(width: 6),
+              Text(
+                'SẮP XẾP THAO TÁC NHANH',
+                style: AppTextStyles.body1.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              FilledButton.tonal(
+                onPressed: () async {
+                  await ShortcutConfigService.saveConfig(_shortcutConfigs);
+                  setState(() => _shortcutEditMode = false);
+                  NotificationService.showSnackBar(
+                    '✅ Đã lưu sắp xếp lối tắt!',
+                    color: Colors.green,
+                  );
+                },
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Xong', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Giữ kéo để sắp xếp • Nhấn ✕ để ẩn • Nhấn + để hiện',
+            style: TextStyle(fontSize: 11, color: Colors.blue.shade400),
+          ),
+          const SizedBox(height: 10),
+
+          // Visible shortcuts - drag-drop reorder using ReorderableWrap-like approach
+          // Using ReorderableListView in horizontal-ish grid
+          if (visibleConfigs.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: visibleConfigs.asMap().entries.map((entry) {
+                final config = entry.value;
+                return SizedBox(
+                  key: ValueKey(config.type),
+                  width: itemWidth,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // Drag handle - long press to start drag
+                      LongPressDraggable<ShortcutConfig>(
+                        data: config,
+                        feedback: Material(
+                          elevation: 6,
+                          borderRadius: BorderRadius.circular(10),
+                          child: SizedBox(
+                            width: itemWidth,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: config.color.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: config.color, width: 2),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: config.color.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(config.icon, color: config.color, size: 20),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    config.displayName,
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: config.color),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        childWhenDragging: SizedBox(
+                          width: itemWidth,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                            ),
+                            child: const SizedBox(height: 34),
+                          ),
+                        ),
+                        onDragStarted: () => HapticFeedback.mediumImpact(),
+                        child: DragTarget<ShortcutConfig>(
+                          onAcceptWithDetails: (details) {
+                            final fromConfig = details.data;
+                            setState(() {
+                              final fromIndex = _shortcutConfigs.indexOf(fromConfig);
+                              final toIndex = _shortcutConfigs.indexOf(config);
+                              if (fromIndex >= 0 && toIndex >= 0 && fromIndex != toIndex) {
+                                _shortcutConfigs.removeAt(fromIndex);
+                                _shortcutConfigs.insert(toIndex, fromConfig);
+                                HapticFeedback.lightImpact();
+                              }
+                            });
+                          },
+                          builder: (ctx, candidateData, rejectedData) {
+                            final isHovered = candidateData.isNotEmpty;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isHovered
+                                    ? config.color.withOpacity(0.2)
+                                    : config.color.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isHovered ? config.color : config.color.withOpacity(0.2),
+                                  width: isHovered ? 2 : 1,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: config.color.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(config.icon, color: config.color, size: 20),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    config.displayName,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: config.color.withOpacity(0.9),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      // X button to hide
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            setState(() => config.visible = false);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.close, color: Colors.white, size: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+
+          // Hidden shortcuts section - tap + to show
+          if (hiddenConfigs.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'ĐÃ ẨN',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade500,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: hiddenConfigs.map((config) {
+                return SizedBox(
+                  width: itemWidth,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(config.icon, color: Colors.grey, size: 20),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              config.displayName,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade500,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      // + button to show
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            setState(() => config.visible = true);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.add, color: Colors.white, size: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
         ],
       ),
     );
