@@ -84,7 +84,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 83,
+      version: 84,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0)',
@@ -186,7 +186,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS repair_partners(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, note TEXT, active INTEGER DEFAULT 1, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS partner_repair_history(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, repairOrderId TEXT, partnerId INTEGER, customerName TEXT, deviceModel TEXT, issue TEXT, partnerCost INTEGER, repairContent TEXT, sentAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS partner_repair_history(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, repairOrderId TEXT, partnerId INTEGER, partnerFirestoreId TEXT, customerName TEXT, deviceModel TEXT, issue TEXT, partnerCost INTEGER, repairContent TEXT, sentAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repair_parts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, partName TEXT, compatibleModels TEXT, cost INTEGER, price INTEGER, quantity INTEGER, updatedAt INTEGER, createdAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0, supplierId INTEGER, paymentMethod TEXT, createdBy TEXT, stockEntryId TEXT)',
@@ -922,6 +922,16 @@ class DBHelper {
             debugPrint('v83 error (sales deleted index): $e');
           }
         }
+        if (oldV < 84) {
+          // v84: Add partnerFirestoreId column to partner_repair_history for stable cross-device sync
+          debugPrint('DB upgrade v84: Adding partnerFirestoreId to partner_repair_history...');
+          try {
+            await db.execute('ALTER TABLE partner_repair_history ADD COLUMN partnerFirestoreId TEXT');
+            debugPrint('v84: partnerFirestoreId column added');
+          } catch (e) {
+            debugPrint('v84: partnerFirestoreId already exists or error: $e');
+          }
+        }
         if (oldV < 26) {
           // Migration to remove kpkPrice and pkPrice columns from products and quick_input_codes tables
           // Since SQLite doesn't support DROP COLUMN, we'll recreate tables without these columns
@@ -1076,7 +1086,7 @@ class DBHelper {
           }
           try {
             await db.execute(
-              'CREATE TABLE IF NOT EXISTS partner_repair_history(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, repairOrderId TEXT, partnerId INTEGER, customerName TEXT, deviceModel TEXT, issue TEXT, partnerCost INTEGER, repairContent TEXT, sentAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
+              'CREATE TABLE IF NOT EXISTS partner_repair_history(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, repairOrderId TEXT, partnerId INTEGER, partnerFirestoreId TEXT, customerName TEXT, deviceModel TEXT, issue TEXT, partnerCost INTEGER, repairContent TEXT, sentAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0)',
             );
           } catch (e) {
             debugPrint('DB upgrade error (partner_repair_history): $e');
@@ -5895,6 +5905,61 @@ class DBHelper {
     return await db.insert('partner_repair_history', history);
   }
 
+  /// Upsert partner_repair_history from Firestore sync.
+  /// Resolves partnerId from partnerFirestoreId when available.
+  Future<void> upsertPartnerRepairHistory(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'];
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
+    cleanData.remove('id');
+    cleanData.remove('_encrypted');
+
+    // Resolve local partnerId from partnerFirestoreId if available
+    final partnerFsId = cleanData['partnerFirestoreId'];
+    if (partnerFsId != null && partnerFsId.toString().isNotEmpty) {
+      final partners = await db.query(
+        'repair_partners',
+        columns: ['id'],
+        where: 'firestoreId = ?',
+        whereArgs: [partnerFsId],
+      );
+      if (partners.isNotEmpty) {
+        cleanData['partnerId'] = partners.first['id'];
+      }
+    }
+
+    if (firestoreId != null && firestoreId.toString().isNotEmpty) {
+      final existing = await db.query(
+        'partner_repair_history',
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+      if (existing.isNotEmpty) {
+        await db.update(
+          'partner_repair_history',
+          cleanData,
+          where: 'firestoreId = ?',
+          whereArgs: [firestoreId],
+        );
+        return;
+      }
+    }
+    await db.insert(
+      'partner_repair_history',
+      cleanData,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<int> deletePartnerRepairHistoryByFirestoreId(String firestoreId) async {
+    final db = await database;
+    return await db.delete(
+      'partner_repair_history',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
+
   Future<int> updatePartnerRepairHistory(
     int id,
     Map<String, dynamic> history,
@@ -5910,13 +5975,18 @@ class DBHelper {
 
   Future<List<Map<String, dynamic>>> getPartnerRepairHistory({
     int? partnerId,
+    String? partnerFirestoreId,
     String? repairOrderId,
   }) async {
     final db = await database;
     String whereClause = '';
     List<dynamic> whereArgs = [];
 
-    if (partnerId != null) {
+    if (partnerFirestoreId != null && partnerFirestoreId.isNotEmpty) {
+      // Prefer stable firestoreId-based lookup
+      whereClause = 'partnerFirestoreId = ?';
+      whereArgs = [partnerFirestoreId];
+    } else if (partnerId != null) {
       whereClause = 'partnerId = ?';
       whereArgs = [partnerId];
     } else if (repairOrderId != null) {
@@ -5932,10 +6002,19 @@ class DBHelper {
     );
   }
 
-  Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId, {String? shopId}) async {
+  Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId, {String? shopId, String? partnerFirestoreId}) async {
     final db = await database;
-    String whereClause = 'partnerId = ?';
-    List<dynamic> whereArgs = [partnerId];
+    String whereClause;
+    List<dynamic> whereArgs;
+
+    // Prefer stable firestoreId-based lookup
+    if (partnerFirestoreId != null && partnerFirestoreId.isNotEmpty) {
+      whereClause = 'partnerFirestoreId = ?';
+      whereArgs = [partnerFirestoreId];
+    } else {
+      whereClause = 'partnerId = ?';
+      whereArgs = [partnerId];
+    }
     
     if (shopId != null) {
       whereClause += ' AND shopId = ?';

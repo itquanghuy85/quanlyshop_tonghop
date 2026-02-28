@@ -287,7 +287,7 @@ class _SupplierListViewState extends State<SupplierListView>
       int owingCount = 0;
 
       for (final p in partners) {
-        final stats = await _partnerService.getPartnerRepairStats(p.id!);
+        final stats = await _partnerService.getPartnerRepairStats(p.id!, partnerFirestoreId: p.firestoreId);
         final cost = stats?['totalCost'] as int? ?? 0;
         final paid = stats?['totalPaid'] as int? ?? 0;
         final remain = cost - paid;

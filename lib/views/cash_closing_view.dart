@@ -1551,6 +1551,8 @@ class _CashClosingViewState extends State<CashClosingView>
                       analysis.supplierPaid,
                       Colors.red,
                     ),
+                    if (analysis.partnerPaid > 0)
+                      _breakdownItem("TT đối tác SC", analysis.partnerPaid, Colors.red),
                   ],
                 ),
               ),
@@ -3144,6 +3146,7 @@ class _CashClosingViewState extends State<CashClosingView>
     int saleIncome = 0, repairIncome = 0, debtCollected = 0;
     int miscIncome = 0; // Thu phát sinh (type=THU)
     int expenseOut = 0, importOut = 0, supplierPaid = 0;
+    int partnerPaid = 0; // TT đối tác sửa chữa (tách riêng)
     int saleCost = 0, repairCost = 0;
     int settlementIncome = 0;
     int saleDebt = 0, repairDebt = 0; // Track công nợ riêng
@@ -3337,8 +3340,8 @@ class _CashClosingViewState extends State<CashClosingView>
       final amount = p['amount'] as int? ?? 0;
       final method = p['paymentMethod'] as String? ?? 'TIỀN MẶT';
 
-      // Tính vào chi tiền (trả cho đối tác sửa chữa)
-      supplierPaid += amount;
+      // Tách riêng khỏi supplierPaid, tính vào partnerPaid
+      partnerPaid += amount;
 
       if (method == 'TIỀN MẶT') {
         cashOut += amount;
@@ -3396,7 +3399,7 @@ class _CashClosingViewState extends State<CashClosingView>
     debugPrint('�🔧 repairIncome=$repairIncome (bao gồm công nợ: $repairDebt)');
     debugPrint('💳 debtCollected=$debtCollected (chỉ ảnh hưởng quỹ, không ảnh hưởng lợi nhuận)');
     debugPrint(
-      '📤 expenseOut=$expenseOut, importOut=$importOut, supplierPaid=$supplierPaid',
+      '📤 expenseOut=$expenseOut, importOut=$importOut, supplierPaid=$supplierPaid, partnerPaid=$partnerPaid',
     );
     debugPrint('💰 repairCost=$repairCost');
     debugPrint('=============================');
@@ -3414,6 +3417,7 @@ class _CashClosingViewState extends State<CashClosingView>
       expenseOut: expenseOut,
       importOut: importOut,
       supplierPaid: supplierPaid,
+      partnerPaid: partnerPaid,
       saleCost: saleCost,
       repairCost: repairCost,
     );
@@ -3425,6 +3429,7 @@ class _TransactionAnalysis {
   final int saleIncome, settlementIncome, repairIncome, debtCollected;
   final int miscIncome; // Thu phát sinh (type=THU trong expenses)
   final int expenseOut, importOut, supplierPaid;
+  final int partnerPaid; // TT đối tác sửa chữa (tách riêng khỏi supplierPaid)
   final int saleCost, repairCost; // Giá vốn hàng đã bán và sửa chữa
   _TransactionAnalysis({
     required this.cashIn,
@@ -3439,6 +3444,7 @@ class _TransactionAnalysis {
     required this.expenseOut,
     required this.importOut,
     required this.supplierPaid,
+    required this.partnerPaid,
     required this.saleCost,
     required this.repairCost,
   });

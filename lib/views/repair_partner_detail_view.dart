@@ -61,8 +61,10 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      // Use partnerFirestoreId for stable cross-device lookup, fallback to local id
       final histories = await _partnerService.getPartnerRepairHistory(
         partnerId: widget.partner.id,
+        partnerFirestoreId: widget.partner.firestoreId,
       );
       // Lấy debts theo personName giống như supplier_detail_view
       final allDebts = await _db.getAllDebts();
@@ -84,7 +86,10 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
       }
 
       final stats =
-          await _partnerService.getPartnerRepairStats(widget.partner.id!) ?? {};
+          await _partnerService.getPartnerRepairStats(
+            widget.partner.id!,
+            partnerFirestoreId: widget.partner.firestoreId,
+          ) ?? {};
 
       setState(() {
         _histories = histories;

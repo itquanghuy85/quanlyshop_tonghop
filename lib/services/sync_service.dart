@@ -880,6 +880,40 @@ class SyncService {
       debugPrint("Lỗi khởi tạo repair_partners sync: $e");
     }
 
+    // 14b. Đồng bộ PARTNER REPAIR HISTORY (lịch sử gửi sửa đối tác)
+    try {
+      _subscribeToCollection(
+        collection: 'partner_repair_history',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deletePartnerRepairHistoryByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              // Convert Timestamp to milliseconds for SQLite
+              if (data['sentAt'] is Timestamp) {
+                data['sentAt'] =
+                    (data['sentAt'] as Timestamp).millisecondsSinceEpoch;
+              }
+              if (data['updatedAt'] is Timestamp) {
+                data['updatedAt'] =
+                    (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
+              }
+              await db.upsertPartnerRepairHistory(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync partner_repair_history $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo partner_repair_history sync: $e");
+    }
+
     // 15. Đồng bộ AUDIT LOGS
     try {
       _subscribeToCollection(

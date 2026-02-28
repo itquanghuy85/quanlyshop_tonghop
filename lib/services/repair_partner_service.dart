@@ -122,6 +122,18 @@ class RepairPartnerService {
     historyMap['shopId'] = await UserService.getCurrentShopId();
     historyMap['sentAt'] = DateTime.now().millisecondsSinceEpoch;
 
+    // Look up partner's firestoreId for stable cross-device sync
+    if (history.partnerId > 0) {
+      final partners = await db.getRepairPartners();
+      final partner = partners.firstWhere(
+        (p) => p['id'] == history.partnerId,
+        orElse: () => {},
+      );
+      if (partner.isNotEmpty && partner['firestoreId'] != null) {
+        historyMap['partnerFirestoreId'] = partner['firestoreId'];
+      }
+    }
+
     final id = await db.insertPartnerRepairHistory(historyMap);
     if (id > 0) {
       final firestoreId = await FirestoreService.addPartnerRepairHistory(historyMap);
@@ -133,18 +145,26 @@ class RepairPartnerService {
     return null;
   }
 
-  Future<List<PartnerRepairHistory>> getPartnerRepairHistory({int? partnerId, String? repairOrderId}) async {
+  Future<List<PartnerRepairHistory>> getPartnerRepairHistory({int? partnerId, String? partnerFirestoreId, String? repairOrderId}) async {
     final shopId = await UserService.getCurrentShopId();
-    final data = await db.getPartnerRepairHistory(partnerId: partnerId, repairOrderId: repairOrderId);
+    final data = await db.getPartnerRepairHistory(
+      partnerId: partnerId,
+      partnerFirestoreId: partnerFirestoreId,
+      repairOrderId: repairOrderId,
+    );
     return data
         .where((h) => h['shopId'] == shopId)
         .map((h) => PartnerRepairHistory.fromMap(h))
         .toList();
   }
 
-  Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId) async {
+  Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId, {String? partnerFirestoreId}) async {
     final shopId = await UserService.getCurrentShopId();
-    final dbStats = await db.getPartnerRepairStats(partnerId, shopId: shopId);
+    final dbStats = await db.getPartnerRepairStats(
+      partnerId,
+      shopId: shopId,
+      partnerFirestoreId: partnerFirestoreId,
+    );
     // Also get total paid from payments table
     final dbInstance = await db.database;
     final payments = await dbInstance.rawQuery(

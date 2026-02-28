@@ -1618,6 +1618,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       int saleIncome = 0, repairIncome = 0, debtCollected = 0;
       int miscIncome = 0; // Thu phát sinh (type=THU)
       int expenseOut = 0, importOut = 0, supplierPaid = 0;
+      int partnerPaid = 0; // TT đối tác sửa chữa (tách riêng khỏi supplierPaid)
       int saleCost = 0, repairCost = 0;
       int settlementIncome = 0;
 
@@ -1757,12 +1758,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
       }
 
-      // ===== REPAIR PARTNER PAYMENTS =====
+      // ===== REPAIR PARTNER PAYMENTS (tách riêng khỏi NCC) =====
       if (_enableRepair) {
         for (final p in partnerPayments) {
           final amount = (p['amount'] as num?)?.toInt() ?? 0;
           final method = (p['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
-          supplierPaid += amount;
+          partnerPaid += amount;
           if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
         }
       }
@@ -1858,7 +1859,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         final partnerService = RepairPartnerService();
         final partners = await partnerService.getRepairPartners();
         final statsList = await Future.wait(
-          partners.map((p) => partnerService.getPartnerRepairStats(p.id!)),
+          partners.map((p) => partnerService.getPartnerRepairStats(p.id!, partnerFirestoreId: p.firestoreId)),
         );
         for (final stats in statsList) {
           if (stats != null) {
@@ -1904,7 +1905,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _todaySaleOrderCount = fSales.length;
           _todayExpenseCount = fExpenses.where((e) => (e['type'] as String? ?? '').toUpperCase() != 'THU').length;
           _todayStockInCost = importOut;
-          _todayDebtPaidToSupplier = supplierPaid; // Combined: supplier + partner + shop_owes
+          _todayDebtPaidToSupplier = supplierPaid; // Chỉ NCC + shop_owes debt
           _todayExpenseOnly = expenseOut;
           // Detail breakdown (giống Sổ quỹ analysis)
           _todaySaleIncome = saleIncome;
@@ -1912,7 +1913,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _todayDebtCollected = debtCollected;
           _todayMiscIncome = miscIncome;
           _todayImportOut = importOut;
-          _todayPartnerPaid = 0; // Combined into supplierPaid
+          _todayPartnerPaid = partnerPaid; // TT đối tác sửa chữa (tách riêng)
           _todaySaleCost = saleCost;
           _todayRepairCost = repairCost;
           _todaySettlementIncome = settlementIncome;
@@ -6265,6 +6266,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       _homeBreakdownItem("Chi phí", _todayExpenseOnly, Colors.red),
                       _homeBreakdownItem("Nhập hàng", _todayImportOut, Colors.red),
                       _homeBreakdownItem("Trả nợ NCC", _todayDebtPaidToSupplier, Colors.red),
+                      if (_todayPartnerPaid > 0)
+                        _homeBreakdownItem("TT đối tác SC", _todayPartnerPaid, Colors.red),
                     ],
                   ),
                 ),
