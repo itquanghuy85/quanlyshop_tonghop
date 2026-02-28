@@ -5601,6 +5601,46 @@ class DBHelper {
     );
   }
 
+  /// Lấy TẤT CẢ import history theo khoảng ngày (không filter supplierId)
+  Future<List<Map<String, dynamic>>> getAllImportHistoryByDateRange(int startMs, int endMs) async {
+    final db = await database;
+    final shopId = UserService.getShopIdSync();
+    if (shopId != null && shopId.isNotEmpty) {
+      return await db.query(
+        'supplier_import_history',
+        where: '(shopId = ? OR shopId IS NULL) AND importDate >= ? AND importDate <= ?',
+        whereArgs: [shopId, startMs, endMs],
+        orderBy: 'importDate DESC',
+      );
+    }
+    return await db.query(
+      'supplier_import_history',
+      where: 'importDate >= ? AND importDate <= ?',
+      whereArgs: [startMs, endMs],
+      orderBy: 'importDate DESC',
+    );
+  }
+
+  /// Lấy repair_partner_payments theo khoảng ngày
+  Future<List<Map<String, dynamic>>> getRepairPartnerPaymentsByDateRange(int startMs, int endMs) async {
+    final db = await database;
+    final shopId = UserService.getShopIdSync();
+    if (shopId != null && shopId.isNotEmpty) {
+      return await db.query(
+        'repair_partner_payments',
+        where: '(deleted = 0 OR deleted IS NULL) AND (shopId = ? OR shopId IS NULL) AND paidAt >= ? AND paidAt <= ?',
+        whereArgs: [shopId, startMs, endMs],
+        orderBy: 'paidAt DESC',
+      );
+    }
+    return await db.query(
+      'repair_partner_payments',
+      where: '(deleted = 0 OR deleted IS NULL) AND paidAt >= ? AND paidAt <= ?',
+      whereArgs: [startMs, endMs],
+      orderBy: 'paidAt DESC',
+    );
+  }
+
   Future<Map<String, dynamic>?> getSupplierImportStats(int supplierId, {String? shopId}) async {
     final db = await database;
     String whereClause = 'supplierId = ?';
@@ -5982,16 +6022,19 @@ class DBHelper {
     String whereClause = '';
     List<dynamic> whereArgs = [];
 
-    if (partnerFirestoreId != null && partnerFirestoreId.isNotEmpty) {
-      // Prefer stable firestoreId-based lookup
+    if (repairOrderId != null) {
+      whereClause = 'repairOrderId = ?';
+      whereArgs = [repairOrderId];
+    } else if (partnerFirestoreId != null && partnerFirestoreId.isNotEmpty && partnerId != null) {
+      // Query bằng OR: tìm theo partnerFirestoreId HOẶC partnerId (record cũ chưa có partnerFirestoreId)
+      whereClause = '(partnerFirestoreId = ? OR partnerId = ?)';
+      whereArgs = [partnerFirestoreId, partnerId];
+    } else if (partnerFirestoreId != null && partnerFirestoreId.isNotEmpty) {
       whereClause = 'partnerFirestoreId = ?';
       whereArgs = [partnerFirestoreId];
     } else if (partnerId != null) {
       whereClause = 'partnerId = ?';
       whereArgs = [partnerId];
-    } else if (repairOrderId != null) {
-      whereClause = 'repairOrderId = ?';
-      whereArgs = [repairOrderId];
     }
 
     return await db.query(
@@ -6007,10 +6050,10 @@ class DBHelper {
     String whereClause;
     List<dynamic> whereArgs;
 
-    // Prefer stable firestoreId-based lookup
+    // Query bằng OR: tìm theo partnerFirestoreId HOẶC partnerId (record cũ chưa có partnerFirestoreId)
     if (partnerFirestoreId != null && partnerFirestoreId.isNotEmpty) {
-      whereClause = 'partnerFirestoreId = ?';
-      whereArgs = [partnerFirestoreId];
+      whereClause = '(partnerFirestoreId = ? OR partnerId = ?)';
+      whereArgs = [partnerFirestoreId, partnerId];
     } else {
       whereClause = 'partnerId = ?';
       whereArgs = [partnerId];

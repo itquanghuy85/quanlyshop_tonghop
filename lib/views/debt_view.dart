@@ -154,7 +154,7 @@ class _DebtViewState extends State<DebtView>
     final partnerDebts = <Map<String, dynamic>>[];
 
     for (final partner in partners) {
-      final stats = await _partnerService.getPartnerRepairStats(partner.id!, partnerFirestoreId: partner.firestoreId);
+      final stats = await _partnerService.getPartnerRepairStats(partner.id!, partnerFirestoreId: partner.firestoreId, partnerName: partner.name);
       final totalCost = stats?['totalCost'] ?? 0;
       final totalPaid = stats?['totalPaid'] ?? 0;
       final totalRepairs = stats?['totalOrders'] ?? 0;

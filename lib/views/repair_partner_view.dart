@@ -67,7 +67,7 @@ class _RepairPartnerViewState extends State<RepairPartnerView> {
     final Map<int, Map<String, dynamic>> stats = {};
     for (final partner in partners) {
       if (partner.id != null) {
-        final s = await partnerService.getPartnerRepairStats(partner.id!, partnerFirestoreId: partner.firestoreId);
+        final s = await partnerService.getPartnerRepairStats(partner.id!, partnerFirestoreId: partner.firestoreId, partnerName: partner.name);
         if (s != null) {
           stats[partner.id!] = s;
         }

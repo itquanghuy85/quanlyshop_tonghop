@@ -299,6 +299,77 @@ class _FinancialReportViewState extends State<FinancialReportView>
         }
       }
 
+      // 5. Nhập hàng (supplier_import_history) — chi thực tế khi nhập hàng
+      final imports = await _db.getAllImportHistoryByDateRange(startMs, endMs);
+      // Dedup: loại bỏ import đã có expense tương ứng (tránh double-count)
+      for (final imp in imports) {
+        final amount = (imp['totalAmount'] as num?)?.toInt() ?? 0;
+        final importDate = (imp['importDate'] as int?) ?? (imp['createdAt'] as int?) ?? 0;
+        final hasMatchingExpense = expenses.any((e) {
+          final cat = (e['category'] ?? '').toString().toUpperCase();
+          if (!cat.contains('NHẬP') && !cat.contains('LINH KIỆN') && !cat.contains('PURCHASE')) return false;
+          final expAmount = (e['amount'] as num?)?.toInt() ?? 0;
+          return (expAmount - amount).abs() < 1000;
+        });
+        if (!hasMatchingExpense && amount > 0) {
+          allTransactions.add(
+            TransactionItem(
+              id: 'import_${imp['id']}',
+              timestamp: importDate,
+              type: 'PURCHASE',
+              category: 'Nhập hàng',
+              description: '${imp['productName'] ?? 'Sản phẩm'} - ${imp['supplierName'] ?? 'NCC'}',
+              amount: amount,
+              isIncome: false,
+              personName: imp['supplierName'] as String?,
+              note: imp['notes'] as String?,
+            ),
+          );
+        }
+      }
+
+      // 6. Thanh toán trực tiếp NCC (supplier_payments) — không qua debt
+      final supplierPays = await _db.getSupplierPaymentsByDateRange(startMs, endMs);
+      for (final sp in supplierPays) {
+        final amount = (sp['amount'] as num?)?.toInt() ?? 0;
+        if (amount > 0) {
+          allTransactions.add(
+            TransactionItem(
+              id: 'supplier_pay_${sp['id']}',
+              timestamp: (sp['paidAt'] as int?) ?? 0,
+              type: 'DEBT_PAY',
+              category: 'TT NCC',
+              description: 'Thanh toán NCC: ${sp['supplierName'] ?? 'NCC'}',
+              amount: amount,
+              isIncome: false,
+              personName: sp['supplierName'] as String?,
+              note: sp['note'] as String?,
+            ),
+          );
+        }
+      }
+
+      // 7. Thanh toán đối tác sửa chữa (repair_partner_payments)
+      final partnerPays = await _db.getRepairPartnerPaymentsByDateRange(startMs, endMs);
+      for (final pp in partnerPays) {
+        final amount = (pp['amount'] as num?)?.toInt() ?? 0;
+        if (amount > 0) {
+          allTransactions.add(
+            TransactionItem(
+              id: 'partner_pay_${pp['id']}',
+              timestamp: (pp['paidAt'] as int?) ?? 0,
+              type: 'DEBT_PAY',
+              category: 'TT đối tác SC',
+              description: 'Thanh toán đối tác: ${pp['partnerName'] ?? 'Đối tác'}',
+              amount: amount,
+              isIncome: false,
+              personName: pp['partnerName'] as String?,
+              note: pp['note'] as String?,
+            ),
+          );
+        }
+      }
+
       // Sắp xếp theo thời gian mới nhất
       allTransactions.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 

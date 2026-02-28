@@ -89,6 +89,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
           await _partnerService.getPartnerRepairStats(
             widget.partner.id!,
             partnerFirestoreId: widget.partner.firestoreId,
+            partnerName: widget.partner.name,
           ) ?? {};
 
       setState(() {

@@ -158,7 +158,7 @@ class RepairPartnerService {
         .toList();
   }
 
-  Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId, {String? partnerFirestoreId}) async {
+  Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId, {String? partnerFirestoreId, String? partnerName}) async {
     final shopId = await UserService.getCurrentShopId();
     final dbStats = await db.getPartnerRepairStats(
       partnerId,
@@ -166,10 +166,18 @@ class RepairPartnerService {
       partnerFirestoreId: partnerFirestoreId,
     );
     // Also get total paid from payments table
+    // Use OR to match by partnerId OR partnerName (in case local ID changed after reinstall/sync)
     final dbInstance = await db.database;
+    String paymentWhere = 'shopId = ? AND deleted = 0 AND (partnerId = ?';
+    List<dynamic> paymentArgs = [shopId, partnerId];
+    if (partnerName != null && partnerName.isNotEmpty) {
+      paymentWhere += ' OR UPPER(partnerName) = ?';
+      paymentArgs.add(partnerName.toUpperCase());
+    }
+    paymentWhere += ')';
     final payments = await dbInstance.rawQuery(
-      'SELECT COALESCE(SUM(amount), 0) as totalPaid FROM repair_partner_payments WHERE partnerId = ? AND shopId = ? AND deleted = 0',
-      [partnerId, shopId],
+      'SELECT COALESCE(SUM(amount), 0) as totalPaid FROM repair_partner_payments WHERE $paymentWhere',
+      paymentArgs,
     );
     final totalPaid = payments.isNotEmpty ? (payments.first['totalPaid'] as int? ?? 0) : 0;
     return {

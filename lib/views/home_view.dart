@@ -1859,7 +1859,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         final partnerService = RepairPartnerService();
         final partners = await partnerService.getRepairPartners();
         final statsList = await Future.wait(
-          partners.map((p) => partnerService.getPartnerRepairStats(p.id!, partnerFirestoreId: p.firestoreId)),
+          partners.map((p) => partnerService.getPartnerRepairStats(p.id!, partnerFirestoreId: p.firestoreId, partnerName: p.name)),
         );
         for (final stats in statsList) {
           if (stats != null) {
