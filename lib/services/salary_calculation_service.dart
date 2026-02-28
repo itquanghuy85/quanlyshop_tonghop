@@ -15,17 +15,34 @@ class SalaryCalculationService {
   static final DBHelper _db = DBHelper();
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  /// So sánh linh hoạt giữa giá trị trên đơn (sellerName/repairedBy/createdBy)
+  /// với thông tin nhân viên (email prefix + displayName).
+  /// sellerName/repairedBy thường lưu dạng email prefix uppercase (VD: "HUY")
+  /// còn staffName từ Firestore users có thể là displayName (VD: "Nguyen Van Huy")
+  static bool _matchesStaff(String? value, String emailPrefix, String displayName) {
+    if (value == null || value.isEmpty) return false;
+    final v = value.toUpperCase();
+    return v == emailPrefix || v == displayName || v.contains(emailPrefix);
+  }
+
   /// Tính lương chi tiết cho một nhân viên trong tháng
   static Future<SalaryBreakdown> calculateMonthlySalary({
     required String staffId,
     required String staffName,
     required int month,
     required int year,
+    String? staffEmail, // Email để trích xuất prefix so khớp với sellerName/repairedBy
     ShopDeductionSettings? deductionSettings,
     List<CustomSalaryAdjustment>? customAdjustments,
     int numDependents = 0, // Số người phụ thuộc (để tính giảm trừ thuế)
   }) async {
     final notes = <String>[];
+
+    // Chuẩn bị email prefix và displayName cho matching
+    final emailPrefix = (staffEmail ?? '').split('@').first.toUpperCase();
+    final displayName = staffName.toUpperCase();
+
+    debugPrint('📊 [SalaryCalc] $staffName: matching with emailPrefix=$emailPrefix, displayName=$displayName');
 
     // ===== 1. LẤY CÀI ĐẶT LƯƠNG =====
     EmployeeSalarySettings? settings;
@@ -241,10 +258,10 @@ class SalaryCalculationService {
           // Decrypt if needed
           data = EncryptionService.decryptMap(data);
           
-          final sellerName = (data['sellerName'] ?? '').toString().toUpperCase();
+          final sellerName = (data['sellerName'] ?? '').toString();
           final deleted = data['deleted'] == true;
           
-          if (!deleted && sellerName == staffName.toUpperCase()) {
+          if (!deleted && _matchesStaff(sellerName, emailPrefix, displayName)) {
             saleOrderCount++;
             final totalPrice = (data['totalPrice'] ?? 0).toDouble();
             final totalCost = (data['totalCost'] ?? 0).toDouble();
@@ -260,7 +277,7 @@ class SalaryCalculationService {
       final allSales = await _db.getAllSales();
       final staffSales = allSales
           .where((s) =>
-              s.sellerName.toUpperCase() == staffName.toUpperCase() &&
+              _matchesStaff(s.sellerName, emailPrefix, displayName) &&
               s.soldAt >= startMs &&
               s.soldAt <= endMs)
           .toList();
@@ -297,12 +314,17 @@ class SalaryCalculationService {
           data = EncryptionService.decryptMap(data);
           
           // Doanh số sửa chữa chỉ tính cho người sửa xong (repairedBy), không tính cho người nhận/giao
-          final repairedBy = (data['repairedBy'] ?? '').toString().toUpperCase();
+          final repairedBy = (data['repairedBy'] ?? '').toString();
+          final createdBy = (data['createdBy'] ?? '').toString();
           final deleted = data['deleted'] == true;
           final deliveredAt = data['deliveredAt'] as int?;
           
+          // Match by repairedBy, or fallback to createdBy for old repairs
+          final matchesByRepaired = _matchesStaff(repairedBy, emailPrefix, displayName);
+          final matchesByCreated = repairedBy.isEmpty && _matchesStaff(createdBy, emailPrefix, displayName);
+          
           if (!deleted && 
-              repairedBy == staffName.toUpperCase() &&
+              (matchesByRepaired || matchesByCreated) &&
               deliveredAt != null &&
               deliveredAt >= startMs &&
               deliveredAt <= endMs) {
@@ -319,12 +341,16 @@ class SalaryCalculationService {
       // Fallback to local DB if Firestore fails
       final allRepairs = await _db.getAllRepairs();
       final staffRepairs = allRepairs
-          .where((r) =>
-              r.repairedBy?.toUpperCase() == staffName.toUpperCase() &&
-              r.status == 4 &&
-              r.deliveredAt != null &&
-              r.deliveredAt! >= startMs &&
-              r.deliveredAt! <= endMs)
+          .where((r) {
+              final matchRepaired = _matchesStaff(r.repairedBy, emailPrefix, displayName);
+              final matchCreated = (r.repairedBy == null || r.repairedBy!.isEmpty) &&
+                  _matchesStaff(r.createdBy, emailPrefix, displayName);
+              return (matchRepaired || matchCreated) &&
+                  r.status == 4 &&
+                  r.deliveredAt != null &&
+                  r.deliveredAt! >= startMs &&
+                  r.deliveredAt! <= endMs;
+          })
           .toList();
       repairOrderCount = staffRepairs.length;
       repairRevenue = staffRepairs.fold(0.0, (sum, r) => sum + r.price);
@@ -924,6 +950,7 @@ class SalaryCalculationService {
       for (final staff in staffList) {
         final staffId = staff['uid'] ?? staff['id'] ?? '';
         final staffName = staff['name'] ?? staff['displayName'] ?? 'NV';
+        final staffEmail = staff['email'] as String? ?? '';
         final numDependents = (staff['numDependents'] ?? 0) as int;
 
         if (staffId.isEmpty) continue;
@@ -931,6 +958,7 @@ class SalaryCalculationService {
         final breakdown = await calculateMonthlySalary(
           staffId: staffId,
           staffName: staffName,
+          staffEmail: staffEmail,
           month: month,
           year: year,
           deductionSettings: deductionSettings,
