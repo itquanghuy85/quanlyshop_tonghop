@@ -143,14 +143,21 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   Future<void> _loadSuppliers() async {
     try {
       final suppliers = await SupplierService().getSuppliers();
-      if (!mounted) return;
-      setState(() => _suppliers = suppliers.map((s) => s.toMap()).toList());
+      if (suppliers.isNotEmpty) {
+        if (!mounted) return;
+        setState(() => _suppliers = suppliers.map((s) => s.toMap()).toList());
+        return;
+      }
     } catch (e) {
-      debugPrint('PartsInventoryViewContent: Error loading suppliers: $e');
-      // Fallback to raw local DB
+      debugPrint('PartsInventoryViewContent: Error loading suppliers via service: $e');
+    }
+    // Fallback: raw local DB (no shopId filter) – always shows local data
+    try {
       final s = await db.getSuppliers();
       if (!mounted) return;
       setState(() => _suppliers = s);
+    } catch (e) {
+      debugPrint('PartsInventoryViewContent: Error loading suppliers from DB: $e');
     }
   }
 
@@ -1122,14 +1129,21 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
   Future<void> _loadSuppliers() async {
     try {
       final suppliers = await SupplierService().getSuppliers();
-      if (!mounted) return;
-      setState(() => _suppliers = suppliers.map((s) => s.toMap()).toList());
+      if (suppliers.isNotEmpty) {
+        if (!mounted) return;
+        setState(() => _suppliers = suppliers.map((s) => s.toMap()).toList());
+        return;
+      }
     } catch (e) {
-      debugPrint('PartsInventoryView: Error loading suppliers: $e');
-      // Fallback to raw local DB
+      debugPrint('PartsInventoryView: Error loading suppliers via service: $e');
+    }
+    // Fallback: raw local DB (no shopId filter) – always shows local data
+    try {
       final s = await db.getSuppliers();
       if (!mounted) return;
       setState(() => _suppliers = s);
+    } catch (e) {
+      debugPrint('PartsInventoryView: Error loading suppliers from DB: $e');
     }
   }
 

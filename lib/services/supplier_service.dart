@@ -77,7 +77,10 @@ class SupplierService {
           final localId = await db.insertSupplier(mapped);
           suppliers.add(Supplier.fromMap({...mapped, 'id': localId}));
         }
-      } catch (_) {}
+        debugPrint('SupplierService.getSuppliers: Firestore fallback found ${snapshot.docs.length} suppliers');
+      } catch (e) {
+        debugPrint('SupplierService.getSuppliers: Firestore fallback error: $e');
+      }
     }
 
     return suppliers;
