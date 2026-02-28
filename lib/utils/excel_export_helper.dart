@@ -2,10 +2,12 @@ import 'dart:io';
 import 'package:excel/excel.dart' hide Border;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../data/db_helper.dart';
+import '../models/financial_activity_model.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
 import '../models/expense_model.dart';
@@ -153,8 +155,8 @@ class ExcelExportHelper {
 
       if (!context.mounted) return;
 
-      // 3. Hiện thông báo đã lưu + hỏi chia sẻ
-      final shouldShare = await showDialog<bool>(
+      // 3. Hiện thông báo đã lưu + hỏi mở/chia sẻ
+      final action = await showDialog<String>(
         context: context,
         builder: (ctx) => AlertDialog(
           icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
@@ -193,28 +195,38 @@ class ExcelExportHelper {
                 ),
               ] else
                 const Text('File đã được tạo sẵn để chia sẻ.'),
-              const SizedBox(height: 12),
-              const Text(
-                'Bạn có muốn chia sẻ file không?',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
             ],
           ),
+          actionsAlignment: MainAxisAlignment.spaceBetween,
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(ctx, 'close'),
               child: const Text('Đóng'),
             ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(ctx, true),
-              icon: const Icon(Icons.share, size: 18),
-              label: const Text('Chia sẻ'),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (savedPath != null)
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(ctx, 'open'),
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    label: const Text('Mở'),
+                  ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: () => Navigator.pop(ctx, 'share'),
+                  icon: const Icon(Icons.share, size: 18),
+                  label: const Text('Chia sẻ'),
+                ),
+              ],
             ),
           ],
         ),
       );
 
-      if (shouldShare == true && context.mounted) {
+      if (action == 'open' && savedPath != null) {
+        await OpenFilex.open(savedPath);
+      } else if (action == 'share' && context.mounted) {
         await SharePlus.instance.share(
           ShareParams(
             files: [XFile(tempPath)],
@@ -688,20 +700,16 @@ class ExcelExportHelper {
   //  7. EXPORT FINANCIAL ACTIVITY LOG (NHẬT KÝ)
   // ──────────────────────────────────────────────
 
+  /// Export financial activity log from pre-loaded data.
+  /// [activities] is the list already queried from Firestore by the view.
   static Future<void> exportActivityLog(
     BuildContext context, {
+    required List<FinancialActivity> activities,
     int? startMs,
     int? endMs,
   }) async {
-    final maps = await _db.getFinancialActivities(
-      startDate: startMs,
-      endDate: endMs,
-      limit: 999999,
-      offset: 0,
-    );
-
     final excel = Excel.createExcel();
-    final sheet = excel['Nhật ký'];
+    final sheet = excel['Nhật ký tài chính'];
 
     _writeHeaders(sheet, [
       'STT',
@@ -718,10 +726,10 @@ class ExcelExportHelper {
       'Người tạo',
     ]);
 
-    for (int i = 0; i < maps.length; i++) {
-      final m = maps[i];
+    for (int i = 0; i < activities.length; i++) {
+      final a = activities[i];
       String directionVi = '';
-      switch (m['direction']) {
+      switch (a.direction) {
         case 'IN':
           directionVi = 'Thu';
           break;
@@ -734,17 +742,17 @@ class ExcelExportHelper {
       }
       _writeRow(sheet, i + 1, [
         i + 1,
-        _fmtDateTime(m['createdAt']),
-        m['activityType'] ?? '',
+        _fmtDateTime(a.createdAt),
+        _activityTypeVi(a.activityType),
         directionVi,
-        m['title'] ?? '',
-        _fmtMoney(m['amount']),
-        m['paymentMethod'] ?? '',
-        m['customerName'] ?? '',
-        m['phone'] ?? '',
-        m['productInfo'] ?? '',
-        m['description'] ?? '',
-        m['createdBy'] ?? '',
+        a.title,
+        _fmtMoney(a.amount),
+        a.paymentMethod,
+        a.customerName ?? '',
+        a.phone ?? '',
+        a.productInfo ?? '',
+        a.description ?? '',
+        a.createdBy ?? '',
       ]);
     }
 
@@ -752,8 +760,66 @@ class ExcelExportHelper {
       excel.delete('Sheet1');
     }
 
-    final fileName = _buildFileName('nhat_ky', startMs, endMs);
+    final fileName = _buildFileName('nhat_ky_tai_chinh', startMs, endMs);
     await _saveAndShare(excel, fileName, context);
+  }
+
+  /// Export audit/system logs from pre-loaded data.
+  static Future<void> exportAuditLog(
+    BuildContext context, {
+    required List<Map<String, dynamic>> auditLogs,
+  }) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['Nhật ký hệ thống'];
+
+    _writeHeaders(sheet, [
+      'STT',
+      'Thời gian',
+      'Hành động',
+      'Mô tả',
+      'Người thực hiện',
+      'Đối tượng',
+      'ID đối tượng',
+    ]);
+
+    for (int i = 0; i < auditLogs.length; i++) {
+      final log = auditLogs[i];
+      _writeRow(sheet, i + 1, [
+        i + 1,
+        _fmtDateTime(log['createdAt']),
+        log['action'] ?? '',
+        log['description'] ?? log['summary'] ?? '',
+        log['userName'] ?? '',
+        log['targetType'] ?? log['entityType'] ?? '',
+        log['targetId'] ?? log['entityId'] ?? '',
+      ]);
+    }
+
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final now = DateTime.now();
+    final fileName = 'nhat_ky_he_thong_${DateFormat('ddMMyyyy').format(now)}.xlsx';
+    await _saveAndShare(excel, fileName, context);
+  }
+
+  /// Vietnamese label for activity type
+  static String _activityTypeVi(String type) {
+    switch (type) {
+      case 'SALE': return 'Bán hàng';
+      case 'REPAIR': return 'Sửa chữa';
+      case 'EXPENSE': return 'Chi phí';
+      case 'PURCHASE': return 'Nhập hàng';
+      case 'DEBT_COLLECT': return 'Thu nợ';
+      case 'DEBT_PAY': return 'Trả nợ';
+      case 'SUPPLIER_PAYMENT': return 'Trả NCC';
+      case 'SETTLEMENT': return 'Tất toán';
+      case 'REFUND': return 'Hoàn tiền';
+      case 'ADJUSTMENT': return 'Điều chỉnh';
+      case 'REPAIR_PARTNER_PAYMENT': return 'Trả đối tác SC';
+      default: return type;
+    }
   }
 
   // ──────────────────────────────────────────────

@@ -1450,7 +1450,18 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
 
       setState(() {
         _repairsCompleted = allR
-            .where((r) => matchesStaff(r.repairedBy))
+            .where((r) {
+              // Match by repairedBy (explicitly assigned repairer)
+              if (matchesStaff(r.repairedBy)) return true;
+              // Fallback: for old repairs where repairedBy wasn't tracked,
+              // match by createdBy if repair is completed (status >= 3)
+              if ((r.repairedBy == null || r.repairedBy!.isEmpty) &&
+                  r.status >= 3 &&
+                  matchesStaff(r.createdBy)) {
+                return true;
+              }
+              return false;
+            })
             .toList();
         _sales = allS.where((s) => matchesStaff(s.sellerName)).toList();
       });

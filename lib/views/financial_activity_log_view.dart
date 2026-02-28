@@ -11,7 +11,6 @@ import '../services/user_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/excel_export_helper.dart';
-import '../widgets/export_date_filter_dialog.dart';
 
 /// Trang theo dõi nhật ký hoạt động tài chính + hệ thống
 /// Chỉ xem, không sửa - có bộ lọc
@@ -699,14 +698,36 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
             tooltip: 'Xuất Excel nhật ký',
             splashRadius: 18,
             onPressed: () async {
-              final result = await ExportDateFilterDialog.show(context, title: 'Xuất nhật ký');
-              if (result == null) return;
-              if (!mounted) return;
-              await ExcelExportHelper.exportActivityLog(
-                context,
-                startMs: result['startMs'],
-                endMs: result['endMs'],
-              );
+              if (_tabController.index == 0) {
+                // Export "Tài chính" tab — use already-loaded data
+                if (_activities.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Không có dữ liệu tài chính để xuất')),
+                  );
+                  return;
+                }
+                if (!mounted) return;
+                await ExcelExportHelper.exportActivityLog(
+                  context,
+                  activities: _activities,
+                  startMs: DateTime(_startDate.year, _startDate.month, _startDate.day).millisecondsSinceEpoch,
+                  endMs: DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59).millisecondsSinceEpoch,
+                );
+              } else {
+                // Export "Hệ thống" tab — use already-loaded audit logs
+                final logs = _filteredAuditLogs;
+                if (logs.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Không có dữ liệu hệ thống để xuất')),
+                  );
+                  return;
+                }
+                if (!mounted) return;
+                await ExcelExportHelper.exportAuditLog(
+                  context,
+                  auditLogs: logs,
+                );
+              }
             },
           ),
         ],
