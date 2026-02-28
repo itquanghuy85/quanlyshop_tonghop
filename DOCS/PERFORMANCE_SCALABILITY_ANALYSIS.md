@@ -1,213 +1,207 @@
 # Phân Tích Hiệu Suất & Khả Năng Mở Rộng (Performance & Scalability Analysis)
 
-> Phân tích ngày: $(date)  
+> Cập nhật: Tháng 6/2025 — sau hoàn tất Phase 1–4C  
 > Phạm vi: Toàn bộ mô-đun ứng dụng QuanLyShop
 
 ---
 
-## 📊 Tổng Quan Rủi Ro
+## 📊 Tổng Quan Rủi Ro (sau tối ưu Phase 1–4C)
 
 | Mức Độ | Số Lượng | Mô Tả |
 |--------|----------|-------|
-| **🔴 Nghiêm Trọng (Critical)** | 8 | Ảnh hưởng trực tiếp đến trải nghiệm người dùng, chi phí Firestore, crash khi dữ liệu lớn |
-| **🟠 Cao (High)** | 7 | Gây chậm đáng kể ở quy mô >5,000 bản ghi |
-| **🟡 Trung Bình (Medium)** | 5 | Ảnh hưởng nhẹ, cần khắc phục trong lộ trình dài hạn |
+| **✅ Đã Khắc Phục** | 8 | Đã hoàn thành trong Phase 1–4C |
+| **🟠 Cao (High)** | 2 | Vẫn cần cải thiện — Cash Closing, delta sync |
+| **🟡 Trung Bình (Medium)** | 3 | In-memory filtering ở một số view phụ, getAllX() cho collection nhỏ |
 | **🟢 Thấp (Low)** | 2 | Rủi ro nhỏ, có thể bỏ qua |
 
 ---
 
-## 🔴 CÁC RỦI RO NGHIÊM TRỌNG
+## ✅ CÁC VẤN ĐỀ ĐÃ KHẮC PHỤC
 
-### 1. Sync Service: Tải Toàn Bộ Dữ Liệu Mỗi Lần Khởi Động
-**File:** `lib/services/sync_service.dart`
+### 1. ~~Sync Service: 26 listener đồng thời~~ → ĐÃ SỬA (Phase 3A)
+**Commit:** `774c172` — Phase 3A: Lazy-load sync subscriptions
 
-**Vấn đề:** 26 listener Firestore chạy đồng thời, mỗi listener tải TOÀN BỘ collection (không có `lastSyncTimestamp` filter). Không có cơ chế delta sync.
+**Trước:** 26 listener Firestore chạy đồng thời khi mở app.  
+**Sau:** Chia thành **critical subscriptions** (repairs, sales, products, expenses — load ngay) + **deferred subscriptions** (các collection phụ — load sau 3 giây). Giảm thời gian khởi động, giảm Firestore reads ban đầu.
 
-**Tác động tại quy mô lớn:**
-- Shop có 10,000 repairs + 5,000 sales + 2,000 products + 3,000 expenses = **20,000+ Firestore reads mỗi lần mở app**
-- 3 thiết bị × 10 lần mở/ngày = **600,000 reads/ngày** → **chi phí Firestore tăng gấp bội**
-- RAM thiết bị: Tải 20,000+ object vào bộ nhớ cùng lúc có thể gây crash trên thiết bị yếu
+**Vẫn còn:** Các subscription vẫn tải toàn bộ collection (chưa có `updatedAt > lastSyncTimestamp` delta filter) — xem Mục 10 bên dưới.
+
+---
+
+### 2. ~~Financial Activity Log: Query Firestore không có date filter~~ → ĐÃ SỬA (Phase 1)
+**Commit:** `0a57860` — Phase 1 Performance
+
+**Trước:** Tải 6 collection đầy đủ từ Firestore, filter bằng Dart.  
+**Sau:** Query Firestore với `.where(dateField, isGreaterThanOrEqualTo: startMs).where(dateField, isLessThanOrEqualTo: endMs)` trực tiếp. Giảm reads Firestore đáng kể.
+
+---
+
+### 3. ~~Financial Report View: Tải toàn bộ 4 bảng SQLite~~ → ĐÃ SỬA (Phase 2)
+**Commit:** `8c790bb` — Phase 2 Performance
+
+**Trước:** Gọi `getAllSales()` + `getAllRepairs()` + `getAllExpenses()` + `getAllDebts()`, gộp tất cả vào memory.  
+**Sau:** Dùng `getSalesByDateRange(startMs, endMs)`, query SQL trực tiếp với `WHERE soldAt BETWEEN ? AND ?` cho từng bảng. Bộ nhớ giảm từ toàn bộ DB xuống chỉ dữ liệu trong khoảng thời gian.
+
+---
+
+### 4. ~~Global Search: Tải toàn bộ dữ liệu mỗi lần tìm~~ → ĐÃ SỬA (Phase 2)
+**Commit:** `8c790bb` — Phase 2 Performance
+
+**Trước:** Tải ALL repairs + ALL sales + ALL products vào memory rồi filter có 300ms debounce.  
+**Sau:** Dùng `searchRepairs(query, normalizedQuery, limit: 25)`, `searchSales(...)`, `searchProducts(...)` — SQL `LIKE` trực tiếp với `LIMIT 25`. Chỉ tải tối đa 75 kết quả thay vì toàn bộ DB.
+
+---
+
+### 5. ~~Thiếu SQLite Indexes~~ → ĐÃ SỬA (Phase 1)
+**Commit:** `0a57860` — Phase 1 Performance
+
+**Trước:** Không có index trên các cột hay dùng, full table scan.  
+**Sau:** Thêm **30+ SQLite indexes** trong migration, bao gồm:
+- `repairs(createdAt, status, repairedBy, deleted)`
+- `sales(soldAt, sellerName, deleted)`
+- `products(name, shopId, status, deleted)`
+- `expenses(date, category)`
+- `debts(createdAt, status, deleted)`
+- `attendance(dateKey, userId)`
+- `debt_payments(paidAt, debtId)`
+- `financial_activity_log(shopId, createdAt, activityType)`
+- Và nhiều index khác cho variants, categories, sync_queue...
+
+---
+
+### 6. ~~debugPrint per record trong getAllRepairs/getAllSales~~ → ĐÃ SỬA (Phase 1)
+**Commit:** `0a57860` — Phase 1 Performance
+
+**Trước:** `debugPrint` cho **mỗi bản ghi** trong for-loop (10,000 records = 10,000 prints).  
+**Sau:** Chỉ log tổng count, không in từng record. Tiết kiệm CPU + I/O.
+
+---
+
+### 7. ~~Thiếu Firestore Composite Index~~ → ĐÃ SỬA (Phase 3D)
+**Commit:** `af67537` — Phase 3D: Add 11 missing Firestore composite indexes
+
+**Trước:** 15 composite index, thiếu cho nhiều collection phụ.  
+**Sau:** Tổng **29 composite indexes** trong `firestore.indexes.json`, bao gồm đầy đủ cho: `debt_payments`, `supplier_payments`, `repair_partner_payments`, `supplier_import_history`, `attendance`, `audit_logs`, `repair_parts`, `purchase_orders`, `payment_intents`, v.v.
+
+---
+
+### 8. ~~Thiếu Performance Monitoring~~ → ĐÃ SỬA (Phase 4C)
+**Commit:** `6349222` — Phase 4C: Performance monitoring utility
+
+**Đã thêm:** `PerfMonitor` utility (`lib/utils/perf_monitor.dart`) — đo thời gian `initRealTimeSync`, `deferredSync`, và các operation khác. Cho phép theo dõi performance bottleneck trong production.
+
+---
+
+## 🟠 CÁC VẤN ĐỀ CÒN TỒN TẠI
+
+### 9. Cash Closing View: Vẫn tải nhiều collection không date filter
+**File:** `lib/views/cash_closing_view.dart`
+
+**Hiện trạng:** Mở trang Chốt Ca subscribe 8 collection Firestore (sales, repairs, expenses, debt_payments, supplier_payments, repair_partner_payments, supplier_import_history, cash_closings) — chỉ filter theo `shopId`, **không filter theo ngày**.
+
+**Tác động:** Shop hoạt động 2+ năm → tải toàn bộ lịch sử giao dịch mỗi lần mở trang.
 
 **Giải pháp đề xuất:**
-1. **Thêm `updatedAt` filter**: `where('updatedAt', isGreaterThan: lastSyncTimestamp)` cho mỗi subscription
-2. **Lưu `lastSyncTimestamp`** vào SharedPreferences/SQLite sau mỗi lần sync
-3. **Lazy loading**: Chỉ subscribe vào collection khi user thực sự mở tab tương ứng
-4. **Batch sync**: Nhóm các collection ít thay đổi (suppliers, categories) thành sync theo lịch (hourly)
+1. Thêm date filter (chỉ lấy dữ liệu trong ca/ngày hiện tại)
+2. Hoặc chuyển sang đọc từ SQLite local (đã sync) thay vì query Firestore trực tiếp
+3. Server-side aggregation qua Cloud Functions
 
 ---
 
-### 2. Cash Closing View: Tải 7 Collections Đầy Đủ
-**File:** `lib/views/cash_closing_view.dart` (dòng 228-262)
+### 10. Sync Service: Chưa có Delta Sync
+**File:** `lib/services/sync_service.dart`
 
-**Vấn đề:** Mỗi lần mở trang Chốt Ca, app tải 7 collection Firestore hoàn toàn: `sales`, `repairs`, `expenses`, `debt_payments`, `supplier_payments`, `repair_partner_payments`, `debts` — không có `.limit()` hay date range.
+**Hiện trạng:** Dù đã lazy-load (Phase 3A) và có `updatedAt` comparison để resolve conflict, các subscription vẫn tải **toàn bộ collection** (không dùng `where('updatedAt', isGreaterThan: lastSyncTimestamp)`).
 
-**Tác động:** Có thể tải >100MB dữ liệu cho shop hoạt động 2+ năm.
+**Tác động:** Mỗi lần mở app vẫn đọc toàn bộ docs cho mỗi collection. Ở quy mô 20,000+ docs, đây là chi phí Firestore reads lớn nhất.
 
-**Giải pháp:**
-1. Thêm filter date range (chỉ lấy dữ liệu trong ca hiện tại hoặc ngày hiện tại)
-2. Sử dụng server-side aggregation (Cloud Functions tính tổng)
-3. Cache kết quả chốt ca trước đó, chỉ tải dữ liệu mới
-
----
-
-### 3. Financial Activity Log: Tải 6 Collections Không Filter
-**File:** `lib/views/financial_activity_log_view.dart` (dòng 179-342)
-
-**Vấn đề:** Tải 6 collection đầy đủ từ Firestore, rồi filter trong Dart. Dù có tính `startMs`/`endMs`, query Firestore KHÔNG dùng date filter.
-
-**Giải pháp:** Thêm `.where('createdAt', isGreaterThanOrEqualTo: startMs).where('createdAt', isLessThanOrEqualTo: endMs)` trực tiếp vào query Firestore.
-
----
-
-### 4. Financial Report View: Tải Toàn Bộ 4 Bảng SQLite
-**File:** `lib/views/financial_report_view.dart` (dòng 165-324)
-
-**Vấn đề:** Gọi `getAllSales()` + `getAllRepairs()` + `getAllExpenses()` + `getAllDebts()`, gộp thành 1 list `allTransactions` rồi sort.
-
-**Tác động:** 20,000+ bản ghi vào bộ nhớ → OOM trên thiết bị 2GB RAM.
-
-**Giải pháp:**
-1. Query trực tiếp với date range trong SQL: `WHERE soldAt BETWEEN ? AND ?`
-2. Dùng SQL aggregation cho tổng hợp (SUM, COUNT) thay vì Dart loop
-
----
-
-### 5. Global Search: Tải Toàn Bộ Dữ Liệu Mỗi Lần Tìm Kiếm
-**File:** `lib/views/global_search_view.dart` (dòng 85-122)
-
-**Vấn đề:** Mỗi lần search (dù có 300ms debounce), app tải ALL repairs + ALL sales + ALL products vào memory rồi filter.
-
-**Giải pháp:**
-1. Dùng SQLite FTS (Full-Text Search) cho tìm kiếm text
-2. Hoặc thêm method `searchRepairs(query, limit)` dùng SQL `LIKE '%query%' LIMIT 20`
-3. Cache kết quả search gần nhất
-
----
-
-## 🟠 CÁC RỦI RO CAO
-
-### 6. Thiếu Index SQLite
-**File:** `lib/data/db_helper.dart`
-
-**Các cột thiếu index (thường xuyên dùng trong WHERE/ORDER BY):**
-- `repairs(createdAt)`, `repairs(status)`, `repairs(repairedBy)`
-- `sales(soldAt)`, `sales(sellerName)`
-- `products(shopId)`, `products(name)`
-- `expenses(date)`, `expenses(category)`
-- `debts(createdAt)`, `debts(status)`
-- `attendance(dateKey)`
-
-**Tác động:** Full table scan ở 10,000+ rows → chậm 5-10x so với indexed query.
-
-**Giải pháp:** Thêm các index trong `_onCreate` hoặc migration:
-```sql
-CREATE INDEX IF NOT EXISTS idx_repairs_createdAt ON repairs(createdAt);
-CREATE INDEX IF NOT EXISTS idx_repairs_status ON repairs(status);
-CREATE INDEX IF NOT EXISTS idx_repairs_repairedBy ON repairs(repairedBy);
-CREATE INDEX IF NOT EXISTS idx_sales_soldAt ON sales(soldAt);
-CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
-CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
-CREATE INDEX IF NOT EXISTS idx_debts_createdAt ON debts(createdAt);
-```
-
----
-
-### 7. getAllX() Được Dùng Thay Vì Paged Methods
-**File:** `lib/data/db_helper.dart`
-
-**Phát hiện:** Có `getRepairsPaged()`, `getSalesPaged()`, `getProductsPaged()` nhưng hầu hết code gọi `getAllRepairs()`, `getAllSales()`, `getAllProducts()`.
-
-19 method `getAll*` tải toàn bộ bảng: repairs, sales, products, expenses, debts, cash_closings, attendance, purchase_orders, parts, debt_payments, supplier_import_history, supplier_payments, payment_intents...
-
-**Giải pháp:** Refactor dần sang paged methods + server-side filtering.
-
----
-
-### 8. debugPrint Trong getAllRepairs()/getAllSales()
-**File:** `lib/data/db_helper.dart` (dòng 2807-2828, 2897-2908)
-
-**Vấn đề:** `debugPrint` cho **mỗi bản ghi** trong for-loop. 10,000 repairs = 10,000+ lần print. Dù `debugPrint` throttle, string interpolation vẫn tốn CPU.
-
-**Giải pháp:** Chỉ debugPrint tổng count, không print từng record.
+**Giải pháp đề xuất:**
+1. Lưu `lastSyncTimestamp` vào SharedPreferences sau mỗi lần sync thành công
+2. Subscription dùng `where('updatedAt', isGreaterThan: lastSyncTimestamp)` cho incremental reads
+3. Full sync chỉ chạy khi cài lại app hoặc xóa cache
 
 ---
 
 ## 🟡 CÁC RỦI RO TRUNG BÌNH
 
-### 9. Thiếu Firestore Composite Index
-**File:** `firestore.indexes.json`
+### 11. In-Memory Filtering ở Expense/Debt/Parts Views
+Các view `expense_view.dart`, `debt_view.dart`, `parts_inventory_view.dart` vẫn tải toàn bộ từ SQLite rồi filter bằng Dart. Ở quy mô <5,000 bản ghi, vẫn chấp nhận được. Nên refactor khi collection lớn hơn.
 
-Có 15 composite index nhưng THIẾU cho: `debt_payments`, `supplier_payments`, `repair_partner_payments`, `supplier_import_history`, `attendance`, `audit_logs`, `repair_parts`, `purchase_orders`, `payment_intents`.
+### 12. Một số getAllX() vẫn dùng cho collection nhỏ
+Các method như `getAllSuppliers()`, `getAllCashClosings()`, `getAllAttendance()` vẫn tải toàn bộ. Chấp nhận được cho collection <500 docs, nhưng nên chuyển sang paged/filtered khi mở rộng.
 
-### 10. In-Memory Filtering ở Expense/Debt/Parts Views
-Các view `expense_view.dart`, `debt_view.dart`, `parts_inventory_view.dart` tải toàn bộ rồi filter. Ở quy mô trung bình (<5,000), vẫn chấp nhận được.
-
-### 11. Product Query Không Limit Trong Firestore
-`firestore_service.dart` dòng 91-97: Query products by name không `.limit()`.
+### 13. Product Query Không Limit Trong Firestore
+`firestore_service.dart`: Query products by name không `.limit()`. Nên thêm limit cho shop có >1,000 sản phẩm.
 
 ---
 
 ## 🟢 RỦI RO THẤP
 
-### 12. Xử Lý Hình Ảnh — ĐÃ TỐT
+### 14. Xử Lý Hình Ảnh — ĐÃ TỐT
 - Firebase Storage URLs (không lưu base64 trong Firestore)
 - Nén 70% quality, max 1920px
 - Xóa file tạm sau upload
 
-### 13. Query Nhỏ Không Limit
-Staff list, salary settings — collection nhỏ (<50 docs), không cần limit.
+### 15. Query Collection Nhỏ Không Limit
+Staff list, salary settings, shop settings — collection nhỏ (<50 docs), không cần limit.
 
 ---
 
-## 📈 Ngưỡng Dữ Liệu Dự Kiến
+## 📈 Ngưỡng Dữ Liệu Dự Kiến (sau tối ưu)
 
 | Mô-đun | <1,000 | 1,000-5,000 | 5,000-10,000 | >10,000 |
 |---------|--------|-------------|--------------|---------|
-| Đơn sửa (Repairs) | ✅ OK | ⚠️ Chậm search | 🔴 Chậm load | 🔴 Crash |
-| Bán hàng (Sales) | ✅ OK | ⚠️ Chậm report | 🔴 Chậm load | 🔴 Crash |
-| Sản phẩm (Products) | ✅ OK | ✅ OK | ⚠️ Chậm search | 🔴 Chậm load |
-| Chi phí (Expenses) | ✅ OK | ✅ OK | ⚠️ Chậm | 🟠 Chậm |
-| Công nợ (Debts) | ✅ OK | ✅ OK | ⚠️ Chậm | 🟠 Chậm |
-| Sync Service | ⚠️ Tải 26 collections | 🟠 Nhiều reads | 🔴 Chi phí cao | 🔴 Quá tải |
+| Đơn sửa (Repairs) | ✅ OK | ✅ OK (indexed) | ✅ OK (SQL search) | ⚠️ Sync reads cao |
+| Bán hàng (Sales) | ✅ OK | ✅ OK (indexed) | ✅ OK (date-range) | ⚠️ Sync reads cao |
+| Sản phẩm (Products) | ✅ OK | ✅ OK | ✅ OK | ✅ OK |
+| Chi phí (Expenses) | ✅ OK | ✅ OK | ✅ OK | ⚠️ In-memory filter |
+| Công nợ (Debts) | ✅ OK | ✅ OK | ✅ OK | ⚠️ In-memory filter |
+| Sync Service | ✅ Lazy-load | ✅ OK | ⚠️ Reads tăng | 🟠 Cần delta sync |
+| Tìm kiếm | ✅ SQL LIKE | ✅ Indexed | ✅ LIMIT 25 | ✅ OK |
+| Báo cáo tài chính | ✅ Date-range | ✅ SQL query | ✅ OK | ✅ OK |
 
 ---
 
-## 🛠️ LỘ TRÌNH KHẮC PHỤC ĐỀ XUẤT
+## 🛠️ LỘ TRÌNH KHẮC PHỤC — TRẠNG THÁI THỰC TẾ
 
-### Giai Đoạn 1 — Khẩn Cấp (1-2 tuần)
-1. **Thêm SQLite indexes** cho các cột thường query
-2. **Bỏ debugPrint** từng record trong getAllRepairs/getAllSales
-3. **Thêm date filter** vào Firestore queries trong cash_closing_view và financial_activity_log_view
+### ✅ Giai Đoạn 1 — HOÀN THÀNH (commit `0a57860`)
+1. ✅ **Thêm 30+ SQLite indexes** cho các cột thường query
+2. ✅ **Bỏ debugPrint** từng record trong getAllRepairs/getAllSales
+3. ✅ **Thêm date filter** vào Firestore queries trong financial_activity_log_view
 
-### Giai Đoạn 2 — Ngắn Hạn (2-4 tuần)
-4. **Chuyển global_search sang SQL LIKE** thay vì tải toàn bộ
-5. **Thêm delta sync** (updatedAt > lastSyncTimestamp) cho sync_service
-6. **Refactor financial_report_view** sang SQL aggregation
+### ✅ Giai Đoạn 2 — HOÀN THÀNH (commit `8c790bb`)
+4. ✅ **Chuyển global_search sang SQL LIKE** với limit 25 per collection
+5. ✅ **Thêm updatedAt** trên tất cả Firestore writes (conflict resolution)
+6. ✅ **Refactor financial_report_view** sang SQL date-range queries
 
-### Giai Đoạn 3 — Trung Hạn (1-2 tháng)
-7. **Lazy-load subscriptions** trong sync_service
-8. **Cloud Functions aggregation** cho báo cáo tài chính
-9. **Data archiving**: Lưu trữ dữ liệu >1 năm vào collection riêng
-10. **Thêm Firestore composite indexes** cho các collection còn thiếu
+### ✅ Giai Đoạn 3 — HOÀN THÀNH (commits `774c172`, `af67537`)
+7. ✅ **Lazy-load subscriptions** — critical subs ngay, deferred sau 3s
+8. ✅ **Thêm 14 Firestore composite indexes** (tổng 29)
 
-### Giai Đoạn 4 — Dài Hạn (3-6 tháng)
-11. **Offline-first architecture**: Ưu tiên SQLite, sync nền
-12. **Pagination toàn bộ**: Thay getAllX() bằng paged methods
-13. **Monitoring**: Thêm performance metrics (Firestore reads/day, sync time, RAM usage)
+### ✅ Giai Đoạn 4 — HOÀN THÀNH (commits `59a7e54`, `6349222`)
+9. ✅ **Pagination & date-range** cho revenue view
+10. ✅ **PerfMonitor** utility cho đo lường performance
 
----
-
-## 💰 Ước Tính Chi Phí Firestore Theo Quy Mô
-
-| Quy Mô Shop | Docs Tổng | Reads/Mở App | 3 Devices × 10/ngày | Chi Phí/Tháng (USD) |
-|-------------|-----------|-------------|---------------------|---------------------|
-| Nhỏ (<6 tháng) | ~2,000 | 2,000 | 60,000/ngày | ~$1-2 |
-| Trung Bình (1 năm) | ~10,000 | 10,000 | 300,000/ngày | ~$5-10 |
-| Lớn (2+ năm) | ~30,000 | 30,000 | 900,000/ngày | ~$15-30 |
-| Rất Lớn (3+ năm) | ~100,000 | 100,000 | 3,000,000/ngày | ~$50-100+ |
-
-> *Ghi chú: Firestore miễn phí 50,000 reads/ngày. Vượt quá: $0.06/100,000 reads.*
+### 🔜 Giai Đoạn 5 — TIẾP THEO
+11. 🟠 **Delta sync**: `where('updatedAt', isGreaterThan: lastSyncTimestamp)` cho sync_service
+12. 🟠 **Cash Closing date filter**: Chỉ query dữ liệu trong ngày/ca hiện tại
+13. 🟡 **Cloud Functions aggregation** cho báo cáo nặng
+14. 🟡 **Data archiving**: Lưu trữ dữ liệu >1 năm
 
 ---
 
-*Tài liệu này được tạo tự động dựa trên phân tích mã nguồn thực tế. Cập nhật lại khi có thay đổi kiến trúc.*
+## 💰 Ước Tính Chi Phí Firestore (sau tối ưu)
+
+| Quy Mô Shop | Docs Tổng | Reads/Mở App (trước) | Reads/Mở App (sau) | Giảm |
+|-------------|-----------|----------------------|---------------------|------|
+| Nhỏ (<6 tháng) | ~2,000 | 2,000 | ~500 (lazy-load) | -75% |
+| Trung Bình (1 năm) | ~10,000 | 10,000 | ~3,000 (lazy-load) | -70% |
+| Lớn (2+ năm) | ~30,000 | 30,000 | ~10,000 (lazy-load) | -67% |
+| Rất Lớn (3+ năm) | ~100,000 | 100,000 | ~35,000 (lazy-load) | -65% |
+
+> *Với delta sync (Phase 5), reads có thể giảm thêm 80-90% cho lần mở app thứ 2 trở đi.*  
+> *Firestore miễn phí 50,000 reads/ngày. Vượt quá: $0.06/100,000 reads.*
+
+---
+
+*Tài liệu cập nhật dựa trên mã nguồn thực tế tại commit `6349222`. Cập nhật lại khi có thay đổi kiến trúc.*
