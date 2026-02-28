@@ -1512,8 +1512,7 @@ class SyncService {
       final String? shopId = await UserService.getCurrentShopId();
       if (shopId == null) return;
 
-      // Super admin only views
-      if (UserService.isCurrentUserSuperAdmin()) return;
+      // FIX: Super admin có shopId → cho phép sync (không block nữa)
 
       final dbHelper = DBHelper();
       debugPrint('⚡ syncPaymentRelatedData: starting targeted sync...');
@@ -1754,8 +1753,7 @@ class SyncService {
       final String? shopId = await UserService.getCurrentShopId();
       if (shopId == null) return;
 
-      // Super admin only views
-      if (UserService.isCurrentUserSuperAdmin()) return;
+      // FIX: Super admin có shopId → cho phép sync (không block nữa)
 
       final dbHelper = DBHelper();
       debugPrint('⚡ syncRepairData: starting targeted repair sync...');
@@ -1862,11 +1860,8 @@ class SyncService {
         return;
       }
 
-      // Super admin chỉ được xem, không được upload data
-      if (isSuperAdmin) {
-        debugPrint("⚠️ Super admin chỉ được xem, không được upload data");
-        return;
-      }
+      // FIX: Super admin CÓ shopId (đã chọn shop) → cho phép upload data
+      // (Trước đây block hoàn toàn → gây tích lũy records chưa đồng bộ)
 
       final dbHelper = DBHelper();
 
