@@ -61,7 +61,6 @@ import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../services/encryption_service.dart';
-import '../services/repair_partner_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -1497,6 +1496,31 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   int _todayRepairCost = 0; // Giá vốn sửa chữa
   int _todaySettlementIncome = 0; // Tất toán NH (bank settlement)
 
+  /// Load chat info separately (deferred) - Firestore calls, don't block main stats
+  Future<void> _loadChatInfo() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+      final results = await Future.wait([
+        UserService.getUnreadChatCount(currentUser.uid),
+        UserService.getLatestChatMessage(),
+      ]);
+      final unread = results[0] as int;
+      final latestChat = results[1] as Map<String, dynamic>?;
+      if (mounted) {
+        setState(() {
+          unreadChatCount = unread;
+          if (latestChat != null) {
+            _latestChatMessage = latestChat['message'] ?? '';
+            _latestChatSender = latestChat['senderName'] ?? '';
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('HomeView: Error loading chat info: $e');
+    }
+  }
+
   Future<void> _loadStats() async {
     // Guard chống load nhiều lần liên tiếp
     if (_isLoadingStats) {
@@ -1506,108 +1530,76 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     _isLoadingStats = true;
 
     try {
+      final stopwatch = Stopwatch()..start();
       final now = DateTime.now();
       final todayStart = DateTime(now.year, now.month, now.day);
       final todayEnd = todayStart.add(const Duration(days: 1));
       final startMs = todayStart.millisecondsSinceEpoch;
       final endMs = todayEnd.millisecondsSinceEpoch;
       final dbConn = await db.database;
-
-      final pendingR =
-          (Sqflite.firstIntValue(
-            await dbConn.rawQuery(
-              'SELECT COUNT(*) FROM repairs WHERE status IN (1, 2)',
-            ),
-          )) ??
-          0;
-
-      final newRT =
-          (Sqflite.firstIntValue(
-            await dbConn.rawQuery(
-              'SELECT COUNT(*) FROM repairs WHERE createdAt >= ? AND createdAt < ?',
-              [startMs, endMs],
-            ),
-          )) ??
-          0;
-
-      final fSales = await dbConn.query(
-        'sales',
-        columns: [
-          'totalPrice',
-          'totalCost',
-          'paymentMethod',
-          'isInstallment',
-          'downPayment',
-          'downPaymentMethod',
-          'settlementReceivedAt',
-          'settlementAmount',
-          'loanAmount',
-          'loanAmount2',
-          'soldAt',
-          'warranty',
-        ],
-        where: 'soldAt >= ? AND soldAt < ?',
-        whereArgs: [startMs, endMs],
-      );
-
-      // Settlements happening today (may be from sales on other days)
-      final fSettlements = await dbConn.query(
-        'sales',
-        columns: ['totalPrice', 'totalCost', 'downPayment', 'settlementAmount', 'loanAmount', 'soldAt'],
-        where: 'isInstallment = 1 AND settlementReceivedAt IS NOT NULL AND settlementReceivedAt >= ? AND settlementReceivedAt < ?',
-        whereArgs: [startMs, endMs],
-      );
-
-      final fRepairs = await dbConn.query(
-        'repairs',
-        columns: ['price', 'cost', 'paymentMethod', 'deliveredAt', 'warranty'],
-        where:
-            'status = 4 AND deliveredAt IS NOT NULL AND deliveredAt >= ? AND deliveredAt < ?',
-        whereArgs: [startMs, endMs],
-      );
-
       final shopId = UserService.getShopIdSync();
-      final fExpenses = await dbConn.query(
-        'expenses',
-        columns: ['amount', 'category', 'description', 'title', 'date', 'type', 'paymentMethod'],
-        where: shopId != null && shopId.isNotEmpty
-            ? '(date >= ? AND date < ?) AND (shopId = ? OR shopId IS NULL)'
-            : 'date >= ? AND date < ?',
-        whereArgs: shopId != null && shopId.isNotEmpty
-            ? [startMs, endMs, shopId]
-            : [startMs, endMs],
-      );
 
-      final debtPayments = await dbConn.query(
-        'debt_payments',
-        columns: ['amount', 'paidAt', 'debtType', 'paymentMethod'],
-        where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ?',
-        whereArgs: [startMs, endMs],
-      );
+      // === BATCH 1: Run all independent DB queries in parallel ===
+      final batch1 = await Future.wait([
+        // [0] pendingR
+        dbConn.rawQuery('SELECT COUNT(*) FROM repairs WHERE status IN (1, 2)'),
+        // [1] newRT
+        dbConn.rawQuery('SELECT COUNT(*) FROM repairs WHERE createdAt >= ? AND createdAt < ?', [startMs, endMs]),
+        // [2] fSales
+        dbConn.query('sales',
+          columns: ['totalPrice', 'totalCost', 'paymentMethod', 'isInstallment', 'downPayment', 'downPaymentMethod', 'settlementReceivedAt', 'settlementAmount', 'loanAmount', 'loanAmount2', 'soldAt', 'warranty'],
+          where: 'soldAt >= ? AND soldAt < ?', whereArgs: [startMs, endMs]),
+        // [3] fSettlements
+        dbConn.query('sales',
+          columns: ['totalPrice', 'totalCost', 'downPayment', 'settlementAmount', 'loanAmount', 'soldAt'],
+          where: 'isInstallment = 1 AND settlementReceivedAt IS NOT NULL AND settlementReceivedAt >= ? AND settlementReceivedAt < ?',
+          whereArgs: [startMs, endMs]),
+        // [4] fRepairs
+        dbConn.query('repairs',
+          columns: ['price', 'cost', 'paymentMethod', 'deliveredAt', 'warranty'],
+          where: 'status = 4 AND deliveredAt IS NOT NULL AND deliveredAt >= ? AND deliveredAt < ?',
+          whereArgs: [startMs, endMs]),
+        // [5] fExpenses
+        dbConn.query('expenses',
+          columns: ['amount', 'category', 'description', 'title', 'date', 'type', 'paymentMethod'],
+          where: shopId != null && shopId.isNotEmpty
+              ? '(date >= ? AND date < ?) AND (shopId = ? OR shopId IS NULL)'
+              : 'date >= ? AND date < ?',
+          whereArgs: shopId != null && shopId.isNotEmpty
+              ? [startMs, endMs, shopId] : [startMs, endMs]),
+        // [6] debtPayments
+        dbConn.query('debt_payments',
+          columns: ['amount', 'paidAt', 'debtType', 'paymentMethod'],
+          where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ?',
+          whereArgs: [startMs, endMs]),
+        // [7] partnerPayments
+        dbConn.query('repair_partner_payments',
+          columns: ['amount', 'paidAt', 'paymentMethod'],
+          where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
+          whereArgs: [startMs, endMs]),
+        // [8] supplierPayments
+        dbConn.query('supplier_payments',
+          columns: ['amount', 'paidAt', 'paymentMethod'],
+          where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
+          whereArgs: [startMs, endMs]),
+        // [9] supplierImports
+        dbConn.query('supplier_import_history',
+          columns: ['totalAmount', 'costPrice', 'paymentMethod', 'importDate', 'createdAt'],
+          where: '((importDate IS NOT NULL AND importDate >= ? AND importDate < ?) OR (importDate IS NULL AND createdAt >= ? AND createdAt < ?))',
+          whereArgs: [startMs, endMs, startMs, endMs]),
+      ]);
+      debugPrint('HomeView: Batch 1 (10 queries) took ${stopwatch.elapsedMilliseconds}ms');
 
-      // Thanh toán đối tác sửa chữa hôm nay
-      final partnerPayments = await dbConn.query(
-        'repair_partner_payments',
-        columns: ['amount', 'paidAt', 'paymentMethod'],
-        where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
-        whereArgs: [startMs, endMs],
-      );
-
-      // Thanh toán trực tiếp cho NCC hôm nay
-      final supplierPayments = await dbConn.query(
-        'supplier_payments',
-        columns: ['amount', 'paidAt', 'paymentMethod'],
-        where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
-        whereArgs: [startMs, endMs],
-      );
-
-      // Nhập hàng từ NCC hôm nay
-      final supplierImports = await dbConn.query(
-        'supplier_import_history',
-        columns: ['totalAmount', 'costPrice', 'paymentMethod', 'importDate', 'createdAt'],
-        where: '((importDate IS NOT NULL AND importDate >= ? AND importDate < ?) OR (importDate IS NULL AND createdAt >= ? AND createdAt < ?))',
-        whereArgs: [startMs, endMs, startMs, endMs],
-      );
+      final pendingR = Sqflite.firstIntValue(batch1[0] as List<Map<String, dynamic>>) ?? 0;
+      final newRT = Sqflite.firstIntValue(batch1[1] as List<Map<String, dynamic>>) ?? 0;
+      final fSales = batch1[2] as List<Map<String, dynamic>>;
+      final fSettlements = batch1[3] as List<Map<String, dynamic>>;
+      final fRepairs = batch1[4] as List<Map<String, dynamic>>;
+      final fExpenses = batch1[5] as List<Map<String, dynamic>>;
+      final debtPayments = batch1[6] as List<Map<String, dynamic>>;
+      final partnerPayments = batch1[7] as List<Map<String, dynamic>>;
+      final supplierPayments = batch1[8] as List<Map<String, dynamic>>;
+      final supplierImports = batch1[9] as List<Map<String, dynamic>>;
 
       int doneT = 0, soldT = 0, debtR = 0, expW = 0;
 
@@ -1811,14 +1803,53 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       doneT = fRepairs.length;
       soldT = fSales.length;
 
-      // Tính toán các số liệu khác
-      final repairsWarranty = await dbConn.query(
-        'repairs',
-        columns: ['deliveredAt', 'warranty'],
-        where:
-            "deliveredAt IS NOT NULL AND warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'",
-      );
+      debugPrint('HomeView: Processing took ${stopwatch.elapsedMilliseconds}ms');
 
+      // === BATCH 2: Secondary queries in parallel ===
+      // (warranty, debts, partner debts, record counts - all independent)
+      final batch2 = await Future.wait([
+        // [0] repairsWarranty
+        dbConn.query('repairs',
+          columns: ['deliveredAt', 'warranty'],
+          where: "deliveredAt IS NOT NULL AND warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'"),
+        // [1] salesWarranty
+        dbConn.query('sales',
+          columns: ['soldAt', 'warranty'],
+          where: "warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'"),
+        // [2] debtRemain
+        dbConn.rawQuery(
+          "SELECT SUM(CASE WHEN totalAmount > paidAmount THEN (totalAmount - paidAmount) ELSE 0 END) as remain "
+          "FROM debts WHERE (deleted IS NULL OR deleted != 1) AND (status IS NULL OR UPPER(status) NOT IN ('PAID','CANCELLED'))"),
+        // [3] partner debt total (single aggregated query instead of N+1)
+        dbConn.rawQuery('''
+          SELECT
+            COALESCE(SUM(h.totalCost), 0) as totalCost,
+            COALESCE(SUM(h.totalPaid), 0) as totalPaid
+          FROM (
+            SELECT
+              p.id as partnerId,
+              COALESCE((SELECT SUM(partnerCost) FROM partner_repair_history WHERE partnerId = p.id${shopId != null && shopId.isNotEmpty ? " AND shopId = '$shopId'" : ''}), 0) as totalCost,
+              COALESCE((SELECT SUM(amount) FROM repair_partner_payments WHERE partnerId = p.id AND deleted = 0${shopId != null && shopId.isNotEmpty ? " AND shopId = '$shopId'" : ''}), 0) as totalPaid
+            FROM repair_partners p
+          ) h
+          WHERE h.totalCost > h.totalPaid
+        '''),
+        // [4] record counts (single combined query)
+        dbConn.rawQuery(
+          'SELECT '
+          '(SELECT COUNT(*) FROM repairs) as repairs, '
+          '(SELECT COUNT(*) FROM sales) as sales, '
+          '(SELECT COUNT(*) FROM products) as products'),
+      ]);
+      debugPrint('HomeView: Batch 2 (5 queries) took ${stopwatch.elapsedMilliseconds}ms');
+
+      final repairsWarranty = batch2[0] as List<Map<String, dynamic>>;
+      final salesWarranty = batch2[1] as List<Map<String, dynamic>>;
+      final debtRemainRow = batch2[2] as List<Map<String, dynamic>>;
+      final partnerDebtRow = batch2[3] as List<Map<String, dynamic>>;
+      final recordCounts = batch2[4] as List<Map<String, dynamic>>;
+
+      // Warranty check (CPU-only, no I/O)
       for (final r in repairsWarranty) {
         final deliveredAt = (r['deliveredAt'] as num?)?.toInt();
         final warranty = (r['warranty'] ?? '').toString();
@@ -1830,15 +1861,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
         }
       }
-
-      final salesWarranty = await dbConn.query(
-        'sales',
-        columns: ['soldAt', 'warranty'],
-        where:
-            "warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'",
-      );
-
-      // Kiểm tra bảo hành sắp hết cho sales
       for (final s in salesWarranty) {
         final soldAt = (s['soldAt'] as num?)?.toInt() ?? 0;
         final warranty = (s['warranty'] ?? '').toString();
@@ -1848,42 +1870,21 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
       }
 
-      final debtRemainRow = await dbConn.rawQuery(
-        "SELECT SUM(CASE WHEN totalAmount > paidAmount THEN (totalAmount - paidAmount) ELSE 0 END) as remain "
-        "FROM debts WHERE (deleted IS NULL OR deleted != 1) AND (status IS NULL OR UPPER(status) NOT IN ('PAID','CANCELLED'))",
-      );
       debtR = (debtRemainRow.first['remain'] as num?)?.toInt() ?? 0;
 
-      // FIX: Tính thêm nợ đối tác sửa chữa (repair partners)
-      try {
-        final partnerService = RepairPartnerService();
-        final partners = await partnerService.getRepairPartners();
-        final statsList = await Future.wait(
-          partners.map((p) => partnerService.getPartnerRepairStats(p.id!, partnerFirestoreId: p.firestoreId, partnerName: p.name)),
-        );
-        for (final stats in statsList) {
-          if (stats != null) {
-            final totalCost = (stats['totalCost'] ?? 0) as int;
-            final totalPaid = (stats['totalPaid'] ?? 0) as int;
-            final remain = totalCost - totalPaid;
-            if (remain > 0) debtR += remain;
-          }
-        }
-      } catch (e) {
-        debugPrint('Error loading partner debts for home: $e');
+      // Partner debt from aggregated query
+      if (partnerDebtRow.isNotEmpty) {
+        final ptCost = (partnerDebtRow.first['totalCost'] as num?)?.toInt() ?? 0;
+        final ptPaid = (partnerDebtRow.first['totalPaid'] as num?)?.toInt() ?? 0;
+        final ptRemain = ptCost - ptPaid;
+        if (ptRemain > 0) debtR += ptRemain;
       }
 
-      // Tính tổng số dữ liệu local (để biết máy mới hay không)
-      final repairsCount = await db.getRepairsCount();
-      final salesCount = await db.getSalesCount();
-      final productsCount = await db.getProductsCount();
-      final totalRecords = repairsCount + salesCount + productsCount;
+      final totalRecords = (recordCounts.first['repairs'] as int? ?? 0)
+          + (recordCounts.first['sales'] as int? ?? 0)
+          + (recordCounts.first['products'] as int? ?? 0);
 
-      // Load unread chat count và tin nhắn mới nhất TRƯỚC khi setState
-      final unread = await UserService.getUnreadChatCount(
-        FirebaseAuth.instance.currentUser!.uid,
-      );
-      final latestChat = await UserService.getLatestChatMessage();
+      debugPrint('HomeView: _loadStats total took ${stopwatch.elapsedMilliseconds}ms');
 
       if (mounted) {
         setState(() {
@@ -1917,19 +1918,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _todaySaleCost = saleCost;
           _todayRepairCost = repairCost;
           _todaySettlementIncome = settlementIncome;
-          _totalLocalRecords = totalRecords; // Cập nhật tổng records
-          unreadChatCount = unread; // Gộp vào 1 setState
-          // Cập nhật tin nhắn mới nhất
-          if (latestChat != null) {
-            _latestChatMessage = latestChat['message'] ?? '';
-            _latestChatSender = latestChat['senderName'] ?? '';
-          }
+          _totalLocalRecords = totalRecords;
           _rebuildCounter++;
-          // QUAN TRỌNG: Rebuild _tabWidgets để cập nhật các giá trị mới
-          // Các widget trong IndexedStack được cache nên cần tạo lại
           _rebuildTabWidgets();
         });
       }
+
+      // === DEFERRED: Load chat info from Firestore (don't block dashboard) ===
+      _loadChatInfo();
     } finally {
       _isLoadingStats = false;
     }
