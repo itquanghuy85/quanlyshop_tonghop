@@ -11,6 +11,8 @@ import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
+import '../utils/excel_export_helper.dart';
+import '../widgets/export_date_filter_dialog.dart';
 
 class WarrantyView extends StatefulWidget {
   const WarrantyView({super.key});
@@ -176,6 +178,20 @@ class _WarrantyViewState extends State<WarrantyView> {
           IconButton(
             onPressed: _loadAllWarranty,
             icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined, color: Colors.white),
+            tooltip: 'Xuất Excel bảo hành',
+            onPressed: () async {
+              final result = await ExportDateFilterDialog.show(context, title: 'Xuất bảo hành');
+              if (result == null) return;
+              if (!mounted) return;
+              await ExcelExportHelper.exportWarranty(
+                context,
+                startMs: result['startMs'],
+                endMs: result['endMs'],
+              );
+            },
           ),
         ],
       ),

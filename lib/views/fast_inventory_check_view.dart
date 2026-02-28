@@ -15,6 +15,10 @@ import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
 import '../utils/qr_parser.dart';
 import '../utils/imei_extractor.dart';
+import '../utils/excel_export_helper.dart';
+import '../models/inventory_check_model.dart';
+import '../services/user_service.dart';
+import 'inventory_check_history_view.dart';
 
 class FastInventoryCheckView extends StatefulWidget {
   const FastInventoryCheckView({super.key});
@@ -1086,6 +1090,93 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
     }
   }
 
+  /// Save inventory check results to DB for history tracking
+  Future<void> _saveResultsToDB() async {
+    if (_totalScanned == 0 && _checkedPhoneImeis.isEmpty && _scannedAccessoryCounts.isEmpty) {
+      NotificationService.showSnackBar('Chưa có dữ liệu kiểm kho để lưu', color: Colors.orange);
+      return;
+    }
+
+    try {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final userName = UserService.getCurrentUserName() ?? 'Unknown';
+
+      // Build InventoryCheckItem list from scanned data
+      final List<InventoryCheckItem> items = [];
+
+      // Add phone items
+      for (final phone in _expectedPhones) {
+        final isChecked = phone.imei != null && _checkedPhoneImeis.contains(phone.imei);
+        items.add(InventoryCheckItem(
+          itemId: phone.firestoreId ?? phone.id.toString(),
+          itemName: phone.name,
+          itemType: 'DIEN_THOAI',
+          imei: phone.imei,
+          color: phone.color,
+          quantity: 1,
+          isChecked: isChecked,
+          checkedAt: isChecked ? now : 0,
+        ));
+      }
+
+      // Add accessory items
+      for (final acc in _expectedAccessories) {
+        final code = acc.firestoreId ?? acc.id.toString();
+        final expectedQty = _expectedAccessoryCounts[code] ?? acc.quantity;
+        final scannedQty = _scannedAccessoryCounts[code] ?? 0;
+        items.add(InventoryCheckItem(
+          itemId: code,
+          itemName: acc.name,
+          itemType: 'PHỤ KIỆN',
+          imei: null,
+          color: acc.color,
+          quantity: expectedQty,
+          isChecked: scannedQty >= expectedQty,
+          checkedAt: scannedQty > 0 ? now : 0,
+        ));
+      }
+
+      // Determine check type
+      String checkType;
+      if (_expectedPhones.isNotEmpty && _expectedAccessories.isEmpty) {
+        checkType = 'DIEN_THOAI';
+      } else if (_expectedPhones.isEmpty && _expectedAccessories.isNotEmpty) {
+        checkType = 'PHỤ KIỆN';
+      } else {
+        checkType = 'DIEN_THOAI'; // default for mixed
+      }
+
+      // Determine completion
+      final checkedCount = items.where((i) => i.isChecked).length;
+      final isCompleted = checkedCount == items.length;
+
+      // Build data map for DB insert
+      final data = {
+        'type': checkType,
+        'checkDate': now,
+        'itemsJson': jsonEncode(items.map((i) => i.toMap()).toList()),
+        'status': isCompleted ? 'completed' : 'in_progress',
+        'createdBy': userName,
+        'isSynced': 0,
+        'isCompleted': isCompleted ? 1 : 0,
+      };
+
+      await db.insertInventoryCheck(data);
+
+      if (mounted) {
+        NotificationService.showSnackBar(
+          '✅ Đã lưu kết quả kiểm kho ($checkedCount/${items.length} mục)',
+          color: Colors.green,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error saving inventory check: $e');
+      if (mounted) {
+        NotificationService.showSnackBar('Lỗi lưu kiểm kho: $e', color: Colors.red);
+      }
+    }
+  }
+
   /// Khôi phục kết quả kiểm kho từ bản nháp
   Future<bool> _loadDraft() async {
     try {
@@ -2012,6 +2103,22 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
               onPressed: () => _saveDraft(),
               tooltip: 'Lưu tạm ($_totalScanned mục)',
             ),
+          // NÚT LƯU KẾT QUẢ VÀO DB
+          if (_totalScanned > 0)
+            IconButton(
+              icon: const Icon(Icons.inventory_2),
+              onPressed: _saveResultsToDB,
+              tooltip: 'Lưu kết quả kiểm kho',
+            ),
+          // NÚT LỊCH SỬ KIỂM KHO
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const InventoryCheckHistoryView()),
+            ),
+            tooltip: 'Lịch sử kiểm kho',
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: _showScanSettings,

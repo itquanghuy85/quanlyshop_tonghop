@@ -9,6 +9,8 @@ import '../theme/app_text_styles.dart';
 import '../widgets/global_search_bar.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/vietnamese_utils.dart';
+import '../utils/excel_export_helper.dart';
+import '../widgets/export_date_filter_dialog.dart';
 
 class CustomerManagementView extends StatefulWidget {
   const CustomerManagementView({super.key});
@@ -271,6 +273,20 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
             icon: const Icon(Icons.add),
             onPressed: _addCustomer,
             tooltip: AppLocalizations.of(context)!.addCustomer,
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Xuất Excel khách hàng',
+            onPressed: () async {
+              final result = await ExportDateFilterDialog.show(context, title: 'Xuất khách hàng');
+              if (result == null) return;
+              if (!mounted) return;
+              await ExcelExportHelper.exportCustomers(
+                context,
+                startMs: result['startMs'],
+                endMs: result['endMs'],
+              );
+            },
           ),
         ],
       ),

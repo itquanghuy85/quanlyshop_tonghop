@@ -15,6 +15,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/excel_export_helper.dart';
+import '../widgets/export_date_filter_dialog.dart';
 
 class AttendanceView extends StatefulWidget {
   const AttendanceView({super.key});
@@ -353,6 +355,22 @@ class _AttendanceViewState extends State<AttendanceView>
       appBar: CustomAppBar.build(
         title: AppLocalizations.of(context)?.attendance ?? "ATTENDANCE",
         subtitle: AppLocalizations.of(context)?.attendanceManagement ?? "Manage work hours",
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Xuất Excel chấm công',
+            onPressed: () async {
+              final result = await ExportDateFilterDialog.show(context, title: 'Xuất chấm công');
+              if (result == null) return;
+              if (!mounted) return;
+              await ExcelExportHelper.exportAttendance(
+                context,
+                startMs: result['startMs'],
+                endMs: result['endMs'],
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,

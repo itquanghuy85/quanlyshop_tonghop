@@ -25,6 +25,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/excel_export_helper.dart';
+import '../widgets/export_date_filter_dialog.dart';
 
 ImageProvider? _safeImageProvider(String? path) {
   if (path == null || path.isEmpty) return null;
@@ -2259,6 +2261,59 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
             ),
 
           const SizedBox(height: 10),
+          // Export buttons row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                if (_enableRepair)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final result = await ExportDateFilterDialog.show(context, title: 'Xuất máy đã sửa');
+                        if (result == null || !mounted) return;
+                        await ExcelExportHelper.exportStaffRepairs(
+                          context,
+                          widget.name,
+                          _repairsCompleted,
+                          startMs: result['startMs'],
+                          endMs: result['endMs'],
+                        );
+                      },
+                      icon: const Icon(Icons.file_download_outlined, size: 16),
+                      label: const Text('Xuất đơn sửa', style: TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ),
+                if (_enableRepair) const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final result = await ExportDateFilterDialog.show(context, title: 'Xuất đơn bán');
+                      if (result == null || !mounted) return;
+                      await ExcelExportHelper.exportStaffSales(
+                        context,
+                        widget.name,
+                        _sales,
+                        startMs: result['startMs'],
+                        endMs: result['endMs'],
+                      );
+                    },
+                    icon: const Icon(Icons.file_download_outlined, size: 16),
+                    label: const Text('Xuất đơn bán', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
           TabBar(
             controller: _tabController,
             labelColor: Colors.blueAccent,

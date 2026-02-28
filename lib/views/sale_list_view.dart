@@ -13,6 +13,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
 import '../utils/vietnamese_utils.dart';
+import '../utils/excel_export_helper.dart';
+import '../widgets/export_date_filter_dialog.dart';
 
 class SaleListView extends StatefulWidget {
   final bool todayOnly;
@@ -486,6 +488,20 @@ class _SaleListViewState extends State<SaleListView> {
           IconButton(
             onPressed: _refresh,
             icon: const Icon(Icons.refresh_rounded, color: AppBarAccents.sales),
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined, color: AppBarAccents.sales),
+            tooltip: 'Xuất Excel đơn bán',
+            onPressed: () async {
+              final result = await ExportDateFilterDialog.show(context, title: 'Xuất đơn bán');
+              if (result == null) return;
+              if (!mounted) return;
+              await ExcelExportHelper.exportSales(
+                context,
+                startMs: result['startMs'],
+                endMs: result['endMs'],
+              );
+            },
           ),
         ],
         bottom: PreferredSize(

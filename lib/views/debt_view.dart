@@ -21,6 +21,8 @@ import '../theme/app_colors.dart';
 import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
 import 'repair_partner_detail_view.dart';
+import '../utils/excel_export_helper.dart';
+import '../widgets/export_date_filter_dialog.dart';
 
 class DebtView extends StatefulWidget {
   const DebtView({super.key});
@@ -591,6 +593,20 @@ class _DebtViewState extends State<DebtView>
                 tooltip: 'Đồng bộ với Firebase',
               ),
             ],
+          ),
+          IconButton(
+            icon: Icon(Icons.file_download_outlined, color: AppBarAccents.customer),
+            tooltip: 'Xuất Excel công nợ',
+            onPressed: () async {
+              final result = await ExportDateFilterDialog.show(context, title: 'Xuất công nợ');
+              if (result == null) return;
+              if (!mounted) return;
+              await ExcelExportHelper.exportDebts(
+                context,
+                startMs: result['startMs'],
+                endMs: result['endMs'],
+              );
+            },
           ),
         ],
       ),

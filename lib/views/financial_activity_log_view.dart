@@ -10,6 +10,8 @@ import '../services/category_service.dart';
 import '../services/user_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../theme/app_text_styles.dart';
+import '../utils/excel_export_helper.dart';
+import '../widgets/export_date_filter_dialog.dart';
 
 /// Trang theo dõi nhật ký hoạt động tài chính + hệ thống
 /// Chỉ xem, không sửa - có bộ lọc
@@ -687,6 +689,25 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
             ),
             tooltip: 'Làm mới',
             splashRadius: 18,
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.file_download_outlined,
+              size: 20,
+              color: AppBarAccents.finance,
+            ),
+            tooltip: 'Xuất Excel nhật ký',
+            splashRadius: 18,
+            onPressed: () async {
+              final result = await ExportDateFilterDialog.show(context, title: 'Xuất nhật ký');
+              if (result == null) return;
+              if (!mounted) return;
+              await ExcelExportHelper.exportActivityLog(
+                context,
+                startMs: result['startMs'],
+                endMs: result['endMs'],
+              );
+            },
           ),
         ],
         bottom: PreferredSize(

@@ -42,6 +42,8 @@ import '../widgets/custom_app_bar.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
 import '../models/shop_settings_model.dart';
+import '../utils/excel_export_helper.dart';
+import '../widgets/export_date_filter_dialog.dart';
 
 class InventoryView extends StatefulWidget {
   final String role;
@@ -1851,6 +1853,25 @@ class _InventoryViewState extends State<InventoryView>
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.file_download_outlined,
+              color: AppBarAccents.inventory,
+              size: 22,
+            ),
+            tooltip: 'Xuất Excel kho hàng',
+            splashRadius: 20,
+            onPressed: () async {
+              final result = await ExportDateFilterDialog.show(context, title: 'Xuất kho hàng');
+              if (result == null) return;
+              if (!mounted) return;
+              await ExcelExportHelper.exportProducts(
+                context,
+                startMs: result['startMs'],
+                endMs: result['endMs'],
+              );
+            },
           ),
         ],
       ),

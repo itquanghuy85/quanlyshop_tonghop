@@ -22,6 +22,8 @@ import '../theme/app_button_styles.dart';
 import '../widgets/gradient_fab.dart';
 import 'fast_stock_in_view.dart';
 import '../widgets/custom_app_bar.dart';
+import '../utils/excel_export_helper.dart';
+import '../widgets/export_date_filter_dialog.dart';
 
 class ExpenseView extends StatefulWidget {
   final bool embedded;
@@ -708,6 +710,20 @@ class _ExpenseViewState extends State<ExpenseView> {
                 tooltip: 'Đồng bộ với Firebase',
               ),
             ],
+          ),
+          IconButton(
+            icon: Icon(Icons.file_download_outlined, color: AppBarAccents.staff),
+            tooltip: 'Xuất Excel thu chi',
+            onPressed: () async {
+              final result = await ExportDateFilterDialog.show(context, title: 'Xuất thu chi');
+              if (result == null) return;
+              if (!mounted) return;
+              await ExcelExportHelper.exportExpenses(
+                context,
+                startMs: result['startMs'],
+                endMs: result['endMs'],
+              );
+            },
           ),
         ],
       ),
