@@ -2527,8 +2527,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
   }
 }
 
-/// Widget tìm kiếm và chọn NCC - hỗ trợ tìm kiếm có dấu và không dấu
-class _SupplierSearchField extends StatefulWidget {
+/// Widget chọn NCC - mở bottom sheet thay vì dropdown inline
+/// (Tránh bug layout trắng do nested ListView inside SingleChildScrollView inside AlertDialog)
+class _SupplierSearchField extends StatelessWidget {
   final List<Map<String, dynamic>> suppliers;
   final int? selectedSupplierId;
   final ValueChanged<int?> onChanged;
@@ -2539,29 +2540,88 @@ class _SupplierSearchField extends StatefulWidget {
     required this.onChanged,
   });
 
-  @override
-  State<_SupplierSearchField> createState() => _SupplierSearchFieldState();
-}
-
-class _SupplierSearchFieldState extends State<_SupplierSearchField> {
-  final TextEditingController _searchCtrl = TextEditingController();
-  bool _showDropdown = false;
-
   String _getSelectedName() {
-    if (widget.selectedSupplierId == null) return '';
-    final s = widget.suppliers.firstWhere(
-      (e) => e['id'] == widget.selectedSupplierId,
+    if (selectedSupplierId == null) return '';
+    final s = suppliers.firstWhere(
+      (e) => e['id'] == selectedSupplierId,
       orElse: () => {},
     );
     return s['name']?.toString() ?? '';
   }
 
-  List<Map<String, dynamic>> _filteredSuppliers() {
-    final query = _searchCtrl.text.trim();
-    if (query.isEmpty) return widget.suppliers;
+  void _openSupplierPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetCtx) => _SupplierPickerSheet(
+        suppliers: suppliers,
+        selectedSupplierId: selectedSupplierId,
+        onSelected: (id) {
+          onChanged(id);
+          Navigator.pop(sheetCtx);
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedName = _getSelectedName();
+    return InkWell(
+      onTap: () => _openSupplierPicker(context),
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: "Nhà cung cấp (${suppliers.length} NCC)",
+          prefixIcon: const Icon(Icons.store),
+          suffixIcon: const Icon(Icons.arrow_drop_down),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+        ),
+        child: Text(
+          selectedName.isEmpty ? '-- Chọn NCC --' : selectedName,
+          style: TextStyle(
+            color: selectedName.isEmpty ? Colors.grey : Colors.black87,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet for supplier selection with search
+class _SupplierPickerSheet extends StatefulWidget {
+  final List<Map<String, dynamic>> suppliers;
+  final int? selectedSupplierId;
+  final ValueChanged<int?> onSelected;
+
+  const _SupplierPickerSheet({
+    required this.suppliers,
+    required this.selectedSupplierId,
+    required this.onSelected,
+  });
+
+  @override
+  State<_SupplierPickerSheet> createState() => _SupplierPickerSheetState();
+}
+
+class _SupplierPickerSheetState extends State<_SupplierPickerSheet> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+
+  List<Map<String, dynamic>> get _filtered {
+    if (_query.isEmpty) return widget.suppliers;
     return widget.suppliers.where((s) {
       final name = s['name']?.toString() ?? '';
-      return VietnameseUtils.containsVietnamese(name, query);
+      return VietnameseUtils.containsVietnamese(name, _query);
     }).toList();
   }
 
@@ -2573,126 +2633,118 @@ class _SupplierSearchFieldState extends State<_SupplierSearchField> {
 
   @override
   Widget build(BuildContext context) {
-    final selectedName = _getSelectedName();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Selected supplier display + tap to change
-        InkWell(
-          onTap: () => setState(() {
-            _showDropdown = !_showDropdown;
-            if (_showDropdown) _searchCtrl.clear();
-          }),
-          borderRadius: BorderRadius.circular(12),
-          child: InputDecorator(
-            decoration: InputDecoration(
-              labelText: "Nhà cung cấp (${widget.suppliers.length} NCC)",
-              prefixIcon: const Icon(Icons.store),
-              suffixIcon: Icon(
-                _showDropdown ? Icons.arrow_drop_up : Icons.arrow_drop_down,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 8,
-              ),
-            ),
-            child: Text(
-              selectedName.isEmpty ? '-- Chọn NCC --' : selectedName,
-              style: TextStyle(
-                color: selectedName.isEmpty ? Colors.grey : Colors.black87,
-              ),
-            ),
-          ),
-        ),
-        // Dropdown search area
-        if (_showDropdown) ...[
-          const SizedBox(height: 8),
-          TextField(
-            controller: _searchCtrl,
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: 'Tìm NCC (có dấu hoặc không dấu)...',
-              prefixIcon: const Icon(Icons.search, size: 20),
-              isDense: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
-              ),
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            constraints: const BoxConstraints(maxHeight: 160),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: ListView(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              children: [
-                // Option to clear selection
-                ListTile(
-                  dense: true,
-                  visualDensity: VisualDensity.compact,
-                  title: const Text(
-                    '-- Bỏ chọn --',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  onTap: () {
-                    widget.onChanged(null);
-                    setState(() => _showDropdown = false);
-                  },
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.55,
+        child: Column(
+          children: [
+            // Handle bar
+            const SizedBox(height: 8),
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                ..._filteredSuppliers().map((s) {
-                  final id = s['id'] as int?;
-                  final name = s['name']?.toString() ?? 'N/A';
-                  final isSelected = id == widget.selectedSupplierId;
-                  return ListTile(
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
-                    selected: isSelected,
-                    selectedTileColor: Colors.blue.withOpacity(0.1),
-                    leading: Icon(
-                      isSelected ? Icons.check_circle : Icons.store_outlined,
-                      size: 18,
-                      color: isSelected ? Colors.blue : Colors.grey,
-                    ),
-                    title: Text(
-                      name,
-                      style: TextStyle(
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                    onTap: () {
-                      widget.onChanged(id);
-                      setState(() => _showDropdown = false);
-                    },
-                  );
-                }),
-                if (_filteredSuppliers().isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text(
-                      'Không tìm thấy NCC',
-                      style: TextStyle(color: Colors.grey),
-                      textAlign: TextAlign.center,
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.store, color: Colors.teal, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Chọn nhà cung cấp (${widget.suppliers.length})',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-              ],
+                  const Spacer(),
+                  // Clear selection
+                  if (widget.selectedSupplierId != null)
+                    TextButton(
+                      onPressed: () => widget.onSelected(null),
+                      child: const Text('Bỏ chọn', style: TextStyle(fontSize: 12)),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ],
+            // Search
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _searchCtrl,
+                autofocus: false,
+                decoration: InputDecoration(
+                  hintText: 'Tìm NCC (có dấu hoặc không dấu)...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                ),
+                onChanged: (v) => setState(() => _query = v.trim()),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Supplier list
+            Expanded(
+              child: _filtered.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Không tìm thấy NCC',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _filtered.length,
+                      padding: EdgeInsets.zero,
+                      itemBuilder: (ctx, i) {
+                        final s = _filtered[i];
+                        final id = s['id'] as int?;
+                        final name = s['name']?.toString() ?? 'N/A';
+                        final phone = s['phone']?.toString() ?? '';
+                        final isSelected = id == widget.selectedSupplierId;
+                        return ListTile(
+                          dense: true,
+                          selected: isSelected,
+                          selectedTileColor: Colors.blue.withOpacity(0.08),
+                          leading: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: isSelected
+                                ? Colors.blue.withOpacity(0.15)
+                                : Colors.grey.withOpacity(0.1),
+                            child: Icon(
+                              isSelected ? Icons.check_circle : Icons.store_outlined,
+                              size: 18,
+                              color: isSelected ? Colors.blue : Colors.grey,
+                            ),
+                          ),
+                          title: Text(
+                            name,
+                            style: TextStyle(
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          subtitle: phone.isNotEmpty ? Text(phone, style: const TextStyle(fontSize: 12)) : null,
+                          onTap: () => widget.onSelected(id),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
