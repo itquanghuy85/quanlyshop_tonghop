@@ -1495,6 +1495,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   int _todayPartnerPaid = 0; // TT đối tác sửa chữa
   int _todaySaleCost = 0; // Giá vốn bán hàng
   int _todayRepairCost = 0; // Giá vốn sửa chữa
+  int _todaySettlementIncome = 0; // Tất toán NH (bank settlement)
 
   Future<void> _loadStats() async {
     // Guard chống load nhiều lần liên tiếp
@@ -1537,6 +1538,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           'paymentMethod',
           'isInstallment',
           'downPayment',
+          'downPaymentMethod',
           'settlementReceivedAt',
           'settlementAmount',
           'loanAmount',
@@ -1545,6 +1547,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           'warranty',
         ],
         where: 'soldAt >= ? AND soldAt < ?',
+        whereArgs: [startMs, endMs],
+      );
+
+      // Settlements happening today (may be from sales on other days)
+      final fSettlements = await dbConn.query(
+        'sales',
+        columns: ['totalPrice', 'totalCost', 'downPayment', 'settlementAmount', 'loanAmount', 'soldAt'],
+        where: 'isInstallment = 1 AND settlementReceivedAt IS NOT NULL AND settlementReceivedAt >= ? AND settlementReceivedAt < ?',
         whereArgs: [startMs, endMs],
       );
 
@@ -1559,7 +1569,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       final shopId = UserService.getShopIdSync();
       final fExpenses = await dbConn.query(
         'expenses',
-        columns: ['amount', 'category', 'description', 'title', 'date', 'type'],
+        columns: ['amount', 'category', 'description', 'title', 'date', 'type', 'paymentMethod'],
         where: shopId != null && shopId.isNotEmpty
             ? '(date >= ? AND date < ?) AND (shopId = ? OR shopId IS NULL)'
             : 'date >= ? AND date < ?',
@@ -1570,197 +1580,231 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
       final debtPayments = await dbConn.query(
         'debt_payments',
-        columns: ['amount', 'paidAt', 'debtType'],
+        columns: ['amount', 'paidAt', 'debtType', 'paymentMethod'],
         where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ?',
         whereArgs: [startMs, endMs],
       );
 
-      // FIX: Lấy thanh toán đối tác sửa chữa hôm nay
+      // Thanh toán đối tác sửa chữa hôm nay
       final partnerPayments = await dbConn.query(
         'repair_partner_payments',
-        columns: ['amount', 'paidAt'],
+        columns: ['amount', 'paidAt', 'paymentMethod'],
         where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
         whereArgs: [startMs, endMs],
       );
 
+      // Thanh toán trực tiếp cho NCC hôm nay
+      final supplierPayments = await dbConn.query(
+        'supplier_payments',
+        columns: ['amount', 'paidAt', 'paymentMethod'],
+        where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
+        whereArgs: [startMs, endMs],
+      );
+
+      // Nhập hàng từ NCC hôm nay
+      final supplierImports = await dbConn.query(
+        'supplier_import_history',
+        columns: ['totalAmount', 'costPrice', 'paymentMethod', 'importDate', 'createdAt'],
+        where: '((importDate IS NOT NULL AND importDate >= ? AND importDate < ?) OR (importDate IS NULL AND createdAt >= ? AND createdAt < ?))',
+        whereArgs: [startMs, endMs, startMs, endMs],
+      );
+
       int doneT = 0, soldT = 0, debtR = 0, expW = 0;
 
-      // === TÍNH TOÁN CHÍNH XÁC NHƯ REVENUE_VIEW.DART ===
-      // THU HÔM NAY - Tính theo ACCRUAL BASIS (cơ sở dồn tích)
-      // K3: Bán nợ VẪN PHẢI tính vào doanh thu và giá vốn, chỉ KHÔNG tăng quỹ tiền mặt/NH
-      // Tính tổng DOANH THU và GIÁ VỐN từ sales (bao gồm cả công nợ)
-      int salesIncome = 0; // Doanh thu = tổng giá bán (cả công nợ)
-      int salesCost = 0; // Giá vốn = tổng giá vốn (cả công nợ)
-      int salesDebt = 0; // Công nợ = số tiền chưa thu (để hiển thị riêng)
+      // === PHÂN TÍCH GIAO DỊCH - MIRROR SỔ QUỸ _analyzeTransactions ===
+      // Track cash flow (cashIn/cashOut/bankIn/bankOut) cho biểu đồ THU/CHI
+      // Track accrual categories cho CHI TIẾT THU/CHI và LỢI NHUẬN RÒNG
+      int cashIn = 0, cashOut = 0, bankIn = 0, bankOut = 0;
+      int saleIncome = 0, repairIncome = 0, debtCollected = 0;
+      int miscIncome = 0; // Thu phát sinh (type=THU)
+      int expenseOut = 0, importOut = 0, supplierPaid = 0;
+      int saleCost = 0, repairCost = 0;
+      int settlementIncome = 0;
+
+      // ===== SALES (ACCRUAL BASIS) =====
       for (final s in fSales) {
         final paymentMethod = (s['paymentMethod'] ?? '').toString();
         final totalPrice = (s['totalPrice'] as num?)?.toInt() ?? 0;
         final totalCost = (s['totalCost'] as num?)?.toInt() ?? 0;
         final isInstallment = (s['isInstallment'] == 1 || s['isInstallment'] == true);
+
         if (paymentMethod == 'CÔNG NỢ') {
-          // K3: Công nợ - VẪN TÍNH doanh thu và giá vốn (accrual basis)
-          // Nhưng KHÔNG tăng quỹ tiền mặt/ngân hàng
-          salesIncome += totalPrice;
-          salesCost += totalCost;
-          salesDebt += totalPrice; // Track công nợ riêng
+          // Accrual: tính doanh thu + giá vốn, nhưng KHÔNG tăng quỹ tiền
+          saleIncome += totalPrice;
+          saleCost += totalCost;
           continue;
         }
+
         if (isInstallment) {
-          // Trả góp: tính theo số tiền ĐÃ THU ĐƯỢC (down + settlement)
-          // Vì ngân hàng giải ngân phần còn lại, phải track riêng
+          // Trả góp: chỉ tính phần down vào ngày bán
           final downPaid = (s['downPayment'] as num?)?.toInt() ?? 0;
-          final settlementReceivedAt = (s['settlementReceivedAt'] as num?)?.toInt();
-          final settlementAmount = (s['settlementAmount'] as num?)?.toInt() ?? 0;
-          final loanAmount = (s['loanAmount'] as num?)?.toInt() ?? 0;
-          final settlementPaid =
-              (settlementReceivedAt != null && _isSameDay(settlementReceivedAt))
-                  ? settlementAmount.clamp(0, loanAmount)
-                  : 0;
-          final totalPaid = downPaid + settlementPaid;
+          saleIncome += downPaid;
 
-          // Doanh thu = số tiền đã nhận được (down + settlement)
-          salesIncome += totalPaid;
+          final ratio = totalPrice > 0 ? downPaid / totalPrice : 0.0;
+          saleCost += (totalCost * ratio).round();
 
-          // Giá vốn tính theo tỷ lệ đã thu
-          final ratio = totalPrice > 0 ? totalPaid / totalPrice : 0.0;
-          salesCost += (totalCost * ratio).round();
+          final downMethod = (s['downPaymentMethod'] ?? paymentMethod).toString();
+          if (downMethod == 'TIỀN MẶT') {
+            cashIn += downPaid;
+          } else {
+            bankIn += downPaid;
+          }
         } else {
-          // Bán thường (tiền mặt/chuyển khoản)
-          salesIncome += totalPrice;
-          salesCost += totalCost;
+          saleIncome += totalPrice;
+          saleCost += totalCost;
+          if (paymentMethod == 'TIỀN MẶT') {
+            cashIn += totalPrice;
+          } else {
+            bankIn += totalPrice;
+          }
         }
       }
 
-      // Tính tổng DOANH THU và GIÁ VỐN từ repairs (bao gồm cả công nợ - accrual basis)
-      int repairsIncome = 0;
-      int repairsCost = 0;
-      int repairsDebt = 0; // Track công nợ sửa chữa riêng
-      for (final r in fRepairs) {
-        final price = (r['price'] as num?)?.toInt() ?? 0;
-        final cost = (r['cost'] as num?)?.toInt() ?? 0;
-        final paymentMethod = (r['paymentMethod'] ?? '').toString();
-        // Accrual basis: tính cả công nợ vào doanh thu và giá vốn
-        repairsIncome += price;
-        repairsCost += cost;
-        if (paymentMethod == 'CÔNG NỢ') {
-          repairsDebt += price;
+      // ===== BANK SETTLEMENT (Tất toán NH) =====
+      // Query riêng: installment sales settled today (có thể bán ngày khác)
+      for (final s in fSettlements) {
+        final stlAmount = (s['settlementAmount'] as num?)?.toInt() ?? 0;
+        final loanAmount = (s['loanAmount'] as num?)?.toInt() ?? 0;
+        final amount = stlAmount.clamp(0, loanAmount);
+        if (amount > 0) {
+          settlementIncome += amount;
+          bankIn += amount;
+          // Giá vốn phần còn lại
+          final totalPrice = (s['totalPrice'] as num?)?.toInt() ?? 0;
+          final totalCost = (s['totalCost'] as num?)?.toInt() ?? 0;
+          final downPaid = (s['downPayment'] as num?)?.toInt() ?? 0;
+          final downRatio = totalPrice > 0 ? downPaid / totalPrice : 0.0;
+          final remainRatio = 1.0 - downRatio;
+          saleCost += (totalCost * remainRatio).round();
         }
       }
 
-      int totalIn = salesIncome + repairsIncome;
-
-      // K5: Tính thu nợ khách hàng VÀ trả nợ NCC
-      // Thu nợ chỉ ảnh hưởng quỹ tiền mặt/NH, không ảnh hưởng lợi nhuận (accrual)
-      // Nhưng trả nợ NCC cần hiển thị trong "Chi phí hôm nay" (cash flow)
-      int debtCollected = 0;
-      int debtPaidToSupplier = 0; // Tiền trả nợ NCC hôm nay
-      for (final p in debtPayments) {
-        final paidAt = (p['paidAt'] as num?)?.toInt();
-        if (paidAt == null) continue;
-        if (!_isSameDay(paidAt)) continue;
-        final amount = (p['amount'] as num?)?.toInt() ?? 0;
-        if (p['debtType'] == 'SHOP_OWES') {
-          // SHOP_OWES = trả nợ NCC → tính vào chi tiền thực
-          debtPaidToSupplier += amount;
-        } else {
-          // CUSTOMER_OWES = thu nợ khách
-          debtCollected += amount;
+      // ===== REPAIRS (ACCRUAL BASIS) =====
+      if (_enableRepair) {
+        for (final r in fRepairs) {
+          final price = (r['price'] as num?)?.toInt() ?? 0;
+          final cost = (r['cost'] as num?)?.toInt() ?? 0;
+          final paymentMethod = (r['paymentMethod'] ?? '').toString();
+          repairIncome += price;
+          repairCost += cost;
+          if (paymentMethod == 'CÔNG NỢ') continue; // No cash flow
+          if (paymentMethod == 'TIỀN MẶT') {
+            cashIn += price;
+          } else {
+            bankIn += price;
+          }
+        }
+      } else {
+        for (final r in fRepairs) {
+          final price = (r['price'] as num?)?.toInt() ?? 0;
+          final cost = (r['cost'] as num?)?.toInt() ?? 0;
+          repairIncome += price;
+          repairCost += cost;
         }
       }
 
-      // KHÔNG cộng debtCollected vào totalIn vì doanh thu đã tính ở K3 (accrual basis)
-      // totalIn += debtCollected; // BỎ DÒNG NÀY
-
-      // CHI HÔM NAY = tổng expenses (LOẠI TRỪ nhập hàng/linh kiện/purchase vì đã tính trong giá vốn)
-      // FIX: Loại trừ type='THU' (thu phát sinh) vì đó là KHOẢN THU, không phải chi
-      int totalOut = 0;
-      int totalIncomeExpense = 0; // Thu phát sinh (type=THU)
-      int stockInCost = 0; // Chi phí nhập kho hôm nay (tiền mặt/CK)
+      // ===== EXPENSES =====
       for (final e in fExpenses) {
         final category = (e['category'] as String? ?? '').toUpperCase();
-        final description = (e['description'] as String? ?? '').toUpperCase();
-        final title = (e['title'] as String? ?? '').toUpperCase();
         final amount = (e['amount'] as num?)?.toInt() ?? 0;
-        final type = (e['type'] as String? ?? '').toUpperCase();
+        final eType = (e['type'] as String? ?? '').toUpperCase();
+        final method = (e['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
 
-        // Thu phát sinh (type=THU) là khoản THU, không tính vào chi
-        if (type == 'THU') {
-          totalIncomeExpense += amount;
-          debugPrint('THU PHÁT SINH (HOME): category=$category, amount=$amount');
+        // Thu phát sinh (type=THU) → income
+        if (eType == 'THU') {
+          miscIncome += amount;
+          if (method == 'TIỀN MẶT') { cashIn += amount; } else { bankIn += amount; }
           continue;
         }
 
-        // Loại trừ các chi phí nhập hàng/linh kiện/purchase vì sẽ được tính qua giá vốn khi bán/sửa
-        // Kiểm tra cả category, description và title để đảm bảo không bỏ sót
-        final isImportExpense =
-            category.contains('NHẬP HÀNG') ||
-            category.contains('NHẬP LINH KIỆN') ||
-            category.contains('PURCHASE') ||
-            category.contains('STOCK') ||
+        // Import expenses (tính riêng)
+        final isImport = category.contains('NHẬP') ||
             category.contains('LINH KIỆN') ||
-            category.contains('ĐƠN NHẬP') ||
-            category.contains('REPAIR_PARTS') ||
-            description.contains('NHẬP LINH KIỆN') ||
-            description.contains('NHẬP HÀNG') ||
-            description.contains('Nhập linh kiện') ||
-            title.contains('NHẬP LINH KIỆN') ||
-            title.contains('NHẬP HÀNG');
+            category.contains('PURCHASE');
 
-        if (isImportExpense) {
-          stockInCost += amount; // Tính riêng chi phí nhập kho
-          debugPrint(
-            'CHI PHÍ NHẬP KHO: category=$category, amount=$amount',
-          );
-        } else {
-          totalOut += amount;
-          debugPrint('CHI PHÍ HOẠT ĐỘNG: category=$category, amount=$amount');
+        if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
+
+        if (!isImport) {
+          expenseOut += amount;
         }
       }
 
-      // FIX: Tính tổng thanh toán đối tác sửa chữa hôm nay
-      int partnerPaid = 0;
-      for (final p in partnerPayments) {
-        final amount = (p['amount'] as num?)?.toInt() ?? 0;
-        partnerPaid += amount;
+      // ===== SUPPLIER IMPORT (with dedup against expenses) =====
+      for (final imp in supplierImports) {
+        final method = (imp['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
+        if (method == 'CÔNG NỢ') continue;
+
+        final amount = (imp['totalAmount'] ?? imp['costPrice'] ?? 0) as int;
+        importOut += amount;
+
+        // Dedup: nếu đã có expense nhập hàng cùng ngày với cùng amount → không tính cash flow lần nữa
+        final hasMatchingExpense = fExpenses.any((e) {
+          final cat = (e['category'] ?? '').toString().toUpperCase();
+          if (!cat.contains('NHẬP') && !cat.contains('LINH KIỆN') && !cat.contains('PURCHASE')) return false;
+          final expAmount = (e['amount'] as num?)?.toInt() ?? 0;
+          return (expAmount - amount).abs() < 1000;
+        });
+        if (!hasMatchingExpense) {
+          if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
+        }
       }
 
-      // Chi phí hôm nay = expenses hoạt động + trả nợ NCC + thanh toán đối tác (cash flow thực)
-      // Chi phí nhập kho tính riêng
-      // Lợi nhuận vẫn dùng totalOut (accrual basis, không có trả nợ NCC, không có nhập kho)
-      final todayCashOut = totalOut + debtPaidToSupplier + partnerPaid;
+      // ===== SUPPLIER PAYMENTS (thanh toán trực tiếp NCC) =====
+      for (final p in supplierPayments) {
+        final amount = (p['amount'] as num?)?.toInt() ?? 0;
+        final method = (p['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
+        supplierPaid += amount;
+        if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
+      }
 
-      // FIX: Thu phát sinh (type=THU) cộng vào doanh thu
-      totalIn += totalIncomeExpense;
+      // ===== REPAIR PARTNER PAYMENTS =====
+      if (_enableRepair) {
+        for (final p in partnerPayments) {
+          final amount = (p['amount'] as num?)?.toInt() ?? 0;
+          final method = (p['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
+          supplierPaid += amount;
+          if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
+        }
+      }
 
-      // Debug log
-      debugPrint('=== TÍNH LỢI NHUẬN (HOME) - ACCRUAL BASIS ===');
-      debugPrint('salesIncome=$salesIncome (bao gồm công nợ: $salesDebt)');
-      debugPrint('salesCost=$salesCost');
-      debugPrint('totalIncomeExpense=$totalIncomeExpense (thu phát sinh type=THU)');
-      debugPrint(
-        'repairsIncome=$repairsIncome (bao gồm công nợ: $repairsDebt), repairsCost=$repairsCost',
-      );
-      debugPrint(
-        'debtCollected=$debtCollected (chỉ ảnh hưởng quỹ, không ảnh hưởng lợi nhuận)',
-      );
-      debugPrint(
-        'debtPaidToSupplier=$debtPaidToSupplier (trả nợ NCC - hiển thị trong chi phí)',
-      );
-      debugPrint(
-        'partnerPaid=$partnerPaid (thanh toán đối tác sửa chữa - hiển thị trong chi phí)',
-      );
-      debugPrint(
-        'totalIn=$totalIn, totalOut=$totalOut, todayCashOut=$todayCashOut',
-      );
-      debugPrint('profit = $totalIn - $totalOut - $salesCost - $repairsCost (accrual, không trừ trả nợ NCC)');
+      // ===== DEBT PAYMENTS =====
+      for (final p in debtPayments) {
+        final amount = (p['amount'] as num?)?.toInt() ?? 0;
+        final method = (p['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
+        final debtType = (p['debtType'] ?? '').toString();
 
-      // LỢI NHUẬN RÒNG = DOANH THU - CHI PHÍ - GIÁ VỐN (ACCRUAL BASIS)
-      // Với accrual basis, lợi nhuận được tính ngay khi giao dịch xảy ra
-      // Không phụ thuộc vào việc thu tiền hay chưa
-      int profit = totalIn - totalOut - salesCost - repairsCost;
-      final saleProfit = salesIncome - salesCost;
-      final repairProfit = repairsIncome - repairsCost;
-      debugPrint('profit = $profit (sale=$saleProfit, repair=$repairProfit)');
+        if (debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES') {
+          // Trả nợ NCC → chi tiền
+          supplierPaid += amount;
+          if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
+        } else {
+          // Thu nợ KH → thu tiền (không ảnh hưởng lợi nhuận accrual)
+          debtCollected += amount;
+          if (method == 'TIỀN MẶT') { cashIn += amount; } else { bankIn += amount; }
+        }
+      }
+
+      // ===== KẾT QUẢ =====
+      final totalCashFlowIn = cashIn + bankIn;
+      final totalCashFlowOut = cashOut + bankOut;
+
+      // LỢI NHUẬN RÒNG (ACCRUAL BASIS) = Doanh thu - Chi phí - Giá vốn
+      // saleIncome đã bao gồm cả bán công nợ
+      // debtCollected KHÔNG tính vào lợi nhuận (đã tính khi bán)
+      final profit = saleIncome + settlementIncome + repairIncome + miscIncome
+          - expenseOut - saleCost - repairCost;
+      final saleProfit = saleIncome + settlementIncome - saleCost;
+      final repairProfit = repairIncome - repairCost;
+
+      debugPrint('=== HOME ANALYSIS (MIRROR SỔ QUỸ) ===');
+      debugPrint('💵 cashIn=$cashIn, cashOut=$cashOut');
+      debugPrint('🏦 bankIn=$bankIn, bankOut=$bankOut');
+      debugPrint('📊 saleIncome=$saleIncome, settlementIncome=$settlementIncome');
+      debugPrint('📊 repairIncome=$repairIncome, miscIncome=$miscIncome');
+      debugPrint('📊 debtCollected=$debtCollected');
+      debugPrint('📤 expenseOut=$expenseOut, importOut=$importOut, supplierPaid=$supplierPaid');
+      debugPrint('💰 saleCost=$saleCost, repairCost=$repairCost');
+      debugPrint('💰 profit=$profit (sale=$saleProfit, repair=$repairProfit)');
 
       // Thống kê số lượng
       doneT = fRepairs.length;
@@ -1847,30 +1891,31 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           todaySaleCount = soldT;
           revenueToday = profit; // Keep for backward compatibility
           todayNewRepairs = newRT;
-          todayExpense = todayCashOut; // Chi phí = expenses + trả nợ NCC (cash flow)
+          todayExpense = totalCashFlowOut; // Chi phí = cash flow out
           totalDebtRemain = debtR;
           expiringWarranties = expW;
-          // New accurate financial variables
-          _todayTotalIn = totalIn;
-          _todayTotalOut = todayCashOut; // Hiển thị tiền chi thực (bao gồm trả nợ NCC)
+          // Cash flow totals (giống Sổ quỹ: cashIn + bankIn / cashOut + bankOut)
+          _todayTotalIn = totalCashFlowIn;
+          _todayTotalOut = totalCashFlowOut;
           _todayNetProfit = profit;
           _todaySalesProfit = saleProfit;
           _todayRepairProfit = repairProfit;
           _todayRepairCount = fRepairs.length;
           _todaySaleOrderCount = fSales.length;
           _todayExpenseCount = fExpenses.where((e) => (e['type'] as String? ?? '').toUpperCase() != 'THU').length;
-          _todayStockInCost = stockInCost; // Chi phí nhập kho hôm nay
-          _todayDebtPaidToSupplier = debtPaidToSupplier;
-          _todayExpenseOnly = totalOut; // Chi phí thuần (không gồm trả nợ NCC)
-          // Detail breakdown for Sổ quỹ style
-          _todaySaleIncome = salesIncome;
-          _todayRepairIncome = repairsIncome;
+          _todayStockInCost = importOut;
+          _todayDebtPaidToSupplier = supplierPaid; // Combined: supplier + partner + shop_owes
+          _todayExpenseOnly = expenseOut;
+          // Detail breakdown (giống Sổ quỹ analysis)
+          _todaySaleIncome = saleIncome;
+          _todayRepairIncome = repairIncome;
           _todayDebtCollected = debtCollected;
-          _todayMiscIncome = totalIncomeExpense;
-          _todayImportOut = stockInCost;
-          _todayPartnerPaid = partnerPaid;
-          _todaySaleCost = salesCost;
-          _todayRepairCost = repairsCost;
+          _todayMiscIncome = miscIncome;
+          _todayImportOut = importOut;
+          _todayPartnerPaid = 0; // Combined into supplierPaid
+          _todaySaleCost = saleCost;
+          _todayRepairCost = repairCost;
+          _todaySettlementIncome = settlementIncome;
           _totalLocalRecords = totalRecords; // Cập nhật tổng records
           unreadChatCount = unread; // Gộp vào 1 setState
           // Cập nhật tin nhắn mới nhất
@@ -6042,11 +6087,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Widget _buildDashboardOverview() {
-    final totalIncome = _todayTotalIn + _todayDebtCollected;
-    final totalExpense = _todayTotalOut + _todayImportOut;
+    // Cash flow totals - giống hệt Sổ quỹ (cashIn + bankIn / cashOut + bankOut)
+    final totalIncome = _todayTotalIn;
+    final totalExpense = _todayTotalOut;
     final maxVal = totalIncome > totalExpense ? totalIncome : totalExpense;
-    final incomeRatio = maxVal > 0 ? (totalIncome / maxVal).clamp(0.05, 1.0) : 0.05;
-    final expenseRatio = maxVal > 0 ? (totalExpense / maxVal).clamp(0.05, 1.0) : 0.05;
+    final incomeRatio = maxVal > 0 ? totalIncome / maxVal : 0.0;
+    final expenseRatio = maxVal > 0 ? totalExpense / maxVal : 0.0;
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -6055,398 +6101,340 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       ),
       child: Container(
         key: UniqueKey(),
-        width: double.infinity,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: AppColors.shadow.withOpacity(0.15),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Section
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryDark],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            // BIẾN ĐỘNG TRONG NGÀY header - giống Sổ quỹ
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.bar_chart, color: Colors.orange, size: 20),
                 ),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
+                const SizedBox(width: 10),
+                Text(
+                  "BIẾN ĐỘNG TRONG NGÀY",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                    fontSize: AppTextStyles.headline4.fontSize,
+                  ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.analytics_rounded, color: Colors.white, size: 28),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          loc.todayFinancialReport,
-                          style: AppTextStyles.body1.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+              ],
+            ),
+            const SizedBox(height: 20),
+            // Bar chart - giống Sổ quỹ (100px height, 50px width)
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 100,
+                        alignment: Alignment.bottomCenter,
+                        child: Container(
+                          width: 50,
+                          height: 100 * incomeRatio,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.green.shade300, Colors.green.shade600],
+                            ),
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
                           ),
                         ),
-                        Text(
-                          DateFormat('EEEE, dd/MM/yyyy', 'vi').format(DateTime.now()),
-                          style: AppTextStyles.caption.copyWith(color: Colors.white70),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "📥 THU",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.subtitle1.fontSize,
                         ),
-                      ],
-                    ),
+                      ),
+                      Text(
+                        "+${MoneyUtils.formatVND(totalIncome)}",
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.headline5.fontSize,
+                        ),
+                      ),
+                    ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(loc.details, style: AppTextStyles.caption.copyWith(color: Colors.white)),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 12),
-                      ],
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 100,
+                        alignment: Alignment.bottomCenter,
+                        child: Container(
+                          width: 50,
+                          height: 100 * expenseRatio,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.red.shade300, Colors.red.shade600],
+                            ),
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "📤 CHI",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.subtitle1.fontSize,
+                        ),
+                      ),
+                      Text(
+                        "-${MoneyUtils.formatVND(totalExpense)}",
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.headline5.fontSize,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            // CHI TIẾT THU / CHI - giống Sổ quỹ
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "📥 CHI TIẾT THU",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.body1.fontSize,
+                          color: Colors.green,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _homeBreakdownItem("Bán hàng", _todaySaleIncome, Colors.green),
+                      _homeBreakdownItem("Tất toán NH", _todaySettlementIncome, Colors.green),
+                      if (_enableRepair)
+                        _homeBreakdownItem("Sửa chữa", _todayRepairIncome, Colors.green),
+                      _homeBreakdownItem("Thu nợ KH", _todayDebtCollected, Colors.green),
+                      _homeBreakdownItem("Thu phát sinh", _todayMiscIncome, Colors.teal),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "📤 CHI TIẾT CHI",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.body1.fontSize,
+                          color: Colors.red,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _homeBreakdownItem("Chi phí", _todayExpenseOnly, Colors.red),
+                      _homeBreakdownItem("Nhập hàng", _todayImportOut, Colors.red),
+                      _homeBreakdownItem("Trả nợ NCC", _todayDebtPaidToSupplier, Colors.red),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+            // LỢI NHUẬN RÒNG - giống Sổ quỹ
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _todayNetProfit >= 0 ? Colors.green.shade50 : Colors.red.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _todayNetProfit >= 0 ? Colors.green.shade200 : Colors.red.shade200,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "💰 LỢI NHUẬN RÒNG",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.headline5.fontSize,
+                        ),
+                      ),
+                      Text(
+                        "${_todayNetProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(_todayNetProfit)}",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.headline3.fontSize,
+                          color: _todayNetProfit >= 0 ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _homeBreakdownItem("Giá vốn bán", _todaySaleCost, Colors.orange),
+                      ),
+                      Expanded(
+                        child: _homeBreakdownItem("Giá vốn SC", _todayRepairCost, Colors.orange),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "= Doanh thu - Chi phí - Giá vốn",
+                    style: TextStyle(
+                      fontSize: AppTextStyles.caption.fontSize,
+                      color: Colors.grey.shade600,
+                      fontStyle: FontStyle.italic,
                     ),
                   ),
                 ],
               ),
             ),
-
-            // BIẾN ĐỘNG TRONG NGÀY - Bar Chart
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Icon(Icons.bar_chart, color: Colors.orange, size: 18),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "BIẾN ĐỘNG TRONG NGÀY",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange,
-                          fontSize: AppTextStyles.body1.fontSize,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Bar chart
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Container(
-                              height: 80,
-                              alignment: Alignment.bottomCenter,
-                              child: Container(
-                                width: 40,
-                                height: 80 * incomeRatio,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [Colors.green.shade300, Colors.green.shade600],
-                                  ),
-                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text("📥 THU", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.caption.fontSize)),
-                            Text(
-                              "+${MoneyUtils.formatVND(totalIncome)}",
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                                fontSize: AppTextStyles.body1.fontSize,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Container(
-                              height: 80,
-                              alignment: Alignment.bottomCenter,
-                              child: Container(
-                                width: 40,
-                                height: 80 * expenseRatio,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [Colors.red.shade300, Colors.red.shade600],
-                                  ),
-                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text("📤 CHI", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.caption.fontSize)),
-                            Text(
-                              "-${MoneyUtils.formatVND(totalExpense)}",
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontWeight: FontWeight.bold,
-                                fontSize: AppTextStyles.body1.fontSize,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-                  const Divider(),
-                  const SizedBox(height: 8),
-
-                  // CHI TIẾT THU / CHI
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "📥 CHI TIẾT THU",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: AppTextStyles.caption.fontSize,
-                                color: Colors.green,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            _homeBreakdownItem("Bán hàng", _todaySaleIncome, Colors.green),
-                            if (_enableRepair)
-                              _homeBreakdownItem("Sửa chữa", _todayRepairIncome, Colors.green),
-                            _homeBreakdownItem("Thu nợ KH", _todayDebtCollected, Colors.green),
-                            _homeBreakdownItem("Thu phát sinh", _todayMiscIncome, Colors.teal),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "📤 CHI TIẾT CHI",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: AppTextStyles.caption.fontSize,
-                                color: Colors.red,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            _homeBreakdownItem("Chi phí", _todayExpenseOnly, Colors.red),
-                            _homeBreakdownItem("Nhập hàng", _todayImportOut, Colors.red),
-                            _homeBreakdownItem("Trả nợ NCC", _todayDebtPaidToSupplier, Colors.red),
-                            if (_enableRepair)
-                              _homeBreakdownItem("TT đối tác SC", _todayPartnerPaid, Colors.red),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-                  const Divider(),
-                  const SizedBox(height: 8),
-
-                  // LỢI NHUẬN RÒNG
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _todayNetProfit >= 0 ? Colors.green.shade50 : Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: _todayNetProfit >= 0 ? Colors.green.shade200 : Colors.red.shade200,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "💰 LỢI NHUẬN RÒNG",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: AppTextStyles.body1.fontSize,
-                              ),
-                            ),
-                            Text(
-                              "${_todayNetProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(_todayNetProfit)}",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: AppTextStyles.headline5.fontSize,
-                                color: _todayNetProfit >= 0 ? Colors.green : Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _homeBreakdownItem("Giá vốn bán", _todaySaleCost, Colors.orange),
-                            ),
-                            if (_enableRepair)
-                              Expanded(
-                                child: _homeBreakdownItem("Giá vốn SC", _todayRepairCost, Colors.orange),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "= Doanh thu - Chi phí - Giá vốn",
-                          style: TextStyle(
-                            fontSize: AppTextStyles.overline.fontSize,
-                            color: Colors.grey.shade600,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 8),
-
-                  // HOẠT ĐỘNG HÔM NAY
-                  Text(
-                    loc.todayActivity,
-                    style: AppTextStyles.caption.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.onSurface.withOpacity(0.5),
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  Row(
-                    children: [
-                      if (_enableRepair)
-                        Expanded(
-                          child: _activityCard(
-                            icon: Icons.build_circle,
-                            label: loc.pendingRepairs,
-                            value: totalPendingRepair.toString(),
-                            color: AppColors.primary,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => OrderListView(
-                                  role: widget.role,
-                                  statusFilter: const [1, 2],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (_enableRepair)
-                        Expanded(
-                          child: _activityCard(
-                            icon: Icons.check_circle,
-                            label: loc.delivered,
-                            value: todayRepairDone.toString(),
-                            color: AppColors.info,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => OrderListView(
-                                  role: widget.role,
-                                  statusFilter: const [4],
-                                  todayOnly: true,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (_enableExpiry)
-                        Expanded(
-                          child: _activityCard(
-                            icon: Icons.timer,
-                            label: 'Sắp hết HSD',
-                            value: (_expiryStats?.atRiskCount ?? 0).toString(),
-                            color: Colors.orange,
-                            onTap: () {
-                              final expiryTabIndex = _navItems.indexWhere((item) => item.label == 'HSD');
-                              if (expiryTabIndex != -1) {
-                                setState(() => _currentIndex = expiryTabIndex);
-                              }
-                            },
-                          ),
-                        ),
-                      if (_enableVariants)
-                        Expanded(
-                          child: _activityCard(
-                            icon: Icons.checkroom,
-                            label: 'Hết size/màu',
-                            value: (_variantWarnings?.outOfStock ?? 0).toString(),
-                            color: Colors.blue,
-                            onTap: () {
-                              final variantTabIndex = _navItems.indexWhere((item) => item.label == 'Size/Màu');
-                              if (variantTabIndex != -1) {
-                                setState(() => _currentIndex = variantTabIndex);
-                              }
-                            },
-                          ),
-                        ),
-                      Expanded(
-                        child: _activityCard(
-                          icon: Icons.shopping_cart,
-                          label: loc.saleOrders,
-                          value: todaySaleCount.toString(),
-                          color: AppColors.success,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const SaleListView(todayOnly: true)),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: _activityCard(
-                          icon: Icons.receipt_long,
-                          label: loc.debt,
-                          value: MoneyUtils.formatCompact(totalDebtRemain),
-                          color: AppColors.warning,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const DebtView()),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            // HOẠT ĐỘNG HÔM NAY
+            Text(
+              loc.todayActivity,
+              style: AppTextStyles.caption.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.onSurface.withOpacity(0.5),
+                letterSpacing: 1,
               ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (_enableRepair)
+                  Expanded(
+                    child: _activityCard(
+                      icon: Icons.build_circle,
+                      label: loc.pendingRepairs,
+                      value: totalPendingRepair.toString(),
+                      color: AppColors.primary,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OrderListView(
+                            role: widget.role,
+                            statusFilter: const [1, 2],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_enableRepair)
+                  Expanded(
+                    child: _activityCard(
+                      icon: Icons.check_circle,
+                      label: loc.delivered,
+                      value: todayRepairDone.toString(),
+                      color: AppColors.info,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OrderListView(
+                            role: widget.role,
+                            statusFilter: const [4],
+                            todayOnly: true,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_enableExpiry)
+                  Expanded(
+                    child: _activityCard(
+                      icon: Icons.timer,
+                      label: 'Sắp hết HSD',
+                      value: (_expiryStats?.atRiskCount ?? 0).toString(),
+                      color: Colors.orange,
+                      onTap: () {
+                        final expiryTabIndex = _navItems.indexWhere((item) => item.label == 'HSD');
+                        if (expiryTabIndex != -1) {
+                          setState(() => _currentIndex = expiryTabIndex);
+                        }
+                      },
+                    ),
+                  ),
+                if (_enableVariants)
+                  Expanded(
+                    child: _activityCard(
+                      icon: Icons.checkroom,
+                      label: 'Hết size/màu',
+                      value: (_variantWarnings?.outOfStock ?? 0).toString(),
+                      color: Colors.blue,
+                      onTap: () {
+                        final variantTabIndex = _navItems.indexWhere((item) => item.label == 'Size/Màu');
+                        if (variantTabIndex != -1) {
+                          setState(() => _currentIndex = variantTabIndex);
+                        }
+                      },
+                    ),
+                  ),
+                Expanded(
+                  child: _activityCard(
+                    icon: Icons.shopping_cart,
+                    label: loc.saleOrders,
+                    value: todaySaleCount.toString(),
+                    color: AppColors.success,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SaleListView(todayOnly: true)),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _activityCard(
+                    icon: Icons.receipt_long,
+                    label: loc.debt,
+                    value: MoneyUtils.formatCompact(totalDebtRemain),
+                    color: AppColors.warning,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DebtView()),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -6457,25 +6445,25 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   /// Breakdown item widget cho home dashboard (kiểu Sổ quỹ)
   Widget _homeBreakdownItem(String label, int amount, Color color) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1.5),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
           Container(
-            width: 5,
-            height: 5,
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 5),
+          const SizedBox(width: 6),
           Expanded(
             child: Text(
               label,
-              style: TextStyle(fontSize: AppTextStyles.overline.fontSize, color: Colors.black54),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.black54),
             ),
           ),
           Text(
             MoneyUtils.formatVND(amount),
             style: TextStyle(
-              fontSize: AppTextStyles.overline.fontSize,
+              fontSize: AppTextStyles.body1.fontSize,
               color: color,
               fontWeight: FontWeight.w500,
             ),
