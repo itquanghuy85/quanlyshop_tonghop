@@ -179,6 +179,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     try {
       final service = RepairPartnerService();
       final partners = await service.getRepairPartners();
+      if (!mounted) return;
       setState(() {
         _partners = partners.where((p) => p.active).toList();
       });
@@ -189,6 +190,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
   void _smartFill() async {
     final res = await db.getUniqueCustomersAll();
+    if (!mounted) return;
     final find = res.where((c) => c['phone'] == phoneCtrl.text).toList();
     if (find.isNotEmpty) {
       setState(() {
@@ -1318,6 +1320,24 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
   @override
   void dispose() {
+    phoneCtrl.dispose();
+    nameCtrl.dispose();
+    addressCtrl.dispose();
+    modelCtrl.dispose();
+    issueCtrl.dispose();
+    appearanceCtrl.dispose();
+    accCtrl.dispose();
+    passCtrl.dispose();
+    priceCtrl.dispose();
+    notesCtrl.dispose();
+    phoneF.dispose();
+    nameF.dispose();
+    modelF.dispose();
+    issueF.dispose();
+    priceF.dispose();
+    passF.dispose();
+    appearanceF.dispose();
+    accF.dispose();
     super.dispose();
   }
 }

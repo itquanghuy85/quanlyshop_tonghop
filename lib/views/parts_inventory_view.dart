@@ -87,6 +87,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   }
   
   void _onScroll() {
+    if (!mounted) return;
     final showButton = _scrollController.offset > 200;
     if (showButton != _showScrollToTop) {
       setState(() => _showScrollToTop = showButton);
@@ -1073,6 +1074,12 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
     _loadPermissions();
     _refreshParts();
     _loadSuppliers();
+  }
+
+  @override
+  void dispose() {
+    searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadShopSettings() async {
