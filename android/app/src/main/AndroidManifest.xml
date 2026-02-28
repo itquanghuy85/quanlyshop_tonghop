@@ -41,12 +41,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Quyền truy cập camera -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- Quyền truy cập storage -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Storage cho Android ≤12; Android 13+ dùng system photo picker (image_picker) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
-    <!-- Quyền truy cập ảnh trên Android 13+ (image_picker) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <!-- Xóa quyền VIDEO/AUDIO do open_filex tự thêm — app chỉ mở file Excel -->
+    <!-- Xóa quyền media — app dùng system photo picker, không cần broad access -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove" />
     <!-- Quyền truy cập thông báo -->
