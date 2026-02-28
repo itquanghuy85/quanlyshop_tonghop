@@ -473,6 +473,8 @@ class _CashClosingViewState extends State<CashClosingView>
       supplierImports = await db.getAllSupplierImportHistory();
     }
     final supplierPayments = await db.getAllSupplierPayments();
+    // FIX: Load repair_partner_payments từ local DB (trước đây bỏ sót → _repairPartnerPayments luôn rỗng khi offline)
+    final repairPartnerPayments = await db.getRepairPartnerPaymentsForSync();
     final yesterday = _selectedDate.subtract(const Duration(days: 1));
     final yesterdayKey = DateFormat('yyyy-MM-dd').format(yesterday);
     final previousClosing = await db.getClosingByDateKey(yesterdayKey);
@@ -489,6 +491,7 @@ class _CashClosingViewState extends State<CashClosingView>
         _debtPayments = debtPayments;
         _supplierImports = supplierImports;
         _supplierPayments = supplierPayments;
+        _repairPartnerPayments = repairPartnerPayments; // FIX: Load từ local DB
         _debtTypeMap = {}; // Local DB already has debtType from JOIN
         _previousDayClosing = previousClosing;
         _todayClosing = todayClosing;

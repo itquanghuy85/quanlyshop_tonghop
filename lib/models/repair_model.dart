@@ -1,6 +1,19 @@
 import 'dart:convert';
 import 'repair_service_model.dart';
 
+/// Safely parse int from dynamic value (handles int, double, num, String)
+int _parseIntSafe(dynamic value) {
+  if (value == null) return 0;
+  if (value is int) return value < 0 ? 0 : value;
+  if (value is double) return value < 0 ? 0 : value.toInt();
+  if (value is num) return value < 0 ? 0 : value.toInt();
+  if (value is String) {
+    final parsed = int.tryParse(value) ?? double.tryParse(value)?.toInt();
+    return (parsed != null && parsed >= 0) ? parsed : 0;
+  }
+  return 0;
+}
+
 class Repair {
   int? id;
   String? firestoreId;
@@ -96,7 +109,15 @@ class Repair {
 
   /// Tổng chi phí = cost (linh kiện + dịch vụ đã lưu)
   /// Luôn dùng trường cost vì nó đã được cập nhật khi thêm linh kiện/dịch vụ
-  int get totalCost => cost;
+  /// Fallback: nếu cost == 0 nhưng services có cost > 0 → tính lại từ services
+  int get totalCost {
+    if (cost > 0) return cost;
+    if (services.isNotEmpty) {
+      final calc = services.fold(0, (sum, s) => sum + s.cost);
+      if (calc > 0) return calc;
+    }
+    return cost;
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -156,8 +177,8 @@ class Repair {
       warranty: map['warranty'] ?? "Không bảo hành",
       partsUsed: map['partsUsed'] ?? "",
       status: map['status'] ?? 1,
-      price: map['price'] is int ? (map['price'] < 0 ? 0 : map['price']) : 0,
-      cost: map['cost'] is int ? (map['cost'] < 0 ? 0 : map['cost']) : 0,
+      price: _parseIntSafe(map['price']),
+      cost: _parseIntSafe(map['cost']),
       paymentMethod: map['paymentMethod'] ?? "TIỀN MẶT",
       createdAt: map['createdAt'] ?? 0,
       startedAt: map['startedAt'],

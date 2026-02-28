@@ -1567,6 +1567,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         whereArgs: [startMs, endMs],
       );
 
+      // FIX: Lấy thanh toán đối tác sửa chữa hôm nay
+      final partnerPayments = await dbConn.query(
+        'repair_partner_payments',
+        columns: ['amount', 'paidAt'],
+        where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
+        whereArgs: [startMs, endMs],
+      );
+
       int doneT = 0, soldT = 0, debtR = 0, expW = 0;
 
       // === TÍNH TOÁN CHÍNH XÁC NHƯ REVENUE_VIEW.DART ===
@@ -1701,10 +1709,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         }
       }
 
-      // Chi phí hôm nay = expenses hoạt động + trả nợ NCC (cash flow thực)
+      // FIX: Tính tổng thanh toán đối tác sửa chữa hôm nay
+      int partnerPaid = 0;
+      for (final p in partnerPayments) {
+        final amount = (p['amount'] as num?)?.toInt() ?? 0;
+        partnerPaid += amount;
+      }
+
+      // Chi phí hôm nay = expenses hoạt động + trả nợ NCC + thanh toán đối tác (cash flow thực)
       // Chi phí nhập kho tính riêng
       // Lợi nhuận vẫn dùng totalOut (accrual basis, không có trả nợ NCC, không có nhập kho)
-      final todayCashOut = totalOut + debtPaidToSupplier;
+      final todayCashOut = totalOut + debtPaidToSupplier + partnerPaid;
 
       // FIX: Thu phát sinh (type=THU) cộng vào doanh thu
       totalIn += totalIncomeExpense;
@@ -1722,6 +1737,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       );
       debugPrint(
         'debtPaidToSupplier=$debtPaidToSupplier (trả nợ NCC - hiển thị trong chi phí)',
+      );
+      debugPrint(
+        'partnerPaid=$partnerPaid (thanh toán đối tác sửa chữa - hiển thị trong chi phí)',
       );
       debugPrint(
         'totalIn=$totalIn, totalOut=$totalOut, todayCashOut=$todayCashOut',

@@ -43,7 +43,7 @@ class RepairService {
       serviceName: map['serviceName'] ?? '',
       partnerId: map['partnerId'],
       partnerName: map['partnerName'],
-      cost: map['cost'] is int ? map['cost'] : 0,
+      cost: (map['cost'] is num) ? (map['cost'] as num).toInt().clamp(0, 999999999) : 0,
       paymentMethod: map['paymentMethod'],
       isSynced: map['isSynced'] == 1 || map['isSynced'] == true,
       deleted: map['deleted'] == 1 || map['deleted'] == true,
