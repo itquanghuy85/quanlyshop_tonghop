@@ -2289,17 +2289,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   /// Build dashboard cards based on saved config order & visibility
   List<Widget> _buildModularDashboard() {
-    // If config not loaded yet, show defaults
+    // If config not loaded yet, show lightweight defaults (no greeting/finance)
     if (!_dashboardConfigLoaded || _dashboardConfigs.isEmpty) {
       return [
-        _buildGreetingCard(),
         _buildChatCard(),
         _buildUnifiedShortcuts(),
-        if (widget.role == 'owner' || _isSuperAdmin) ...[
-          _buildSectionHeader("TỔNG QUAN TÀI CHÍNH"),
-          _buildDashboardOverview(),
-          const SizedBox(height: 20),
-        ],
         _buildAlerts(),
         _buildUserGuideShortcut(),
       ];
@@ -3471,7 +3465,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
     // In edit mode, show ALL shortcuts (visible + hidden) for reorder & toggle
     if (_shortcutEditMode && _shortcutConfigLoaded) {
-      return _buildShortcutEditMode(_getShortcutAction);
+      return _buildShortcutEditMode();
     }
 
     // Build visible items from config
@@ -3602,301 +3596,191 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
-  /// Edit mode for shortcuts: reorder (drag-drop) + hide (X button) + show hidden
-  Widget _buildShortcutEditMode(VoidCallback? Function(ShortcutType) getAction) {
-    final visibleConfigs = _shortcutConfigs.where((c) => c.visible).toList();
-    final hiddenConfigs = _shortcutConfigs.where((c) => !c.visible).toList();
+  /// Edit mode for shortcuts: clean toggle grid + link to advanced settings
+  Widget _buildShortcutEditMode() {
+    final visibleCount = _shortcutConfigs.where((c) => c.visible).length;
     final itemWidth = (MediaQuery.of(context).size.width - 32 - 24) / 4;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.blue.shade200),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with Done button
-          Row(
-            children: [
-              Icon(Icons.edit, size: 14, color: Colors.blue.shade700),
-              const SizedBox(width: 6),
-              Text(
-                'SẮP XẾP THAO TÁC NHANH',
-                style: AppTextStyles.body1.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade700,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const Spacer(),
-              FilledButton.tonal(
-                onPressed: () async {
-                  await ShortcutConfigService.saveConfig(_shortcutConfigs);
-                  setState(() => _shortcutEditMode = false);
-                  NotificationService.showSnackBar(
-                    '✅ Đã lưu sắp xếp lối tắt!',
-                    color: Colors.green,
-                  );
-                },
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text('Xong', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Giữ kéo để sắp xếp • Nhấn ✕ để ẩn • Nhấn + để hiện',
-            style: TextStyle(fontSize: 11, color: Colors.blue.shade400),
-          ),
-          const SizedBox(height: 10),
-
-          // Visible shortcuts - drag-drop reorder using ReorderableWrap-like approach
-          // Using ReorderableListView in horizontal-ish grid
-          if (visibleConfigs.isNotEmpty)
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: visibleConfigs.asMap().entries.map((entry) {
-                final config = entry.value;
-                return SizedBox(
-                  key: ValueKey(config.type),
-                  width: itemWidth,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Drag handle - long press to start drag
-                      LongPressDraggable<ShortcutConfig>(
-                        data: config,
-                        feedback: Material(
-                          elevation: 6,
-                          borderRadius: BorderRadius.circular(10),
-                          child: SizedBox(
-                            width: itemWidth,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: config.color.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: config.color, width: 2),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: config.color.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(config.icon, color: config.color, size: 20),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    config.displayName,
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: config.color),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        childWhenDragging: SizedBox(
-                          width: itemWidth,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
-                            ),
-                            child: const SizedBox(height: 34),
-                          ),
-                        ),
-                        onDragStarted: () => HapticFeedback.mediumImpact(),
-                        child: DragTarget<ShortcutConfig>(
-                          onAcceptWithDetails: (details) {
-                            final fromConfig = details.data;
-                            setState(() {
-                              final fromIndex = _shortcutConfigs.indexOf(fromConfig);
-                              final toIndex = _shortcutConfigs.indexOf(config);
-                              if (fromIndex >= 0 && toIndex >= 0 && fromIndex != toIndex) {
-                                _shortcutConfigs.removeAt(fromIndex);
-                                _shortcutConfigs.insert(toIndex, fromConfig);
-                                HapticFeedback.lightImpact();
-                              }
-                            });
-                          },
-                          builder: (ctx, candidateData, rejectedData) {
-                            final isHovered = candidateData.isNotEmpty;
-                            return Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: isHovered
-                                    ? config.color.withOpacity(0.2)
-                                    : config.color.withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isHovered ? config.color : config.color.withOpacity(0.2),
-                                  width: isHovered ? 2 : 1,
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: config.color.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(config.icon, color: config.color, size: 20),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    config.displayName,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: config.color.withOpacity(0.9),
-                                    ),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      // X button to hide
-                      Positioned(
-                        right: -4,
-                        top: -4,
-                        child: GestureDetector(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            setState(() => config.visible = false);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 4,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(Icons.close, color: Colors.white, size: 12),
-                          ),
-                        ),
-                      ),
-                    ],
+          // Header row
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Icon(Icons.dashboard_customize, size: 14, color: Colors.blue.shade700),
+                const SizedBox(width: 6),
+                Text(
+                  'TÙY CHỈNH ($visibleCount đang hiện)',
+                  style: AppTextStyles.body1.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                    letterSpacing: 0.5,
                   ),
-                );
-              }).toList(),
+                ),
+                const Spacer(),
+                // Done button - instant save, no await
+                InkWell(
+                  onTap: () {
+                    // Fire-and-forget save - no spinner
+                    ShortcutConfigService.saveConfig(_shortcutConfigs);
+                    setState(() => _shortcutEditMode = false);
+                    HapticFeedback.lightImpact();
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade600,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Text(
+                      'Xong',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
+          ),
 
-          // Hidden shortcuts section - tap + to show
-          if (hiddenConfigs.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              'ĐÃ ẨN',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade500,
-                letterSpacing: 0.5,
-              ),
+          // Subtitle
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(
+              'Nhấn để ẩn/hiện • Sắp xếp thứ tự trong Cài đặt',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: hiddenConfigs.map((config) {
-                return SizedBox(
-                  width: itemWidth,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
+          ),
+
+          // Unified grid: all shortcuts, visible ones colored, hidden ones greyed
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _shortcutConfigs.map((config) {
+              final isVisible = config.visible;
+              final color = isVisible ? config.color : Colors.grey.shade400;
+              final bgOpacity = isVisible ? 0.08 : 0.04;
+              final borderColor = isVisible ? config.color.withOpacity(0.3) : Colors.grey.shade200;
+
+              return SizedBox(
+                width: itemWidth,
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => config.visible = !config.visible);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(bgOpacity),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Icon with check/uncheck badge
+                        Stack(
+                          clipBehavior: Clip.none,
                           children: [
-                            Container(
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade200,
+                                color: color.withOpacity(isVisible ? 0.15 : 0.08),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(config.icon, color: Colors.grey, size: 20),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              config.displayName,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade500,
+                              child: Icon(
+                                config.icon,
+                                color: color.withOpacity(isVisible ? 1.0 : 0.5),
+                                size: 20,
                               ),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            ),
+                            // Small badge: check (visible) or empty circle (hidden)
+                            Positioned(
+                              right: -4,
+                              top: -4,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: isVisible ? Colors.green : Colors.grey.shade300,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 1.5),
+                                ),
+                                child: Icon(
+                                  isVisible ? Icons.check : Icons.remove,
+                                  color: Colors.white,
+                                  size: 10,
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      // + button to show
-                      Positioned(
-                        right: -4,
-                        top: -4,
-                        child: GestureDetector(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            setState(() => config.visible = true);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 4,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(Icons.add, color: Colors.white, size: 12),
+                        const SizedBox(height: 4),
+                        Text(
+                          config.displayName,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: color.withOpacity(isVisible ? 0.9 : 0.5),
                           ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                );
-              }).toList(),
+                ),
+              );
+            }).toList(),
+          ),
+
+          // Link to advanced settings (reorder, etc.)
+          const SizedBox(height: 10),
+          Center(
+            child: InkWell(
+              onTap: () {
+                // Save current state first
+                ShortcutConfigService.saveConfig(_shortcutConfigs);
+                setState(() => _shortcutEditMode = false);
+                _openDashboardSettings();
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.tune, size: 14, color: Colors.blue.shade400),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Sắp xếp thứ tự & cài đặt nâng cao',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue.shade400,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(Icons.chevron_right, size: 16, color: Colors.blue.shade400),
+                  ],
+                ),
+              ),
             ),
-          ],
+          ),
         ],
       ),
     );
