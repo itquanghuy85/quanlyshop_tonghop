@@ -19,6 +19,7 @@ import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
 import '../utils/vietnamese_utils.dart';
+import '../services/supplier_service.dart';
 import 'supplier_form_view.dart';
 
 /// Widget content để embed vào InventoryView tab - Phiên bản chuyên nghiệp
@@ -140,9 +141,17 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   }
 
   Future<void> _loadSuppliers() async {
-    final s = await db.getSuppliers();
-    if (!mounted) return;
-    setState(() => _suppliers = s);
+    try {
+      final suppliers = await SupplierService().getSuppliers();
+      if (!mounted) return;
+      setState(() => _suppliers = suppliers.map((s) => s.toMap()).toList());
+    } catch (e) {
+      debugPrint('PartsInventoryViewContent: Error loading suppliers: $e');
+      // Fallback to raw local DB
+      final s = await db.getSuppliers();
+      if (!mounted) return;
+      setState(() => _suppliers = s);
+    }
   }
 
   void _applyFilter() {
@@ -1111,9 +1120,17 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
   }
 
   Future<void> _loadSuppliers() async {
-    final s = await db.getSuppliers();
-    if (!mounted) return;
-    setState(() => _suppliers = s);
+    try {
+      final suppliers = await SupplierService().getSuppliers();
+      if (!mounted) return;
+      setState(() => _suppliers = suppliers.map((s) => s.toMap()).toList());
+    } catch (e) {
+      debugPrint('PartsInventoryView: Error loading suppliers: $e');
+      // Fallback to raw local DB
+      final s = await db.getSuppliers();
+      if (!mounted) return;
+      setState(() => _suppliers = s);
+    }
   }
 
   void _applyFilter() {
