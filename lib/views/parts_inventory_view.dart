@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../services/user_service.dart';
 import 'dart:async';
@@ -131,13 +132,74 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   Future<void> _refreshParts() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    final data = await db.getAllParts();
-    if (!mounted) return;
-    setState(() {
-      _parts = data;
-      _applyFilter();
-      _isLoading = false;
-    });
+    try {
+      var data = await db.getAllParts();
+      debugPrint('PartsInventoryViewContent._refreshParts: local DB returned ${data.length} parts');
+
+      // If local DB is empty, fix stuck deleted and retry
+      if (data.isEmpty) {
+        final fixed = await db.fixStuckDeletedRepairParts();
+        if (fixed > 0) {
+          debugPrint('PartsInventoryViewContent: fixed $fixed stuck-deleted parts, retrying');
+          data = await db.getAllParts();
+        }
+      }
+
+      // If still empty, fallback to Firestore
+      if (data.isEmpty) {
+        debugPrint('PartsInventoryViewContent: local DB empty, fetching from Firestore...');
+        data = await _fetchPartsFromFirestore();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _parts = data;
+        _applyFilter();
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('PartsInventoryViewContent._refreshParts error: $e');
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+  }
+
+  /// Fetch parts from Firestore when local DB is empty
+  Future<List<Map<String, dynamic>>> _fetchPartsFromFirestore() async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return [];
+      Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+          .collection('repair_parts')
+          .where('shopId', isEqualTo: shopId);
+      final snapshot = await query.get();
+      debugPrint('PartsInventoryViewContent: Firestore returned ${snapshot.docs.length} parts');
+      final List<Map<String, dynamic>> result = [];
+      for (final doc in snapshot.docs) {
+        final data = Map<String, dynamic>.from(doc.data());
+        if (data['deleted'] == true) continue; // Skip deleted
+        // Convert Timestamp fields
+        if (data['createdAt'] is Timestamp) {
+          data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
+        }
+        if (data['updatedAt'] is Timestamp) {
+          data['updatedAt'] = (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
+        }
+        data['firestoreId'] = doc.id;
+        data['isSynced'] = 1;
+        // Cache to local DB
+        await db.upsertRepairPart(data);
+        result.add(data);
+      }
+      // Re-read from local DB for consistent format
+      if (result.isNotEmpty) {
+        return await db.getAllParts();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('PartsInventoryViewContent: Firestore fallback error: $e');
+      return [];
+    }
   }
 
   Future<void> _loadSuppliers() async {
@@ -1117,13 +1179,74 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
   Future<void> _refreshParts() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    final data = await db.getAllParts();
-    if (!mounted) return;
-    setState(() {
-      _parts = data;
-      _applyFilter();
-      _isLoading = false;
-    });
+    try {
+      var data = await db.getAllParts();
+      debugPrint('PartsInventoryView._refreshParts: local DB returned ${data.length} parts');
+
+      // If local DB is empty, fix stuck deleted and retry
+      if (data.isEmpty) {
+        final fixed = await db.fixStuckDeletedRepairParts();
+        if (fixed > 0) {
+          debugPrint('PartsInventoryView: fixed $fixed stuck-deleted parts, retrying');
+          data = await db.getAllParts();
+        }
+      }
+
+      // If still empty, fallback to Firestore
+      if (data.isEmpty) {
+        debugPrint('PartsInventoryView: local DB empty, fetching from Firestore...');
+        data = await _fetchPartsFromFirestore();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _parts = data;
+        _applyFilter();
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('PartsInventoryView._refreshParts error: $e');
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+  }
+
+  /// Fetch parts from Firestore when local DB is empty
+  Future<List<Map<String, dynamic>>> _fetchPartsFromFirestore() async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return [];
+      Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+          .collection('repair_parts')
+          .where('shopId', isEqualTo: shopId);
+      final snapshot = await query.get();
+      debugPrint('PartsInventoryView: Firestore returned ${snapshot.docs.length} parts');
+      final List<Map<String, dynamic>> result = [];
+      for (final doc in snapshot.docs) {
+        final data = Map<String, dynamic>.from(doc.data());
+        if (data['deleted'] == true) continue; // Skip deleted
+        // Convert Timestamp fields
+        if (data['createdAt'] is Timestamp) {
+          data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
+        }
+        if (data['updatedAt'] is Timestamp) {
+          data['updatedAt'] = (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
+        }
+        data['firestoreId'] = doc.id;
+        data['isSynced'] = 1;
+        // Cache to local DB
+        await db.upsertRepairPart(data);
+        result.add(data);
+      }
+      // Re-read from local DB for consistent format
+      if (result.isNotEmpty) {
+        return await db.getAllParts();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('PartsInventoryView: Firestore fallback error: $e');
+      return [];
+    }
   }
 
   Future<void> _loadSuppliers() async {
