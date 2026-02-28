@@ -872,19 +872,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   void _updateAvailableTabs() {
-    debugPrint(
-      'HomeView: _updateAvailableTabs called, _tabConfigs.length = ${_tabConfigs.length}',
-    );
-    debugPrint('HomeView: _permissions = $_permissions');
-
     // THAY ĐỔI: Luôn hiển thị tất cả các tab, nhưng thay nội dung bằng màn hình khóa nếu không có quyền
     final allConfigs = _tabConfigs.map((config) {
       final permission = config['permission'] as String?;
       final hasPermission =
           permission == null || (_permissions[permission] == true);
-      debugPrint(
-        'HomeView: Tab ${config['item'].label} permission=$permission, hasPermission=$hasPermission',
-      );
 
       // Nếu không có quyền, thay thế widget bằng màn hình khóa
       if (!hasPermission) {
@@ -938,186 +930,21 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         .map((config) => config['widget'] as Widget)
         .toList();
 
-    debugPrint('HomeView: Available tabs after limit: ${allConfigs.length}');
-    debugPrint(
-      'HomeView: Available tab names: ${allConfigs.map((c) => (c['item'] as BottomNavigationBarItem).label)}',
-    );
-
     // Adjust current index if it's out of bounds
     if (_currentIndex >= _navItems.length) {
       _currentIndex = 0;
     }
   }
 
-  /// Rebuild all tab widgets to reflect updated state variables
-  /// This is necessary because IndexedStack caches child widgets
+  /// Rebuild ONLY the home tab widget to reflect updated stats.
+  /// Other tabs are self-contained views that load their own data,
+  /// so rebuilding them here wastes CPU and causes UI lag (~1 min delay
+  /// when entering/exiting shortcut edit mode).
   void _rebuildTabWidgets() {
-    debugPrint(
-      'HomeView: _rebuildTabWidgets called - rebuilding all tabs with fresh data',
-    );
-    final loc = AppLocalizations.of(context)!;
-    // Rebuild tab configs with current data values
-    _tabConfigs = [
-      {
-        'permission': null,
-        'item': BottomNavigationBarItem(
-          icon: const Icon(Icons.home_outlined),
-          activeIcon: const Icon(Icons.home_rounded),
-          label: loc.homeTab,
-        ),
-        'widget': _buildHomeTab(),
-      },
-      {
-        'permission': 'allowViewSales',
-        'item': BottomNavigationBarItem(
-          icon: const Icon(Icons.shopping_cart_outlined),
-          activeIcon: const Icon(Icons.shopping_cart_rounded),
-          label: loc.salesTab,
-        ),
-        'widget': _buildSalesTab(),
-      },
-      // Only show Repairs tab for electronics shops
-      if (_enableRepair) {
-        'permission': 'allowViewRepairs',
-        'item': BottomNavigationBarItem(
-          icon: const Icon(Icons.build_outlined),
-          activeIcon: const Icon(Icons.build_rounded),
-          label: loc.repairsTab,
-        ),
-        'widget': _buildRepairsTab(),
-      },
-      {
-        'permission': 'allowViewInventory',
-        'item': BottomNavigationBarItem(
-          icon: const Icon(Icons.inventory_2_outlined),
-          activeIcon: const Icon(Icons.inventory_2_rounded),
-          label: loc.inventoryTab,
-        ),
-        'widget': _buildInventoryTab(),
-      },
-      // Expiry tab for Food shops
-      if (_enableExpiry) {
-        'permission': 'allowViewInventory',
-        'item': BottomNavigationBarItem(
-          icon: Badge(
-            isLabelVisible: (_expiryStats?.atRiskCount ?? 0) > 0,
-            label: Text('${_expiryStats?.atRiskCount ?? 0}'),
-            child: const Icon(Icons.timer_outlined),
-          ),
-          activeIcon: Badge(
-            isLabelVisible: (_expiryStats?.atRiskCount ?? 0) > 0,
-            label: Text('${_expiryStats?.atRiskCount ?? 0}'),
-            child: const Icon(Icons.timer),
-          ),
-          label: 'HSD',
-        ),
-        'widget': const ExpiryManagementView(),
-      },
-      // Variants tab for Fashion shops
-      if (_enableVariants) {
-        'permission': 'allowViewInventory',
-        'item': BottomNavigationBarItem(
-          icon: Badge(
-            isLabelVisible: (_variantWarnings?.total ?? 0) > 0,
-            label: Text('${_variantWarnings?.total ?? 0}'),
-            child: const Icon(Icons.checkroom_outlined),
-          ),
-          activeIcon: Badge(
-            isLabelVisible: (_variantWarnings?.total ?? 0) > 0,
-            label: Text('${_variantWarnings?.total ?? 0}'),
-            child: const Icon(Icons.checkroom),
-          ),
-          label: 'Size/Màu',
-        ),
-        'widget': const VariantManagementView(),
-      },
-      {
-        'permission': 'allowManageStaff',
-        'item': BottomNavigationBarItem(
-          icon: const Icon(Icons.people_outline),
-          activeIcon: const Icon(Icons.people_rounded),
-          label: loc.staffTab,
-        ),
-        'widget': _buildStaffTab(),
-      },
-      {
-        'permission': 'allowViewRevenue',
-        'item': BottomNavigationBarItem(
-          icon: const Icon(Icons.account_balance_wallet_outlined),
-          activeIcon: const Icon(Icons.account_balance_wallet_rounded),
-          label: loc.financeTab,
-        ),
-        'widget': _buildFinanceTab(),
-      },
-      {
-        'permission':
-            null, // Cài đặt luôn mở cho tất cả, chỉ Super Admin mới khóa được
-        'item': BottomNavigationBarItem(
-          icon: const Icon(Icons.settings_outlined),
-          activeIcon: const Icon(Icons.settings_rounded),
-          label: loc.settingsTab,
-        ),
-        'widget': _buildSettingsTab(),
-      },
-    ];
-
-    // THAY ĐỔI: Luôn hiển thị tất cả các tab, nhưng thay nội dung bằng màn hình khóa nếu không có quyền
-    final allConfigs = _tabConfigs.map((config) {
-      final permission = config['permission'] as String?;
-      final hasPermission =
-          permission == null || (_permissions[permission] == true);
-
-      // Nếu không có quyền, thay thế widget bằng màn hình khóa
-      if (!hasPermission) {
-        final tabLabel =
-            (config['item'] as BottomNavigationBarItem).label ?? 'Chức năng';
-        return {...config, 'widget': _buildLockedFeatureScreen(tabLabel)};
-      }
-      return config;
-    }).toList();
-
-    // Limit to 7 tabs max
-    if (allConfigs.length > 7) {
-      final priorityTabs = [
-        loc.homeTab,
-        loc.salesTab,
-        loc.repairsTab,
-        loc.inventoryTab,
-        loc.staffTab,
-        loc.financeTab,
-        loc.settingsTab,
-      ];
-      final prioritized = allConfigs
-          .where(
-            (config) => priorityTabs.contains(
-              (config['item'] as BottomNavigationBarItem).label,
-            ),
-          )
-          .toList();
-      final remaining = allConfigs
-          .where(
-            (config) => !priorityTabs.contains(
-              (config['item'] as BottomNavigationBarItem).label,
-            ),
-          )
-          .toList();
-      allConfigs.clear();
-      allConfigs.addAll(prioritized);
-      allConfigs.addAll(remaining.take(7 - prioritized.length));
-    }
-
-    _navItems = allConfigs
-        .map((config) => config['item'] as BottomNavigationBarItem)
-        .toList();
-    _tabWidgets = allConfigs
-        .map((config) => config['widget'] as Widget)
-        .toList();
-
-    if (_currentIndex >= _navItems.length) {
-      _currentIndex = 0;
-    }
-
-    debugPrint('HomeView: Rebuilt ${_tabWidgets.length} tabs');
+    if (_tabWidgets.isEmpty) return; // Not initialized yet
+    // Only update the home tab (index 0) - it's the only one showing stats
+    _tabWidgets[0] = _buildHomeTab();
+    debugPrint('HomeView: Rebuilt home tab (stats updated)');
   }
 
   @override
@@ -1851,21 +1678,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       final saleProfit = saleIncome + settlementIncome - saleCost;
       final repairProfit = repairIncome - repairCost;
 
-      debugPrint('=== HOME ANALYSIS (MIRROR SỔ QUỸ) ===');
-      debugPrint('💵 cashIn=$cashIn, cashOut=$cashOut');
-      debugPrint('🏦 bankIn=$bankIn, bankOut=$bankOut');
-      debugPrint('📊 saleIncome=$saleIncome, settlementIncome=$settlementIncome');
-      debugPrint('📊 repairIncome=$repairIncome, miscIncome=$miscIncome');
-      debugPrint('📊 debtCollected=$debtCollected');
-      debugPrint('📤 expenseOut=$expenseOut, importOut=$importOut, supplierPaid=$supplierPaid');
-      debugPrint('💰 saleCost=$saleCost, repairCost=$repairCost');
-      debugPrint('💰 profit=$profit (sale=$saleProfit, repair=$repairProfit)');
-
       // Thống kê số lượng
       doneT = fRepairs.length;
       soldT = fSales.length;
-
-      debugPrint('HomeView: Processing took ${stopwatch.elapsedMilliseconds}ms');
 
       // === BATCH 2: Secondary queries in parallel ===
       // (warranty, debts, partner debts, record counts - all independent)
@@ -2007,14 +1822,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    debugPrint(
-      'HomeView: Building with revenueToday=$revenueToday, todaySaleCount=$todaySaleCount',
-    );
-    debugPrint('HomeView: Current tab index: $_currentIndex');
-    debugPrint('HomeView: _navItems.length = ${_navItems.length}');
-    debugPrint(
-      'HomeView: _navItems labels = ${_navItems.map((item) => item.label)}',
-    );
     return WillPopScope(
       onWillPop: () async {
         final ok = await showDialog<bool>(
@@ -2245,7 +2052,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Widget _buildHomeTab() {
-    debugPrint('_buildHomeTab called with _rebuildCounter=$_rebuildCounter');
     return GestureDetector(
       onLongPress: _openDashboardSettings,
       child: RefreshIndicator(
@@ -6583,7 +6389,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         MaterialPageRoute(builder: (_) => const CashClosingView()),
       ),
       child: Container(
-        key: UniqueKey(),
+        key: ValueKey('dashboard_overview_${_todayTotalIn}_${_todayTotalOut}'),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
