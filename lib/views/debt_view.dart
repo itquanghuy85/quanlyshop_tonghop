@@ -41,6 +41,7 @@ class _DebtViewState extends State<DebtView>
   bool _isSyncing = false;
   String _syncStatus = 'Đã đồng bộ';
   StreamSubscription<String>? _eventSub;
+  Timer? _reloadDebounce;
   
   // Shop settings for multi-industry
   ShopSettings? _shopSettings;
@@ -58,7 +59,7 @@ class _DebtViewState extends State<DebtView>
     _eventSub = EventBus().stream
         .where((e) => e == 'debts_changed' || e == 'repair_partners_changed')
         .listen((_) {
-          if (mounted) _refresh();
+          _debouncedRefresh();
         });
 
     // Hiển thị hướng dẫn cho người dùng mới
@@ -128,8 +129,16 @@ class _DebtViewState extends State<DebtView>
     );
   }
 
+  void _debouncedRefresh() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) _refresh();
+    });
+  }
+
   @override
   void dispose() {
+    _reloadDebounce?.cancel();
     _tabController?.dispose();
     _eventSub?.cancel();
     super.dispose();

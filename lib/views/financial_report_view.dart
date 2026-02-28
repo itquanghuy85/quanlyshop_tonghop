@@ -114,6 +114,8 @@ class _FinancialReportViewState extends State<FinancialReportView>
 
   // EventBus subscriptions for real-time sync
   StreamSubscription<String>? _eventSubscription;
+  Timer? _reloadDebounce;
+  bool _isLoadingData = false;
 
   @override
   void initState() {
@@ -121,20 +123,28 @@ class _FinancialReportViewState extends State<FinancialReportView>
     _tabController = TabController(length: 3, vsync: this);
     _loadData();
 
-    // Subscribe to data change events for real-time sync
+    // Subscribe to data change events for real-time sync (debounced)
     _eventSubscription = EventBus().stream.listen((event) {
       if (event == 'sales_changed' ||
           event == 'repairs_changed' ||
           event == 'expenses_changed' ||
           event == 'debts_changed' ||
           event == 'debt_payments_changed') {
-        _loadData();
+        _debouncedLoadData();
       }
+    });
+  }
+
+  void _debouncedLoadData() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted && !_isLoadingData) _loadData();
     });
   }
 
   @override
   void dispose() {
+    _reloadDebounce?.cancel();
     _eventSubscription?.cancel();
     _tabController.dispose();
     _searchController.dispose();
@@ -142,6 +152,8 @@ class _FinancialReportViewState extends State<FinancialReportView>
   }
 
   Future<void> _loadData() async {
+    if (_isLoadingData) return;
+    _isLoadingData = true;
     setState(() => _loading = true);
 
     try {
@@ -393,9 +405,11 @@ class _FinancialReportViewState extends State<FinancialReportView>
         _totalExpense = totalExpense;
         _loading = false;
       });
+      _isLoadingData = false;
     } catch (e) {
       debugPrint('Error loading financial report: $e');
-      setState(() => _loading = false);
+      _isLoadingData = false;
+      if (mounted) setState(() => _loading = false);
     }
   }
 

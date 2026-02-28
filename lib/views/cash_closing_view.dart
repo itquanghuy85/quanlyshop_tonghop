@@ -13,6 +13,7 @@ import '../services/user_service.dart';
 import '../services/audit_service.dart';
 import '../services/notification_service.dart';
 import '../services/category_service.dart';
+import '../services/event_bus.dart';
 import '../utils/money_utils.dart';
 import '../widgets/custom_app_bar.dart';
 import 'sale_detail_view.dart';
@@ -66,13 +67,7 @@ class _CashClosingViewState extends State<CashClosingView>
   final bankEndCtrl = TextEditingController();
   final noteCtrl = TextEditingController();
   StreamSubscription? _closingSubscription;
-  StreamSubscription? _debtPaymentsSubscription;
-  StreamSubscription? _supplierPaymentsSubscription;
-  StreamSubscription? _repairPartnerPaymentsSubscription; // FIX: Thêm subscription
-  StreamSubscription? _supplierImportsSubscription;
-  StreamSubscription? _salesSubscription;
-  StreamSubscription? _repairsSubscription;
-  StreamSubscription? _expensesSubscription;
+  StreamSubscription<String>? _eventBusSub; // Replace duplicate Firestore listeners with EventBus
 
   // Debounce để tránh load quá nhiều lần
   Timer? _debounceTimer;
@@ -100,13 +95,7 @@ class _CashClosingViewState extends State<CashClosingView>
   void dispose() {
     _debounceTimer?.cancel();
     _closingSubscription?.cancel();
-    _debtPaymentsSubscription?.cancel();
-    _supplierPaymentsSubscription?.cancel();
-    _repairPartnerPaymentsSubscription?.cancel(); // FIX: Cancel subscription
-    _supplierImportsSubscription?.cancel();
-    _salesSubscription?.cancel();
-    _repairsSubscription?.cancel();
-    _expensesSubscription?.cancel();
+    _eventBusSub?.cancel();
     _tabController.dispose();
     cashEndCtrl.dispose();
     bankEndCtrl.dispose();
@@ -130,10 +119,8 @@ class _CashClosingViewState extends State<CashClosingView>
 
     final firestore = FirebaseFirestore.instance;
 
-    // FIX BUG-CC-001: Tất cả collections đều là ROOT collections với shopId filter
-    // Đồng nhất với cách FirestoreService và SyncService lưu dữ liệu
-
-    // cash_closings - ROOT collection
+    // cash_closings - chỉ giữ listener trực tiếp cho collection này
+    // vì SyncService không có EventBus event riêng cho cash_closings
     _closingSubscription = firestore
         .collection('cash_closings')
         .where('shopId', isEqualTo: shopId)
@@ -142,68 +129,16 @@ class _CashClosingViewState extends State<CashClosingView>
           _scheduleReload();
         });
 
-    // debt_payments - ROOT collection
-    _debtPaymentsSubscription = firestore
-        .collection('debt_payments')
-        .where('shopId', isEqualTo: shopId)
-        .snapshots()
-        .listen((_) {
-          _scheduleReload();
-        });
-
-    // supplier_payments - ROOT collection
-    _supplierPaymentsSubscription = firestore
-        .collection('supplier_payments')
-        .where('shopId', isEqualTo: shopId)
-        .snapshots()
-        .listen((_) {
-          _scheduleReload();
-        });
-
-    // FIX: repair_partner_payments - ROOT collection (thanh toán đối tác sửa chữa)
-    _repairPartnerPaymentsSubscription = firestore
-        .collection('repair_partner_payments')
-        .where('shopId', isEqualTo: shopId)
-        .snapshots()
-        .listen((_) {
-          _scheduleReload();
-        });
-
-    // supplier_import_history - ROOT collection
-    _supplierImportsSubscription = firestore
-        .collection('supplier_import_history')
-        .where('shopId', isEqualTo: shopId)
-        .snapshots()
-        .listen((_) {
-          _scheduleReload();
-        });
-
-    // sales - ROOT collection (FIX: không phải subcollection)
-    _salesSubscription = firestore
-        .collection('sales')
-        .where('shopId', isEqualTo: shopId)
-        .snapshots()
-        .listen((_) {
-          _scheduleReload();
-        });
-
-    // repairs - ROOT collection (FIX: không phải subcollection)
-    _repairsSubscription = firestore
-        .collection('repairs')
-        .where('shopId', isEqualTo: shopId)
-        .snapshots()
-        .listen((_) {
-          _scheduleReload();
-        });
-
-    // expenses - ROOT collection (FIX: không phải subcollection)
-    _expensesSubscription = firestore
-        .collection('expenses')
-        .where('shopId', isEqualTo: shopId)
-        .snapshots()
-        .listen((_) {
-          _scheduleReload();
-        });
+    // Các collection khác đã được SyncService sync + emit EventBus
+    // → sử dụng EventBus thay vì tạo duplicate Firestore listeners
+    _eventBusSub = EventBus().stream.listen((event) {
+      if (event == 'sales_changed' ||
+          event == 'repairs_changed' ||
+          event == 'expenses_changed' ||
+          event == 'debts_changed') {
+        _scheduleReload();
+      }
+    });
   }
 
   /// Load dữ liệu trực tiếp từ Firestore để đảm bảo đồng bộ giữa các thiết bị

@@ -21,6 +21,7 @@ class RepairPartnerView extends StatefulWidget {
 
 class _RepairPartnerViewState extends State<RepairPartnerView> {
   StreamSubscription<String>? _subscription;
+  Timer? _reloadDebounce;
   final db = DBHelper();
   final partnerService = RepairPartnerService();
   List<RepairPartner> _partners = [];
@@ -40,13 +41,17 @@ class _RepairPartnerViewState extends State<RepairPartnerView> {
 
   @override
   void dispose() {
+    _reloadDebounce?.cancel();
     _subscription?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
   void _onPartnersChanged(dynamic data) {
-    _refresh();
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) _refresh();
+    });
   }
 
   Future<void> _loadRole() async {

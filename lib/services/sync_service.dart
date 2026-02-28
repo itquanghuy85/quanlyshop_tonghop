@@ -386,8 +386,8 @@ class SyncService {
         }
       },
       onBatchDone: () {
-        onDataChanged();
-        // Emit event để cập nhật UI sửa chữa
+        // Chỉ emit EventBus — HomeView + các view khác đã listen EventBus
+        // (bỏ onDataChanged() để tránh double-hit reload)
         EventBus().emit('repairs_changed');
       },
     );
@@ -429,8 +429,7 @@ class SyncService {
         }
       },
       onBatchDone: () {
-        onDataChanged();
-        // Emit event để cập nhật UI bán hàng
+        // Chỉ emit EventBus — tránh double-hit reload
         EventBus().emit('sales_changed');
       },
     );
@@ -521,8 +520,7 @@ class SyncService {
         }
       },
       onBatchDone: () {
-        onDataChanged();
-        // Emit event để cập nhật UI chi phí
+        // Chỉ emit EventBus — tránh double-hit reload
         EventBus().emit('expenses_changed');
       },
     );
@@ -555,8 +553,7 @@ class SyncService {
         }
       },
       onBatchDone: () {
-        onDataChanged();
-        // Emit event để cập nhật UI công nợ
+        // Chỉ emit EventBus — tránh double-hit reload
         EventBus().emit('debts_changed');
       },
     );
@@ -582,10 +579,8 @@ class SyncService {
         }
       },
       onBatchDone: () {
-        onDataChanged();
-        EventBus().emit(
-          'debts_changed',
-        ); // Debt payments cũng ảnh hưởng debt view
+        // Chỉ emit EventBus — tránh double-hit reload
+        EventBus().emit('debts_changed');
       },
     );
 
@@ -746,8 +741,7 @@ class SyncService {
           }
         },
         onBatchDone: () {
-          onDataChanged();
-          // Emit event để cập nhật UI quick_input_codes
+          // Chỉ emit EventBus — tránh double-hit reload
           EventBus().emit('quick_input_codes_changed');
         },
       );

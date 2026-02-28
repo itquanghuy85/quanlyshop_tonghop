@@ -49,6 +49,7 @@ class _SupplierListViewState extends State<SupplierListView>
   final _searchCtrl = TextEditingController();
   final _partnerSearchCtrl = TextEditingController();
   StreamSubscription? _eventBusSub;
+  Timer? _reloadDebounce;
 
   List<_SupplierCardData> _items = [];
   bool _loading = true;
@@ -94,8 +95,7 @@ class _SupplierListViewState extends State<SupplierListView>
         .where((e) => e == 'suppliers_changed' || e == 'debts_changed')
         .listen((_) {
       if (!mounted) return;
-      _load();
-      _loadPartners();
+      _debouncedReload();
     });
     // Hiển thị hướng dẫn cho người dùng mới
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -151,8 +151,18 @@ class _SupplierListViewState extends State<SupplierListView>
     );
   }
 
+  void _debouncedReload() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      _load();
+      _loadPartners();
+    });
+  }
+
   @override
   void dispose() {
+    _reloadDebounce?.cancel();
     _eventBusSub?.cancel();
     _tabController.dispose();
     _searchCtrl.dispose();
