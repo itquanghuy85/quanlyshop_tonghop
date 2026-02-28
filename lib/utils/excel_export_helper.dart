@@ -158,70 +158,70 @@ class ExcelExportHelper {
       // 3. Hiện thông báo đã lưu + hỏi mở/chia sẻ
       final action = await showDialog<String>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
-          title: const Text('Xuất file thành công!'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (savedPath != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.folder, color: Colors.green.shade700),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Đã lưu vào:\n${savedPath.split('/').last}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.green.shade800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Thư mục: ${savedPath.substring(0, savedPath.lastIndexOf('/'))}',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-              ] else
-                const Text('File đã được tạo sẵn để chia sẻ.'),
-            ],
-          ),
-          actionsAlignment: MainAxisAlignment.spaceBetween,
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, 'close'),
-              child: const Text('Đóng'),
-            ),
-            Row(
+        builder: (ctx) {
+          final fName = savedPath?.split('/').last ?? fileName;
+          final folder = savedPath != null
+              ? savedPath.substring(0, savedPath.lastIndexOf('/'))
+              : null;
+          return AlertDialog(
+            icon: const Icon(Icons.check_circle, color: Colors.green, size: 48),
+            title: const Text('Xuất file thành công!'),
+            content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (savedPath != null)
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(ctx, 'open'),
-                    icon: const Icon(Icons.open_in_new, size: 18),
-                    label: const Text('Mở'),
+                if (savedPath != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.folder, color: Colors.green.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Đã lưu vào:\n$fName',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.green.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: () => Navigator.pop(ctx, 'share'),
-                  icon: const Icon(Icons.share, size: 18),
-                  label: const Text('Chia sẻ'),
-                ),
+                  const SizedBox(height: 8),
+                  if (folder != null)
+                    Text(
+                      'Thư mục: $folder',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                ] else
+                  const Text('File đã được tạo sẵn để chia sẻ.'),
               ],
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, 'close'),
+                child: const Text('Đóng'),
+              ),
+              if (savedPath != null)
+                TextButton.icon(
+                  onPressed: () => Navigator.pop(ctx, 'open'),
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: const Text('Mở'),
+                ),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(ctx, 'share'),
+                icon: const Icon(Icons.share, size: 18),
+                label: const Text('Chia sẻ'),
+              ),
+            ],
+          );
+        },
       );
 
       if (action == 'open' && savedPath != null) {
