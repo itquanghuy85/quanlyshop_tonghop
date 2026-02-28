@@ -65,12 +65,14 @@ class _RepairPartnerViewState extends State<RepairPartnerView> {
   }
 
   Future<void> _refresh() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     final partners = await partnerService.getRepairPartners();
     
     // Load stats for each partner
     final Map<int, Map<String, dynamic>> stats = {};
     for (final partner in partners) {
+      if (!mounted) return;
       if (partner.id != null) {
         final s = await partnerService.getPartnerRepairStats(partner.id!, partnerFirestoreId: partner.firestoreId, partnerName: partner.name);
         if (s != null) {
@@ -79,6 +81,7 @@ class _RepairPartnerViewState extends State<RepairPartnerView> {
       }
     }
     
+    if (!mounted) return;
     setState(() {
       _partners = partners;
       _partnerStats = stats;

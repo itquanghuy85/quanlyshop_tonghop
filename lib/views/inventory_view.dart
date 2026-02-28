@@ -189,6 +189,7 @@ class _InventoryViewState extends State<InventoryView>
   }
   
   void _onScroll() {
+    if (!mounted) return;
     if (_scrollController.position.pixels >= 
         _scrollController.position.maxScrollExtent - 300) {
       _loadMoreIfNeeded();
@@ -197,7 +198,7 @@ class _InventoryViewState extends State<InventoryView>
   
   Future<void> _loadMoreIfNeeded() async {
     if (_isLoadingMore || !_hasMore || _needsFullData) return;
-    
+    if (!mounted) return;
     setState(() => _isLoadingMore = true);
     
     try {
@@ -1376,6 +1377,7 @@ class _InventoryViewState extends State<InventoryView>
   }
 
   Future<void> _refresh({bool forceSync = false}) async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _selectedIds.clear();

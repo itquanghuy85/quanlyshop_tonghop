@@ -194,17 +194,8 @@ class _ActionRequiredCardState extends State<ActionRequiredCard> {
   }
 
   Widget _buildShimmer() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      height: 60,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Center(
-        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-      ),
-    );
+    // Invisible placeholder while loading - no spinner to avoid visual noise
+    return const SizedBox.shrink();
   }
 }
 
@@ -462,17 +453,8 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
   @override
   Widget build(BuildContext context) {
     if (!_loaded) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        height: 80,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Center(
-          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-        ),
-      );
+      // Invisible placeholder while loading - no spinner to avoid visual noise
+      return const SizedBox.shrink();
     }
 
     if (_activities.isEmpty) {

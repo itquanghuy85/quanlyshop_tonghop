@@ -112,6 +112,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Future<void> _loadShopInfo() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       _shopName = prefs.getString('shop_name') ?? loc.defaultShopName;
       _shopAddr = prefs.getString('shop_address') ?? loc.defaultShopDesc;
@@ -481,7 +482,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     } catch (e) {
       debugPrint('Error updating repair status: $e');
     }
-    setState(() => _isUpdating = false);
+    if (mounted) setState(() => _isUpdating = false);
   }
 
   String _getStatusText(int s, {bool pendingApproval = false}) {
@@ -1043,7 +1044,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     } catch (e) {
       debugPrint('Error rejecting delivery: $e');
     }
-    setState(() => _isUpdating = false);
+    if (mounted) setState(() => _isUpdating = false);
   }
 
   Future<void> _saveData() async {
@@ -3780,7 +3781,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     } catch (e) {
       NotificationService.showSnackBar('${loc.error}: $e', color: AppColors.error);
     }
-    setState(() => _isUpdating = false);
+    if (mounted) setState(() => _isUpdating = false);
   }
 
   Future<void> _deleteService(int index) async {
@@ -3815,7 +3816,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     } catch (e) {
       NotificationService.showSnackBar('${loc.error}: $e', color: AppColors.error);
     }
-    setState(() => _isUpdating = false);
+    if (mounted) setState(() => _isUpdating = false);
   }
 
   Widget _buildImageGallery() {
