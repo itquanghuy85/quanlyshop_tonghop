@@ -77,6 +77,9 @@ import '../widgets/currency_text_field.dart';
 import 'food/expiry_management_view.dart';
 import 'fashion/variant_management_view.dart';
 import 'onboarding/business_type_wizard.dart';
+import 'dashboard_settings_view.dart';
+import '../services/dashboard_config_service.dart';
+import '../widgets/dashboard_cards.dart';
 
 class HomeView extends StatefulWidget {
   final String role;
@@ -197,6 +200,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   bool _notificationWorking = false; // Trạng thái thông báo
   String _userName = ''; // Tên hiển thị của người dùng
   String _shopName = ''; // Tên cửa hàng
+
+  // Modular Dashboard Config
+  List<DashboardCardConfig> _dashboardConfigs = [];
+  bool _dashboardConfigLoaded = false;
 
   // Phase 2: Multi-Industry - Shop Settings
   ShopSettings? _shopSettings;
@@ -1124,6 +1131,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       _updatePermissions(); // Không await - chạy song song
       _loadStats(); // Không await - chạy song song
       _loadShopSettings(); // Phase 2: Load shop settings cho multi-industry
+      _loadDashboardConfig(); // Modular dashboard config
       
       // 2. Load user info NGAY (quan trọng cho lời chào)
       await _loadUserAndShopInfo(); // AWAIT để đảm bảo có data trước khi render
@@ -1378,6 +1386,33 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   /// Phase 2: Load shop settings cho multi-industry features
   bool _isShowingBusinessTypeWizard = false;
   
+  /// Load dashboard card layout config from SharedPreferences
+  Future<void> _loadDashboardConfig() async {
+    try {
+      final configs = await DashboardConfigService.loadConfig(
+        role: widget.role,
+        isSuperAdmin: _isSuperAdmin,
+      );
+      if (mounted) {
+        setState(() {
+          _dashboardConfigs = configs;
+          _dashboardConfigLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('HomeView: Error loading dashboard config: $e');
+      if (mounted) {
+        setState(() {
+          _dashboardConfigs = DashboardConfigService.getDefaultLayout(
+            role: widget.role,
+            isSuperAdmin: _isSuperAdmin,
+          );
+          _dashboardConfigLoaded = true;
+        });
+      }
+    }
+  }
+
   Future<void> _loadShopSettings() async {
     try {
       // CRITICAL: Clear cache to ensure fresh settings are loaded
@@ -2214,34 +2249,166 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
             ),
-          // LỜI CHÀO NGƯỜI DÙNG
-          _buildGreetingCard(),
-
-          // CHAT NHÓM - ngay dưới lời chào, nổi bật với badge
-          _buildChatCard(),
-
-          // THAO TÁC NHANH - gộp truy cập nhanh + thao tác nhanh
-          _buildUnifiedShortcuts(),
-
-          // TỔNG QUAN TÀI CHÍNH - Chỉ hiện cho owner/superadmin
-          if (widget.role == 'owner' || _isSuperAdmin) ...[
-            _buildSectionHeader("TỔNG QUAN TÀI CHÍNH"),
-            _buildDashboardOverview(),
-            const SizedBox(height: 20),
-          ],
-
-          const SizedBox(height: 20),
-
-          // CẢNH BÁO
-          _buildAlerts(),
-
-          const SizedBox(height: 20),
-          
-          // HƯỚNG DẪN SỬ DỤNG - Lối tắt ở cuối trang
-          _buildUserGuideShortcut(),
-
+          // MODULAR DASHBOARD - render cards based on config
+          ..._buildModularDashboard(),
           const SizedBox(height: 50),
         ],
+      ),
+    );
+  }
+
+  /// Build dashboard cards based on saved config order & visibility
+  List<Widget> _buildModularDashboard() {
+    // If config not loaded yet, show defaults
+    if (!_dashboardConfigLoaded || _dashboardConfigs.isEmpty) {
+      return [
+        _buildGreetingCard(),
+        _buildChatCard(),
+        _buildUnifiedShortcuts(),
+        if (widget.role == 'owner' || _isSuperAdmin) ...[
+          _buildSectionHeader("TỔNG QUAN TÀI CHÍNH"),
+          _buildDashboardOverview(),
+          const SizedBox(height: 20),
+        ],
+        _buildAlerts(),
+        _buildUserGuideShortcut(),
+      ];
+    }
+
+    final widgets = <Widget>[];
+
+    // Customize button at top
+    widgets.add(_buildCustomizeDashboardButton());
+
+    for (final config in _dashboardConfigs) {
+      if (!config.visible) continue;
+
+      // Role-based filtering for finance cards
+      if (config.requiresFinanceAccess &&
+          widget.role != 'owner' &&
+          widget.role != 'admin' &&
+          !_isSuperAdmin) {
+        continue;
+      }
+
+      switch (config.type) {
+        case DashboardCardType.greeting:
+          widgets.add(_buildGreetingCard());
+          break;
+        case DashboardCardType.actionRequired:
+          widgets.add(ActionRequiredCard(
+            key: ValueKey('action_required_$_rebuildCounter'),
+            enableRepair: _enableRepair,
+            enableWarranty: _enableWarranty,
+            enableExpiry: _enableExpiry,
+            onPendingRepairsTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => OrderListView(
+                  role: widget.role,
+                  statusFilter: const [1, 2],
+                ),
+              ),
+            ),
+            onPendingStockTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const PendingStockListView(),
+              ),
+            ),
+            onWarrantyTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WarrantyView()),
+            ),
+          ));
+          break;
+        case DashboardCardType.quickActions:
+          widgets.add(_buildUnifiedShortcuts());
+          break;
+        case DashboardCardType.financeSummary:
+          widgets.add(FinanceSummaryCard(
+            key: ValueKey('finance_summary_$_rebuildCounter'),
+            totalIn: _todayTotalIn,
+            totalOut: _todayTotalOut,
+            netProfit: _todayNetProfit,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CashClosingView()),
+            ),
+          ));
+          break;
+        case DashboardCardType.financeDetail:
+          widgets.add(_buildSectionHeader("TỔNG QUAN TÀI CHÍNH"));
+          widgets.add(_buildDashboardOverview());
+          widgets.add(const SizedBox(height: 10));
+          break;
+        case DashboardCardType.activityFeed:
+          widgets.add(ActivityFeedCard(
+            key: ValueKey('activity_feed_$_rebuildCounter'),
+            enableRepair: _enableRepair,
+          ));
+          break;
+        case DashboardCardType.chat:
+          widgets.add(_buildChatCard());
+          break;
+        case DashboardCardType.alerts:
+          widgets.add(_buildAlerts());
+          break;
+        case DashboardCardType.userGuide:
+          widgets.add(_buildUserGuideShortcut());
+          break;
+      }
+    }
+
+    return widgets;
+  }
+
+  /// Compact button to open dashboard customization
+  Widget _buildCustomizeDashboardButton() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () async {
+          final result = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DashboardSettingsView(
+                role: widget.role,
+                currentConfig: _dashboardConfigs,
+                onConfigChanged: () {
+                  _loadDashboardConfig();
+                },
+              ),
+            ),
+          );
+          if (result == true && mounted) {
+            _loadDashboardConfig();
+          }
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.dashboard_customize, size: 14, color: Colors.grey.shade600),
+              const SizedBox(width: 6),
+              Text(
+                'Tùy chỉnh',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
