@@ -6,16 +6,18 @@ import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
-/// View to customize dashboard layout - drag & drop, show/hide cards
+/// View to customize dashboard layout - drag & drop, show/hide cards + shortcuts
 class DashboardSettingsView extends StatefulWidget {
   final String role;
   final List<DashboardCardConfig> currentConfig;
+  final List<ShortcutConfig> currentShortcuts;
   final VoidCallback? onConfigChanged;
 
   const DashboardSettingsView({
     super.key,
     required this.role,
     required this.currentConfig,
+    this.currentShortcuts = const [],
     this.onConfigChanged,
   });
 
@@ -23,14 +25,18 @@ class DashboardSettingsView extends StatefulWidget {
   State<DashboardSettingsView> createState() => _DashboardSettingsViewState();
 }
 
-class _DashboardSettingsViewState extends State<DashboardSettingsView> {
+class _DashboardSettingsViewState extends State<DashboardSettingsView>
+    with SingleTickerProviderStateMixin {
   late List<DashboardCardConfig> _configs;
+  late List<ShortcutConfig> _shortcuts;
+  late TabController _tabController;
   bool _hasChanges = false;
 
   @override
   void initState() {
     super.initState();
-    // Deep copy
+    _tabController = TabController(length: 2, vsync: this);
+    // Deep copy dashboard configs
     _configs = widget.currentConfig
         .map((c) => DashboardCardConfig(
               type: c.type,
@@ -38,10 +44,29 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView> {
               order: c.order,
             ))
         .toList();
+    // Deep copy shortcut configs
+    if (widget.currentShortcuts.isNotEmpty) {
+      _shortcuts = widget.currentShortcuts
+          .map((s) => ShortcutConfig(
+                type: s.type,
+                visible: s.visible,
+                order: s.order,
+              ))
+          .toList();
+    } else {
+      _shortcuts = ShortcutConfigService.getDefaultShortcuts();
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _save() async {
     await DashboardConfigService.saveConfig(_configs);
+    await ShortcutConfigService.saveConfig(_shortcuts);
     widget.onConfigChanged?.call();
     if (mounted) {
       NotificationService.showSnackBar(
@@ -80,12 +105,14 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView> {
     );
     if (confirmed == true) {
       await DashboardConfigService.resetConfig();
+      await ShortcutConfigService.resetConfig();
       final defaults = DashboardConfigService.getDefaultLayout(
         role: widget.role,
         isSuperAdmin: UserService.isCurrentUserSuperAdmin(),
       );
       setState(() {
         _configs = defaults;
+        _shortcuts = ShortcutConfigService.getDefaultShortcuts();
         _hasChanges = true;
       });
     }
@@ -115,6 +142,22 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView> {
             ),
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.dashboard, size: 18),
+              text: 'Thẻ Dashboard',
+            ),
+            Tab(
+              icon: const Icon(Icons.apps, size: 18),
+              text: 'Lối tắt nhanh',
+            ),
+          ],
+        ),
       ),
       body: Column(
         children: [
@@ -141,104 +184,160 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView> {
             ),
           ),
 
-          // Card list
+          // Tabbed content
           Expanded(
-            child: ReorderableListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: _configs.length,
-              onReorder: (oldIndex, newIndex) {
-                setState(() {
-                  if (newIndex > oldIndex) newIndex--;
-                  final item = _configs.removeAt(oldIndex);
-                  _configs.insert(newIndex, item);
-                  _hasChanges = true;
-                });
-                HapticFeedback.lightImpact();
-              },
-              proxyDecorator: (child, index, animation) {
-                return AnimatedBuilder(
-                  listenable: animation,
-                  builder: (ctx, c) => Material(
-                    elevation: 6,
-                    borderRadius: BorderRadius.circular(14),
-                    shadowColor: Colors.black38,
-                    child: c,
-                  ),
-                  child: child,
-                );
-              },
-              itemBuilder: (context, index) {
-                final config = _configs[index];
-                return _buildCardTile(config, index);
-              },
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Tab 1: Dashboard cards
+                _buildDashboardCardList(),
+                // Tab 2: Shortcuts
+                _buildShortcutList(),
+              ],
             ),
           ),
 
-          // Preview info
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.green.shade200),
-                    ),
-                    child: Text(
-                      '${_configs.where((c) => c.visible).length} hiện',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green.shade700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Text(
-                      '${_configs.where((c) => !c.visible).length} ẩn',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (_hasChanges)
-                    FilledButton.icon(
-                      onPressed: _save,
-                      icon: const Icon(Icons.save, size: 16),
-                      label: const Text('LƯU'),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+          // Bottom info bar
+          _buildBottomBar(),
+        ],
+      ),
+    );
+  }
+
+  /// Build dashboard card reorderable list (Tab 1)
+  Widget _buildDashboardCardList() {
+    return ReorderableListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _configs.length,
+      onReorder: (oldIndex, newIndex) {
+        setState(() {
+          if (newIndex > oldIndex) newIndex--;
+          final item = _configs.removeAt(oldIndex);
+          _configs.insert(newIndex, item);
+          _hasChanges = true;
+        });
+        HapticFeedback.lightImpact();
+      },
+      proxyDecorator: (child, index, animation) {
+        return AnimatedBuilder(
+          listenable: animation,
+          builder: (ctx, c) => Material(
+            elevation: 6,
+            borderRadius: BorderRadius.circular(14),
+            shadowColor: Colors.black38,
+            child: c,
+          ),
+          child: child,
+        );
+      },
+      itemBuilder: (context, index) {
+        final config = _configs[index];
+        return _buildCardTile(config, index);
+      },
+    );
+  }
+
+  /// Build shortcut reorderable list (Tab 2)
+  Widget _buildShortcutList() {
+    return ReorderableListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _shortcuts.length,
+      onReorder: (oldIndex, newIndex) {
+        setState(() {
+          if (newIndex > oldIndex) newIndex--;
+          final item = _shortcuts.removeAt(oldIndex);
+          _shortcuts.insert(newIndex, item);
+          _hasChanges = true;
+        });
+        HapticFeedback.lightImpact();
+      },
+      proxyDecorator: (child, index, animation) {
+        return AnimatedBuilder(
+          listenable: animation,
+          builder: (ctx, c) => Material(
+            elevation: 6,
+            borderRadius: BorderRadius.circular(14),
+            shadowColor: Colors.black38,
+            child: c,
+          ),
+          child: child,
+        );
+      },
+      itemBuilder: (context, index) {
+        final sc = _shortcuts[index];
+        return _buildShortcutTile(sc, index);
+      },
+    );
+  }
+
+  /// Bottom bar showing counts + save button
+  Widget _buildBottomBar() {
+    final visibleCards = _configs.where((c) => c.visible).length;
+    final hiddenCards = _configs.where((c) => !c.visible).length;
+    final visibleShortcuts = _shortcuts.where((s) => s.visible).length;
+    final hiddenShortcuts = _shortcuts.where((s) => !s.visible).length;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
           ),
         ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Text(
+                '$visibleCards thẻ · $visibleShortcuts lối tắt',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Text(
+                '$hiddenCards · $hiddenShortcuts ẩn',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ),
+            const Spacer(),
+            if (_hasChanges)
+              FilledButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.save, size: 16),
+                label: const Text('LƯU'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -337,6 +436,76 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView> {
                     });
                     HapticFeedback.lightImpact();
                   },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShortcutTile(ShortcutConfig sc, int index) {
+    return Card(
+      key: ValueKey(sc.type),
+      margin: const EdgeInsets.only(bottom: 6),
+      elevation: sc.visible ? 2 : 0.5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: sc.visible
+              ? sc.color.withOpacity(0.3)
+              : Colors.grey.shade200,
+        ),
+      ),
+      child: AnimatedOpacity(
+        opacity: sc.visible ? 1.0 : 0.5,
+        duration: const Duration(milliseconds: 200),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          leading: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.drag_handle, color: Colors.grey.shade400, size: 20),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: sc.visible
+                      ? sc.color.withOpacity(0.12)
+                      : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  sc.icon,
+                  color: sc.visible ? sc.color : Colors.grey,
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+          title: Text(
+            sc.displayName,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: sc.visible ? Colors.black87 : Colors.grey,
+            ),
+          ),
+          subtitle: sc.requiresRepair
+              ? Text('Yêu cầu module sửa chữa',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500))
+              : sc.requiresWarranty
+                  ? Text('Yêu cầu module bảo hành',
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500))
+                  : null,
+          trailing: Switch.adaptive(
+            value: sc.visible,
+            activeColor: sc.color,
+            onChanged: (val) {
+              setState(() {
+                sc.visible = val;
+                _hasChanges = true;
+              });
+              HapticFeedback.lightImpact();
+            },
           ),
         ),
       ),

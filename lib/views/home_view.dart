@@ -205,6 +205,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   List<DashboardCardConfig> _dashboardConfigs = [];
   bool _dashboardConfigLoaded = false;
 
+  // Shortcut Config
+  List<ShortcutConfig> _shortcutConfigs = [];
+  bool _shortcutConfigLoaded = false;
+
   // Phase 2: Multi-Industry - Shop Settings
   ShopSettings? _shopSettings;
   ExpiryStats? _expiryStats;
@@ -1132,6 +1136,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       _loadStats(); // Không await - chạy song song
       _loadShopSettings(); // Phase 2: Load shop settings cho multi-industry
       _loadDashboardConfig(); // Modular dashboard config
+      _loadShortcutConfig(); // Shortcut grid config
       
       // 2. Load user info NGAY (quan trọng cho lời chào)
       await _loadUserAndShopInfo(); // AWAIT để đảm bảo có data trước khi render
@@ -1408,6 +1413,27 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             isSuperAdmin: _isSuperAdmin,
           );
           _dashboardConfigLoaded = true;
+        });
+      }
+    }
+  }
+
+  /// Load shortcut grid config from SharedPreferences
+  Future<void> _loadShortcutConfig() async {
+    try {
+      final configs = await ShortcutConfigService.loadConfig();
+      if (mounted) {
+        setState(() {
+          _shortcutConfigs = configs;
+          _shortcutConfigLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('HomeView: Error loading shortcut config: $e');
+      if (mounted) {
+        setState(() {
+          _shortcutConfigs = ShortcutConfigService.getDefaultShortcuts();
+          _shortcutConfigLoaded = true;
         });
       }
     }
@@ -2219,24 +2245,26 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   Widget _buildHomeTab() {
     debugPrint('_buildHomeTab called with _rebuildCounter=$_rebuildCounter');
-    return RefreshIndicator(
-      key: ValueKey(
-        'home_tab_$_rebuildCounter',
-      ), // Force rebuild when stats change
-      onRefresh: () => _syncNow(),
-      child: ListView(
-        padding: const EdgeInsets.all(10),
-        children: [
-          if (_shopLocked)
-            Card(
-              color: Colors.red.shade50,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-                side: BorderSide(color: Colors.red.shade200),
-              ),
-              child: ListTile(
-                leading: const Icon(Icons.lock, color: Colors.red),
-                title: const Text(
+    return GestureDetector(
+      onLongPress: _openDashboardSettings,
+      child: RefreshIndicator(
+        key: ValueKey(
+          'home_tab_$_rebuildCounter',
+        ), // Force rebuild when stats change
+        onRefresh: () => _syncNow(),
+        child: ListView(
+          padding: const EdgeInsets.all(10),
+          children: [
+            if (_shopLocked)
+              Card(
+                color: Colors.red.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  side: BorderSide(color: Colors.red.shade200),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.lock, color: Colors.red),
+                  title: const Text(
                   "CỬA HÀNG BỊ KHÓA",
                   style: TextStyle(
                     color: Colors.red,
@@ -2253,6 +2281,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ..._buildModularDashboard(),
           const SizedBox(height: 50),
         ],
+      ),
       ),
     );
   }
@@ -2363,28 +2392,35 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     return widgets;
   }
 
+  /// Navigate to dashboard customization settings
+  Future<void> _openDashboardSettings() async {
+    HapticFeedback.mediumImpact();
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DashboardSettingsView(
+          role: widget.role,
+          currentConfig: _dashboardConfigs,
+          currentShortcuts: _shortcutConfigs,
+          onConfigChanged: () {
+            _loadDashboardConfig();
+            _loadShortcutConfig();
+          },
+        ),
+      ),
+    );
+    if (result == true && mounted) {
+      _loadDashboardConfig();
+      _loadShortcutConfig();
+    }
+  }
+
   /// Compact button to open dashboard customization
   Widget _buildCustomizeDashboardButton() {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
-        onTap: () async {
-          final result = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(
-              builder: (_) => DashboardSettingsView(
-                role: widget.role,
-                currentConfig: _dashboardConfigs,
-                onConfigChanged: () {
-                  _loadDashboardConfig();
-                },
-              ),
-            ),
-          );
-          if (result == true && mounted) {
-            _loadDashboardConfig();
-          }
-        },
+        onTap: _openDashboardSettings,
         borderRadius: BorderRadius.circular(20),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -3372,28 +3408,100 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
-  /// Unified compact shortcuts section - merges pinned shortcuts + quick actions
+  /// Unified compact shortcuts section - uses configurable shortcut configs
   Widget _buildUnifiedShortcuts() {
-    final loc = AppLocalizations.of(context)!;
+    // Map ShortcutType → onTap callback
+    VoidCallback? _getShortcutAction(ShortcutType type) {
+      switch (type) {
+        case ShortcutType.sellCreate:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView()));
+        case ShortcutType.repairCreate:
+          return _enableRepair ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateRepairOrderView(role: widget.role))) : null;
+        case ShortcutType.stockIn:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartStockInView()));
+        case ShortcutType.pendingStock:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingStockListView()));
+        case ShortcutType.saleList:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SaleListView()));
+        case ShortcutType.repairList:
+          return _enableRepair ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderListView())) : null;
+        case ShortcutType.addExpense:
+          return _showQuickExpenseDialog;
+        case ShortcutType.addIncome:
+          return _showQuickIncomeDialog;
+        case ShortcutType.inventoryCheck:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FastInventoryCheckView()));
+        case ShortcutType.report:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RevenueView()));
+        case ShortcutType.attendance:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendanceView()));
+        case ShortcutType.warranty:
+          return _enableWarranty ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WarrantyView())) : null;
+        case ShortcutType.cashClosing:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashClosingView()));
+        case ShortcutType.customers:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerManagementView()));
+        case ShortcutType.suppliers:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupplierListView()));
+        case ShortcutType.debt:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DebtView()));
+        case ShortcutType.qrScan:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QrScanView()));
+        case ShortcutType.financialReport:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FinancialReportView()));
+        case ShortcutType.activityLog:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FinancialActivityLogView()));
+        case ShortcutType.printer:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrinterSettingsView()));
+        case ShortcutType.quickCodes:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputCodesView()));
+        case ShortcutType.bankInstallment:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BankInstallmentReportView()));
+        case ShortcutType.globalSearch:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => GlobalSearchView(role: widget.role)));
+        case ShortcutType.staff:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StaffListView()));
+        case ShortcutType.expenses:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseView()));
+        case ShortcutType.expiryManage:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpiryManagementView()));
+      }
+    }
 
-    // Build list of shortcut items dynamically
-    final items = <_ShortcutItem>[
-      _ShortcutItem(Icons.add_shopping_cart, 'Bán hàng', Colors.green, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView()))),
-      if (_enableRepair)
-        _ShortcutItem(Icons.build_circle, 'Đơn sửa', Colors.blue, () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateRepairOrderView(role: widget.role)))),
-      _ShortcutItem(Icons.add_box, 'Nhập kho', Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartStockInView()))),
-      _ShortcutItem(Icons.pending_actions, 'Chờ XN', Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingStockListView()))),
-      _ShortcutItem(Icons.receipt_long, 'Đơn bán', Colors.indigo, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SaleListView()))),
-      if (_enableRepair)
-        _ShortcutItem(Icons.list_alt, 'DS sửa', Colors.deepPurple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderListView()))),
-      _ShortcutItem(Icons.remove_circle_outline, 'Thêm chi', Colors.red, _showQuickExpenseDialog),
-      _ShortcutItem(Icons.add_circle_outline, 'Thêm thu', Colors.green.shade700, _showQuickIncomeDialog),
-      _ShortcutItem(Icons.qr_code_scanner, 'Kiểm kho', Colors.cyan, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FastInventoryCheckView()))),
-      _ShortcutItem(Icons.bar_chart, 'Báo cáo', Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RevenueView()))),
-      _ShortcutItem(Icons.access_time, 'Chấm công', Colors.teal.shade700, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendanceView()))),
-      if (_enableWarranty)
-        _ShortcutItem(Icons.shield, 'Bảo hành', Colors.amber.shade800, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WarrantyView()))),
-    ];
+    // Build items from config
+    final List<_ShortcutItem> items;
+    if (_shortcutConfigLoaded && _shortcutConfigs.isNotEmpty) {
+      items = <_ShortcutItem>[];
+      for (final config in _shortcutConfigs) {
+        if (!config.visible) continue;
+        // Skip repair shortcuts if repair disabled
+        if (config.requiresRepair && !_enableRepair) continue;
+        // Skip warranty shortcut if warranty disabled
+        if (config.requiresWarranty && !_enableWarranty) continue;
+        final action = _getShortcutAction(config.type);
+        if (action == null) continue;
+        items.add(_ShortcutItem(config.icon, config.displayName, config.color, action));
+      }
+    } else {
+      // Fallback: legacy hardcoded shortcuts
+      items = <_ShortcutItem>[
+        _ShortcutItem(Icons.add_shopping_cart, 'Bán hàng', Colors.green, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView()))),
+        if (_enableRepair)
+          _ShortcutItem(Icons.build_circle, 'Đơn sửa', Colors.blue, () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateRepairOrderView(role: widget.role)))),
+        _ShortcutItem(Icons.add_box, 'Nhập kho', Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartStockInView()))),
+        _ShortcutItem(Icons.pending_actions, 'Chờ XN', Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingStockListView()))),
+        _ShortcutItem(Icons.receipt_long, 'Đơn bán', Colors.indigo, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SaleListView()))),
+        if (_enableRepair)
+          _ShortcutItem(Icons.list_alt, 'DS sửa', Colors.deepPurple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderListView()))),
+        _ShortcutItem(Icons.remove_circle_outline, 'Thêm chi', Colors.red, _showQuickExpenseDialog),
+        _ShortcutItem(Icons.add_circle_outline, 'Thêm thu', Colors.green.shade700, _showQuickIncomeDialog),
+        _ShortcutItem(Icons.qr_code_scanner, 'Kiểm kho', Colors.cyan, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FastInventoryCheckView()))),
+        _ShortcutItem(Icons.bar_chart, 'Báo cáo', Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RevenueView()))),
+        _ShortcutItem(Icons.access_time, 'Chấm công', Colors.teal.shade700, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendanceView()))),
+        if (_enableWarranty)
+          _ShortcutItem(Icons.shield, 'Bảo hành', Colors.amber.shade800, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WarrantyView()))),
+      ];
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -3414,6 +3522,27 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     letterSpacing: 0.5,
                   ),
                 ),
+                const Spacer(),
+                // Inline edit button for shortcuts
+                if (_shortcutConfigLoaded)
+                  InkWell(
+                    onTap: _openDashboardSettings,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit, size: 12, color: Colors.grey.shade500),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Sửa',
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
