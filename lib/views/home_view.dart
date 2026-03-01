@@ -942,9 +942,21 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   /// when entering/exiting shortcut edit mode).
   void _rebuildTabWidgets() {
     if (_tabWidgets.isEmpty) return; // Not initialized yet
-    // Only update the home tab (index 0) - it's the only one showing stats
-    _tabWidgets[0] = _buildHomeTab();
-    debugPrint('HomeView: Rebuilt home tab (stats updated)');
+    // Update home tab (index 0) - shows dashboard stats
+    final homeWidget = _buildHomeTab();
+    _tabWidgets[0] = homeWidget;
+    _tabConfigs[0]['widget'] = homeWidget; // Keep _tabConfigs in sync for _updateAvailableTabs()
+    // Update finance tab - also displays _todayTotalIn/_todayTotalOut/_todayNetProfit from parent state
+    for (int i = 1; i < _tabConfigs.length && i < _tabWidgets.length; i++) {
+      final label = (_tabConfigs[i]['item'] as BottomNavigationBarItem).label;
+      if (label == loc.financeTab) {
+        final financeWidget = _buildFinanceTab();
+        _tabWidgets[i] = financeWidget;
+        _tabConfigs[i]['widget'] = financeWidget; // Keep _tabConfigs in sync
+        break;
+      }
+    }
+    debugPrint('HomeView: Rebuilt home + finance tabs (stats updated)');
   }
 
   @override
