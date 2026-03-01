@@ -257,6 +257,36 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
         ));
       }
 
+      // --- Bank Settlements (Tất toán NH) ---
+      // Iterate sales again to add settlement entries for bank installment sales
+      // where the bank disbursement was received within the selected date range.
+      for (var doc in results[0].docs) {
+        final data = doc.data();
+        if (data['deleted'] == true) continue;
+        convertTimestamps(data);
+        data['firestoreId'] = doc.id;
+        final sale = SaleOrder.fromMap(data);
+        if (!sale.isInstallment) continue;
+        if (sale.settlementReceivedAt == null || sale.settlementAmount <= 0) continue;
+        if (sale.settlementReceivedAt! < startMs || sale.settlementReceivedAt! > endMs) continue;
+
+        final banks = <String>[];
+        if (sale.bankName != null && sale.bankName!.isNotEmpty) banks.add(sale.bankName!);
+        if (sale.bankName2 != null && sale.bankName2!.isNotEmpty) banks.add(sale.bankName2!);
+        final bankDisplay = banks.isNotEmpty ? banks.join(' + ') : 'NH';
+
+        allActivities.add(FinancialActivity.fromSettlement(
+          saleFirestoreId: doc.id,
+          amount: sale.settlementAmount,
+          bankName: bankDisplay,
+          customerName: sale.customerName,
+          productNames: sale.productNames,
+          createdAt: sale.settlementReceivedAt!,
+          settlementFee: sale.settlementFee,
+          shopId: shopId,
+        ));
+      }
+
       // --- Repairs ---
       if (_enableRepair) {
         for (var doc in results[1].docs) {

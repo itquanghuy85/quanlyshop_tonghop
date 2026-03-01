@@ -987,46 +987,6 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               onPressed: _unlockManager,
               icon: const Icon(Icons.edit_rounded, color: Colors.white),
             ),
-          IconButton(
-            onPressed: _sendSmsToCustomer,
-            icon: const Icon(Icons.sms_rounded, color: Colors.white),
-          ),
-          IconButton(
-            onPressed: _sendToChat,
-            icon: const Icon(
-              Icons.chat_bubble_outline_rounded,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SaleInvoicePreviewView(
-                    saleData: _buildSalePrintData(),
-                    paper: PaperSize.mm58,
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.preview, color: Colors.white),
-          ),
-          IconButton(
-            onPressed: _printWifi,
-            icon: const Icon(Icons.print_rounded, color: Colors.white),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const SaleInvoiceTemplateView(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.design_services, color: Colors.white),
-          ),
           if (_managerUnlocked)
             IconButton(
               onPressed: _openEditSaleDialog,
@@ -1042,6 +1002,50 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               ),
             ),
         ],
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(20),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _bottomAction(Icons.sms_rounded, 'SMS', _sendSmsToCustomer),
+                _bottomAction(Icons.chat_bubble_outline_rounded, 'Chat', _sendToChat),
+                _bottomAction(Icons.preview, 'Xem trước', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SaleInvoicePreviewView(
+                        saleData: _buildSalePrintData(),
+                        paper: PaperSize.mm58,
+                      ),
+                    ),
+                  );
+                }),
+                _bottomAction(Icons.print_rounded, 'In', _printWifi),
+                _bottomAction(Icons.design_services, 'Mẫu in', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SaleInvoiceTemplateView(),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -1214,6 +1218,27 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       ],
     ),
   );
+
+  Widget _bottomAction(IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 22, color: const Color(0xFF0068FF)),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 10, color: Color(0xFF0068FF)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _sendToChat() async {
     final user = FirebaseAuth.instance.currentUser;
