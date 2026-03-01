@@ -2128,12 +2128,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           widgets.add(_buildGreetingCard());
           break;
         case DashboardCardType.actionRequired:
+          final canRepair = hasFullAccess || _permissions['allowViewRepairs'] == true;
+          final canStock = hasFullAccess || _permissions['allowViewInventory'] == true;
+          final canWarranty = hasFullAccess || _permissions['allowViewWarranty'] == true;
           widgets.add(ActionRequiredCard(
             key: ValueKey('action_required_$_rebuildCounter'),
-            enableRepair: _enableRepair,
-            enableWarranty: _enableWarranty,
-            enableExpiry: _enableExpiry,
-            onPendingRepairsTap: () => Navigator.push(
+            enableRepair: _enableRepair && canRepair,
+            enableWarranty: _enableWarranty && canWarranty,
+            enableExpiry: _enableExpiry && canStock,
+            onPendingRepairsTap: canRepair ? () => Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => OrderListView(
@@ -2141,17 +2144,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   statusFilter: const [1, 2],
                 ),
               ),
-            ),
-            onPendingStockTap: () => Navigator.push(
+            ) : null,
+            onPendingStockTap: canStock ? () => Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => const PendingStockListView(),
               ),
-            ),
-            onWarrantyTap: () => Navigator.push(
+            ) : null,
+            onWarrantyTap: canWarranty ? () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const WarrantyView()),
-            ),
+            ) : null,
           ));
           break;
         case DashboardCardType.quickActions:
@@ -2205,13 +2208,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           role: widget.role,
           currentConfig: _dashboardConfigs,
           currentShortcuts: _shortcutConfigs,
-          onConfigChanged: () {
-            _loadDashboardConfig();
-            _loadShortcutConfig();
-          },
+          onConfigChanged: null, // Don't load while still on settings page
         ),
       ),
     );
+    // Only reload ONCE after returning from settings page
     if (result == true && mounted) {
       _loadDashboardConfig();
       _loadShortcutConfig();
@@ -3211,9 +3212,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
+  /// Check if current user has permission for a shortcut
+  bool _hasShortcutPermission(ShortcutConfig config) {
+    // Admin/Owner/SuperAdmin always have full access
+    if (hasFullAccess) return true;
+    final perm = config.requiredPermission;
+    if (perm == null) return true; // No permission required (utility shortcuts)
+    return _permissions[perm] == true;
+  }
+
   /// Unified compact shortcuts section - uses configurable shortcut configs
   Widget _buildUnifiedShortcuts() {
-    // Map ShortcutType → onTap callback
+    // Map ShortcutType → onTap callback (with permission check)
     VoidCallback? _getShortcutAction(ShortcutType type) {
       switch (type) {
         case ShortcutType.sellCreate:
@@ -3276,7 +3286,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       return _buildShortcutEditMode();
     }
 
-    // Build visible items from config
+    // Build visible items from config (with permission filtering)
     final List<_ShortcutItem> items;
     if (_shortcutConfigLoaded && _shortcutConfigs.isNotEmpty) {
       items = <_ShortcutItem>[];
@@ -3284,26 +3294,41 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         if (!config.visible) continue;
         if (config.requiresRepair && !_enableRepair) continue;
         if (config.requiresWarranty && !_enableWarranty) continue;
+        // Permission check: skip shortcuts the user doesn't have access to
+        if (!_hasShortcutPermission(config)) continue;
         final action = _getShortcutAction(config.type);
         if (action == null) continue;
         items.add(_ShortcutItem(config.icon, config.displayName, config.color, action));
       }
     } else {
+      // Fallback: no config loaded yet - build defaults with permission checks
+      final _p = _permissions;
+      final _fa = hasFullAccess;
+      bool _ok(String? perm) => _fa || perm == null || (_p[perm] == true);
       items = <_ShortcutItem>[
-        _ShortcutItem(Icons.add_shopping_cart, 'Bán hàng', Colors.green, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView()))),
-        if (_enableRepair)
+        if (_ok('allowViewSales'))
+          _ShortcutItem(Icons.add_shopping_cart, 'Bán hàng', Colors.green, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView()))),
+        if (_enableRepair && _ok('allowViewRepairs'))
           _ShortcutItem(Icons.build_circle, 'Đơn sửa', Colors.blue, () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateRepairOrderView(role: widget.role)))),
-        _ShortcutItem(Icons.add_box, 'Nhập kho', Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartStockInView()))),
-        _ShortcutItem(Icons.pending_actions, 'Chờ XN', Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingStockListView()))),
-        _ShortcutItem(Icons.receipt_long, 'Đơn bán', Colors.indigo, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SaleListView()))),
-        if (_enableRepair)
+        if (_ok('allowViewInventory'))
+          _ShortcutItem(Icons.add_box, 'Nhập kho', Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartStockInView()))),
+        if (_ok('allowViewInventory'))
+          _ShortcutItem(Icons.pending_actions, 'Chờ XN', Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingStockListView()))),
+        if (_ok('allowViewSales'))
+          _ShortcutItem(Icons.receipt_long, 'Đơn bán', Colors.indigo, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SaleListView()))),
+        if (_enableRepair && _ok('allowViewRepairs'))
           _ShortcutItem(Icons.list_alt, 'DS sửa', Colors.deepPurple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderListView()))),
-        _ShortcutItem(Icons.remove_circle_outline, 'Thêm chi', Colors.red, _showQuickExpenseDialog),
-        _ShortcutItem(Icons.add_circle_outline, 'Thêm thu', Colors.green.shade700, _showQuickIncomeDialog),
-        _ShortcutItem(Icons.qr_code_scanner, 'Kiểm kho', Colors.cyan, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FastInventoryCheckView()))),
-        _ShortcutItem(Icons.bar_chart, 'Báo cáo', Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RevenueView()))),
-        _ShortcutItem(Icons.access_time, 'Chấm công', Colors.teal.shade700, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendanceView()))),
-        if (_enableWarranty)
+        if (_ok('allowViewExpenses'))
+          _ShortcutItem(Icons.remove_circle_outline, 'Thêm chi', Colors.red, _showQuickExpenseDialog),
+        if (_ok('allowViewRevenue'))
+          _ShortcutItem(Icons.add_circle_outline, 'Thêm thu', Colors.green.shade700, _showQuickIncomeDialog),
+        if (_ok('allowViewInventory'))
+          _ShortcutItem(Icons.qr_code_scanner, 'Kiểm kho', Colors.cyan, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FastInventoryCheckView()))),
+        if (_ok('allowViewRevenue'))
+          _ShortcutItem(Icons.bar_chart, 'Báo cáo', Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RevenueView()))),
+        if (_ok('allowViewAttendance'))
+          _ShortcutItem(Icons.access_time, 'Chấm công', Colors.teal.shade700, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendanceView()))),
+        if (_enableWarranty && _ok('allowViewWarranty'))
           _ShortcutItem(Icons.shield, 'Bảo hành', Colors.amber.shade800, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WarrantyView()))),
       ];
     }

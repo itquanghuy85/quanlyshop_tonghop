@@ -411,6 +411,51 @@ class ShortcutConfig {
   bool get requiresWarranty {
     return type == ShortcutType.warranty;
   }
+
+  /// Permission key required to use this shortcut (null = no restriction)
+  String? get requiredPermission {
+    switch (type) {
+      case ShortcutType.sellCreate:
+      case ShortcutType.saleList:
+      case ShortcutType.bankInstallment:
+        return 'allowViewSales';
+      case ShortcutType.repairCreate:
+      case ShortcutType.repairList:
+        return 'allowViewRepairs';
+      case ShortcutType.stockIn:
+      case ShortcutType.pendingStock:
+      case ShortcutType.inventoryCheck:
+      case ShortcutType.expiryManage:
+        return 'allowViewInventory';
+      case ShortcutType.addExpense:
+      case ShortcutType.expenses:
+        return 'allowViewExpenses';
+      case ShortcutType.addIncome:
+      case ShortcutType.report:
+      case ShortcutType.cashClosing:
+      case ShortcutType.financialReport:
+      case ShortcutType.activityLog:
+        return 'allowViewRevenue';
+      case ShortcutType.attendance:
+        return 'allowViewAttendance';
+      case ShortcutType.warranty:
+        return 'allowViewWarranty';
+      case ShortcutType.customers:
+        return 'allowViewCustomers';
+      case ShortcutType.suppliers:
+        return 'allowViewSuppliers';
+      case ShortcutType.debt:
+        return 'allowViewDebts';
+      case ShortcutType.printer:
+        return 'allowViewPrinter';
+      case ShortcutType.staff:
+        return 'allowManageStaff';
+      case ShortcutType.quickCodes:
+      case ShortcutType.qrScan:
+      case ShortcutType.globalSearch:
+        return null; // Utility shortcuts - no permission required
+    }
+  }
 }
 
 /// Service to manage shortcut configuration
