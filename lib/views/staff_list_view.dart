@@ -1681,7 +1681,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     }
     days.sort();
     
-    final dayNames = {1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 7: 'CN'};
+    final dayNames = {0: 'CN', 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 7: 'CN'};
     
     // Check if consecutive
     if (days.isNotEmpty) {

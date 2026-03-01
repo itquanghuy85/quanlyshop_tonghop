@@ -377,6 +377,37 @@ class FinancialActivity {
     );
   }
 
+  /// Helper để tạo activity từ chi phí vốn linh kiện sửa chữa đã ghi sổ quỹ
+  static FinancialActivity fromRepairPartsCost({
+    required String firestoreId,
+    required int amount,
+    required String paymentMethod,
+    required String customerName,
+    required String phone,
+    required String deviceModel,
+    required int createdAt,
+    String? createdBy,
+    String? shopId,
+  }) {
+    return FinancialActivity(
+      firestoreId: 'fa_repair_parts_$firestoreId',
+      activityType: 'REPAIR_PARTS_COST',
+      amount: amount,
+      direction: 'OUT',
+      paymentMethod: paymentMethod,
+      referenceType: 'repair',
+      referenceId: firestoreId,
+      title: 'VỐN LK: $deviceModel',
+      description: 'Chi phí vốn linh kiện — ${customerName.isNotEmpty ? customerName : "KH vãng lai"}',
+      customerName: customerName,
+      phone: phone,
+      productInfo: deviceModel,
+      createdAt: createdAt,
+      createdBy: createdBy,
+      shopId: shopId,
+    );
+  }
+
   static String _formatMoney(int amount) {
     if (amount >= 1000000) {
       return '${(amount / 1000000).toStringAsFixed(1)}tr';
@@ -416,6 +447,8 @@ class FinancialActivity {
       case 'REPAIR':
       case 'REPAIR_SERVICE':
         return '🔧';
+      case 'REPAIR_PARTS_COST':
+        return '🔩';
       case 'REFUND':
       case 'CUSTOMER_REFUND':
         return '↩️';
@@ -467,6 +500,8 @@ class FinancialActivity {
       case 'REPAIR':
       case 'REPAIR_SERVICE':
         return 'Sửa chữa';
+      case 'REPAIR_PARTS_COST':
+        return 'Vốn LK SC';
       case 'REFUND':
       case 'CUSTOMER_REFUND':
         return 'Hoàn tiền';

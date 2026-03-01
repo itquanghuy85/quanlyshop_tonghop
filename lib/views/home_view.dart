@@ -1393,6 +1393,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   int _todayMiscIncome = 0; // Thu phát sinh
   int _todayImportOut = 0; // Chi nhập hàng
   int _todayPartnerPaid = 0; // TT đối tác sửa chữa
+  int _todayRepairPartsCostFund = 0; // Vốn LK SC đã ghi sổ quỹ
   int _todaySaleCost = 0; // Giá vốn bán hàng
   int _todayRepairCost = 0; // Giá vốn sửa chữa
   int _todaySettlementIncome = 0; // Tất toán NH (bank settlement)
@@ -1488,6 +1489,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           columns: ['totalAmount', 'costPrice', 'paymentMethod', 'importDate', 'createdAt'],
           where: '((importDate IS NOT NULL AND importDate >= ? AND importDate < ?) OR (importDate IS NULL AND createdAt >= ? AND createdAt < ?))',
           whereArgs: [startMs, endMs, startMs, endMs]),
+        // [10] repairPartsCostFund — repairs with cost recorded in fund today
+        dbConn.query('repairs',
+          columns: ['cost', 'costPaymentMethod'],
+          where: 'costRecordedInFund = 1 AND costRecordedAt IS NOT NULL AND costRecordedAt >= ? AND costRecordedAt < ?',
+          whereArgs: [startMs, endMs]),
       ]);
       debugPrint('HomeView: Batch 1 (10 queries) took ${stopwatch.elapsedMilliseconds}ms');
 
@@ -1501,6 +1507,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       final partnerPayments = batch1[7] as List<Map<String, dynamic>>;
       final supplierPayments = batch1[8] as List<Map<String, dynamic>>;
       final supplierImports = batch1[9] as List<Map<String, dynamic>>;
+      final repairPartsCostFundRows = batch1[10] as List<Map<String, dynamic>>;
 
       int doneT = 0, soldT = 0, debtR = 0, expW = 0;
 
@@ -1684,6 +1691,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         }
       }
 
+      // ===== REPAIR PARTS COST FUND RECORDING =====
+      // Chi phí vốn linh kiện đã ghi sổ quỹ → CashOut / BankOut
+      int repairPartsCostFund = 0;
+      for (final r in repairPartsCostFundRows) {
+        final cost = (r['cost'] as num?)?.toInt() ?? 0;
+        final method = (r['costPaymentMethod'] as String? ?? 'TIỀN MẶT').toString();
+        repairPartsCostFund += cost;
+        if (method == 'TIỀN MẶT') { cashOut += cost; } else { bankOut += cost; }
+      }
+
       // ===== KẾT QUẢ =====
       final totalCashFlowIn = cashIn + bankIn;
       final totalCashFlowOut = cashOut + bankOut;
@@ -1810,6 +1827,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _todayMiscIncome = miscIncome;
           _todayImportOut = importOut;
           _todayPartnerPaid = partnerPaid; // TT đối tác sửa chữa (tách riêng)
+          _todayRepairPartsCostFund = repairPartsCostFund; // Vốn LK SC đã ghi sổ quỹ
           _todaySaleCost = saleCost;
           _todayRepairCost = repairCost;
           _todaySettlementIncome = settlementIncome;
@@ -6607,6 +6625,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                       _homeBreakdownItem("Trả nợ NCC", _todayDebtPaidToSupplier, Colors.red),
                       if (_todayPartnerPaid > 0)
                         _homeBreakdownItem("TT đối tác SC", _todayPartnerPaid, Colors.red),
+                      if (_todayRepairPartsCostFund > 0)
+                        _homeBreakdownItem("Vốn LK SC", _todayRepairPartsCostFund, Colors.red),
                     ],
                   ),
                 ),

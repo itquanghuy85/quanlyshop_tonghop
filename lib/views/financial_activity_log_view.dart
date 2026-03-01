@@ -77,6 +77,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     if (_enableRepair) {'value': 'REPAIR', 'label': '🔧 Sửa chữa'},
     if (_enableRepair) {'value': 'REPAIR_SERVICE', 'label': '🔧 Thanh toán sửa chữa'},
     if (_enableRepair) {'value': 'REPAIR_PARTNER_DEBT', 'label': '🔧 Trả đối tác SC'},
+    if (_enableRepair) {'value': 'REPAIR_PARTS_COST', 'label': '🔩 Vốn LK SC'},
   ];
 
   final List<Map<String, String>> _directions = [
@@ -309,6 +310,23 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
             createdAt: repair.createdAt,
             shopId: shopId,
           ));
+
+          // Repair parts cost recorded in fund
+          if (repair.costRecordedInFund &&
+              repair.costRecordedAt != null &&
+              repair.costRecordedAt! >= startMs &&
+              repair.costRecordedAt! <= endMs) {
+            allActivities.add(FinancialActivity.fromRepairPartsCost(
+              firestoreId: doc.id,
+              amount: repair.totalCost,
+              paymentMethod: repair.costPaymentMethod ?? 'TIỀN MẶT',
+              customerName: repair.customerName,
+              phone: repair.phone,
+              deviceModel: repair.model,
+              createdAt: repair.costRecordedAt!,
+              shopId: shopId,
+            ));
+          }
         }
       }
 

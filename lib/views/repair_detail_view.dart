@@ -1759,6 +1759,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _editFinancials() async {
+    // Lock editing when repair is delivered (status 4)
+    if (r.status == 4) {
+      NotificationService.showSnackBar(
+        'Đã giao máy — không thể sửa giá',
+        color: Colors.orange,
+      );
+      return;
+    }
+
     final formKey = GlobalKey<FormState>();
     final priceC = TextEditingController(
       text: CurrencyTextField.formatDisplay(r.price),
@@ -1818,16 +1827,98 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       },
     );
     if (result == true) {
-      // Update pricing directly
+      final parsedPrice = MoneyUtils.parseCurrency(priceC.text);
+      final parsedCost = MoneyUtils.parseCurrency(costC.text);
+      final oldCost = r.cost;
+      final wasFundRecorded = r.costRecordedInFund;
+
+      // Update pricing
       setState(() {
-        final parsedPrice = MoneyUtils.parseCurrency(priceC.text);
-        final parsedCost = MoneyUtils.parseCurrency(costC.text);
         r.price = parsedPrice;
         r.cost = parsedCost;
       });
-      // Note: Chi phí linh kiện được theo dõi qua repair.cost và tính vào repairCost trong báo cáo
-      // Không cần tạo expense riêng để tránh double-counting
+
+      // Show fund recording popup if cost > 0 and cost changed or not yet recorded
+      if (parsedCost > 0 && (parsedCost != oldCost || !wasFundRecorded)) {
+        await _showCostFundRecordingPopup(parsedCost);
+      } else if (parsedCost == 0 && wasFundRecorded) {
+        // Reset fund recording if cost is now 0
+        setState(() {
+          r.costRecordedInFund = false;
+          r.costPaymentMethod = null;
+          r.costRecordedAt = null;
+        });
+      }
+
       _saveData();
+    }
+  }
+
+  /// Show popup asking whether to record parts cost in cash fund
+  Future<void> _showCostFundRecordingPopup(int costAmount) async {
+    final fundResult = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('GHI VÀO SỔ QUỸ?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Chi phí vốn linh kiện: ${MoneyUtils.formatVND(costAmount)}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Ghi chi phí này vào sổ quỹ để cập nhật biến động quỹ tiền mặt / ngân hàng?',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'SKIP'),
+            child: const Text('Không ghi'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, 'CHUYỂN KHOẢN'),
+            icon: const Icon(Icons.account_balance, size: 18),
+            label: const Text('Chuyển khoản'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, 'TIỀN MẶT'),
+            icon: const Icon(Icons.payments, size: 18),
+            label: const Text('Tiền mặt'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (fundResult != null && fundResult != 'SKIP') {
+      setState(() {
+        r.costRecordedInFund = true;
+        r.costPaymentMethod = fundResult;
+        r.costRecordedAt = DateTime.now().millisecondsSinceEpoch;
+      });
+      NotificationService.showSnackBar(
+        'Đã ghi ${MoneyUtils.formatVND(costAmount)} vào sổ quỹ ($fundResult)',
+        color: Colors.green,
+      );
+    } else {
+      setState(() {
+        r.costRecordedInFund = false;
+        r.costPaymentMethod = null;
+        r.costRecordedAt = null;
+      });
     }
   }
 
@@ -2199,6 +2290,23 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         _miniFinCompact("VỐN", r.cost, AppColors.warning),
                       ],
                     ),
+                    // Indicator: cost recorded in fund
+                    if (r.costRecordedInFund && r.cost > 0) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.check_circle, size: 12, color: Colors.green.shade600),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Đã ghi sổ quỹ (${r.costPaymentMethod ?? ""})',
+                            style: AppTextStyles.overline.copyWith(
+                              color: Colors.green.shade600,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     // Phụ tùng
                     if (r.partsUsed.isNotEmpty) ...[
                       const SizedBox(height: 6),

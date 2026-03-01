@@ -59,6 +59,11 @@ class Repair {
   // Chờ duyệt giao máy (status 3 + pendingDeliveryApproval = true)
   bool pendingDeliveryApproval;
 
+  // Chi phí vốn đã ghi vào sổ quỹ
+  bool costRecordedInFund;
+  String? costPaymentMethod; // TIỀN MẶT or CHUYỂN KHOẢN
+  int? costRecordedAt; // timestamp when recorded
+
   // Getter for receive images
   List<String> get receiveImages {
     if (imagePath == null || imagePath!.isEmpty) return [];
@@ -105,6 +110,9 @@ class Repair {
     this.services = const [],
     this.notes,
     this.pendingDeliveryApproval = false,
+    this.costRecordedInFund = false,
+    this.costPaymentMethod,
+    this.costRecordedAt,
   });
 
   /// Tổng chi phí = cost (linh kiện + dịch vụ đã lưu)
@@ -156,6 +164,9 @@ class Repair {
       'services': jsonEncode(services.map((s) => s.toMap()).toList()),
       'notes': notes,
       'pendingDeliveryApproval': pendingDeliveryApproval ? 1 : 0,
+      'costRecordedInFund': costRecordedInFund ? 1 : 0,
+      'costPaymentMethod': costPaymentMethod,
+      'costRecordedAt': costRecordedAt,
     };
   }
 
@@ -202,6 +213,11 @@ class Repair {
       pendingDeliveryApproval:
           map['pendingDeliveryApproval'] == 1 ||
           map['pendingDeliveryApproval'] == true,
+      costRecordedInFund:
+          map['costRecordedInFund'] == 1 ||
+          map['costRecordedInFund'] == true,
+      costPaymentMethod: map['costPaymentMethod'],
+      costRecordedAt: map['costRecordedAt'],
     );
   }
 
@@ -241,6 +257,9 @@ class Repair {
     List<RepairService>? services,
     String? notes,
     bool? pendingDeliveryApproval,
+    bool? costRecordedInFund,
+    String? costPaymentMethod,
+    int? costRecordedAt,
   }) {
     return Repair(
       id: id ?? this.id,
@@ -279,6 +298,12 @@ class Repair {
       notes: notes ?? this.notes,
       pendingDeliveryApproval:
           pendingDeliveryApproval ?? this.pendingDeliveryApproval,
+      costRecordedInFund:
+          costRecordedInFund ?? this.costRecordedInFund,
+      costPaymentMethod:
+          costPaymentMethod ?? this.costPaymentMethod,
+      costRecordedAt:
+          costRecordedAt ?? this.costRecordedAt,
     );
   }
 }

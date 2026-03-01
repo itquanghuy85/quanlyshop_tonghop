@@ -1488,6 +1488,8 @@ class _CashClosingViewState extends State<CashClosingView>
                     ),
                     if (analysis.partnerPaid > 0)
                       _breakdownItem("TT đối tác SC", analysis.partnerPaid, Colors.red),
+                    if (analysis.repairPartsCostFund > 0)
+                      _breakdownItem("Vốn LK SC", analysis.repairPartsCostFund, Colors.red),
                   ],
                 ),
               ),
@@ -1767,6 +1769,7 @@ class _CashClosingViewState extends State<CashClosingView>
     final importTotal = expenseList.where((t) => t['type'] == 'import').fold<int>(0, (s, t) => s + (t['amount'] as int));
     final supplierPayTotal = expenseList.where((t) => t['type'] == 'supplier_pay' || t['type'] == 'debt_pay').fold<int>(0, (s, t) => s + (t['amount'] as int));
     final partnerPayTotal = expenseList.where((t) => t['type'] == 'partner_pay').fold<int>(0, (s, t) => s + (t['amount'] as int));
+    final repairPartsCostTotal = expenseList.where((t) => t['type'] == 'repair_parts_cost').fold<int>(0, (s, t) => s + (t['amount'] as int));
 
     return Column(
       children: [
@@ -1807,6 +1810,7 @@ class _CashClosingViewState extends State<CashClosingView>
                     if (importTotal > 0) _summaryChip('📦 Nhập hàng', importTotal, Colors.red),
                     if (supplierPayTotal > 0) _summaryChip('🏭 Trả NCC', supplierPayTotal, Colors.red),
                     if (partnerPayTotal > 0) _summaryChip('🔧 Đối tác', partnerPayTotal, Colors.red),
+                    if (repairPartsCostTotal > 0) _summaryChip('🔩 Vốn LK SC', repairPartsCostTotal, Colors.red),
                   ],
                 ),
               ],
@@ -3052,6 +3056,28 @@ class _CashClosingViewState extends State<CashClosingView>
     }
     }
 
+    // Chi phí vốn linh kiện sửa chữa đã ghi sổ quỹ
+    if (_enableRepair) {
+      for (var r in _repairs.where(
+        (r) =>
+            r.costRecordedInFund &&
+            r.costRecordedAt != null &&
+            _isSameDay(r.costRecordedAt!, date),
+      )) {
+        list.add({
+          'type': 'repair_parts_cost',
+          'icon': '🔩',
+          'title': 'Vốn LK: ${r.model}',
+          'customerName': r.customerName.isNotEmpty ? r.customerName : 'KH vãng lai',
+          'detail': 'Chi phí vốn linh kiện SC',
+          'paymentMethod': r.costPaymentMethod ?? 'TIỀN MẶT',
+          'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.costRecordedAt!)),
+          'amount': r.totalCost,
+          'rawData': r.toMap(),
+        });
+      }
+    }
+
     // debt_payments với debtType SHOP_OWES = trả nợ NCC
     for (var p in _debtPayments.where((p) {
       final paidAt = p['paidAt'];
@@ -3087,6 +3113,7 @@ class _CashClosingViewState extends State<CashClosingView>
     int miscIncome = 0; // Thu phát sinh (type=THU)
     int expenseOut = 0, importOut = 0, supplierPaid = 0;
     int partnerPaid = 0; // TT đối tác sửa chữa (tách riêng)
+    int repairPartsCostFund = 0; // Vốn LK sửa chữa đã ghi vào sổ quỹ
     int saleCost = 0, repairCost = 0;
     int settlementIncome = 0;
     int saleDebt = 0, repairDebt = 0; // Track công nợ riêng
@@ -3173,6 +3200,22 @@ class _CashClosingViewState extends State<CashClosingView>
         cashIn += r.price;
       } else {
         bankIn += r.price;
+      }
+    }
+
+    // ===== REPAIR PARTS COST FUND RECORDING =====
+    // Chi phí vốn linh kiện đã ghi vào sổ quỹ: tính CHI theo ngày ghi nhận
+    for (var r in _repairs.where(
+      (r) =>
+          r.costRecordedInFund &&
+          r.costRecordedAt != null &&
+          _isSameDay(r.costRecordedAt!, now),
+    )) {
+      repairPartsCostFund += r.totalCost;
+      if (r.costPaymentMethod == 'TIỀN MẶT') {
+        cashOut += r.totalCost;
+      } else {
+        bankOut += r.totalCost;
       }
     }
     }
@@ -3359,6 +3402,7 @@ class _CashClosingViewState extends State<CashClosingView>
       importOut: importOut,
       supplierPaid: supplierPaid,
       partnerPaid: partnerPaid,
+      repairPartsCostFund: repairPartsCostFund,
       saleCost: saleCost,
       repairCost: repairCost,
     );
@@ -3371,6 +3415,7 @@ class _TransactionAnalysis {
   final int miscIncome; // Thu phát sinh (type=THU trong expenses)
   final int expenseOut, importOut, supplierPaid;
   final int partnerPaid; // TT đối tác sửa chữa (tách riêng khỏi supplierPaid)
+  final int repairPartsCostFund; // Vốn LK sửa chữa đã ghi vào sổ quỹ
   final int saleCost, repairCost; // Giá vốn hàng đã bán và sửa chữa
   _TransactionAnalysis({
     required this.cashIn,
@@ -3386,6 +3431,7 @@ class _TransactionAnalysis {
     required this.importOut,
     required this.supplierPaid,
     required this.partnerPaid,
+    required this.repairPartsCostFund,
     required this.saleCost,
     required this.repairCost,
   });
