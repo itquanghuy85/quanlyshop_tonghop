@@ -39,6 +39,8 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
   bool _showRcPhone = true;
   bool _showRcQR = true;
   final _rcNoteCtrl = TextEditingController();
+  final _warrantyPolicyCtrl = TextEditingController();
+  final _returnPolicyCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -67,6 +69,8 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
       _showRcPhone = prefs.getBool('receipt_show_phone') ?? true;
       _showRcQR = prefs.getBool('receipt_show_qr') ?? true;
       _rcNoteCtrl.text = prefs.getString('receipt_note') ?? "Cảm ơn quý khách!";
+      _warrantyPolicyCtrl.text = prefs.getString('warranty_policy') ?? '';
+      _returnPolicyCtrl.text = prefs.getString('return_policy') ?? '';
     });
     final savedBT = await BluetoothPrinterService.getSavedPrinter();
     if (mounted) setState(() => _selectedBT = savedBT);
@@ -89,6 +93,8 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
     await prefs.setBool('receipt_show_phone', _showRcPhone);
     await prefs.setBool('receipt_show_qr', _showRcQR);
     await prefs.setString('receipt_note', _rcNoteCtrl.text);
+    await prefs.setString('warranty_policy', _warrantyPolicyCtrl.text);
+    await prefs.setString('return_policy', _returnPolicyCtrl.text);
     NotificationService.showSnackBar("ĐÃ LƯU & ÁP DỤNG CỠ CHỮ MỚI", color: Colors.green);
   }
 
@@ -314,6 +320,10 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
             _checkItem("Hiện SĐT & Địa chỉ", _showRcPhone, (v) => setState(() => _showRcPhone = v!)),
             _checkItem("Hiện QR Tra cứu", _showRcQR, (v) => setState(() => _showRcQR = v!)),
             TextField(controller: _rcNoteCtrl, onChanged: (v)=>setState(() {}), decoration: const InputDecoration(labelText: "Lời chúc cuối hóa đơn")),
+            const SizedBox(height: 8),
+            TextField(controller: _warrantyPolicyCtrl, maxLines: 2, onChanged: (v)=>setState(() {}), decoration: const InputDecoration(labelText: "Chính sách bảo hành", hintText: "VD: BH theo phiếu. Máy còn nguyên tem.")),
+            const SizedBox(height: 8),
+            TextField(controller: _returnPolicyCtrl, maxLines: 2, onChanged: (v)=>setState(() {}), decoration: const InputDecoration(labelText: "Chính sách đổi trả", hintText: "VD: Đổi trả 7 ngày. SP nguyên tem mác.")),
           ]),
         ],
       ),

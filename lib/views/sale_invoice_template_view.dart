@@ -46,7 +46,7 @@ class _SaleInvoiceTemplateViewState extends State<SaleInvoiceTemplateView> {
       _headerController.text = prefs.getString('sale_invoice_header') ??
           '=== HÓA ĐƠN BÁN HÀNG ===\n{shopName}\n{shopAddr}\nHotline: {shopPhone}\n--------------------------------';
       _bodyController.text = prefs.getString('sale_invoice_body') ??
-          'Mã HD: {code}\nNgày: {date} {time}\n\nKhách: {customerName}\nSĐT: {customerPhone}\nĐ/c: {customerAddress}\n\nSản phẩm: {products}\nIMEI: {imeis}\nBảo hành: {warranty}\n\nTổng: {total} đ\nGiảm: {discount} đ\nThực thu: {finalTotal} đ\nThanh toán: {paymentMethod}\nNV bán: {sellerName}\n\nTRẢ GÓP\nĐặt cọc: {downPayment} đ ({downPaymentMethod})\nVay NH1: {loanAmount} đ - {bankName}\nVay NH2: {loanAmount2} đ - {bankName2}\nKỳ hạn: {installmentTerm}\nCòn nợ: {remainingDebt} đ\n[QR]{qrData}';
+          'Mã HD: {code}\nNgày: {date} {time}\n\nKhách: {customerName}\nSĐT: {customerPhone}\nĐ/c: {customerAddress}\n\nSản phẩm: {products}\nIMEI: {imeis}\nBảo hành: {warranty}\n\nTổng: {total} đ\nGiảm: {discount} đ\nThực thu: {finalTotal} đ\nThanh toán: {paymentMethod}\nNV bán: {sellerName}\n\nTRẢ GÓP\nĐặt cọc: {downPayment} đ ({downPaymentMethod})\nVay NH1: {loanAmount} đ - {bankName}\nVay NH2: {loanAmount2} đ - {bankName2}\nKỳ hạn: {installmentTerm}\nCòn nợ: {remainingDebt} đ\n{warrantyPolicy}\n{returnPolicy}\n[QR]{qrData}';
       _footerController.text = prefs.getString('sale_invoice_footer') ??
           '--------------------------------\nCảm ơn quý khách!';
       _updatePreview();
@@ -109,6 +109,8 @@ class _SaleInvoiceTemplateViewState extends State<SaleInvoiceTemplateView> {
       'bankName': 'FE CREDIT',
       'bankName2': 'HOME CREDIT',
       'remainingDebt': '29.500.000',
+      'warrantyPolicy': 'BH theo phiếu. Máy còn nguyên tem BH.',
+      'returnPolicy': 'Đổi trả trong 7 ngày. SP còn nguyên tem.',
     };
 
     final templateText = [
@@ -169,7 +171,7 @@ class _SaleInvoiceTemplateViewState extends State<SaleInvoiceTemplateView> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Body (placeholder: {code}, {products}, {total}...)',
+                      'Body (placeholder: {code}, {products}, {total}, {warranty}, {warrantyPolicy}, {returnPolicy}...)',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Align(

@@ -46,7 +46,7 @@ class _RepairInvoiceTemplateViewState extends State<RepairInvoiceTemplateView> {
       _headerController.text = prefs.getString('repair_invoice_header') ??
           '=== PHIẾU SỬA CHỮA ===\n{shopName}\n{shopAddr}\nHotline: {shopPhone}\n--------------------------------';
       _bodyController.text = prefs.getString('repair_invoice_body') ??
-          'Mã đơn: {code}\nNgày: {date} {time}\n\nKhách: {customerName}\nSĐT: {customerPhone}\n\nMáy: {model}\nIMEI: {imei}\nLỗi: {issue}\nPhụ kiện: {accessories}\nLinh kiện đã dùng: {partsUsed}\nDịch vụ: {services}\nBảo hành: {warranty}\nGhi chú: {notes}\n\nGiá: {price} đ\nThanh toán: {paymentMethod}\nTrạng thái: {status}\n[QR]{qrData}';
+          'Mã đơn: {code}\nNgày: {date} {time}\n\nKhách: {customerName}\nSĐT: {customerPhone}\n\nMáy: {model}\nIMEI: {imei}\nLỗi: {issue}\nPhụ kiện: {accessories}\nLinh kiện đã dùng: {partsUsed}\nDịch vụ: {services}\nBảo hành: {warranty}\nGhi chú: {notes}\n{warrantyPolicy}\n\nGiá: {price} đ\nThanh toán: {paymentMethod}\nTrạng thái: {status}\n[QR]{qrData}';
       _footerController.text = prefs.getString('repair_invoice_footer') ??
           '--------------------------------\nCảm ơn quý khách!';
       _updatePreview();
@@ -100,6 +100,8 @@ class _RepairInvoiceTemplateViewState extends State<RepairInvoiceTemplateView> {
       'price': '2.500.000',
       'paymentMethod': 'TIỀN MẶT',
       'status': 'Đang sửa',
+      'warrantyPolicy': 'BH theo phiếu. Máy còn nguyên tem BH.',
+      'returnPolicy': 'Đổi trả trong 7 ngày. SP còn nguyên tem.',
     };
 
     final templateText = [
@@ -160,7 +162,7 @@ class _RepairInvoiceTemplateViewState extends State<RepairInvoiceTemplateView> {
                         ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Body (placeholder: {code}, {customerName}, {price}...)',
+                      'Body (placeholder: {code}, {customerName}, {price}, {warranty}, {warrantyPolicy}, {returnPolicy}...)',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Align(

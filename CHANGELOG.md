@@ -4,6 +4,18 @@ Tất cả thay đổi đáng chú ý của dự án sẽ được ghi lại tro
 
 ---
 
+## [10.1.3] - 2025-06-30
+
+### Tính năng mới
+- **Chính sách BH & đổi trả in trên hóa đơn**: Thêm 2 trường "Chính sách bảo hành" và "Chính sách đổi trả" trong Cài đặt máy in. Dùng placeholder `{warrantyPolicy}` và `{returnPolicy}` trong mẫu hóa đơn bán/sửa để in lên phiếu.
+- **Giá vốn linh kiện sửa chữa**: Ghi nhận chi phí linh kiện vào Sổ quỹ, hiển thị trong Sổ quỹ, Trang chủ, Nhật ký tài chính
+
+### Sửa lỗi
+- **Fix hiển thị tiền mặt = 0**: Sổ quỹ hiện đúng "0" thay vì để trống khi số dư tiền mặt bằng 0
+- **Fix lịch làm việc hiển thị T7 = null**: Sửa thiếu key ngày Chủ nhật trong danh sách nhân viên
+
+---
+
 ## [10.1.0] - 2025-06-14
 
 ### Tính năng mới

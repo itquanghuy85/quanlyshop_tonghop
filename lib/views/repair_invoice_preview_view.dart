@@ -63,7 +63,7 @@ class _RepairInvoicePreviewViewState extends State<RepairInvoicePreviewView> {
     final header = prefs.getString('repair_invoice_header') ??
         '=== PHIẾU SỬA CHỮA ===\n{shopName}\n{shopAddr}\nHotline: {shopPhone}\n--------------------------------';
     final body = prefs.getString('repair_invoice_body') ??
-      'Mã đơn: {code}\nNgày: {date} {time}\n\nKhách: {customerName}\nSĐT: {customerPhone}\n\nMáy: {model}\nIMEI: {imei}\nLỗi: {issue}\nPhụ kiện: {accessories}\nLinh kiện đã dùng: {partsUsed}\nDịch vụ: {services}\nBảo hành: {warranty}\nGhi chú: {notes}\n\nGiá: {price} đ\nThanh toán: {paymentMethod}\nTrạng thái: {status}\n[QR]{qrData}';
+      'Mã đơn: {code}\nNgày: {date} {time}\n\nKhách: {customerName}\nSĐT: {customerPhone}\n\nMáy: {model}\nIMEI: {imei}\nLỗi: {issue}\nPhụ kiện: {accessories}\nLinh kiện đã dùng: {partsUsed}\nDịch vụ: {services}\nBảo hành: {warranty}\nGhi chú: {notes}\n{warrantyPolicy}\n\nGiá: {price} đ\nThanh toán: {paymentMethod}\nTrạng thái: {status}\n[QR]{qrData}';
     final footer = prefs.getString('repair_invoice_footer') ??
         '--------------------------------\nCảm ơn quý khách!';
 
@@ -94,6 +94,8 @@ class _RepairInvoicePreviewViewState extends State<RepairInvoicePreviewView> {
       'paymentMethod': widget.repair.paymentMethod ?? '',
       'status': _statusText(widget.repair.status),
       'qrData': 'repair_check:${widget.repair.firestoreId ?? widget.repair.createdAt}',
+      'warrantyPolicy': prefs.getString('warranty_policy') ?? '',
+      'returnPolicy': prefs.getString('return_policy') ?? '',
     };
 
     final templateText = [header, body, footer].where((s) => s.trim().isNotEmpty).join('\n');

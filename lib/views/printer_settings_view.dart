@@ -36,6 +36,8 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
   
   // Receipt settings
   final _rcNoteCtrl = TextEditingController();
+  final _warrantyPolicyCtrl = TextEditingController();
+  final _returnPolicyCtrl = TextEditingController();
   bool _showRcLogo = true;
   bool _showRcPhone = true;
   bool _showRcQR = true;
@@ -59,6 +61,8 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
       _showRcPhone = prefs.getBool('receipt_show_phone') ?? true;
       _showRcQR = prefs.getBool('receipt_show_qr') ?? true;
       _rcNoteCtrl.text = prefs.getString('receipt_note') ?? 'Cảm ơn quý khách!';
+      _warrantyPolicyCtrl.text = prefs.getString('warranty_policy') ?? '';
+      _returnPolicyCtrl.text = prefs.getString('return_policy') ?? '';
     });
   }
 
@@ -70,6 +74,8 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
     await prefs.setBool('receipt_show_phone', _showRcPhone);
     await prefs.setBool('receipt_show_qr', _showRcQR);
     await prefs.setString('receipt_note', _rcNoteCtrl.text);
+    await prefs.setString('warranty_policy', _warrantyPolicyCtrl.text);
+    await prefs.setString('return_policy', _returnPolicyCtrl.text);
     NotificationService.showSnackBar(AppLocalizations.of(context)!.printerSettingsSaved, color: Colors.green);
   }
 
@@ -688,6 +694,32 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _warrantyPolicyCtrl,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'Chính sách bảo hành',
+                hintText: 'VD: Bảo hành theo phiếu. Máy còn nguyên tem BH.',
+                prefixIcon: const Icon(Icons.verified_user),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                helperText: 'Dùng {warrantyPolicy} trong mẫu hóa đơn',
+                helperStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _returnPolicyCtrl,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'Chính sách đổi trả',
+                hintText: 'VD: Đổi trả trong 7 ngày. SP còn nguyên tem mác.',
+                prefixIcon: const Icon(Icons.swap_horiz),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                helperText: 'Dùng {returnPolicy} trong mẫu hóa đơn',
+                helperStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ),
           ],
         ),
       ),
@@ -699,6 +731,8 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
     _ipCtrl.dispose();
     _backupIpCtrl.dispose();
     _rcNoteCtrl.dispose();
+    _warrantyPolicyCtrl.dispose();
+    _returnPolicyCtrl.dispose();
     super.dispose();
   }
 }
