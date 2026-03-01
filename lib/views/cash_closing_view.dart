@@ -2831,6 +2831,9 @@ class _CashClosingViewState extends State<CashClosingView>
     for (var s in _sales.where(
       (s) => _isSameDay(s.soldAt, date) && s.paymentMethod != 'CÔNG NỢ',
     )) {
+      final saleAmount = s.isInstallment ? s.downPayment : s.finalPrice;
+      // Skip installment entries with 0 down payment (no actual cash received)
+      if (s.isInstallment && saleAmount <= 0) continue;
       final customerDisplay = s.customerName.isNotEmpty ? s.customerName : 'Khách lẻ';
       list.add({
         'type': 'sale',
@@ -2841,7 +2844,7 @@ class _CashClosingViewState extends State<CashClosingView>
         'detail': s.productNames.isNotEmpty ? s.productNames : 'Đơn hàng',
         'paymentMethod': s.paymentMethod,
         'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(s.soldAt)),
-        'amount': s.isInstallment ? s.downPayment : s.finalPrice,
+        'amount': saleAmount,
         'saleOrder': s,
         'note': s.isInstallment ? 'Trả góp - Đặt cọc' : null,
       });
@@ -2855,15 +2858,17 @@ class _CashClosingViewState extends State<CashClosingView>
           _isSameDay(s.settlementReceivedAt!, date) &&
           s.settlementAmount > 0,
     )) {
-      final actualAmount = s.settlementAmount.clamp(0, s.loanAmount);
+      final totalLoan = s.loanAmount + s.loanAmount2;
+      final actualAmount = s.settlementAmount.clamp(0, totalLoan);
       if (actualAmount > 0) {
+        final bankDisplay = [s.bankName ?? 'Ngân hàng', if (s.bankName2 != null && s.bankName2!.isNotEmpty) s.bankName2!].join(' + ');
         list.add({
           'type': 'settlement',
           'icon': '🏦',
           'title': 'Tất toán ngân hàng',
           'customerName': s.customerName.isNotEmpty ? s.customerName : 'KH',
           'customerPhone': s.phone,
-          'detail': '${s.bankName ?? "Ngân hàng"} • ${s.productNames}',
+          'detail': '$bankDisplay • ${s.productNames}',
           'paymentMethod': 'CHUYỂN KHOẢN',
           'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(s.settlementReceivedAt!)),
           'amount': actualAmount,
@@ -3132,13 +3137,14 @@ class _CashClosingViewState extends State<CashClosingView>
           s.settlementReceivedAt != null &&
           _isSameDay(s.settlementReceivedAt!, now),
     )) {
-      final amount = s.settlementAmount.clamp(0, s.loanAmount);
+      final totalLoan = s.loanAmount + s.loanAmount2;
+      final amount = s.settlementAmount.clamp(0, totalLoan);
 
       if (amount > 0) {
         settlementIncome += amount;
         bankIn += amount;
 
-        // Giá vốn phần còn lại
+        // Giá vốn phần còn lại (sau down payment)
         final downRatio = s.finalPrice > 0 ? s.downPayment / s.finalPrice : 0;
         final remainRatio = 1.0 - downRatio;
         saleCost += (s.totalCost * remainRatio).round();

@@ -248,9 +248,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
 
   Future<void> _openSettlementDialog() async {
     final formKey = GlobalKey<FormState>();
+    final totalLoan = s.loanAmount + s.loanAmount2;
     final amountCtrl = TextEditingController(
       text: CurrencyTextField.formatDisplay(
-        s.settlementAmount > 0 ? s.settlementAmount : s.loanAmount,
+        s.settlementAmount > 0 ? s.settlementAmount : totalLoan,
       ),
     );
     final feeCtrl = TextEditingController(
@@ -348,10 +349,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       type: PaymentIntentType.saleInstallment,
       status: PaymentIntentStatus.completed,
       amount: received,
-      personName: s.bankName ?? 'NGÂN HÀNG',
+      personName: [s.bankName, if (s.bankName2 != null && s.bankName2!.isNotEmpty) s.bankName2].whereType<String>().join(' + '),
       personPhone: '',
       description:
-          'Ngân hàng ${s.bankName ?? ""} tất toán - KH: ${s.customerName}',
+          'Ngân hàng ${[s.bankName ?? "", if (s.bankName2 != null && s.bankName2!.isNotEmpty) s.bankName2!].join(" + ")} tất toán - KH: ${s.customerName}',
       referenceType: 'sale',
       referenceId: s.firestoreId ?? 'sale_${s.soldAt}',
       createdBy: user?.uid ?? 'unknown',
@@ -390,7 +391,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       entityType: 'sale',
       entityId: s.firestoreId ?? "sale_${s.soldAt}",
       summary: "Nhận ${MoneyUtils.formatCurrency(received)} đ từ NH",
-      payload: {'fee': fee, 'bank': s.bankName},
+      payload: {'fee': fee, 'bank': s.bankName, if (s.bankName2 != null && s.bankName2!.isNotEmpty) 'bank2': s.bankName2},
     );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("ĐÃ GHI NHẬN TIỀN NGÂN HÀNG CHUYỂN")),
@@ -1046,7 +1047,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            if (_isInstallmentNH && s.settlementReceivedAt == null)
+            if (_isInstallmentNH && (s.settlementReceivedAt == null || s.settlementAmount < s.loanAmount + s.loanAmount2))
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -1059,7 +1060,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                     ),
                   ),
                   icon: const Icon(Icons.account_balance_wallet_outlined),
-                  label: const Text("NHẬN TIỀN TỪ NGÂN HÀNG"),
+                  label: Text(s.settlementReceivedAt != null
+                      ? "CẬP NHẬT TẤT TOÁN (còn ${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2 - s.settlementAmount)} đ)"
+                      : "NHẬN TIỀN TỪ NGÂN HÀNG"),
                 ),
               ),
             if (_isInstallmentNH) const SizedBox(height: 10),
@@ -1107,10 +1110,20 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                   "Down payment",
                   "${MoneyUtils.formatCurrency(s.downPayment)} đ",
                 ),
-                _item("Ngân hàng giải ngân", s.bankName ?? "---"),
+                _item("NH 1 giải ngân", s.bankName ?? "---"),
                 _item(
-                  "Số tiền NH sẽ chuyển",
-                  "${MoneyUtils.formatCurrency(s.settlementAmount > 0 ? s.settlementAmount : s.loanAmount)} đ",
+                  "Số tiền NH 1",
+                  "${MoneyUtils.formatCurrency(s.loanAmount)} đ",
+                ),
+                if (s.bankName2 != null && s.bankName2!.isNotEmpty) ...[                  _item("NH 2 giải ngân", s.bankName2!),
+                  _item(
+                    "Số tiền NH 2",
+                    "${MoneyUtils.formatCurrency(s.loanAmount2)} đ",
+                  ),
+                ],
+                _item(
+                  "Tổng vay NH",
+                  "${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2)} đ",
                 ),
                 _item("Ngày dự kiến", _fmtShort(s.settlementPlannedAt)),
                 _item("Mã hồ sơ", s.settlementCode ?? "---"),
@@ -1119,7 +1132,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                   "Tất toán",
                   s.settlementReceivedAt == null
                       ? "Chưa nhận"
-                      : "Đã nhận ${_fmtShort(s.settlementReceivedAt)}",
+                      : s.settlementAmount >= s.loanAmount + s.loanAmount2
+                          ? "Đã nhận đủ ${_fmtShort(s.settlementReceivedAt)}"
+                          : "Đã nhận ${MoneyUtils.formatCurrency(s.settlementAmount)} đ / ${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2)} đ",
                 ),
                 if (s.settlementFee > 0)
                   _item(

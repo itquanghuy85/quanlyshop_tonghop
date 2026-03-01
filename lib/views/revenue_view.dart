@@ -2322,7 +2322,7 @@ class _RevenueViewState extends State<RevenueView>
         final settlementPaid =
             (s.settlementReceivedAt != null &&
                 _isInFilterPeriod(s.settlementReceivedAt!))
-            ? s.settlementAmount.clamp(0, s.loanAmount)
+            ? s.settlementAmount.clamp(0, s.loanAmount + s.loanAmount2)
             : 0;
         final totalPaid = downPaid + settlementPaid;
         

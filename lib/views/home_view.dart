@@ -1440,7 +1440,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           where: 'soldAt >= ? AND soldAt < ?', whereArgs: [startMs, endMs]),
         // [3] fSettlements
         dbConn.query('sales',
-          columns: ['totalPrice', 'totalCost', 'downPayment', 'settlementAmount', 'loanAmount', 'soldAt'],
+          columns: ['totalPrice', 'totalCost', 'discount', 'downPayment', 'settlementAmount', 'loanAmount', 'loanAmount2', 'soldAt'],
           where: 'isInstallment = 1 AND settlementReceivedAt IS NOT NULL AND settlementReceivedAt >= ? AND settlementReceivedAt < ?',
           whereArgs: [startMs, endMs]),
         // [4] fRepairs
@@ -1549,15 +1549,19 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       for (final s in fSettlements) {
         final stlAmount = (s['settlementAmount'] as num?)?.toInt() ?? 0;
         final loanAmount = (s['loanAmount'] as num?)?.toInt() ?? 0;
-        final amount = stlAmount.clamp(0, loanAmount);
+        final loanAmount2 = (s['loanAmount2'] as num?)?.toInt() ?? 0;
+        final totalLoan = loanAmount + loanAmount2;
+        final amount = stlAmount.clamp(0, totalLoan);
         if (amount > 0) {
           settlementIncome += amount;
           bankIn += amount;
-          // Giá vốn phần còn lại
+          // Giá vốn phần còn lại (sau down payment)
           final totalPrice = (s['totalPrice'] as num?)?.toInt() ?? 0;
+          final discount = (s['discount'] as num?)?.toInt() ?? 0;
+          final finalPrice = totalPrice - discount > 0 ? totalPrice - discount : 0;
           final totalCost = (s['totalCost'] as num?)?.toInt() ?? 0;
           final downPaid = (s['downPayment'] as num?)?.toInt() ?? 0;
-          final downRatio = totalPrice > 0 ? downPaid / totalPrice : 0.0;
+          final downRatio = finalPrice > 0 ? downPaid / finalPrice : 0.0;
           final remainRatio = 1.0 - downRatio;
           saleCost += (totalCost * remainRatio).round();
         }

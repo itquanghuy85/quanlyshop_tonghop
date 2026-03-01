@@ -83,7 +83,7 @@ void main() {
           settlementIncome += amount;
           bankIn += amount;
 
-          // Giá vốn phần còn lại (khi tất toán)
+          // Giá vốn phần còn lại (sau down payment)
           final downRatio = s.totalPrice > 0 ? s.downPayment / s.totalPrice : 0.0;
           final remainRatio = 1.0 - downRatio;
           saleCost += (s.totalCost * remainRatio).round();
