@@ -18,7 +18,8 @@ class MoneyInputFormatter extends TextInputFormatter {
 
   /// Format int value to display string with dots
   static String formatValue(int value) {
-    if (value <= 0) return '';
+    if (value == 0) return '0';
+    if (value < 0) return '-${formatDigits((-value).toString())}';
     return formatDigits(value.toString());
   }
 
