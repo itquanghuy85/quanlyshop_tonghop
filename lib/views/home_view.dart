@@ -1436,7 +1436,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         dbConn.rawQuery('SELECT COUNT(*) FROM repairs WHERE createdAt >= ? AND createdAt < ?', [startMs, endMs]),
         // [2] fSales
         dbConn.query('sales',
-          columns: ['totalPrice', 'totalCost', 'paymentMethod', 'isInstallment', 'downPayment', 'downPaymentMethod', 'settlementReceivedAt', 'settlementAmount', 'loanAmount', 'loanAmount2', 'soldAt', 'warranty'],
+          columns: ['totalPrice', 'totalCost', 'discount', 'paymentMethod', 'isInstallment', 'downPayment', 'downPaymentMethod', 'settlementReceivedAt', 'settlementAmount', 'loanAmount', 'loanAmount2', 'soldAt', 'warranty'],
           where: 'soldAt >= ? AND soldAt < ?', whereArgs: [startMs, endMs]),
         // [3] fSettlements
         dbConn.query('sales',
@@ -1507,12 +1507,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       for (final s in fSales) {
         final paymentMethod = (s['paymentMethod'] ?? '').toString();
         final totalPrice = (s['totalPrice'] as num?)?.toInt() ?? 0;
+        final discount = (s['discount'] as num?)?.toInt() ?? 0;
+        final finalPrice = totalPrice - discount > 0 ? totalPrice - discount : 0;
         final totalCost = (s['totalCost'] as num?)?.toInt() ?? 0;
         final isInstallment = (s['isInstallment'] == 1 || s['isInstallment'] == true);
 
         if (paymentMethod == 'CÔNG NỢ') {
-          // Accrual: tính doanh thu + giá vốn, nhưng KHÔNG tăng quỹ tiền
-          saleIncome += totalPrice;
+          // Accrual: tính doanh thu (sau giảm giá) + giá vốn, nhưng KHÔNG tăng quỹ tiền
+          saleIncome += finalPrice;
           saleCost += totalCost;
           continue;
         }
@@ -1522,7 +1524,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           final downPaid = (s['downPayment'] as num?)?.toInt() ?? 0;
           saleIncome += downPaid;
 
-          final ratio = totalPrice > 0 ? downPaid / totalPrice : 0.0;
+          final ratio = finalPrice > 0 ? downPaid / finalPrice : 0.0;
           saleCost += (totalCost * ratio).round();
 
           final downMethod = (s['downPaymentMethod'] ?? paymentMethod).toString();
@@ -1532,12 +1534,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             bankIn += downPaid;
           }
         } else {
-          saleIncome += totalPrice;
+          saleIncome += finalPrice;
           saleCost += totalCost;
           if (paymentMethod == 'TIỀN MẶT') {
-            cashIn += totalPrice;
+            cashIn += finalPrice;
           } else {
-            bankIn += totalPrice;
+            bankIn += finalPrice;
           }
         }
       }

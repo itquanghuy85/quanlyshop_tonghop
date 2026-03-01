@@ -340,7 +340,9 @@ class ProductConstants {
   }
 
   /// Tạo tên sản phẩm chuẩn từ các field
-  /// Format: BRAND MODEL CAPACITY COLOR CONDITION
+  /// Format: BRAND MODEL CONDITION
+  /// Capacity và Color KHÔNG tự động thêm vào tên vì user đã đặt tên theo đó rồi
+  /// (capacity/color vẫn lưu riêng ở product.capacity, product.color để filter/label)
   static String generateProductName({
     String? brand,
     String? model,
@@ -360,19 +362,13 @@ class ProductConstants {
       parts.add(model.toUpperCase().trim());
     }
     
-    // Capacity - map về chuẩn
-    if (capacity != null && capacity.isNotEmpty) {
-      parts.add(mapCapacity(capacity));
-    }
-    
-    // Color - map về chuẩn
-    if (color != null && color.isNotEmpty) {
-      parts.add(mapColor(color));
-    }
-    
-    // Condition - map về chuẩn
+    // Condition - map về chuẩn (chỉ thêm nếu model chưa chứa)
     if (condition != null && condition.isNotEmpty) {
-      parts.add(mapConditionShort(condition));
+      final mappedCondition = mapConditionShort(condition);
+      final modelUpper = (model ?? '').toUpperCase();
+      if (!modelUpper.contains(mappedCondition)) {
+        parts.add(mappedCondition);
+      }
     }
     
     // Loại bỏ trùng lặp và chuẩn hóa

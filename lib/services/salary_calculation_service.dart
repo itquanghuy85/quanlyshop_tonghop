@@ -264,10 +264,12 @@ class SalaryCalculationService {
           if (!deleted && _matchesStaff(sellerName, emailPrefix, displayName)) {
             saleOrderCount++;
             final totalPrice = (data['totalPrice'] ?? 0).toDouble();
+            final discountVal = (data['discount'] ?? 0).toDouble();
+            final finalPrice = totalPrice - discountVal > 0 ? totalPrice - discountVal : 0.0;
             final totalCost = (data['totalCost'] ?? 0).toDouble();
-            saleRevenue += totalPrice;
-            saleProfit += (totalPrice - totalCost);
-            saleOrderValues.add(totalPrice); // Lưu giá trị đơn
+            saleRevenue += finalPrice;
+            saleProfit += (finalPrice - totalCost);
+            saleOrderValues.add(finalPrice); // Lưu giá trị đơn (sau giảm giá)
           }
         }
       }
@@ -282,9 +284,9 @@ class SalaryCalculationService {
               s.soldAt <= endMs)
           .toList();
       saleOrderCount = staffSales.length;
-      saleRevenue = staffSales.fold(0.0, (sum, s) => sum + s.totalPrice);
-      saleProfit = staffSales.fold(0.0, (sum, s) => sum + (s.totalPrice - s.totalCost));
-      saleOrderValues = staffSales.map((s) => s.totalPrice.toDouble()).toList();
+      saleRevenue = staffSales.fold(0.0, (sum, s) => sum + s.finalPrice);
+      saleProfit = staffSales.fold(0.0, (sum, s) => sum + (s.finalPrice - s.totalCost));
+      saleOrderValues = staffSales.map((s) => s.finalPrice.toDouble()).toList();
     }
 
     if (saleOrderCount > 0) {

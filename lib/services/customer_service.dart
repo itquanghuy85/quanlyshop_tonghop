@@ -141,12 +141,17 @@ class CustomerService {
 
     // Get sales history
     final salesData = await db.getCustomerSalesHistory(phone, shopId);
-    final sales = salesData.map((s) => {
-      'type': 'sale',
-      'date': s['soldAt'],
-      'amount': s['totalPrice'],
-      'description': s['productNames'],
-      'paymentMethod': s['paymentMethod'],
+    final sales = salesData.map((s) {
+      final totalPrice = (s['totalPrice'] as num?)?.toInt() ?? 0;
+      final discount = (s['discount'] as num?)?.toInt() ?? 0;
+      final finalPrice = totalPrice - discount > 0 ? totalPrice - discount : 0;
+      return {
+        'type': 'sale',
+        'date': s['soldAt'],
+        'amount': finalPrice,
+        'description': s['productNames'],
+        'paymentMethod': s['paymentMethod'],
+      };
     }).toList();
 
     // Get repairs history

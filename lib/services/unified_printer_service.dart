@@ -2352,11 +2352,29 @@ class UnifiedPrinterService {
       bytes.addAll(generator.feed(1));
     }
 
-    // Tổng tiền
-    final totalPrice = saleData['totalPrice'];
-    final priceValue = totalPrice is num
-        ? totalPrice.toInt()
-        : int.tryParse(totalPrice?.toString() ?? '0') ?? 0;
+    // Giảm giá (nếu có)
+    final discountRaw = saleData['discount'];
+    final discountValue = discountRaw is num
+        ? discountRaw.toInt()
+        : int.tryParse(discountRaw?.toString() ?? '0') ?? 0;
+    if (discountValue > 0) {
+      bytes.addAll(
+        generator.text(
+          "GIAM GIA: -${MoneyUtils.formatVND(discountValue)} VND",
+          styles: const PosStyles(
+            align: PosAlign.center,
+            fontType: PosFontType.fontB,
+          ),
+        ),
+      );
+      bytes.addAll(generator.feed(1));
+    }
+
+    // Tổng tiền (sau giảm giá)
+    final finalTotal = saleData['finalTotal'] ?? saleData['totalPrice'];
+    final priceValue = finalTotal is num
+        ? finalTotal.toInt()
+        : int.tryParse(finalTotal?.toString() ?? '0') ?? 0;
     final priceStr = MoneyUtils.formatVND(priceValue);
     bytes.addAll(
       generator.text(

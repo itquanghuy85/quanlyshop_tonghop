@@ -87,7 +87,7 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
         'title': s.productNames,
         'subtitle': "Mua máy mới",
         'status': 4,
-        'amount': s.totalPrice,
+        'amount': s.finalPrice,
         'images': [],
         'data': s,
       });
