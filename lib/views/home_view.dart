@@ -2217,21 +2217,29 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   /// Navigate to dashboard customization settings
   Future<void> _openDashboardSettings() async {
     HapticFeedback.mediumImpact();
-    final result = await Navigator.push<bool>(
+    final result = await Navigator.push<dynamic>(
       context,
       MaterialPageRoute(
         builder: (_) => DashboardSettingsView(
           role: widget.role,
           currentConfig: _dashboardConfigs,
           currentShortcuts: _shortcutConfigs,
-          onConfigChanged: null, // Don't load while still on settings page
         ),
       ),
     );
-    // Only reload ONCE after returning from settings page
-    if (result == true && mounted) {
-      _loadDashboardConfig();
-      _loadShortcutConfig();
+    // Apply configs directly from result (no re-reading SharedPreferences)
+    if (result is Map && mounted) {
+      setState(() {
+        if (result['configs'] is List<DashboardCardConfig>) {
+          _dashboardConfigs = result['configs'] as List<DashboardCardConfig>;
+          _dashboardConfigLoaded = true;
+        }
+        if (result['shortcuts'] is List<ShortcutConfig>) {
+          _shortcutConfigs = result['shortcuts'] as List<ShortcutConfig>;
+          _shortcutConfigLoaded = true;
+        }
+        _rebuildTabWidgets();
+      });
     }
   }
 

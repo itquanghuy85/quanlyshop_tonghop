@@ -65,15 +65,20 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView>
   }
 
   Future<void> _save() async {
-    await DashboardConfigService.saveConfig(_configs);
-    await ShortcutConfigService.saveConfig(_shortcuts);
+    // Save to SharedPreferences in background
+    DashboardConfigService.saveConfig(_configs);
+    ShortcutConfigService.saveConfig(_shortcuts);
     widget.onConfigChanged?.call();
     if (mounted) {
       NotificationService.showSnackBar(
         '✅ Đã lưu bố cục Dashboard!',
         color: Colors.green,
       );
-      Navigator.pop(context, true);
+      // Return configs directly so caller can apply instantly without re-reading
+      Navigator.pop(context, {
+        'configs': _configs,
+        'shortcuts': _shortcuts,
+      });
     }
   }
 
