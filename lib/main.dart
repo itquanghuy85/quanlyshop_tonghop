@@ -53,11 +53,12 @@ Future<void> main() async {
 
       if (isIOS) {
         // On iOS, start app immediately to show UI, then init Firebase in background
-        // SplashView polls Firebase.apps.isNotEmpty before navigating to AuthGate
+        // SplashView also has a fallback to initialize Firebase directly if needed
         runApp(const MyApp());
 
-        // Initialize Firebase and services after first frame renders
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Initialize Firebase ASAP — don't wait for first frame
+        // Use scheduleMicrotask to run before next frame but after runApp
+        Future.microtask(() async {
           try {
             await Firebase.initializeApp(
               options: DefaultFirebaseOptions.currentPlatform,
@@ -71,7 +72,7 @@ Future<void> main() async {
             debugPrint('✅ Firebase initialized (iOS deferred)');
           } catch (e) {
             debugPrint('❌ Firebase initialization failed on iOS: $e');
-            // Don't silently swallow — SplashView will timeout and show error
+            // SplashView has a fallback to init Firebase directly
           }
 
           // Delay notification init to avoid blocking UI

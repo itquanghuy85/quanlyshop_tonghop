@@ -1,7 +1,10 @@
 import 'dart:math' as math;
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
+import '../firebase_options.dart';
 import '../main.dart';
 import 'intro_view.dart';
 
@@ -170,9 +173,9 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) setState(() => _status = "Đang kết nối đám mây...");
 
-    // Wait for Firebase
+    // Wait for Firebase (deferred init on iOS)
     int waitCount = 0;
-    while (!Firebase.apps.isNotEmpty && waitCount < 50) {
+    while (Firebase.apps.isEmpty && waitCount < 30) {
       await Future.delayed(const Duration(milliseconds: 100));
       waitCount++;
       if (waitCount % 10 == 0) {
@@ -180,10 +183,57 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
       }
     }
 
+    // If Firebase STILL not ready (iOS deferred init failed/slow), init directly
     if (Firebase.apps.isEmpty) {
-      debugPrint('⚠️ Firebase still not initialized after 5s, continuing anyway');
+      debugPrint('⚠️ Firebase not initialized after 3s — initializing directly in SplashView');
+      if (mounted) setState(() => _status = "Đang khởi tạo Firebase...");
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        debugPrint('✅ Firebase initialized directly in SplashView');
+      } catch (e) {
+        debugPrint('❌ Firebase.initializeApp failed in SplashView: $e');
+        // Last resort: wait a bit more in case deferred init finishes
+        for (int i = 0; i < 20 && Firebase.apps.isEmpty; i++) {
+          await Future.delayed(const Duration(milliseconds: 200));
+        }
+      }
     } else {
       debugPrint('✅ Firebase ready, proceeding with navigation');
+    }
+
+    // Final check — if Firebase is truly unavailable, show error
+    if (Firebase.apps.isEmpty) {
+      debugPrint('⛔ Firebase completely failed to initialize');
+      if (mounted) {
+        setState(() => _status = "Lỗi khởi tạo Firebase!");
+        await Future.delayed(const Duration(seconds: 2));
+        // Show error dialog and return (don't navigate to AuthGate)
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => AlertDialog(
+              title: const Text('Lỗi khởi tạo'),
+              content: const Text(
+                'Không thể kết nối đến Firebase.\n'
+                'Vui lòng kiểm tra kết nối mạng và khởi động lại ứng dụng.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _startInit(); // Retry
+                  },
+                  child: const Text('Thử lại'),
+                ),
+              ],
+            ),
+          );
+        }
+        return; // Don't navigate to AuthGate without Firebase
+      }
     }
 
     if (mounted) setState(() => _status = "Sẵn sàng!");
