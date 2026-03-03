@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-# iOS 16.0 minimum for Firebase, Xcode 26 compatibility (macOS 15+, Apple Silicon M1+)
+# iOS 16.0 minimum for Firebase, Xcode 26.3 compatibility (macOS 26+, Apple Silicon M1+)
 platform :ios, '16.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
@@ -77,6 +77,10 @@ post_install do |installer|
       config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
       config.build_settings['SWIFT_EMIT_LOC_STRINGS'] = 'NO'
       config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
+      
+      # C/C++ language standards for Xcode 26.3
+      config.build_settings['GCC_C_LANGUAGE_STANDARD'] = 'gnu17'
+      config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'gnu++20'
       
       # General optimizations
       config.build_settings['DEAD_CODE_STRIPPING'] = 'YES'
