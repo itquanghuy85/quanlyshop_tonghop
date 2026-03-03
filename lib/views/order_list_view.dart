@@ -1355,10 +1355,25 @@ class OrderListViewState extends State<OrderListView> {
                         '💰 ${NumberFormat.compact(locale: 'vi').format(r.price)}đ',
                         Colors.green.shade100,
                       ),
-                    // Ghi chú
+                    // KTV sửa
+                    if (r.repairedBy != null && r.repairedBy!.isNotEmpty)
+                      _repairInfoChip(
+                        '🔧 KTV: ${r.repairedBy}',
+                        Colors.purple.shade50,
+                        textColor: Colors.purple.shade800,
+                      ),
+                    // Ghi chú KTV
+                    if (r.notes != null && r.notes!.isNotEmpty)
+                      _repairInfoChip(
+                        '📝 ${r.notes}',
+                        Colors.amber.shade50,
+                        textColor: Colors.amber.shade900,
+                        maxLines: 2,
+                      ),
+                    // Phụ kiện kèm theo
                     if (r.accessories.isNotEmpty)
                       _repairInfoChip(
-                        '📝 ${r.accessories}',
+                        '📎 ${r.accessories}',
                         Colors.blue.shade100,
                       ),
                   ],

@@ -53,6 +53,7 @@ Future<void> main() async {
 
       if (isIOS) {
         // On iOS, start app immediately to show UI, then init Firebase in background
+        // SplashView polls Firebase.apps.isNotEmpty before navigating to AuthGate
         runApp(const MyApp());
 
         // Initialize Firebase and services after first frame renders
@@ -69,7 +70,8 @@ Future<void> main() async {
 
             debugPrint('✅ Firebase initialized (iOS deferred)');
           } catch (e) {
-            debugPrint('Firebase initialization failed: $e');
+            debugPrint('❌ Firebase initialization failed on iOS: $e');
+            // Don't silently swallow — SplashView will timeout and show error
           }
 
           // Delay notification init to avoid blocking UI
