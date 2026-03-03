@@ -6,15 +6,24 @@ import 'package:flutter/foundation.dart'
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
-/// Example:
-/// ```dart
-/// import 'firebase_options.dart';
-/// // ...
-/// await Firebase.initializeApp(
-///   options: DefaultFirebaseOptions.currentPlatform,
-/// );
+/// API keys are loaded from environment variables (--dart-define) at build time.
+/// Fallback values are restricted keys with app/bundle restrictions in Google Cloud Console.
+///
+/// Build command:
+/// ```
+/// flutter run --dart-define=ANDROID_API_KEY=xxx --dart-define=IOS_API_KEY=xxx
 /// ```
 class DefaultFirebaseOptions {
+  // Read from --dart-define or use restricted fallbacks
+  static const String _androidApiKey = String.fromEnvironment(
+    'ANDROID_API_KEY',
+    defaultValue: 'AIzaSyA5wW6zMHiWB_5xme99MVl0eSj7bhpO-S0',
+  );
+  static const String _iosApiKey = String.fromEnvironment(
+    'IOS_API_KEY',
+    defaultValue: 'AIzaSyAS_5VLVEO1GdjrK9XbnqlrHLegMmEGHW4',
+  );
+
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       throw UnsupportedError(
@@ -49,16 +58,16 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyA5wW6zMHiWB_5xme99MVl0eSj7bhpO-S0',
+  static final FirebaseOptions android = FirebaseOptions(
+    apiKey: _androidApiKey,
     appId: '1:51200928212:android:c0d1e9d964b3213b910e41',
     messagingSenderId: '51200928212',
     projectId: 'huyaka-1809',
     storageBucket: 'huyaka-1809.firebasestorage.app',
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAS_5VLVEO1GdjrK9XbnqlrHLegMmEGHW4',
+  static final FirebaseOptions ios = FirebaseOptions(
+    apiKey: _iosApiKey,
     appId: '1:51200928212:ios:1a6411725b0e4a1c910e41',
     messagingSenderId: '51200928212',
     projectId: 'huyaka-1809',
