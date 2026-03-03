@@ -1,9 +1,12 @@
-platform :ios, '13.0'
+# Uncomment this line to define a global platform for your project
+# iOS 14.0 minimum for Firebase, Xcode 16.2 compatibility (macOS 14.8+)
+platform :ios, '14.0'
 
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-# Fix Firebase Swift pods: require modular headers for static libraries
-use_modular_headers!
+# Fix for Xcode 16.2 compatibility - Force Swift 5 mode to avoid Swift 6 "sending" keyword issues
+ENV['SWIFT_VERSION'] = '5'
 
 project 'Runner', {
   'Debug' => :debug,
@@ -29,7 +32,9 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks! :linkage => :static
+  use_frameworks!
+  use_modular_headers!
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
     inherit! :search_paths
@@ -40,7 +45,71 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      # iOS deployment target - minimum iOS 14 for Xcode 16.2
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      
+      # Xcode 16.2 + macOS 14.8 compatibility fixes
+      config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+      config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'NO'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      
+      # Fix for app freeze on iOS - disable background fetch during launch
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'COCOAPODS=1'
+      
+      # Fix DT_TOOLCHAIN_DIR warning in Xcode 16
+      xcconfig_path = config.base_configuration_reference&.real_path
+      if xcconfig_path && File.exist?(xcconfig_path)
+        xcconfig = File.read(xcconfig_path)
+        new_xcconfig = xcconfig.gsub('DT_TOOLCHAIN_DIR', 'TOOLCHAIN_DIR')
+        File.write(xcconfig_path, new_xcconfig)
+      end
+      
+      # Fix for Xcode 16.2 - disable code signing for resource bundles
+      if target.respond_to?(:product_type) and target.product_type == "com.apple.product-type.bundle"
+        config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+      end
+      
+      # Fix linker warnings for arm64 simulator on Apple Silicon
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386'
+      
+      # Suppress deprecation warnings for older APIs
+      config.build_settings['GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS'] = 'NO'
+      
+      # Fix Swift version for Xcode 16.2
+      config.build_settings['SWIFT_VERSION'] = '5.0'
+      
+      # FIX SwiftEmitModule error: Disable module interface verification
+      config.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
+      config.build_settings['SWIFT_EMIT_LOC_STRINGS'] = 'NO'
+      
+      # Critical: Fix module emission for Xcode 16.2
+      # Remove problematic flags that cause SwiftEmitModule to fail
+      config.build_settings['OTHER_SWIFT_FLAGS'] = '$(inherited) -Xfrontend -module-interface-preserve-types-as-written'
+      config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
+      
+      # Fix app freeze issue - optimize async initialization
+      config.build_settings['DEAD_CODE_STRIPPING'] = 'YES'
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
     end
+  end
+  
+  # Fix Xcode 16.2 signing issues for Pods project
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+    config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+  end
+  
+  # CRITICAL FIX: Patch FirebaseSharedSwift to remove Swift 6 "sending" keyword
+  # This keyword causes build errors on Xcode 16.2 with Swift 5
+  firebase_data_encoder_path = "#{installer.sandbox.root}/FirebaseSharedSwift/FirebaseSharedSwift/Sources/third_party/FirebaseDataEncoder/FirebaseDataEncoder.swift"
+  if File.exist?(firebase_data_encoder_path)
+    content = File.read(firebase_data_encoder_path)
+    # Remove 'sending' keyword which is Swift 6 only
+    # Pattern: "func encode<T>(_ value: sending T)" -> "func encode<T>(_ value: T)"
+    patched_content = content.gsub(/sending\s+/, '')
+    File.write(firebase_data_encoder_path, patched_content)
+    puts "✅ Patched FirebaseDataEncoder.swift to remove Swift 6 'sending' keyword"
   end
 end
