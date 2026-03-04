@@ -161,13 +161,13 @@ class DashboardConfigService {
 
     return [
       DashboardCardConfig(type: DashboardCardType.greeting, visible: false, order: 0),
-      DashboardCardConfig(type: DashboardCardType.actionRequired, visible: true, order: 1),
+      DashboardCardConfig(type: DashboardCardType.actionRequired, visible: false, order: 1),
       DashboardCardConfig(type: DashboardCardType.quickActions, visible: true, order: 2),
       DashboardCardConfig(type: DashboardCardType.financeSummary, visible: false, order: 3),
       DashboardCardConfig(type: DashboardCardType.financeDetail, visible: false, order: 4),
-      DashboardCardConfig(type: DashboardCardType.activityFeed, visible: true, order: 5),
+      DashboardCardConfig(type: DashboardCardType.activityFeed, visible: false, order: 5),
       DashboardCardConfig(type: DashboardCardType.chat, visible: true, order: 6),
-      DashboardCardConfig(type: DashboardCardType.alerts, visible: true, order: 7),
+      DashboardCardConfig(type: DashboardCardType.alerts, visible: false, order: 7),
       DashboardCardConfig(type: DashboardCardType.userGuide, visible: true, order: 8),
     ];
   }

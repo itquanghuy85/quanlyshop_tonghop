@@ -91,7 +91,7 @@ class HomeView extends StatefulWidget {
   State<HomeView> createState() => _HomeViewState();
 }
 
-class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
+class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, WidgetsBindingObserver {
   final db = DBHelper();
   int totalPendingRepair = 0;
   int todaySaleCount = 0;
@@ -109,6 +109,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // Lifecycle observer for iOS background handling
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkNotificationStatus();
       _initialSetup();
@@ -116,7 +117,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         _debouncedLoadStats();
       });
       _autoSyncTimer = Timer.periodic(
-        const Duration(seconds: 60),
+        const Duration(seconds: 120), // Increase to 120s - real-time sync already handles changes
         (_) => _syncNow(silent: true),
       );
 
@@ -142,11 +143,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         }
       }, onError: (e) => debugPrint('HomeView: EventBus error: $e'));
 
-      NotificationService.listenToNotifications((title, body) {
-        if (mounted) {
-          NotificationService.showSnackBar('$title: $body');
-        }
-      });
+      // NOTE: listenToNotifications already called in AuthGate (main.dart)
+      // Removing duplicate listener to avoid double snackbar/notification on iOS
 
       Future.delayed(const Duration(seconds: 5), () {
         if (mounted && _permissions.isEmpty) {
@@ -187,6 +185,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   final TextEditingController _phoneSearchCtrl = TextEditingController();
   bool _isSyncing = false;
   int todayRepairDone = 0;
+  int pendingApprovalCount = 0; // Số đơn chờ duyệt giao
   int revenueToday = 0;
   int todayNewRepairs = 0;
   int todayExpense = 0;
@@ -338,13 +337,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         'widget': _buildSettingsTab(),
       },
     ];
-    // Initially show all tabs until permissions are loaded
-    _navItems = _tabConfigs
-        .map((config) => config['item'] as BottomNavigationBarItem)
-        .toList();
-    _tabWidgets = _tabConfigs
-        .map((config) => config['widget'] as Widget)
-        .toList();
+    // Apply permission-based filtering immediately
+    // If permissions already loaded, use them; otherwise, default to restricted for non-admin
+    _updateAvailableTabs();
   }
 
   void _changeLanguage(Locale locale) {
@@ -875,15 +870,27 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     // THAY ĐỔI: Luôn hiển thị tất cả các tab, nhưng thay nội dung bằng màn hình khóa nếu không có quyền
     final allConfigs = _tabConfigs.map((config) {
       final permission = config['permission'] as String?;
-      final hasPermission =
-          permission == null || (_permissions[permission] == true);
+      // Nếu không có quyền yêu cầu (null), luôn cho phép
+      // hasFullAccess (admin/owner/superAdmin) luôn có quyền
+      // Nếu permissions chưa load (_permissions rỗng), mặc định khóa cho nhân viên
+      final bool hasPermission;
+      if (permission == null) {
+        hasPermission = true;
+      } else if (hasFullAccess) {
+        hasPermission = true;
+      } else if (_permissions.isEmpty) {
+        // Permissions chưa load - mặc định khóa để bảo mật
+        hasPermission = false;
+      } else {
+        hasPermission = _permissions[permission] == true;
+      }
 
       // Nếu không có quyền, thay thế widget bằng màn hình khóa
       if (!hasPermission) {
         final tabLabel =
             (config['item'] as BottomNavigationBarItem).label ?? 'Chức năng';
         // Xác định nguồn khóa: admin hay owner
-        final lockedBy = _getLockedBy(permission);
+        final lockedBy = _getLockedBy(permission!);
         return {
           ...config,
           'widget': _buildLockedFeatureScreen(tabLabel, lockedBy: lockedBy),
@@ -947,12 +954,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     _tabWidgets[0] = homeWidget;
     _tabConfigs[0]['widget'] = homeWidget; // Keep _tabConfigs in sync for _updateAvailableTabs()
     // Update finance tab - also displays _todayTotalIn/_todayTotalOut/_todayNetProfit from parent state
+    // Only rebuild with real content if user has finance permission
+    final canViewFinance = hasFullAccess || _permissions['allowViewRevenue'] == true;
     for (int i = 1; i < _tabConfigs.length && i < _tabWidgets.length; i++) {
       final label = (_tabConfigs[i]['item'] as BottomNavigationBarItem).label;
       if (label == loc.financeTab) {
-        final financeWidget = _buildFinanceTab();
-        _tabWidgets[i] = financeWidget;
-        _tabConfigs[i]['widget'] = financeWidget; // Keep _tabConfigs in sync
+        if (canViewFinance) {
+          final financeWidget = _buildFinanceTab();
+          _tabWidgets[i] = financeWidget;
+          _tabConfigs[i]['widget'] = financeWidget; // Keep _tabConfigs in sync
+        }
+        // If no permission, keep the locked screen - don't overwrite
         break;
       }
     }
@@ -960,7 +972,31 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Pause sync timer when app is backgrounded (saves battery on iOS)
+      _autoSyncTimer?.cancel();
+      _autoSyncTimer = null;
+      debugPrint('HomeView: App backgrounded - paused sync timer');
+    } else if (state == AppLifecycleState.resumed) {
+      // Resume sync timer when app returns to foreground
+      if (_autoSyncTimer == null) {
+        _autoSyncTimer = Timer.periodic(
+          const Duration(seconds: 120),
+          (_) => _syncNow(silent: true),
+        );
+        debugPrint('HomeView: App resumed - restarted sync timer');
+        // Quick sync after resume
+        _syncNow(silent: true);
+        _debouncedLoadStats();
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _eventBusSub?.cancel();
     _autoSyncTimer?.cancel();
     _statsDebounceTimer?.cancel();
@@ -1494,8 +1530,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           columns: ['cost', 'costPaymentMethod'],
           where: 'costRecordedInFund = 1 AND costRecordedAt IS NOT NULL AND costRecordedAt >= ? AND costRecordedAt < ?',
           whereArgs: [startMs, endMs]),
+        // [11] pendingApproval — đơn chờ duyệt giao (status 3 + pendingDeliveryApproval = 1)
+        dbConn.rawQuery('SELECT COUNT(*) FROM repairs WHERE status = 3 AND pendingDeliveryApproval = 1'),
       ]);
-      debugPrint('HomeView: Batch 1 (10 queries) took ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint('HomeView: Batch 1 (12 queries) took ${stopwatch.elapsedMilliseconds}ms');
 
       final pendingR = Sqflite.firstIntValue(batch1[0] as List<Map<String, dynamic>>) ?? 0;
       final newRT = Sqflite.firstIntValue(batch1[1] as List<Map<String, dynamic>>) ?? 0;
@@ -1508,6 +1546,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       final supplierPayments = batch1[8] as List<Map<String, dynamic>>;
       final supplierImports = batch1[9] as List<Map<String, dynamic>>;
       final repairPartsCostFundRows = batch1[10] as List<Map<String, dynamic>>;
+      final pendingApprovalR = Sqflite.firstIntValue(batch1[11] as List<Map<String, dynamic>>) ?? 0;
 
       int doneT = 0, soldT = 0, debtR = 0, expW = 0;
 
@@ -1802,6 +1841,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         setState(() {
           totalPendingRepair = pendingR;
           todayRepairDone = doneT;
+          pendingApprovalCount = pendingApprovalR;
           todaySaleCount = soldT;
           revenueToday = profit; // Keep for backward compatibility
           todayNewRepairs = newRT;
@@ -1832,7 +1872,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           _todayRepairCost = repairCost;
           _todaySettlementIncome = settlementIncome;
           _totalLocalRecords = totalRecords;
-          _rebuildCounter++;
           _rebuildTabWidgets();
         });
       }
@@ -2091,9 +2130,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     return GestureDetector(
       onLongPress: _openDashboardSettings,
       child: RefreshIndicator(
-        key: ValueKey(
-          'home_tab_$_rebuildCounter',
-        ), // Force rebuild when stats change
+        key: const ValueKey('home_tab'), // Stable key to preserve scroll state
         onRefresh: () => _syncNow(),
         child: ListView(
           padding: const EdgeInsets.all(10),
@@ -2149,11 +2186,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     for (final config in _dashboardConfigs) {
       if (!config.visible) continue;
 
-      // Role-based filtering for finance cards
-      if (config.requiresFinanceAccess &&
-          widget.role != 'owner' &&
-          widget.role != 'admin' &&
-          !_isSuperAdmin) {
+      // Role-based AND permission-based filtering for finance cards
+      final canViewFinance = hasFullAccess || _permissions['allowViewRevenue'] == true;
+      if (config.requiresFinanceAccess && !canViewFinance) {
         continue;
       }
 
@@ -2166,7 +2201,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           final canStock = hasFullAccess || _permissions['allowViewInventory'] == true;
           final canWarranty = hasFullAccess || _permissions['allowViewWarranty'] == true;
           widgets.add(ActionRequiredCard(
-            key: ValueKey('action_required_$_rebuildCounter'),
+            key: const ValueKey('action_required'),
             enableRepair: _enableRepair && canRepair,
             enableWarranty: _enableWarranty && canWarranty,
             enableExpiry: _enableExpiry && canStock,
@@ -2196,7 +2231,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           break;
         case DashboardCardType.financeSummary:
           widgets.add(FinanceSummaryCard(
-            key: ValueKey('finance_summary_$_rebuildCounter'),
+            key: const ValueKey('finance_summary'),
             totalIn: _todayTotalIn,
             totalOut: _todayTotalOut,
             netProfit: _todayNetProfit,
@@ -2213,7 +2248,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           break;
         case DashboardCardType.activityFeed:
           widgets.add(ActivityFeedCard(
-            key: ValueKey('activity_feed_$_rebuildCounter'),
+            key: const ValueKey('activity_feed'),
             enableRepair: _enableRepair,
           ));
           break;
@@ -6703,101 +6738,100 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
+            // Grid layout 3 cột - tránh bị bể UI khi nhiều items
+            Builder(builder: (context) {
+              final activityItems = <Widget>[
                 if (_enableRepair)
-                  Expanded(
-                    child: _activityCard(
-                      icon: Icons.build_circle,
-                      label: loc.pendingRepairs,
-                      value: totalPendingRepair.toString(),
-                      color: AppColors.primary,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => OrderListView(
-                            role: widget.role,
-                            statusFilter: const [1, 2],
-                          ),
+                  _activityCard(
+                    icon: Icons.build_circle,
+                    label: loc.pendingRepairs,
+                    value: totalPendingRepair.toString(),
+                    color: AppColors.primary,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => OrderListView(
+                          role: widget.role,
+                          statusFilter: const [1, 2],
                         ),
                       ),
                     ),
                   ),
                 if (_enableRepair)
-                  Expanded(
-                    child: _activityCard(
-                      icon: Icons.check_circle,
-                      label: loc.delivered,
-                      value: todayRepairDone.toString(),
-                      color: AppColors.info,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => OrderListView(
-                            role: widget.role,
-                            statusFilter: const [4],
-                            todayOnly: true,
-                          ),
+                  _activityCard(
+                    icon: Icons.hourglass_top,
+                    label: loc.pendingStatus,
+                    value: pendingApprovalCount.toString(),
+                    color: AppColors.repairPendingApproval,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => OrderListView(
+                          role: widget.role,
+                          statusFilter: const [3],
                         ),
                       ),
                     ),
                   ),
                 if (_enableExpiry)
-                  Expanded(
-                    child: _activityCard(
-                      icon: Icons.timer,
-                      label: 'Sắp hết HSD',
-                      value: (_expiryStats?.atRiskCount ?? 0).toString(),
-                      color: Colors.orange,
-                      onTap: () {
-                        final expiryTabIndex = _navItems.indexWhere((item) => item.label == 'HSD');
-                        if (expiryTabIndex != -1) {
-                          setState(() => _currentIndex = expiryTabIndex);
-                        }
-                      },
-                    ),
+                  _activityCard(
+                    icon: Icons.timer,
+                    label: 'Sắp hết HSD',
+                    value: (_expiryStats?.atRiskCount ?? 0).toString(),
+                    color: Colors.orange,
+                    onTap: () {
+                      final expiryTabIndex = _navItems.indexWhere((item) => item.label == 'HSD');
+                      if (expiryTabIndex != -1) {
+                        setState(() => _currentIndex = expiryTabIndex);
+                      }
+                    },
                   ),
                 if (_enableVariants)
-                  Expanded(
-                    child: _activityCard(
-                      icon: Icons.checkroom,
-                      label: 'Hết size/màu',
-                      value: (_variantWarnings?.outOfStock ?? 0).toString(),
-                      color: Colors.blue,
-                      onTap: () {
-                        final variantTabIndex = _navItems.indexWhere((item) => item.label == 'Size/Màu');
-                        if (variantTabIndex != -1) {
-                          setState(() => _currentIndex = variantTabIndex);
-                        }
-                      },
-                    ),
+                  _activityCard(
+                    icon: Icons.checkroom,
+                    label: 'Hết size/màu',
+                    value: (_variantWarnings?.outOfStock ?? 0).toString(),
+                    color: Colors.blue,
+                    onTap: () {
+                      final variantTabIndex = _navItems.indexWhere((item) => item.label == 'Size/Màu');
+                      if (variantTabIndex != -1) {
+                        setState(() => _currentIndex = variantTabIndex);
+                      }
+                    },
                   ),
-                Expanded(
-                  child: _activityCard(
-                    icon: Icons.shopping_cart,
-                    label: loc.saleOrders,
-                    value: todaySaleCount.toString(),
-                    color: AppColors.success,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SaleListView(todayOnly: true)),
-                    ),
+                _activityCard(
+                  icon: Icons.shopping_cart,
+                  label: loc.saleOrders,
+                  value: todaySaleCount.toString(),
+                  color: AppColors.success,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SaleListView(todayOnly: true)),
                   ),
                 ),
-                Expanded(
-                  child: _activityCard(
-                    icon: Icons.receipt_long,
-                    label: loc.debt,
-                    value: MoneyUtils.formatCompact(totalDebtRemain),
-                    color: AppColors.warning,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DebtView()),
-                    ),
+                _activityCard(
+                  icon: Icons.receipt_long,
+                  label: loc.debt,
+                  value: MoneyUtils.formatCompact(totalDebtRemain),
+                  color: AppColors.warning,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DebtView()),
                   ),
                 ),
-              ],
-            ),
+              ];
+              // Use GridView for consistent layout regardless of item count
+              final crossAxisCount = activityItems.length <= 4 ? activityItems.length.clamp(1, 4) : 3;
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: crossAxisCount,
+                mainAxisSpacing: 4,
+                crossAxisSpacing: 4,
+                childAspectRatio: 1.0,
+                children: activityItems,
+              );
+            }),
           ],
         ),
       ),

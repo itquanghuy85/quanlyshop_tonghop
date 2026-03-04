@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -25,6 +26,11 @@ class NotificationService {
   static final List<DateTime> _recentNotifications = [];
   static const int _maxNotificationsPerPeriod = 3;
   static const Duration _rateLimitPeriod = Duration(seconds: 10);
+
+  // Singleton listener subscription - prevent duplicate listeners
+  static StreamSubscription? _notificationSubscription;
+  // Track processed notification IDs to avoid showing same one twice
+  static final Set<String> _processedNotificationIds = {};
 
   // FCM Token management
   static DateTime? _lastTokenCheck;
@@ -82,37 +88,43 @@ class NotificationService {
 
   static Future<void> _requestPermissions() async {
     // Request notification permission with Android 13+ support
-    if (await Permission.notification.isDenied ||
-        await Permission.notification.isPermanentlyDenied) {
-      final status = await Permission.notification.request();
-      if (status.isPermanentlyDenied) {
-        // Show dialog to guide user to settings
-        debugPrint(
-          'Notification permission permanently denied, user needs to enable in settings',
-        );
-        // Note: UI dialog should be handled by calling widget
+    try {
+      final currentStatus = await Permission.notification.status;
+      if (currentStatus.isDenied || currentStatus.isPermanentlyDenied) {
+        final status = await Permission.notification.request();
+        if (status.isPermanentlyDenied) {
+          debugPrint(
+            'Notification permission permanently denied, user needs to enable in settings',
+          );
+        }
       }
+    } catch (e) {
+      // permission_handler có thể lỗi trên một số iOS version
+      debugPrint('permission_handler request error: $e');
     }
 
-    // Request FCM permissions with enhanced options
-    NotificationSettings settings = await _firebaseMessaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-      announcement: false,
-      carPlay: false,
-      criticalAlert: false,
-    );
+    // Request FCM permissions (more reliable on iOS, acts as fallback)
+    try {
+      NotificationSettings settings = await _firebaseMessaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+        announcement: false,
+        carPlay: false,
+        criticalAlert: false,
+      );
 
-    debugPrint('User granted permission: ${settings.authorizationStatus}');
+      debugPrint('User granted permission: ${settings.authorizationStatus}');
 
-    // Handle Android 13+ specific permission states
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      debugPrint('FCM permission denied - notifications may not work');
-    } else if (settings.authorizationStatus ==
-        AuthorizationStatus.provisional) {
-      debugPrint('FCM provisional permission - limited notifications');
+      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        debugPrint('FCM permission denied - notifications may not work');
+      } else if (settings.authorizationStatus ==
+          AuthorizationStatus.provisional) {
+        debugPrint('FCM provisional permission - limited notifications');
+      }
+    } catch (e) {
+      debugPrint('FCM requestPermission error: $e');
     }
   }
 
@@ -123,14 +135,30 @@ class NotificationService {
 
   /// Kiểm tra trạng thái thông báo đầy đủ: quyền + FCM token
   /// Trả về Map với các key: permissionGranted, hasFcmToken, isFullyWorking
+  /// Dùng cả permission_handler + Firebase Messaging để tránh false-negative trên iOS
   static Future<Map<String, bool>> checkNotificationStatus() async {
     bool permissionGranted = false;
     bool hasFcmToken = false;
 
     try {
-      // Kiểm tra quyền notification
+      // Check 1: permission_handler (chính xác trên Android, có thể sai trên iOS)
       final permissionStatus = await Permission.notification.status;
       permissionGranted = permissionStatus.isGranted;
+
+      // Check 2: Firebase Messaging authorizationStatus (tin cậy hơn trên iOS)
+      // iOS sometimes reports "denied" via permission_handler but "authorized" via FCM
+      if (!permissionGranted) {
+        try {
+          final fcmSettings = await _firebaseMessaging.getNotificationSettings();
+          if (fcmSettings.authorizationStatus == AuthorizationStatus.authorized ||
+              fcmSettings.authorizationStatus == AuthorizationStatus.provisional) {
+            permissionGranted = true;
+            debugPrint('Notification permission: permission_handler=denied but FCM=authorized (iOS quirk)');
+          }
+        } catch (e) {
+          debugPrint('FCM getNotificationSettings fallback error: $e');
+        }
+      }
 
       // Kiểm tra FCM token
       final token = await _firebaseMessaging.getToken();
@@ -272,8 +300,8 @@ class NotificationService {
       'system_channel',
       'Hệ thống',
       description: 'Thông báo hệ thống',
-      importance: Importance.low,
-      playSound: false,
+      importance: Importance.defaultImportance,
+      playSound: true,
     );
 
     final androidPlugin = _localNotifications
@@ -390,11 +418,28 @@ class NotificationService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
 
+      // Xóa token cũ - wrap riêng vì deleteToken() hay lỗi trên iOS
       debugPrint('forceRefreshFCMToken: Deleting old token...');
-      await _firebaseMessaging.deleteToken();
+      try {
+        await _firebaseMessaging.deleteToken();
+      } catch (deleteError) {
+        // iOS có thể throw khi token không tồn tại hoặc APNs chưa sẵn sàng
+        debugPrint('forceRefreshFCMToken: deleteToken failed (non-fatal): $deleteError');
+      }
+
+      // Chờ một chút cho APNs/FCM reset (iOS cần thời gian)
+      await Future.delayed(const Duration(milliseconds: 500));
 
       debugPrint('forceRefreshFCMToken: Getting new token...');
-      final newToken = await _firebaseMessaging.getToken();
+      String? newToken;
+      try {
+        newToken = await _firebaseMessaging.getToken();
+      } catch (getError) {
+        debugPrint('forceRefreshFCMToken: getToken failed, retrying after delay: $getError');
+        // Retry sau 1 giây (APNs có thể chưa sẵn sàng)
+        await Future.delayed(const Duration(seconds: 1));
+        newToken = await _firebaseMessaging.getToken();
+      }
 
       if (newToken == null || newToken.isEmpty) {
         debugPrint('forceRefreshFCMToken: Failed to get new token!');
@@ -595,17 +640,22 @@ class NotificationService {
   }
 
   // MẠCH LẮNG NGHE GIA CỐ (KHÓA CHẶT SHOP ID)
+  // Singleton pattern: cancel previous listener before creating new one
   static void listenToNotifications(
     Function(String, String) onMessageReceived,
   ) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    // Cancel existing subscription to prevent duplicate listeners
+    _notificationSubscription?.cancel();
+    _notificationSubscription = null;
+
     // Lắng nghe thay đổi ShopId liên tục để đảm bảo không mất kết nối
     UserService.getCurrentShopId().then((shopId) {
       if (shopId == null) return;
 
-      _db
+      _notificationSubscription = _db
           .collection('shop_notifications')
           .where('shopId', isEqualTo: shopId)
           .where('createdAt', isGreaterThan: Timestamp.fromDate(_appStartTime))
@@ -616,12 +666,27 @@ class NotificationService {
             );
             for (var change in snapshot.docChanges) {
               if (change.type == DocumentChangeType.added) {
+                final docId = change.doc.id;
+                // Skip if already processed (avoid duplicate display)
+                if (_processedNotificationIds.contains(docId)) {
+                  debugPrint('Skipping already processed notification: $docId');
+                  continue;
+                }
+                _processedNotificationIds.add(docId);
+                // Limit memory: keep only last 100 processed IDs
+                if (_processedNotificationIds.length > 100) {
+                  _processedNotificationIds.remove(_processedNotificationIds.first);
+                }
+
                 final data = change.doc.data() as Map<String, dynamic>;
                 debugPrint(
                   'New notification: ${data['title']} from ${data['senderId']} (current user: ${user.uid})',
                 );
-                // Hiển thị thông báo nếu không phải do chính mình gửi, HOẶC là thông báo hệ thống test
-                if (data['senderId'] != user.uid || data['type'] == 'system') {
+                // Hiển thị thông báo nếu không phải do chính mình gửi
+                // Với hệ thống test: chỉ hiện 1 lần qua snackbar (không show local notification cho sender)
+                final isSelf = data['senderId'] == user.uid;
+                final isSystem = data['type'] == 'system';
+                if (!isSelf || isSystem) {
                   String title = data['title'] ?? "THÔNG BÁO MỚI";
                   String body = data['body'] ?? "";
                   String type = data['type'] ?? 'system';
@@ -632,12 +697,17 @@ class NotificationService {
                       'Should show notification for type $type: $shouldShow',
                     );
                     if (shouldShow) {
-                      _showLocalNotification(
-                        title,
-                        body,
-                        channelId: _getChannelId(type),
-                      );
-                      onMessageReceived(title, body);
+                      // Self-sent system notification: only show snackbar, no local push
+                      if (isSelf && isSystem) {
+                        onMessageReceived(title, body);
+                      } else {
+                        _showLocalNotification(
+                          title,
+                          body,
+                          channelId: _getChannelId(type),
+                        );
+                        onMessageReceived(title, body);
+                      }
                     }
                   });
                 } else {
@@ -942,14 +1012,14 @@ class NotificationService {
       case 'staff_channel':
         return Importance.defaultImportance;
       case 'system_channel':
-        return Importance.low;
+        return Importance.defaultImportance;
       default:
         return Importance.defaultImportance;
     }
   }
 
   static bool _shouldPlaySound(String channelId) {
-    return channelId == 'new_order_channel' || channelId == 'payment_channel';
+    return channelId == 'new_order_channel' || channelId == 'payment_channel' || channelId == 'system_channel';
   }
 
   // Notification Settings Management
