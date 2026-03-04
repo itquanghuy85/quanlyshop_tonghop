@@ -246,13 +246,90 @@ class StockEntryService {
 
   /// Xác nhận nhập kho - PHẢI atomic
   /// Tạo products + financial_activity + supplier_debt (nếu công nợ)
+  /// Stock accumulation: phụ kiện/linh kiện trùng tên+thuộc tính → cộng dồn SL
   Future<bool> confirmEntry(String entryId) async {
     debugPrint('🔄 confirmEntry: START entryId=$entryId');
     try {
+      // === PRE-READ: Lấy entry + query existing products/parts TRƯỚC transaction ===
+      final entryDoc = await _firestore.collection(_collection).doc(entryId).get();
+      if (!entryDoc.exists) {
+        _showError('Không tìm thấy phiếu');
+        return false;
+      }
+      final preEntry = StockEntry.fromMap(entryDoc.data()!, docId: entryDoc.id);
+      if (preEntry.status != StockEntryStatus.draft) {
+        _showError('Phiếu đã được xử lý');
+        return false;
+      }
+
+      // Pre-query existing products and parts for upsert matching
+      final Map<String, String> existingPartDocIds = {}; // key → docId
+      final Map<String, Map<String, dynamic>> existingPartData = {};
+      final Map<String, String> existingProductDocIds = {}; // key → docId
+      final Map<String, Map<String, dynamic>> existingProductData = {};
+
+      for (final item in preEntry.items) {
+        if (item.productType == 'LINH_KIEN') {
+          final partNameUpper = item.name.toUpperCase().trim();
+          final modelUpper = (item.model ?? '').toUpperCase().trim();
+          try {
+            final snap = await _firestore.collection('repair_parts')
+                .where('shopId', isEqualTo: preEntry.shopId)
+                .where('partName', isEqualTo: partNameUpper)
+                .where('deleted', isEqualTo: false)
+                .limit(5)
+                .get();
+            for (final doc in snap.docs) {
+              final data = doc.data();
+              final existModel = (data['compatibleModels'] ?? '').toString().toUpperCase().trim();
+              if (existModel == modelUpper) {
+                final key = '${partNameUpper}_$modelUpper';
+                existingPartDocIds[key] = doc.id;
+                existingPartData[key] = data;
+                break;
+              }
+            }
+          } catch (e) {
+            debugPrint('⚠️ Pre-query parts error: $e');
+          }
+        } else if (item.productType != 'DIEN_THOAI') {
+          // PHU_KIEN, QUAN_AO, GIAY_DEP, PHU_KIEN_THOI_TRANG
+          final nameUpper = item.name.toUpperCase().trim();
+          final color = (item.color ?? '').toUpperCase().trim();
+          final size = (item.size ?? '').toUpperCase().trim();
+          final capacity = (item.capacity ?? '').toUpperCase().trim();
+          try {
+            final snap = await _firestore.collection('products')
+                .where('shopId', isEqualTo: preEntry.shopId)
+                .where('name', isEqualTo: nameUpper)
+                .where('deleted', isEqualTo: false)
+                .where('status', isEqualTo: 1)
+                .limit(10)
+                .get();
+            for (final doc in snap.docs) {
+              final data = doc.data();
+              final exColor = (data['color'] ?? '').toString().toUpperCase().trim();
+              final exSize = (data['size'] ?? '').toString().toUpperCase().trim();
+              final exCapacity = (data['capacity'] ?? '').toString().toUpperCase().trim();
+              if (exColor == color && exSize == size && exCapacity == capacity) {
+                final key = '${nameUpper}_${color}_${size}_$capacity';
+                existingProductDocIds[key] = doc.id;
+                existingProductData[key] = data;
+                break;
+              }
+            }
+          } catch (e) {
+            debugPrint('⚠️ Pre-query products error: $e');
+          }
+        }
+      }
+
+      debugPrint('📦 confirmEntry: Pre-query found ${existingPartDocIds.length} matching parts, ${existingProductDocIds.length} matching products');
+
       final result = await _firestore.runTransaction((transaction) async {
         debugPrint('🔄 confirmEntry: Inside transaction');
 
-        // 1. Lấy phiếu nhập
+        // 1. Re-read entry inside transaction for consistency
         final entryRef = _firestore.collection(_collection).doc(entryId);
         final entryDoc = await transaction.get(entryRef);
 
@@ -262,72 +339,108 @@ class StockEntryService {
         }
 
         final entryData = entryDoc.data()!;
-        debugPrint(
-          '🔄 confirmEntry: Entry data - status=${entryData['status']}, supplierId=${entryData['supplierId']}, paymentMethod=${entryData['paymentMethod']}',
-        );
-
         final entry = StockEntry.fromMap(entryData, docId: entryDoc.id);
-        debugPrint(
-          '🔄 confirmEntry: Parsed entry - status=${entry.status}, canConfirm=${entry.canConfirm}, missingInfo=${entry.missingInfo}',
-        );
-        debugPrint(
-          '🔄 confirmEntry: shopId=${entry.shopId}, items=${entry.items.length}, totalCost=${entry.calculatedTotalCost}',
-        );
 
         // 2. Validate
         if (entry.status != StockEntryStatus.draft) {
-          debugPrint('❌ confirmEntry: Entry not draft, status=${entry.status}');
           throw Exception('Phiếu đã được xử lý');
         }
-
         if (!entry.canConfirm) {
-          debugPrint(
-            '❌ confirmEntry: Cannot confirm - ${entry.missingInfo.join(", ")}',
-          );
           throw Exception('Chưa đủ thông tin: ${entry.missingInfo.join(", ")}');
         }
 
-        // 3. Tạo products từ items
+        // 3. Tạo/cập nhật products từ items
         final userId = _auth.currentUser?.uid;
-        final Map<String, String> partFirestoreIds = {}; // Lưu firestoreId của linh kiện
+        final Map<String, String> partFirestoreIds = {};
 
         for (final item in entry.items) {
-          // === XỬ LÝ LINH KIỆN: Lưu vào repair_parts thay vì products ===
+          // A) LINH_KIEN → upsert repair_parts
           if (item.productType == 'LINH_KIEN') {
-            final partRef = _firestore.collection('repair_parts').doc();
-            partFirestoreIds[item.name] = partRef.id; // Lưu ID để dùng sau
-            final now = DateTime.now().millisecondsSinceEpoch;
-            final userName =
-                _auth.currentUser?.email?.split('@').first.toUpperCase() ??
-                'NV';
+            final partNameUpper = item.name.toUpperCase().trim();
+            final modelUpper = (item.model ?? '').toUpperCase().trim();
+            final key = '${partNameUpper}_$modelUpper';
 
-            transaction.set(partRef, {
-              'partName': item.name,
-              'compatibleModels': item.model ?? '',
-              'cost': (item.cost ?? 0).toInt(),
-              'price': (item.price ?? 0).toInt(),
-              'quantity': item.quantity,
-              'supplierId': entry.supplierId != null
-                  ? int.tryParse(entry.supplierId!)
-                  : null,
-              'paymentMethod': entry.paymentMethod,
-              'createdBy': userName,
-              'createdAt': now,
-              'updatedAt': now,
-              'shopId': entry.shopId,
-              'deleted': false,
-              'stockEntryId': entryId,
-            });
-            continue; // Skip the products creation for LINH_KIEN
+            if (existingPartDocIds.containsKey(key)) {
+              // UPSERT: cộng dồn SL + giá vốn bình quân gia quyền
+              final docId = existingPartDocIds[key]!;
+              final data = existingPartData[key]!;
+              final existingQty = (data['quantity'] ?? 0) as num;
+              final existingCost = (data['costPrice'] ?? 0) as num;
+              final newQty = item.quantity;
+              final newCost = (item.cost ?? 0);
+              final totalQty = existingQty + newQty;
+              final weightedCost = totalQty > 0
+                  ? ((existingQty * existingCost + newQty * newCost) / totalQty).round()
+                  : newCost;
+
+              final partRef = _firestore.collection('repair_parts').doc(docId);
+              transaction.update(partRef, {
+                'quantity': totalQty,
+                'costPrice': weightedCost,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+              partFirestoreIds[item.name] = docId;
+              debugPrint('🔄 UPSERT part: $key qty $existingQty+$newQty=$totalQty');
+            } else {
+              // CREATE NEW repair_part
+              final partRef = _firestore.collection('repair_parts').doc();
+              transaction.set(partRef, {
+                'partName': partNameUpper,
+                'compatibleModels': item.model ?? '',
+                'brand': item.brand ?? '',
+                'quantity': item.quantity,
+                'costPrice': (item.cost ?? 0).toInt(),
+                'salePrice': (item.price ?? 0).toInt(),
+                'supplier': entry.supplierName ?? '',
+                'supplierId': entry.supplierId,
+                'shopId': entry.shopId,
+                'stockEntryId': entryId,
+                'createdAt': FieldValue.serverTimestamp(),
+                'updatedAt': FieldValue.serverTimestamp(),
+                'deleted': false,
+              });
+              partFirestoreIds[item.name] = partRef.id;
+              debugPrint('✅ CREATE part: ${item.name} qty=${item.quantity}');
+            }
+            continue; // LINH_KIEN handled
           }
 
-          // === XỬ LÝ ĐIỆN THOẠI & PHỤ KIỆN: Lưu vào products ===
-          // Xử lý đặc biệt cho điện thoại: nếu quantity > 1 và không có IMEI
-          // → tách thành nhiều products riêng biệt
-          final bool isPhoneWithBatch =
-              item.productType == 'DIEN_THOAI' &&
-              item.quantity > 1 &&
-              (item.imei == null || item.imei!.isEmpty);
+          // B) PHU_KIEN / fashion → upsert if matched
+          if (item.productType != 'DIEN_THOAI') {
+            final nameUpper = item.name.toUpperCase().trim();
+            final color = (item.color ?? '').toUpperCase().trim();
+            final size = (item.size ?? '').toUpperCase().trim();
+            final capacity = (item.capacity ?? '').toUpperCase().trim();
+            final key = '${nameUpper}_${color}_${size}_$capacity';
+
+            if (existingProductDocIds.containsKey(key)) {
+              // UPSERT: cộng dồn SL + giá vốn bình quân gia quyền
+              final docId = existingProductDocIds[key]!;
+              final data = existingProductData[key]!;
+              final existingQty = (data['quantity'] ?? 0) as num;
+              final existingCost = (data['cost'] ?? 0) as num;
+              final newQty = item.quantity;
+              final newCost = (item.cost ?? 0);
+              final totalQty = existingQty + newQty;
+              final weightedCost = totalQty > 0
+                  ? ((existingQty * existingCost + newQty * newCost) / totalQty).round()
+                  : newCost;
+
+              final productRef = _firestore.collection('products').doc(docId);
+              transaction.update(productRef, {
+                'quantity': totalQty,
+                'cost': weightedCost,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+              debugPrint('🔄 UPSERT product: $key qty $existingQty+$newQty=$totalQty');
+              continue; // Existing product updated, skip creation
+            }
+          }
+
+          // C) DIEN_THOAI or new (non-matched) PHU_KIEN/fashion → create product(s)
+          final bool isPhoneWithBatch = item.productType == 'DIEN_THOAI' &&
+              (item.imei == null || item.imei!.isEmpty) &&
+              item.quantity > 1;
 
           final int productsToCreate = isPhoneWithBatch ? item.quantity : 1;
           final int quantityPerProduct = isPhoneWithBatch ? 1 : item.quantity;
@@ -550,7 +663,7 @@ class StockEntryService {
       // Đây là bước quan trọng để hiển thị trên trang "Thanh toán" và tài chính
       if (result['success'] == true) {
         final entry = result['entry'] as StockEntry;
-        final totalCost = (result['totalCost'] as double).toInt();
+        final totalCost = (result['totalCost'] as double).round();
         // direction used for debugging
         final partFirestoreIds = result['partFirestoreIds'] as Map<String, String>;
         final userName =

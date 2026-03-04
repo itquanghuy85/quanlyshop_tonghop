@@ -424,7 +424,7 @@ class AdjustmentService {
       
       // 2. Cập nhật công nợ
       final newPaidAmount = paidAmount + amount;
-      final newStatus = newPaidAmount >= totalAmount ? 'paid' : 'partial';
+      final newStatus = newPaidAmount >= totalAmount ? 'PAID' : 'ACTIVE';
       
       await database.update(
         'debts',
@@ -461,7 +461,7 @@ class AdjustmentService {
 
       return AdjustmentResult(
         success: true,
-        message: newStatus == 'paid' 
+        message: newStatus == 'PAID' 
             ? 'Đã tất toán công nợ' 
             : 'Đã thanh toán ${NumberFormat('#,###').format(amount)}đ, còn lại ${NumberFormat('#,###').format(totalAmount - newPaidAmount)}đ',
       );

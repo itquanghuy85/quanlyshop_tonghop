@@ -134,14 +134,14 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         const GuideStep(
           title: '💾 LƯU TẠM',
           description:
-              'Chỉ cần nhập tên sản phẩm, lưu nhanh khi bận rộn. Bổ sung thông tin sau ở "Hàng chờ xác nhận".',
+              'Chỉ cần nhập tên sản phẩm, lưu nhanh khi bận rộn. Bổ sung thông tin sau ở "Hàng chờ xác nhận nhập vào kho".',
           icon: Icons.save_outlined,
           iconColor: Colors.amber,
         ),
         const GuideStep(
           title: '✅ LƯU VÀO HÀNG CHỜ',
           description:
-              'Điền đầy đủ: Tên, Giá vốn, NCC, Phương thức TT. Hàng sẽ vào "Hàng chờ xác nhận", cần duyệt để vào kho chính.',
+              'Điền đầy đủ: Tên, Giá vốn, NCC, Phương thức TT. Hàng sẽ vào "Hàng chờ xác nhận nhập vào kho", cần duyệt để vào kho chính.',
           icon: Icons.inventory_2,
           iconColor: Colors.green,
         ),
@@ -611,7 +611,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
 
       if (success && mounted) {
         NotificationService.showSnackBar(
-          'Đã lưu vào hàng chờ xác nhận. Vui lòng xác nhận để nhập kho chính.',
+          'Đã lưu vào hàng chờ xác nhận nhập vào kho. Vui lòng xác nhận để nhập kho chính.',
           color: Colors.green,
         );
         Navigator.pop(context, true);

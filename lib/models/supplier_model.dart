@@ -7,10 +7,14 @@ class Supplier {
   final String? note;
   final bool active;
   final bool favorite;
+  final String? type; // 'warehouse' for KHO TỔNG, null for regular suppliers
   final int createdAt;
   final int updatedAt;
   final String shopId;
   final String? firestoreId;
+
+  /// Check if this is the built-in central warehouse supplier
+  bool get isWarehouse => type == 'warehouse';
 
   Supplier({
     this.id,
@@ -21,6 +25,7 @@ class Supplier {
     this.note,
     this.active = true,
     this.favorite = false,
+    this.type,
     int? createdAt,
     int? updatedAt,
     required this.shopId,
@@ -39,6 +44,7 @@ class Supplier {
       'note': note,
       'active': active ? 1 : 0,
       'favorite': favorite ? 1 : 0,
+      'type': type,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'shopId': shopId,
@@ -56,6 +62,7 @@ class Supplier {
       note: map['note'],
       active: map['active'] == 1,
       favorite: map['favorite'] == 1,
+      type: map['type'] as String?,
       createdAt: map['createdAt'],
       updatedAt: map['updatedAt'],
       shopId: map['shopId'],
@@ -72,6 +79,7 @@ class Supplier {
     String? note,
     bool? active,
     bool? favorite,
+    String? type,
     int? createdAt,
     int? updatedAt,
     String? shopId,
@@ -86,6 +94,7 @@ class Supplier {
       note: note ?? this.note,
       active: active ?? this.active,
       favorite: favorite ?? this.favorite,
+      type: type ?? this.type,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       shopId: shopId ?? this.shopId,

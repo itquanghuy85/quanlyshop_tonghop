@@ -1083,7 +1083,7 @@ class _FastStockInViewState extends State<FastStockInView> {
 
         // Thông báo
         NotificationService.showSnackBar(
-          "Đã lưu vào Hàng Chờ Xác Nhận!",
+          "Đã lưu vào Hàng Chờ Xác Nhận Nhập Vào Kho!",
           color: Colors.orange,
         );
 
@@ -1100,7 +1100,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                 Text('Số lượng: $quantity'),
                 const SizedBox(height: 12),
                 const Text(
-                  'Phiếu đã được lưu vào "Hàng Chờ Xác Nhận".\n'
+                  'Phiếu đã được lưu vào "Hàng Chờ Xác Nhận Nhập Vào Kho".\n'
                   'Bạn cần XÁC NHẬN phiếu để hàng vào kho chính.',
                   style: TextStyle(color: Colors.orange),
                 ),
@@ -1784,7 +1784,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                                   color: Colors.white,
                                 )
                               : Text(
-                                  'LƯU VÀO HÀNG CHỜ XÁC NHẬN',
+                                  'LƯU VÀO HÀNG CHỜ XÁC NHẬN NHẬP KHO',
                                   style: TextStyle(
                                     fontSize: AppTextStyles.headline4.fontSize,
                                     fontWeight: FontWeight.bold,
@@ -1804,7 +1804,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                           },
                           icon: const Icon(Icons.list_alt, size: 16),
                           label: Text(
-                            'Xem hàng chờ xác nhận',
+                            'Xem hàng chờ xác nhận nhập kho',
                             style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
                           ),
                         ),

@@ -772,23 +772,25 @@ function getAllowedRolesForNotificationType(type) {
 // 📢 GỬI THÔNG BÁO PUSH CHO SHOP
 exports.sendShopNotification = onCall(async (request) => {
   const data = request.data || {};
-  // Temporarily disable auth for testing
-  // const auth = request.auth;
-  // if (!auth) {
-  //   throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
-  // }
+  
+  // Re-enable auth - require authenticated users
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
 
   const title = (data.title || "Thông báo").toString();
   const body = (data.body || "").toString();
   const type = (data.type || "system").toString();
   const targetUserId = data.targetUserId; // optional, if null then broadcast to all shop users
 
-  // Temporarily use hardcoded shopId for testing
-  const shopId = data.shopId || "honC8KnKhOUG19wcYOFDTGVdKWP2"; // Use the shopId from logs
-
-  // const requesterDoc = await admin.firestore().collection("users").doc(auth.uid).get();
-  // const requesterData = requesterDoc.data() || {};
-  // const shopId = requesterData.shopId;
+  // Get shopId from authenticated user's Firestore doc, fallback to data.shopId
+  let shopId = data.shopId;
+  if (!shopId) {
+    const requesterDoc = await admin.firestore().collection("users").doc(auth.uid).get();
+    const requesterData = requesterDoc.data() || {};
+    shopId = requesterData.shopId;
+  }
 
   if (!shopId) {
     throw new HttpsError("failed-precondition", "Không tìm thấy thông tin cửa hàng");
@@ -834,7 +836,7 @@ exports.sendShopNotification = onCall(async (request) => {
       data: {
         type: type,
         shopId: shopId,
-        senderId: "system", // Temporarily hardcoded for testing
+        senderId: auth.uid,
       },
       android: {
         priority: getAndroidPriority(type),
@@ -844,9 +846,19 @@ exports.sendShopNotification = onCall(async (request) => {
         },
       },
       apns: {
+        headers: {
+          'apns-priority': '10',
+        },
         payload: {
           aps: {
-            sound: getChannelId(type) === 'new_order_channel' || getChannelId(type) === 'payment_channel' ? 'default' : null,
+            alert: {
+              title: title,
+              body: body,
+            },
+            badge: 1,
+            sound: 'default',
+            'content-available': 1,
+            'mutable-content': 1,
           },
         },
       },

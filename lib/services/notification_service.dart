@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -87,23 +88,11 @@ class NotificationService {
   }
 
   static Future<void> _requestPermissions() async {
-    // Request notification permission with Android 13+ support
-    try {
-      final currentStatus = await Permission.notification.status;
-      if (currentStatus.isDenied || currentStatus.isPermanentlyDenied) {
-        final status = await Permission.notification.request();
-        if (status.isPermanentlyDenied) {
-          debugPrint(
-            'Notification permission permanently denied, user needs to enable in settings',
-          );
-        }
-      }
-    } catch (e) {
-      // permission_handler có thể lỗi trên một số iOS version
-      debugPrint('permission_handler request error: $e');
-    }
+    // On iOS, Firebase Messaging requestPermission is the AUTHORITATIVE source.
+    // permission_handler on iOS often returns 'permanentlyDenied' incorrectly.
+    // So: call FCM first (reliable on iOS), then permission_handler (reliable on Android).
 
-    // Request FCM permissions (more reliable on iOS, acts as fallback)
+    // Step 1: Firebase Messaging (primary for iOS, also works on Android)
     try {
       NotificationSettings settings = await _firebaseMessaging.requestPermission(
         alert: true,
@@ -115,7 +104,7 @@ class NotificationService {
         criticalAlert: false,
       );
 
-      debugPrint('User granted permission: ${settings.authorizationStatus}');
+      debugPrint('FCM permission status: ${settings.authorizationStatus}');
 
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
         debugPrint('FCM permission denied - notifications may not work');
@@ -125,6 +114,22 @@ class NotificationService {
       }
     } catch (e) {
       debugPrint('FCM requestPermission error: $e');
+    }
+
+    // Step 2: permission_handler (important for Android 13+ POST_NOTIFICATIONS)
+    try {
+      final currentStatus = await Permission.notification.status;
+      if (currentStatus.isDenied) {
+        final status = await Permission.notification.request();
+        if (status.isPermanentlyDenied) {
+          debugPrint(
+            'permission_handler: permanently denied (may be inaccurate on iOS)',
+          );
+        }
+      }
+    } catch (e) {
+      // permission_handler can crash on some iOS versions
+      debugPrint('permission_handler request error: $e');
     }
   }
 
@@ -426,31 +431,55 @@ class NotificationService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
 
-      // Xóa token cũ - wrap riêng vì deleteToken() hay lỗi trên iOS
+      // On iOS, ensure APNs token is available first
+      if (Platform.isIOS) {
+        debugPrint('forceRefreshFCMToken: iOS - checking APNs token...');
+        String? apnsToken;
+        for (int i = 0; i < 5; i++) {
+          apnsToken = await _firebaseMessaging.getAPNSToken();
+          if (apnsToken != null) {
+            debugPrint('forceRefreshFCMToken: APNs token available');
+            break;
+          }
+          debugPrint('forceRefreshFCMToken: APNs token not ready, retry ${i + 1}/5');
+          await Future.delayed(const Duration(seconds: 1));
+        }
+        if (apnsToken == null) {
+          debugPrint('forceRefreshFCMToken: APNs token unavailable after 5 retries');
+          // Try to proceed anyway - sometimes getToken works without explicit APNs
+        }
+      }
+
+      // Delete old token - wrap separately as deleteToken() often fails on iOS
       debugPrint('forceRefreshFCMToken: Deleting old token...');
       try {
         await _firebaseMessaging.deleteToken();
       } catch (deleteError) {
-        // iOS có thể throw khi token không tồn tại hoặc APNs chưa sẵn sàng
+        // iOS may throw when token doesn't exist or APNs isn't ready
         debugPrint('forceRefreshFCMToken: deleteToken failed (non-fatal): $deleteError');
       }
 
-      // Chờ một chút cho APNs/FCM reset (iOS cần thời gian)
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Wait for APNs/FCM reset (iOS needs time)
+      await Future.delayed(Duration(milliseconds: Platform.isIOS ? 1500 : 500));
 
       debugPrint('forceRefreshFCMToken: Getting new token...');
       String? newToken;
-      try {
-        newToken = await _firebaseMessaging.getToken();
-      } catch (getError) {
-        debugPrint('forceRefreshFCMToken: getToken failed, retrying after delay: $getError');
-        // Retry sau 1 giây (APNs có thể chưa sẵn sàng)
-        await Future.delayed(const Duration(seconds: 1));
-        newToken = await _firebaseMessaging.getToken();
+
+      // Retry up to 3 times with increasing delays
+      for (int attempt = 1; attempt <= 3; attempt++) {
+        try {
+          newToken = await _firebaseMessaging.getToken();
+          if (newToken != null && newToken.isNotEmpty) break;
+        } catch (getError) {
+          debugPrint('forceRefreshFCMToken: getToken attempt $attempt failed: $getError');
+        }
+        if (attempt < 3) {
+          await Future.delayed(Duration(seconds: attempt));
+        }
       }
 
       if (newToken == null || newToken.isEmpty) {
-        debugPrint('forceRefreshFCMToken: Failed to get new token!');
+        debugPrint('forceRefreshFCMToken: Failed to get new token after all retries!');
         return false;
       }
 

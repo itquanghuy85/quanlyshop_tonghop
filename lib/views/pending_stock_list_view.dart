@@ -49,7 +49,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
     await FirstTimeGuideService.showGuideIfNeeded(
       context: context,
       screenKey: FirstTimeGuideService.keyPendingEntries,
-      title: 'Hàng Chờ Xác Nhận',
+      title: 'Hàng Chờ Xác Nhận Nhập Vào Kho',
       icon: Icons.pending_actions,
       color: Colors.orange,
       steps: const [
@@ -239,7 +239,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
         title: Row(
           children: [
             Text(
-              'HÀNG CHỜ XÁC NHẬN',
+              'HÀNG CHỜ XÁC NHẬN NHẬP VÀO KHO',
               style: TextStyle(
                 fontSize: AppTextStyles.headline3.fontSize,
                 fontWeight: FontWeight.bold,
@@ -395,7 +395,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Không có hàng chờ xác nhận',
+            'Không có hàng chờ xác nhận nhập vào kho',
             style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),

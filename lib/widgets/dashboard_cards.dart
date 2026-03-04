@@ -106,7 +106,7 @@ class _ActionRequiredCardState extends State<ActionRequiredCard> {
     if (_pendingStock > 0) {
       items.add(_ActionItem(
         icon: Icons.pending_actions,
-        label: '$_pendingStock hàng chờ xác nhận',
+        label: '$_pendingStock hàng chờ xác nhận nhập kho',
         color: Colors.orange,
         onTap: widget.onPendingStockTap,
       ));

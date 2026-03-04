@@ -10,8 +10,62 @@ import '../services/user_service.dart';
 class SupplierService {
   final db = DBHelper();
 
+  /// Default warehouse supplier name
+  static const String khoTongName = 'KHO TỔNG';
+
+  /// Ensure KHO TỔNG (central warehouse) supplier exists for the current shop.
+  /// Called when supplier list is loaded or stock in view is opened.
+  Future<void> ensureDefaultSuppliers() async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return;
+
+      final suppliers = await db.getSuppliers();
+      final hasKhoTong = suppliers.any((s) =>
+          s['name']?.toString().toUpperCase().trim() == khoTongName &&
+          s['shopId'] == shopId &&
+          (s['deleted'] != 1 && s['deleted'] != true));
+
+      if (!hasKhoTong) {
+        debugPrint('SupplierService: Creating default KHO TỔNG supplier');
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final supplierMap = {
+          'name': khoTongName,
+          'phone': '',
+          'address': '',
+          'note': 'Kho tổng - Nhà cung cấp mặc định của cửa hàng',
+          'active': 1,
+          'favorite': 1,
+          'type': 'warehouse',
+          'shopId': shopId,
+          'createdAt': now,
+          'updatedAt': now,
+          'isSynced': 0,
+        };
+        final id = await db.insertSupplier(supplierMap);
+        if (id > 0) {
+          // Sync to Firestore
+          try {
+            final firestoreId = await FirestoreService.addSupplier({...supplierMap, 'id': id});
+            if (firestoreId != null) {
+              await db.updateSupplier(id, {'firestoreId': firestoreId, 'isSynced': 1});
+            }
+          } catch (e) {
+            debugPrint('SupplierService: Failed to sync KHO TỔNG to Firestore: $e');
+          }
+        }
+        debugPrint('SupplierService: KHO TỔNG created with id=$id');
+      }
+    } catch (e) {
+      debugPrint('SupplierService.ensureDefaultSuppliers error: $e');
+    }
+  }
+
   // Supplier CRUD
   Future<List<Supplier>> getSuppliers() async {
+    // Ensure KHO TỔNG exists before listing
+    await ensureDefaultSuppliers();
+
     final shopId = await UserService.getCurrentShopId();
     debugPrint('SupplierService.getSuppliers: shopId=$shopId');
 

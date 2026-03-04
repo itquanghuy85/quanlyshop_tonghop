@@ -98,14 +98,29 @@ class Debt {
   }
 
   factory Debt.fromFirestore(Map<String, dynamic> data, String id) {
+    // Validate type like fromMap() for consistency
+    final typeRaw = data['type']?.toString() ?? 'CUSTOMER_OWES';
+    final validTypes = ['CUSTOMER_OWES', 'SHOP_OWES', 'OTHER_CUSTOMER_OWES', 'OTHER_SHOP_OWES', 'OWE', 'OWED'];
+    final type = validTypes.contains(typeRaw) ? typeRaw : 'CUSTOMER_OWES';
+
+    // Validate status like fromMap()
+    final statusRaw = data['status']?.toString().toUpperCase() ?? 'ACTIVE';
+    final validStatuses = ['ACTIVE', 'PAID', 'CANCELLED', 'UNPAID'];
+    final status = validStatuses.contains(statusRaw) ? statusRaw : 'ACTIVE';
+
+    // Validate amounts
+    final totalAmount = (data['totalAmount'] is num) ? (data['totalAmount'] as num).toInt() : 0;
+    final paidAmountRaw = (data['paidAmount'] is num) ? (data['paidAmount'] as num).toInt() : 0;
+    final paidAmount = paidAmountRaw.clamp(0, totalAmount > 0 ? totalAmount : paidAmountRaw);
+
     return Debt(
       firestoreId: id,
       personName: data['personName'] ?? '',
       phone: data['phone'] ?? '',
-      totalAmount: data['totalAmount'] ?? 0,
-      paidAmount: data['paidAmount'] ?? 0,
-      type: data['type'] ?? 'OWE',
-      status: data['status'] ?? 'ACTIVE',
+      totalAmount: totalAmount,
+      paidAmount: paidAmount,
+      type: type,
+      status: status,
       createdAt: data['createdAt'] ?? 0,
       note: data['note'],
       linkedId: data['linkedId'],

@@ -38,6 +38,7 @@ class _RevenueViewState extends State<RevenueView>
   List<Map<String, dynamic>> _debtPayments = [];
   List<Map<String, dynamic>> _supplierImports = []; // Nhập hàng từ NCC
   List<Map<String, dynamic>> _supplierPayments = []; // Thanh toán NCC
+  List<Map<String, dynamic>> _repairPartnerPayments = []; // Thanh toán đối tác sửa chữa
   Map<String, dynamic>? _todayClosing; // Thông tin chốt quỹ hôm nay
   bool _hasRevenueAccess = false;
   bool _isLoading = true;
@@ -229,6 +230,7 @@ class _RevenueViewState extends State<RevenueView>
       }
     }
     final supplierPayments = await db.getSupplierPaymentsByDateRange(startMs, endMs);
+    final repairPartnerPayments = await db.getRepairPartnerPaymentsByDateRange(startMs, endMs);
 
     final dbRaw = await db.database;
     final effectiveShopId = shopId ?? UserService.getShopIdSync();
@@ -280,6 +282,7 @@ class _RevenueViewState extends State<RevenueView>
       _debtPayments = debtPayments;
       _supplierImports = supplierImports;
       _supplierPayments = supplierPayments;
+      _repairPartnerPayments = repairPartnerPayments;
       _closings = closings;
       _todayClosing = todayClosingResult.isNotEmpty
           ? todayClosingResult.first
@@ -1834,23 +1837,52 @@ class _RevenueViewState extends State<RevenueView>
           }
         }
       } else {
-        final item = _TransactionItem(
-          title: "Bán: ${s.productNames}",
-          amount: s.totalPrice,
-          method: s.paymentMethod,
-          time: s.soldAt,
-          type: "IN",
-          isDebt: s.paymentMethod == "CÔNG NỢ",
-        );
-        todayTrans.add(item);
-        if (!item.isDebt) {
-          if (item.method == "TIỀN MẶT") {
-            cashIn += item.amount;
-          } else {
-            bankIn += item.amount;
+        // Handle KẾT HỢP (combined cash+transfer) separately
+        if (s.paymentMethod == "KẾT HỢP") {
+          // Split into cash and transfer portions
+          if (s.cashAmount > 0) {
+            final cashItem = _TransactionItem(
+              title: "Bán (TM): ${s.productNames}",
+              amount: s.cashAmount,
+              method: "TIỀN MẶT",
+              time: s.soldAt,
+              type: "IN",
+              isDebt: false,
+            );
+            todayTrans.add(cashItem);
+            cashIn += cashItem.amount;
+          }
+          if (s.transferAmount > 0) {
+            final transferItem = _TransactionItem(
+              title: "Bán (CK): ${s.productNames}",
+              amount: s.transferAmount,
+              method: "CHUYỂN KHOẢN",
+              time: s.soldAt,
+              type: "IN",
+              isDebt: false,
+            );
+            todayTrans.add(transferItem);
+            bankIn += transferItem.amount;
           }
         } else {
-          debtAmount += item.amount;
+          final item = _TransactionItem(
+            title: "Bán: ${s.productNames}",
+            amount: s.finalPrice,
+            method: s.paymentMethod,
+            time: s.soldAt,
+            type: "IN",
+            isDebt: s.paymentMethod == "CÔNG NỢ",
+          );
+          todayTrans.add(item);
+          if (!item.isDebt) {
+            if (item.method == "TIỀN MẶT") {
+              cashIn += item.amount;
+            } else {
+              bankIn += item.amount;
+            }
+          } else {
+            debtAmount += item.amount;
+          }
         }
       }
     }
@@ -2038,6 +2070,30 @@ class _RevenueViewState extends State<RevenueView>
         } else {
           bankOut += item.amount;
         }
+      }
+    }
+
+    // Repair partner payments (Thanh toán đối tác sửa chữa)
+    for (var pay in _repairPartnerPayments.where(
+      (p) => _isSameDay((p['paidAt'] ?? 0) as int, now),
+    )) {
+      final amount = (pay['amount'] ?? 0) as int;
+      if (amount <= 0) continue;
+
+      final paymentMethod = pay['paymentMethod'] as String? ?? 'TIỀN MẶT';
+      final item = _TransactionItem(
+        title: "Trả đối tác SC: ${pay['partnerName'] ?? 'Đối tác'}",
+        amount: amount,
+        method: paymentMethod,
+        time: (pay['paidAt'] ?? 0) as int,
+        type: "OUT",
+        isDebt: false,
+      );
+      todayTrans.add(item);
+      if (item.method == "TIỀN MẶT") {
+        cashOut += item.amount;
+      } else {
+        bankOut += item.amount;
       }
     }
 

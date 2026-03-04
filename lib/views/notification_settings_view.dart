@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -20,7 +21,8 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
   bool _systemEnabled = true;
 
   String _userRole = 'user';
-  PermissionStatus _notificationPermission = PermissionStatus.denied;
+  bool _permissionGranted = false;
+  bool _hasFcmToken = false;
 
   @override
   void initState() {
@@ -65,10 +67,14 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
   }
 
   Future<void> _checkPermissionStatus() async {
-    final status = await NotificationService.getNotificationPermissionStatus();
+    // Use dual-check method: permission_handler + Firebase Messaging
+    // This avoids false-negative on iOS where permission_handler
+    // reports 'permanentlyDenied' even though iOS Settings has notifications ON
+    final status = await NotificationService.checkNotificationStatus();
     if (mounted) {
       setState(() {
-        _notificationPermission = status;
+        _permissionGranted = status['permissionGranted'] ?? false;
+        _hasFcmToken = status['hasFcmToken'] ?? false;
       });
     }
   }
@@ -195,12 +201,10 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
   }
 
   Widget _buildPermissionStatusCard() {
-    final isGranted = _notificationPermission.isGranted;
-    final isDenied = _notificationPermission.isDenied;
-    final isPermanentlyDenied = _notificationPermission.isPermanentlyDenied;
+    final isFullyWorking = _permissionGranted && _hasFcmToken;
 
     return Card(
-      color: isGranted ? Colors.green.shade50 : Colors.orange.shade50,
+      color: isFullyWorking ? Colors.green.shade50 : Colors.orange.shade50,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -212,41 +216,69 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
             Row(
               children: [
                 Icon(
-                  isGranted ? Icons.notifications_active : Icons.notifications_off,
-                  color: isGranted ? Colors.green : Colors.orange,
+                  isFullyWorking ? Icons.notifications_active : Icons.notifications_off,
+                  color: isFullyWorking ? Colors.green : Colors.orange,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'Quyền thông báo',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isGranted ? Colors.green : Colors.orange,
+                Expanded(
+                  child: Text(
+                    'Quyền thông báo',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isFullyWorking ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                ),
+                // Status badges
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _permissionGranted ? Colors.green.shade100 : Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _permissionGranted ? 'Quyền OK' : 'Chưa cấp quyền',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+                      color: _permissionGranted ? Colors.green.shade800 : Colors.red.shade800),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _hasFcmToken ? Colors.green.shade100 : Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _hasFcmToken ? 'Token OK' : 'Chưa có token',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+                      color: _hasFcmToken ? Colors.green.shade800 : Colors.red.shade800),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              isGranted
+              isFullyWorking
                 ? 'Đã cấp quyền thông báo. Bạn sẽ nhận được thông báo push.'
-                : isPermanentlyDenied
-                  ? 'Quyền thông báo bị từ chối vĩnh viễn. Vui lòng bật trong cài đặt hệ thống.'
-                  : 'Cần cấp quyền thông báo để nhận thông báo push.',
+                : !_permissionGranted
+                  ? 'Cần cấp quyền thông báo để nhận thông báo push.${Platform.isIOS ? "\nNếu đã bật trong Cài đặt iOS, hãy nhấn \"Làm mới FCM Token\"." : ""}'
+                  : 'Đã cấp quyền nhưng chưa có FCM Token. Nhấn "Làm mới FCM Token" bên dưới.',
               style: TextStyle(
                 fontSize: AppTextStyles.subtitle1.fontSize,
-                color: isGranted ? Colors.green.shade700 : Colors.orange.shade700,
+                color: isFullyWorking ? Colors.green.shade700 : Colors.orange.shade700,
               ),
             ),
-            if (!isGranted) ...[
+            if (!_permissionGranted) ...[
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _requestNotificationPermission,
                   icon: const Icon(Icons.settings),
-                  label: Text(isPermanentlyDenied ? 'Mở cài đặt' : 'Cấp quyền'),
+                  label: const Text('Cấp quyền'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isGranted ? Colors.green : Colors.orange,
+                    backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,
                   ),
                 ),
@@ -416,15 +448,22 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
   }
 
   Future<void> _requestNotificationPermission() async {
-    final status = await Permission.notification.request();
-    if (mounted) {
-      setState(() {
-        _notificationPermission = status;
-      });
+    // On iOS, try opening system settings directly since permission_handler
+    // often reports wrong status. The user can enable notifications there.
+    if (Platform.isIOS) {
+      _showPermissionSettingsDialog();
+      return;
     }
 
-    if (status.isGranted) {
+    final status = await Permission.notification.request();
+    // Recheck using dual method
+    await _checkPermissionStatus();
+
+    if (status.isGranted || _permissionGranted) {
       NotificationService.showSnackBar('Đã cấp quyền thông báo!', color: Colors.green);
+      // Also refresh FCM token after granting permission
+      await NotificationService.forceRefreshFCMToken();
+      await _checkPermissionStatus();
     } else if (status.isPermanentlyDenied) {
       _showPermissionSettingsDialog();
     } else {

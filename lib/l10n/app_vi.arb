@@ -814,7 +814,7 @@
   "checkInventoryGuide": "Kiểm tra tồn kho bằng quét mã:\n\n🔍 Quét QR/Barcode để kiểm hàng\n🔍 So sánh số lượng thực tế vs hệ thống\n🔍 Ghi nhận chênh lệch\n\n📌 Dùng khi: Kiểm kê định kỳ, đối chiếu hàng tồn.",
   "contactOwnerForAccess": "Liên hệ chủ shop để được cấp quyền",
   "compareInventory": "Đối chiếu tồn kho",
-  "pendingConfirmation": "Hàng chờ xác nhận",
+  "pendingConfirmation": "Hàng chờ xác nhận nhập vào kho",
   "viewPendingStockList": "Xem danh sách hàng nhập tạm chưa xác nhận.",
   "productList": "Danh sách sản phẩm",
   "viewManageProducts": "Xem và quản lý danh sách sản phẩm trong kho.",

@@ -951,12 +951,12 @@ class FirestoreService {
       if (shopId == null) return Stream.value([]);
 
       return _db
-          .collection('notifications')
+          .collection('shop_notifications')
           .where('shopId', isEqualTo: shopId)
           .where(
             Filter.or(
-              Filter('userId', isEqualTo: user.uid),
-              Filter('userId', isNull: true),
+              Filter('targetUserId', isEqualTo: user.uid),
+              Filter('targetUserId', isNull: true),
             ),
           )
           .orderBy('createdAt', descending: true)
@@ -976,7 +976,7 @@ class FirestoreService {
 
   static Future<void> markNotificationAsRead(String notificationId) async {
     try {
-      await _db.collection('notifications').doc(notificationId).update({
+      await _db.collection('shop_notifications').doc(notificationId).update({
         'isRead': true,
         'readAt': FieldValue.serverTimestamp(),
       });
@@ -993,13 +993,13 @@ class FirestoreService {
       if (shopId == null) return Stream.value(0);
 
       return _db
-          .collection('notifications')
+          .collection('shop_notifications')
           .where('shopId', isEqualTo: shopId)
           .where('isRead', isEqualTo: false)
           .where(
             Filter.or(
-              Filter('userId', isEqualTo: user.uid),
-              Filter('userId', isNull: true),
+              Filter('targetUserId', isEqualTo: user.uid),
+              Filter('targetUserId', isNull: true),
             ),
           )
           .snapshots()
@@ -1319,7 +1319,7 @@ class FirestoreService {
 
         // PHASE 3: Update debt
         newPaidAmount = currentPaid + payAmount;
-        final newStatus = newPaidAmount >= totalAmount ? 'paid' : 'unpaid';
+        final newStatus = newPaidAmount >= totalAmount ? 'PAID' : 'ACTIVE';
 
         transaction.update(debtRef, {
           'paidAmount': newPaidAmount,
