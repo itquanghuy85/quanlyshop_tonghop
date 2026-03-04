@@ -817,22 +817,22 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           ? Container(
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: TextField(
                 autofocus: true,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.black87,
                   fontSize: AppTextStyles.headline3.fontSize,
                 ),
-                cursorColor: Colors.white,
+                cursorColor: AppBarAccents.chat,
                 decoration: InputDecoration(
                   hintText: 'Tìm tin nhắn...',
-                  hintStyle: TextStyle(color: Colors.white70),
-                  prefixIcon: const Icon(
+                  hintStyle: TextStyle(color: Colors.grey.shade500),
+                  prefixIcon: Icon(
                     Icons.search,
-                    color: Colors.white70,
+                    color: Colors.grey.shade500,
                     size: 20,
                   ),
                   border: InputBorder.none,
