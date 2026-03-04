@@ -127,6 +127,7 @@ class _PrinterSettingViewState extends State<PrinterSettingView> {
             TextField(
               controller: controller,
               style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 hintText: "192.168.1.XXX",
                 prefixIcon: const Icon(Icons.lan_rounded, size: 18),

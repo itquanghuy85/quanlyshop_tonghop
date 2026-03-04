@@ -204,7 +204,7 @@ class _PrinterSelectionDialogState extends State<PrinterSelectionDialog> {
                       ),
                       controller: TextEditingController(text: _wifiIp),
                       onChanged: (value) => _wifiIp = value,
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     ),
                     const SizedBox(height: 8),
                     Text(

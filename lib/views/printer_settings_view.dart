@@ -511,7 +511,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 prefixIcon: const Icon(Icons.router),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -522,7 +522,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 prefixIcon: const Icon(Icons.router_outlined),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 12),
             SizedBox(

@@ -1285,13 +1285,25 @@ class OrderListViewState extends State<OrderListView> {
                         ],
                       ),
                     ),
-                    // Giá thu khách
-                    Text(
-                      '${NumberFormat.compact(locale: 'vi').format(r.price)}đ',
-                      style: AppTextStyles.subtitle1.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: r.price > 0 ? Colors.green.shade700 : Colors.grey,
-                        fontSize: 13,
+                    // KTV sửa chữa (header) - luôn hiển thị
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (r.repairedBy != null && r.repairedBy!.isNotEmpty)
+                            ? Colors.purple.shade100
+                            : Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        (r.repairedBy != null && r.repairedBy!.isNotEmpty)
+                            ? '👨‍🔧 ${r.repairedBy!}'
+                            : '👨‍🔧 Chưa có KTV',
+                        style: AppTextStyles.caption.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: (r.repairedBy != null && r.repairedBy!.isNotEmpty)
+                              ? Colors.purple.shade800
+                              : Colors.grey.shade600,
+                        ),
                       ),
                     ),
                   ],
@@ -1349,16 +1361,26 @@ class OrderListViewState extends State<OrderListView> {
                         textColor: Colors.orange.shade900,
                         maxLines: 2,
                       ),
-                    // Giá
+                    // Giá thu khách (chỉ hiện khi có giá > 0)
                     if (r.price > 0)
                       _repairInfoChip(
                         '💰 ${NumberFormat.compact(locale: 'vi').format(r.price)}đ',
                         Colors.green.shade100,
+                        textColor: Colors.green.shade800,
+                        fontWeight: FontWeight.w600,
                       ),
-                    // Ghi chú
+                    // Ghi chú KTV (nếu có) - giới hạn 2 dòng tránh overflow
+                    if (r.notes != null && r.notes!.isNotEmpty)
+                      _repairInfoChip(
+                        '📝 ${r.notes!}',
+                        Colors.amber.shade100,
+                        textColor: Colors.amber.shade900,
+                        maxLines: 2,
+                      ),
+                    // Ghi chú phụ kiện (nếu có)
                     if (r.accessories.isNotEmpty)
                       _repairInfoChip(
-                        '📝 ${r.accessories}',
+                        '🧰 ${r.accessories}',
                         Colors.blue.shade100,
                       ),
                   ],
@@ -1379,20 +1401,25 @@ class OrderListViewState extends State<OrderListView> {
     double fontSize = 10,
     int maxLines = 1,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width - 100, // Prevent overflow
       ),
-      child: Text(
-        text, 
-        style: AppTextStyles.caption.copyWith(
-          color: textColor,
-          fontWeight: fontWeight,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
         ),
-        maxLines: maxLines,
-        overflow: TextOverflow.ellipsis,
+        child: Text(
+          text, 
+          style: AppTextStyles.caption.copyWith(
+            color: textColor,
+            fontWeight: fontWeight,
+          ),
+          maxLines: maxLines,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }

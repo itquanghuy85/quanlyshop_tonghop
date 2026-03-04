@@ -319,6 +319,14 @@ class NotificationService {
     // Set background message handler (defined in main.dart)
     // FirebaseMessaging.onBackgroundMessage is already set up in main.dart
 
+    // iOS: Hiển thị notification banner khi app đang mở (foreground)
+    // Không có dòng này → iOS sẽ KHÔNG hiện thông báo khi app foreground
+    await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
@@ -855,9 +863,22 @@ class NotificationService {
     String? payload,
     bool showInAppFallback = true,
   }) async {
-    // Kiểm tra permission trước
-    final permissionStatus = await Permission.notification.status;
-    final hasPermission = permissionStatus.isGranted;
+    // Kiểm tra permission trước (dùng cả permission_handler + FCM cho iOS)
+    bool hasPermission = false;
+    try {
+      final permissionStatus = await Permission.notification.status;
+      hasPermission = permissionStatus.isGranted;
+      // iOS fallback: permission_handler có thể sai → check FCM
+      if (!hasPermission) {
+        final fcmSettings = await _firebaseMessaging.getNotificationSettings();
+        hasPermission = fcmSettings.authorizationStatus == AuthorizationStatus.authorized ||
+            fcmSettings.authorizationStatus == AuthorizationStatus.provisional;
+      }
+    } catch (e) {
+      debugPrint('Permission check error: $e');
+      // Nếu lỗi, vẫn thử hiển thị notification
+      hasPermission = true;
+    }
 
     if (hasPermission) {
       try {

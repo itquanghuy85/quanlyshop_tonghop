@@ -175,7 +175,7 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
           ]),
           const SizedBox(height: 15),
           _sectionCard("MÁY IN WIFI/LAN", [
-            TextField(controller: _ipCtrl, decoration: const InputDecoration(hintText: "192.168.1.XXX", prefixIcon: Icon(Icons.lan))),
+            TextField(controller: _ipCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(hintText: "192.168.1.XXX", prefixIcon: Icon(Icons.lan))),
             const SizedBox(height: 10),
             ElevatedButton.icon(
               onPressed: _testWifiConnection,
