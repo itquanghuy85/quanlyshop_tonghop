@@ -5774,23 +5774,25 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   ),
                 ),
                 _financeQuickCard(
-                  'Trả góp NH',
-                  Icons.credit_score,
-                  Colors.deepOrange,
+                  'Lịch sử tài chính',
+                  Icons.receipt_long,
+                  Colors.indigo,
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const BankInstallmentReportView(),
+                      builder: (_) => const CashClosingView(showOnlyTransactions: true),
                     ),
                   ),
                 ),
                 _financeQuickCard(
-                  'Nhà cung cấp',
-                  Icons.local_shipping,
-                  Colors.teal,
+                  'Nhật ký hoạt động',
+                  Icons.history,
+                  Colors.purple,
                   () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const SupplierListView()),
+                    MaterialPageRoute(
+                      builder: (_) => const FinancialActivityLogView(),
+                    ),
                   ),
                 ),
               ],

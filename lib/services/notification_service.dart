@@ -321,11 +321,7 @@ class NotificationService {
   }
 
   static Future<void> _initFirebaseMessaging() async {
-    // Set background message handler (defined in main.dart)
-    // FirebaseMessaging.onBackgroundMessage is already set up in main.dart
-
     // iOS: Hiển thị notification banner khi app đang mở (foreground)
-    // Không có dòng này → iOS sẽ KHÔNG hiện thông báo khi app foreground
     await _firebaseMessaging.setForegroundNotificationPresentationOptions(
       alert: true,
       badge: true,
@@ -341,13 +337,40 @@ class NotificationService {
     // Subscribe to staff topic for business notifications
     await _firebaseMessaging.subscribeToTopic('staff');
 
+    // On iOS, wait for APNs token before requesting FCM token
+    if (Platform.isIOS) {
+      String? apnsToken;
+      for (int i = 0; i < 10; i++) {
+        apnsToken = await _firebaseMessaging.getAPNSToken();
+        if (apnsToken != null) {
+          debugPrint('APNs token ready after ${i + 1} attempts');
+          break;
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      if (apnsToken == null) {
+        debugPrint('APNs token not available - FCM may not work on iOS');
+      }
+    }
+
     // Get FCM token
-    String? token = await _firebaseMessaging.getToken();
+    String? token;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        token = await _firebaseMessaging.getToken();
+        if (token != null && token.isNotEmpty) break;
+      } catch (e) {
+        debugPrint('FCM getToken attempt $attempt failed: $e');
+      }
+      if (attempt < 3) await Future.delayed(Duration(seconds: attempt));
+    }
     debugPrint('FCM Token: $token');
 
     // Save token to user profile
     if (token != null) {
       await _saveFCMToken(token);
+      _cachedToken = token;
+      _lastTokenCheck = DateTime.now();
     }
 
     // Listen for token refresh
@@ -435,45 +458,43 @@ class NotificationService {
       if (Platform.isIOS) {
         debugPrint('forceRefreshFCMToken: iOS - checking APNs token...');
         String? apnsToken;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 10; i++) {
           apnsToken = await _firebaseMessaging.getAPNSToken();
           if (apnsToken != null) {
             debugPrint('forceRefreshFCMToken: APNs token available');
             break;
           }
-          debugPrint('forceRefreshFCMToken: APNs token not ready, retry ${i + 1}/5');
-          await Future.delayed(const Duration(seconds: 1));
+          debugPrint('forceRefreshFCMToken: APNs token not ready, retry ${i + 1}/10');
+          await Future.delayed(const Duration(milliseconds: 800));
         }
         if (apnsToken == null) {
-          debugPrint('forceRefreshFCMToken: APNs token unavailable after 5 retries');
-          // Try to proceed anyway - sometimes getToken works without explicit APNs
+          debugPrint('forceRefreshFCMToken: APNs token unavailable - trying getToken anyway');
         }
       }
 
-      // Delete old token - wrap separately as deleteToken() often fails on iOS
+      // Try to delete old token (non-fatal on failure)
       debugPrint('forceRefreshFCMToken: Deleting old token...');
       try {
         await _firebaseMessaging.deleteToken();
       } catch (deleteError) {
-        // iOS may throw when token doesn't exist or APNs isn't ready
         debugPrint('forceRefreshFCMToken: deleteToken failed (non-fatal): $deleteError');
       }
 
-      // Wait for APNs/FCM reset (iOS needs time)
-      await Future.delayed(Duration(milliseconds: Platform.isIOS ? 1500 : 500));
+      // Wait for FCM reset
+      await Future.delayed(Duration(milliseconds: Platform.isIOS ? 2000 : 500));
 
       debugPrint('forceRefreshFCMToken: Getting new token...');
       String? newToken;
 
-      // Retry up to 3 times with increasing delays
-      for (int attempt = 1; attempt <= 3; attempt++) {
+      // Retry up to 5 times with increasing delays
+      for (int attempt = 1; attempt <= 5; attempt++) {
         try {
           newToken = await _firebaseMessaging.getToken();
           if (newToken != null && newToken.isNotEmpty) break;
         } catch (getError) {
           debugPrint('forceRefreshFCMToken: getToken attempt $attempt failed: $getError');
         }
-        if (attempt < 3) {
+        if (attempt < 5) {
           await Future.delayed(Duration(seconds: attempt));
         }
       }

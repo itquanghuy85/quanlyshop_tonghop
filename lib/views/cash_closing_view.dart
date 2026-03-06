@@ -36,7 +36,8 @@ bool _isCustomerOwesDebt(String? debtType) {
 /// Trang chốt quỹ chuyên nghiệp - Thiết kế lại hoàn toàn
 class CashClosingView extends StatefulWidget {
   final int initialTab;
-  const CashClosingView({super.key, this.initialTab = 0});
+  final bool showOnlyTransactions;
+  const CashClosingView({super.key, this.initialTab = 0, this.showOnlyTransactions = false});
 
   @override
   State<CashClosingView> createState() => _CashClosingViewState();
@@ -78,7 +79,11 @@ class _CashClosingViewState extends State<CashClosingView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this, initialIndex: widget.initialTab);
+    _tabController = TabController(
+      length: widget.showOnlyTransactions ? 1 : 4,
+      vsync: this,
+      initialIndex: widget.showOnlyTransactions ? 0 : widget.initialTab.clamp(0, 3),
+    );
     _loadShopSettings();
     _loadAllData();
     _initRealTimeSync();
@@ -462,6 +467,29 @@ class _CashClosingViewState extends State<CashClosingView>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.showOnlyTransactions) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F7FA),
+        appBar: CustomAppBar.build(
+          title: 'LỊCH SỬ TÀI CHÍNH',
+          subtitle: 'Tất cả giao dịch trong ngày',
+          accentColor: Colors.indigo,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.calendar_month, size: 20, color: Colors.white),
+              onPressed: _pickDate,
+              splashRadius: 18,
+            ),
+          ],
+        ),
+        body: ResponsiveCenter(
+          child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _buildTransactionsTab(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: ResponsiveCenter(
@@ -475,7 +503,6 @@ class _CashClosingViewState extends State<CashClosingView>
                   _buildOverviewTab(),
                   _buildIncomeTab(),
                   _buildExpenseTab(),
-                  _buildTransactionsTab(),
                   _buildHistoryTab(),
                 ],
               ),
@@ -611,17 +638,6 @@ class _CashClosingViewState extends State<CashClosingView>
                 Icon(Icons.arrow_upward, size: 14),
                 SizedBox(width: 4),
                 Text('Chi', style: TextStyle(fontSize: 11)),
-              ],
-            ),
-          ),
-          Tab(
-            height: CustomAppBar.kTabBarHeight,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.receipt_long, size: 14),
-                SizedBox(width: 4),
-                Text('Giao dịch', style: TextStyle(fontSize: 11)),
               ],
             ),
           ),
