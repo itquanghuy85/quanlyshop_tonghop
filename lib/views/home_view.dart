@@ -3085,22 +3085,22 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   /// Chat card - hiển thị ngay dưới lời chào với badge tin nhắn chưa đọc
   Widget _buildChatCard() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 10),
       child: Card(
-        elevation: 3,
+        elevation: 0,
         color: Colors.cyan.shade50,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-          side: BorderSide(color: Colors.cyan.shade300, width: 1.5),
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: Colors.cyan.shade200),
         ),
         child: InkWell(
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AdvancedChatView()),
           ),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(10),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
                 // Icon với badge
@@ -3108,49 +3108,38 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.cyan.shade400, Colors.cyan.shade600],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.cyan.shade100,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.chat_bubble_rounded,
-                        color: Colors.white,
-                        size: 28,
+                        color: Colors.cyan.shade700,
+                        size: 20,
                       ),
                     ),
-                    // Badge đỏ số tin nhắn chưa đọc
                     if (unreadChatCount > 0)
                       Positioned(
-                        right: -8,
-                        top: -8,
+                        right: -6,
+                        top: -6,
                         child: Container(
-                          padding: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
                             color: Colors.red,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.red.withOpacity(0.4),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                            border: Border.all(color: Colors.white, width: 1.5),
                           ),
                           constraints: const BoxConstraints(
-                            minWidth: 24,
-                            minHeight: 24,
+                            minWidth: 18,
+                            minHeight: 18,
                           ),
                           child: Text(
                             unreadChatCount > 99 ? '99+' : '$unreadChatCount',
-                            style: AppTextStyles.body1.copyWith(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
+                              fontSize: 9,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -3158,8 +3147,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                       ),
                   ],
                 ),
-                const SizedBox(width: 16),
-                // Text content
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -3168,39 +3156,40 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                         children: [
                           Text(
                             "CHAT NHÓM",
-                            style: AppTextStyles.headline3.copyWith(
-                              color: Colors.cyan,
+                            style: AppTextStyles.body2.copyWith(
+                              color: Colors.cyan.shade700,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           if (unreadChatCount > 0) ...[
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
+                                horizontal: 6,
+                                vertical: 2,
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.red,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
-                                '$unreadChatCount tin mới',
-                                style: AppTextStyles.body1.copyWith(
+                                '$unreadChatCount mới',
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 10,
                                 ),
                               ),
                             ),
                           ],
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         _latestChatMessage.isNotEmpty
-                            ? "${_latestChatSender.isNotEmpty ? '$_latestChatSender: ' : ''}${_latestChatMessage.length > 35 ? '${_latestChatMessage.substring(0, 35)}...' : _latestChatMessage}"
+                            ? "${_latestChatSender.isNotEmpty ? '$_latestChatSender: ' : ''}${_latestChatMessage.length > 45 ? '${_latestChatMessage.substring(0, 45)}...' : _latestChatMessage}"
                             : "Chưa có tin nhắn nào",
-                        style: AppTextStyles.subtitle1.copyWith(
+                        style: AppTextStyles.caption.copyWith(
                           color: unreadChatCount > 0
                               ? Colors.cyan.shade700
                               : Colors.grey.shade600,
@@ -3214,11 +3203,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     ],
                   ),
                 ),
-                // Arrow
                 Icon(
                   Icons.arrow_forward_ios,
-                  size: 18,
-                  color: Colors.cyan.shade600,
+                  size: 14,
+                  color: Colors.cyan.shade400,
                 ),
               ],
             ),
@@ -6307,53 +6295,63 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           _buildSyncHealthStatusCard(),
           const SizedBox(height: 10),
 
-          _tabMenuItem(
-            loc.notifications,
-            Icons.notifications,
-            AppColors.primary,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const NotificationSettingsView(),
-              ),
-            ),
-            subtitle: loc.notificationSettingsDescription,
-          ),
-          _tabMenuItem(
-            loc.printer,
-            Icons.print,
-            AppColors.success,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const PrinterSettingsView(),
-              ),
-            ),
-            subtitle: loc.printerSettingsDescription,
-          ),
-          if (_isSuperAdmin)
-            _tabMenuItem(
-              loc.adminCenter,
-              Icons.admin_panel_settings,
-              AppColors.error,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const admin_view.SuperAdminView(),
+          // Menu items - grid 2 cột trên wide
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: context.responsive.isMobile ? 1 : 2,
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 8,
+            childAspectRatio: context.responsive.isMobile ? 5.5 : 5.0,
+            children: [
+              _tabMenuItem(
+                loc.notifications,
+                Icons.notifications,
+                AppColors.primary,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationSettingsView(),
+                  ),
                 ),
+                subtitle: loc.notificationSettingsDescription,
               ),
-              subtitle: loc.adminCenterDescription,
-            ),
-          // Nhật ký hệ thống đã chuyển vào tab "Hệ thống" trong Nhật ký tài chính
-          _tabMenuItem(
-            loc.aboutDeveloper,
-            Icons.info,
-            AppColors.secondary,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AboutDeveloperView()),
-            ),
-            subtitle: loc.aboutDeveloperDescription,
+              _tabMenuItem(
+                loc.printer,
+                Icons.print,
+                AppColors.success,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PrinterSettingsView(),
+                  ),
+                ),
+                subtitle: loc.printerSettingsDescription,
+              ),
+              if (_isSuperAdmin)
+                _tabMenuItem(
+                  loc.adminCenter,
+                  Icons.admin_panel_settings,
+                  AppColors.error,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const admin_view.SuperAdminView(),
+                    ),
+                  ),
+                  subtitle: loc.adminCenterDescription,
+                ),
+              _tabMenuItem(
+                loc.aboutDeveloper,
+                Icons.info,
+                AppColors.secondary,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AboutDeveloperView()),
+                ),
+                subtitle: loc.aboutDeveloperDescription,
+              ),
+            ],
           ),
 
           // Đăng xuất ở cuối
@@ -6982,7 +6980,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                 ),
               ];
               // Use GridView for consistent layout regardless of item count
-              final crossAxisCount = activityItems.length <= 4 ? activityItems.length.clamp(1, 4) : 3;
+              final r2 = context.responsive;
+              final crossAxisCount = r2.isDesktop
+                  ? activityItems.length.clamp(1, 6)
+                  : (r2.isTablet
+                      ? activityItems.length.clamp(1, 5)
+                      : activityItems.length.clamp(1, 3));
               return GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -7242,7 +7245,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   /// Lối tắt đến Hướng dẫn sử dụng ở cuối Home
   Widget _buildUserGuideShortcut() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -7252,64 +7255,43 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             ),
           );
         },
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.blue.shade50, Colors.blue.shade100],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: Colors.blue.shade200),
           ),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.blue.shade400, Colors.blue.shade600],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.menu_book_rounded,
-                  color: Colors.white,
-                  size: 24,
+                  color: Colors.blue.shade700,
+                  size: 18,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '📚 ${loc.userGuide}',
-                      style: const TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      loc.viewDetailedGuideForEachFeature,
-                      style: TextStyle(
-                        color: Colors.blue.shade700,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  loc.userGuide,
+                  style: TextStyle(
+                    color: Colors.blue.shade700,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ),
               Icon(
                 Icons.arrow_forward_ios,
-                color: Colors.blue.shade400,
-                size: 16,
+                color: Colors.blue.shade300,
+                size: 14,
               ),
             ],
           ),
