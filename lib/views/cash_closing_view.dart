@@ -80,6 +80,7 @@ class _CashClosingViewState extends State<CashClosingView>
   String _txSearchQuery = '';
   String? _txTypeFilter; // null = all
   final _txSearchController = TextEditingController();
+  DateTime? _txEndDate; // null = single date, set = date range
 
   @override
   void initState() {
@@ -478,7 +479,9 @@ class _CashClosingViewState extends State<CashClosingView>
         backgroundColor: const Color(0xFFF5F7FA),
         appBar: CustomAppBar.build(
           title: 'LỊCH SỬ TÀI CHÍNH',
-          subtitle: DateFormat('dd/MM/yyyy').format(_selectedDate),
+          subtitle: _txEndDate != null
+              ? '${DateFormat('dd/MM').format(_selectedDate)} - ${DateFormat('dd/MM/yyyy').format(_txEndDate!)}'
+              : DateFormat('dd/MM/yyyy').format(_selectedDate),
           accentColor: Colors.indigo,
           actions: [
             IconButton(
@@ -492,7 +495,7 @@ class _CashClosingViewState extends State<CashClosingView>
             ),
             IconButton(
               icon: const Icon(Icons.calendar_month, size: 20, color: Colors.white),
-              onPressed: _pickDate,
+              onPressed: _pickDateRange,
               splashRadius: 18,
             ),
           ],
@@ -785,6 +788,27 @@ class _CashClosingViewState extends State<CashClosingView>
     );
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
+      _loadAllData();
+    }
+  }
+
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDateRange: DateTimeRange(
+        start: _selectedDate,
+        end: _txEndDate ?? _selectedDate,
+      ),
+      locale: const Locale('vi'),
+    );
+    if (range != null) {
+      setState(() {
+        _selectedDate = range.start;
+        _txEndDate = range.start == range.end ? null : range.end;
+      });
       _loadAllData();
     }
   }
@@ -2440,9 +2464,14 @@ class _CashClosingViewState extends State<CashClosingView>
   // ─── TRANSACTIONS TAB ───────────────────────────────────────
 
   Widget _buildTransactionsTab() {
-    // Combine income + expense from already-loaded data
-    final incomeList = _getIncomeTransactions(_selectedDate);
-    final expenseList = _getExpenseTransactions(_selectedDate);
+    // Collect transactions for single date or date range
+    final incomeList = <Map<String, dynamic>>[];
+    final expenseList = <Map<String, dynamic>>[];
+    final end = _txEndDate ?? _selectedDate;
+    for (var d = _selectedDate; !d.isAfter(end); d = d.add(const Duration(days: 1))) {
+      incomeList.addAll(_getIncomeTransactions(d));
+      expenseList.addAll(_getExpenseTransactions(d));
+    }
 
     // Build unified list with isIncome flag
     var allTransactions = <Map<String, dynamic>>[];
@@ -2524,7 +2553,7 @@ class _CashClosingViewState extends State<CashClosingView>
                     children: [
                       Icon(Icons.receipt_long, size: 48, color: Colors.grey.shade300),
                       const SizedBox(height: 8),
-                      Text('Chưa có giao dịch nào trong ngày', style: TextStyle(color: Colors.grey.shade400)),
+                      Text('Chưa có giao dịch nào', style: TextStyle(color: Colors.grey.shade400)),
                     ],
                   ),
                 )
