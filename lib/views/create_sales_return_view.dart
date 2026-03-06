@@ -42,8 +42,8 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
 
   /// Parse productNames + productImeis into returnable items
   void _parseItems() {
-    final names = widget.sale.productNames.split(', ');
-    final imeis = widget.sale.productImeis.split(', ');
+    final names = widget.sale.productNames.split(RegExp(r',\s*'));
+    final imeis = widget.sale.productImeis.split(RegExp(r',\s*'));
     final totalPrice = widget.sale.finalPrice;
     final totalCost = widget.sale.totalCost;
 

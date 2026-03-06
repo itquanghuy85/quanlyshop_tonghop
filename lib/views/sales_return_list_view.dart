@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/sales_return_model.dart';
 import '../services/sales_return_service.dart';
+import '../services/event_bus.dart';
 import '../utils/money_utils.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../theme/app_colors.dart';
@@ -17,11 +19,21 @@ class SalesReturnListView extends StatefulWidget {
 class _SalesReturnListViewState extends State<SalesReturnListView> {
   List<SalesReturn> _returns = [];
   bool _isLoading = true;
+  StreamSubscription<String>? _eventSub;
 
   @override
   void initState() {
     super.initState();
     _loadReturns();
+    _eventSub = EventBus().on('sales_returns_changed', (_) {
+      if (mounted) _loadReturns();
+    });
+  }
+
+  @override
+  void dispose() {
+    _eventSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadReturns() async {

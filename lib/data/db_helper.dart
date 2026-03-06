@@ -6709,6 +6709,9 @@ class DBHelper {
     final shopId = await _ensureValidShopId(data['shopId'] as String?);
     final insertData = Map<String, dynamic>.from(data);
     insertData['shopId'] = shopId;
+    insertData.remove('_encrypted');
+    insertData.remove('deleted');
+    insertData.remove('updatedAt');
     return await db.insert('sales_returns', insertData);
   }
 
@@ -6780,6 +6783,9 @@ class DBHelper {
     final shopId = await _ensureValidShopId(data['shopId'] as String?);
     final insertData = Map<String, dynamic>.from(data);
     insertData['shopId'] = shopId;
+    insertData.remove('_encrypted');
+    insertData.remove('deleted');
+    insertData.remove('updatedAt');
     return await db.insert('sales_return_items', insertData);
   }
 
@@ -6891,6 +6897,19 @@ class DBHelper {
 
     final cleanData = Map<String, dynamic>.from(data);
     cleanData.remove('id');
+    cleanData.remove('_encrypted');
+    cleanData.remove('deleted');
+    cleanData.remove('updatedAt');
+    // Convert Timestamp objects to int
+    if (cleanData['returnDate'] is! int && cleanData['returnDate'] != null) {
+      try { cleanData['returnDate'] = (cleanData['returnDate'] as dynamic).millisecondsSinceEpoch; } catch (_) {}
+    }
+    if (cleanData['createdAt'] is! int && cleanData['createdAt'] != null) {
+      try { cleanData['createdAt'] = (cleanData['createdAt'] as dynamic).millisecondsSinceEpoch; } catch (_) {}
+    }
+    if (cleanData['approvedAt'] is! int && cleanData['approvedAt'] != null) {
+      try { cleanData['approvedAt'] = (cleanData['approvedAt'] as dynamic).millisecondsSinceEpoch; } catch (_) {}
+    }
 
     if (existing.isNotEmpty) {
       await db.update(
@@ -6921,6 +6940,9 @@ class DBHelper {
 
     final cleanData = Map<String, dynamic>.from(data);
     cleanData.remove('id');
+    cleanData.remove('_encrypted');
+    cleanData.remove('deleted');
+    cleanData.remove('updatedAt');
 
     if (existing.isNotEmpty) {
       await db.update(
