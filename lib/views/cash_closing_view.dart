@@ -58,6 +58,7 @@ class _CashClosingViewState extends State<CashClosingView>
   List<Map<String, dynamic>> _supplierImports = [];
   List<Map<String, dynamic>> _supplierPayments = [];
   List<Map<String, dynamic>> _repairPartnerPayments = []; // FIX: Thêm thanh toán đối tác sửa chữa
+  List<Map<String, dynamic>> _salesReturns = []; // Trả hàng (sales returns)
   Map<String, String> _debtTypeMap = {}; // FIX: Map từ debtId/firestoreId -> debtType
   Map<String, dynamic>? _previousDayClosing;
   Map<String, dynamic>? _todayClosing;
@@ -207,6 +208,11 @@ class _CashClosingViewState extends State<CashClosingView>
             .collection('debts')
             .where('shopId', isEqualTo: shopId)
             .get(),
+        // sales_returns - trả hàng
+        firestore
+            .collection('sales_returns')
+            .where('shopId', isEqualTo: shopId)
+            .get(),
       ]);
 
       // Parse sales - filter deleted
@@ -301,6 +307,17 @@ class _CashClosingViewState extends State<CashClosingView>
       }
       debugPrint('=== DEBT TYPE MAP BUILT: ${debtTypeMap.length} entries ===');
 
+      // Parse sales_returns
+      final salesReturns = results[7].docs
+          .where((doc) => doc.data()['deleted'] != true)
+          .map((doc) {
+            final data = doc.data();
+            data['firestoreId'] = doc.id;
+            _convertTimestampFields(data);
+            return data;
+          })
+          .toList();
+
       // FIX BUG-007: Load supplier imports từ Firestore thay vì SQLite
       // Để đảm bảo sync giữa các thiết bị (Device A == Device B)
       final supplierImportsSnapshot = await firestore
@@ -378,6 +395,7 @@ class _CashClosingViewState extends State<CashClosingView>
           _supplierImports = supplierImports;
           _supplierPayments = supplierPayments.cast<Map<String, dynamic>>();
           _repairPartnerPayments = repairPartnerPayments.cast<Map<String, dynamic>>(); // FIX: Lưu thanh toán đối tác
+          _salesReturns = salesReturns.cast<Map<String, dynamic>>();
           _debtTypeMap = debtTypeMap; // FIX: Lưu lookup map để xác định debtType
           _previousDayClosing = previousClosing;
           _todayClosing = todayClosing;
@@ -426,6 +444,7 @@ class _CashClosingViewState extends State<CashClosingView>
     final supplierPayments = await db.getAllSupplierPayments();
     // FIX: Load repair_partner_payments từ local DB (trước đây bỏ sót → _repairPartnerPayments luôn rỗng khi offline)
     final repairPartnerPayments = await db.getRepairPartnerPaymentsForSync();
+    final salesReturns = await db.getSalesReturns();
     final yesterday = _selectedDate.subtract(const Duration(days: 1));
     final yesterdayKey = DateFormat('yyyy-MM-dd').format(yesterday);
     final previousClosing = await db.getClosingByDateKey(yesterdayKey);
@@ -443,6 +462,7 @@ class _CashClosingViewState extends State<CashClosingView>
         _supplierImports = supplierImports;
         _supplierPayments = supplierPayments;
         _repairPartnerPayments = repairPartnerPayments; // FIX: Load từ local DB
+        _salesReturns = salesReturns;
         _debtTypeMap = {}; // Local DB already has debtType from JOIN
         _previousDayClosing = previousClosing;
         _todayClosing = todayClosing;
@@ -3326,6 +3346,28 @@ class _CashClosingViewState extends State<CashClosingView>
       }
     }
 
+    // sales_returns - trả hàng
+    for (var ret in _salesReturns.where((r) {
+      final returnDate = r['returnDate'] as int? ?? r['createdAt'] as int? ?? 0;
+      return _isSameDay(returnDate, date);
+    })) {
+      final amount = (ret['totalReturnAmount'] as num?)?.toInt() ?? 0;
+      final method = (ret['refundMethod'] as String? ?? 'TIỀN MẶT').toString();
+      if (method == 'CÔNG NỢ') continue;
+      final returnDate = ret['returnDate'] as int? ?? ret['createdAt'] as int? ?? 0;
+      list.add({
+        'type': 'refund',
+        'icon': '↩️',
+        'title': 'Trả hàng',
+        'customerName': ret['customerName'] as String? ?? '',
+        'detail': ret['note'] as String? ?? 'Hoàn tiền trả hàng',
+        'paymentMethod': method,
+        'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(returnDate)),
+        'amount': amount,
+        'rawData': ret,
+      });
+    }
+
     // debt_payments với debtType SHOP_OWES = trả nợ NCC
     for (var p in _debtPayments.where((p) {
       final paidAt = p['paidAt'];
@@ -3584,6 +3626,20 @@ class _CashClosingViewState extends State<CashClosingView>
         bankOut += amount;
       }
     }
+    }
+
+    // ===== SALES RETURNS (TRẢ HÀNG - GIẢM DOANH THU & QUỸ) =====
+    for (var ret in _salesReturns.where((r) {
+      final returnDate = r['returnDate'] as int? ?? r['createdAt'] as int? ?? 0;
+      return _isSameDay(returnDate, now);
+    })) {
+      final amount = (ret['totalReturnAmount'] as num?)?.toInt() ?? 0;
+      final returnCost = (ret['totalReturnCost'] as num?)?.toInt() ?? 0;
+      final method = (ret['refundMethod'] as String? ?? 'TIỀN MẶT').toString();
+      if (method == 'CÔNG NỢ') continue;
+      saleIncome -= amount;
+      saleCost -= returnCost;
+      if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
     }
 
     // ===== DEBTS =====

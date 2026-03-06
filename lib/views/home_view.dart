@@ -1489,6 +1489,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   int _todaySaleCost = 0; // Giá vốn bán hàng
   int _todayRepairCost = 0; // Giá vốn sửa chữa
   int _todaySettlementIncome = 0; // Tất toán NH (bank settlement)
+  int _todayRefundOut = 0; // Tiền trả hàng (cash out)
+  int _todayReturnCost = 0; // Giá vốn hàng trả lại
 
   /// Load chat info separately (deferred) - Firestore calls, don't block main stats
   Future<void> _loadChatInfo() async {
@@ -1809,6 +1811,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
       // ===== SALES RETURNS (TRẢ HÀNG - GIẢM DOANH THU & QUỸ) =====
       int refundOut = 0;
+      int returnCostTotal = 0;
       for (final ret in fSalesReturns) {
         final amount = (ret['totalReturnAmount'] as num?)?.toInt() ?? 0;
         final returnCost = (ret['totalReturnCost'] as num?)?.toInt() ?? 0;
@@ -1818,6 +1821,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           continue;
         }
         refundOut += amount;
+        returnCostTotal += returnCost;
         saleIncome -= amount; // Giảm doanh thu
         saleCost -= returnCost; // Giảm giá vốn (hàng trả lại)
         if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
@@ -1963,6 +1967,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           _todaySaleCost = saleCost;
           _todayRepairCost = repairCost;
           _todaySettlementIncome = settlementIncome;
+          _todayRefundOut = refundOut;
+          _todayReturnCost = returnCostTotal;
           _totalLocalRecords = totalRecords;
           _rebuildTabWidgets();
         });
@@ -6845,7 +6851,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                         ),
                       ),
                       const SizedBox(height: 4),
-                      _homeBreakdownItem("Bán hàng", _todaySaleIncome, Colors.green),
+                      _homeBreakdownItem("Bán hàng", _todaySaleIncome + _todayRefundOut, Colors.green),
                       _homeBreakdownItem("Tất toán NH", _todaySettlementIncome, Colors.green),
                       if (_enableRepair)
                         _homeBreakdownItem("Sửa chữa", _todayRepairIncome, Colors.green),
@@ -6874,6 +6880,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                         _homeBreakdownItem("TT đối tác SC", _todayPartnerPaid, Colors.red),
                       if (_todayRepairPartsCostFund > 0)
                         _homeBreakdownItem("Vốn LK SC", _todayRepairPartsCostFund, Colors.red),
+                      if (_todayRefundOut > 0)
+                        _homeBreakdownItem("Trả hàng", _todayRefundOut, Colors.orange),
                     ],
                   ),
                 ),
@@ -6918,7 +6926,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   Row(
                     children: [
                       Expanded(
-                        child: _homeBreakdownItem("Giá vốn bán", _todaySaleCost, Colors.orange),
+                        child: _homeBreakdownItem("Giá vốn bán", _todaySaleCost + _todayReturnCost, Colors.orange),
                       ),
                       Expanded(
                         child: _homeBreakdownItem("Giá vốn SC", _todayRepairCost, Colors.orange),
