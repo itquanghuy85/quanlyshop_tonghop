@@ -739,64 +739,74 @@ class UserService {
       '🔄 syncUserInfo: waiting for claims sync (isNewShop=$isNewShop)...',
     );
 
-    // QUAN TRỌNG: Gọi refreshMyClaims NGAY để trigger Cloud Function sync nhanh hơn
-    // Đặc biệt quan trọng cho shop mới vì trigger có thể bị delay
-    try {
-      debugPrint(
-        '📡 syncUserInfo: Calling refreshMyClaims to trigger claims sync...',
-      );
-      await ClaimsService().refreshMyClaims();
-    } catch (e) {
-      debugPrint('⚠️ syncUserInfo: refreshMyClaims failed: $e');
-    }
-
-    bool claimsSynced = false;
-    final maxRetries = isNewShop ? 8 : 5; // Thử nhiều hơn cho shop mới
-
-    for (int retry = 0; retry < maxRetries; retry++) {
-      await Future.delayed(
-        Duration(seconds: isNewShop ? 3 : 2),
-      ); // Đợi lâu hơn cho shop mới
+    if (isNewShop) {
+      // CHỈ shop mới cần đợi claims sync (để Cloud Function set shopId vào claims)
       try {
-        // Force refresh token để lấy claims mới nhất
-        await FirebaseAuth.instance.currentUser?.getIdToken(true);
-        await ClaimsService().forceRefresh();
-
-        // Verify claims đã có shopId
-        final claims = await ClaimsService().getClaimsFromToken(
-          forceRefresh: true,
+        debugPrint(
+          '📡 syncUserInfo: Calling refreshMyClaims to trigger claims sync...',
         );
-        final claimsShopId = claims?['shopId'];
-
-        if (claimsShopId != null && claimsShopId == shopId) {
-          debugPrint(
-            '✅ syncUserInfo: claims synced successfully! shopId=$claimsShopId',
-          );
-          claimsSynced = true;
-          break;
-        } else {
-          debugPrint(
-            '🔄 syncUserInfo: retry ${retry + 1}/$maxRetries - claims shopId=$claimsShopId, expected=$shopId',
-          );
-          // Gọi refreshMyClaims mỗi 2 lần retry để trigger sync nhanh hơn
-          if (retry % 2 == 1) {
-            await ClaimsService().refreshMyClaims();
-          }
-        }
+        await ClaimsService().refreshMyClaims();
       } catch (e) {
-        debugPrint('⚠️ syncUserInfo: retry ${retry + 1}/$maxRetries error: $e');
+        debugPrint('⚠️ syncUserInfo: refreshMyClaims failed: $e');
       }
-    }
 
-    if (!claimsSynced) {
+      bool claimsSynced = false;
+      final maxRetries = 5;
+
+      for (int retry = 0; retry < maxRetries; retry++) {
+        await Future.delayed(const Duration(seconds: 2));
+        try {
+          await FirebaseAuth.instance.currentUser?.getIdToken(true);
+          await ClaimsService().forceRefresh();
+
+          final claims = await ClaimsService().getClaimsFromToken(
+            forceRefresh: true,
+          );
+          final claimsShopId = claims?['shopId'];
+
+          if (claimsShopId != null && claimsShopId == shopId) {
+            debugPrint(
+              '✅ syncUserInfo: claims synced successfully! shopId=$claimsShopId',
+            );
+            claimsSynced = true;
+            break;
+          } else {
+            debugPrint(
+              '🔄 syncUserInfo: retry ${retry + 1}/$maxRetries - claims shopId=$claimsShopId, expected=$shopId',
+            );
+            if (retry % 2 == 1) {
+              await ClaimsService().refreshMyClaims();
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ syncUserInfo: retry ${retry + 1}/$maxRetries error: $e');
+        }
+      }
+
+      if (!claimsSynced) {
+        debugPrint(
+          '⚠️ syncUserInfo: claims not synced after $maxRetries retries (new shop)',
+        );
+        debugPrint(
+          '📝 syncUserInfo: App sẽ sử dụng cached shopId=$_cachedShopId (claims sẽ sync sau)',
+        );
+      }
+    } else {
+      // EXISTING USER: Claims sync in background — không chặn login
+      // _cachedShopId đã set từ Firestore user doc, app hoạt động bình thường
       debugPrint(
-        '⚠️ syncUserInfo: claims not synced after $maxRetries retries',
+        '⚡ syncUserInfo: Existing user - skipping blocking claims wait. cached shopId=$_cachedShopId',
       );
-      // QUAN TRỌNG: Không throw exception vì cache shopId đã được set
-      // App vẫn hoạt động được với cache, chỉ cần sync lại claims sau
-      debugPrint(
-        '📝 syncUserInfo: App sẽ sử dụng cached shopId=$_cachedShopId (claims sẽ sync sau)',
-      );
+      // Fire-and-forget: refresh claims in background
+      Future.microtask(() async {
+        try {
+          await ClaimsService().refreshMyClaims();
+          await FirebaseAuth.instance.currentUser?.getIdToken(true);
+          debugPrint('✅ syncUserInfo: background claims refresh done');
+        } catch (e) {
+          debugPrint('⚠️ syncUserInfo: background claims refresh failed: $e');
+        }
+      });
     }
 
     debugPrint('✅ syncUserInfo: COMPLETE for uid=$uid, shopId=$shopId');

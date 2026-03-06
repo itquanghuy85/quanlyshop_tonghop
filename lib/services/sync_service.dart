@@ -2814,7 +2814,9 @@ class SyncService {
       }
 
       final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
-      String? shopId = await UserService.getCurrentShopId();
+      // Use sync cache first (set by syncUserInfo), fallback to async
+      String? shopId = UserService.getShopIdSync();
+      shopId ??= await UserService.getCurrentShopId();
 
       // LOG QUAN TRỌNG: Hiển thị shopId được sử dụng
       debugPrint(
@@ -2824,18 +2826,17 @@ class SyncService {
       // Retry lấy shopId nếu chưa có (claims có thể chưa sync)
       if (shopId == null && !isSuperAdmin) {
         debugPrint("⚠️ shopId null, thử refresh claims...");
-        for (int retry = 0; retry < 3; retry++) {
-          await Future.delayed(const Duration(seconds: 2));
+        for (int retry = 0; retry < 2; retry++) {
+          await Future.delayed(const Duration(seconds: 1));
           try {
             await user.getIdToken(true);
-            await ClaimsService().forceRefresh();
             shopId = await UserService.getCurrentShopId();
             if (shopId != null) {
               debugPrint("✅ Lấy được shopId sau retry ${retry + 1}: $shopId");
               break;
             }
           } catch (e) {
-            debugPrint("Retry ${retry + 1}/3 lấy shopId: $e");
+            debugPrint("Retry ${retry + 1}/2 lấy shopId: $e");
           }
         }
       }
