@@ -114,7 +114,7 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
     _loadProductDetails();
   }
 
-  /// Load actual product data for accurate prices
+  /// Load actual product data for linking (keep sale prices, don't overwrite)
   Future<void> _loadProductDetails() async {
     for (final item in _items) {
       Product? product;
@@ -132,8 +132,13 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
       if (product != null) {
         item.productId = product.id;
         item.productFirestoreId = product.firestoreId;
-        item.pricePerUnit = product.price;
-        item.costPerUnit = product.cost;
+        // Only use product price if sale-derived price is 0 (fallback)
+        if (item.pricePerUnit <= 0 && product.price > 0) {
+          item.pricePerUnit = product.price;
+        }
+        if (item.costPerUnit <= 0 && product.cost > 0) {
+          item.costPerUnit = product.cost;
+        }
       }
     }
     if (mounted) setState(() {});

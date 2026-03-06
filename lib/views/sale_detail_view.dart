@@ -36,6 +36,8 @@ import '../theme/app_text_styles.dart';
 import 'sale_invoice_template_view.dart';
 import 'sale_invoice_preview_view.dart';
 import 'create_sales_return_view.dart';
+import '../services/sales_return_service.dart';
+import '../models/sales_return_model.dart';
 
 class SaleDetailView extends StatefulWidget {
   final SaleOrder sale;
@@ -67,11 +69,27 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   final Color _accentColor = Colors.indigo.shade600;
   final Color _backgroundColor = const Color(0xFFF8FAFF);
 
+  // Return info
+  SalesReturn? _returnInfo;
+
   @override
   void initState() {
     super.initState();
     s = widget.sale;
     _loadShopInfo();
+    _loadReturnInfo();
+  }
+
+  Future<void> _loadReturnInfo() async {
+    try {
+      final returns = await SalesReturnService.getReturns();
+      final match = returns.where((r) =>
+          r.salesOrderFirestoreId == s.firestoreId ||
+          r.salesOrderId == s.id).firstOrNull;
+      if (match != null && mounted) {
+        setState(() => _returnInfo = match);
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadShopInfo() async {
@@ -1044,6 +1062,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                     ),
                   );
                   if (result == true && mounted) {
+                    _loadReturnInfo();
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Trả hàng thành công!'), backgroundColor: Colors.green),
                     );
@@ -1087,6 +1106,40 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 ),
               ),
             if (_isInstallmentNH) const SizedBox(height: 10),
+
+            // Return indicator
+            if (_returnInfo != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.assignment_return, color: Colors.red.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ĐÃ TRẢ HÀNG — ${MoneyUtils.formatCurrency(_returnInfo!.totalReturnAmount)}đ',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red.shade700),
+                          ),
+                          Text(
+                            '${_returnInfo!.refundMethod} • ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(_returnInfo!.returnDate))}${_returnInfo!.note != null && _returnInfo!.note!.isNotEmpty ? ' • ${_returnInfo!.note}' : ''}',
+                            style: TextStyle(fontSize: 11, color: Colors.red.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             _card("GIAO DỊCH", [
               _item("Khách hàng", s.customerName),

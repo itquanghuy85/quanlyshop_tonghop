@@ -22,6 +22,7 @@ import 'supplier_list_view.dart';
 import 'quick_input_codes_view.dart';
 import 'sale_list_view.dart';
 import 'sales_return_list_view.dart';
+import 'adjustment_history_view.dart';
 import 'expense_view.dart';
 import 'debt_view.dart';
 import 'warranty_view.dart';
@@ -3698,7 +3699,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               final cols = r.shortcutColumns;
               final iconSize = r.isDesktop ? 18.0 : (r.isTablet ? 18.0 : 20.0);
               final vPad = r.isDesktop ? 8.0 : 10.0;
-              final fontSize = r.isDesktop ? 10.5 : 11.0;
+              final fontSize = r.isDesktop ? 11.5 : 12.0;
               final itemWidth = (constraints.maxWidth - (cols - 1) * 8) / cols;
               return Wrap(
                 spacing: 8,
@@ -5796,6 +5797,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     context,
                     MaterialPageRoute(
                       builder: (_) => const SalesReturnListView(),
+                    ),
+                  ),
+                ),
+                _financeQuickCard(
+                  'Bút toán ĐC',
+                  Icons.edit_note,
+                  Colors.orange,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdjustmentHistoryView(),
                     ),
                   ),
                 ),

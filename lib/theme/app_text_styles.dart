@@ -40,19 +40,19 @@ class AppTextStyles {
   static const double subtitle2Size = 11.0;
 
   /// Body 1 - Main content
-  static const double body1Size = 11.0;
+  static const double body1Size = 12.0;
 
   /// Body 2 - Secondary content
-  static const double body2Size = 10.0;
+  static const double body2Size = 11.0;
 
   /// Button text
-  static const double buttonSize = 11.0;
+  static const double buttonSize = 12.0;
 
   /// Caption - Metadata, timestamps
-  static const double captionSize = 10.0;
+  static const double captionSize = 11.0;
 
   /// Overline - Smallest text
-  static const double overlineSize = 9.0;
+  static const double overlineSize = 10.0;
 
   // ========== LINE HEIGHTS ==========
   /// Line height cho heading

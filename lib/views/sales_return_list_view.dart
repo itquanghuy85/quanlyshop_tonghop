@@ -7,6 +7,7 @@ import '../services/event_bus.dart';
 import '../utils/money_utils.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 
 /// View to list all sales returns
 class SalesReturnListView extends StatefulWidget {
@@ -18,8 +19,11 @@ class SalesReturnListView extends StatefulWidget {
 
 class _SalesReturnListViewState extends State<SalesReturnListView> {
   List<SalesReturn> _returns = [];
+  List<SalesReturn> _filtered = [];
   bool _isLoading = true;
   StreamSubscription<String>? _eventSub;
+  final _searchController = TextEditingController();
+  String _timeFilter = 'all'; // all, today, week, month
 
   @override
   void initState() {
@@ -28,11 +32,13 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
     _eventSub = EventBus().on('sales_returns_changed', (_) {
       if (mounted) _loadReturns();
     });
+    _searchController.addListener(_applyFilter);
   }
 
   @override
   void dispose() {
     _eventSub?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -43,7 +49,41 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
     } catch (e) {
       debugPrint('Error loading returns: $e');
     }
+    _applyFilter();
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  void _applyFilter() {
+    final query = _searchController.text.trim().toUpperCase();
+    final now = DateTime.now();
+
+    setState(() {
+      _filtered = _returns.where((r) {
+        // Search filter
+        if (query.isNotEmpty) {
+          final match = r.customerName.toUpperCase().contains(query) ||
+              r.customerPhone.contains(query) ||
+              (r.note ?? '').toUpperCase().contains(query);
+          if (!match) return false;
+        }
+        // Time filter
+        if (_timeFilter != 'all') {
+          final date = DateTime.fromMillisecondsSinceEpoch(r.returnDate);
+          switch (_timeFilter) {
+            case 'today':
+              if (date.day != now.day || date.month != now.month || date.year != now.year) return false;
+              break;
+            case 'week':
+              if (now.difference(date).inDays > 7) return false;
+              break;
+            case 'month':
+              if (date.month != now.month || date.year != now.year) return false;
+              break;
+          }
+        }
+        return true;
+      }).toList();
+    });
   }
 
   @override
@@ -55,19 +95,107 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
         foregroundColor: Colors.white,
       ),
       body: ResponsiveCenter(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _returns.isEmpty
-                ? _buildEmpty()
-                : RefreshIndicator(
-                    onRefresh: _loadReturns,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _returns.length,
-                      itemBuilder: (_, i) => _buildReturnCard(_returns[i]),
-                    ),
+        child: Column(
+          children: [
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Tìm khách hàng, SĐT...',
+                  hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade200),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+            // Time filter chips
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _filterChip('Tất cả', 'all'),
+                    const SizedBox(width: 6),
+                    _filterChip('Hôm nay', 'today'),
+                    const SizedBox(width: 6),
+                    _filterChip('7 ngày', 'week'),
+                    const SizedBox(width: 6),
+                    _filterChip('Tháng này', 'month'),
+                    const SizedBox(width: 8),
+                    // Summary
+                    if (_filtered.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${_filtered.length} phiếu • ${MoneyUtils.formatCurrency(_filtered.fold(0, (sum, r) => sum + r.totalReturnAmount))}đ',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.red.shade700),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            // List
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filtered.isEmpty
+                      ? _buildEmpty()
+                      : RefreshIndicator(
+                          onRefresh: _loadReturns,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                            itemCount: _filtered.length,
+                            itemBuilder: (_, i) => _buildReturnCard(_filtered[i]),
+                          ),
+                        ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _filterChip(String label, String value) {
+    final isActive = _timeFilter == value;
+    return ChoiceChip(
+      label: Text(label, style: TextStyle(fontSize: 11, color: isActive ? Colors.white : Colors.grey.shade700)),
+      selected: isActive,
+      selectedColor: Colors.red.shade600,
+      backgroundColor: Colors.grey.shade100,
+      visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      onSelected: (_) {
+        setState(() => _timeFilter = value);
+        _applyFilter();
+      },
     );
   }
 
@@ -78,7 +206,24 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
         children: [
           Icon(Icons.assignment_return, size: 60, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          Text('Chưa có phiếu trả hàng nào', style: TextStyle(color: Colors.grey.shade500, fontSize: 15)),
+          Text(
+            _searchController.text.isNotEmpty || _timeFilter != 'all'
+                ? 'Không tìm thấy phiếu trả hàng phù hợp'
+                : 'Chưa có phiếu trả hàng nào',
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+          ),
+          if (_searchController.text.isNotEmpty || _timeFilter != 'all') ...[
+            const SizedBox(height: 8),
+            TextButton.icon(
+              icon: const Icon(Icons.filter_alt_off, size: 16),
+              label: const Text('Xóa bộ lọc'),
+              onPressed: () {
+                _searchController.clear();
+                setState(() => _timeFilter = 'all');
+                _applyFilter();
+              },
+            ),
+          ],
         ],
       ),
     );

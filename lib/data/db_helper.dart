@@ -6999,6 +6999,9 @@ class DBHelper {
     final db = await database;
     final cleanData = Map<String, dynamic>.from(data);
     cleanData.remove('id');
+    cleanData.remove('_encrypted');
+    cleanData.remove('deleted');
+    cleanData.remove('updatedAt');
 
     // Đảm bảo có shopId
     if (cleanData['shopId'] == null ||
@@ -7180,6 +7183,9 @@ class DBHelper {
 
     final cleanData = Map<String, dynamic>.from(data);
     cleanData.remove('id');
+    cleanData.remove('_encrypted');
+    cleanData.remove('deleted');
+    cleanData.remove('updatedAt');
 
     if (existing.isNotEmpty) {
       await db.update(
