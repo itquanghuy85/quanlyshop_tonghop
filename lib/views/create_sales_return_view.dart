@@ -28,6 +28,8 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
   // Parsed items from sale
   List<_ReturnableItem> _items = [];
 
+  bool _loadingItems = true;
+
   @override
   void initState() {
     super.initState();
@@ -41,7 +43,7 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
   }
 
   /// Parse productNames + productImeis into returnable items
-  void _parseItems() {
+  Future<void> _parseItems() async {
     final names = widget.sale.productNames.split(RegExp(r',\s*'));
     final imeis = widget.sale.productImeis.split(RegExp(r',\s*'));
     final totalPrice = widget.sale.finalPrice;
@@ -108,7 +110,25 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
       }
     }
 
-    setState(() => _items = parsedItems);
+    // Subtract already-returned quantities
+    if (widget.sale.id != null && widget.sale.id! > 0) {
+      final returnedMap = await _db.getReturnedQuantitiesForSale(widget.sale.id!);
+      for (final item in parsedItems) {
+        final isPhone = item.imei.isNotEmpty &&
+            !item.imei.toUpperCase().startsWith('PKX') &&
+            item.imei != 'NO_IMEI';
+        final key = isPhone ? item.imei.toUpperCase() : item.name.toUpperCase();
+        final alreadyReturned = returnedMap[key] ?? 0;
+        item.maxQuantity = (item.maxQuantity - alreadyReturned).clamp(0, item.maxQuantity);
+      }
+      // Remove fully-returned items
+      parsedItems.removeWhere((item) => item.maxQuantity <= 0);
+    }
+
+    setState(() {
+      _items = parsedItems;
+      _loadingItems = false;
+    });
 
     // Try to load actual product info for better price data
     _loadProductDetails();
@@ -265,9 +285,32 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
         foregroundColor: Colors.white,
       ),
       body: ResponsiveCenter(
-        child: _isLoading
+        child: _isLoading || _loadingItems
             ? const Center(child: CircularProgressIndicator())
-            : ListView(
+            : _items.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle, size: 64, color: Colors.green.shade400),
+                          const SizedBox(height: 16),
+                          const Text('Tất cả sản phẩm đã được trả hàng',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text('Đơn hàng này không còn mặt hàng nào để trả.',
+                            style: TextStyle(color: Colors.grey.shade600)),
+                          const SizedBox(height: 24),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Quay lại'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
                   _buildSaleInfo(),

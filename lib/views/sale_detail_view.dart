@@ -71,6 +71,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
 
   // Return info
   SalesReturn? _returnInfo;
+  List<SalesReturn> _allReturns = [];
+  int _totalReturnedAmount = 0;
+  bool _allItemsReturned = false;
 
   @override
   void initState() {
@@ -83,11 +86,52 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   Future<void> _loadReturnInfo() async {
     try {
       final returns = await SalesReturnService.getReturns();
-      final match = returns.where((r) =>
+      final matches = returns.where((r) =>
           r.salesOrderFirestoreId == s.firestoreId ||
-          r.salesOrderId == s.id).firstOrNull;
-      if (match != null && mounted) {
-        setState(() => _returnInfo = match);
+          r.salesOrderId == s.id).toList();
+      final totalReturned = matches.fold<int>(0, (sum, r) => sum + r.totalReturnAmount);
+
+      // Check if all items are fully returned
+      bool allReturned = false;
+      if (matches.isNotEmpty && s.id != null && s.id! > 0) {
+        final returnedMap = await DBHelper().getReturnedQuantitiesForSale(s.id!);
+        if (returnedMap.isNotEmpty) {
+          // Parse original items and compare
+          final names = s.productNames.split(RegExp(r',\s*'));
+          final imeis = s.productImeis.split(RegExp(r',\s*'));
+          allReturned = true;
+          for (int i = 0; i < names.length; i++) {
+            final name = names[i].trim();
+            if (name.isEmpty) continue;
+            final imei = i < imeis.length ? imeis[i].trim() : '';
+            int origQty = 1;
+            final qtyMatch = RegExp(r'^(.+?)\s+[xX](\d+)').firstMatch(name);
+            String cleanName = name;
+            if (qtyMatch != null) {
+              cleanName = qtyMatch.group(1)!.trim();
+              origQty = int.tryParse(qtyMatch.group(2)!) ?? 1;
+            }
+            if (imei.toUpperCase().startsWith('PKX')) {
+              origQty = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
+            }
+            final isPhone = imei.isNotEmpty && !imei.toUpperCase().startsWith('PKX') && imei != 'NO_IMEI';
+            final key = isPhone ? imei.toUpperCase() : cleanName.toUpperCase();
+            final returned = returnedMap[key] ?? 0;
+            if (returned < origQty) {
+              allReturned = false;
+              break;
+            }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _returnInfo = matches.firstOrNull;
+          _allReturns = matches;
+          _totalReturnedAmount = totalReturned;
+          _allItemsReturned = allReturned;
+        });
       }
     } catch (_) {}
   }
@@ -1054,7 +1098,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                   );
                 }),
                 _bottomAction(Icons.print_rounded, 'In', _printWifi),
-                _bottomAction(Icons.assignment_return_rounded, 'Trả hàng', () async {
+                _bottomAction(Icons.assignment_return_rounded,
+                  _allItemsReturned ? 'Đã trả hết' : 'Trả hàng',
+                  _allItemsReturned ? null : () async {
                   final result = await Navigator.push<bool>(
                     context,
                     MaterialPageRoute(
@@ -1108,32 +1154,36 @@ class _SaleDetailViewState extends State<SaleDetailView> {
             if (_isInstallmentNH) const SizedBox(height: 10),
 
             // Return indicator
-            if (_returnInfo != null)
+            if (_allReturns.isNotEmpty)
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
+                  color: _allItemsReturned ? Colors.grey.shade100 : Colors.red.shade50,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.red.shade200),
+                  border: Border.all(color: _allItemsReturned ? Colors.grey.shade400 : Colors.red.shade200),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.assignment_return, color: Colors.red.shade700, size: 20),
+                    Icon(Icons.assignment_return,
+                      color: _allItemsReturned ? Colors.grey.shade700 : Colors.red.shade700, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'ĐÃ TRẢ HÀNG — ${MoneyUtils.formatCurrency(_returnInfo!.totalReturnAmount)}đ',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.red.shade700),
+                            _allItemsReturned
+                                ? 'ĐÃ TRẢ TOÀN BỘ — ${MoneyUtils.formatCurrency(_totalReturnedAmount)}đ'
+                                : 'ĐÃ TRẢ 1 PHẦN — ${MoneyUtils.formatCurrency(_totalReturnedAmount)}đ (${_allReturns.length} lần)',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13,
+                              color: _allItemsReturned ? Colors.grey.shade700 : Colors.red.shade700),
                           ),
-                          Text(
-                            '${_returnInfo!.refundMethod} • ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(_returnInfo!.returnDate))}${_returnInfo!.note != null && _returnInfo!.note!.isNotEmpty ? ' • ${_returnInfo!.note}' : ''}',
-                            style: TextStyle(fontSize: 11, color: Colors.red.shade600),
-                          ),
+                          ..._allReturns.map((r) => Text(
+                            '${r.refundMethod} • ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.returnDate))} • ${MoneyUtils.formatCurrency(r.totalReturnAmount)}đ${r.note != null && r.note!.isNotEmpty ? ' • ${r.note}' : ''}',
+                            style: TextStyle(fontSize: 11, color: _allItemsReturned ? Colors.grey.shade600 : Colors.red.shade600),
+                          )),
                         ],
                       ),
                     ),
@@ -1290,7 +1340,8 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     ),
   );
 
-  Widget _bottomAction(IconData icon, String label, VoidCallback onTap) {
+  Widget _bottomAction(IconData icon, String label, VoidCallback? onTap) {
+    final isDisabled = onTap == null;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -1299,11 +1350,11 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 22, color: const Color(0xFF0068FF)),
+            Icon(icon, size: 22, color: isDisabled ? Colors.grey : const Color(0xFF0068FF)),
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF0068FF)),
+              style: TextStyle(fontSize: 10, color: isDisabled ? Colors.grey : const Color(0xFF0068FF)),
             ),
           ],
         ),

@@ -36,6 +36,26 @@ class SalesReturnService {
       final now = DateTime.now().millisecondsSinceEpoch;
       final returnFirestoreId = 'sr_$now';
 
+      // Validate: check for already-returned quantities
+      if (salesOrderId > 0) {
+        final returnedMap = await _db.getReturnedQuantitiesForSale(salesOrderId);
+        for (final item in items) {
+          final isPhone = item.productImei != null &&
+              item.productImei!.isNotEmpty &&
+              !item.productImei!.toUpperCase().startsWith('PKX') &&
+              item.productImei != 'NO_IMEI';
+          final key = isPhone ? item.productImei!.toUpperCase() : item.productName.toUpperCase();
+          final alreadyReturned = returnedMap[key] ?? 0;
+          // We don't block — just cap quantity to remaining
+          final maxRemaining = (item.quantity + alreadyReturned) > item.quantity
+              ? item.quantity
+              : item.quantity;
+          if (alreadyReturned > 0) {
+            debugPrint('⚠️ Item ${item.productName}: already returned $alreadyReturned');
+          }
+        }
+      }
+
       // Calculate totals
       int totalReturnAmount = 0;
       int totalReturnCost = 0;

@@ -86,6 +86,7 @@ import 'food/expiry_management_view.dart';
 import 'fashion/variant_management_view.dart';
 import 'onboarding/business_type_wizard.dart';
 import 'dashboard_settings_view.dart';
+import '../services/test_data_service.dart';
 import '../services/dashboard_config_service.dart';
 import '../widgets/dashboard_cards.dart';
 import '../widgets/responsive_wrapper.dart';
@@ -6407,9 +6408,68 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
           // Đăng xuất ở cuối
           const SizedBox(height: 20),
+          if (kDebugMode)
+            _buildTestDataButton(),
+          if (kDebugMode)
+            const SizedBox(height: 10),
           _buildLogoutCard(),
         ],
       ),
+      ),
+    );
+  }
+
+  Widget _buildTestDataButton() {
+    return Card(
+      color: Colors.orange.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: Colors.orange.shade300),
+      ),
+      child: ListTile(
+        leading: Icon(Icons.science, color: Colors.orange.shade700),
+        title: const Text('🧪 Tạo Data Test', style: TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: const Text('Tạo sản phẩm, đơn bán, chi phí, trả hàng để debug'),
+        onTap: () async {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Tạo Data Test?'),
+              content: const Text('Sẽ tạo 8 SP, 4 đơn bán, 4 chi phí, 1 trả hàng.\nDữ liệu sẽ hiển thị trên dashboard.'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+                FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Tạo ngay')),
+              ],
+            ),
+          );
+          if (confirm != true) return;
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đang tạo data test...'), duration: Duration(seconds: 2)),
+          );
+          try {
+            final result = await TestDataService.seedTestData();
+            if (mounted) {
+              _debouncedLoadStats();
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('✅ Tạo thành công!'),
+                  content: Text(result),
+                  actions: [
+                    FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+                  ],
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+              );
+            }
+          }
+        },
       ),
     );
   }

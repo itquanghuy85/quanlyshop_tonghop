@@ -6880,6 +6880,27 @@ class DBHelper {
     });
   }
 
+  /// Get all returned quantities for a sale order, grouped by product IMEI/name.
+  /// Returns a map: { 'IMEI_or_productName' : totalReturnedQty }
+  Future<Map<String, int>> getReturnedQuantitiesForSale(int salesOrderId) async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT sri.productImei, sri.productName, SUM(sri.quantity) as totalQty
+      FROM sales_return_items sri
+      INNER JOIN sales_returns sr ON sr.id = sri.salesReturnId
+      WHERE sr.salesOrderId = ? AND sr.status != 'CANCELLED'
+      GROUP BY COALESCE(UPPER(sri.productImei), UPPER(sri.productName))
+    ''', [salesOrderId]);
+    final result = <String, int>{};
+    for (final row in rows) {
+      final imei = (row['productImei'] as String?)?.toUpperCase() ?? '';
+      final name = (row['productName'] as String?)?.toUpperCase() ?? '';
+      final key = imei.isNotEmpty && imei != 'NO_IMEI' && !imei.startsWith('PKX') ? imei : name;
+      result[key] = (result[key] ?? 0) + ((row['totalQty'] as num?)?.toInt() ?? 0);
+    }
+    return result;
+  }
+
   /// Upsert phiếu trả hàng (dùng cho sync từ Firestore)
   Future<void> upsertSalesReturn(Map<String, dynamic> data) async {
     final db = await database;
