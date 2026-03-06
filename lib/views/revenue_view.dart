@@ -305,7 +305,7 @@ class _RevenueViewState extends State<RevenueView>
 
     try {
       await SyncService.syncAllToCloud();
-      await SyncService.downloadAllFromCloud();
+      // Real-time listeners handle downloads — chỉ push local changes
 
       // Reload data after sync
       await _loadAllData();

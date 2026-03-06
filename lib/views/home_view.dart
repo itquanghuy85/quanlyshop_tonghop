@@ -1027,6 +1027,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       // 2. Load user info NGAY (quan trọng cho lời chào)
       await _loadUserAndShopInfo();
 
+      // Track nếu cần download từ cloud (chỉ gọi TỐI ĐA 1 lần)
+      bool needsCloudDownload = false;
+
       // 3. Trên WEB: đảm bảo đã có data trước khi load stats
       // main.dart đã await downloadAllFromCloud cho web,
       // nhưng nếu vào HomeView qua route khác thì cần kiểm tra lại
@@ -1036,18 +1039,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         ));
         final totalRecords = (counts.first['total'] as int?) ?? 0;
         if (totalRecords == 0) {
-          debugPrint('🌐 HomeView: Web DB trống, download từ cloud...');
-          await SyncService.downloadAllFromCloud().timeout(
-            const Duration(seconds: 20),
-            onTimeout: () {
-              debugPrint('⚠️ HomeView: Web sync timeout');
-            },
-          );
+          needsCloudDownload = true;
         }
       }
-
-      // 4. Load stats (giờ đã có data)
-      _loadStats();
 
       // Ensure shop context is valid before relying on local stats/sync.
       final ensuredShopId = await UserService.getCurrentShopId();
@@ -1056,12 +1050,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         if (user != null && user.email != null) {
           debugPrint('HomeView: shopId missing, forcing syncUserInfo recovery...');
           await UserService.syncUserInfo(user.uid, user.email!);
-          await SyncService.downloadAllFromCloud().timeout(
-            const Duration(seconds: 20),
-            onTimeout: () {
-              debugPrint('HomeView: recovery sync timeout');
-            },
-          );
+          needsCloudDownload = true;
         }
       }
 
@@ -1076,24 +1065,26 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         debugPrint(
           'HomeView: User changed from $lastUserId to ${currentUser.uid}',
         );
-        // KHÔNG GỌI db.clearAllData() - giữ lại data để tránh mất dữ liệu
-        // Thay vào đó, sync lại từ cloud với shopId mới
         await prefs.setString('lastUserId', currentUser.uid);
         if (currentUser.email != null) {
           await UserService.syncUserInfo(currentUser.uid, currentUser.email!);
-          // Download lại dữ liệu từ cloud cho shop mới (background)
-          SyncService.downloadAllFromCloud().timeout(
-            const Duration(seconds: 20),
-            onTimeout: () {
-              debugPrint('HomeView: Sync timeout khi đổi user');
-            },
-          ).then((_) {
-            if (mounted) _loadStats(); // Reload sau khi sync xong
-          }).catchError((e) {
-            debugPrint('HomeView: Lỗi sync khi đổi user: $e');
-          });
+          needsCloudDownload = true;
         }
       }
+
+      // Chỉ gọi downloadAllFromCloud TỐI ĐA 1 lần nếu thực sự cần
+      if (needsCloudDownload) {
+        debugPrint('HomeView: Cần cloud download, gọi 1 lần duy nhất...');
+        await SyncService.downloadAllFromCloud(force: true).timeout(
+          const Duration(seconds: 20),
+          onTimeout: () {
+            debugPrint('HomeView: Cloud download timeout');
+          },
+        );
+      }
+
+      // 4. Load stats (giờ đã có data)
+      _loadStats();
 
       // Clean duplicate ở background, không block UI
       Future.delayed(const Duration(seconds: 2), () {
@@ -1302,7 +1293,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     if (mounted) setState(() => _isSyncing = true);
     try {
       await SyncService.syncAllToCloud();
-      await SyncService.downloadAllFromCloud();
+      // Không gọi downloadAllFromCloud ở đây — real-time listeners đã xử lý
+      // Chỉ reload stats từ local DB
       await _loadStats();
     } catch (e) {
       debugPrint("SYNC ERROR: $e");
@@ -3053,7 +3045,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       );
 
       try {
-        await SyncService.downloadAllFromCloud();
+        await SyncService.downloadAllFromCloud(force: true);
         try {
           await _loadStats();
         } catch (statsError) {

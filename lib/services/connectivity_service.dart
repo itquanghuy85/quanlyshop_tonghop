@@ -92,9 +92,9 @@ class ConnectivityService {
         return;
       }
 
-      // Thực hiện đồng bộ dữ liệu
+      // Chỉ push local changes lên cloud
+      // KHÔNG gọi downloadAllFromCloud — real-time listeners tự recover khi có mạng
       await SyncService.syncAllToCloud();
-      await SyncService.downloadAllFromCloud();
 
       debugPrint('Đồng bộ sau khi khôi phục mạng hoàn thành');
     } catch (e) {

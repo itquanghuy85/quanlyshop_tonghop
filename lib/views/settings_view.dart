@@ -115,11 +115,12 @@ class _SettingsViewState extends State<SettingsView> {
       // Hủy subscriptions cũ trước
       await SyncService.cancelAllSubscriptions();
 
-      // Xóa local data cũ
+      // Xóa local data cũ + reset sync timestamps
       await DBHelper().clearAllData();
+      await SyncService.resetSyncTimestamps();
 
       // Download data của shop mới
-      await SyncService.downloadAllFromCloud();
+      await SyncService.downloadAllFromCloud(force: true);
 
       // Khởi động lại real-time sync cho shop mới
       await SyncService.initRealTimeSync(() {

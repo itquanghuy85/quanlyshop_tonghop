@@ -1421,7 +1421,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       );
 
       try {
-        await SyncService.downloadAllFromCloud();
+        await SyncService.downloadAllFromCloud(force: true);
         if (mounted) Navigator.of(context).pop(); // Close loading dialog
         NotificationService.showSnackBar(
           "✅ Đã tải xong dữ liệu shop!",

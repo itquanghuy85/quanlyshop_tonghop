@@ -93,12 +93,13 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
         }
       }
 
-      // 3. Xóa local data cũ
+      // 3. Xóa local data cũ + reset sync timestamps
       await DBHelper().clearAllData();
+      await SyncService.resetSyncTimestamps();
       debugPrint('✅ Đã xóa local data cũ');
 
       // 4. Download data của shop mới
-      await SyncService.downloadAllFromCloud();
+      await SyncService.downloadAllFromCloud(force: true);
       debugPrint('✅ Đã download data từ cloud');
 
       // 5. Khởi động real-time sync

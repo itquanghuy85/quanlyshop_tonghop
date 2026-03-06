@@ -80,10 +80,8 @@ class _SimpleSyncIndicatorState extends State<SimpleSyncIndicator>
     if (_isSyncing) return;
 
     try {
-      // Upload local changes
+      // Chỉ push local changes — real-time listeners handle downloads
       await SyncService.syncAllToCloud();
-      // Download from cloud
-      await SyncService.downloadAllFromCloud();
     } catch (e) {
       debugPrint('Auto sync error: $e');
     }
@@ -98,8 +96,8 @@ class _SimpleSyncIndicatorState extends State<SimpleSyncIndicator>
     try {
       // Upload local changes
       await SyncService.syncAllToCloud();
-      // Download from cloud
-      await SyncService.downloadAllFromCloud();
+      // Download from cloud (user-triggered)
+      await SyncService.downloadAllFromCloud(force: true);
 
       if (mounted) {
         // Feedback nhẹ - không dùng SnackBar để tránh spam

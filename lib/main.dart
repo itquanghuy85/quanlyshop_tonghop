@@ -403,7 +403,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       if (kIsWeb) {
         try {
           debugPrint('🔄 [WEB] Đồng bộ dữ liệu trước khi hiển thị...');
-          await SyncService.downloadAllFromCloud().timeout(
+          await SyncService.downloadAllFromCloud(force: true).timeout(
             const Duration(seconds: 20),
             onTimeout: () {
               debugPrint('⚠️ [WEB] Sync timeout sau 20s, tiếp tục với data hiện có...');
@@ -428,7 +428,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         Future.microtask(() async {
           try {
             debugPrint('🔄 Bắt đầu sync ở background...');
-            await SyncService.downloadAllFromCloud().timeout(
+            await SyncService.downloadAllFromCloud(force: true).timeout(
               const Duration(seconds: 20),
               onTimeout: () {
                 debugPrint('⚠️ Sync timeout sau 20s, tiếp tục với data local...');

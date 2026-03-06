@@ -32,6 +32,16 @@ class SyncService {
   static String? _currentShopId;
   static bool _isInitialized = false;
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // DOWNLOAD THROTTLING: Prevent cascade calls to downloadAllFromCloud
+  // ═══════════════════════════════════════════════════════════════════════
+  static DateTime? _lastDownloadTime;
+  static bool _isDownloading = false;
+  static const _downloadCooldown = Duration(seconds: 60);
+
+  /// Key prefix for storing last sync timestamps per collection in SharedPreferences
+  static const _lastSyncPrefix = 'lastSync_';
+
   /// Check if real-time sync is initialized and active
   static bool get isRealTimeSyncActive =>
       _isInitialized && _subscriptions.isNotEmpty;
@@ -1581,6 +1591,18 @@ class SyncService {
     debugPrint('✅ All subscriptions cancelled');
   }
 
+  /// Reset tất cả sync timestamps — force full re-download lần sau
+  /// Dùng khi: đổi shop, force reinit, clear data
+  static Future<void> resetSyncTimestamps() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where((k) => k.startsWith(_lastSyncPrefix));
+    for (final key in keys) {
+      await prefs.remove(key);
+    }
+    _lastDownloadTime = null;
+    debugPrint('🔄 Reset ${keys.length} sync timestamps');
+  }
+
   /// Schedule re-subscribe after an error with exponential backoff
   static void _scheduleResubscribe(
     String collection,
@@ -1608,6 +1630,8 @@ class SyncService {
   static Future<void> forceReinitializeSync() async {
     debugPrint('🔄 Force reinitializing real-time sync...');
     await cancelAllSubscriptions();
+    // Reset sync timestamps để force full re-download
+    await resetSyncTimestamps();
 
     if (_onDataChangedCallback != null) {
       await initRealTimeSync(_onDataChangedCallback!);
@@ -2852,8 +2876,28 @@ class SyncService {
   }
 
   /// Tải toàn bộ dữ liệu từ Cloud về (Dùng khi cài lại app hoặc đổi máy)
-  static Future<void> downloadAllFromCloud() async {
-    debugPrint("Bắt đầu downloadAllFromCloud...");
+  /// [force] = true bỏ qua cooldown (dùng khi user chủ động bấm sync)
+  static Future<void> downloadAllFromCloud({bool force = false}) async {
+    // ═══════════════════════════════════════════════════════════════════════
+    // THROTTLE: Chặn gọi liên tục (tối thiểu 60s giữa các lần)
+    // ═══════════════════════════════════════════════════════════════════════
+    if (_isDownloading) {
+      debugPrint("⏸️ downloadAllFromCloud: Đang download, bỏ qua");
+      return;
+    }
+    if (!force && _lastDownloadTime != null) {
+      final elapsed = DateTime.now().difference(_lastDownloadTime!);
+      if (elapsed < _downloadCooldown) {
+        debugPrint(
+          "⏸️ downloadAllFromCloud: Cooldown ${_downloadCooldown.inSeconds - elapsed.inSeconds}s còn lại, bỏ qua (dùng force:true để override)",
+        );
+        return;
+      }
+    }
+    _isDownloading = true;
+    _lastDownloadTime = DateTime.now();
+
+    debugPrint("Bắt đầu downloadAllFromCloud (force=$force)...");
     try {
       final db = DBHelper();
       final user = FirebaseAuth.instance.currentUser;
@@ -2940,17 +2984,38 @@ class SyncService {
       ];
       // Lưu ý: 'users' và 'shops' không có shopId field nên không tải ở đây
 
+      // ═══════════════════════════════════════════════════════════════════════
+      // INCREMENTAL SYNC: Chỉ tải docs thay đổi từ lần sync cuối
+      // Giảm reads đáng kể khi data ít thay đổi
+      // ═══════════════════════════════════════════════════════════════════════
+      final prefs = await SharedPreferences.getInstance();
+      
       for (var col in collections) {
         // Yield to UI thread between collections to prevent ANR/frame drops
         await Future.delayed(Duration.zero);
 
         try {
-          debugPrint("Downloading collection: $col...");
-          // Luôn filter theo shopId (super admin đã chọn shop nên cũng có shopId)
-          final snap = await _db
+          // Lấy lastSyncTime cho collection này
+          final lastSyncKey = '$_lastSyncPrefix${col}_$shopId';
+          final lastSyncMs = prefs.getInt(lastSyncKey) ?? 0;
+          final isFirstSync = lastSyncMs == 0;
+          
+          Query<Map<String, dynamic>> query = _db
               .collection(col)
-              .where('shopId', isEqualTo: shopId)
-              .get();
+              .where('shopId', isEqualTo: shopId);
+          
+          // Incremental: chỉ lấy docs có updatedAt > lastSync
+          if (!isFirstSync && !force) {
+            query = query.where(
+              'updatedAt',
+              isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncMs),
+            );
+            debugPrint("Downloading collection: $col (incremental, since ${DateTime.fromMillisecondsSinceEpoch(lastSyncMs)})...");
+          } else {
+            debugPrint("Downloading collection: $col (full sync)...");
+          }
+          
+          final snap = await query.get();
           debugPrint("  -> Found ${snap.docs.length} documents in $col");
 
           int successCount = 0;
@@ -3057,6 +3122,11 @@ class SyncService {
           debugPrint(
             "  -> $col: success=$successCount, skipped=$skipCount, errors=$errorCount",
           );
+          
+          // Lưu thời điểm sync thành công cho incremental sync lần sau
+          if (successCount > 0 || isFirstSync) {
+            await prefs.setInt(lastSyncKey, DateTime.now().millisecondsSinceEpoch);
+          }
         } catch (e) {
           debugPrint("Lỗi tải collection $col: $e");
         }
@@ -3076,6 +3146,8 @@ class SyncService {
       debugPrint("Đã hoàn thành downloadAllFromCloud.");
     } catch (e) {
       debugPrint("Lỗi downloadAllFromCloud: $e");
+    } finally {
+      _isDownloading = false;
     }
   }
 

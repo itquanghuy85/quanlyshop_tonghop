@@ -184,8 +184,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
     try {
       // Upload local changes
       await SyncService.syncQuickInputCodesToCloud();
-      // Download latest from cloud
-      await SyncService.downloadAllFromCloud();
+      // Real-time listeners handle downloads — chỉ push local changes
       NotificationService.showSnackBar(
         'Đã đồng bộ thành công!',
         color: Colors.green,

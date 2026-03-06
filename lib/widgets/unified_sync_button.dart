@@ -668,7 +668,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
     });
 
     try {
-      await SyncService.downloadAllFromCloud();
+      await SyncService.downloadAllFromCloud(force: true);
       if (mounted) {
         Navigator.pop(context);
         NotificationService.showSnackBar(
@@ -795,7 +795,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
 
       // Download latest data after reinit
       setState(() => _loadingMessage = 'Đang tải dữ liệu mới...');
-      await SyncService.downloadAllFromCloud();
+      await SyncService.downloadAllFromCloud(force: true);
 
       if (mounted) {
         Navigator.pop(context);
@@ -832,7 +832,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
       await _orchestrator.syncAll();
 
       setState(() => _loadingMessage = 'Bước 2: Download...');
-      await SyncService.downloadAllFromCloud();
+      await SyncService.downloadAllFromCloud(force: true);
 
       if (mounted) {
         Navigator.pop(context);
