@@ -590,8 +590,8 @@ class _RevenueViewState extends State<RevenueView>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: CustomAppBar.build(
-        title: 'TÀI CHÍNH',
-        subtitle: 'Doanh thu · Chi phí',
+        title: 'BÁO CÁO DOANH THU',
+        subtitle: 'Doanh thu · Chi phí · Lợi nhuận',
         accentColor: AppBarAccents.finance,
         actions: [
           IconButton(

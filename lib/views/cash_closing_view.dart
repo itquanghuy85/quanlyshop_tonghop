@@ -347,13 +347,15 @@ class _CashClosingViewState extends State<CashClosingView>
 
       // FIX K1: Merge expenses chưa sync từ Local DB vào danh sách Firestore
       // Để không bỏ sót các expense vừa tạo offline
+      // FIX K2: Dedup by firestoreId to prevent duplicate display
       final localExpenses = await db.getAllExpenses();
-      final firestoreIds = expenses.map((e) => e['firestoreId']).toSet();
-      final unsyncedExpenses = localExpenses.where((e) {
+      final seenIds = expenses.map((e) => e['firestoreId']).whereType<String>().toSet();
+      for (final e in localExpenses) {
         final fid = e['firestoreId'] as String?;
-        return fid != null && fid.isNotEmpty && !firestoreIds.contains(fid);
-      }).toList();
-      expenses.addAll(unsyncedExpenses);
+        if (fid != null && fid.isNotEmpty && seenIds.add(fid)) {
+          expenses.add(e);
+        }
+      }
 
       if (mounted) {
         setState(() {

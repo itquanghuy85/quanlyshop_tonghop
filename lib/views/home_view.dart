@@ -22,7 +22,6 @@ import 'supplier_list_view.dart';
 import 'quick_input_codes_view.dart';
 import 'sale_list_view.dart';
 import 'sales_return_list_view.dart';
-import 'adjustment_history_view.dart';
 import 'expense_view.dart';
 import 'debt_view.dart';
 import 'warranty_view.dart';
@@ -5757,7 +5756,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               childAspectRatio: context.responsive.isMobile ? 2.5 : 3.2,
               children: [
                 _financeQuickCard(
-                  loc.revenueOverview,
+                  'Báo cáo doanh thu',
                   Icons.trending_up,
                   Colors.blue,
                   () => Navigator.push(
@@ -5766,23 +5765,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   ),
                 ),
                 _financeQuickCard(
-                  loc.debtManagement,
+                  'Quản lý công nợ',
                   Icons.account_balance,
                   Colors.orange,
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const DebtView()),
-                  ),
-                ),
-                _financeQuickCard(
-                  loc.financialReport,
-                  Icons.assessment,
-                  Colors.indigo,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FinancialReportView(),
-                    ),
                   ),
                 ),
                 _financeQuickCard(
@@ -5793,28 +5781,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     context,
                     MaterialPageRoute(
                       builder: (_) => const BankInstallmentReportView(),
-                    ),
-                  ),
-                ),
-                _financeQuickCard(
-                  'Nhật ký',
-                  Icons.history,
-                  Colors.purple,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FinancialActivityLogView(),
-                    ),
-                  ),
-                ),
-                _financeQuickCard(
-                  'Bút toán ĐC',
-                  Icons.edit_note,
-                  Colors.orange,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AdjustmentHistoryView(),
                     ),
                   ),
                 ),
