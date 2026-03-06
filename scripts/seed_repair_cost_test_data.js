@@ -11,9 +11,9 @@
  * Example: node scripts/seed_repair_cost_test_data.js admin@huluca.com MyPass123
  */
 
-const API_KEY = "AIzaSyA5wW6zMHiWB_5xme99MVl0eSj7bhpO-S0";
-const PROJECT_ID = "huyaka-1809";
-const SHOP_ID = "ISTjckXdiqOE2TGDC3HCzNpyEGg1";
+const API_KEY = process.env.FIREBASE_API_KEY || (() => { console.error('Set FIREBASE_API_KEY env var'); process.exit(1); })();
+const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'huyaka-1809';
+const SHOP_ID = process.argv[4] || process.env.SHOP_ID || (() => { console.error('Provide shopId as 3rd arg or set SHOP_ID env var'); process.exit(1); })();
 
 const AUTH_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`;
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;

@@ -49,3 +49,15 @@ key.properties
 *.jks
 *.keystore
 ios_backup_20260304_005656/
+
+# Firebase config files (contain API keys)
+**/google-services.json
+**/GoogleService-Info.plist
+lib/firebase_options.dart
+
+# Environment files
+.env
+.env.*
+
+# Backup files
+*.backup
