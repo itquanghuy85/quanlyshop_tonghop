@@ -1846,87 +1846,64 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         ),
         const SizedBox(height: 8),
 
-        // Tổng tiền + Giảm giá (responsive để tránh overflow)
-        LayoutBuilder(
-          builder: (ctx, constraints) {
-            final isNarrow = constraints.maxWidth < 360;
-            final itemWidth = isNarrow
-                ? constraints.maxWidth
-                : (constraints.maxWidth / 2) - 6;
-            return Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                SizedBox(
-                  width: itemWidth,
-                  child: Row(
-                    children: [
-                      Text(
-                        "TỔNG:",
-                        style: AppTextStyles.caption.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
-                          _autoCalcTotal ? Icons.lock_outline : Icons.edit,
-                          size: 16,
-                          color: AppColors.primary,
-                        ),
-                        onPressed: () =>
-                            setState(() => _autoCalcTotal = !_autoCalcTotal),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: CurrencyTextField(
-                          controller: priceCtrl,
-                          label: "",
-                          enabled: !_autoCalcTotal,
-                          autoMultiply1000: false,
-                          onChanged: (_) => _calculateInstallment(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  width: itemWidth,
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.discount,
-                        size: 16,
-                        color: Colors.orange,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        "Giảm:",
-                        style: AppTextStyles.caption.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: CurrencyTextField(
-                          controller: discountCtrl,
-                          label: "",
-                          autoMultiply1000: false,
-                          onChanged: (_) {
-                            _calculateInstallment();
-                            setState(() {});
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
+        // Tổng tiền + Giảm giá (full width để nhìn rõ số tiền)
+        Row(
+          children: [
+            Text(
+              "TỔNG:",
+              style: AppTextStyles.caption.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              constraints: const BoxConstraints(),
+              padding: EdgeInsets.zero,
+              icon: Icon(
+                _autoCalcTotal ? Icons.lock_outline : Icons.edit,
+                size: 16,
+                color: AppColors.primary,
+              ),
+              onPressed: () =>
+                  setState(() => _autoCalcTotal = !_autoCalcTotal),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: CurrencyTextField(
+                controller: priceCtrl,
+                label: "",
+                enabled: !_autoCalcTotal,
+                autoMultiply1000: false,
+                onChanged: (_) => _calculateInstallment(),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Icon(
+              Icons.discount,
+              size: 16,
+              color: Colors.orange,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              "Giảm:",
+              style: AppTextStyles.caption.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: CurrencyTextField(
+                controller: discountCtrl,
+                label: "",
+                autoMultiply1000: false,
+                onChanged: (_) {
+                  _calculateInstallment();
+                  setState(() {});
+                },
+              ),
+            ),
+          ],
         ),
 
         // Thành tiền
