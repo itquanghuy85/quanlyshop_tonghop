@@ -408,6 +408,39 @@ class FinancialActivity {
     );
   }
 
+  /// Tạo FinancialActivity từ phiếu trả hàng
+  static FinancialActivity fromSalesReturn({
+    required String firestoreId,
+    required int amount,
+    required String refundMethod,
+    required String customerName,
+    required String customerPhone,
+    required String productInfo,
+    required int createdAt,
+    String? note,
+    String? createdBy,
+    String? shopId,
+  }) {
+    final isDebt = refundMethod == 'CÔNG NỢ';
+    return FinancialActivity(
+      firestoreId: 'fa_return_$firestoreId',
+      activityType: 'REFUND',
+      amount: amount,
+      direction: isDebt ? 'DEBT' : 'OUT',
+      paymentMethod: refundMethod,
+      referenceType: 'sales_return',
+      referenceId: firestoreId,
+      title: 'HOÀN TIỀN TRẢ HÀNG: $productInfo',
+      description: 'KH: ${customerName.isNotEmpty ? customerName : "Vãng lai"}${note != null && note.isNotEmpty ? ". Lý do: $note" : ""}',
+      customerName: customerName,
+      phone: customerPhone,
+      productInfo: productInfo,
+      createdAt: createdAt,
+      createdBy: createdBy,
+      shopId: shopId,
+    );
+  }
+
   static String _formatMoney(int amount) {
     if (amount >= 1000000) {
       return '${(amount / 1000000).toStringAsFixed(1)}tr';

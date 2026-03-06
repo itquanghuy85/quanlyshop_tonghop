@@ -1,6 +1,14 @@
 ﻿{
   "indexes": [
     {
+      "collectionId": "sales_returns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "shopId", "order": "ASCENDING" },
+        { "fieldPath": "returnDate", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionId": "chats",
       "queryScope": "COLLECTION",
       "fields": [

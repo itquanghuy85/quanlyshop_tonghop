@@ -1586,8 +1586,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           whereArgs: [startMs, endMs]),
         // [11] pendingApproval — đơn chờ duyệt giao (status 3 + pendingDeliveryApproval = 1)
         dbConn.rawQuery('SELECT COUNT(*) FROM repairs WHERE status = 3 AND pendingDeliveryApproval = 1'),
+        // [12] salesReturns — phiếu trả hàng hôm nay (trừ vào doanh thu/quỹ)
+        dbConn.query('sales_returns',
+          columns: ['totalReturnAmount', 'totalReturnCost', 'refundMethod', 'returnDate'],
+          where: 'returnDate >= ? AND returnDate < ? AND status = ?',
+          whereArgs: [startMs, endMs, 'APPROVED']),
       ]);
-      debugPrint('HomeView: Batch 1 (12 queries) took ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint('HomeView: Batch 1 (13 queries) took ${stopwatch.elapsedMilliseconds}ms');
 
       final pendingR = Sqflite.firstIntValue(batch1[0] as List<Map<String, dynamic>>) ?? 0;
       final newRT = Sqflite.firstIntValue(batch1[1] as List<Map<String, dynamic>>) ?? 0;
@@ -1601,6 +1606,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       final supplierImports = batch1[9] as List<Map<String, dynamic>>;
       final repairPartsCostFundRows = batch1[10] as List<Map<String, dynamic>>;
       final pendingApprovalR = Sqflite.firstIntValue(batch1[11] as List<Map<String, dynamic>>) ?? 0;
+      final fSalesReturns = batch1[12] as List<Map<String, dynamic>>;
 
       int doneT = 0, soldT = 0, debtR = 0, expW = 0;
 
@@ -1798,12 +1804,28 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         if (method == 'TIỀN MẶT') { cashOut += cost; } else { bankOut += cost; }
       }
 
+      // ===== SALES RETURNS (TRẢ HÀNG - GIẢM DOANH THU & QUỸ) =====
+      int refundOut = 0;
+      for (final ret in fSalesReturns) {
+        final amount = (ret['totalReturnAmount'] as num?)?.toInt() ?? 0;
+        final returnCost = (ret['totalReturnCost'] as num?)?.toInt() ?? 0;
+        final method = (ret['refundMethod'] as String? ?? 'TIỀN MẶT').toString();
+        if (method == 'CÔNG NỢ') {
+          // Giảm công nợ — không ảnh hưởng quỹ tiền mặt
+          continue;
+        }
+        refundOut += amount;
+        saleIncome -= amount; // Giảm doanh thu
+        saleCost -= returnCost; // Giảm giá vốn (hàng trả lại)
+        if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
+      }
+
       // ===== KẾT QUẢ =====
       final totalCashFlowIn = cashIn + bankIn;
       final totalCashFlowOut = cashOut + bankOut;
 
       // LỢI NHUẬN RÒNG (ACCRUAL BASIS) = Doanh thu - Chi phí - Giá vốn
-      // saleIncome đã bao gồm cả bán công nợ
+      // saleIncome đã bao gồm cả bán công nợ, trừ trả hàng
       // debtCollected KHÔNG tính vào lợi nhuận (đã tính khi bán)
       final profit = saleIncome + settlementIncome + repairIncome + miscIncome
           - expenseOut - saleCost - repairCost;

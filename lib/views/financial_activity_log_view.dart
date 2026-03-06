@@ -8,6 +8,7 @@ import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
 import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
+import '../services/encryption_service.dart';
 import '../services/user_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../theme/app_text_styles.dart';
@@ -79,6 +80,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     if (_enableRepair) {'value': 'REPAIR_SERVICE', 'label': '🔧 Thanh toán sửa chữa'},
     if (_enableRepair) {'value': 'REPAIR_PARTNER_DEBT', 'label': '🔧 Trả đối tác SC'},
     if (_enableRepair) {'value': 'REPAIR_PARTS_COST', 'label': '🔩 Vốn LK SC'},
+    {'value': 'REFUND', 'label': '↩️ Trả hàng'},
   ];
 
   final List<Map<String, String>> _directions = [
@@ -220,6 +222,8 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
         if (_enableRepair)
           // repair_partner_payments: composite index (shopId, paidAt) deployed
           _queryWithDateFilter(firestore.collection('repair_partner_payments'), shopId, 'paidAt', startMs, endMs),
+        // sales_returns: hoàn tiền trả hàng
+        _queryWithDateFilter(firestore.collection('sales_returns'), shopId, 'returnDate', startMs, endMs),
       ]);
 
       final List<FinancialActivity> allActivities = [];
@@ -441,6 +445,41 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
             shopId: shopId,
           ));
         }
+      }
+
+      // --- Sales Returns (Hoàn tiền trả hàng) ---
+      // sales_returns is always the LAST item in results
+      final salesReturnsSnap = results.last;
+      for (var doc in salesReturnsSnap.docs) {
+        var data = doc.data();
+        if (data['deleted'] == true || data['deleted'] == 1) continue;
+        // Decrypt if needed
+        data = EncryptionService.decryptMap(data);
+        convertTimestamps(data);
+        final returnDate = data['returnDate'] as int? ?? data['createdAt'] as int? ?? 0;
+        if (returnDate < startMs || returnDate > endMs) continue;
+        final status = (data['status'] ?? 'APPROVED').toString();
+        if (status == 'REJECTED') continue;
+
+        // Build product info from items (not available here, use note or firestoreId)
+        final customerName = data['customerName'] as String? ?? '';
+        final phone = data['customerPhone'] as String? ?? '';
+        final amount = (data['totalReturnAmount'] as num?)?.toInt() ?? 0;
+        final refundMethod = data['refundMethod'] as String? ?? 'TIỀN MẶT';
+        final note = data['note'] as String?;
+
+        allActivities.add(FinancialActivity.fromSalesReturn(
+          firestoreId: doc.id,
+          amount: amount,
+          refundMethod: refundMethod,
+          customerName: customerName,
+          customerPhone: phone,
+          productInfo: note ?? 'Trả hàng',
+          createdAt: returnDate,
+          note: note,
+          createdBy: data['createdBy'] as String?,
+          shopId: shopId,
+        ));
       }
 
       // Apply filters
