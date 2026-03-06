@@ -174,11 +174,11 @@ class ResponsiveScaffold extends StatelessWidget {
               selectedLabelTextStyle: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.w600,
-                fontSize: 11,
+                fontSize: r.isDesktop ? 13 : 11,
               ),
               unselectedLabelTextStyle: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                fontSize: 10,
+                fontSize: r.isDesktop ? 12 : 10,
               ),
               destinations: navItems.map((item) {
                 return NavigationRailDestination(

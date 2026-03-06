@@ -352,34 +352,45 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
 
     // Download dữ liệu từ cloud về (chỉ khi có shopId)
-    // ====== TỐI ƯU: Chạy BACKGROUND, không block UI ======
     if (currentShopId.isNotEmpty) {
-      // Chạy tất cả các init ở background - KHÔNG await
-      Future.microtask(() async {
+      if (kIsWeb) {
+        // WEB: PHẢI await download trước khi hiển thị UI
+        // Vì web không có SQLite persistent - DB thường trống khi mở app
         try {
-          debugPrint('🔄 Bắt đầu sync ở background...');
+          debugPrint('🔄 [WEB] Đồng bộ dữ liệu trước khi hiển thị...');
           await SyncService.downloadAllFromCloud().timeout(
-            const Duration(seconds: 20),
+            const Duration(seconds: 25),
             onTimeout: () {
-              debugPrint('⚠️ Sync timeout sau 20s, tiếp tục với data local...');
+              debugPrint('⚠️ [WEB] Sync timeout sau 25s, tiếp tục với data hiện có...');
             },
           );
-          debugPrint('✅ Sync hoàn thành');
-
-          // Initialize các services ở background
+          debugPrint('✅ [WEB] Sync hoàn thành');
           await _initSyncOrchestrator();
-
-          // Khởi tạo CashClosingNotifier
           await CashClosingNotifier.instance.init();
-          debugPrint('✅ CashClosingNotifier initialized');
-
-          // Khởi tạo PaymentIntentService (load pending intents từ DB)
           await PaymentIntentService.initialize();
-          debugPrint('✅ PaymentIntentService initialized');
         } catch (e) {
-          debugPrint('❌ Lỗi đồng bộ background: $e');
+          debugPrint('❌ [WEB] Lỗi đồng bộ: $e');
         }
-      });
+      } else {
+        // MOBILE: Chạy background - SQLite có data persistent
+        Future.microtask(() async {
+          try {
+            debugPrint('🔄 Bắt đầu sync ở background...');
+            await SyncService.downloadAllFromCloud().timeout(
+              const Duration(seconds: 20),
+              onTimeout: () {
+                debugPrint('⚠️ Sync timeout sau 20s, tiếp tục với data local...');
+              },
+            );
+            debugPrint('✅ Sync hoàn thành');
+            await _initSyncOrchestrator();
+            await CashClosingNotifier.instance.init();
+            await PaymentIntentService.initialize();
+          } catch (e) {
+            debugPrint('❌ Lỗi đồng bộ background: $e');
+          }
+        });
+      }
     } else {
       debugPrint('⚠️ Skipping sync - no shopId available');
     }

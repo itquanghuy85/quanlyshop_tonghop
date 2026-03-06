@@ -1016,15 +1016,36 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   Future<void> _initialSetup() async {
     try {
       // Load UI ngay lập tức với data local, không chờ Firestore
-      // 1. Load permissions và stats từ local trước (nhanh)
-      _updatePermissions(); // Không await - chạy song song
-      _loadStats(); // Không await - chạy song song
-      _loadShopSettings(); // Phase 2: Load shop settings cho multi-industry
-      _loadDashboardConfig(); // Modular dashboard config
-      _loadShortcutConfig(); // Shortcut grid config
+      // 1. Load permissions và config trước (nhanh)
+      _updatePermissions();
+      _loadShopSettings();
+      _loadDashboardConfig();
+      _loadShortcutConfig();
       
       // 2. Load user info NGAY (quan trọng cho lời chào)
-      await _loadUserAndShopInfo(); // AWAIT để đảm bảo có data trước khi render
+      await _loadUserAndShopInfo();
+
+      // 3. Trên WEB: đảm bảo đã có data trước khi load stats
+      // main.dart đã await downloadAllFromCloud cho web,
+      // nhưng nếu vào HomeView qua route khác thì cần kiểm tra lại
+      if (kIsWeb) {
+        final counts = await db.database.then((d) => d.rawQuery(
+          'SELECT (SELECT COUNT(*) FROM repairs) + (SELECT COUNT(*) FROM sales) + (SELECT COUNT(*) FROM products) AS total',
+        ));
+        final totalRecords = (counts.first['total'] as int?) ?? 0;
+        if (totalRecords == 0) {
+          debugPrint('🌐 HomeView: Web DB trống, download từ cloud...');
+          await SyncService.downloadAllFromCloud().timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {
+              debugPrint('⚠️ HomeView: Web sync timeout');
+            },
+          );
+        }
+      }
+
+      // 4. Load stats (giờ đã có data)
+      _loadStats();
 
       // Ensure shop context is valid before relying on local stats/sync.
       final ensuredShopId = await UserService.getCurrentShopId();
@@ -1878,8 +1899,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           + (recordCounts.first['sales'] as int? ?? 0)
           + (recordCounts.first['products'] as int? ?? 0);
 
+      // Web bootstrap không cần nữa - đã xử lý ở _initialSetup và main.dart
+      // Giữ lại flag để tránh duplicate call từ code cũ
       if (kIsWeb && totalRecords == 0 && !_cloudBootstrapTried && !_cloudBootstrapRunning) {
         _cloudBootstrapTried = true;
+        debugPrint('🌐 HomeView: DB vẫn trống sau sync, thử bootstrap lần cuối...');
         // ignore: unawaited_futures
         _bootstrapCoreDataFromCloud();
       }
@@ -2183,14 +2207,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   labelType: NavigationRailLabelType.all,
                   backgroundColor: AppColors.surface,
                   selectedIconTheme: const IconThemeData(color: AppColors.primary),
-                  selectedLabelTextStyle: const TextStyle(
+                  selectedLabelTextStyle: TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
-                    fontSize: 11,
+                    fontSize: r.isDesktop ? 13 : 11,
                   ),
                   unselectedLabelTextStyle: TextStyle(
                     color: AppColors.onSurface.withOpacity(0.6),
-                    fontSize: 10,
+                    fontSize: r.isDesktop ? 12 : 10,
                   ),
                   destinations: _navItems.map((item) {
                     return NavigationRailDestination(
@@ -3681,7 +3705,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           // Grid layout - responsive columns
           LayoutBuilder(
             builder: (context, constraints) {
-              final cols = context.responsive.shortcutColumns;
+              final r = context.responsive;
+              final cols = r.shortcutColumns;
+              final iconSize = r.isDesktop ? 18.0 : (r.isTablet ? 18.0 : 20.0);
+              final vPad = r.isDesktop ? 8.0 : 10.0;
+              final fontSize = r.isDesktop ? 10.5 : 11.0;
               final itemWidth = (constraints.maxWidth - (cols - 1) * 8) / cols;
               return Wrap(
                 spacing: 8,
@@ -3696,7 +3724,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                 } : null,
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding: EdgeInsets.symmetric(vertical: vPad),
                   decoration: BoxDecoration(
                     color: item.color.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(10),
@@ -3706,18 +3734,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
                           color: item.color.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(item.icon, color: item.color, size: 20),
+                        child: Icon(item.icon, color: item.color, size: iconSize),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
                         item.label,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: fontSize,
                           fontWeight: FontWeight.w600,
                           color: item.color.withOpacity(0.9),
                         ),
@@ -5375,14 +5403,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           const SizedBox(height: 10),
           _buildSectionHeader(loc.staffManagement),
 
-          // Grid 2x2 cho các chức năng chính
+          // Grid responsive cho các chức năng chính
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
+            crossAxisCount: context.responsive.isDesktop ? 3 : 2,
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
-            childAspectRatio: 1.8,
+            childAspectRatio: context.responsive.isDesktop ? 2.2 : 1.8,
             children: [
               _staffQuickCard(
                 loc.staffListLabel,
@@ -5467,6 +5495,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     Color color,
     VoidCallback onTap,
   ) {
+    final r = context.responsive;
+    final iconSize = r.isDesktop ? 20.0 : 24.0;
+    final iconPad = r.isDesktop ? 6.0 : 8.0;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -5488,12 +5519,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(iconPad),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color, size: 24),
+                child: Icon(icon, color: color, size: iconSize),
               ),
               const SizedBox(height: 6),
               FittedBox(
@@ -5839,14 +5870,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             const SizedBox(height: 20),
             _buildSectionHeader(loc.reportAndAnalysis),
 
-            // Grid 2x2 - Main financial views (no duplicates)
+            // Grid responsive - Main financial views (no duplicates)
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
+              crossAxisCount: context.responsive.isDesktop ? 3 : 2,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 1.5,
+              childAspectRatio: context.responsive.isDesktop ? 2.0 : 1.5,
               children: [
                 _financeQuickCard(
                   loc.revenueOverview,
@@ -5937,6 +5968,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     Color color,
     VoidCallback onTap,
   ) {
+    final r = context.responsive;
+    final iconSize = r.isDesktop ? 20.0 : 24.0;
+    final iconPad = r.isDesktop ? 6.0 : 8.0;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -5958,12 +5992,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(iconPad),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color, size: 24),
+                child: Icon(icon, color: color, size: iconSize),
               ),
               const SizedBox(height: 6),
               FittedBox(
@@ -6799,18 +6833,23 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               ],
             ),
             const SizedBox(height: 20),
-            // Bar chart - giống Sổ quỹ (100px height, 50px width)
-            Row(
+            // Bar chart - responsive height/width
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final r = context.responsive;
+                final barH = r.isDesktop ? 120.0 : (r.isTablet ? 110.0 : 100.0);
+                final barW = r.isDesktop ? 70.0 : (r.isTablet ? 60.0 : 50.0);
+            return Row(
               children: [
                 Expanded(
                   child: Column(
                     children: [
                       Container(
-                        height: 100,
+                        height: barH,
                         alignment: Alignment.bottomCenter,
                         child: Container(
-                          width: 50,
-                          height: 100 * incomeRatio,
+                          width: barW,
+                          height: barH * incomeRatio,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
@@ -6844,11 +6883,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   child: Column(
                     children: [
                       Container(
-                        height: 100,
+                        height: barH,
                         alignment: Alignment.bottomCenter,
                         child: Container(
-                          width: 50,
-                          height: 100 * expenseRatio,
+                          width: barW,
+                          height: barH * expenseRatio,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
@@ -6879,6 +6918,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   ),
                 ),
               ],
+            );
+              },
             ),
             const SizedBox(height: 16),
             const Divider(),
