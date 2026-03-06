@@ -4887,80 +4887,57 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
           // Quick Action - Tạo đơn bán
           _buildSectionHeader(loc.quickActions),
-          Card(
-            color: Colors.green.shade50,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: BorderSide(color: Colors.green.shade200),
-            ),
-            child: ListTile(
-              dense: true,
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade100,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.add_shopping_cart,
-                  color: Colors.green,
-                  size: 22,
-                ),
-              ),
-              title: Text(
-                loc.createNewSaleOrder,
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              subtitle: Text(
-                loc.createSaleOrderQuickly,
-                style: AppTextStyles.caption,
-              ),
-              trailing: const Icon(
-                Icons.arrow_forward_ios,
-                size: 14,
-                color: Colors.green,
-              ),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CreateSaleView()),
-              ),
+          _financeQuickCard(
+            loc.createNewSaleOrder,
+            Icons.add_shopping_cart,
+            Colors.green,
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreateSaleView()),
             ),
           ),
 
           const SizedBox(height: 10),
           _buildSectionHeader(loc.management),
-          _tabMenuItem(
-            loc.saleOrderList,
-            Icons.list_alt,
-            Colors.blue,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SaleListView()),
-            ),
-            subtitle: loc.viewSearchTrackSales,
-          ),
-          _tabMenuItem(
-            loc.customerManagement,
-            Icons.people,
-            Colors.blue,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CustomerManagementView()),
-            ),
-            subtitle: loc.addEditViewCustomers,
-          ),
-          _tabMenuItem(
-            loc.warranty,
-            Icons.verified_user,
-            Colors.orange,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const WarrantyView()),
-            ),
-            subtitle: loc.viewProcessWarrantyRequests,
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: context.responsive.isMobile ? 1 : 2,
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 8,
+            childAspectRatio: context.responsive.isMobile ? 5.5 : 5.0,
+            children: [
+              _tabMenuItem(
+                loc.saleOrderList,
+                Icons.list_alt,
+                Colors.blue,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SaleListView()),
+                ),
+                subtitle: loc.viewSearchTrackSales,
+              ),
+              _tabMenuItem(
+                loc.customerManagement,
+                Icons.people,
+                Colors.blue,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CustomerManagementView()),
+                ),
+                subtitle: loc.addEditViewCustomers,
+              ),
+              _tabMenuItem(
+                loc.warranty,
+                Icons.verified_user,
+                Colors.orange,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WarrantyView()),
+                ),
+                subtitle: loc.viewProcessWarrantyRequests,
+              ),
+            ],
           ),
         ],
       ),
@@ -4982,47 +4959,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           _buildTabHeader(loc.repairsTab.toUpperCase(), Icons.build, Colors.blue),
           const SizedBox(height: 10),          // Quick Action - Tạo đơn sửa
           _buildSectionHeader(loc.quickActions),
-          Card(
-            color: Colors.blue.shade50,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: BorderSide(color: Colors.blue.shade200),
-            ),
-            child: ListTile(
-              dense: true,
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.build_circle,
-                  color: Colors.blue,
-                  size: 22,
-                ),
-              ),
-              title: Text(
-                loc.createNewRepairOrder,
-                style: const TextStyle(
-                  color: Colors.blue,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              subtitle: Text(
-                loc.receiveDeviceForRepair,
-                style: AppTextStyles.body1,
-              ),
-              trailing: const Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Colors.blue,
-              ),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => CreateRepairOrderView(role: widget.role),
-                ),
+          _financeQuickCard(
+            loc.createNewRepairOrder,
+            Icons.build_circle,
+            Colors.blue,
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CreateRepairOrderView(role: widget.role),
               ),
             ),
           ),
@@ -5268,47 +5212,57 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
           const SizedBox(height: 10),
           _buildSectionHeader(loc.management),
-          _tabMenuItem(
-            loc.pendingConfirmation,
-            Icons.pending_actions,
-            Colors.orange,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PendingStockListView()),
-            ),
-            subtitle: loc.viewPendingStockList,
-          ),
-          _tabMenuItem(
-            loc.productList,
-            Icons.inventory,
-            Colors.blue,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => InventoryView(role: widget.role),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: context.responsive.isMobile ? 1 : 2,
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 8,
+            childAspectRatio: context.responsive.isMobile ? 5.5 : 5.0,
+            children: [
+              _tabMenuItem(
+                loc.pendingConfirmation,
+                Icons.pending_actions,
+                Colors.orange,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PendingStockListView()),
+                ),
+                subtitle: loc.viewPendingStockList,
               ),
-            ),
-            subtitle: loc.viewManageProducts,
-          ),
-          _tabMenuItem(
-            loc.suppliersPartners,
-            Icons.business_center,
-            Colors.teal,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SupplierListView()),
-            ),
-            subtitle: loc.manageSupplierPartnerDebt,
-          ),
-          _tabMenuItem(
-            loc.quickInputCodeList,
-            Icons.qr_code,
-            Colors.indigo,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const QuickInputCodesView()),
-            ),
-            subtitle: loc.viewManageQuickInputCodes,
+              _tabMenuItem(
+                loc.productList,
+                Icons.inventory,
+                Colors.blue,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => InventoryView(role: widget.role),
+                  ),
+                ),
+                subtitle: loc.viewManageProducts,
+              ),
+              _tabMenuItem(
+                loc.suppliersPartners,
+                Icons.business_center,
+                Colors.teal,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SupplierListView()),
+                ),
+                subtitle: loc.manageSupplierPartnerDebt,
+              ),
+              _tabMenuItem(
+                loc.quickInputCodeList,
+                Icons.qr_code,
+                Colors.indigo,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const QuickInputCodesView()),
+                ),
+                subtitle: loc.viewManageQuickInputCodes,
+              ),
+            ],
           ),
         ],
       ),
@@ -5357,46 +5311,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
           // Quick Action - Chấm công
           _buildSectionHeader(loc.quickActions),
-          Card(
-            color: Colors.teal.shade50,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: BorderSide(color: Colors.teal.shade200),
-            ),
-            child: ListTile(
-              dense: true,
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.teal.shade100,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.fingerprint,
-                  color: Colors.teal,
-                  size: 22,
-                ),
-              ),
-              title: Text(
-                loc.attendance,
-                style: const TextStyle(
-                  color: Colors.teal,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              subtitle: Text(
-                loc.recordWorkingHours,
-                style: AppTextStyles.caption,
-              ),
-              trailing: const Icon(
-                Icons.arrow_forward_ios,
-                size: 14,
-                color: Colors.teal,
-              ),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AttendanceView()),
-              ),
+          _staffQuickCard(
+            loc.attendance,
+            Icons.fingerprint,
+            Colors.teal,
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AttendanceView()),
             ),
           ),
 
@@ -5407,10 +5328,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: context.responsive.isMobile ? 2 : 3,
+            crossAxisCount: context.responsive.isMobile ? 2 : (context.responsive.isDesktop ? 4 : 3),
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
-            childAspectRatio: context.responsive.isMobile ? 2.5 : 3.0,
+            childAspectRatio: context.responsive.isMobile ? 2.5 : 3.2,
             children: [
               _staffQuickCard(
                 loc.staffListLabel,
@@ -5460,27 +5381,37 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
           const SizedBox(height: 10),
           _buildSectionHeader(loc.report),
-          _tabMenuItem(
-            loc.attendanceTracking,
-            Icons.people_outline,
-            Colors.teal,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const AttendanceManagementView(),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: context.responsive.isMobile ? 1 : 2,
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 8,
+            childAspectRatio: context.responsive.isMobile ? 5.5 : 5.0,
+            children: [
+              _tabMenuItem(
+                loc.attendanceTracking,
+                Icons.people_outline,
+                Colors.teal,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AttendanceManagementView(),
+                  ),
+                ),
+                subtitle: loc.viewAttendanceAllStaff,
               ),
-            ),
-            subtitle: loc.viewAttendanceAllStaff,
-          ),
-          _tabMenuItem(
-            loc.personalAttendance,
-            Icons.history,
-            Colors.indigo,
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AttendanceView()),
-            ),
-            subtitle: loc.personalAttendanceDescription,
+              _tabMenuItem(
+                loc.personalAttendance,
+                Icons.history,
+                Colors.indigo,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AttendanceView()),
+                ),
+                subtitle: loc.personalAttendanceDescription,
+              ),
+            ],
           ),
         ],
       ),
@@ -5496,31 +5427,30 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     VoidCallback onTap,
   ) {
     return Card(
-      elevation: 1,
+      elevation: 0,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: color.withOpacity(0.2)),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              colors: [color.withOpacity(0.08), color.withOpacity(0.03)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            borderRadius: BorderRadius.circular(10),
+            color: color.withOpacity(0.05),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 20),
+                child: Icon(icon, color: color, size: 18),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -5528,13 +5458,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   title,
                   style: AppTextStyles.body2.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: color.withOpacity(0.9),
+                    color: color,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(Icons.chevron_right, color: color.withOpacity(0.4), size: 18),
+              Icon(Icons.chevron_right, color: color.withOpacity(0.4), size: 16),
             ],
           ),
         ),
@@ -5551,31 +5481,30 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     VoidCallback onHelpTap,
   ) {
     return Card(
-      elevation: 1,
+      elevation: 0,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: color.withOpacity(0.2)),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              colors: [color.withOpacity(0.08), color.withOpacity(0.03)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            borderRadius: BorderRadius.circular(10),
+            color: color.withOpacity(0.05),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 20),
+                child: Icon(icon, color: color, size: 18),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -5583,21 +5512,21 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   title,
                   style: AppTextStyles.body2.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: color.withOpacity(0.9),
+                    color: color,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.help_outline, color: color.withOpacity(0.5), size: 16),
+                icon: Icon(Icons.help_outline, color: color.withOpacity(0.5), size: 14),
                 onPressed: onHelpTap,
                 tooltip: loc.usageGuide,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
               const SizedBox(width: 4),
-              Icon(Icons.chevron_right, color: color.withOpacity(0.4), size: 18),
+              Icon(Icons.chevron_right, color: color.withOpacity(0.4), size: 16),
             ],
           ),
         ),
@@ -5765,97 +5694,49 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             _buildSectionHeader(loc.todayOverview),
             _financeOverviewSection(),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // THAO TÁC NHANH - Chốt quỹ + Thanh toán
+            // THAO TÁC NHANH - Sổ quỹ + Thu Chi
             _buildSectionHeader(loc.quickActions),
             Row(
               children: [
                 Expanded(
-                  child: Card(
-                    color: Colors.green.shade50,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: BorderSide(color: Colors.green.shade200),
-                    ),
-                    child: InkWell(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CashClosingView()),
-                      ),
-                      borderRadius: BorderRadius.circular(15),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          children: [
-                            Icon(Icons.menu_book, color: Colors.green, size: 28),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Sổ quỹ',
-                              style: TextStyle(
-                                color: Colors.green.shade700,
-                                fontWeight: FontWeight.bold,
-                                fontSize: AppTextStyles.body1.fontSize,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
+                  child: _financeQuickCard(
+                    'Sổ quỹ',
+                    Icons.menu_book,
+                    Colors.green,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CashClosingView()),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Card(
-                    color: Colors.blue.shade50,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: BorderSide(color: Colors.blue.shade200),
-                    ),
-                    child: InkWell(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ExpenseView(),
-                        ),
-                      ),
-                      borderRadius: BorderRadius.circular(15),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          children: [
-                            Icon(Icons.swap_vert, color: Colors.blue, size: 28),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Thu Chi',
-                              style: TextStyle(
-                                color: Colors.blue.shade700,
-                                fontWeight: FontWeight.bold,
-                                fontSize: AppTextStyles.body1.fontSize,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
+                  child: _financeQuickCard(
+                    'Thu Chi',
+                    Icons.swap_vert,
+                    Colors.blue,
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ExpenseView()),
                     ),
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             _buildSectionHeader(loc.reportAndAnalysis),
 
-            // Grid responsive - Main financial views (no duplicates)
+            // Grid responsive - Main financial views
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: context.responsive.isMobile ? 2 : 3,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: context.responsive.isMobile ? 2.2 : 2.8,
+              crossAxisCount: context.responsive.isMobile ? 2 : (context.responsive.isDesktop ? 4 : 3),
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: context.responsive.isMobile ? 2.5 : 3.2,
               children: [
                 _financeQuickCard(
                   loc.revenueOverview,
@@ -5878,7 +5759,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                 _financeQuickCard(
                   loc.financialReport,
                   Icons.assessment,
-                  Colors.blue,
+                  Colors.indigo,
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -5908,7 +5789,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     ),
                   ),
                 ),
-                // Warranty tracking - only show for shops with warranty enabled
                 if (_enableWarranty)
                 _financeQuickCard(
                   loc.warrantyTracking,
@@ -5919,7 +5799,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     MaterialPageRoute(builder: (_) => const WarrantyView()),
                   ),
                 ),
-                // Alternative card for fashion/food shops without warranty
                 if (!_enableWarranty)
                 _financeQuickCard(
                   'Nhà cung cấp',
@@ -5947,31 +5826,30 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     VoidCallback onTap,
   ) {
     return Card(
-      elevation: 1,
+      elevation: 0,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: color.withOpacity(0.2)),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              colors: [color.withOpacity(0.08), color.withOpacity(0.03)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            borderRadius: BorderRadius.circular(10),
+            color: color.withOpacity(0.05),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 20),
+                child: Icon(icon, color: color, size: 18),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -5979,13 +5857,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   title,
                   style: AppTextStyles.body2.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: color.withOpacity(0.9),
+                    color: color,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(Icons.chevron_right, color: color.withOpacity(0.4), size: 18),
+              Icon(Icons.chevron_right, color: color.withOpacity(0.4), size: 16),
             ],
           ),
         ),

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import 'encryption_service.dart';
 import 'claims_service.dart';
@@ -113,6 +114,56 @@ class UserService {
     );
   }
 
+  /// Lưu shopId + role vào SharedPreferences để lần đăng nhập sau
+  /// không cần chờ Firestore/claims — dùng ngay từ local.
+  static Future<void> saveAuthCache({String? role}) async {
+    if (_cachedShopId == null || _cachedUid == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_cache_shopId', _cachedShopId!);
+      await prefs.setString('auth_cache_uid', _cachedUid!);
+      if (role != null) {
+        await prefs.setString('auth_cache_role', role);
+      }
+      debugPrint('💾 saveAuthCache: shopId=$_cachedShopId, uid=$_cachedUid, role=$role');
+    } catch (e) {
+      debugPrint('⚠️ saveAuthCache error: $e');
+    }
+  }
+
+  /// Khôi phục cache từ SharedPreferences — gọi ĐẦU TIÊN khi app mở.
+  /// Trả về true nếu cache hợp lệ (đúng uid), false nếu không có.
+  static Future<bool> restoreAuthCache(String currentUid) async {
+    // Đã có cache đúng user → không cần đọc prefs
+    if (_cachedShopId != null && _cachedShopId!.isNotEmpty && _cachedUid == currentUid) {
+      return true;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedUid = prefs.getString('auth_cache_uid');
+      final savedShopId = prefs.getString('auth_cache_shopId');
+      if (savedUid == currentUid && savedShopId != null && savedShopId.isNotEmpty) {
+        _cachedShopId = savedShopId;
+        _cachedUid = currentUid;
+        debugPrint('♻️ restoreAuthCache: restored shopId=$savedShopId for uid=$currentUid');
+        return true;
+      }
+    } catch (e) {
+      debugPrint('⚠️ restoreAuthCache error: $e');
+    }
+    return false;
+  }
+
+  /// Lấy role đã lưu từ SharedPreferences (fallback khi Firestore timeout)
+  static Future<String?> getCachedRole() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('auth_cache_role');
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Xóa cache khi logout để tránh lấy nhầm shopId của user khác
   static void clearCache() {
     debugPrint('UserService: Clearing cached shopId and uid');
@@ -123,6 +174,12 @@ class UserService {
     _cachedCanViewCostPriceTime = null;
     ClaimsService().stopClaimsSync(); // Stop claims listener on logout
     PaymentIntentService.clearCache(); // Clear payment intent cache
+    // Xóa auth cache prefs
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.remove('auth_cache_shopId');
+      prefs.remove('auth_cache_uid');
+      prefs.remove('auth_cache_role');
+    }).catchError((_) {});
   }
 
   /// Initialize claims sync after login
@@ -683,6 +740,9 @@ class UserService {
     debugPrint(
       '✅ syncUserInfo: cached shopId=$_cachedShopId for uid=$uid (isNewShop=$isNewShop)',
     );
+
+    // Lưu vào SharedPreferences để lần đăng nhập sau khôi phục ngay
+    saveAuthCache();
 
     // Khởi tạo EncryptionService với shopId để mã hóa/giải mã dữ liệu
     if (_cachedShopId != null && _cachedShopId!.isNotEmpty) {

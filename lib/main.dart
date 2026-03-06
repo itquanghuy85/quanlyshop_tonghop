@@ -301,6 +301,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     PerfMonitor.start('_getRoleAfterSync');
     debugPrint('🚀 _getRoleAfterSync: START for uid=$uid, email=$email');
 
+    // ═════ STEP 0: Khôi phục cache từ SharedPreferences (lần đăng nhập trước) ═════
+    final hasLocalCache = await UserService.restoreAuthCache(uid);
+    if (hasLocalCache) {
+      debugPrint('♻️ _getRoleAfterSync: Restored shopId from prefs = ${UserService.getShopIdSync()}');
+    }
+
     // Kiểm tra super admin TRƯỚC - không cần sync data
     final bool isSuperAdmin = email.toLowerCase() == 'admin@huluca.com';
     if (isSuperAdmin) {
@@ -367,8 +373,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       }
     }
 
-    // Fallback 3: TRÊN WEB - dùng uid làm shopId (owner mặc định)
-    if (kIsWeb && (currentShopId == null || currentShopId.isEmpty)) {
+    // Fallback 3: TRÊN WEB - thử dùng uid làm shopId (owner mặc định)
+    // Chỉ dùng uid khi KHÔNG có cache từ lần đăng nhập trước
+    if (kIsWeb && (currentShopId == null || currentShopId.isEmpty) && !hasLocalCache) {
       debugPrint('⚠️ [WEB] Tất cả cách lấy shopId thất bại, thử uid=$uid');
       currentShopId = uid;
       UserService.updateCachedShopId(currentShopId);
@@ -453,8 +460,17 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       role = await UserService.getUserRole(uid)
           .timeout(const Duration(seconds: 8));
     } catch (e) {
-      debugPrint('⚠️ getUserRole failed, defaulting to user: $e');
+      debugPrint('⚠️ getUserRole failed: $e');
+      // Fallback: dùng role đã lưu từ lần đăng nhập trước
+      final cachedRole = await UserService.getCachedRole();
+      if (cachedRole != null && cachedRole.isNotEmpty) {
+        role = cachedRole;
+        debugPrint('♻️ Using cached role from prefs: $role');
+      }
     }
+
+    // Lưu role vào prefs cho lần sau
+    UserService.saveAuthCache(role: role);
 
     PerfMonitor.stop('_getRoleAfterSync');
     return {'role': role, 'isSuperAdmin': false};
