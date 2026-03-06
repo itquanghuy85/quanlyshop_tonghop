@@ -4,6 +4,24 @@ Tất cả thay đổi đáng chú ý của dự án sẽ được ghi lại tro
 
 ---
 
+## [11.0.1] - 2026-03-06
+
+### Cải thiện giao diện
+- **Giao diện web chuyên nghiệp**: Tab Nhân viên & Tài chính chuyển từ card dọc (icon trên, text dưới) sang dạng ngang compact (icon + text + chevron) — gọn đẹp hơn trên tablet/desktop
+- **Grid layout tối ưu**: 3 cột trên tablet/desktop thay vì 2 cột, aspect ratio cao hơn (3.0/2.8) — card nhỏ gọn, không chiếm quá nhiều không gian
+- **App icon mới**: Icon app tùy chỉnh cho Android (adaptive), iOS, và Web (favicon + PWA icons)
+
+### Bảo mật
+- **Xóa API keys khỏi git**: Loại bỏ google-services.json, GoogleService-Info.plist, firebase_options.dart khỏi version control
+- **Cập nhật .gitignore**: Bảo vệ thông tin nhạy cảm
+
+### Kỹ thuật
+- **Web data loading**: Await downloadAllFromCloud() trên web thay vì fire-and-forget — dữ liệu hiển thị chính xác khi đăng nhập
+- **Cache busting**: APP_VERSION tự động xóa cache khi cập nhật phiên bản web
+- **Responsive UI**: 45+ cải thiện responsive cho wide screens (NavigationRail, dashboard, bar chart, grids)
+
+---
+
 ## [10.2.0] - 2025-06-03
 
 ### Tính năng mới
