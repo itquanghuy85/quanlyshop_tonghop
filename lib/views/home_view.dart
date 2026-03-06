@@ -136,7 +136,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                 event == 'sales_changed' ||
                 event == 'repairs_changed' ||
                 event == 'expenses_changed' ||
-                event == 'products_changed') &&
+                event == 'products_changed' ||
+                event == 'sales_returns_changed' ||
+                event == 'financial_activity_changed') &&
             mounted) {
           debugPrint('HomeView: Loading stats for event: $event');
           _debouncedLoadStats();
@@ -1590,7 +1592,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         dbConn.query('sales_returns',
           columns: ['totalReturnAmount', 'totalReturnCost', 'refundMethod', 'returnDate'],
           where: 'returnDate >= ? AND returnDate < ? AND status = ?',
-          whereArgs: [startMs, endMs, 'APPROVED']),
+          whereArgs: [startMs, endMs, 'APPROVED'])
+            .catchError((_) => <Map<String, dynamic>>[]),
       ]);
       debugPrint('HomeView: Batch 1 (13 queries) took ${stopwatch.elapsedMilliseconds}ms');
 
