@@ -5407,10 +5407,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: context.responsive.isDesktop ? 3 : 2,
+            crossAxisCount: context.responsive.isMobile ? 2 : 3,
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
-            childAspectRatio: context.responsive.isDesktop ? 2.2 : 1.8,
+            childAspectRatio: context.responsive.isMobile ? 2.5 : 3.0,
             children: [
               _staffQuickCard(
                 loc.staffListLabel,
@@ -5495,49 +5495,46 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     Color color,
     VoidCallback onTap,
   ) {
-    final r = context.responsive;
-    final iconSize = r.isDesktop ? 20.0 : 24.0;
-    final iconPad = r.isDesktop ? 6.0 : 8.0;
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 1,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(12),
             gradient: LinearGradient(
-              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+              colors: [color.withOpacity(0.08), color.withOpacity(0.03)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
             children: [
               Container(
-                padding: EdgeInsets.all(iconPad),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: iconSize),
+                child: Icon(icon, color: color, size: 20),
               ),
-              const SizedBox(height: 6),
-              FittedBox(
-                fit: BoxFit.scaleDown,
+              const SizedBox(width: 8),
+              Expanded(
                 child: Text(
                   title,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.body1.copyWith(
-                    fontWeight: FontWeight.bold,
+                  style: AppTextStyles.body2.copyWith(
+                    fontWeight: FontWeight.w600,
                     color: color.withOpacity(0.9),
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              Icon(Icons.chevron_right, color: color.withOpacity(0.4), size: 18),
             ],
           ),
         ),
@@ -5554,72 +5551,53 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     VoidCallback onHelpTap,
   ) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 1,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(12),
             gradient: LinearGradient(
-              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+              colors: [color.withOpacity(0.08), color.withOpacity(0.03)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
-          child: Stack(
+          child: Row(
             children: [
-              // Nút Help ở góc trên phải
-              Positioned(
-                right: -4,
-                top: -4,
-                child: IconButton(
-                  icon: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(color: color.withOpacity(0.3), blurRadius: 4),
-                      ],
-                    ),
-                    child: Icon(Icons.help_outline, color: color, size: 16),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTextStyles.body2.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: color.withOpacity(0.9),
                   ),
-                  onPressed: onHelpTap,
-                  tooltip: loc.usageGuide,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Nội dung chính
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, color: color, size: 24),
-                  ),
-                  const SizedBox(height: 6),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.body1.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: color.withOpacity(0.9),
-                      ),
-                    ),
-                  ),
-                ],
+              IconButton(
+                icon: Icon(Icons.help_outline, color: color.withOpacity(0.5), size: 16),
+                onPressed: onHelpTap,
+                tooltip: loc.usageGuide,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, color: color.withOpacity(0.4), size: 18),
             ],
           ),
         ),
@@ -5874,10 +5852,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: context.responsive.isDesktop ? 3 : 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: context.responsive.isDesktop ? 2.0 : 1.5,
+              crossAxisCount: context.responsive.isMobile ? 2 : 3,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: context.responsive.isMobile ? 2.2 : 2.8,
               children: [
                 _financeQuickCard(
                   loc.revenueOverview,
@@ -5968,49 +5946,46 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     Color color,
     VoidCallback onTap,
   ) {
-    final r = context.responsive;
-    final iconSize = r.isDesktop ? 20.0 : 24.0;
-    final iconPad = r.isDesktop ? 6.0 : 8.0;
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 1,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(12),
             gradient: LinearGradient(
-              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+              colors: [color.withOpacity(0.08), color.withOpacity(0.03)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
             children: [
               Container(
-                padding: EdgeInsets.all(iconPad),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: iconSize),
+                child: Icon(icon, color: color, size: 20),
               ),
-              const SizedBox(height: 6),
-              FittedBox(
-                fit: BoxFit.scaleDown,
+              const SizedBox(width: 8),
+              Expanded(
                 child: Text(
                   title,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.body1.copyWith(
-                    fontWeight: FontWeight.bold,
+                  style: AppTextStyles.body2.copyWith(
+                    fontWeight: FontWeight.w600,
                     color: color.withOpacity(0.9),
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              Icon(Icons.chevron_right, color: color.withOpacity(0.4), size: 18),
             ],
           ),
         ),
