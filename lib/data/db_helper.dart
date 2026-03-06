@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/repair_model.dart';
 import '../models/product_model.dart';
@@ -17,8 +18,17 @@ import '../services/user_service.dart';
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
   static Database? _database;
+  static bool _factoryInitialized = false;
   DBHelper._internal();
   factory DBHelper() => _instance;
+
+  static void _ensureDatabaseFactoryInitialized() {
+    if (_factoryInitialized) return;
+    if (kIsWeb) {
+      databaseFactory = databaseFactoryFfiWeb;
+    }
+    _factoryInitialized = true;
+  }
 
   /// Helper: build SQL WHERE clause that matches both old (Vietnamese) and new (ASCII) type values
   /// e.g. 'LINH_KIEN' → "(type = 'LINH_KIEN' OR type = 'LINH KIỆN')"
@@ -81,25 +91,26 @@ class DBHelper {
   }
 
   Future<Database> _initDB() async {
+    _ensureDatabaseFactoryInitialized();
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 86,
+      version: 88,
       onCreate: (db, version) async {
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER)',
+          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, size TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT, sku TEXT)',
+           'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, size TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT, sku TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, cashAmount INTEGER DEFAULT 0, transferAmount INTEGER DEFAULT 0, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+           'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, cashAmount INTEGER DEFAULT 0, transferAmount INTEGER DEFAULT 0, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
+          await db.execute(
+            'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+          );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT UNIQUE, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
-        );
-        await db.execute(
-          'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, type TEXT, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+           'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, type TEXT, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, description TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, createdAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, relatedPartId TEXT, type TEXT DEFAULT "CHI")',
@@ -412,6 +423,7 @@ class DBHelper {
         await db.execute('CREATE INDEX IF NOT EXISTS idx_repair_partner_payments_paidAt ON repair_partner_payments(paidAt)');
         // customers
         await db.execute('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
+        await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_shop_phone_unique ON customers(shopId, phone) WHERE phone IS NOT NULL AND phone <> ""');
       },
       onUpgrade: (db, oldV, newV) async {
         debugPrint('Upgrading DB from $oldV to $newV');
@@ -963,6 +975,64 @@ class DBHelper {
             debugPrint('v86: type column added to suppliers');
           } catch (e) {
             debugPrint('v86: type column already exists or error: $e');
+          }
+        }
+        if (oldV < 87) {
+          // v87: Persist exact amount recorded into fund for repairs
+          debugPrint('DB upgrade v87: Adding costRecordedAmount to repairs...');
+          try {
+            await db.execute('ALTER TABLE repairs ADD COLUMN costRecordedAmount INTEGER DEFAULT 0');
+            debugPrint('v87: costRecordedAmount column added');
+          } catch (e) {
+            debugPrint('v87: costRecordedAmount already exists or error: $e');
+          }
+        }
+        if (oldV < 88) {
+          // v88: customers.phone was globally UNIQUE and caused cross-shop/walk-in conflicts.
+          // Recreate customers table and enforce uniqueness by (shopId, phone) only.
+          debugPrint('DB upgrade v88: Rebuilding customers uniqueness to (shopId, phone)...');
+          try {
+            await db.execute('''
+              CREATE TABLE IF NOT EXISTS customers_new(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firestoreId TEXT UNIQUE,
+                name TEXT,
+                phone TEXT,
+                email TEXT,
+                address TEXT,
+                notes TEXT,
+                createdAt INTEGER,
+                lastVisitAt INTEGER,
+                updatedAt INTEGER,
+                totalSpent INTEGER DEFAULT 0,
+                totalRepairs INTEGER DEFAULT 0,
+                totalRepairCost INTEGER DEFAULT 0,
+                shopId TEXT,
+                isSynced INTEGER DEFAULT 0,
+                deleted INTEGER DEFAULT 0
+              )
+            ''');
+            await db.execute('''
+              INSERT INTO customers_new(
+                id, firestoreId, name, phone, email, address, notes,
+                createdAt, lastVisitAt, updatedAt,
+                totalSpent, totalRepairs, totalRepairCost,
+                shopId, isSynced, deleted
+              )
+              SELECT
+                id, firestoreId, name, phone, email, address, notes,
+                createdAt, lastVisitAt, updatedAt,
+                totalSpent, totalRepairs, totalRepairCost,
+                shopId, isSynced, deleted
+              FROM customers
+            ''');
+            await db.execute('DROP TABLE customers');
+            await db.execute('ALTER TABLE customers_new RENAME TO customers');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
+            await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_shop_phone_unique ON customers(shopId, phone) WHERE phone IS NOT NULL AND phone <> ""');
+            debugPrint('v88: customers table rebuilt successfully');
+          } catch (e) {
+            debugPrint('v88 error (customers rebuild): $e');
           }
         }
         if (oldV < 26) {
@@ -2809,6 +2879,12 @@ class DBHelper {
         Map<String, dynamic>.from(map),
       );
       data.remove('id');
+      // Ensure a stable key is persisted locally to avoid re-insert duplicates
+      // when callers pass fallback keys but map['firestoreId'] is null/empty.
+      final existingFirestoreId = (data['firestoreId'] ?? '').toString().trim();
+      if (existingFirestoreId.isEmpty) {
+        data['firestoreId'] = firestoreId;
+      }
       data.remove(
         '_encrypted',
       ); // Field metadata của Firestore, không lưu SQLite
@@ -2840,6 +2916,11 @@ class DBHelper {
 
       Map<String, dynamic> data = Map<String, dynamic>.from(r.toMap());
       data.remove('id');
+      // Persist normalized firestoreId to keep repair upserts idempotent.
+      final existingFirestoreId = (data['firestoreId'] ?? '').toString().trim();
+      if (existingFirestoreId.isEmpty) {
+        data['firestoreId'] = firestoreId;
+      }
 
       // Check if services column exists
       final cols = await txn.rawQuery('PRAGMA table_info(repairs)');
@@ -3635,12 +3716,12 @@ class DBHelper {
   );
   Future<List<Map<String, dynamic>>>
   getUniqueCustomersAll() async => (await database).rawQuery(
-    'SELECT phone, customerName, address FROM (SELECT phone, customerName, address FROM repairs UNION SELECT phone, customerName, address FROM sales UNION SELECT phone, name as customerName, address FROM customers) as t WHERE phone IS NOT NULL AND phone != "" GROUP BY phone ORDER BY customerName ASC',
+    "SELECT phone, customerName, address FROM (SELECT phone, customerName, address FROM repairs UNION SELECT phone, customerName, address FROM sales UNION SELECT phone, name as customerName, address FROM customers) as t WHERE phone IS NOT NULL AND phone != '' GROUP BY phone ORDER BY customerName ASC",
   );
   Future<List<Map<String, dynamic>>> getCustomersWithoutShop() async =>
       (await database).query(
         'customers',
-        where: 'shopId IS NULL OR shopId = ""',
+        where: "shopId IS NULL OR shopId = ''",
       );
   Future<void> deleteCustomerData(String name, String phone) async {
     final db = await database;
@@ -3717,8 +3798,8 @@ class DBHelper {
       if (name != null && shopId != null) {
         final existingByName = await db.query(
           'suppliers',
-          where:
-              'name = ? AND shopId = ? AND (firestoreId IS NULL OR firestoreId = "")',
+            where:
+              "name = ? AND shopId = ? AND (firestoreId IS NULL OR firestoreId = '')",
           whereArgs: [name, shopId],
         );
         if (existingByName.isNotEmpty) {
@@ -5048,6 +5129,70 @@ class DBHelper {
     );
   }
 
+  /// Remove duplicated local shadow rows created by old sync flows.
+  ///
+  /// Pattern cleaned:
+  /// - row A: firestoreId is NULL/empty (local shadow)
+  /// - row B: same business payload but has firestoreId (cloud canonical)
+  ///
+  /// This keeps unsynced local-only rows intact because deletion only happens
+  /// when a canonical cloud row already exists.
+  Future<int> cleanupCloudShadowDuplicates() async {
+    final db = await database;
+    int totalDeleted = 0;
+
+    // Repairs: match by stable identity fields.
+    totalDeleted += await db.rawDelete('''
+      DELETE FROM repairs
+      WHERE (firestoreId IS NULL OR TRIM(firestoreId) = '')
+        AND EXISTS (
+          SELECT 1 FROM repairs r2
+          WHERE r2.id != repairs.id
+            AND r2.firestoreId IS NOT NULL
+            AND TRIM(r2.firestoreId) != ''
+            AND IFNULL(r2.createdAt, -1) = IFNULL(repairs.createdAt, -1)
+            AND IFNULL(r2.phone, '') = IFNULL(repairs.phone, '')
+            AND IFNULL(r2.model, '') = IFNULL(repairs.model, '')
+            AND IFNULL(r2.customerName, '') = IFNULL(repairs.customerName, '')
+        )
+    ''');
+
+    // Sales: match by sold time + customer + product identifiers.
+    totalDeleted += await db.rawDelete('''
+      DELETE FROM sales
+      WHERE (firestoreId IS NULL OR TRIM(firestoreId) = '')
+        AND EXISTS (
+          SELECT 1 FROM sales s2
+          WHERE s2.id != sales.id
+            AND s2.firestoreId IS NOT NULL
+            AND TRIM(s2.firestoreId) != ''
+            AND IFNULL(s2.soldAt, -1) = IFNULL(sales.soldAt, -1)
+            AND IFNULL(s2.phone, '') = IFNULL(sales.phone, '')
+            AND IFNULL(s2.productImeis, '') = IFNULL(sales.productImeis, '')
+            AND IFNULL(s2.totalPrice, -1) = IFNULL(sales.totalPrice, -1)
+        )
+    ''');
+
+    // Products: prioritize IMEI match for strong identity.
+    totalDeleted += await db.rawDelete('''
+      DELETE FROM products
+      WHERE (firestoreId IS NULL OR TRIM(firestoreId) = '')
+        AND IFNULL(TRIM(imei), '') != ''
+        AND EXISTS (
+          SELECT 1 FROM products p2
+          WHERE p2.id != products.id
+            AND p2.firestoreId IS NOT NULL
+            AND TRIM(p2.firestoreId) != ''
+            AND IFNULL(p2.imei, '') = IFNULL(products.imei, '')
+        )
+    ''');
+
+    if (totalDeleted > 0) {
+      debugPrint('DB cleanup: removed $totalDeleted cloud-shadow duplicate rows');
+    }
+    return totalDeleted;
+  }
+
   Future<void> clearAllData() async {
     final db = await database;
     await db.transaction((txn) async {
@@ -5792,12 +5937,12 @@ class DBHelper {
     List<dynamic> whereArgs;
 
     if (referenceId != null && referenceId.toString().isNotEmpty) {
-      whereClause =
-          'referenceId = ? AND productName = ? AND IFNULL(imei, "") = ? AND importDate = ?';
+        whereClause =
+          "referenceId = ? AND productName = ? AND IFNULL(imei, '') = ? AND importDate = ?";
       whereArgs = [referenceId, productName, imei, importDate];
     } else {
-      whereClause =
-          'productName = ? AND IFNULL(imei, "") = ? AND importDate = ? AND totalAmount = ? AND quantity = ? AND costPrice = ? AND supplierName = ?';
+        whereClause =
+          "productName = ? AND IFNULL(imei, '') = ? AND importDate = ? AND totalAmount = ? AND quantity = ? AND costPrice = ? AND supplierName = ?";
       whereArgs = [
         productName,
         imei,
@@ -6343,7 +6488,48 @@ class DBHelper {
   // ========== CUSTOMER METHODS ==========
   Future<int> insertCustomer(Map<String, dynamic> customer) async {
     final db = await database;
-    return await db.insert('customers', customer);
+    final data = _sanitizeForSqlite(Map<String, dynamic>.from(customer));
+    data.remove('id');
+    data.remove('_encrypted');
+
+    final phone = (data['phone'] ?? '').toString().trim();
+    final shopId = (data['shopId'] ?? '').toString().trim();
+
+    // Prevent duplicates by reusing existing customer with same shopId+phone.
+    if (phone.isNotEmpty) {
+      final existing = await db.query(
+        'customers',
+        where: shopId.isNotEmpty ? 'shopId = ? AND phone = ?' : 'phone = ?',
+        whereArgs: shopId.isNotEmpty ? [shopId, phone] : [phone],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) {
+        final existingId = (existing.first['id'] as num).toInt();
+        await db.update('customers', data, where: 'id = ?', whereArgs: [existingId]);
+        return existingId;
+      }
+    }
+
+    try {
+      return await db.insert('customers', data);
+    } catch (e) {
+      // Fallback for old DBs still carrying global unique(phone).
+      final msg = e.toString();
+      if (msg.contains('UNIQUE constraint failed: customers.phone') && phone.isNotEmpty) {
+        final existingByPhone = await db.query(
+          'customers',
+          where: 'phone = ?',
+          whereArgs: [phone],
+          limit: 1,
+        );
+        if (existingByPhone.isNotEmpty) {
+          final existingId = (existingByPhone.first['id'] as num).toInt();
+          await db.update('customers', data, where: 'id = ?', whereArgs: [existingId]);
+          return existingId;
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<int> updateCustomer(int id, Map<String, dynamic> customer) async {
@@ -6461,7 +6647,47 @@ class DBHelper {
         return;
       }
     }
-    await db.insert('customers', cleanData);
+
+    final phone = (cleanData['phone'] ?? '').toString().trim();
+    final shopId = (cleanData['shopId'] ?? '').toString().trim();
+    if (phone.isNotEmpty) {
+      final existingByShopPhone = await db.query(
+        'customers',
+        where: shopId.isNotEmpty ? 'shopId = ? AND phone = ?' : 'phone = ?',
+        whereArgs: shopId.isNotEmpty ? [shopId, phone] : [phone],
+        limit: 1,
+      );
+      if (existingByShopPhone.isNotEmpty) {
+        final existingId = (existingByShopPhone.first['id'] as num).toInt();
+        await db.update(
+          'customers',
+          cleanData,
+          where: 'id = ?',
+          whereArgs: [existingId],
+        );
+        return;
+      }
+    }
+
+    try {
+      await db.insert('customers', cleanData);
+    } catch (e) {
+      final msg = e.toString();
+      if (msg.contains('UNIQUE constraint failed: customers.phone') && phone.isNotEmpty) {
+        final existingByPhone = await db.query(
+          'customers',
+          where: 'phone = ?',
+          whereArgs: [phone],
+          limit: 1,
+        );
+        if (existingByPhone.isNotEmpty) {
+          final existingId = (existingByPhone.first['id'] as num).toInt();
+          await db.update('customers', cleanData, where: 'id = ?', whereArgs: [existingId]);
+          return;
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<void> deleteCustomerByFirestoreId(String firestoreId) async {
@@ -7286,7 +7512,7 @@ class DBHelper {
     final db = await database;
     final orphans = await db.query(
       'repair_parts',
-      where: '(firestoreId IS NULL OR firestoreId = "") AND (isSynced = 0 OR isSynced IS NULL)',
+      where: "(firestoreId IS NULL OR firestoreId = '') AND (isSynced = 0 OR isSynced IS NULL)",
     );
     
     if (orphans.isEmpty) {
@@ -7302,7 +7528,7 @@ class DBHelper {
     // Xóa orphans
     final deleted = await db.delete(
       'repair_parts',
-      where: '(firestoreId IS NULL OR firestoreId = "") AND (isSynced = 0 OR isSynced IS NULL)',
+      where: "(firestoreId IS NULL OR firestoreId = '') AND (isSynced = 0 OR isSynced IS NULL)",
     );
     debugPrint('DB: Đã xóa $deleted orphan repair_parts');
     return deleted;
@@ -7315,7 +7541,7 @@ class DBHelper {
     final result = await db.update(
       'repair_parts',
       {'isSynced': 1},
-      where: 'firestoreId IS NOT NULL AND firestoreId != "" AND (isSynced = 0 OR isSynced IS NULL)',
+      where: "firestoreId IS NOT NULL AND firestoreId != '' AND (isSynced = 0 OR isSynced IS NULL)",
     );
     debugPrint('DB: Force marked $result repair_parts as synced');
     return result;
@@ -7328,7 +7554,7 @@ class DBHelper {
     final db = await database;
     final stuck = await db.query(
       'repair_parts',
-      where: 'deleted = 1 AND firestoreId IS NOT NULL AND firestoreId != ""',
+      where: "deleted = 1 AND firestoreId IS NOT NULL AND firestoreId != ''",
     );
     if (stuck.isEmpty) return 0;
 
@@ -7340,7 +7566,7 @@ class DBHelper {
     final fixed = await db.update(
       'repair_parts',
       {'deleted': 0, 'isSynced': 1},
-      where: 'deleted = 1 AND firestoreId IS NOT NULL AND firestoreId != ""',
+      where: "deleted = 1 AND firestoreId IS NOT NULL AND firestoreId != ''",
     );
     debugPrint('DB: Fixed $fixed stuck deleted repair_parts → deleted=0');
     return fixed;

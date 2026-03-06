@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -71,6 +72,70 @@ class SyncService {
         data[field] = (data[field] as Timestamp).millisecondsSinceEpoch;
       }
     }
+  }
+
+  static List<String> _splitImagePaths(String? csv) {
+    if (csv == null || csv.trim().isEmpty) return const [];
+
+    final raw = csv.trim();
+    final output = <String>[];
+
+    void addCandidate(String? value) {
+      if (value == null) return;
+      var s = value.trim();
+      if (s.isEmpty) return;
+      if ((s.startsWith('"') && s.endsWith('"')) ||
+          (s.startsWith("'") && s.endsWith("'"))) {
+        s = s.substring(1, s.length - 1).trim();
+      }
+      if (s.startsWith('[') && s.endsWith(']')) {
+        s = s.substring(1, s.length - 1).trim();
+      }
+      if (s.isEmpty) return;
+      if (!output.contains(s)) {
+        output.add(s);
+      }
+    }
+
+    if (raw.startsWith('[') && raw.endsWith(']')) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          for (final item in decoded) {
+            addCandidate(item?.toString());
+          }
+          if (output.isNotEmpty) return output;
+        }
+      } catch (_) {
+        // Continue with delimiter fallback.
+      }
+    }
+
+    for (final part in raw.split(RegExp(r'[,;\n]'))) {
+      addCandidate(part);
+    }
+
+    return output;
+  }
+
+  static bool _isCloudImagePath(String path) {
+    return path.startsWith('http://') ||
+        path.startsWith('https://') ||
+        path.startsWith('gs://');
+  }
+
+  static bool _hasLocalImagePath(String? csv) {
+    return _splitImagePaths(csv).any((p) => !_isCloudImagePath(p));
+  }
+
+  static String _normalizeLegacyShopName(String? rawName) {
+    final name = (rawName ?? '').trim();
+    if (name.isEmpty) return 'QUAN LY SHOP';
+    final lower = name.toLowerCase();
+    if (lower == 'shop new' || lower == 'shop_new' || lower == 'shopnew') {
+      return 'QUAN LY SHOP';
+    }
+    return name;
   }
 
   /// Public wrapper cho _convertTimestampFields (dùng bởi SyncHealthCheck.autoFix)
@@ -338,11 +403,12 @@ class SyncService {
     // và fix records bị stuck deleted=1 do bug cũ
     try {
       final dbHelper = DBHelper();
+      final deduped = await dbHelper.cleanupCloudShadowDuplicates();
       final orphansCleaned = await dbHelper.cleanupOrphanRepairParts();
       final forceMarked = await dbHelper.forceMarkRepairPartsSynced();
       final stuckFixed = await dbHelper.fixStuckDeletedRepairParts();
-      if (orphansCleaned > 0 || forceMarked > 0 || stuckFixed > 0) {
-        debugPrint("🧹 Auto-cleanup: removed $orphansCleaned orphans, force-marked $forceMarked synced, fixed $stuckFixed stuck-deleted");
+      if (deduped > 0 || orphansCleaned > 0 || forceMarked > 0 || stuckFixed > 0) {
+        debugPrint("🧹 Auto-cleanup: deduped $deduped cloud-shadow rows, removed $orphansCleaned orphans, force-marked $forceMarked synced, fixed $stuckFixed stuck-deleted");
       }
     } catch (e) {
       debugPrint("⚠️ Auto-cleanup failed: $e");
@@ -617,7 +683,7 @@ class SyncService {
 
         // Cập nhật SharedPreferences để các màn hình khác có thể đọc
         final prefs = await SharedPreferences.getInstance();
-        final shopName = data['name']?.toString() ?? '';
+        final shopName = _normalizeLegacyShopName(data['name']?.toString());
         final shopAddress = data['address']?.toString() ?? '';
         final shopPhone = data['phone']?.toString() ?? '';
 
@@ -1760,7 +1826,9 @@ class SyncService {
 
       // Sync unsynced repairs
       final repairs = await dbHelper.getAllRepairs();
-      final unsyncedRepairs = repairs.where((r) => !r.isSynced || (r.imagePath?.contains('cache') ?? false)).toList();
+        final unsyncedRepairs = repairs
+          .where((r) => !r.isSynced || _hasLocalImagePath(r.imagePath))
+          .toList();
 
       if (unsyncedRepairs.isEmpty) {
         debugPrint('⚡ syncRepairData: no unsynced repairs');
@@ -1781,18 +1849,18 @@ class SyncService {
           data.remove('firestoreId');
 
           // Upload local images if needed
-          if (r.imagePath != null &&
-              r.imagePath!.isNotEmpty &&
-              !r.imagePath!.startsWith('http')) {
+          if (_hasLocalImagePath(r.imagePath)) {
             try {
+              final allPaths = _splitImagePaths(r.imagePath);
               List<String> urls = await StorageService.uploadMultipleImages(
-                r.imagePath!.split(',').where((path) => !path.startsWith('http')).toList(),
+                allPaths.where((path) => !_isCloudImagePath(path)).toList(),
                 'repairs/${r.createdAt}',
               ).timeout(
                 const Duration(seconds: 15),
                 onTimeout: () => <String>[],
               );
-              List<String> allUrls = r.imagePath!.split(',').where((path) => path.startsWith('http')).toList();
+              List<String> allUrls =
+                  allPaths.where((path) => _isCloudImagePath(path)).toList();
               allUrls.addAll(urls);
               data['imagePath'] = allUrls.join(',');
             } catch (e) {
@@ -1885,15 +1953,11 @@ class SyncService {
           data.remove('firestoreId');
 
           // Xử lý upload ảnh nếu là ảnh local với timeout
-          if (r.imagePath != null &&
-              r.imagePath!.isNotEmpty &&
-              !r.imagePath!.startsWith('http')) {
+          if (_hasLocalImagePath(r.imagePath)) {
+            final allPaths = _splitImagePaths(r.imagePath);
             List<String> urls =
                 await StorageService.uploadMultipleImages(
-                  r.imagePath!
-                      .split(',')
-                      .where((path) => !path.startsWith('http'))
-                      .toList(),
+                  allPaths.where((path) => !_isCloudImagePath(path)).toList(),
                   'repairs/${r.createdAt}',
                 ).timeout(
                   const Duration(seconds: 30),
@@ -1905,10 +1969,8 @@ class SyncService {
                   },
                 );
             // Giữ lại các ảnh cũ là URL và thêm ảnh mới
-            List<String> allUrls = r.imagePath!
-                .split(',')
-                .where((path) => path.startsWith('http'))
-                .toList();
+            List<String> allUrls =
+              allPaths.where((path) => _isCloudImagePath(path)).toList();
             allUrls.addAll(urls);
             data['imagePath'] = allUrls.join(',');
           }
@@ -2058,15 +2120,11 @@ class SyncService {
           data.remove('firestoreId');
 
           // Xử lý upload ảnh nếu là ảnh local với timeout
-          if (p.images != null &&
-              p.images!.isNotEmpty &&
-              !p.images!.startsWith('http')) {
+          if (_hasLocalImagePath(p.images)) {
+            final allPaths = _splitImagePaths(p.images);
             List<String> urls =
                 await StorageService.uploadMultipleImages(
-                  p.images!
-                      .split(',')
-                      .where((path) => !path.startsWith('http'))
-                      .toList(),
+                  allPaths.where((path) => !_isCloudImagePath(path)).toList(),
                   'products/${p.createdAt}',
                 ).timeout(
                   const Duration(seconds: 30),
@@ -2077,7 +2135,10 @@ class SyncService {
                     return <String>[];
                   },
                 );
-            data['images'] = urls.join(',');
+            final existingCloud =
+                allPaths.where((path) => _isCloudImagePath(path)).toList();
+            existingCloud.addAll(urls);
+            data['images'] = existingCloud.join(',');
           }
 
           final docId =

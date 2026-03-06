@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,6 +16,7 @@ import '../services/notification_service.dart';
 import '../services/category_service.dart';
 import '../services/event_bus.dart';
 import '../utils/money_utils.dart';
+import '../utils/excel_export_helper.dart';
 import '../widgets/custom_app_bar.dart';
 import 'sale_detail_view.dart';
 import 'repair_detail_view.dart';
@@ -460,7 +462,8 @@ class _CashClosingViewState extends State<CashClosingView>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      body: _isLoading
+      body: ResponsiveCenter(
+        child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : NestedScrollView(
               headerSliverBuilder: (context, _) => [_buildSliverAppBar()],
@@ -475,6 +478,7 @@ class _CashClosingViewState extends State<CashClosingView>
                 ],
               ),
             ),
+      ),
     );
   }
 
@@ -547,6 +551,16 @@ class _CashClosingViewState extends State<CashClosingView>
         ],
       ),
       actions: [
+        IconButton(
+          tooltip: 'Xuất Excel sổ quỹ',
+          icon: const Icon(
+            Icons.file_download,
+            size: 20,
+            color: Colors.white,
+          ),
+          onPressed: _exportCashClosingExcel,
+          splashRadius: 18,
+        ),
         IconButton(
           icon: const Icon(
             Icons.calendar_month,
@@ -623,6 +637,25 @@ class _CashClosingViewState extends State<CashClosingView>
         ],
       ),
     );
+  }
+
+  Future<void> _exportCashClosingExcel() async {
+    try {
+      final incomeList = _getIncomeTransactions(_selectedDate);
+      final expenseList = _getExpenseTransactions(_selectedDate);
+
+      await ExcelExportHelper.exportCashClosingTransactions(
+        context,
+        selectedDate: _selectedDate,
+        incomeList: incomeList,
+        expenseList: expenseList,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi xuất Excel sổ quỹ: $e')),
+      );
+    }
   }
 
   Widget _fundCard(String emoji, String label, int amount) {
@@ -1043,7 +1076,7 @@ class _CashClosingViewState extends State<CashClosingView>
       return formatter.format(int.parse(digits));
     }
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -2099,7 +2132,7 @@ class _CashClosingViewState extends State<CashClosingView>
   /// Show bottom sheet detail for non-navigable transactions (expenses, debts, imports)
   void _showTransactionDetail(Map<String, dynamic> t, bool isIncome) {
     final color = isIncome ? Colors.green : Colors.red;
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
@@ -2525,7 +2558,7 @@ class _CashClosingViewState extends State<CashClosingView>
     bankEndCtrl.text = expectedBank.toString();
     noteCtrl.clear();
     bool isSavingClosing = false;
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -3064,6 +3097,9 @@ class _CashClosingViewState extends State<CashClosingView>
             r.costRecordedAt != null &&
             _isSameDay(r.costRecordedAt!, date),
       )) {
+        final recordedAmount = (r.costRecordedAmount ?? 0) > 0
+            ? (r.costRecordedAmount ?? 0)
+            : r.totalCost;
         list.add({
           'type': 'repair_parts_cost',
           'icon': '🔩',
@@ -3072,7 +3108,7 @@ class _CashClosingViewState extends State<CashClosingView>
           'detail': 'Chi phí vốn linh kiện SC',
           'paymentMethod': r.costPaymentMethod ?? 'TIỀN MẶT',
           'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.costRecordedAt!)),
-          'amount': r.totalCost,
+          'amount': recordedAmount,
           'rawData': r.toMap(),
         });
       }
@@ -3211,11 +3247,14 @@ class _CashClosingViewState extends State<CashClosingView>
           r.costRecordedAt != null &&
           _isSameDay(r.costRecordedAt!, now),
     )) {
-      repairPartsCostFund += r.totalCost;
+      final recordedAmount = (r.costRecordedAmount ?? 0) > 0
+          ? (r.costRecordedAmount ?? 0)
+          : r.totalCost;
+      repairPartsCostFund += recordedAmount;
       if (r.costPaymentMethod == 'TIỀN MẶT') {
-        cashOut += r.totalCost;
+        cashOut += recordedAmount;
       } else {
-        bankOut += r.totalCost;
+        bankOut += recordedAmount;
       }
     }
     }

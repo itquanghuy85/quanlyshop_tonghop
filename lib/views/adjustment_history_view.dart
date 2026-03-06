@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
 import '../services/adjustment_service.dart';
@@ -83,11 +84,11 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
           ),
         ],
       ),
-      body: _isLoading
+      body: ResponsiveCenter(child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _adjustments.isEmpty
           ? _buildEmpty()
-          : _buildList(),
+          : _buildList()),
     );
   }
 

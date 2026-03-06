@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:barcode/barcode.dart' as bc;
 import 'package:barcode_image/barcode_image.dart' hide Barcode;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
@@ -11,7 +13,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/utils/money_utils.dart';
 import 'bluetooth_printer_service.dart';
 import 'wifi_printer_service.dart';
+import 'web_print_bridge_service.dart';
 import 'label_settings_service.dart';
+import 'user_service.dart';
 import '../models/label_template_model.dart';
 import '../models/product_model.dart';
 import '../models/repair_model.dart';
@@ -63,6 +67,42 @@ class _LabelElementConfig {
 }
 
 class UnifiedPrinterService {
+  static Future<Map<String, String>> _loadReceiptPolicies() async {
+    final prefs = await SharedPreferences.getInstance();
+    String warrantyPolicy = (prefs.getString('warranty_policy') ?? '').trim();
+    String returnPolicy = (prefs.getString('return_policy') ?? '').trim();
+
+    if (warrantyPolicy.isNotEmpty || returnPolicy.isNotEmpty) {
+      return {
+        'warranty': warrantyPolicy,
+        'return': returnPolicy,
+      };
+    }
+
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId != null && shopId.isNotEmpty) {
+        final shopDoc = await FirebaseFirestore.instance
+            .collection('shops')
+            .doc(shopId)
+            .get();
+        final data = shopDoc.data();
+        warrantyPolicy = (data?['warrantyPolicy'] ?? '').toString().trim();
+        returnPolicy = (data?['returnPolicy'] ?? '').toString().trim();
+
+        if (warrantyPolicy.isNotEmpty || returnPolicy.isNotEmpty) {
+          await prefs.setString('warranty_policy', warrantyPolicy);
+          await prefs.setString('return_policy', returnPolicy);
+        }
+      }
+    } catch (_) {}
+
+    return {
+      'warranty': warrantyPolicy,
+      'return': returnPolicy,
+    };
+  }
+
   static String _applyTemplate(String template, Map<String, String> data) {
     var result = template;
     data.forEach((key, value) {
@@ -79,6 +119,7 @@ class UnifiedPrinterService {
     String? wifiIp,
   }) async {
     try {
+    final policies = await _loadReceiptPolicies();
       final profile = await CapabilityProfile.load();
       final generator = Generator(paper, profile);
       final bytes = <int>[];
@@ -927,6 +968,19 @@ class UnifiedPrinterService {
       print('PRINT_DEBUG: wifiIp = $wifiIp');
       print('PRINT_DEBUG: bluetoothPrinter = $bluetoothPrinter');
       print('PRINT_DEBUG: bluetoothPrinter type = ${bluetoothPrinter?.runtimeType}');
+
+      // Browser cannot print to BT/WiFi sockets directly.
+      // Route web print through local/LAN bridge server.
+      if (kIsWeb) {
+        final bridgeOk = await WebPrintBridgeService.sendBytes(
+          bytes,
+          wifiIp: wifiIp,
+          printerType: printerType,
+          jobType: 'receipt',
+        );
+        print('PRINT_DEBUG: [WEB_BRIDGE] result: $bridgeOk');
+        return bridgeOk;
+      }
       
       // WiFi printer - chỉ khi chọn explicit WiFi
       if (printerType == PrinterType.wifi) {
@@ -2087,6 +2141,7 @@ class UnifiedPrinterService {
     String? wifiIp,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    final policies = await _loadReceiptPolicies();
     final useTemplate = prefs.getBool('sale_invoice_use_template') ?? false;
     final templateHeader = prefs.getString('sale_invoice_header') ?? '';
     final templateBody = prefs.getString('sale_invoice_body') ?? '';
@@ -2416,19 +2471,38 @@ class UnifiedPrinterService {
     );
     bytes.addAll(generator.feed(1));
 
-    // Lưu ý
+    // Lưu ý + chính sách
     bytes.addAll(
       generator.text(
         _removeDiacritics("- Cam on quy khach da tin dung shop."),
         styles: const PosStyles(fontType: PosFontType.fontB),
       ),
     );
-    bytes.addAll(
-      generator.text(
-        _removeDiacritics("- Hang da ban khong duoc doi tra."),
-        styles: const PosStyles(fontType: PosFontType.fontB),
-      ),
-    );
+    final warrantyPolicy = policies['warranty'] ?? '';
+    final returnPolicy = policies['return'] ?? '';
+    if (warrantyPolicy.isNotEmpty) {
+      bytes.addAll(
+        generator.text(
+          _removeDiacritics("- BAO HANH: $warrantyPolicy"),
+          styles: const PosStyles(fontType: PosFontType.fontB),
+        ),
+      );
+    }
+    if (returnPolicy.isNotEmpty) {
+      bytes.addAll(
+        generator.text(
+          _removeDiacritics("- DOI TRA: $returnPolicy"),
+          styles: const PosStyles(fontType: PosFontType.fontB),
+        ),
+      );
+    } else {
+      bytes.addAll(
+        generator.text(
+          _removeDiacritics("- Hang da ban khong duoc doi tra."),
+          styles: const PosStyles(fontType: PosFontType.fontB),
+        ),
+      );
+    }
     bytes.addAll(generator.feed(1));
 
     // Chữ ký
@@ -2508,6 +2582,7 @@ class UnifiedPrinterService {
     String? wifiIp,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    final policies = await _loadReceiptPolicies();
     final fontScale = prefs.getDouble('label_font_scale') ?? 1.0;
     final profile = await CapabilityProfile.load();
     final generator = Generator(paperSize, profile);
@@ -2603,6 +2678,25 @@ class UnifiedPrinterService {
             align: PosAlign.center,
             fontType: PosFontType.fontB,
           ),
+        ),
+      );
+    }
+
+    final warrantyPolicy = policies['warranty'] ?? '';
+    final returnPolicy = policies['return'] ?? '';
+    if (warrantyPolicy.isNotEmpty) {
+      bytes.addAll(
+        generator.text(
+          _removeDiacritics("BAO HANH: $warrantyPolicy"),
+          styles: const PosStyles(fontType: PosFontType.fontB),
+        ),
+      );
+    }
+    if (returnPolicy.isNotEmpty) {
+      bytes.addAll(
+        generator.text(
+          _removeDiacritics("DOI TRA: $returnPolicy"),
+          styles: const PosStyles(fontType: PosFontType.fontB),
         ),
       );
     }

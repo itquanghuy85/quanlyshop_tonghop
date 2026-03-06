@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../services/user_service.dart';
 import '../services/claims_service.dart';
 import '../theme/app_text_styles.dart';
@@ -63,7 +64,7 @@ class SuperAdminView extends StatelessWidget {
             ],
           ),
         ),
-        body: const TabBarView(children: [ShopsTab(), UsersTab()]),
+        body: ResponsiveCenter(child: const TabBarView(children: [ShopsTab(), UsersTab()])),
       ),
     );
   }

@@ -18,21 +18,68 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Phần mềm quản lý tiệm sửa chữa mua bán điện thoại chuyên nghiệp">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="shop_new">
+  <meta name="apple-mobile-web-app-title" content="Quản Lý Shop">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>shop_new</title>
+  <title>Quản Lý Shop</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script>
+    // Version-based cache busting: force reload when app is updated
+    const APP_VERSION = '10.2.0';
+
+    (async function () {
+      try {
+        const storedVersion = localStorage.getItem('qls_app_version');
+
+        // If version changed, clear all caches and force reload
+        if (storedVersion && storedVersion !== APP_VERSION) {
+          console.log('App updated: ' + storedVersion + ' → ' + APP_VERSION);
+
+          // Unregister all service workers
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+          }
+
+          // Clear all caches
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          }
+
+          localStorage.setItem('qls_app_version', APP_VERSION);
+          // Force hard reload to get new files
+          location.reload();
+          return;
+        }
+
+        // First visit or same version: just save version
+        localStorage.setItem('qls_app_version', APP_VERSION);
+
+        // First visit cleanup: unregister stale service workers once
+        if (!storedVersion && 'serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          }
+        }
+      } catch (e) {
+        console.warn('Version check warning:', e);
+      }
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

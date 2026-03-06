@@ -19,6 +19,7 @@ import '../widgets/currency_text_field.dart';
 import '../widgets/custom_app_bar.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class RevenueView extends StatefulWidget {
   const RevenueView({super.key});
@@ -394,7 +395,7 @@ class _RevenueViewState extends State<RevenueView>
   }
 
   void _showFilterSheet() {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -625,11 +626,13 @@ class _RevenueViewState extends State<RevenueView>
           ),
         ],
       ),
-      body: _isLoading
+      body: ResponsiveCenter(
+        child: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             )
           : _buildOverview(),
+      ),
     );
   }
 

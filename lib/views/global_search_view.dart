@@ -15,6 +15,7 @@ import 'inventory_view.dart';
 import 'customer_history_view.dart';
 import 'quick_input_codes_view.dart';
 import '../utils/vietnamese_utils.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class GlobalSearchView extends StatefulWidget {
   final String role;
@@ -248,7 +249,8 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
         ),
         automaticallyImplyLeading: true,
       ),
-      body: Column(
+      body: ResponsiveCenter(
+        child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -332,7 +334,7 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
                       ),
           ),
         ],
-      ),
+      )),
     );
   }
 

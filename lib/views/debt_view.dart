@@ -20,6 +20,7 @@ import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
 import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'repair_partner_detail_view.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
@@ -282,7 +283,7 @@ class _DebtViewState extends State<DebtView>
     final payments = await db.getDebtPayments(debt['id']);
     if (!mounted) return;
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -619,7 +620,8 @@ class _DebtViewState extends State<DebtView>
           ),
         ],
       ),
-      body: _isLoading
+      body: ResponsiveCenter(
+        child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
@@ -630,6 +632,7 @@ class _DebtViewState extends State<DebtView>
                 _buildDebtList('OTHER'),
               ],
             ),
+      ),
       floatingActionButton: (_enableRepair && _tabController?.index == 2)
           ? null // Không có FAB cho tab đối tác (quản lý qua trang đối tác)
           : FloatingActionButton(

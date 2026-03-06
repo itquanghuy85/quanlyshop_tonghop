@@ -35,6 +35,8 @@ import 'parts_inventory_view.dart';
 import 'pty_print_designer_view.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/validated_text_field.dart';
+import '../models/stock_entry_model.dart';
+import '../services/stock_entry_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -44,6 +46,7 @@ import '../services/business_type_helper.dart';
 import '../models/shop_settings_model.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class InventoryView extends StatefulWidget {
   final String role;
@@ -358,7 +361,7 @@ class _InventoryViewState extends State<InventoryView>
     }
     
     final repairs = await db.getRepairsByImei(displayProduct.imei ?? '');
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -543,6 +546,32 @@ class _InventoryViewState extends State<InventoryView>
               ),
               const SizedBox(height: 12),
             ],
+            // Quick stock-in button for PHU_KIEN / LINH_KIEN
+            if (p.type == 'PHU_KIEN' || p.type == 'LINH_KIEN') ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showQuickStockInDialog(p);
+                  },
+                  icon: const Icon(Icons.add_shopping_cart, color: Colors.white),
+                  label: Text(
+                    'NHẬP THÊM (${p.quantity} trong kho)',
+                    style: AppTextStyles.subtitle1.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Row(
               children: [
                 Expanded(
@@ -652,6 +681,175 @@ class _InventoryViewState extends State<InventoryView>
         ),
       ),
     );
+  }
+
+  /// Quick stock-in dialog for PHU_KIEN / LINH_KIEN
+  void _showQuickStockInDialog(Product p) {
+    final qtyCtrl = TextEditingController(text: '1');
+    final costCtrl = TextEditingController(text: p.cost > 0 ? p.cost.toString() : '');
+    String paymentMethod = 'TIỀN MẶT';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.add_shopping_cart, color: Colors.green.shade700),
+                const SizedBox(width: 8),
+                Expanded(child: Text('NHẬP THÊM', style: AppTextStyles.headline3.copyWith(fontWeight: FontWeight.bold))),
+              ],
+            ),
+            content: SizedBox(
+              width: responsiveDialogWidth(context),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Product info
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(p.type == 'LINH_KIEN' ? '🔧' : '🎧', style: const TextStyle(fontSize: 24)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(p.name, style: AppTextStyles.headline4.copyWith(fontWeight: FontWeight.bold)),
+                              Text('Tồn kho hiện tại: ${p.quantity}', style: AppTextStyles.subtitle1.copyWith(color: Colors.grey[600])),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Quantity
+                  TextField(
+                    controller: qtyCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      labelText: 'Số lượng nhập thêm',
+                      prefixIcon: const Icon(Icons.add_circle_outline),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Cost price
+                  CurrencyTextField(
+                    controller: costCtrl,
+                    label: 'Giá nhập (VNĐ)',
+                    icon: Icons.attach_money,
+                  ),
+                  const SizedBox(height: 12),
+                  // Payment method
+                  DropdownButtonFormField<String>(
+                    value: paymentMethod,
+                    decoration: InputDecoration(
+                      labelText: 'Phương thức thanh toán',
+                      prefixIcon: const Icon(Icons.payment),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'TIỀN MẶT', child: Text('Tiền mặt')),
+                      DropdownMenuItem(value: 'CHUYỂN KHOẢN', child: Text('Chuyển khoản')),
+                      DropdownMenuItem(value: 'CÔNG NỢ', child: Text('Công nợ')),
+                    ],
+                    onChanged: (v) => setDialogState(() => paymentMethod = v!),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('HỦY')),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.check, color: Colors.white),
+                label: const Text('NHẬP KHO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                onPressed: () async {
+                  final qty = int.tryParse(qtyCtrl.text) ?? 0;
+                  if (qty <= 0) {
+                    NotificationService.showSnackBar('Vui lòng nhập số lượng hợp lệ', color: Colors.red);
+                    return;
+                  }
+                  final cost = CurrencyTextField.parseValue(costCtrl.text);
+                  if (cost <= 0) {
+                    NotificationService.showSnackBar('Vui lòng nhập giá nhập hợp lệ', color: Colors.red);
+                    return;
+                  }
+                  Navigator.pop(ctx);
+                  await _processQuickStockIn(p, qty, cost, paymentMethod);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _processQuickStockIn(Product p, int qty, int cost, String paymentMethod) async {
+    try {
+      NotificationService.showSnackBar('Đang nhập kho...', color: Colors.blue);
+      final shopId = await UserService.getCurrentShopId() ?? '';
+      final service = StockEntryService();
+
+      // Create a stock entry for audit trail and financial tracking
+      final entry = StockEntry(
+        shopId: shopId,
+        status: StockEntryStatus.draft,
+        entryType: StockEntryType.quick,
+        paymentMethod: paymentMethod,
+        supplierName: p.supplier,
+        items: [
+          StockEntryItem(
+            name: p.name,
+            quantity: qty,
+            cost: cost.toDouble(),
+            price: p.price.toDouble(),
+            productType: p.type,
+            brand: p.brand,
+            model: p.model,
+            capacity: p.capacity,
+            color: p.color,
+            sku: p.sku,
+            unit: p.unit,
+            size: p.size,
+          ),
+        ],
+      );
+
+      final created = await service.createEntry(entry);
+      if (created == null || created.firestoreId == null) {
+        NotificationService.showSnackBar('Lỗi tạo phiếu nhập kho', color: Colors.red);
+        return;
+      }
+
+      // Auto-confirm entry to update stock + financial records
+      final confirmed = await service.confirmEntry(created.firestoreId!);
+      if (confirmed) {
+        NotificationService.showSnackBar(
+          '✅ Đã nhập thêm $qty ${p.name} vào kho',
+          color: Colors.green,
+        );
+        // Force sync to reflect new quantities
+        await SyncOrchestrator().syncAll();
+        _refresh();
+      } else {
+        NotificationService.showSnackBar('Lỗi xác nhận phiếu nhập kho', color: Colors.red);
+      }
+    } catch (e) {
+      debugPrint('Quick stock-in error: $e');
+      NotificationService.showSnackBar('Lỗi: $e', color: Colors.red);
+    }
   }
 
   void _createSaleOrder(Product p) {
@@ -1783,22 +1981,6 @@ class _InventoryViewState extends State<InventoryView>
         accentColor: AppBarAccents.inventory,
         actions: [
           IconButton(
-            onPressed: () {
-              HapticFeedback.mediumImpact();
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CreateSaleView()),
-              ).then((_) => _refresh());
-            },
-            icon: const Icon(
-              Icons.shopping_cart_checkout_rounded,
-              color: AppBarAccents.inventory,
-              size: 22,
-            ),
-            tooltip: 'Bán hàng nhanh',
-            splashRadius: 20,
-          ),
-          IconButton(
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -1810,7 +1992,7 @@ class _InventoryViewState extends State<InventoryView>
               color: AppBarAccents.inventory,
               size: 22,
             ),
-            tooltip: 'Tìm kiếm toàn app',
+            tooltip: 'Tìm kiếm',
             splashRadius: 20,
           ),
           IconButton(
@@ -1823,124 +2005,79 @@ class _InventoryViewState extends State<InventoryView>
             tooltip: 'Làm mới',
             splashRadius: 20,
           ),
-          IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PtyPrintDesignerView()),
-            ),
-            icon: const Icon(
-              Icons.qr_code_2_rounded,
-              color: AppBarAccents.inventory,
-              size: 22,
-            ),
-            tooltip: 'PTY Designer',
-            splashRadius: 20,
-          ),
-          TextButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SupplierListView()),
-            ),
-            icon: Icon(
-              Icons.business_center,
-              size: 18,
-              color: AppBarAccents.inventory.withOpacity(0.7),
-            ),
-            label: Text(
-              'NCC',
-              style: AppTextStyles.caption.copyWith(
-                color: AppBarAccents.inventory.withOpacity(0.7),
-              ),
-            ),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-            ),
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.file_download_outlined,
-              color: AppBarAccents.inventory,
-              size: 22,
-            ),
-            tooltip: 'Xuất Excel kho hàng',
-            splashRadius: 20,
-            onPressed: () async {
-              final result = await ExportDateFilterDialog.show(context, title: 'Xuất kho hàng');
-              if (result == null) return;
-              if (!mounted) return;
-              await ExcelExportHelper.exportProducts(
-                context,
-                startMs: result['startMs'],
-                endMs: result['endMs'],
-              );
-            },
-          ),
         ],
       ),
-      body: Column(
+      body: ResponsiveCenter(
+        child: Column(
         children: [
           Expanded(
             child: _buildInventoryTab(),
           ),
-          // Bottom navigation row - 3 nút: NHẬP KHO, NHẬP NHANH, LINH KIỆN
+          // Unified bottom bar with labels
           Container(
-            color: AppColors.surface,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                // Nhập kho button - chuyển tới SmartStockInView
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SmartStockInView()),
-                    ).then((_) => _refresh()),
-                    icon: Icon(Icons.add_box_rounded, size: _iconSize - 2),
-                    label: Text("NHẬP KHO", style: AppTextStyles.body1),
-                    style: AppButtonStyles.elevatedButtonStyle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                // Nhập nhanh button - only show for electronics shops
-                if (_businessType == 'electronics')
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const FastStockInView(),
-                        ),
-                      ).then((_) => _refresh()),
-                      icon: Icon(Icons.flash_on, size: _iconSize - 2),
-                      label: Text("NHANH", style: AppTextStyles.body1),
-                      style: AppButtonStyles.elevatedButtonStyle,
-                    ),
-                  ),
-                if (_businessType == 'electronics')
-                  const SizedBox(width: 6),
-                if (_businessType == 'electronics')
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const PartsInventoryView()),
-                      ).then((_) => _refresh()),
-                      icon: Icon(Icons.build_circle, size: _iconSize - 2),
-                      label: Text(_terms.category3.toUpperCase(), style: AppTextStyles.body1),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0068FF),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, -1))],
+            ),
+            padding: const EdgeInsets.only(top: 6, bottom: 6, left: 4, right: 4),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _bottomBarItem(Icons.add_box_rounded, 'Nhập kho', Colors.green, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartStockInView())).then((_) => _refresh());
+                  }),
+                  if (_businessType == 'electronics')
+                    _bottomBarItem(Icons.flash_on, 'Nhanh', Colors.orange, () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const FastStockInView())).then((_) => _refresh());
+                    }),
+                  if (_businessType == 'electronics')
+                    _bottomBarItem(Icons.build_circle, _terms.category3, const Color(0xFF0068FF), () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const PartsInventoryView())).then((_) => _refresh());
+                    }),
+                  _bottomBarItem(Icons.shopping_cart_checkout_rounded, 'Bán hàng', Colors.teal, () {
+                    HapticFeedback.mediumImpact();
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView())).then((_) => _refresh());
+                  }),
+                  _bottomBarItem(Icons.business_center, 'NCC', Colors.indigo, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SupplierListView()));
+                  }),
+                  _bottomBarItem(Icons.qr_code_2_rounded, 'In tem', Colors.purple, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const PtyPrintDesignerView()));
+                  }),
+                  _bottomBarItem(Icons.file_download_outlined, 'Excel', Colors.blueGrey, () async {
+                    final result = await ExportDateFilterDialog.show(context, title: 'Xuất kho hàng');
+                    if (result == null) return;
+                    if (!mounted) return;
+                    await ExcelExportHelper.exportProducts(context, startMs: result['startMs'], endMs: result['endMs']);
+                  }),
+                ],
+              ),
             ),
           ),
         ],
+      ),
+      ),
+    );
+  }
+
+  Widget _bottomBarItem(IconData icon, String label, Color color, VoidCallback onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 2),
+              Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
       ),
     );
   }

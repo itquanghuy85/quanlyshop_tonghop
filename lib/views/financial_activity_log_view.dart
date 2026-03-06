@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../data/db_helper.dart';
 import '../models/financial_activity_model.dart';
 import '../models/repair_model.dart';
@@ -206,8 +207,8 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
       final results = await Future.wait([
         // sales: composite index (shopId, soldAt) exists
         _queryWithDateFilter(firestore.collection('sales'), shopId, 'soldAt', startMs, endMs),
-        // repairs: composite index (shopId, createdAt) deployed
-        _queryWithDateFilter(firestore.collection('repairs'), shopId, 'createdAt', startMs, endMs),
+        // repairs: recognize only delivered repairs in period
+        _queryWithDateFilter(firestore.collection('repairs'), shopId, 'deliveredAt', startMs, endMs),
         // expenses: field name varies (date/createdAt) — keep unfiltered for safety
         firestore.collection('expenses').where('shopId', isEqualTo: shopId).get(),
         // debt_payments: composite index (shopId, paidAt) deployed
@@ -294,31 +295,38 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
           final data = doc.data();
           if (data['deleted'] == true) continue;
           convertTimestamps(data);
-          final createdAt = data['createdAt'] as int? ?? 0;
-          if (createdAt < startMs || createdAt > endMs) continue;
+          final deliveredAt = data['deliveredAt'] as int? ?? 0;
+          final status = (data['status'] as num?)?.toInt() ?? 0;
+          if (status != 4) continue;
+          if (deliveredAt < startMs || deliveredAt > endMs) continue;
 
           data['firestoreId'] = doc.id;
           final repair = Repair.fromMap(data);
-          if (repair.totalCost <= 0) continue;
-          allActivities.add(FinancialActivity.fromRepair(
-            firestoreId: doc.id,
-            amount: repair.totalCost,
-            paymentMethod: repair.paymentMethod,
-            customerName: repair.customerName,
-            phone: repair.phone,
-            deviceModel: repair.model,
-            createdAt: repair.createdAt,
-            shopId: shopId,
-          ));
+          // Thu sửa chỉ ghi nhận khi đã thu tiền, không ghi khi còn công nợ.
+          if (repair.paymentMethod != 'CÔNG NỢ' && repair.price > 0) {
+            allActivities.add(FinancialActivity.fromRepair(
+              firestoreId: doc.id,
+              amount: repair.price,
+              paymentMethod: repair.paymentMethod,
+              customerName: repair.customerName,
+              phone: repair.phone,
+              deviceModel: repair.model,
+              createdAt: deliveredAt,
+              shopId: shopId,
+            ));
+          }
 
           // Repair parts cost recorded in fund
           if (repair.costRecordedInFund &&
               repair.costRecordedAt != null &&
               repair.costRecordedAt! >= startMs &&
               repair.costRecordedAt! <= endMs) {
+            final recordedAmount = (repair.costRecordedAmount ?? 0) > 0
+                ? (repair.costRecordedAmount ?? 0)
+                : repair.totalCost;
             allActivities.add(FinancialActivity.fromRepairPartsCost(
               firestoreId: doc.id,
-              amount: repair.totalCost,
+              amount: recordedAmount,
               paymentMethod: repair.costPaymentMethod ?? 'TIỀN MẶT',
               customerName: repair.customerName,
               phone: repair.phone,
@@ -495,7 +503,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     String? tempType = _selectedType;
     String? tempDirection = _selectedDirection;
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -784,9 +792,11 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
           child: _buildStandaloneTabBar(),
         ),
       ),
-      body: TabBarView(
+      body: ResponsiveCenter(
+        child: TabBarView(
         controller: _tabController,
         children: [_buildFinancialTab(), _buildAuditLogTab()],
+      ),
       ),
     );
   }
@@ -1409,7 +1419,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     final String entityId = log['targetId'] ?? log['entityId'] ?? '';
     final String description = log['description'] ?? log['summary'] ?? '';
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1973,7 +1983,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
   void _showActivityDetail(FinancialActivity activity) {
     final date = DateTime.fromMillisecondsSinceEpoch(activity.createdAt);
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -686,12 +687,12 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
             indicatorColor: Colors.white,
           ),
         ),
-        body: TabBarView(
+        body: ResponsiveCenter(child: TabBarView(
           children: [
             _buildGeneralSettingsTab(),
             _buildStaffManagementTabSimple(),
           ],
-        ),
+        )),
       ),
     );
   }

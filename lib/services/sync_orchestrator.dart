@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import '../data/db_helper.dart';
+import 'storage_service.dart';
 import 'user_service.dart';
 
 /// Enum định nghĩa các loại entity được sync
@@ -150,6 +151,58 @@ class SyncOrchestrator {
   // Is syncing flag
   bool _isSyncing = false;
   bool get isSyncing => _isSyncing;
+
+  static List<String> _splitImagePaths(String? csv) {
+    if (csv == null) return const [];
+    final raw = csv.trim();
+    if (raw.isEmpty) return const [];
+    return raw
+        .split(RegExp(r'[,;\n]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
+  static bool _isCloudImagePath(String path) {
+    final p = path.trim().toLowerCase();
+    return p.startsWith('http://') ||
+        p.startsWith('https://') ||
+        p.startsWith('gs://');
+  }
+
+  Future<void> _normalizeRepairImagePathsForCloud(Map<String, dynamic> data) async {
+    final rawImagePath = data['imagePath'];
+    if (rawImagePath == null) return;
+
+    final allPaths = _splitImagePaths(rawImagePath.toString());
+    if (allPaths.isEmpty) {
+      data['imagePath'] = '';
+      return;
+    }
+
+    final cloudPaths = allPaths.where(_isCloudImagePath).toList();
+    final localPaths = allPaths.where((p) => !_isCloudImagePath(p)).toList();
+
+    if (localPaths.isEmpty) {
+      data['imagePath'] = cloudPaths.join(',');
+      return;
+    }
+
+    final folderSuffix = (data['createdAt'] ?? DateTime.now().millisecondsSinceEpoch)
+        .toString();
+    final uploadedUrls = await StorageService.uploadMultipleImages(
+      localPaths,
+      'repairs/$folderSuffix',
+    );
+
+    if (uploadedUrls.length < localPaths.length) {
+      throw Exception(
+        'Repair images not fully uploaded (${uploadedUrls.length}/${localPaths.length}), keep in queue for retry',
+      );
+    }
+
+    data['imagePath'] = [...cloudPaths, ...uploadedUrls].join(',');
+  }
 
   // Max retry before marking as failed
   static const int maxRetries = 3;
@@ -406,6 +459,11 @@ class SyncOrchestrator {
     data['shopId'] = shopId;
     data['updatedAt'] = FieldValue.serverTimestamp();
 
+    // Ensure web-compatible image URLs are stored for repairs.
+    if (item.entityType == SyncEntityType.repair) {
+      await _normalizeRepairImagePathsForCloud(data);
+    }
+
     // Remove local-only fields
     data.remove('id');
     data.remove('isSynced');
@@ -461,6 +519,11 @@ class SyncOrchestrator {
     // Add shopId and timestamp
     data['shopId'] = shopId;
     data['updatedAt'] = FieldValue.serverTimestamp();
+
+    // Ensure web-compatible image URLs are stored for repairs.
+    if (item.entityType == SyncEntityType.repair) {
+      await _normalizeRepairImagePathsForCloud(data);
+    }
 
     // Remove local-only fields
     data.remove('id');

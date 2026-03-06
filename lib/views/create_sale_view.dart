@@ -31,6 +31,7 @@ import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/variant_selector.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -1401,29 +1402,31 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         }
       }
 
-      // Create customer if not exists - FIX: Dùng finalPrice
-      final customerService = CustomerService();
-      final existingCustomers = await customerService.getCustomers();
-      final existing = existingCustomers
-          .where((c) => c.phone == phoneCtrl.text.trim())
-          .toList();
-      if (existing.isEmpty) {
-        final newCustomer = Customer(
-          name: nameCtrl.text.trim().toUpperCase(),
-          phone: phoneCtrl.text.trim(),
-          address: addressCtrl.text.trim().toUpperCase(),
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-          totalSpent: finalPrice, // FIX: Dùng finalPrice
-        );
-        await customerService.addCustomer(newCustomer);
-      } else {
-        // Update customer stats (tổng chi tiêu) - FIX: Dùng finalPrice
-        await customerService.updateCustomerStatsAfterSale(
-          phoneCtrl.text.trim(),
-          finalPrice, // FIX: Dùng finalPrice
-          address: addressCtrl.text.trim().toUpperCase(),
-          name: nameCtrl.text.trim().toUpperCase(),
-        );
+      // Create/update customer only for non-walk-in with non-empty phone.
+      final normalizedPhoneForCustomer = phoneCtrl.text.trim();
+      if (!_isWalkIn && normalizedPhoneForCustomer.isNotEmpty) {
+        final customerService = CustomerService();
+        final existingCustomers = await customerService.getCustomers();
+        final existing = existingCustomers
+            .where((c) => c.phone == normalizedPhoneForCustomer)
+            .toList();
+        if (existing.isEmpty) {
+          final newCustomer = Customer(
+            name: nameCtrl.text.trim().toUpperCase(),
+            phone: normalizedPhoneForCustomer,
+            address: addressCtrl.text.trim().toUpperCase(),
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            totalSpent: finalPrice,
+          );
+          await customerService.addCustomer(newCustomer);
+        } else {
+          await customerService.updateCustomerStatsAfterSale(
+            normalizedPhoneForCustomer,
+            finalPrice,
+            address: addressCtrl.text.trim().toUpperCase(),
+            name: nameCtrl.text.trim().toUpperCase(),
+          );
+        }
       }
 
       // Trigger payment notification if payment is completed - FIX: Dùng finalPrice
@@ -1584,7 +1587,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+          : ResponsiveCenter(
+              maxWidth: 800,
+              child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1817,6 +1822,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 ],
               ),
             ),
+          ),
     );
   }
 
@@ -2715,7 +2721,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     final hasPromotion = isGift || sellPrice < originalPrice;
 
     // Result: {'action': 'gift'|'discount'|'reset', 'price': int?}
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
+    final result = await showAppBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true, // allow resize when keyboard opens
       shape: const RoundedRectangleBorder(
@@ -3133,7 +3139,7 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
+        width: responsiveDialogWidth(context),
         height: MediaQuery.of(context).size.height * 0.8,
         padding: const EdgeInsets.all(16),
         child: Column(

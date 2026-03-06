@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' as m;
 import 'package:intl/intl.dart';
@@ -102,7 +103,16 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
   }
 
   void _openGallery(List<String> images, int index) {
-    final validImages = images.where((p) => p.startsWith('http') || File(p).existsSync()).toList();
+    final validImages = images
+        .map((p) => p.trim())
+        .where(
+          (p) =>
+              p.startsWith('http') ||
+              p.startsWith('blob:') ||
+              p.startsWith('data:') ||
+              (!kIsWeb && File(p).existsSync()),
+        )
+        .toList();
     if (validImages.isEmpty) return;
 
     m.Navigator.push(context, m.MaterialPageRoute(builder: (_) => m.Scaffold(
@@ -111,7 +121,12 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
       body: PhotoViewGallery.builder(
         itemCount: validImages.length,
         builder: (context, i) => PhotoViewGalleryPageOptions(
-          imageProvider: validImages[i].startsWith('http') ? m.NetworkImage(validImages[i]) : m.FileImage(File(validImages[i])) as m.ImageProvider,
+            imageProvider: (validImages[i].startsWith('http') ||
+                validImages[i].startsWith('blob:') ||
+                validImages[i].startsWith('data:') ||
+                kIsWeb)
+              ? m.NetworkImage(validImages[i])
+              : m.FileImage(File(validImages[i])) as m.ImageProvider,
           initialScale: PhotoViewComputedScale.contained,
           minScale: PhotoViewComputedScale.contained,
           maxScale: PhotoViewComputedScale.covered * 3,
@@ -147,7 +162,11 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
                     final bool isRepair = item['type'] == 'REPAIR';
                     final List<String> imgs = List<String>.from(item['images']);
                     final String thumb = imgs.firstWhere(
-                      (p) => p.startsWith('http') || File(p).existsSync(),
+                      (p) =>
+                          p.startsWith('http') ||
+                          p.startsWith('blob:') ||
+                          p.startsWith('data:') ||
+                          (!kIsWeb && File(p).existsSync()),
                       orElse: () => '',
                     );
                     final bool hasThumb = thumb.isNotEmpty;
@@ -172,7 +191,10 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
                             child: hasThumb
                               ? m.ClipRRect(
                                   borderRadius: m.BorderRadius.circular(10),
-                                  child: thumb.startsWith('http')
+                                    child: (thumb.startsWith('http') ||
+                                        thumb.startsWith('blob:') ||
+                                        thumb.startsWith('data:') ||
+                                        kIsWeb)
                                       ? m.Image.network(thumb, fit: m.BoxFit.cover)
                                       : m.Image.file(File(thumb), fit: m.BoxFit.cover),
                                 )

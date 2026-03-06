@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/event_bus.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/responsive_wrapper.dart';
 
 /// Trang báo cáo tài chính tổng hợp
 /// Hiển thị TẤT CẢ giao dịch liên quan đến tiền:
@@ -220,6 +221,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
       // 2. Sửa chữa — chỉ lấy đơn đã giao trong khoảng (thay vì getAllRepairs)
       final repairs = await _db.getDeliveredRepairsByDateRange(startMs, endMs);
       for (final repair in repairs) {
+        if (repair.paymentMethod.toUpperCase() == 'CÔNG NỢ') {
+          // Chưa thu tiền khách thì chưa ghi nhận thu sửa/lợi nhuận.
+          continue;
+        }
         final deliveredAt = repair.deliveredAt ?? repair.createdAt;
         allTransactions.add(
           TransactionItem(
@@ -566,7 +571,8 @@ class _FinancialReportViewState extends State<FinancialReportView>
           },
         ),
       ),
-      body: _loading
+      body: ResponsiveCenter(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -576,6 +582,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
                 Expanded(child: _buildTransactionList()),
               ],
             ),
+      ),
     );
   }
 
@@ -1161,7 +1168,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
   }
 
   void _showTransactionDetail(TransactionItem t) {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1270,7 +1277,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
   }
 
   Future<void> _showFilterDialog() async {
-    await showModalBottomSheet(
+    await showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(

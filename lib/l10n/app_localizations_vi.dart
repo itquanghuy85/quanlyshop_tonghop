@@ -3513,7 +3513,7 @@ class AppLocalizationsVi extends AppLocalizations {
   }
 
   @override
-  String get defaultShopName => 'SHOP NEW';
+  String get defaultShopName => 'QUẢN LÝ SHOP';
 
   @override
   String get defaultShopDesc => 'Chuyên Smartphone';

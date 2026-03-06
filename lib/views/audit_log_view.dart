@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../data/db_helper.dart';
 import '../theme/app_text_styles.dart';
 
@@ -63,7 +64,8 @@ class _AuditLogViewState extends State<AuditLogView> {
           ),
         ],
       ),
-      body: _loading
+      body: ResponsiveCenter(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _logs.isEmpty
           ? _buildEmpty()
@@ -72,6 +74,7 @@ class _AuditLogViewState extends State<AuditLogView> {
               itemCount: _logs.length,
               itemBuilder: (ctx, i) => _buildLogCard(_logs[i], i + 1),
             ),
+      ),
     );
   }
 
@@ -297,7 +300,7 @@ class _AuditLogViewState extends State<AuditLogView> {
     final String entityId = log['targetId'] ?? log['entityId'] ?? '';
     final String description = log['description'] ?? log['summary'] ?? '';
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

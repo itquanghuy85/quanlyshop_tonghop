@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/notification_service.dart';
@@ -129,7 +130,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
         elevation: 0,
         foregroundColor: Colors.white,
       ),
-      body: ListView(
+      body: ResponsiveCenter(child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // Permission Status Section
@@ -196,7 +197,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
           _buildTestNotificationButton(),
           _buildInfoCard(),
         ],
-      ),
+      )),
     );
   }
 

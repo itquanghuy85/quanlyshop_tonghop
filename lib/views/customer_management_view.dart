@@ -7,6 +7,7 @@ import '../services/sync_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/global_search_bar.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/vietnamese_utils.dart';
 import '../utils/excel_export_helper.dart';
@@ -290,7 +291,8 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
           ),
         ],
       ),
-      body: Column(
+      body: ResponsiveCenter(
+        child: Column(
         children: [
           // Search bar
           Padding(
@@ -348,6 +350,7 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
                       ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -639,7 +642,7 @@ class CustomerHistoryDialog extends StatelessWidget {
 
     return Dialog(
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
+        width: responsiveDialogWidth(context),
         height: MediaQuery.of(context).size.height * 0.8,
         padding: const EdgeInsets.all(16),
         child: Column(

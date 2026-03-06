@@ -3,6 +3,7 @@ import '../services/firestore_service.dart';
 import '../widgets/notification_item.dart';
 import '../theme/app_colors.dart';
 import 'notification_settings_view.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class NotificationsView extends StatefulWidget {
   const NotificationsView({super.key});
@@ -39,7 +40,8 @@ class _NotificationsViewState extends State<NotificationsView> {
           ),
         ],
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
+      body: ResponsiveCenter(
+        child: StreamBuilder<List<Map<String, dynamic>>>(
         stream: FirestoreService.getUserNotifications(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -77,7 +79,7 @@ class _NotificationsViewState extends State<NotificationsView> {
             },
           );
         },
-      ),
+      )),
     );
   }
 

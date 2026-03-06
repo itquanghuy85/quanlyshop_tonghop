@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/responsive_wrapper.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/product_model.dart';
 import '../../models/product_variant_model.dart';
@@ -188,7 +189,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
           ],
         ),
       ),
-      body: _isLoading
+      body: ResponsiveCenter(child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
@@ -198,7 +199,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
                 _buildLowStockTab(),
                 _buildByProductTab(),
               ],
-            ),
+            )),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddVariantDialog,
         icon: const Icon(Icons.add),
@@ -647,7 +648,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
 
   void _showAddVariantDialog() async {
     // First select product
-    final selectedProduct = await showModalBottomSheet<Product>(
+    final selectedProduct = await showAppBottomSheet<Product>(
       context: context,
       isScrollControlled: true,
       builder: (context) => _ProductSelectorSheet(dbHelper: _dbHelper),
@@ -690,7 +691,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
 
   void _showBulkImportDialog() async {
     // First select product
-    final selectedProduct = await showModalBottomSheet<Product>(
+    final selectedProduct = await showAppBottomSheet<Product>(
       context: context,
       isScrollControlled: true,
       builder: (context) => _ProductSelectorSheet(dbHelper: _dbHelper),

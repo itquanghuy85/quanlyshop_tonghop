@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../data/help_center_repository.dart';
 import '../theme/app_text_styles.dart';
 import '../services/notification_service.dart';
@@ -98,7 +99,7 @@ class _HelpCenterViewState extends State<HelpCenterView> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Column(
+      body: ResponsiveCenter(child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
@@ -162,7 +163,7 @@ class _HelpCenterViewState extends State<HelpCenterView> {
             child: _buildContentList(categories, topics),
           ),
         ],
-      ),
+      )),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           NotificationService.showSnackBar(
@@ -433,7 +434,7 @@ class _HelpCenterViewState extends State<HelpCenterView> {
 
   void _openTopicDetail(HelpTopic topic) {
     final role = widget.userRole.isEmpty ? 'all' : widget.userRole;
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,

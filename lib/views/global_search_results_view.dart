@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
@@ -116,7 +117,7 @@ class _GlobalSearchResultsViewState extends State<GlobalSearchResultsView> {
         elevation: 0,
         title: Text('Kết quả tìm kiếm: "${widget.query}"'),
       ),
-      body: Column(
+      body: ResponsiveCenter(child: Column(
         children: [
           // Category filter
           Container(
@@ -182,7 +183,7 @@ class _GlobalSearchResultsViewState extends State<GlobalSearchResultsView> {
                       ),
           ),
         ],
-      ),
+      )),
     );
   }
 

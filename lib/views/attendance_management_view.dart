@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../models/attendance_model.dart';
 import '../services/user_service.dart';
+import '../services/osm_map_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../l10n/app_localizations.dart';
@@ -243,7 +245,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
           ),
         ],
       ),
-      body: _loading
+      body: ResponsiveCenter(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -255,6 +258,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                 Expanded(child: _buildStaffAttendanceList()),
               ],
             ),
+      ),
     );
   }
 
@@ -742,7 +746,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
     
     final record = records.first;
     
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -799,6 +803,23 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
             _detailRow(AppLocalizations.of(context)!.earlyLeave, record.isEarlyLeave == 1 ? AppLocalizations.of(context)!.yes : AppLocalizations.of(context)!.no),
             if (record.location != null)
               _detailRow(AppLocalizations.of(context)!.locationLabel, record.location!),
+            if (record.location != null &&
+                OsmMapService.parseLatLng(record.location) != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final p = OsmMapService.parseLatLng(record.location);
+                      if (p == null) return;
+                      await OsmMapService.openPoint(p[0], p[1]);
+                    },
+                    icon: const Icon(Icons.map, size: 18),
+                    label: const Text('Xem vị trí trên OSM'),
+                  ),
+                ),
+              ),
             
             const SizedBox(height: 16),
             
@@ -864,7 +885,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
   }
 
   void _showMonthDetail(Map<String, dynamic> staff, List<Attendance> records) {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

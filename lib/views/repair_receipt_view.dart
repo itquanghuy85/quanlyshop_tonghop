@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../utils/money_utils.dart';
 import '../widgets/currency_text_field.dart';
 import '../theme/app_text_styles.dart';
@@ -166,7 +167,7 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
         elevation: 0,
         title: const Text('PHIẾ́U TIẾ́P NHẬN SỬa CHỮa'),
       ),
-      body: SingleChildScrollView(
+      body: ResponsiveCenter(child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
@@ -343,7 +344,7 @@ class _RepairReceiptViewState extends State<RepairReceiptView> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 

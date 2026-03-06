@@ -24,6 +24,7 @@ import '../core/utils/money_utils.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
@@ -954,7 +955,8 @@ class _StaffListViewState extends State<StaffListView> {
               label: 'Thêm NV',
             )
           : null,
-      body: _loadingRole
+      body: ResponsiveCenter(
+        child: _loadingRole
           ? const Center(child: CircularProgressIndicator())
           : _currentShopId == null && !_isSuperAdmin
           ? Center(
@@ -1231,6 +1233,7 @@ class _StaffListViewState extends State<StaffListView> {
                 );
               },
             ),
+      ),
     );
   }
 
@@ -1241,7 +1244,7 @@ class _StaffListViewState extends State<StaffListView> {
     String currentRole,
     Map<String, dynamic> fullData,
   ) {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

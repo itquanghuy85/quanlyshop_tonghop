@@ -56,6 +56,28 @@ class CurrentShopService {
           'CurrentShopService: Loaded activeShopId=$_activeShopId for uid=$currentUid',
         );
 
+        // Validate saved active shop to avoid stale cache causing empty data.
+        if (_activeShopId != null && _activeShopId!.isNotEmpty) {
+          bool isValid = false;
+          try {
+            final shopDoc = await _db.collection('shops').doc(_activeShopId).get();
+            if (shopDoc.exists && shopDoc.data()?['deleted'] != true) {
+              final userShopId = await UserService.getCurrentShopId();
+              final ownerUid = shopDoc.data()?['ownerUid']?.toString();
+              isValid = ownerUid == currentUid || userShopId == _activeShopId;
+            }
+          } catch (e) {
+            debugPrint('CurrentShopService: validate activeShopId error: $e');
+          }
+
+          if (!isValid) {
+            debugPrint('CurrentShopService: stale activeShopId=$_activeShopId, clearing');
+            _activeShopId = null;
+            UserService.updateCachedShopId(null);
+            await prefs.remove(_prefKey);
+          }
+        }
+
         // Update UserService cache for backward compatibility
         if (_activeShopId != null && _activeShopId!.isNotEmpty) {
           UserService.updateCachedShopId(_activeShopId);

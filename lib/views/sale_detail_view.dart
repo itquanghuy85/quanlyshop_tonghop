@@ -30,6 +30,7 @@ import '../models/shop_settings_model.dart';
 import '../models/printer_types.dart';
 import '../constants/financial_constants.dart';
 import '../widgets/printer_selection_dialog.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'sale_invoice_template_view.dart';
@@ -1047,7 +1048,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
+      body: ResponsiveCenter(
+        maxWidth: 800,
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
@@ -1149,6 +1152,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               ]),
           ],
         ),
+      ),
       ),
     );
   }

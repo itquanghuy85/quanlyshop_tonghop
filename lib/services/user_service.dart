@@ -308,10 +308,23 @@ class UserService {
 
     // Nếu cache còn hiệu lực và đúng user thì trả về
     if (_cachedShopId != null && _cachedUid == currentUser.uid) {
+      try {
+        final shopDoc = await _db.collection('shops').doc(_cachedShopId).get();
+        final validCached = shopDoc.exists && shopDoc.data()?['deleted'] != true;
+        if (!validCached) {
+          debugPrint('getCurrentShopId: cached shopId=$_cachedShopId is invalid, clearing cache');
+          _cachedShopId = null;
+        }
+      } catch (e) {
+        debugPrint('getCurrentShopId: cached shop validation error: $e');
+      }
+
+      if (_cachedShopId != null && _cachedShopId!.isNotEmpty) {
       debugPrint(
         "getCurrentShopId: trả về cache $_cachedShopId cho user $_cachedUid",
       );
       return _cachedShopId;
+      }
     }
 
     // Cache không hợp lệ hoặc user khác - cần load lại
@@ -326,7 +339,74 @@ class UserService {
       debugPrint("getCurrentShopId: lấy dữ liệu user ${currentUser.uid}");
       final doc = await _db.collection('users').doc(currentUser.uid).get();
       final data = doc.data();
-      final shopId = data != null ? data['shopId'] as String? : null;
+      String? shopId = data != null ? data['shopId'] as String? : null;
+
+      // Auto-heal 1: nếu user doc thiếu shopId, ưu tiên lấy từ custom claims.
+      if (shopId == null || shopId.trim().isEmpty) {
+        final claimsShopId = await ClaimsService().getShopIdFromClaims();
+        if (claimsShopId != null && claimsShopId.trim().isNotEmpty) {
+          shopId = claimsShopId;
+          try {
+            await _db.collection('users').doc(currentUser.uid).set({
+              'shopId': claimsShopId,
+              'lastRecoveredAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+            debugPrint(
+              'getCurrentShopId: recovered user.shopId from claims -> $claimsShopId',
+            );
+          } catch (e) {
+            debugPrint('getCurrentShopId: failed to persist claims shopId: $e');
+          }
+        }
+      }
+
+      // Auto-heal 2: nếu vẫn thiếu shopId, thử tìm shop mà user đang là owner.
+      if (shopId == null || shopId.trim().isEmpty) {
+        final ownedShopId = await _findOwnedActiveShopId(currentUser.uid);
+        if (ownedShopId != null && ownedShopId.isNotEmpty) {
+          shopId = ownedShopId;
+          try {
+            await _db.collection('users').doc(currentUser.uid).set({
+              'shopId': ownedShopId,
+              'lastRecoveredAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+            debugPrint(
+              'getCurrentShopId: recovered missing user.shopId -> $ownedShopId',
+            );
+          } catch (e) {
+            debugPrint('getCurrentShopId: failed to persist recovered shopId: $e');
+          }
+        }
+      }
+
+      // Nếu shopId hiện tại trỏ tới shop đã bị xóa/không tồn tại, fallback sang shop owner đang active.
+      if (shopId != null && shopId.trim().isNotEmpty) {
+        try {
+          final shopDoc = await _db.collection('shops').doc(shopId).get();
+          final shopDeleted = shopDoc.data()?['deleted'] == true;
+          final role = (data?['role'] ?? '').toString().trim().toLowerCase();
+          final isOwnerRole = role == 'owner';
+          final ownerUid = shopDoc.data()?['ownerUid']?.toString();
+          final ownerMismatch = isOwnerRole && ownerUid != null && ownerUid != currentUser.uid;
+
+          if (!shopDoc.exists || shopDeleted || ownerMismatch) {
+            final ownedShopId = await _findOwnedActiveShopId(currentUser.uid);
+            if (ownedShopId != null && ownedShopId.isNotEmpty && ownedShopId != shopId) {
+              debugPrint(
+                'getCurrentShopId: switching from invalid/mismatched shopId=$shopId to owned shop=$ownedShopId',
+              );
+              shopId = ownedShopId;
+              await _db.collection('users').doc(currentUser.uid).set({
+                'shopId': ownedShopId,
+                'lastRecoveredAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+            }
+          }
+        } catch (e) {
+          debugPrint('getCurrentShopId: unable to validate shop document: $e');
+        }
+      }
+
       _cachedShopId = shopId;
       _cachedUid = currentUser.uid; // Lưu uid để verify cache
       debugPrint("getCurrentShopId: shopId = $shopId cho uid = $_cachedUid");
@@ -517,55 +597,93 @@ class UserService {
     String? shopId = data['shopId'];
     bool isNewShop = false;
 
-    // Nếu chưa có shopId và không phải super admin => tạo 1 shop trùng với uid
+    // Nếu chưa có shopId và không phải super admin:
+    // 1) ưu tiên dùng shop đang sở hữu (nếu có) để tránh rơi vào shop mới rỗng,
+    // 2) nếu không có mới tạo shop mới trùng uid.
     if (!isSuperAdmin && (shopId == null || shopId.trim().isEmpty)) {
-      shopId = uid;
-      isNewShop = true;
-      debugPrint(
-        '🆕 syncUserInfo: Creating new shop with id=$shopId for user $email',
-      );
-
-      // CRITICAL: Tạo shop document trước và đợi hoàn thành
-      try {
-        await _db.collection('shops').doc(shopId).set({
-          'shopId': shopId,
-          'ownerUid': uid,
-          'ownerEmail': email,
-          'name': extra?['shopName'] ?? 'Cửa hàng mới',
-          'businessType': 'electronics', // Default cho shop mới
-          'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-        debugPrint('✅ syncUserInfo: Shop document created successfully');
-        
-        // Tạo shop_settings subcollection doc cho shop mới
+      final claimsShopId = await ClaimsService().getShopIdFromClaims();
+      if (claimsShopId != null && claimsShopId.trim().isNotEmpty) {
+        shopId = claimsShopId;
+        debugPrint('🔁 syncUserInfo: Reusing claims shopId=$shopId');
+      } else {
+        // Force refresh token/claims once before deciding to create a new shop.
+        // This avoids creating an empty shop when claims sync is delayed.
         try {
-          final settings = {
-            'shopId': shopId,
-            'businessType': 'electronics',
-            'businessTypeName': 'Điện thoại & Điện tử',
-            'enableRepair': true,
-            'enableSerial': true,
-            'enableWarranty': true,
-            'enableExpiry': false,
-            'enableVariants': false,
-            'enableBatch': false,
-            'defaultUnit': 'cái',
-            'expiryWarningDays': 7,
-            'lowStockWarning': 5,
-            'createdAt': DateTime.now().toIso8601String(),
-            'updatedAt': DateTime.now().toIso8601String(),
-          };
-          await _db.collection('shops').doc(shopId)
-              .collection('settings').doc('shop_settings')
-              .set(settings);
-          debugPrint('✅ syncUserInfo: shop_settings created for new shop');
+          await ClaimsService().forceRefresh();
+          final freshClaims = await ClaimsService().getClaimsFromToken(
+            forceRefresh: true,
+          );
+          final freshClaimsShopId = freshClaims?['shopId']?.toString();
+          if (freshClaimsShopId != null && freshClaimsShopId.trim().isNotEmpty) {
+            shopId = freshClaimsShopId.trim();
+            debugPrint('🔁 syncUserInfo: Reusing FRESH claims shopId=$shopId');
+          }
         } catch (e) {
-          debugPrint('⚠️ syncUserInfo: Failed to create shop_settings: $e');
-          // Non-critical, CategoryService will auto-create from shop doc businessType
+          debugPrint('⚠️ syncUserInfo: force refresh claims failed: $e');
         }
-      } catch (e) {
-        debugPrint('❌ syncUserInfo: Failed to create shop: $e');
-        rethrow; // Không tiếp tục nếu không tạo được shop
+
+        if (shopId != null && shopId.trim().isNotEmpty) {
+          // Persist recovered shopId for stable future logins.
+          await userRef.set({
+            'shopId': shopId,
+            'lastRecoveredAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } else {
+        final ownedShopId = await _findOwnedActiveShopId(uid);
+        if (ownedShopId != null && ownedShopId.isNotEmpty) {
+          shopId = ownedShopId;
+          debugPrint('🔁 syncUserInfo: Reusing existing owned shopId=$shopId');
+        } else {
+          shopId = uid;
+          isNewShop = true;
+          debugPrint(
+            '🆕 syncUserInfo: Creating new shop with id=$shopId for user $email',
+          );
+
+          // CRITICAL: Tạo shop document trước và đợi hoàn thành
+          try {
+            await _db.collection('shops').doc(shopId).set({
+              'shopId': shopId,
+              'ownerUid': uid,
+              'ownerEmail': email,
+              'name': extra?['shopName'] ?? 'Cửa hàng mới',
+              'businessType': 'electronics', // Default cho shop mới
+              'createdAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+            debugPrint('✅ syncUserInfo: Shop document created successfully');
+
+            // Tạo shop_settings subcollection doc cho shop mới
+            try {
+              final settings = {
+                'shopId': shopId,
+                'businessType': 'electronics',
+                'businessTypeName': 'Điện thoại & Điện tử',
+                'enableRepair': true,
+                'enableSerial': true,
+                'enableWarranty': true,
+                'enableExpiry': false,
+                'enableVariants': false,
+                'enableBatch': false,
+                'defaultUnit': 'cái',
+                'expiryWarningDays': 7,
+                'lowStockWarning': 5,
+                'createdAt': DateTime.now().toIso8601String(),
+                'updatedAt': DateTime.now().toIso8601String(),
+              };
+              await _db.collection('shops').doc(shopId)
+                  .collection('settings').doc('shop_settings')
+                  .set(settings);
+              debugPrint('✅ syncUserInfo: shop_settings created for new shop');
+            } catch (e) {
+              debugPrint('⚠️ syncUserInfo: Failed to create shop_settings: $e');
+              // Non-critical, CategoryService will auto-create from shop doc businessType
+            }
+          } catch (e) {
+            debugPrint('❌ syncUserInfo: Failed to create shop: $e');
+            rethrow; // Không tiếp tục nếu không tạo được shop
+          }
+        }
+        }
       }
     }
 
@@ -960,6 +1078,28 @@ class UserService {
         }, SetOptions(merge: true));
       }
     }
+  }
+
+  /// Tìm shop active mà user là owner để phục hồi shopId khi user doc thiếu/sai.
+  static Future<String?> _findOwnedActiveShopId(String uid) async {
+    try {
+      final snap = await _db
+          .collection('shops')
+          .where('ownerUid', isEqualTo: uid)
+          .limit(10)
+          .get();
+
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        if (data['deleted'] == true) {
+          continue;
+        }
+        return doc.id;
+      }
+    } catch (e) {
+      debugPrint('_findOwnedActiveShopId error for uid=$uid: $e');
+    }
+    return null;
   }
 
   /// Cập nhật phân quyền ẩn/hiện nội dung cho một nhân viên cụ thể

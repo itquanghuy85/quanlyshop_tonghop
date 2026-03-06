@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -28,10 +25,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for windows - '
@@ -51,7 +45,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyA5wW6zMHiWB_5xme99MVl0eSj7bhpO-S0',
-    appId: '1:51200928212:android:c0d1e9d964b3213b910e41',
+    appId: '1:51200928212:android:fdd5862b241eb527910e41',
     messagingSenderId: '51200928212',
     projectId: 'huyaka-1809',
     storageBucket: 'huyaka-1809.firebasestorage.app',
@@ -59,10 +53,30 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAS_5VLVEO1GdjrK9XbnqlrHLegMmEGHW4',
-    appId: '1:51200928212:ios:1a6411725b0e4a1c910e41',
+    appId: '1:51200928212:ios:04c10eca3b61a3be910e41',
     messagingSenderId: '51200928212',
     projectId: 'huyaka-1809',
     storageBucket: 'huyaka-1809.firebasestorage.app',
-    iosBundleId: 'com.huluca.shopmanager',
+    iosBundleId: 'com.huluca.shop',
   );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyAS_5VLVEO1GdjrK9XbnqlrHLegMmEGHW4',
+    appId: '1:51200928212:ios:04c10eca3b61a3be910e41',
+    messagingSenderId: '51200928212',
+    projectId: 'huyaka-1809',
+    storageBucket: 'huyaka-1809.firebasestorage.app',
+    iosBundleId: 'com.huluca.shop',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyBjeyh1irlquOPS_9NE1LhnQGkGoqNmwZo',
+    appId: '1:51200928212:web:12805e998ca77c6a910e41',
+    messagingSenderId: '51200928212',
+    projectId: 'huyaka-1809',
+    authDomain: 'huyaka-1809.firebaseapp.com',
+    storageBucket: 'huyaka-1809.firebasestorage.app',
+    measurementId: 'G-4C6GFDT31V',
+  );
+
 }

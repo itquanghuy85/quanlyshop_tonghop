@@ -31,6 +31,7 @@ import 'repair_partner_form_view.dart';
 import 'repair_partner_detail_view.dart';
 import 'create_sale_view.dart';
 import 'inventory_view.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class SupplierListView extends StatefulWidget {
   const SupplierListView({super.key});
@@ -491,7 +492,8 @@ class _SupplierListViewState extends State<SupplierListView>
             ? const [Color(0xFF667eea), Color(0xFF764ba2)]
             : const [Color(0xFF11998e), Color(0xFF38ef7d)],
       ),
-      body: _isElectronics
+      body: ResponsiveCenter(
+        child: _isElectronics
           ? TabBarView(
               controller: _tabController,
               children: [
@@ -500,6 +502,7 @@ class _SupplierListViewState extends State<SupplierListView>
               ],
             )
           : _buildSupplierTab(),
+      ),
     );
   }
 

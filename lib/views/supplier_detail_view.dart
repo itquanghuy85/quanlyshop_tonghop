@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/supplier_model.dart';
 import '../models/payment_intent_model.dart';
@@ -111,7 +112,7 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
           ],
         ),
       ),
-      body: _loading
+      body: ResponsiveCenter(child: _loading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tab,
@@ -120,7 +121,7 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
                 _buildDebtTab(),
                 _buildStatsTab(),
               ],
-            ),
+            )),
       floatingActionButton: _tab.index == 1
           ? GradientFab.success(
               onPressed: _remainDebt <= 0 ? null : _payDialog,

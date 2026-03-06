@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../core/utils/money_utils.dart';
 import '../controllers/fast_inventory_input_controller.dart';
@@ -216,7 +217,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
 
   /// Mở scanner QR/Barcode để quét IMEI - xử lý thông minh QR nhiều dòng
   void _openQRScannerForIMEI() {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -330,7 +331,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
           ),
         ],
       ),
-      body: TabBarView(
+      body: ResponsiveCenter(child: TabBarView(
         controller: _tabController,
         children: [
           // Tab "Nhập đơn" sử dụng FastStockInView embedded (không có Scaffold)
@@ -338,7 +339,7 @@ class _FastInventoryInputViewState extends State<FastInventoryInputView>
           _buildScannerTab(),
           _buildBatchTab(),
         ],
-      ),
+      )),
     );
   }
 

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -87,6 +88,12 @@ class StorageService {
     try {
       if (localPath.startsWith('http')) return localPath; // Đã là link cloud
 
+      if (kIsWeb) {
+        // Web/mobile-browser: localPath thường là blob URL, upload theo bytes.
+        final picked = XFile(localPath);
+        return await uploadXFileAndGetUrl(picked, folder);
+      }
+
       File file = File(localPath);
       if (!file.existsSync()) return null;
 
@@ -120,6 +127,55 @@ class StorageService {
     }
   }
 
+  /// Upload trực tiếp từ XFile (an toàn cho web vì dùng bytes).
+  static Future<String?> uploadXFileAndGetUrl(XFile picked, String folder) async {
+    try {
+      if (picked.path.startsWith('http')) return picked.path;
+
+      final ext = path.extension(picked.path).toLowerCase();
+      final normalizedExt = ext.isEmpty ? '.jpg' : ext;
+      final fileName =
+          "${DateTime.now().millisecondsSinceEpoch}_${path.basenameWithoutExtension(picked.name.isEmpty ? 'image' : picked.name)}$normalizedExt";
+      final ref = _storage.ref().child(folder).child(fileName);
+
+      if (kIsWeb) {
+        final bytes = await picked.readAsBytes();
+        if (bytes.isEmpty) return null;
+        final metadata = SettableMetadata(
+          contentType: _guessImageMimeType(normalizedExt),
+        );
+        final snapshot = await ref
+            .putData(bytes, metadata)
+            .timeout(const Duration(seconds: 30));
+        return await snapshot.ref.getDownloadURL();
+      }
+
+      final file = File(picked.path);
+      if (!file.existsSync()) return null;
+      final snapshot = await ref
+          .putFile(file)
+          .timeout(const Duration(seconds: 30));
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      debugPrint("STORAGE_XFILE_ERROR: $e");
+      return null;
+    }
+  }
+
+  static String _guessImageMimeType(String ext) {
+    switch (ext) {
+      case '.png':
+        return 'image/png';
+      case '.webp':
+        return 'image/webp';
+      case '.heic':
+      case '.heif':
+        return 'image/heic';
+      default:
+        return 'image/jpeg';
+    }
+  }
+
   /// Xử lý đồng loạt cho danh sách ảnh
   static Future<String> uploadMultipleAndJoin(String localPathsCsv, String folder) async {
     if (localPathsCsv.isEmpty) return "";
@@ -128,7 +184,8 @@ class StorageService {
 
     for (String p in paths) {
       String trimmed = p.trim();
-      if (trimmed.isEmpty || !File(trimmed).existsSync()) continue;
+      if (trimmed.isEmpty) continue;
+      if (!kIsWeb && !File(trimmed).existsSync()) continue;
       String? url = await uploadAndGetUrl(trimmed, folder);
       if (url != null) urls.add(url);
     }

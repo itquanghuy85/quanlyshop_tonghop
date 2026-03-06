@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../data/db_helper.dart';
 import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
@@ -78,7 +79,7 @@ class _SupplierDetailsDialogState extends State<SupplierDetailsDialog> with Sing
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       backgroundColor: AppColors.surface,
       child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.95,
+        width: responsiveDialogWidth(context, fraction: 0.95),
         height: MediaQuery.of(context).size.height * 0.85,
         child: Column(
           children: [

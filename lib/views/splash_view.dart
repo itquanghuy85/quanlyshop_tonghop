@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../main.dart';
@@ -161,6 +162,8 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   }
 
   Future<void> _startInit() async {
+    // Remove native splash as soon as Flutter splash is visible
+    FlutterNativeSplash.remove();
     await Future.delayed(const Duration(milliseconds: 400));
     if (mounted) setState(() => _status = "Đang khởi tạo hệ thống...");
 

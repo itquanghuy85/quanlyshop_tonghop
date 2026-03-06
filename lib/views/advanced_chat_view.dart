@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/chat_message_model.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
@@ -261,7 +265,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null || message.id == null) return;
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
@@ -315,7 +319,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     final userId = FirebaseAuth.instance.currentUser?.uid;
     final isOwner = message.senderId == userId;
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
@@ -470,7 +474,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   }
 
   Future<void> _showPinOrderDialog() async {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -766,7 +770,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: _buildAppBar(),
-      body: Column(
+      body: ResponsiveCenter(child: Column(
         children: [
           // Pinned messages
           if (_pinnedMessages.isNotEmpty) _buildPinnedSection(),
@@ -792,7 +796,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           // Input area
           _buildInputArea(),
         ],
-      ),
+      )),
     );
   }
 
@@ -888,6 +892,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               case 'pinned':
                 _showPinnedMessages();
                 break;
+                    case 'sendPrintLink':
+                      _showSendPrintLinkDialog();
+                      break;
             }
           },
           itemBuilder: (ctx) => [
@@ -896,6 +903,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               child: Text('Đánh dấu đã đọc'),
             ),
             const PopupMenuItem(value: 'pinned', child: Text('Tin ghim')),
+                  const PopupMenuItem(
+                    value: 'sendPrintLink',
+                    child: Text('Gửi link in web'),
+                  ),
           ],
         ),
         const SizedBox(width: 4),
@@ -1012,7 +1023,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   }
 
   void _showPinnedMessages() {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1184,7 +1195,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
             onDoubleTap: () => _showReactionPicker(message),
             child: Container(
               constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
+                maxWidth: (MediaQuery.sizeOf(context).width * 0.75).clamp(0, 480),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
@@ -1240,15 +1251,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                     ),
 
                   // Message content
-                  Text(
-                    message.isDeleted ? message.message : message.message,
-                    style: TextStyle(
-                      color: isMe ? Colors.white : Colors.black87,
-                      fontStyle: message.isDeleted
-                          ? FontStyle.italic
-                          : FontStyle.normal,
-                    ),
-                  ),
+                  _buildMessageText(message, isMe),
 
                   // Linked order
                   if (message.linkedType != null &&
@@ -1448,6 +1451,150 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           message.message,
           style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMessageText(ChatMessage message, bool isMe) {
+    final text = message.message;
+    final baseStyle = TextStyle(
+      color: isMe ? Colors.white : Colors.black87,
+      fontStyle: message.isDeleted ? FontStyle.italic : FontStyle.normal,
+    );
+    if (message.isDeleted) {
+      return Text(text, style: baseStyle);
+    }
+
+    final regex = RegExp(r'(https?://[^\s]+)', caseSensitive: false);
+    final matches = regex.allMatches(text).toList();
+    if (matches.isEmpty) {
+      return Text(text, style: baseStyle);
+    }
+
+    final spans = <InlineSpan>[];
+    var cursor = 0;
+    for (final m in matches) {
+      if (m.start > cursor) {
+        spans.add(TextSpan(text: text.substring(cursor, m.start), style: baseStyle));
+      }
+      final urlText = text.substring(m.start, m.end);
+      spans.add(
+        TextSpan(
+          text: urlText,
+          style: baseStyle.copyWith(
+            decoration: TextDecoration.underline,
+            fontWeight: FontWeight.w600,
+            color: isMe ? Colors.white : Colors.blue.shade700,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () {
+              _openChatUrl(urlText);
+            },
+        ),
+      );
+      cursor = m.end;
+    }
+    if (cursor < text.length) {
+      spans.add(TextSpan(text: text.substring(cursor), style: baseStyle));
+    }
+
+    return RichText(text: TextSpan(children: spans));
+  }
+
+  Future<void> _openChatUrl(String rawUrl) async {
+    try {
+      final uri = Uri.parse(rawUrl.trim());
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        _showError('Không mở được link');
+      }
+    } catch (_) {
+      _showError('Link không hợp lệ');
+    }
+  }
+
+  Future<void> _showSendPrintLinkDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existingBridgeUrl = (prefs.getString('web_print_bridge_url') ?? '').trim();
+
+    String defaultBridgeIp = '192.168.1.10';
+    try {
+      if (existingBridgeUrl.isNotEmpty) {
+        final uri = Uri.parse(existingBridgeUrl);
+        if (uri.host.isNotEmpty) {
+          defaultBridgeIp = uri.host;
+        }
+      }
+    } catch (_) {}
+
+    final bridgeIpCtrl = TextEditingController(text: defaultBridgeIp);
+    final bridgePortCtrl = TextEditingController(text: '19191');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Gửi link in web'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: bridgeIpCtrl,
+              decoration: const InputDecoration(
+                labelText: 'IP máy chạy bridge',
+                hintText: 'VD: 192.168.1.10',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: bridgePortCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Port',
+                hintText: '19191',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final bridgeIp = bridgeIpCtrl.text.trim();
+              final bridgePort = bridgePortCtrl.text.trim().isEmpty
+                  ? '19191'
+                  : bridgePortCtrl.text.trim();
+              if (bridgeIp.isEmpty) {
+                _showError('Vui lòng nhập IP bridge');
+                return;
+              }
+
+              final bridgeEndpoint = 'http://$bridgeIp:$bridgePort/print';
+              final token = (prefs.getString('web_print_bridge_token') ?? '').trim();
+
+              final query = <String, String>{'bridgeUrl': bridgeEndpoint};
+              if (token.isNotEmpty) {
+                query['bridgeToken'] = token;
+              }
+              final link = Uri.https('quanlyshop.web.app', '/', query).toString();
+
+              await prefs.setString('web_print_bridge_url', bridgeEndpoint);
+
+              await ChatService.sendTextMessage(
+                message:
+                    '🖨️ Link in web cho điện thoại:\n$link\n\nChỉ cần bấm link -> mở đơn -> bấm IN.',
+              );
+
+              if (mounted) {
+                Navigator.pop(ctx);
+                _showSuccess('Đã gửi link in vào chat');
+              }
+            },
+            child: const Text('Gửi link'),
+          ),
+        ],
       ),
     );
   }

@@ -15,6 +15,9 @@ import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
 import '../widgets/currency_text_field.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/responsive_wrapper.dart';
+import '../data/db_helper.dart';
+import 'quick_input_codes_view.dart';
 
 /// Form nhập kho thông minh - hỗ trợ cả Nhập nhanh và Nhập tạm
 class SmartStockInView extends StatefulWidget {
@@ -44,6 +47,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   
   /// Terminology động theo ngành
   BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+
+  // Quick input code
+  QuickInputCode? _currentQuickInputCode;
 
   // Loại sản phẩm
   String _productType = 'DIEN_THOAI';
@@ -263,6 +269,144 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     if (code.labelInfo != null && code.labelInfo!.isNotEmpty) {
       _labelInfoCtrl.text = code.labelInfo!;
     }
+  }
+
+  Widget _buildQuickInputPicker() {
+    return InkWell(
+      onTap: _selectFromLibrary,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [Colors.blue.shade50, Colors.indigo.shade50]),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.blue.shade200),
+        ),
+        child: Row(children: [
+          Icon(Icons.flash_on, color: Colors.blue.shade700, size: 20),
+          const SizedBox(width: 8),
+          Expanded(child: Text('Chọn mã nhập nhanh để điền tự động',
+            style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w600, fontSize: 13))),
+          Icon(Icons.arrow_forward_ios, color: Colors.blue.shade400, size: 14),
+        ]),
+      ),
+    );
+  }
+
+  Future<void> _selectFromLibrary() async {
+    final db = DBHelper();
+    final codes = await db.getQuickInputCodes();
+    final activeCodes = codes.where((c) => c.isActive).toList();
+    if (!mounted) return;
+
+    if (activeCodes.isEmpty) {
+      NotificationService.showSnackBar('Chưa có mã nhập nhanh nào. Hãy tạo mã mới.', color: Colors.orange);
+      final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputCodesView()));
+      if (result is QuickInputCode) {
+        _applyQuickInputCode(result);
+      }
+      return;
+    }
+
+    final selected = await showDialog<QuickInputCode>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.flash_on, color: Colors.blue.shade700),
+            const SizedBox(width: 8),
+            const Text('Chọn mã nhập nhanh'),
+          ],
+        ),
+        content: SizedBox(
+          width: responsiveDialogWidth(context),
+          height: 400,
+          child: ListView.builder(
+            itemCount: activeCodes.length,
+            itemBuilder: (_, i) {
+              final code = activeCodes[i];
+              final isPhone = code.type == 'DIEN_THOAI';
+              return ListTile(
+                leading: Icon(isPhone ? Icons.phone_android : Icons.category, color: isPhone ? Colors.blue : Colors.green),
+                title: Text(code.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(isPhone ? '${code.brand ?? ''} ${code.model ?? ''}'.trim() : code.description ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                onTap: () => Navigator.pop(ctx, code),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputCodesView()));
+              if (result is QuickInputCode) {
+                _applyQuickInputCode(result);
+              }
+            },
+            child: const Text('Quản lý mã nhập'),
+          ),
+        ],
+      ),
+    );
+    if (selected != null) _applyQuickInputCode(selected);
+  }
+
+  void _applyQuickInputCode(QuickInputCode code) {
+    setState(() {
+      _currentQuickInputCode = code;
+      _productType = code.type;
+      _nameCtrl.text = code.name;
+      _quantityCtrl.text = '1';
+
+      if (code.cost != null && code.cost! > 0) {
+        _costCtrl.text = CurrencyTextField.formatDisplay(code.cost!.toInt());
+      }
+      if (code.price != null && code.price! > 0) {
+        _priceCtrl.text = CurrencyTextField.formatDisplay(code.price!.toInt());
+      }
+
+      if (code.type == 'DIEN_THOAI') {
+        if (code.brand != null && _brands.contains(code.brand)) {
+          _selectedBrand = code.brand;
+        }
+        _modelCtrl.text = code.model ?? '';
+        if (code.capacity != null && _capacities.contains(code.capacity)) {
+          _selectedCapacity = code.capacity;
+        }
+        if (code.color != null) {
+          final mappedColor = ProductConstants.mapColor(code.color);
+          if (_colors.contains(mappedColor)) _selectedColor = mappedColor;
+          else if (_colors.contains(code.color)) _selectedColor = code.color;
+        }
+        if (code.condition != null) {
+          final mappedCondition = ProductConstants.mapConditionShort(code.condition!);
+          if (_conditions.contains(mappedCondition)) _selectedCondition = mappedCondition;
+          else if (_conditions.contains(code.condition)) _selectedCondition = code.condition;
+        }
+      }
+
+      if (code.supplier != null && code.supplier!.isNotEmpty) {
+        final match = _suppliers.where((s) => s['name'] == code.supplier).toList();
+        if (match.isNotEmpty) {
+          _selectedSupplier = code.supplier;
+          _selectedSupplierId = match.first['firestoreId']?.toString();
+        }
+      }
+
+      if (code.paymentMethod != null && _paymentMethods.contains(code.paymentMethod)) {
+        _selectedPaymentMethod = code.paymentMethod;
+      }
+
+      if (code.description != null && code.description!.isNotEmpty) {
+        _notesCtrl.text = code.description!;
+      }
+      if (code.labelInfo != null && code.labelInfo!.isNotEmpty) {
+        _labelInfoCtrl.text = code.labelInfo!;
+      }
+    });
+    NotificationService.showSnackBar('✅ Đã áp dụng: ${code.name}', color: Colors.green);
   }
 
   void _loadEditData() {
@@ -660,7 +804,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: _isLoading
+      body: ResponsiveCenter(
+        maxWidth: 800,
+        child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
@@ -674,6 +820,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                         children: [
                           // Chọn loại sản phẩm
                           _buildProductTypeSelector(),
+                          const SizedBox(height: 12),
+                          _buildQuickInputPicker(),
                           const SizedBox(height: 16),
 
                           // Form theo loại
@@ -714,6 +862,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 ],
               ),
             ),
+      ),
     );
   }
 

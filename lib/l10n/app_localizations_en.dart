@@ -3513,7 +3513,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get defaultShopName => 'SHOP NEW';
+  String get defaultShopName => 'QUAN LY SHOP';
 
   @override
   String get defaultShopDesc => 'Smartphone Specialist';

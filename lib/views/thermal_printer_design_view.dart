@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/notification_service.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/thermal_printer_service.dart';
+import '../services/user_service.dart';
 import '../theme/app_text_styles.dart';
 import 'label_designer_view.dart';
 
@@ -51,6 +54,39 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
 
   Future<void> _loadAll() async {
     final prefs = await SharedPreferences.getInstance();
+    String cloudWarrantyPolicy = '';
+    String cloudReturnPolicy = '';
+
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId != null && shopId.isNotEmpty) {
+        final shopDoc = await FirebaseFirestore.instance
+            .collection('shops')
+            .doc(shopId)
+            .get();
+        final data = shopDoc.data();
+        cloudWarrantyPolicy = (data?['warrantyPolicy'] ?? '').toString();
+        cloudReturnPolicy = (data?['returnPolicy'] ?? '').toString();
+      }
+    } catch (e) {
+      debugPrint('ThermalPrinterDesignView: load cloud policy failed: $e');
+    }
+
+    final localWarranty = prefs.getString('warranty_policy') ?? '';
+    final localReturn = prefs.getString('return_policy') ?? '';
+
+    final finalWarranty = cloudWarrantyPolicy.isNotEmpty
+        ? cloudWarrantyPolicy
+        : localWarranty;
+    final finalReturn = cloudReturnPolicy.isNotEmpty
+        ? cloudReturnPolicy
+        : localReturn;
+
+    if (cloudWarrantyPolicy.isNotEmpty || cloudReturnPolicy.isNotEmpty) {
+      await prefs.setString('warranty_policy', finalWarranty);
+      await prefs.setString('return_policy', finalReturn);
+    }
+
     if (!mounted) return;
     setState(() {
       _ipCtrl.text = prefs.getString('printer_ip') ?? "";
@@ -69,8 +105,8 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
       _showRcPhone = prefs.getBool('receipt_show_phone') ?? true;
       _showRcQR = prefs.getBool('receipt_show_qr') ?? true;
       _rcNoteCtrl.text = prefs.getString('receipt_note') ?? "Cảm ơn quý khách!";
-      _warrantyPolicyCtrl.text = prefs.getString('warranty_policy') ?? '';
-      _returnPolicyCtrl.text = prefs.getString('return_policy') ?? '';
+      _warrantyPolicyCtrl.text = finalWarranty;
+      _returnPolicyCtrl.text = finalReturn;
     });
     final savedBT = await BluetoothPrinterService.getSavedPrinter();
     if (mounted) setState(() => _selectedBT = savedBT);
@@ -95,6 +131,20 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
     await prefs.setString('receipt_note', _rcNoteCtrl.text);
     await prefs.setString('warranty_policy', _warrantyPolicyCtrl.text);
     await prefs.setString('return_policy', _returnPolicyCtrl.text);
+
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId != null && shopId.isNotEmpty) {
+        await FirebaseFirestore.instance.collection('shops').doc(shopId).set({
+          'warrantyPolicy': _warrantyPolicyCtrl.text.trim(),
+          'returnPolicy': _returnPolicyCtrl.text.trim(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('ThermalPrinterDesignView: save cloud policy failed: $e');
+    }
+
     NotificationService.showSnackBar("ĐÃ LƯU & ÁP DỤNG CỠ CHỮ MỚI", color: Colors.green);
   }
 
@@ -396,7 +446,7 @@ class _ThermalPrinterDesignViewState extends State<ThermalPrinterDesignView> wit
     setState(() { _isScanning = false; });
     
     if (list.isNotEmpty) {
-      showModalBottomSheet(context: context, builder: (ctx) => ListView.builder(itemCount: list.length, itemBuilder: (c, i) => ListTile(title: Text(list[i].name), subtitle: Text(list[i].macAdress), onTap: () async {
+      showAppBottomSheet(context: context, builder: (ctx) => ListView.builder(itemCount: list.length, itemBuilder: (c, i) => ListTile(title: Text(list[i].name), subtitle: Text(list[i].macAdress), onTap: () async {
         final navigator = Navigator.of(ctx);
         final config = BluetoothPrinterConfig(name: list[i].name, macAddress: list[i].macAdress);
         await BluetoothPrinterService.savePrinter(config);

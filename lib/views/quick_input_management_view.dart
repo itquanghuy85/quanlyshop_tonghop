@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../models/quick_input_code_model.dart';
 import '../theme/app_text_styles.dart';
 import '../services/user_service.dart';
@@ -471,7 +472,7 @@ class _QuickInputManagementViewState extends State<QuickInputManagementView> {
           ),
         ],
       ),
-      body: _buildManagementTab(),
+      body: ResponsiveCenter(child: _buildManagementTab()),
       floatingActionButton: FloatingActionButton(
         heroTag: 'quick_input_management_fab',
         onPressed: _showCreateDialog,

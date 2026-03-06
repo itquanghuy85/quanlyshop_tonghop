@@ -12,6 +12,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
 import 'hr/add_custom_adjustment_dialog.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class PayrollView extends StatefulWidget {
   const PayrollView({super.key});
@@ -384,7 +385,8 @@ class _PayrollViewState extends State<PayrollView> {
         title: const Text('BẢNG LƯƠNG', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         automaticallyImplyLeading: true,
       ),
-      body: _loading
+      body: ResponsiveCenter(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -565,6 +567,7 @@ class _PayrollViewState extends State<PayrollView> {
                 ),
               ],
             ),
+      ),
     );
   }
 }

@@ -7,6 +7,7 @@ import '../services/notification_service.dart';
 import '../services/category_service.dart';
 import '../models/shop_settings_model.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class RegisterView extends StatefulWidget {
   final Function(Locale)? setLocale;
@@ -175,7 +176,9 @@ class _RegisterViewState extends State<RegisterView> {
         centerTitle: true,
         automaticallyImplyLeading: true,
       ),
-      body: SingleChildScrollView(
+      body: ResponsiveCenter(
+        maxWidth: 480,
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
@@ -184,6 +187,7 @@ class _RegisterViewState extends State<RegisterView> {
             _currentStep == 0 ? _stepSelectRole() : _stepInputInfo(),
           ],
         ),
+      ),
       ),
     );
   }

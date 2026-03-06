@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -33,6 +34,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/event_bus.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../l10n/app_localizations.dart';
 import 'order_list_view.dart';
 
@@ -51,7 +53,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   // final NumberFormat currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
   final db = DBHelper();
   final customerService = CustomerService();
-  final List<File> _images = [];
+  final List<XFile> _images = [];
   bool _saving = false;
   String _uploadStatus = "";
 
@@ -372,11 +374,33 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     try {
       String cloudImagePaths = "";
       if (_images.isNotEmpty) {
-        List<String> localPaths = _images.map((e) => e.path).toList();
-        cloudImagePaths = await StorageService.uploadMultipleAndJoin(
-          localPaths.join(','),
-          'repairs',
-        );
+        final uploadedUrls = <String>[];
+        for (final picked in _images) {
+          final url = await StorageService.uploadXFileAndGetUrl(
+            picked,
+            'repairs',
+          );
+          if (url != null && url.isNotEmpty) {
+            uploadedUrls.add(url);
+          }
+        }
+
+        // Không làm rơi ảnh: nếu upload cloud chưa xong thì giữ path local để sync lại.
+        if (uploadedUrls.isNotEmpty) {
+          cloudImagePaths = uploadedUrls.join(',');
+        } else {
+          // Web local/blob paths are not portable across sessions/devices.
+          // Keep empty to avoid broken thumbnails on other devices.
+          if (kIsWeb) {
+            cloudImagePaths = '';
+            NotificationService.showSnackBar(
+              'Ảnh chưa tải lên cloud, vui lòng thử lại mạng rồi lưu lại ảnh.',
+              color: Colors.orange,
+            );
+          } else {
+            cloudImagePaths = _images.map((e) => e.path).join(',');
+          }
+        }
       }
 
       String finalAccs = _selectedAccs.join(', ');
@@ -429,19 +453,27 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         throw Exception('Không thể lưu đơn sửa vào local database');
       }
 
-      // Create customer if not exists
-      final existingCustomers = await customerService.getCustomers();
-      final existing = existingCustomers
-          .where((c) => c.phone == phoneCtrl.text.trim())
-          .toList();
-      if (existing.isEmpty) {
-        final newCustomer = Customer(
-          name: nameCtrl.text.trim().toUpperCase(),
-          phone: phoneCtrl.text.trim(),
-          address: addressCtrl.text.trim().toUpperCase(),
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-        );
-        await customerService.addCustomer(newCustomer);
+      // Create customer only for non-walk-in orders with non-empty phone.
+      final normalizedPhoneForCustomer = phoneCtrl.text.trim();
+      if (!_isWalkIn && normalizedPhoneForCustomer.isNotEmpty) {
+        try {
+          final existingCustomers = await customerService.getCustomers();
+          final existing = existingCustomers
+              .where((c) => c.phone == normalizedPhoneForCustomer)
+              .toList();
+          if (existing.isEmpty) {
+            final newCustomer = Customer(
+              name: fallbackName,
+              phone: normalizedPhoneForCustomer,
+              address: addressCtrl.text.trim().toUpperCase(),
+              createdAt: DateTime.now().millisecondsSinceEpoch,
+            );
+            await customerService.addCustomer(newCustomer);
+          }
+        } catch (e) {
+          // Never block repair creation because customer insert conflicts.
+          debugPrint('CreateRepairOrder: customer upsert skipped due to error: $e');
+        }
       }
 
       // Enqueue sync lên cloud
@@ -458,13 +490,28 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       final syncResult = await SyncOrchestrator().syncAll();
       debugPrint('🔧 Sync result: success=${syncResult.success}, failed=${syncResult.failed}');
       
-      // Nếu sync thất bại, thử upload trực tiếp lên Firestore
+      // Nếu sync thất bại, thử upload trực tiếp lên Firestore.
+      // Guard: không push local image path lên cloud vì web sẽ không render được.
       if (syncResult.failed > 0 || syncResult.noNetwork) {
         debugPrint('🔧 Queue sync failed, trying direct Firestore upload...');
         try {
-          final firestoreId = await FirestoreService.addRepair(savedRepair);
-          if (firestoreId != null) {
-            debugPrint('🔧 Direct upload successful: $firestoreId');
+          final hasLocalOnlyImagePath = ((savedRepair.imagePath ?? '')
+              .split(RegExp(r'[,;\n]'))
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .any((p) =>
+                  !p.toLowerCase().startsWith('http://') &&
+                  !p.toLowerCase().startsWith('https://')));
+
+          if (hasLocalOnlyImagePath) {
+            debugPrint(
+              '🔧 Direct upload skipped: local image paths detected, keep queue for retry',
+            );
+          } else {
+            final firestoreId = await FirestoreService.addRepair(savedRepair);
+            if (firestoreId != null) {
+              debugPrint('🔧 Direct upload successful: $firestoreId');
+            }
           }
         } catch (e) {
           debugPrint('🔧 Direct upload also failed: $e (will retry later)');
@@ -484,7 +531,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
       // Handle partner outsourcing for services that have partners
       final service = RepairPartnerService();
-      for (var s in _services.where((s) => s.partnerId != null)) {
+      final partnerServices = _services.where((s) => s.partnerId != null).toList();
+      for (var serviceIndex = 0; serviceIndex < partnerServices.length; serviceIndex++) {
+        final s = partnerServices[serviceIndex];
         final success = await service.createPartnerHistoryForRepair(
           repairOrderId: rWithCloudId.firestoreId!,
           partnerId: s.partnerId!,
@@ -565,6 +614,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   'serviceName': s.serviceName,
                   'paymentMethod': s.paymentMethod,
                 },
+                idempotencyKey:
+                    'create_${rWithCloudId.firestoreId}_${s.partnerId}_${serviceIndex}_${s.serviceName}_${s.cost}_${s.paymentMethod}',
               );
               debugPrint('💳 Partner payment ${payResult.success ? "OK" : "FAILED"}: ${s.cost}đ');
             } catch (e) {
@@ -588,12 +639,14 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
       // Update customer stats (tổng số lần sửa chữa)
       try {
-        await customerService.updateCustomerStatsAfterRepair(
-          phoneCtrl.text.trim(),
-          r.price,
-          address: addressCtrl.text.trim().toUpperCase(),
-          name: nameCtrl.text.trim().toUpperCase(),
-        );
+        if (!_isWalkIn && normalizedPhoneForCustomer.isNotEmpty) {
+          await customerService.updateCustomerStatsAfterRepair(
+            normalizedPhoneForCustomer,
+            r.price,
+            address: addressCtrl.text.trim().toUpperCase(),
+            name: fallbackName,
+          );
+        }
       } catch (e) {
         debugPrint('Failed to update customer stats: $e');
         // Don't fail the repair creation if stats update fails
@@ -873,7 +926,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 ],
               ),
             )
-          : SingleChildScrollView(
+          : ResponsiveCenter(
+              maxWidth: 800,
+              child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -913,6 +968,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 ],
               ),
             ),
+          ),
     );
   }
 
@@ -1291,7 +1347,9 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(f, fit: BoxFit.cover),
+                child: kIsWeb
+                    ? Image.network(f.path, fit: BoxFit.cover)
+                    : Image.file(File(f.path), fit: BoxFit.cover),
               ),
             ),
           ),
@@ -1301,7 +1359,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 source: ImageSource.camera,
                 imageQuality: 40,
               );
-              if (f != null) setState(() => _images.add(File(f.path)));
+              if (f != null) setState(() => _images.add(f));
             },
             child: Container(
               width: 80,

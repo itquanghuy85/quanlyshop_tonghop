@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/app_info.dart';
 import '../l10n/app_localizations.dart';
@@ -22,7 +23,7 @@ class AboutDeveloperView extends StatelessWidget {
         elevation: 0,
         foregroundColor: Colors.white,
       ),
-      body: Container(
+      body: ResponsiveCenter(child: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -74,7 +75,7 @@ class AboutDeveloperView extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 

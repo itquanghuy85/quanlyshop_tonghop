@@ -772,7 +772,7 @@ service cloud.firestore {
       allow create: if isAuth() && 
                        isEmployee() &&
                        newDocInMyShop() &&
-                       has(['partnerId', 'repairId', 'shopId']);
+                       has(['partnerId', 'repairOrderId', 'shopId']);
       
       allow update: if isAuth() && 
                        docInMyShop() &&

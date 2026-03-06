@@ -438,6 +438,7 @@ class PaymentIntentService {
     String? personPhone,
     String? notes,
     Map<String, dynamic>? metadata,
+    String? idempotencyKey,
   }) async {
     try {
       // Validate amount
@@ -448,9 +449,33 @@ class PaymentIntentService {
         );
       }
 
-      // Create intent with timestamp-based ID
       final now = DateTime.now().millisecondsSinceEpoch;
-      final intentId = 'pi_direct_${type.code.toLowerCase()}_$now';
+      final intentId = _buildDirectIntentId(type, idempotencyKey) ??
+          'pi_direct_${type.code.toLowerCase()}_$now';
+
+      // Idempotency guard: if same direct payment was already created, do not post again.
+      final existingRow = await _db.getPaymentIntentByIntentId(intentId);
+      if (existingRow != null) {
+        final existingIntent = _intentFromDbRow(existingRow);
+        if (existingIntent.status == PaymentIntentStatus.completed) {
+          return PaymentExecutionResult.success(
+            ledgerEntryId: existingIntent.id,
+            updatedIntent: existingIntent,
+          );
+        }
+        if (existingIntent.status == PaymentIntentStatus.pending) {
+          _pendingIntents[existingIntent.id] = existingIntent;
+          return await executePayment(
+            intentId: existingIntent.id,
+            paymentMethod: paymentMethod,
+            executedBy: executedBy,
+          );
+        }
+        return PaymentExecutionResult.failure(
+          errorCode: 'DUPLICATE_DIRECT_PAYMENT',
+          errorMessage: 'Khoan thanh toan nay da ton tai voi trang thai ${existingIntent.status.code}',
+        );
+      }
       
       final intent = PaymentIntent(
         id: intentId,
@@ -466,7 +491,11 @@ class PaymentIntentService {
         notes: notes,
         createdBy: executedBy,
         createdAt: now,
-        metadata: metadata,
+        metadata: {
+          ...(metadata ?? {}),
+          if (idempotencyKey != null && idempotencyKey.trim().isNotEmpty)
+            'idempotencyKey': idempotencyKey.trim(),
+        },
       );
 
       // Store in memory temporarily (for tracking)
@@ -496,6 +525,28 @@ class PaymentIntentService {
         errorMessage: 'Lỗi thực thi thanh toán: $e',
       );
     }
+  }
+
+  static String? _buildDirectIntentId(
+    PaymentIntentType type,
+    String? idempotencyKey,
+  ) {
+    if (idempotencyKey == null || idempotencyKey.trim().isEmpty) {
+      return null;
+    }
+    final normalized = idempotencyKey
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+    if (normalized.isEmpty) {
+      return null;
+    }
+    final maxLen = 70;
+    final safe = normalized.length > maxLen
+        ? normalized.substring(0, maxLen)
+        : normalized;
+    return 'pi_direct_${type.code.toLowerCase()}_$safe';
   }
 
   // ---------------------------------------------------------------------------

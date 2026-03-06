@@ -1,12 +1,12 @@
 {
-    "name": "shop_new",
-    "short_name": "shop_new",
+    "name": "Quản Lý Shop - Phần mềm quản lý cửa hàng",
+    "short_name": "Quản Lý Shop",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#0068FF",
+    "theme_color": "#0068FF",
+    "description": "Phần mềm quản lý tiệm sửa chữa mua bán điện thoại chuyên nghiệp",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

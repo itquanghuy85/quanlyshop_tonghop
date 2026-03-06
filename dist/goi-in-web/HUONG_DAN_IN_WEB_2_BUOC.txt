@@ -1,0 +1,10 @@
+IN WEB CUC DE (2 BUOC)
+
+1) Double-click file: IN_NGAY.bat
+2) Khi web mo ra, vao phieu va bam IN
+
+XONG.
+
+Neu in khong ra:
+- Kiem tra may in dang bat va cung mang LAN
+- Khong tat cua so WEB PRINT BRIDGE khi dang in

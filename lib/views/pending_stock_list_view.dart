@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../models/stock_entry_model.dart';
 import '../theme/app_text_styles.dart';
 import '../services/stock_entry_service.dart';
@@ -280,7 +281,8 @@ class _PendingStockListViewState extends State<PendingStockListView> {
           IconButton(onPressed: _loadData, icon: const Icon(Icons.refresh)),
         ],
       ),
-      body: Column(
+      body: ResponsiveCenter(
+        child: Column(
         children: [
           // Search field
           _buildSearchField(),
@@ -296,6 +298,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                 : _buildList(),
           ),
         ],
+      ),
       ),
       floatingActionButton: GradientFab.info(
         onPressed: () async {

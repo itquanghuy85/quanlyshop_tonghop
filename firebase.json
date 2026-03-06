@@ -4,7 +4,7 @@
       "android": {
         "default": {
           "projectId": "huyaka-1809",
-          "appId": "1:51200928212:android:c0d1e9d964b3213b910e41",
+          "appId": "1:51200928212:android:fdd5862b241eb527910e41",
           "fileOutput": "android/app/google-services.json"
         }
       },
@@ -12,11 +12,49 @@
         "lib/firebase_options.dart": {
           "projectId": "huyaka-1809",
           "configurations": {
-            "android": "1:51200928212:android:c0d1e9d964b3213b910e41"
+            "android": "1:51200928212:android:fdd5862b241eb527910e41",
+            "ios": "1:51200928212:ios:04c10eca3b61a3be910e41",
+            "macos": "1:51200928212:ios:04c10eca3b61a3be910e41",
+            "web": "1:51200928212:web:12805e998ca77c6a910e41"
           }
         }
       }
     }
+  },
+  "hosting": {
+    "site": "quanlyshop",
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public,max-age=31536000,immutable"
+          }
+        ]
+      },
+      {
+        "source": "index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
   },
   "firestore": {
     "rules": "firestore.rules",

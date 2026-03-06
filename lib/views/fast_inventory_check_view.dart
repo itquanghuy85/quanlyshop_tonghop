@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -2137,7 +2138,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             ),
         ],
       ),
-      body: Column(
+      body: ResponsiveCenter(child: Column(
         children: [
           // Zone Selector (expandable)
           if (_showZoneSelector) _buildZoneSelector(),
@@ -2432,7 +2433,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
               ),
             ),
         ],
-      ),
+      )),
     ),
     );
   }

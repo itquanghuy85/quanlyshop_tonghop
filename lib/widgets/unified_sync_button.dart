@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'responsive_wrapper.dart';
 import '../data/db_helper.dart';
 import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
@@ -127,7 +128,7 @@ class _UnifiedSyncButtonState extends State<UnifiedSyncButton>
   }
 
   void _showSyncCenter(BuildContext context) {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

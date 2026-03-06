@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -151,6 +152,13 @@ class DashboardCardConfig {
 /// Service to manage dashboard layout configuration
 class DashboardConfigService {
   static const String _prefsKey = 'dashboard_config_v3';
+  static const String _cloudField = 'dashboardConfigV3';
+
+  static DocumentReference<Map<String, dynamic>>? _userDocRef() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return null;
+    return FirebaseFirestore.instance.collection('users').doc(uid);
+  }
 
   /// Get default layout based on role
   static List<DashboardCardConfig> getDefaultLayout({
@@ -177,6 +185,7 @@ class DashboardConfigService {
     required String role,
     required bool isSuperAdmin,
   }) async {
+    List<DashboardCardConfig>? localSaved;
     try {
       final prefs = await SharedPreferences.getInstance();
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -185,29 +194,86 @@ class DashboardConfigService {
 
       if (jsonStr != null) {
         final List<dynamic> jsonList = jsonDecode(jsonStr);
-        final saved = jsonList
+        localSaved = jsonList
             .map((j) => DashboardCardConfig.fromJson(j))
             .toList();
 
-        // Ensure all card types exist (in case we added new ones)
-        final defaults = getDefaultLayout(role: role, isSuperAdmin: isSuperAdmin);
-        final savedTypes = saved.map((c) => c.type).toSet();
-        for (final def in defaults) {
-          if (!savedTypes.contains(def.type)) {
-            saved.add(DashboardCardConfig(
-              type: def.type,
-              visible: def.visible,
-              order: saved.length,
-            ));
-          }
-        }
-
-        saved.sort((a, b) => a.order.compareTo(b.order));
-        return saved;
+        localSaved.sort((a, b) => a.order.compareTo(b.order));
       }
     } catch (e) {
-      debugPrint('DashboardConfigService: Error loading config: $e');
+      debugPrint('DashboardConfigService: Error loading local config: $e');
     }
+
+    try {
+      final ref = _userDocRef();
+      if (ref != null) {
+        final snap = await ref.get();
+        final cloudRaw = snap.data()?[_cloudField];
+        if (cloudRaw is List) {
+          final cloudSaved = cloudRaw
+              .whereType<Map>()
+              .map((j) => DashboardCardConfig.fromJson(Map<String, dynamic>.from(j)))
+              .toList();
+          if (cloudSaved.isNotEmpty) {
+            cloudSaved.sort((a, b) => a.order.compareTo(b.order));
+
+            // Refresh local cache from cloud for consistency across devices.
+            final prefs = await SharedPreferences.getInstance();
+            final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+            final key = '${_prefsKey}_$uid';
+            final jsonStr = jsonEncode(cloudSaved.map((c) => c.toJson()).toList());
+            await prefs.setString(key, jsonStr);
+
+            // Ensure all card types exist.
+            final defaults = getDefaultLayout(role: role, isSuperAdmin: isSuperAdmin);
+            final cloudTypes = cloudSaved.map((c) => c.type).toSet();
+            for (final def in defaults) {
+              if (!cloudTypes.contains(def.type)) {
+                cloudSaved.add(DashboardCardConfig(
+                  type: def.type,
+                  visible: def.visible,
+                  order: cloudSaved.length,
+                ));
+              }
+            }
+            cloudSaved.sort((a, b) => a.order.compareTo(b.order));
+            return cloudSaved;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('DashboardConfigService: Error loading cloud config: $e');
+    }
+
+    if (localSaved != null) {
+      // Backfill cloud from local cache if cloud is empty.
+      try {
+        final ref = _userDocRef();
+        if (ref != null) {
+          await ref.set({
+            _cloudField: localSaved.map((c) => c.toJson()).toList(),
+            'dashboardConfigUpdatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      } catch (e) {
+        debugPrint('DashboardConfigService: Error backfilling cloud config: $e');
+      }
+
+      final defaults = getDefaultLayout(role: role, isSuperAdmin: isSuperAdmin);
+      final localTypes = localSaved.map((c) => c.type).toSet();
+      for (final def in defaults) {
+        if (!localTypes.contains(def.type)) {
+          localSaved.add(DashboardCardConfig(
+            type: def.type,
+            visible: def.visible,
+            order: localSaved.length,
+          ));
+        }
+      }
+      localSaved.sort((a, b) => a.order.compareTo(b.order));
+      return localSaved;
+    }
+
     return getDefaultLayout(role: role, isSuperAdmin: isSuperAdmin);
   }
 
@@ -223,6 +289,14 @@ class DashboardConfigService {
       }
       final jsonStr = jsonEncode(configs.map((c) => c.toJson()).toList());
       await prefs.setString(key, jsonStr);
+
+      final ref = _userDocRef();
+      if (ref != null) {
+        await ref.set({
+          _cloudField: configs.map((c) => c.toJson()).toList(),
+          'dashboardConfigUpdatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       debugPrint('DashboardConfigService: Error saving config: $e');
     }
@@ -235,6 +309,14 @@ class DashboardConfigService {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final key = '${_prefsKey}_$uid';
       await prefs.remove(key);
+
+      final ref = _userDocRef();
+      if (ref != null) {
+        await ref.set({
+          _cloudField: FieldValue.delete(),
+          'dashboardConfigUpdatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       debugPrint('DashboardConfigService: Error resetting config: $e');
     }
@@ -461,6 +543,7 @@ class ShortcutConfig {
 /// Service to manage shortcut configuration
 class ShortcutConfigService {
   static const String _prefsKey = 'shortcut_config_v1';
+  static const String _cloudField = 'shortcutConfigV1';
 
   /// Get default shortcuts - first 12 visible, rest hidden
   static List<ShortcutConfig> getDefaultShortcuts() {
@@ -478,6 +561,7 @@ class ShortcutConfigService {
 
   /// Load saved shortcut config or return defaults
   static Future<List<ShortcutConfig>> loadConfig() async {
+    List<ShortcutConfig>? localSaved;
     try {
       final prefs = await SharedPreferences.getInstance();
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -486,29 +570,83 @@ class ShortcutConfigService {
 
       if (jsonStr != null) {
         final List<dynamic> jsonList = jsonDecode(jsonStr);
-        final saved = jsonList
+        localSaved = jsonList
             .map((j) => ShortcutConfig.fromJson(j))
             .toList();
 
-        // Ensure all shortcut types exist (in case we added new ones)
-        final savedTypes = saved.map((c) => c.type).toSet();
-        final defaults = getDefaultShortcuts();
-        for (final def in defaults) {
-          if (!savedTypes.contains(def.type)) {
-            saved.add(ShortcutConfig(
-              type: def.type,
-              visible: false, // New shortcuts hidden by default
-              order: saved.length,
-            ));
-          }
-        }
-
-        saved.sort((a, b) => a.order.compareTo(b.order));
-        return saved;
+        localSaved.sort((a, b) => a.order.compareTo(b.order));
       }
     } catch (e) {
-      debugPrint('ShortcutConfigService: Error loading config: $e');
+      debugPrint('ShortcutConfigService: Error loading local config: $e');
     }
+
+    try {
+      final ref = DashboardConfigService._userDocRef();
+      if (ref != null) {
+        final snap = await ref.get();
+        final cloudRaw = snap.data()?[_cloudField];
+        if (cloudRaw is List) {
+          final cloudSaved = cloudRaw
+              .whereType<Map>()
+              .map((j) => ShortcutConfig.fromJson(Map<String, dynamic>.from(j)))
+              .toList();
+          if (cloudSaved.isNotEmpty) {
+            cloudSaved.sort((a, b) => a.order.compareTo(b.order));
+
+            final prefs = await SharedPreferences.getInstance();
+            final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+            final key = '${_prefsKey}_$uid';
+            final jsonStr = jsonEncode(cloudSaved.map((c) => c.toJson()).toList());
+            await prefs.setString(key, jsonStr);
+
+            final savedTypes = cloudSaved.map((c) => c.type).toSet();
+            final defaults = getDefaultShortcuts();
+            for (final def in defaults) {
+              if (!savedTypes.contains(def.type)) {
+                cloudSaved.add(ShortcutConfig(
+                  type: def.type,
+                  visible: false,
+                  order: cloudSaved.length,
+                ));
+              }
+            }
+            cloudSaved.sort((a, b) => a.order.compareTo(b.order));
+            return cloudSaved;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('ShortcutConfigService: Error loading cloud config: $e');
+    }
+
+    if (localSaved != null) {
+      try {
+        final ref = DashboardConfigService._userDocRef();
+        if (ref != null) {
+          await ref.set({
+            _cloudField: localSaved.map((c) => c.toJson()).toList(),
+            'shortcutConfigUpdatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      } catch (e) {
+        debugPrint('ShortcutConfigService: Error backfilling cloud config: $e');
+      }
+
+      final savedTypes = localSaved.map((c) => c.type).toSet();
+      final defaults = getDefaultShortcuts();
+      for (final def in defaults) {
+        if (!savedTypes.contains(def.type)) {
+          localSaved.add(ShortcutConfig(
+            type: def.type,
+            visible: false,
+            order: localSaved.length,
+          ));
+        }
+      }
+      localSaved.sort((a, b) => a.order.compareTo(b.order));
+      return localSaved;
+    }
+
     return getDefaultShortcuts();
   }
 
@@ -523,6 +661,14 @@ class ShortcutConfigService {
       }
       final jsonStr = jsonEncode(configs.map((c) => c.toJson()).toList());
       await prefs.setString(key, jsonStr);
+
+      final ref = DashboardConfigService._userDocRef();
+      if (ref != null) {
+        await ref.set({
+          _cloudField: configs.map((c) => c.toJson()).toList(),
+          'shortcutConfigUpdatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       debugPrint('ShortcutConfigService: Error saving config: $e');
     }
@@ -535,6 +681,14 @@ class ShortcutConfigService {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final key = '${_prefsKey}_$uid';
       await prefs.remove(key);
+
+      final ref = DashboardConfigService._userDocRef();
+      if (ref != null) {
+        await ref.set({
+          _cloudField: FieldValue.delete(),
+          'shortcutConfigUpdatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       debugPrint('ShortcutConfigService: Error resetting config: $e');
     }

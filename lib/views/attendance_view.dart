@@ -10,6 +10,7 @@ import '../models/attendance_model.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
+import '../services/osm_map_service.dart';
 import 'work_schedule_settings_view.dart'; // Import màn hình cài đặt lịch
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -17,6 +18,7 @@ import '../widgets/custom_app_bar.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class AttendanceView extends StatefulWidget {
   const AttendanceView({super.key});
@@ -142,8 +144,8 @@ class _AttendanceViewState extends State<AttendanceView>
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      final cloudUrl = await StorageService.uploadAndGetUrl(
-        picked.path,
+      final cloudUrl = await StorageService.uploadXFileAndGetUrl(
+        picked,
         'attendance',
       );
       if (cloudUrl == null) {
@@ -384,13 +386,15 @@ class _AttendanceViewState extends State<AttendanceView>
           ],
         ),
       ),
-      body: TabBarView(
+      body: ResponsiveCenter(
+        child: TabBarView(
         controller: _tabController,
         children: [
           _buildTodayTab(),
           _buildHistoryTab(),
           if (_role == 'owner' || _role == 'manager') _buildStatsTab(),
         ],
+      ),
       ),
     );
   }
@@ -657,7 +661,7 @@ class _AttendanceViewState extends State<AttendanceView>
   }
 
   void _showAttendanceDetail(Attendance item) {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -744,6 +748,41 @@ class _AttendanceViewState extends State<AttendanceView>
             ),
             if (item.location != null)
               _detailRow('Vị trí', item.location!, Icons.location_on),
+
+            if (item.location != null && OsmMapService.parseLatLng(item.location) != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final p = OsmMapService.parseLatLng(item.location);
+                        if (p == null) return;
+                        await OsmMapService.openPoint(p[0], p[1]);
+                      },
+                      icon: const Icon(Icons.map, size: 18),
+                      label: const Text('Xem OSM'),
+                    ),
+                    if (_shopLatitude != null && _shopLongitude != null)
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final p = OsmMapService.parseLatLng(item.location);
+                          if (p == null) return;
+                          await OsmMapService.openDirections(
+                            fromLat: p[0],
+                            fromLon: p[1],
+                            toLat: _shopLatitude!,
+                            toLon: _shopLongitude!,
+                          );
+                        },
+                        icon: const Icon(Icons.alt_route, size: 18),
+                        label: const Text('Đi tới shop'),
+                      ),
+                  ],
+                ),
+              ),
 
             const SizedBox(height: 16),
 

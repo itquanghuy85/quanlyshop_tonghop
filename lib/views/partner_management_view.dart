@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -203,7 +204,8 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           ],
         ),
       ),
-      body: _loading
+      body: ResponsiveCenter(
+        child: _loading
         ? const Center(child: CircularProgressIndicator())
         : TabBarView(
             controller: _tabController,
@@ -212,6 +214,7 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
               _buildSuppliersTab(),
             ],
           ),
+      ),
       floatingActionButton: FloatingActionButton(
         mini: true,
         onPressed: _showAddDialog,

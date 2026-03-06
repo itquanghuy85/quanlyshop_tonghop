@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:intl/intl.dart';
 import '../constants/product_constants.dart';
 import '../models/quick_input_code_model.dart';
@@ -432,7 +433,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
           ),
         ],
       ),
-      body: _isLoading
+      body: ResponsiveCenter(child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -534,7 +535,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                         ),
                 ),
               ],
-            ),
+            )),
       floatingActionButton: GradientFab.teal(
         onPressed: () => _showAddEditDialog(),
         icon: Icons.add,
@@ -1114,7 +1115,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
+        width: responsiveDialogWidth(context),
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),

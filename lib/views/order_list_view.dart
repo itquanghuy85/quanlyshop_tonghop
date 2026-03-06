@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../data/db_helper.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_text_styles.dart';
@@ -12,6 +14,7 @@ import '../models/shop_settings_model.dart';
 import '../services/event_bus.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
+import '../services/user_service.dart';
 import '../utils/vietnamese_utils.dart';
 import '../widgets/gradient_fab.dart';
 import 'repair_detail_view.dart';
@@ -20,6 +23,7 @@ import 'global_search_view.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 import '../theme/app_colors.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class OrderListView extends StatefulWidget {
   final int? initialStatus;
@@ -66,8 +70,10 @@ class OrderListViewState extends State<OrderListView> {
   // Status filter - Set để cho phép chọn nhiều trạng thái
   Set<int> _statusFilters = {}; // Empty = all, {1,2} = tiếp nhận + đang sửa
   bool _filterPendingApproval = false; // Lọc đơn chờ duyệt giao
+  bool _canDelete = false;
+  final Map<String, String> _gsImageUrlCache = {};
 
-  bool get canDelete => widget.role == 'admin' || widget.role == 'owner';
+  bool get canDelete => _canDelete;
   
   /// Check if we need full data (for filtering)
   bool get _needsFullData =>
@@ -99,6 +105,7 @@ class OrderListViewState extends State<OrderListView> {
   void initState() {
     super.initState();
     _loadShopSettings();
+    _loadDeletePermission();
     _loadInitialData();
     
     // Setup scroll listener for lazy loading
@@ -113,6 +120,55 @@ class OrderListViewState extends State<OrderListView> {
         _loadInitialData();
       }
     });
+  }
+
+  Future<void> _loadDeletePermission() async {
+    try {
+      final can = await UserService.isCurrentUserAdmin();
+      if (!mounted) return;
+      setState(() => _canDelete = can);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _canDelete = widget.role == 'admin' || widget.role == 'owner');
+    }
+  }
+
+  bool _isGsStoragePath(String path) {
+    return path.trim().toLowerCase().startsWith('gs://');
+  }
+
+  bool _isStorageRelativePath(String path) {
+    final p = path.trim().toLowerCase();
+    if (p.isEmpty) return false;
+    if (p.contains('://') || p.startsWith('blob:') || p.startsWith('data:')) {
+      return false;
+    }
+    return p.startsWith('repairs/') || p.startsWith('/repairs/');
+  }
+
+  Future<String?> _resolveDisplayImagePath(String path) async {
+    final normalized = path.trim();
+    if (normalized.isEmpty) return null;
+    if (!_isGsStoragePath(normalized) && !_isStorageRelativePath(normalized)) {
+      return normalized;
+    }
+
+    final cached = _gsImageUrlCache[normalized];
+    if (cached != null && cached.isNotEmpty) return cached;
+
+    try {
+      final ref = _isGsStoragePath(normalized)
+          ? FirebaseStorage.instance.refFromURL(normalized)
+          : FirebaseStorage.instance.ref(
+              normalized.startsWith('/') ? normalized.substring(1) : normalized,
+            );
+      final url = await ref.getDownloadURL();
+      _gsImageUrlCache[normalized] = url;
+      return url;
+    } catch (e) {
+      debugPrint('OrderListView: failed to resolve gs image $normalized: $e');
+      return null;
+    }
   }
 
   @override
@@ -310,7 +366,7 @@ class OrderListViewState extends State<OrderListView> {
   }
 
   void _showFilterSheet() {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -989,8 +1045,9 @@ class OrderListViewState extends State<OrderListView> {
           ),
         ],
       ),
-      body: Column(
-        children: [
+      body: ResponsiveCenter(
+        child: Column(
+          children: [
           // Active filter chip
           if (_activeFilterCount > 0)
             Container(
@@ -1081,6 +1138,7 @@ class OrderListViewState extends State<OrderListView> {
           ),
         ],
       ),
+      ),
       floatingActionButton: GradientFab.purple(
         onPressed: () async {
           final res = await Navigator.push(
@@ -1098,8 +1156,8 @@ class OrderListViewState extends State<OrderListView> {
   }
 
   Widget _buildRepairCard(Repair r, int index) {
-    final List<String> images = r.receiveImages;
-    final String firstImage = images.isNotEmpty ? images.first : "";
+    final List<String> images = _collectRepairImages(r);
+    final String firstImage = _pickBestPreviewImage(images);
     
     // Determine card color based on status
     Color bgColor;
@@ -1168,7 +1226,7 @@ class OrderListViewState extends State<OrderListView> {
             if (!canDelete) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Chỉ admin/chủ cửa hàng mới có quyền xóa đơn'),
+                  content: Text('Chỉ quản lý/chủ shop mới có quyền xóa đơn'),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -1225,12 +1283,18 @@ class OrderListViewState extends State<OrderListView> {
                             decoration: BoxDecoration(
                               color: Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(8),
-                              image: firstImage.isNotEmpty
+                                    image: firstImage.isNotEmpty &&
+                                      !_isGsStoragePath(firstImage) &&
+                                      !_isStorageRelativePath(firstImage)
                                   ? DecorationImage(
-                                      image: firstImage.startsWith('http')
+                                      image: (firstImage.startsWith('http') ||
+                                              firstImage.startsWith('blob:') ||
+                                              firstImage.startsWith('data:'))
                                           ? NetworkImage(firstImage)
-                                          : FileImage(File(firstImage))
-                                                as ImageProvider,
+                                          : (kIsWeb
+                                                ? NetworkImage(firstImage)
+                                                : FileImage(File(firstImage))
+                                                      as ImageProvider),
                                       fit: BoxFit.cover,
                                     )
                                   : null,
@@ -1241,7 +1305,30 @@ class OrderListViewState extends State<OrderListView> {
                                     color: Colors.grey,
                                     size: 24,
                                   )
-                                : null,
+                                : ((_isGsStoragePath(firstImage) || _isStorageRelativePath(firstImage))
+                                      ? FutureBuilder<String?>(
+                                          future: _resolveDisplayImagePath(firstImage),
+                                          builder: (context, snapshot) {
+                                            final url = snapshot.data;
+                                            if (url == null || url.isEmpty) {
+                                              return const Icon(
+                                                Icons.broken_image,
+                                                color: Colors.grey,
+                                                size: 20,
+                                              );
+                                            }
+                                            return ClipRRect(
+                                              borderRadius: BorderRadius.circular(8),
+                                              child: Image.network(
+                                                url,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (ctx, err, stack) =>
+                                                    const Icon(Icons.broken_image, color: Colors.grey),
+                                              ),
+                                            );
+                                          },
+                                        )
+                                      : null),
                           ),
                           if (images.length > 1)
                             Positioned(
@@ -1392,6 +1479,72 @@ class OrderListViewState extends State<OrderListView> {
       ),
     );
   }
+
+  List<String> _collectRepairImages(Repair r) {
+    final result = <String>[];
+
+    void addCandidate(String? value) {
+      if (value == null) return;
+      var s = value.trim();
+      if (s.isEmpty) return;
+      if ((s.startsWith('"') && s.endsWith('"')) ||
+          (s.startsWith("'") && s.endsWith("'"))) {
+        s = s.substring(1, s.length - 1).trim();
+      }
+      if (s.startsWith('[') && s.endsWith(']')) {
+        s = s.substring(1, s.length - 1).trim();
+      }
+      if (s.isEmpty) return;
+      if (!result.contains(s)) {
+        result.add(s);
+      }
+    }
+
+    for (final image in r.receiveImages) {
+      addCandidate(image);
+    }
+
+    final raw = (r.imagePath ?? '').trim();
+    if (raw.isNotEmpty) {
+      final parts = raw
+          .split(RegExp(r'[,;\n]'))
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty);
+      for (final part in parts) {
+        addCandidate(part);
+      }
+    }
+
+    return result;
+  }
+
+  String _pickBestPreviewImage(List<String> images) {
+    if (images.isEmpty) return '';
+
+    for (final image in images) {
+      if (_isWebPreviewSource(image)) {
+        return image;
+      }
+    }
+
+    if (kIsWeb) {
+      // On web, local file paths cannot be rendered across sessions/devices.
+      return '';
+    }
+
+    return images.first;
+  }
+
+  bool _isWebPreviewSource(String path) {
+    final lower = path.toLowerCase();
+    return lower.startsWith('http://') ||
+        lower.startsWith('https://') ||
+      lower.startsWith('gs://') ||
+      lower.startsWith('repairs/') ||
+      lower.startsWith('/repairs/') ||
+        lower.startsWith('blob:') ||
+        lower.startsWith('data:');
+  }
   
   Widget _repairInfoChip(
     String text,
@@ -1403,7 +1556,7 @@ class OrderListViewState extends State<OrderListView> {
   }) {
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width - 100, // Prevent overflow
+        maxWidth: (MediaQuery.sizeOf(context).width - 100).clamp(0, 400), // Prevent overflow
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

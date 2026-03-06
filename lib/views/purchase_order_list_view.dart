@@ -6,6 +6,7 @@ import '../models/purchase_order_model.dart';
 import '../services/user_service.dart';
 import 'create_purchase_order_view.dart';
 import '../widgets/validated_text_field.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class PurchaseOrderListView extends StatefulWidget {
   const PurchaseOrderListView({super.key});
@@ -220,7 +221,8 @@ class _PurchaseOrderListViewState extends State<PurchaseOrderListView> {
           ),
         ] : null,
       ),
-      body: Column(
+      body: ResponsiveCenter(
+        child: Column(
         children: [
           // Search box
           Padding(
@@ -273,7 +275,7 @@ class _PurchaseOrderListViewState extends State<PurchaseOrderListView> {
                 ),
           ),
         ],
-      ),
+      )),
     );
   }
 }

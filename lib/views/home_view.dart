@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
@@ -72,6 +73,11 @@ import '../services/payment_intent_service.dart';
 import '../services/adjustment_service.dart';
 import '../models/shop_settings_model.dart';
 import '../models/payment_intent_model.dart';
+import '../models/repair_model.dart';
+import '../models/product_model.dart';
+import '../models/sale_order_model.dart';
+import '../models/expense_model.dart';
+import '../models/debt_model.dart';
 import '../constants/financial_constants.dart';
 import '../widgets/currency_text_field.dart';
 import 'food/expiry_management_view.dart';
@@ -80,6 +86,7 @@ import 'onboarding/business_type_wizard.dart';
 import 'dashboard_settings_view.dart';
 import '../services/dashboard_config_service.dart';
 import '../widgets/dashboard_cards.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class HomeView extends StatefulWidget {
   final String role;
@@ -174,6 +181,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
   int _rebuildCounter = 0; // Force rebuild counter
   bool _isLoadingStats = false; // Guard chống load nhiều lần
+  bool _cloudBootstrapTried = false;
+  bool _cloudBootstrapRunning = false;
 
   Timer? _autoSyncTimer;
   Timer? _statsDebounceTimer; // Add debounce timer
@@ -350,7 +359,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
   void _showLanguageSheet() {
     final loc = AppLocalizations.of(context)!;
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       builder: (_) => SafeArea(
         child: Column(
@@ -1017,6 +1026,22 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       // 2. Load user info NGAY (quan trọng cho lời chào)
       await _loadUserAndShopInfo(); // AWAIT để đảm bảo có data trước khi render
 
+      // Ensure shop context is valid before relying on local stats/sync.
+      final ensuredShopId = await UserService.getCurrentShopId();
+      if (ensuredShopId == null || ensuredShopId.isEmpty) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null && user.email != null) {
+          debugPrint('HomeView: shopId missing, forcing syncUserInfo recovery...');
+          await UserService.syncUserInfo(user.uid, user.email!);
+          await SyncService.downloadAllFromCloud().timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {
+              debugPrint('HomeView: recovery sync timeout');
+            },
+          );
+        }
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final currentUser = FirebaseAuth.instance.currentUser;
       final lastUserId = prefs.getString('lastUserId');
@@ -1062,6 +1087,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   /// Load thông tin người dùng và tên shop để hiển thị lời chào
   Future<void> _loadUserAndShopInfo() async {
     try {
+      String normalizeLegacyShopName(String? rawName) {
+        final name = (rawName ?? '').trim();
+        if (name.isEmpty) return '';
+        final lower = name.toLowerCase();
+        if (lower == 'shop new' || lower == 'shop_new' || lower == 'shopnew') {
+          return 'QUAN LY SHOP';
+        }
+        return name;
+      }
+
       final user = FirebaseAuth.instance.currentUser;
       debugPrint('_loadUserAndShopInfo: START, user=${user?.email}');
       if (user == null) {
@@ -1072,7 +1107,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       // ====== TỐI ƯU: Load từ cache trước, hiện UI ngay ======
       final prefs = await SharedPreferences.getInstance();
       final cachedUserName = prefs.getString('cached_userName_${user.uid}');
-      final cachedShopName = prefs.getString('cached_shopName_${user.uid}');
+      final cachedShopName = normalizeLegacyShopName(
+        prefs.getString('cached_shopName_${user.uid}'),
+      );
       debugPrint('_loadUserAndShopInfo: Cache - userName=$cachedUserName, shopName=$cachedShopName');
       
       // Hiển thị cache ngay lập tức (nếu có và không rỗng)
@@ -1137,7 +1174,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           if (shopDoc.exists) {
             final shopData = shopDoc.data();
             debugPrint('_loadUserAndShopInfo: Shop doc data=$shopData');
-            shopName = shopData?['name'] ?? '';
+            shopName = normalizeLegacyShopName(shopData?['name']?.toString());
             debugPrint('_loadUserAndShopInfo: shopName from Firestore=$shopName');
           } else {
             debugPrint('_loadUserAndShopInfo: Shop doc does NOT exist');
@@ -1146,7 +1183,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       } catch (shopError) {
         debugPrint('_loadUserAndShopInfo: Shop fetch error (userName still safe): $shopError');
         // Fallback: lấy shopName từ SharedPreferences (set bởi SyncService hoặc ShopSettings)
-        final fallbackShopName = prefs.getString('shop_name') ?? '';
+        final fallbackShopName = normalizeLegacyShopName(
+          prefs.getString('shop_name'),
+        );
         if (fallbackShopName.isNotEmpty) {
           shopName = fallbackShopName;
           debugPrint('_loadUserAndShopInfo: shopName from SharedPreferences fallback=$shopName');
@@ -1376,7 +1415,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     final shopId = await UserService.getCurrentShopId();
     if (shopId == null || !mounted) return;
     
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       isDismissible: false, // Force user to choose
@@ -1527,7 +1566,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           whereArgs: [startMs, endMs, startMs, endMs]),
         // [10] repairPartsCostFund — repairs with cost recorded in fund today
         dbConn.query('repairs',
-          columns: ['cost', 'costPaymentMethod'],
+          columns: ['cost', 'costRecordedAmount', 'costPaymentMethod'],
           where: 'costRecordedInFund = 1 AND costRecordedAt IS NOT NULL AND costRecordedAt >= ? AND costRecordedAt < ?',
           whereArgs: [startMs, endMs]),
         // [11] pendingApproval — đơn chờ duyệt giao (status 3 + pendingDeliveryApproval = 1)
@@ -1631,9 +1670,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           final price = (r['price'] as num?)?.toInt() ?? 0;
           final cost = (r['cost'] as num?)?.toInt() ?? 0;
           final paymentMethod = (r['paymentMethod'] ?? '').toString();
+          // Cash-basis for repairs: recognize income/profit only when collected.
+          // Delivered debt repairs are excluded until money is actually collected.
+          if (paymentMethod == 'CÔNG NỢ') continue;
           repairIncome += price;
           repairCost += cost;
-          if (paymentMethod == 'CÔNG NỢ') continue; // No cash flow
           if (paymentMethod == 'TIỀN MẶT') {
             cashIn += price;
           } else {
@@ -1734,7 +1775,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       // Chi phí vốn linh kiện đã ghi sổ quỹ → CashOut / BankOut
       int repairPartsCostFund = 0;
       for (final r in repairPartsCostFundRows) {
-        final cost = (r['cost'] as num?)?.toInt() ?? 0;
+        final cost = (r['costRecordedAmount'] as num?)?.toInt() ??
+            (r['cost'] as num?)?.toInt() ??
+            0;
         final method = (r['costPaymentMethod'] as String? ?? 'TIỀN MẶT').toString();
         repairPartsCostFund += cost;
         if (method == 'TIỀN MẶT') { cashOut += cost; } else { bankOut += cost; }
@@ -1835,6 +1878,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           + (recordCounts.first['sales'] as int? ?? 0)
           + (recordCounts.first['products'] as int? ?? 0);
 
+      if (kIsWeb && totalRecords == 0 && !_cloudBootstrapTried && !_cloudBootstrapRunning) {
+        _cloudBootstrapTried = true;
+        // ignore: unawaited_futures
+        _bootstrapCoreDataFromCloud();
+      }
+
       debugPrint('HomeView: _loadStats total took ${stopwatch.elapsedMilliseconds}ms');
 
       if (mounted) {
@@ -1880,6 +1929,124 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       _loadChatInfo();
     } finally {
       _isLoadingStats = false;
+    }
+  }
+
+  void _normalizeTimestampFields(Map<String, dynamic> data) {
+    const fields = [
+      'createdAt',
+      'updatedAt',
+      'soldAt',
+      'deliveredAt',
+      'paidAt',
+      'date',
+      'checkInAt',
+      'checkOutAt',
+      'approvedAt',
+      'settlementReceivedAt',
+      'settlementPlannedAt',
+      'lastVisitAt',
+    ];
+    for (final key in fields) {
+      final v = data[key];
+      if (v is Timestamp) {
+        data[key] = v.millisecondsSinceEpoch;
+      }
+    }
+  }
+
+  Future<void> _bootstrapCoreDataFromCloud() async {
+    if (_cloudBootstrapRunning) return;
+    _cloudBootstrapRunning = true;
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null || shopId.isEmpty) return;
+
+      debugPrint('🌐 HomeView bootstrap: start for shopId=$shopId');
+
+      final fs = FirebaseFirestore.instance;
+
+      final repairsSnap = await fs
+          .collection('repairs')
+          .where('shopId', isEqualTo: shopId)
+          .get();
+      for (final doc in repairsSnap.docs) {
+        final data = EncryptionService.decryptMap(
+          Map<String, dynamic>.from(doc.data()),
+        );
+        data['firestoreId'] = doc.id;
+        data['isSynced'] = 1;
+        _normalizeTimestampFields(data);
+        await db.upsertRepair(Repair.fromMap(data));
+      }
+
+      final productsSnap = await fs
+          .collection('products')
+          .where('shopId', isEqualTo: shopId)
+          .get();
+      for (final doc in productsSnap.docs) {
+        final data = EncryptionService.decryptMap(
+          Map<String, dynamic>.from(doc.data()),
+        );
+        data['firestoreId'] = doc.id;
+        data['isSynced'] = 1;
+        _normalizeTimestampFields(data);
+        await db.upsertProduct(Product.fromMap(data));
+      }
+
+      final salesSnap = await fs
+          .collection('sales')
+          .where('shopId', isEqualTo: shopId)
+          .get();
+      for (final doc in salesSnap.docs) {
+        final data = EncryptionService.decryptMap(
+          Map<String, dynamic>.from(doc.data()),
+        );
+        data['firestoreId'] = doc.id;
+        data['isSynced'] = 1;
+        _normalizeTimestampFields(data);
+        await db.upsertSale(SaleOrder.fromMap(data));
+      }
+
+      final expensesSnap = await fs
+          .collection('expenses')
+          .where('shopId', isEqualTo: shopId)
+          .get();
+      for (final doc in expensesSnap.docs) {
+        final data = EncryptionService.decryptMap(
+          Map<String, dynamic>.from(doc.data()),
+        );
+        data['firestoreId'] = doc.id;
+        data['isSynced'] = 1;
+        _normalizeTimestampFields(data);
+        await db.upsertExpense(Expense.fromMap(data));
+      }
+
+      final debtsSnap = await fs
+          .collection('debts')
+          .where('shopId', isEqualTo: shopId)
+          .get();
+      for (final doc in debtsSnap.docs) {
+        final data = EncryptionService.decryptMap(
+          Map<String, dynamic>.from(doc.data()),
+        );
+        data['firestoreId'] = doc.id;
+        data['isSynced'] = 1;
+        _normalizeTimestampFields(data);
+        await db.upsertDebt(Debt.fromMap(data));
+      }
+
+      debugPrint(
+        '🌐 HomeView bootstrap: repairs=${repairsSnap.docs.length}, products=${productsSnap.docs.length}, sales=${salesSnap.docs.length}',
+      );
+
+      if (mounted) {
+        _debouncedLoadStats();
+      }
+    } catch (e) {
+      debugPrint('🌐 HomeView bootstrap failed: $e');
+    } finally {
+      _cloudBootstrapRunning = false;
     }
   }
 
@@ -1991,40 +2158,94 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             ),
           ],
         ),
-        body: IndexedStack(
-          index: _currentIndex,
-          children: _tabWidgets,
-        ),
-        bottomNavigationBar: _navItems.length < 2
-            ? null
-            : Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 4,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: List.generate(_navItems.length, (index) {
-                        final item = _navItems[index];
-                        final isSelected = _currentIndex == index;
-                        return _buildAnimatedNavItem(item, index, isSelected);
-                      }),
-                    ),
+        body: _buildResponsiveBody(),
+        bottomNavigationBar: _buildResponsiveBottomNav(),
+      ),
+    );
+  }
+
+  /// Responsive body: NavigationRail on wide screens, IndexedStack on mobile
+  Widget _buildResponsiveBody() {
+    final r = context.responsive;
+    if (r.isWideLayout && _navItems.length >= 2) {
+      return Row(
+        children: [
+          SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top),
+              child: IntrinsicHeight(
+                child: NavigationRail(
+                  selectedIndex: _currentIndex.clamp(0, _navItems.length - 1),
+                  onDestinationSelected: (index) {
+                    HapticFeedback.lightImpact();
+                    setState(() => _currentIndex = index);
+                  },
+                  labelType: NavigationRailLabelType.all,
+                  backgroundColor: AppColors.surface,
+                  selectedIconTheme: const IconThemeData(color: AppColors.primary),
+                  selectedLabelTextStyle: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
                   ),
+                  unselectedLabelTextStyle: TextStyle(
+                    color: AppColors.onSurface.withOpacity(0.6),
+                    fontSize: 10,
+                  ),
+                  destinations: _navItems.map((item) {
+                    return NavigationRailDestination(
+                      icon: item.icon,
+                      selectedIcon: item.activeIcon,
+                      label: Text(item.label ?? ''),
+                    );
+                  }).toList(),
                 ),
               ),
+            ),
+          ),
+          const VerticalDivider(thickness: 1, width: 1),
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _tabWidgets,
+            ),
+          ),
+        ],
+      );
+    }
+    return IndexedStack(
+      index: _currentIndex,
+      children: _tabWidgets,
+    );
+  }
+
+  /// Bottom nav: only show on narrow screens
+  Widget? _buildResponsiveBottomNav() {
+    final r = context.responsive;
+    if (r.isWideLayout || _navItems.length < 2) return null;
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(_navItems.length, (index) {
+              final item = _navItems[index];
+              final isSelected = _currentIndex == index;
+              return _buildAnimatedNavItem(item, index, isSelected);
+            }),
+          ),
+        ),
       ),
     );
   }
@@ -2132,8 +2353,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       child: RefreshIndicator(
         key: const ValueKey('home_tab'), // Stable key to preserve scroll state
         onRefresh: () => _syncNow(),
-        child: ListView(
-          padding: const EdgeInsets.all(10),
+        child: ResponsiveCenter(
+          child: ListView(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.responsive.horizontalPadding,
+              vertical: 10,
+            ),
           children: [
             if (_shopLocked)
               Card(
@@ -2161,6 +2386,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           ..._buildModularDashboard(),
           const SizedBox(height: 50),
         ],
+      ),
       ),
       ),
     );
@@ -3452,13 +3678,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               ],
             ),
           ),
-          // Grid layout - 4 items per row, compact
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: items.map((item) => SizedBox(
-              width: (MediaQuery.of(context).size.width - 32 - 24) / 4,
-              child: InkWell(
+          // Grid layout - responsive columns
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = context.responsive.shortcutColumns;
+              final itemWidth = (constraints.maxWidth - (cols - 1) * 8) / cols;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: items.map((item) => SizedBox(
+                  width: itemWidth,
+                  child: InkWell(
                 onTap: item.onTap,
                 onLongPress: _shortcutConfigLoaded ? () {
                   HapticFeedback.mediumImpact();
@@ -3500,6 +3730,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                 ),
               ),
             )).toList(),
+          );
+            },
           ),
         ],
       ),
@@ -3509,7 +3741,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   /// Edit mode for shortcuts: clean toggle grid + link to advanced settings
   Widget _buildShortcutEditMode() {
     final visibleCount = _shortcutConfigs.where((c) => c.visible).length;
-    final itemWidth = (MediaQuery.of(context).size.width - 32 - 24) / 4;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -3571,7 +3802,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           ),
 
           // Unified grid: all shortcuts, visible ones colored, hidden ones greyed
-          Wrap(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = context.responsive.shortcutColumns;
+              final itemWidth = (constraints.maxWidth - (cols - 1) * 8) / cols;
+              return Wrap(
             spacing: 8,
             runSpacing: 8,
             children: _shortcutConfigs.map((config) {
@@ -3656,6 +3891,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                 ),
               );
             }).toList(),
+          );
+            },
           ),
 
           // Link to advanced settings (reorder, etc.)
@@ -4609,8 +4846,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: ListView(
-        padding: const EdgeInsets.all(10),
+      body: ResponsiveCenter(
+        child: ListView(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.responsive.horizontalPadding,
+            vertical: 10,
+          ),
         children: [
           // Header Section
           _buildTabHeader(loc.sales.toUpperCase(), Icons.shopping_cart, Colors.green),
@@ -4695,14 +4936,19 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           ),
         ],
       ),
+      ),
     );
   }
 
   Widget _buildRepairsTab() {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: ListView(
-        padding: const EdgeInsets.all(10),
+      body: ResponsiveCenter(
+        child: ListView(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.responsive.horizontalPadding,
+            vertical: 10,
+          ),
         children: [
           // Header Section
           _buildTabHeader(loc.repairsTab.toUpperCase(), Icons.build, Colors.blue),
@@ -4770,14 +5016,19 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           // Kho Phụ Tùng đã được chuyển vào tab Linh kiện trong QUẢN LÝ KHO
         ],
       ),
+      ),
     );
   }
 
   Widget _buildInventoryTab() {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: ListView(
-        padding: const EdgeInsets.all(10),
+      body: ResponsiveCenter(
+        child: ListView(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.responsive.horizontalPadding,
+            vertical: 10,
+          ),
         children: [
           // Header Section
           _buildTabHeader(loc.inventoryManagement, Icons.inventory_2, Colors.orange),
@@ -5033,6 +5284,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -5064,11 +5316,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     }
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: ListView(
-        padding: const EdgeInsets.all(10),
-        children: [
-          // Header Section
-          _buildTabHeader(loc.staffManagement, Icons.people, Colors.teal),
+      body: ResponsiveCenter(
+        child: ListView(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.responsive.horizontalPadding,
+            vertical: 10,
+          ),
+          children: [
+            // Header Section
+            _buildTabHeader(loc.staffManagement, Icons.people, Colors.teal),
           const SizedBox(height: 10),
 
           // Quick Action - Chấm công
@@ -5199,6 +5455,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             subtitle: loc.personalAttendanceDescription,
           ),
         ],
+      ),
       ),
     );
   }
@@ -5480,8 +5737,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       backgroundColor: AppColors.background,
       body: RefreshIndicator(
         onRefresh: () => _syncNow(),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+        child: ResponsiveCenter(
+          child: ListView(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.responsive.horizontalPadding,
+              vertical: 16,
+            ),
           children: [
             // Header Section
             _buildTabHeader(
@@ -5664,6 +5925,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -6104,11 +6366,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: ListView(
-        padding: const EdgeInsets.all(10),
-        children: [
-          Text(
-            loc.settings,
+      body: ResponsiveCenter(
+        child: ListView(
+          padding: EdgeInsets.symmetric(
+            horizontal: context.responsive.horizontalPadding,
+            vertical: 10,
+          ),
+          children: [
+            Text(
+              loc.settings,
             style: AppTextStyles.headline6.copyWith(color: AppColors.onSurface),
           ),
           const SizedBox(height: 10),
@@ -6207,6 +6473,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           const SizedBox(height: 20),
           _buildLogoutCard(),
         ],
+      ),
       ),
     );
   }
@@ -6389,7 +6656,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     size: 16,
                   ),
                   onPressed: () {
-                    showModalBottomSheet(
+                    showAppBottomSheet(
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
@@ -6398,7 +6665,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   },
                 ),
                 onTap: () {
-                  showModalBottomSheet(
+                  showAppBottomSheet(
                     context: context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/db_helper.dart';
 import '../models/employee_salary_model.dart';
@@ -363,7 +364,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
           ),
         ],
       ),
-      body: _loading
+      body: ResponsiveCenter(child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -379,7 +380,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                   ),
                 ),
               ],
-            ),
+            )),
     );
   }
 
@@ -798,7 +799,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
           overtimeRate: (_shopDefaults['overtimeRate'] ?? 150).toDouble(),
         );
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

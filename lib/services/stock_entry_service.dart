@@ -990,7 +990,7 @@ class StockEntryService {
       return;
     }
 
-    yield* _firestore
+    final stream = _firestore
         .collection(_collection)
         .where('shopId', isEqualTo: shopId)
         .where('status', isEqualTo: 'draft') // lowercase để match với toMap()
@@ -1000,7 +1000,11 @@ class StockEntryService {
           (snapshot) => snapshot.docs
               .map((doc) => StockEntry.fromMap(doc.data(), docId: doc.id))
               .toList(),
-        );
+        )
+        .handleError((e) {
+          debugPrint('watchPendingEntries permission/sync error: $e');
+        });
+    yield* stream;
   }
 
   /// Stream đếm số hàng chờ
@@ -1011,11 +1015,15 @@ class StockEntryService {
       return;
     }
 
-    yield* _firestore
+    final stream = _firestore
         .collection(_collection)
         .where('shopId', isEqualTo: shopId)
         .where('status', isEqualTo: 'draft') // lowercase để match với toMap()
         .snapshots()
-        .map((snapshot) => snapshot.docs.length);
+        .map((snapshot) => snapshot.docs.length)
+        .handleError((e) {
+          debugPrint('watchPendingCount permission/sync error: $e');
+        });
+    yield* stream;
   }
 }

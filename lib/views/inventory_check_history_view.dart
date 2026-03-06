@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 
 import '../data/db_helper.dart';
 import '../models/inventory_check_model.dart';
@@ -151,7 +152,7 @@ class _InventoryCheckHistoryViewState extends State<InventoryCheckHistoryView> {
           ),
         ],
       ),
-      body: _isLoading
+      body: ResponsiveCenter(child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _checks.isEmpty
               ? _buildEmptyState()
@@ -163,7 +164,7 @@ class _InventoryCheckHistoryViewState extends State<InventoryCheckHistoryView> {
                     itemBuilder: (context, index) =>
                         _buildCheckCard(_checks[index]),
                   ),
-                ),
+                )),
     );
   }
 
@@ -387,7 +388,7 @@ class _InventoryCheckHistoryViewState extends State<InventoryCheckHistoryView> {
   }
 
   void _showCheckDetail(InventoryCheck check) {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(

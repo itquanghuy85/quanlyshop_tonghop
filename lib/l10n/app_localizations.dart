@@ -6830,7 +6830,7 @@ abstract class AppLocalizations {
   /// No description provided for @defaultShopName.
   ///
   /// In en, this message translates to:
-  /// **'SHOP NEW'**
+  /// **'QUAN LY SHOP'**
   String get defaultShopName;
 
   /// No description provided for @defaultShopDesc.

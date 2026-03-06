@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/responsive_wrapper.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/product_model.dart';
 import '../../models/shop_settings_model.dart';
@@ -125,7 +126,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
           ],
         ),
       ),
-      body: _isLoading
+      body: ResponsiveCenter(child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -145,7 +146,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                   ),
                 ),
               ],
-            ),
+            )),
     );
   }
 
@@ -650,7 +651,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
   }
 
   void _showProductActions(Product product) {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -703,7 +704,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
     final products = await _expiryService.getProductsByBatch(batch.batchNumber);
     if (!mounted) return;
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(

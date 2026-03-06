@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../services/dashboard_config_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
@@ -164,7 +165,7 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView>
           ],
         ),
       ),
-      body: Column(
+      body: ResponsiveCenter(child: Column(
         children: [
           // Instructions
           Container(
@@ -205,7 +206,7 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView>
           // Bottom info bar
           _buildBottomBar(),
         ],
-      ),
+      )),
     );
   }
 

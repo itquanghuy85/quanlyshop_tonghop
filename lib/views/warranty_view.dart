@@ -9,6 +9,7 @@ import '../models/shop_settings_model.dart';
 import '../services/user_service.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
 import '../utils/excel_export_helper.dart';
@@ -195,7 +196,8 @@ class _WarrantyViewState extends State<WarrantyView> {
           ),
         ],
       ),
-      body: _isLoading
+      body: ResponsiveCenter(
+        child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _warrantyList.isEmpty
           ? _buildEmptyState()
@@ -205,6 +207,7 @@ class _WarrantyViewState extends State<WarrantyView> {
               itemBuilder: (ctx, i) =>
                   _buildWarrantyCard(_warrantyList[i], i + 1),
             ),
+      ),
     );
   }
 

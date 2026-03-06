@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../constants/product_constants.dart';
@@ -588,7 +589,7 @@ class _FastStockInViewState extends State<FastStockInView> {
 
   /// Mở scanner QR/Barcode để quét IMEI - xử lý thông minh QR nhiều dòng
   void _openQRScanner() {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1574,7 +1575,7 @@ class _FastStockInViewState extends State<FastStockInView> {
           ),
         ],
       ),
-      body: bodyContent,
+      body: ResponsiveCenter(child: bodyContent),
     );
   }
 

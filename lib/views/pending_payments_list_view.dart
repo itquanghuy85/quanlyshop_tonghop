@@ -17,6 +17,7 @@ import '../services/notification_service.dart';
 import '../constants/financial_constants.dart';
 import '../services/event_bus.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class PendingPaymentsListView extends StatefulWidget {
   const PendingPaymentsListView({super.key});
@@ -86,7 +87,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
     }
     // Show method selection bottom sheet
     if (!mounted) return;
-    final method = await showModalBottomSheet<PaymentMethod>(
+    final method = await showAppBottomSheet<PaymentMethod>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _PaymentMethodSheet(intent: intent),
@@ -190,7 +191,8 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
-      body: _isLoading
+      body: ResponsiveCenter(
+        child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
@@ -200,6 +202,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
                 _buildHistoryList(),
               ],
             ),
+      ),
     );
   }
 
@@ -570,7 +573,7 @@ class _PendingPaymentsListViewState extends State<PendingPaymentsListView>
         .where((i) => i.status == PaymentIntentStatus.completed)
         .length;
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(

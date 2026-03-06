@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../models/product_category_model.dart';
 import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
@@ -70,11 +71,11 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
           ),
         ],
       ),
-      body: _isLoading
+      body: ResponsiveCenter(child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _categories.isEmpty
               ? _buildEmptyState()
-              : _buildCategoryList(),
+              : _buildCategoryList()),
     );
   }
 
@@ -352,7 +353,7 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
       '🛋️', '🪑', '🛏️', '🚗', '🏠', '⭐', '🎁', '📋',
     ];
 
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       builder: (context) => Container(
         padding: const EdgeInsets.all(16),

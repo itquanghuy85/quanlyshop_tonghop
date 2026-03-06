@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../models/repair_model.dart';
@@ -25,6 +27,7 @@ import '../services/payment_intent_service.dart';
 import '../services/category_service.dart';
 import '../models/printer_types.dart';
 import '../widgets/printer_selection_dialog.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../services/notification_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/sync_service.dart';
@@ -58,6 +61,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   String _shopPhone = "";
   bool _hasPermission = false;
   List<RepairPartner> _partners = [];
+  final Map<String, String> _gsImageUrlCache = {};
 
   // Shop settings for dynamic terminology (reserved for future multi-industry use)
   // ignore: unused_field
@@ -112,18 +116,86 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Future<void> _loadShopInfo() async {
     final prefs = await SharedPreferences.getInstance();
+    final rawShopName = (prefs.getString('shop_name') ?? '').trim();
+    final normalizedShopName =
+        rawShopName.toLowerCase() == 'shop new' ||
+            rawShopName.toLowerCase() == 'shop_new' ||
+            rawShopName.toLowerCase() == 'shopnew'
+        ? 'QUAN LY SHOP'
+        : (rawShopName.isNotEmpty ? rawShopName : loc.defaultShopName);
     if (!mounted) return;
     setState(() {
-      _shopName = prefs.getString('shop_name') ?? loc.defaultShopName;
+      _shopName = normalizedShopName;
       _shopAddr = prefs.getString('shop_address') ?? loc.defaultShopDesc;
       _shopPhone = prefs.getString('shop_phone') ?? loc.defaultShopPhone;
     });
   }
 
+  bool _isGsStoragePath(String path) {
+    return path.trim().toLowerCase().startsWith('gs://');
+  }
+
+  bool _isStorageRelativePath(String path) {
+    final p = path.trim().toLowerCase();
+    if (p.isEmpty) return false;
+    if (p.contains('://') || p.startsWith('blob:') || p.startsWith('data:')) {
+      return false;
+    }
+    return p.startsWith('repairs/') || p.startsWith('/repairs/');
+  }
+
+  Future<String?> _resolveDisplayImagePath(String path) async {
+    final normalized = path.trim();
+    if (normalized.isEmpty) return null;
+    if (!_isGsStoragePath(normalized) && !_isStorageRelativePath(normalized)) {
+      return normalized;
+    }
+
+    final cached = _gsImageUrlCache[normalized];
+    if (cached != null && cached.isNotEmpty) return cached;
+
+    try {
+      final ref = _isGsStoragePath(normalized)
+          ? FirebaseStorage.instance.refFromURL(normalized)
+          : FirebaseStorage.instance.ref(
+              normalized.startsWith('/') ? normalized.substring(1) : normalized,
+            );
+      final url = await ref.getDownloadURL();
+      _gsImageUrlCache[normalized] = url;
+      return url;
+    } catch (e) {
+      debugPrint('RepairDetailView: failed to resolve gs:// image $normalized: $e');
+      return null;
+    }
+  }
+
   Widget _buildSmartImage(String path) {
-    if (path.startsWith('http')) {
+    final normalized = path.trim();
+    if (_isGsStoragePath(normalized) || _isStorageRelativePath(normalized)) {
+      return FutureBuilder<String?>(
+        future: _resolveDisplayImagePath(normalized),
+        builder: (context, snapshot) {
+          final url = snapshot.data;
+          if (url == null || url.isEmpty) {
+            return const Icon(Icons.broken_image, color: AppColors.error);
+          }
+          return Image.network(
+            url,
+            fit: BoxFit.cover,
+            loadingBuilder: (ctx, child, progress) => progress == null
+                ? child
+                : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            errorBuilder: (ctx, err, stack) =>
+                const Icon(Icons.broken_image, color: AppColors.error),
+          );
+        },
+      );
+    }
+    if (normalized.startsWith('http') ||
+        normalized.startsWith('blob:') ||
+        normalized.startsWith('data:')) {
       return Image.network(
-        path,
+        normalized,
         fit: BoxFit.cover,
         loadingBuilder: (ctx, child, progress) => progress == null
             ? child
@@ -132,9 +204,38 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             const Icon(Icons.broken_image, color: AppColors.error),
       );
     }
-    File file = File(path);
+    if (kIsWeb) {
+      return Image.network(
+        normalized,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) =>
+            const Icon(Icons.cloud_download, color: AppColors.primary),
+      );
+    }
+    File file = File(normalized);
     if (file.existsSync()) return Image.file(file, fit: BoxFit.cover);
     return const Icon(Icons.cloud_download, color: AppColors.primary);
+  }
+
+  bool _isWebImageSource(String path) {
+    final p = path.trim().toLowerCase();
+    return p.startsWith('http://') ||
+        p.startsWith('https://') ||
+      p.startsWith('gs://') ||
+      p.startsWith('repairs/') ||
+      p.startsWith('/repairs/') ||
+        p.startsWith('blob:') ||
+        p.startsWith('data:');
+  }
+
+  List<String> _displayableImages(List<String> images) {
+    final normalized = images
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (!kIsWeb) return normalized;
+    final web = normalized.where(_isWebImageSource).toList();
+    return web;
   }
 
   Future<void> _updateStatus(int newStatus) async {
@@ -1847,6 +1948,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           r.costRecordedInFund = false;
           r.costPaymentMethod = null;
           r.costRecordedAt = null;
+          r.costRecordedAmount = 0;
         });
       }
 
@@ -1908,6 +2010,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         r.costRecordedInFund = true;
         r.costPaymentMethod = fundResult;
         r.costRecordedAt = DateTime.now().millisecondsSinceEpoch;
+        r.costRecordedAmount = costAmount;
       });
       NotificationService.showSnackBar(
         'Đã ghi ${MoneyUtils.formatVND(costAmount)} vào sổ quỹ ($fundResult)',
@@ -1918,6 +2021,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         r.costRecordedInFund = false;
         r.costPaymentMethod = null;
         r.costRecordedAt = null;
+        r.costRecordedAmount = 0;
       });
     }
   }
@@ -2193,7 +2297,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: ResponsiveCenter(
+        maxWidth: 900,
+        child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
           children: [
@@ -2508,7 +2614,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       ),
 
                     // Hình ảnh
-                    if (r.receiveImages.isNotEmpty) ...[
+                    if (_displayableImages(r.receiveImages).isNotEmpty) ...[
                       const Divider(height: 12),
                       Row(
                         children: [
@@ -2519,7 +2625,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            loc.imagesCount(r.receiveImages.length),
+                            loc.imagesCount(_displayableImages(r.receiveImages).length),
                             style: AppTextStyles.caption.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Colors.pink.shade700,
@@ -2532,9 +2638,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         height: 60,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
-                          itemCount: r.receiveImages.length,
+                          itemCount: _displayableImages(r.receiveImages).length,
                           itemBuilder: (ctx, i) => GestureDetector(
-                            onTap: () => _showFullImage(r.receiveImages, i),
+                            onTap: () => _showFullImage(_displayableImages(r.receiveImages), i),
                             child: Container(
                               margin: const EdgeInsets.only(right: 6),
                               width: 60,
@@ -2546,7 +2652,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: _buildSmartImage(r.receiveImages[i]),
+                                child: _buildSmartImage(_displayableImages(r.receiveImages)[i]),
                               ),
                             ),
                           ),
@@ -2561,6 +2667,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             const SizedBox(height: 10),
           ],
         ),
+      ),
       ),
       bottomNavigationBar: _buildBottomActions(),
     );
@@ -3239,7 +3346,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Widget _buildImageContent() {
-    final images = r.receiveImages;
+    final images = _displayableImages(r.receiveImages);
     if (images.isEmpty) {
       return Text(
         loc.noImages,
@@ -3771,8 +3878,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       r.isSynced = false;
       await db.upsertRepair(r);
 
-      // Handle partner history if service has partner
-      if (service.partnerId != null) {
+      // Handle partner history/payment only when adding a new partner service.
+      // Editing an existing service must not auto-create an extra payment/debt record.
+      if (service.partnerId != null && editIndex == null) {
         // Chỉ tạo partner history nếu có firestoreId
         if (r.firestoreId != null) {
           final partnerService = RepairPartnerService();
@@ -3812,6 +3920,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 'serviceName': service.serviceName,
                 'paymentMethod': service.paymentMethod,
               },
+              idempotencyKey:
+                  'detail_${r.firestoreId}_${service.partnerId}_${newServices.length - 1}_${service.serviceName}_${service.cost}_${service.paymentMethod}',
             );
             debugPrint(
               '💳 Partner payment ${payResult.success ? "OK" : "FAILED"}: ${service.cost}đ',
@@ -3928,7 +4038,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Widget _buildImageGallery() {
-    final images = r.receiveImages;
+    final images = _displayableImages(r.receiveImages);
     if (images.isEmpty) return const SizedBox();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3967,7 +4077,18 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
   }
 
-  void _showFullImage(List<String> images, int initialIndex) {
+  Future<void> _showFullImage(List<String> images, int initialIndex) async {
+    final resolvedImages = <String>[];
+    for (final image in images) {
+      final resolved = await _resolveDisplayImagePath(image);
+      if (resolved != null && resolved.isNotEmpty) {
+        resolvedImages.add(resolved);
+      }
+    }
+    if (resolvedImages.isEmpty) return;
+    final safeInitialIndex =
+      initialIndex.clamp(0, resolvedImages.length - 1).toInt();
+
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -3976,11 +4097,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         child: Stack(
           children: [
             PhotoViewGallery.builder(
-              itemCount: images.length,
+              itemCount: resolvedImages.length,
               builder: (context, index) {
-                final path = images[index];
+                final path = resolvedImages[index].trim();
                 return PhotoViewGalleryPageOptions(
-                  imageProvider: path.startsWith('http')
+                  imageProvider: (path.startsWith('http') ||
+                          path.startsWith('blob:') ||
+                          path.startsWith('data:') ||
+                          kIsWeb)
                       ? NetworkImage(path) as ImageProvider
                       : FileImage(File(path)),
                   initialScale: PhotoViewComputedScale.contained,
@@ -3988,7 +4112,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   maxScale: PhotoViewComputedScale.covered * 3,
                 );
               },
-              pageController: PageController(initialPage: initialIndex),
+              pageController: PageController(initialPage: safeInitialIndex),
               scrollPhysics: const BouncingScrollPhysics(),
               backgroundDecoration: const BoxDecoration(color: Colors.black),
             ),

@@ -15,6 +15,7 @@ import '../widgets/custom_app_bar.dart';
 import '../utils/vietnamese_utils.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class SaleListView extends StatefulWidget {
   final bool todayOnly;
@@ -209,7 +210,7 @@ class _SaleListViewState extends State<SaleListView> {
   }
 
   void _showFilterSheet() {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -538,7 +539,8 @@ class _SaleListViewState extends State<SaleListView> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
+          : ResponsiveCenter(
+              child: Column(
               children: [
                 // Summary stats bar
                 Container(
@@ -826,6 +828,7 @@ class _SaleListViewState extends State<SaleListView> {
                         ),
                 ),
               ],
+            ),
             ),
     );
   }

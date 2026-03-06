@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../models/salary_breakdown_model.dart';
 import '../services/salary_calculation_service.dart';
 import '../services/salary_slip_pdf_service.dart';
@@ -145,7 +146,8 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
         ],
       ),
       bottomNavigationBar: _buildBottomActionBar(),
-      body: _loading
+      body: ResponsiveCenter(
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -163,6 +165,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
                 ),
               ],
             ),
+      ),
     );
   }
 
@@ -308,7 +311,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
   }
 
   void _showPrintMenu() {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),

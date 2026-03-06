@@ -1,10 +1,14 @@
 import 'dart:io';
 import 'package:excel/excel.dart' hide Border;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+import 'web_download_helper.dart'
+    if (dart.library.js_interop) 'web_download_helper_web.dart';
 
 import '../data/db_helper.dart';
 import '../models/financial_activity_model.dart';
@@ -120,6 +124,20 @@ class ExcelExportHelper {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Lỗi tạo file Excel')),
+          );
+        }
+        return;
+      }
+
+      // Web: download via browser with proper filename
+      if (kIsWeb) {
+        await downloadFileWeb(bytes, fileName);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Đã tải xuống: $fileName'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
         return;
@@ -1231,6 +1249,112 @@ class ExcelExportHelper {
     }
 
     final fileName = _buildFileName('bao_hanh', startMs, endMs);
+    await _saveAndShare(excel, fileName, context);
+  }
+
+  // ──────────────────────────────────────────────
+  //  13. EXPORT CASH CLOSING TRANSACTIONS (SỔ QUỸ)
+  // ──────────────────────────────────────────────
+
+  static Future<void> exportCashClosingTransactions(
+    BuildContext context, {
+    required DateTime selectedDate,
+    required List<Map<String, dynamic>> incomeList,
+    required List<Map<String, dynamic>> expenseList,
+  }) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['So_quy'];
+
+    _writeHeaders(sheet, [
+      'STT',
+      'Ngày',
+      'Giờ',
+      'Loại',
+      'Nhóm',
+      'Nội dung',
+      'Đối tượng',
+      'PTTT',
+      'Thu',
+      'Chi',
+      'Ghi chú',
+    ]);
+
+    final all = <Map<String, dynamic>>[];
+    for (final t in incomeList) {
+      all.add({...t, '_isIncome': true});
+    }
+    for (final t in expenseList) {
+      all.add({...t, '_isIncome': false});
+    }
+    all.sort((a, b) => (b['time'] as String).compareTo(a['time'] as String));
+
+    int totalIn = 0;
+    int totalOut = 0;
+    final dateStr = DateFormat('dd/MM/yyyy').format(selectedDate);
+
+    for (int i = 0; i < all.length; i++) {
+      final t = all[i];
+      final amount = (t['amount'] as int?) ?? 0;
+      final isIncome = (t['_isIncome'] as bool?) ?? false;
+      final customerName = (t['customerName'] as String?) ?? '';
+      final detail = (t['detail'] as String?) ?? '';
+      final note = (t['note'] as String?) ?? '';
+
+      if (isIncome) {
+        totalIn += amount;
+      } else {
+        totalOut += amount;
+      }
+
+      _writeRow(sheet, i + 1, [
+        i + 1,
+        dateStr,
+        t['time']?.toString() ?? '',
+        isIncome ? 'THU' : 'CHI',
+        t['title']?.toString() ?? '',
+        detail,
+        customerName,
+        t['paymentMethod']?.toString() ?? '',
+        isIncome ? _fmtMoney(amount) : '',
+        isIncome ? '' : _fmtMoney(amount),
+        note,
+      ]);
+    }
+
+    final summaryRow = all.length + 2;
+    _writeRow(sheet, summaryRow, [
+      '',
+      'TỔNG',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      _fmtMoney(totalIn),
+      _fmtMoney(totalOut),
+      'NET: ${_fmtMoney(totalIn - totalOut)}',
+    ]);
+
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final startOfDay = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    ).millisecondsSinceEpoch;
+    final endOfDay = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      23,
+      59,
+      59,
+    ).millisecondsSinceEpoch;
+
+    final fileName = _buildFileName('so_quy_giao_dich', startOfDay, endOfDay);
     await _saveAndShare(excel, fileName, context);
   }
 }

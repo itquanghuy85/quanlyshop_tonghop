@@ -63,15 +63,61 @@ class Repair {
   bool costRecordedInFund;
   String? costPaymentMethod; // TIỀN MẶT or CHUYỂN KHOẢN
   int? costRecordedAt; // timestamp when recorded
+  int? costRecordedAmount; // fixed amount recorded into fund at record time
 
   // Getter for receive images
   List<String> get receiveImages {
-    if (imagePath == null || imagePath!.isEmpty) return [];
-    return imagePath!
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
+    if (imagePath == null || imagePath!.trim().isEmpty) return [];
+
+    final raw = imagePath!.trim();
+    final output = <String>[];
+
+    void addCandidate(String? value) {
+      if (value == null) return;
+      var s = value.trim();
+      if (s.isEmpty) return;
+
+      // Normalize wrappers from legacy storage formats.
+      if ((s.startsWith('"') && s.endsWith('"')) ||
+          (s.startsWith("'") && s.endsWith("'"))) {
+        s = s.substring(1, s.length - 1).trim();
+      }
+      if (s.startsWith('[') && s.endsWith(']')) {
+        s = s.substring(1, s.length - 1).trim();
+      }
+      if (s.isEmpty) return;
+
+      if (!output.contains(s)) {
+        output.add(s);
+      }
+    }
+
+    // Case 1: JSON array string (common in older migrations)
+    if (raw.startsWith('[') && raw.endsWith(']')) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          for (final item in decoded) {
+            addCandidate(item?.toString());
+          }
+          if (output.isNotEmpty) return output;
+        }
+      } catch (_) {
+        // Fallback to delimiter parsing below.
+      }
+    }
+
+    // Case 2: Delimited list (comma/semicolon/newline)
+    final parts = raw
+        .split(RegExp(r'[,;\n]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty);
+
+    for (final part in parts) {
+      addCandidate(part);
+    }
+
+    return output;
   }
 
   Repair({
@@ -113,6 +159,7 @@ class Repair {
     this.costRecordedInFund = false,
     this.costPaymentMethod,
     this.costRecordedAt,
+    this.costRecordedAmount,
   });
 
   /// Tổng chi phí = cost (linh kiện + dịch vụ đã lưu)
@@ -167,6 +214,7 @@ class Repair {
       'costRecordedInFund': costRecordedInFund ? 1 : 0,
       'costPaymentMethod': costPaymentMethod,
       'costRecordedAt': costRecordedAt,
+      'costRecordedAmount': costRecordedAmount,
     };
   }
 
@@ -218,6 +266,7 @@ class Repair {
           map['costRecordedInFund'] == true,
       costPaymentMethod: map['costPaymentMethod'],
       costRecordedAt: map['costRecordedAt'],
+      costRecordedAmount: _parseIntSafe(map['costRecordedAmount']),
     );
   }
 
@@ -260,6 +309,7 @@ class Repair {
     bool? costRecordedInFund,
     String? costPaymentMethod,
     int? costRecordedAt,
+    int? costRecordedAmount,
   }) {
     return Repair(
       id: id ?? this.id,
@@ -304,6 +354,8 @@ class Repair {
           costPaymentMethod ?? this.costPaymentMethod,
       costRecordedAt:
           costRecordedAt ?? this.costRecordedAt,
+        costRecordedAmount:
+          costRecordedAmount ?? this.costRecordedAmount,
     );
   }
 }

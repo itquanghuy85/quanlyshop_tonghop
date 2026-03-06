@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../models/supplier_model.dart';
 import '../services/supplier_service.dart';
 import '../services/notification_service.dart';
@@ -102,7 +103,7 @@ class _SupplierFormViewState extends State<SupplierFormView> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
+      body: ResponsiveCenter(child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,7 +154,7 @@ class _SupplierFormViewState extends State<SupplierFormView> {
             ),
           ],
         ),
-      ),
+      )),
     );
   }
 }

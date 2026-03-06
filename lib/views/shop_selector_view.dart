@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/user_service.dart';
 import '../theme/app_text_styles.dart';
@@ -161,7 +162,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
           ),
         ],
       ),
-      body: _buildBody(),
+      body: ResponsiveCenter(child: _buildBody()),
     );
   }
 

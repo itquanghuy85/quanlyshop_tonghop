@@ -28,6 +28,7 @@ import 'services/payment_intent_service.dart'; // Payment intents management
 import 'services/current_shop_service.dart'; // Multi-shop support
 import 'data/db_helper.dart'; // Local database helper
 import 'utils/perf_monitor.dart'; // Performance monitoring
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'widgets/loading_intro_screen.dart'; // Loading intro animation
 
@@ -44,7 +45,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   await runZonedGuarded<Future<void>>(
     () async {
-      WidgetsFlutterBinding.ensureInitialized();
+      final binding = WidgetsFlutterBinding.ensureInitialized();
+      FlutterNativeSplash.preserve(widgetsBinding: binding);
       await initializeDateFormatting('vi_VN');
 
       // iOS-specific: Run app FIRST to show splash screen immediately
@@ -338,8 +340,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (currentShopId == null || currentShopId.isEmpty) {
       debugPrint('⛔ _getRoleAfterSync: CRITICAL - No shopId available!');
       debugPrint('📝 User cần logout và login lại để tạo shop mới');
-      // Không throw exception, để user vào HomeView nhưng với data rỗng
-      // HomeView sẽ hiển thị thông báo lỗi phù hợp
+      throw Exception(
+        'Không thể xác định cửa hàng cho tài khoản này. Vui lòng đăng xuất và đăng nhập lại.',
+      );
     } else {
       try {
         await _checkAndClearLocalDataIfShopChanged(currentShopId);
@@ -350,7 +353,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
     // Download dữ liệu từ cloud về (chỉ khi có shopId)
     // ====== TỐI ƯU: Chạy BACKGROUND, không block UI ======
-    if (currentShopId != null && currentShopId.isNotEmpty) {
+    if (currentShopId.isNotEmpty) {
       // Chạy tất cả các init ở background - KHÔNG await
       Future.microtask(() async {
         try {

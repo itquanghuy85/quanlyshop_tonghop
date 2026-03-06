@@ -18,18 +18,47 @@ class CustomerService {
 
   Future<Customer?> addCustomer(Customer customer) async {
     final customerMap = customer.toMap();
-    customerMap['shopId'] = await UserService.getCurrentShopId();
+    final shopId = await UserService.getCurrentShopId();
+    customerMap['shopId'] = shopId;
     customerMap['createdAt'] = DateTime.now().millisecondsSinceEpoch;
     customerMap['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
 
-    final id = await db.insertCustomer(customerMap);
-    if (id > 0) {
-      final firestoreId = await FirestoreService.addCustomer(customerMap);
-      if (firestoreId != null) {
-        await db.updateCustomer(id, {'firestoreId': firestoreId});
-        return customer.copyWith(id: id, firestoreId: firestoreId);
+    final phone = (customerMap['phone'] ?? '').toString().trim();
+
+    try {
+      final id = await db.insertCustomer(customerMap);
+      if (id > 0) {
+        final firestoreId = await FirestoreService.addCustomer(customerMap);
+        if (firestoreId != null) {
+          await db.updateCustomer(id, {'firestoreId': firestoreId});
+          return customer.copyWith(id: id, firestoreId: firestoreId);
+        }
+        return customer.copyWith(id: id);
       }
+    } catch (e) {
+      final errorMsg = e.toString();
+      final isUniquePhoneError = errorMsg.contains('UNIQUE constraint failed: customers.phone');
+      if (!isUniquePhoneError) rethrow;
+
+      // Fallback cho DB cũ còn UNIQUE(phone): lấy bản ghi cũ theo phone rồi update.
+      if (phone.isNotEmpty) {
+        final existing = await db.getCustomerByPhone(phone, shopId);
+        if (existing.isNotEmpty) {
+          final existingId = (existing.first['id'] as num?)?.toInt();
+          if (existingId != null) {
+            await db.updateCustomer(existingId, {
+              'name': customerMap['name'],
+              'address': customerMap['address'],
+              'updatedAt': customerMap['updatedAt'],
+              'deleted': 0,
+            });
+            return customer.copyWith(id: existingId, firestoreId: existing.first['firestoreId'] as String?);
+          }
+        }
+      }
+      return null;
     }
+
     return null;
   }
 
@@ -76,7 +105,9 @@ class CustomerService {
 
   // Update customer stats after sale/repair
   Future<void> updateCustomerStatsAfterSale(String phone, int saleAmount, {String? address, String? name}) async {
-    final customer = await getCustomerByPhone(phone);
+    final normalizedPhone = phone.trim();
+    if (normalizedPhone.isEmpty) return;
+    final customer = await getCustomerByPhone(normalizedPhone);
     if (customer != null) {
       final updatedCustomer = customer.copyWith(
         totalSpent: customer.totalSpent + saleAmount,
@@ -95,7 +126,7 @@ class CustomerService {
       // Create new customer if not exists
       final newCustomer = Customer(
         name: 'Khách hàng mới',
-        phone: phone,
+        phone: normalizedPhone,
         createdAt: DateTime.now().millisecondsSinceEpoch,
         totalSpent: saleAmount,
         lastVisitAt: DateTime.now().millisecondsSinceEpoch,
@@ -105,7 +136,9 @@ class CustomerService {
   }
 
   Future<void> updateCustomerStatsAfterRepair(String phone, int repairCost, {String? address, String? name}) async {
-    final customer = await getCustomerByPhone(phone);
+    final normalizedPhone = phone.trim();
+    if (normalizedPhone.isEmpty) return;
+    final customer = await getCustomerByPhone(normalizedPhone);
     if (customer != null) {
       final updatedCustomer = customer.copyWith(
         totalRepairs: customer.totalRepairs + 1,
@@ -125,7 +158,7 @@ class CustomerService {
       // Create new customer if not exists
       final newCustomer = Customer(
         name: 'Khách hàng mới',
-        phone: phone,
+        phone: normalizedPhone,
         createdAt: DateTime.now().millisecondsSinceEpoch,
         totalRepairs: 1,
         totalRepairCost: repairCost,

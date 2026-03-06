@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
@@ -11,8 +12,10 @@ import '../services/storage_service.dart';
 import '../services/data_migration_service.dart';
 import '../services/sync_service.dart';
 import '../services/category_service.dart';
+import '../services/osm_map_service.dart';
 import '../models/shop_settings_model.dart';
 import '../widgets/validated_text_field.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../theme/app_text_styles.dart';
 import 'adjustment_history_view.dart';
 import 'hr_salary_settings_view.dart';
@@ -366,7 +369,9 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+          : ResponsiveCenter(
+              maxWidth: 800,
+              child: SingleChildScrollView(
               padding: const EdgeInsets.all(12),
               child: Form(
                 key: _formKey,
@@ -483,6 +488,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                 ),
               ),
             ),
+          ),
     );
   }
 
@@ -621,6 +627,22 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (hasLocation)
+              IconButton(
+                icon: const Icon(Icons.map_outlined, size: 20, color: Colors.blue),
+                onPressed: _openShopMap,
+                tooltip: 'Mở bản đồ OSM',
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(8),
+              ),
+            if (hasLocation)
+              IconButton(
+                icon: const Icon(Icons.alt_route, size: 20, color: Colors.teal),
+                onPressed: _openDirectionsToShop,
+                tooltip: 'Chỉ đường miễn phí tới shop',
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(8),
+              ),
             if (hasLocation)
               IconButton(
                 icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
@@ -1484,5 +1506,57 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       'Đã xóa vị trí. Nhấn Lưu để hoàn tất.',
       color: Colors.orange,
     );
+  }
+
+  Future<void> _openShopMap() async {
+    if (_shopLatitude == null || _shopLongitude == null) return;
+    final ok = await OsmMapService.openPoint(_shopLatitude!, _shopLongitude!);
+    if (!ok && mounted) {
+      NotificationService.showSnackBar('Không thể mở bản đồ OSM', color: Colors.red);
+    }
+  }
+
+  Future<void> _openDirectionsToShop() async {
+    if (_shopLatitude == null || _shopLongitude == null) return;
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        final ok = await OsmMapService.openDirections(
+          toLat: _shopLatitude!,
+          toLon: _shopLongitude!,
+        );
+        if (!ok && mounted) {
+          NotificationService.showSnackBar('Không thể mở chỉ đường OSM', color: Colors.red);
+        }
+        return;
+      }
+
+      final current = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final ok = await OsmMapService.openDirections(
+        fromLat: current.latitude,
+        fromLon: current.longitude,
+        toLat: _shopLatitude!,
+        toLon: _shopLongitude!,
+      );
+      if (!ok && mounted) {
+        NotificationService.showSnackBar('Không thể mở chỉ đường OSM', color: Colors.red);
+      }
+    } catch (e) {
+      final fallback = Uri.parse(
+        'https://www.openstreetmap.org/?mlat=${_shopLatitude!}&mlon=${_shopLongitude!}#map=18/${_shopLatitude!}/${_shopLongitude!}',
+      );
+      await launchUrl(fallback, mode: LaunchMode.externalApplication);
+      if (mounted) {
+        NotificationService.showSnackBar('Đã mở bản đồ shop (không lấy được vị trí hiện tại)', color: Colors.orange);
+      }
+    }
   }
 }

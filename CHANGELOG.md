@@ -4,6 +4,23 @@ Tất cả thay đổi đáng chú ý của dự án sẽ được ghi lại tro
 
 ---
 
+## [10.2.0] - 2025-06-03
+
+### Tính năng mới
+- **Nhập kho nhanh từ danh sách kho**: Phụ kiện và linh kiện có nút "NHẬP THÊM" khi bấm vào chi tiết sản phẩm — nhập số lượng, giá nhập, phương thức thanh toán → tự động cộng tồn kho và ghi sổ tài chính
+- **Mã nhập nhanh cho trang Nhập kho**: Thêm tính năng chọn mã nhập nhanh (Quick Input Code) trên trang Nhập kho thông minh (SmartStockInView) — giống trang Nhập nhanh
+- **Tinh gọn thanh công cụ Quản lý kho**: Gom toàn bộ nút chức năng (Nhập kho, Nhanh, Linh kiện, Bán hàng, NCC, In tem, Excel) xuống thanh bottom bar có icon + label
+
+### Cải thiện giao diện
+- **Icon web app**: Tạo icon PWA từ logo app (favicon 32x32, Icon 192/512, maskable)
+- **Sửa màn hình trắng iOS**: Thêm flutter_native_splash với nền xanh + logo — không còn màn hình trắng khi cài app lần đầu trên iOS
+
+### Kỹ thuật
+- **Nâng cấp Gradle/AGP**: Tương thích AGP 8.11.1, Gradle 8.14, Kotlin 2.2.20
+- **Build thành công**: Web release + AAB release
+
+---
+
 ## [10.1.3] - 2025-06-30
 
 ### Tính năng mới

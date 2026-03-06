@@ -20,6 +20,7 @@ import 'user_guide_view.dart';
 import 'shop_selector_view.dart';
 import 'staff_permissions_view.dart';
 import 'category_management_view.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class SettingsView extends StatefulWidget {
   final void Function(Locale)? setLocale;
@@ -293,7 +294,9 @@ class _SettingsViewState extends State<SettingsView> {
       appBar: CustomAppBar.build(
         title: localizations.systemSettings,
       ),
-      body: _loading
+      body: ResponsiveCenter(
+        maxWidth: 800,
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: const EdgeInsets.all(10),
@@ -685,7 +688,7 @@ class _SettingsViewState extends State<SettingsView> {
                       color: Colors.teal,
                     ),
                     onTap: () {
-                      showModalBottomSheet(
+                      showAppBottomSheet(
                         context: context,
                         isScrollControlled: true,
                         backgroundColor: Colors.transparent,
@@ -1015,6 +1018,7 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
               ],
             ),
+      ),
     );
   }
 

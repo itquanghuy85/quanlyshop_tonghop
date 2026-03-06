@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
@@ -877,7 +878,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     final createdAt = p['createdAt'] as int?;
     // updatedAt tracked but not displayed in current UI
     
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -2453,7 +2454,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
               ]
             : null,
       ),
-      body: _isLoading
+      body: ResponsiveCenter(
+        child: _isLoading
           ? Center(child: CircularProgressIndicator(color: _primaryColor))
           : Column(
               children: [
@@ -2637,6 +2639,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                 ),
               ],
             ),
+      ),
       floatingActionButton: _isSelectionMode
           ? null
           : (_isAdmin
@@ -2673,7 +2676,7 @@ class _SupplierSearchField extends StatelessWidget {
   }
 
   void _openSupplierPicker(BuildContext context) {
-    showModalBottomSheet(
+    showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(

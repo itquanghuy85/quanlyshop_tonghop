@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_text_styles.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -223,7 +224,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
           ],
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
+      body: ResponsiveCenter(child: StreamBuilder<QuerySnapshot>(
         stream: UserService.getAllUsersStream(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
@@ -361,7 +362,7 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
             },
           );
         },
-      ),
+      )),
     );
   }
 

@@ -6,6 +6,7 @@ import '../widgets/validated_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/responsive_wrapper.dart';
 
 class MyProfileView extends StatefulWidget {
   const MyProfileView({super.key});
@@ -106,7 +107,9 @@ class _MyProfileViewState extends State<MyProfileView> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: _loading
+      body: ResponsiveCenter(
+        maxWidth: 600,
+        child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(12),
@@ -147,6 +150,7 @@ class _MyProfileViewState extends State<MyProfileView> {
                 ],
               ),
             ),
+      ),
     );
   }
 

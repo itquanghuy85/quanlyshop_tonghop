@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../widgets/responsive_wrapper.dart';
 import 'package:intl/intl.dart';
 import '../../models/shop_deduction_settings.dart';
 import '../../services/salary_calculation_service.dart';
@@ -161,7 +162,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             ),
         ],
       ),
-      body: _isLoading
+      body: ResponsiveCenter(child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
               controller: _tabController,
@@ -171,7 +172,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                 _buildTaxTab(),
                 _buildCustomAdjustmentsTab(),
               ],
-            ),
+            )),
     );
   }
 

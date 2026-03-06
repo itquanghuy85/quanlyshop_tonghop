@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/responsive_wrapper.dart';
 
 import '../models/label_template_model.dart';
 import '../services/label_settings_service.dart';
@@ -130,7 +131,7 @@ class _LabelSettingsViewState extends State<LabelSettingsView> with SingleTicker
       appBar: CustomAppBar.build(
         title: 'Cài đặt Tem sản phẩm',
       ),
-      body: _isLoading
+      body: ResponsiveCenter(child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -157,7 +158,7 @@ class _LabelSettingsViewState extends State<LabelSettingsView> with SingleTicker
                   ),
                 ),
               ],
-            ),
+            )),
     );
   }
 

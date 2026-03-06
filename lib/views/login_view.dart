@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
+import '../widgets/responsive_wrapper.dart';
 import 'register_view.dart';
 
 class LoginView extends StatefulWidget {
@@ -68,12 +69,36 @@ class _LoginViewState extends State<LoginView> {
         await UserService.syncUserInfo(u.uid, u.email!);
       }
       await _saveAccount();
-    } on FirebaseAuthException {
+    } on FirebaseAuthException catch (e) {
       if (mounted) {
-        setState(() => _error = AppLocalizations.of(context)!.loginError);
+        setState(() => _error = _mapLoginError(e));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _mapLoginError(FirebaseAuthException e) {
+    final loc = AppLocalizations.of(context)!;
+    switch (e.code) {
+      case 'network-request-failed':
+        return loc.networkError;
+      case 'too-many-requests':
+        return loc.tooManyRequests;
+      case 'invalid-email':
+        return loc.invalidEmailFormat;
+      case 'invalid-credential':
+      case 'wrong-password':
+      case 'user-not-found':
+        return loc.loginError;
+      case 'operation-not-allowed':
+        return 'Phương thức Email/Password chưa bật trên Firebase Auth.';
+      case 'app-not-authorized':
+      case 'invalid-api-key':
+      case 'unauthorized-domain':
+        return 'Cấu hình Firebase cho nền tảng này chưa đúng. Vui lòng kiểm tra Authorized domains và firebase_options.dart.';
+      default:
+        return e.message ?? loc.loginError;
     }
   }
 
@@ -184,8 +209,10 @@ class _LoginViewState extends State<LoginView> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(30),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(30),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -383,6 +410,7 @@ class _LoginViewState extends State<LoginView> {
               _buildCalendarCard(),
             ],
           ),
+        ),
         ),
       ),
     );

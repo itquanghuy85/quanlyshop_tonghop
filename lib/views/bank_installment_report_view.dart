@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../data/db_helper.dart';
 import '../models/sale_order_model.dart';
 import '../utils/money_utils.dart';
@@ -263,7 +264,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
             ],
           );
 
-    if (widget.embedded) return body;
+    if (widget.embedded) return ResponsiveCenter(child: body);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFF),
@@ -292,7 +293,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
           ),
         ],
       ),
-      body: body,
+      body: ResponsiveCenter(child: body),
     );
   }
 

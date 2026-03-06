@@ -18,6 +18,7 @@ import '../models/product_model.dart';
 import '../services/unified_printer_service.dart';
 import '../services/label_settings_service.dart';
 import '../widgets/printer_selection_dialog.dart';
+import '../widgets/responsive_wrapper.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // LABEL ELEMENT MODEL
@@ -2731,7 +2732,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
   Future<void> _openInventorySelector() async {
     final colorScheme = Theme.of(context).colorScheme;
 
-    await showModalBottomSheet(
+    await showAppBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

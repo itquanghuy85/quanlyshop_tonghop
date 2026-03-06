@@ -22,6 +22,7 @@ import '../theme/app_button_styles.dart';
 import '../widgets/gradient_fab.dart';
 import 'fast_stock_in_view.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/responsive_wrapper.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 
@@ -623,7 +624,8 @@ class _ExpenseViewState extends State<ExpenseView> {
       (sum, e) => sum + (e['amount'] as int),
     );
 
-    final body = Column(
+    final body = ResponsiveCenter(
+      child: Column(
       children: [
         // THU/CHI toggle
         _buildViewModeToggle(),
@@ -644,6 +646,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                 ),
         ),
       ],
+    ),
     );
 
     final fab = kIsWeb
