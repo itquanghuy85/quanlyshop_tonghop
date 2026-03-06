@@ -75,8 +75,8 @@ class TestDataService {
       phone: '0901234567',
       isWalkIn: false,
       address: 'Q1 TPHCM',
-      productNames: 'IPHONE 15 PRO MAX 256GB, ỐP LƯNG IPHONE 15 x2',
-      productImeis: '350111222333441, PKX2',
+      productNames: 'IPHONE 15 PRO MAX 256GB x1, ỐP LƯNG IPHONE 15 x2',
+      productImeis: '350111222333441, PKx2',
       totalPrice: 32300000,
       totalCost: 28100000,
       discount: 0,
@@ -107,7 +107,7 @@ class TestDataService {
       phone: '0912345678',
       isWalkIn: false,
       address: 'Q7 TPHCM',
-      productNames: 'SAMSUNG GALAXY S24 ULTRA',
+      productNames: 'SAMSUNG GALAXY S24 ULTRA x1',
       productImeis: '350111222333443',
       totalPrice: 29900000,
       totalCost: 25000000,
@@ -135,8 +135,8 @@ class TestDataService {
       phone: '0923456789',
       isWalkIn: false,
       address: 'THỦ ĐỨC',
-      productNames: 'OPPO RENO 11 5G, CÁP SẠC TYPE-C x3, KÍNH CƯỜNG LỰC IPHONE 15 x2',
-      productImeis: '350111222333444, PKX3, PKX2',
+      productNames: 'OPPO RENO 11 5G x1, CÁP SẠC TYPE-C x3, KÍNH CƯỜNG LỰC IPHONE 15 x2',
+      productImeis: '350111222333444, PKx3, PKx2',
       totalPrice: 10390000,
       totalCost: 7620000,
       discount: 100000,
@@ -167,8 +167,8 @@ class TestDataService {
       phone: '0934567890',
       isWalkIn: false,
       address: 'BÌNH THẠNH',
-      productNames: 'IPHONE 14 128GB, TAI NGHE BLUETOOTH',
-      productImeis: '350111222333442, PKX1',
+      productNames: 'IPHONE 14 128GB x1, TAI NGHE BLUETOOTH x1',
+      productImeis: '350111222333442, PKx1',
       totalPrice: 19950000,
       totalCost: 16200000,
       discount: 0,
@@ -207,10 +207,16 @@ class TestDataService {
         'paymentMethod': exp['method'],
         'type': exp['type'],
         'note': 'Test data',
-        'isSynced': 1,
+        'shopId': shopId,
+        'createdAt': todayMs,
+        'isSynced': 0,
       };
-      await _db.insertExpense(expData);
+      // Cloud first → gets firestoreId assigned to expData map
       await FirestoreService.addExpenseCloud(expData);
+      // Remove Firestore sentinel before local insert
+      expData.remove('updatedAt');
+      expData['isSynced'] = 1;
+      await _db.insertExpense(expData);
     }
     log.writeln('✅ ${expenses.length} khoản thu/chi');
 
@@ -244,10 +250,11 @@ class TestDataService {
 
     debugPrint('🧪 TEST DATA: Seed complete!');
     log.writeln('\n📊 Kết quả mong đợi:');
-    log.writeln('  THU: ~72.74tr (bán) + 0.5tr (thu khác) = ~73.24tr');
-    log.writeln('  CHI: ~5.65tr (chi phí) + 9.99tr (trả hàng) = ~15.64tr');
-    log.writeln('  Công nợ: 19.95tr');
-    log.writeln('  Kho: 8 SP tạo, 4 bán, 1 trả lại');
+    log.writeln('  THU (📥): ~71.99tr (bán hàng) + 0.5tr (thu khác) = ~72.49tr');
+    log.writeln('  CHI (📤): ~5.65tr (chi phí) + 9.99tr (trả hàng) = ~15.64tr');
+    log.writeln('  LÃI: ~7.38tr (doanh thu - giá vốn - chi phí + thu khác)');
+    log.writeln('  Công nợ: 19.95tr (iPhone 14 + tai nghe)');
+    log.writeln('  Kho: 8 SP tạo, 4 bán, 1 trả lại (Oppo)');
 
     return log.toString();
   }
