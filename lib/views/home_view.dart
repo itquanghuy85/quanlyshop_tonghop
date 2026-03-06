@@ -5808,17 +5808,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   ),
                 ),
                 _financeQuickCard(
-                  'Trả hàng',
-                  Icons.assignment_return,
-                  Colors.red,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const SalesReturnListView(),
-                    ),
-                  ),
-                ),
-                _financeQuickCard(
                   'Bút toán ĐC',
                   Icons.edit_note,
                   Colors.orange,
@@ -5829,17 +5818,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     ),
                   ),
                 ),
-                if (_enableWarranty)
-                _financeQuickCard(
-                  loc.warrantyTracking,
-                  Icons.verified_user,
-                  Colors.teal,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const WarrantyView()),
-                  ),
-                ),
-                if (!_enableWarranty)
                 _financeQuickCard(
                   'Nhà cung cấp',
                   Icons.local_shipping,

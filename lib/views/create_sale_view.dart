@@ -1846,7 +1846,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         ),
         const SizedBox(height: 8),
 
-        // Tổng tiền + Giảm giá (full width để nhìn rõ số tiền)
+        // Tổng tiền (1 dòng riêng)
         Row(
           children: [
             Text(
@@ -1877,7 +1877,12 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 onChanged: (_) => _calculateInstallment(),
               ),
             ),
-            const SizedBox(width: 12),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // Giảm giá (1 dòng riêng)
+        Row(
+          children: [
             const Icon(
               Icons.discount,
               size: 16,
