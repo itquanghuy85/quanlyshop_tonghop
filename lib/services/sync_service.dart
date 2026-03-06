@@ -66,6 +66,7 @@ class SyncService {
       'lastVisitAt',
       'settlementPlannedAt',
       'settlementReceivedAt',
+      'returnDate',
     ];
     for (final field in timestampFields) {
       if (data[field] is Timestamp) {
@@ -1355,6 +1356,54 @@ class SyncService {
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo product_variants sync: $e");
+    }
+
+    // 27. Đồng bộ SALES RETURNS (Phiếu trả hàng)
+    try {
+      _subscribeToCollection(
+        collection: 'sales_returns',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            data['firestoreId'] = docId;
+            data['isSynced'] = 1;
+            _convertTimestampFields(data);
+            await db.upsertSalesReturn(data);
+          } catch (e) {
+            debugPrint("Lỗi sync sales_return $docId: $e");
+          }
+        },
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('sales_returns_changed');
+        },
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo sales_returns sync: $e");
+    }
+
+    // 28. Đồng bộ SALES RETURN ITEMS (Chi tiết trả hàng)
+    try {
+      _subscribeToCollection(
+        collection: 'sales_return_items',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            data['firestoreId'] = docId;
+            data['isSynced'] = 1;
+            await db.upsertSalesReturnItem(data);
+          } catch (e) {
+            debugPrint("Lỗi sync sales_return_item $docId: $e");
+          }
+        },
+        onBatchDone: () {
+          onDataChanged();
+        },
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo sales_return_items sync: $e");
     }
 
     PerfMonitor.stop('deferredSync');

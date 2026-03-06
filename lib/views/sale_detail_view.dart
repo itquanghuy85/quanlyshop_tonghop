@@ -35,6 +35,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'sale_invoice_template_view.dart';
 import 'sale_invoice_preview_view.dart';
+import 'create_sales_return_view.dart';
 
 class SaleDetailView extends StatefulWidget {
   final SaleOrder sale;
@@ -1035,6 +1036,19 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                   );
                 }),
                 _bottomAction(Icons.print_rounded, 'In', _printWifi),
+                _bottomAction(Icons.assignment_return_rounded, 'Trả hàng', () async {
+                  final result = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CreateSalesReturnView(sale: s),
+                    ),
+                  );
+                  if (result == true && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Trả hàng thành công!'), backgroundColor: Colors.green),
+                    );
+                  }
+                }),
                 _bottomAction(Icons.design_services, 'Mẫu in', () {
                   Navigator.push(
                     context,

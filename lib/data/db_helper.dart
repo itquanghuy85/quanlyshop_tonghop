@@ -423,7 +423,7 @@ class DBHelper {
         await db.execute('CREATE INDEX IF NOT EXISTS idx_repair_partner_payments_paidAt ON repair_partner_payments(paidAt)');
         // customers
         await db.execute('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
-        await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_shop_phone_unique ON customers(shopId, phone) WHERE phone IS NOT NULL AND phone <> ""');
+        await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_shop_phone_unique ON customers(shopId, phone) WHERE phone IS NOT NULL AND phone <> ''");
       },
       onUpgrade: (db, oldV, newV) async {
         debugPrint('Upgrading DB from $oldV to $newV');
@@ -1029,7 +1029,7 @@ class DBHelper {
             await db.execute('DROP TABLE customers');
             await db.execute('ALTER TABLE customers_new RENAME TO customers');
             await db.execute('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
-            await db.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_shop_phone_unique ON customers(shopId, phone) WHERE phone IS NOT NULL AND phone <> ""');
+            await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_shop_phone_unique ON customers(shopId, phone) WHERE phone IS NOT NULL AND phone <> ''");
             debugPrint('v88: customers table rebuilt successfully');
           } catch (e) {
             debugPrint('v88 error (customers rebuild): $e');

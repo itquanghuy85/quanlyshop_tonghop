@@ -502,6 +502,36 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ═══════════ 3.5 SALES RETURNS ═══════════
+    match /sales_returns/{returnId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop();
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked();
+      
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
+    }
+
+    // ═══════════ 3.6 SALES RETURN ITEMS ═══════════
+    match /sales_return_items/{itemId} {
+      allow read: if isAuth() && docInMyShop();
+      
+      allow create: if isAuth() && 
+                       isEmployee() &&
+                       newDocInMyShop();
+      
+      allow update: if isAuth() && 
+                       docInMyShop() &&
+                       shopIdLocked();
+      
+      allow delete: if isAuth() && docInMyShopForDelete() && isOwner();
+    }
+
     // ┌──────────────────────────────────────────────────────────────────┐
     // │                   SECTION 4: FINANCE                             │
     // │      Collections: expenses, debts, debt_payments, cash_closings  │
@@ -1002,6 +1032,22 @@ service cloud.firestore {
                        isManager() &&
                        shopIdLocked();
       
+      allow delete: if false;
+    }
+
+    // ═══════════ 10.4b FINANCIAL_ACTIVITY_LOG (Sales return refund, etc.) ═══════════
+    match /financial_activity_log/{logId} {
+      allow read: if isAuth() && docInMyShop();
+
+      allow create: if isAuth() &&
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['activityType', 'amount', 'shopId']);
+
+      allow update: if isAuth() &&
+                       docInMyShop() &&
+                       shopIdLocked();
+
       allow delete: if false;
     }
 

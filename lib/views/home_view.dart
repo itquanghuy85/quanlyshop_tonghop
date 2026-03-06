@@ -21,6 +21,7 @@ import 'fast_inventory_check_view.dart';
 import 'supplier_list_view.dart';
 import 'quick_input_codes_view.dart';
 import 'sale_list_view.dart';
+import 'sales_return_list_view.dart';
 import 'expense_view.dart';
 import 'debt_view.dart';
 import 'warranty_view.dart';
@@ -4925,6 +4926,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                 ),
                 subtitle: loc.viewProcessWarrantyRequests,
               ),
+              _tabMenuItem(
+                'Trả hàng',
+                Icons.assignment_return,
+                Colors.red,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SalesReturnListView()),
+                ),
+                subtitle: 'Danh sách phiếu trả hàng',
+              ),
             ],
           ),
         ],
@@ -5774,6 +5785,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     context,
                     MaterialPageRoute(
                       builder: (_) => const FinancialActivityLogView(),
+                    ),
+                  ),
+                ),
+                _financeQuickCard(
+                  'Trả hàng',
+                  Icons.assignment_return,
+                  Colors.red,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SalesReturnListView(),
                     ),
                   ),
                 ),
