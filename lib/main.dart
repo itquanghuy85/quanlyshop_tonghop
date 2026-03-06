@@ -276,10 +276,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   ) {
     if (_roleFuture == null || _currentUid != uid) {
       _currentUid = uid;
+      // Web needs more time: syncUserInfo (10-24s) + downloadAllFromCloud (25s)
+      final timeout = kIsWeb ? 60 : 30;
       _roleFuture = _getRoleAfterSync(
         uid,
         email,
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(Duration(seconds: timeout));
     }
     return _roleFuture!;
   }
@@ -480,11 +482,53 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
               );
             }
             if (roleSnap.hasError || !roleSnap.hasData) {
-              UserService.clearCache(); // Xóa cache khi có lỗi
-              CurrentShopService().clear(); // Clear multi-shop cache
-              _resetCache();
-              FirebaseAuth.instance.signOut();
-              return LoginView(setLocale: widget.setLocale);
+              final errorMsg = roleSnap.error?.toString() ?? 'Không thể tải dữ liệu';
+              debugPrint('❌ AuthGate error: $errorMsg');
+              return Scaffold(
+                body: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cloud_off, size: 64, color: Colors.orange),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Lỗi kết nối',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          kIsWeb
+                              ? 'Không thể đồng bộ dữ liệu cửa hàng. Kiểm tra kết nối mạng và thử lại.'
+                              : 'Vui lòng kiểm tra kết nối mạng.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton.icon(
+                          onPressed: () {
+                            _resetCache();
+                            setState(() {});
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Thử lại'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: () {
+                            UserService.clearCache();
+                            CurrentShopService().clear();
+                            _resetCache();
+                            FirebaseAuth.instance.signOut();
+                          },
+                          child: const Text('Đăng xuất'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
             }
 
             final data = roleSnap.data!;

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/user_service.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -60,18 +59,21 @@ class _LoginViewState extends State<LoginView> {
       _error = null;
     });
     try {
-      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailC.text.trim(),
         password: _passC.text.trim(),
       );
-      final u = cred.user;
-      if (u != null && u.email != null) {
-        await UserService.syncUserInfo(u.uid, u.email!);
-      }
+      // syncUserInfo will be called by AuthGate._getRoleAfterSync
+      // Do NOT call it here to avoid double-sync race conditions on web
       await _saveAccount();
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         setState(() => _error = _mapLoginError(e));
+      }
+    } catch (e) {
+      // Catch non-Firebase errors (network timeout, etc.)
+      if (mounted) {
+        setState(() => _error = 'Lỗi kết nối. Vui lòng thử lại.');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
