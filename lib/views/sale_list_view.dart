@@ -16,6 +16,7 @@ import '../utils/vietnamese_utils.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../services/sales_return_service.dart';
 
 class SaleListView extends StatefulWidget {
   final bool todayOnly;
@@ -43,6 +44,9 @@ class _SaleListViewState extends State<SaleListView> {
   DateTime? _customStartDate;
   DateTime? _customEndDate;
   
+  // Return tracking
+  Set<int> _returnedSaleIds = {};
+
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
   BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
@@ -118,6 +122,15 @@ class _SaleListViewState extends State<SaleListView> {
     // Load shop settings for terminology
     final settings = await CategoryService().getShopSettings();
     if (mounted) _shopSettings = settings;
+
+    // Load return IDs
+    try {
+      final returns = await SalesReturnService.getReturns();
+      _returnedSaleIds = returns
+          .where((r) => r.salesOrderId != null)
+          .map((r) => r.salesOrderId!)
+          .toSet();
+    } catch (_) {}
     
     if (_needsFullData || widget.todayOnly) {
       // Load all data for filtering
@@ -442,6 +455,7 @@ class _SaleListViewState extends State<SaleListView> {
         title: widget.todayOnly ? 'DOANH SỐ HÔM NAY' : 'QUẢN LÝ ĐƠN BÁN',
         subtitle: '$totalSales đơn • ${fmt.format(totalRevenue)}đ',
         accentColor: AppBarAccents.sales,
+        centerTitle: false,
         actions: [
           IconButton(
             onPressed: () => Navigator.push(
@@ -450,7 +464,7 @@ class _SaleListViewState extends State<SaleListView> {
             ).then((_) => _refresh()),
             icon: const Icon(
               Icons.add_shopping_cart_rounded,
-              color: AppBarAccents.sales,
+              color: Colors.white,
             ),
             tooltip: "Tạo đơn bán hàng mới",
           ),
@@ -460,7 +474,7 @@ class _SaleListViewState extends State<SaleListView> {
                 onPressed: _showFilterSheet,
                 icon: const Icon(
                   Icons.filter_list_rounded,
-                  color: AppBarAccents.sales,
+                  color: Colors.white,
                 ),
                 tooltip: 'Bộ lọc',
               ),
@@ -488,10 +502,10 @@ class _SaleListViewState extends State<SaleListView> {
           ),
           IconButton(
             onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded, color: AppBarAccents.sales),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
           ),
           IconButton(
-            icon: const Icon(Icons.file_download_outlined, color: AppBarAccents.sales),
+            icon: const Icon(Icons.file_download_outlined, color: Colors.white),
             tooltip: 'Xuất Excel đơn bán',
             onPressed: () async {
               final result = await ExportDateFilterDialog.show(context, title: 'Xuất đơn bán');
@@ -817,6 +831,12 @@ class _SaleListViewState extends State<SaleListView> {
                                             '👤 ${s.sellerName}',
                                             Colors.blue.shade100,
                                           ),
+                                          // Trả hàng
+                                          if (s.id != null && _returnedSaleIds.contains(s.id))
+                                            _saleInfoChip(
+                                              '↩️ Đã trả hàng',
+                                              Colors.purple.shade100,
+                                            ),
                                         ],
                                       ),
                                     ],

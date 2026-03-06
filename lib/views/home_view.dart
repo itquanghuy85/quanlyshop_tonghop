@@ -6354,10 +6354,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
           // Đăng xuất ở cuối
           const SizedBox(height: 20),
-          if (kDebugMode)
-            _buildTestDataButton(),
-          if (kDebugMode)
-            const SizedBox(height: 10),
           _buildLogoutCard(),
         ],
       ),

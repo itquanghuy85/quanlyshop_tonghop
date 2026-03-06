@@ -95,20 +95,12 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     super.initState();
     _loadShopSettings();
     _tabController = TabController(
-      length: 2,
+      length: 1,
       vsync: this,
-      initialIndex: widget.initialTab,
+      initialIndex: 0,
     );
-    _tabController.addListener(() {
-      if (_tabController.index == 1 && _auditLogs.isEmpty) {
-        _loadAuditLogs();
-      }
-    });
     _scrollController.addListener(_onScroll);
-    _loadData();
-    if (widget.initialTab == 1) {
-      _loadAuditLogs();
-    }
+    _loadAuditLogs();
   }
   
   Future<void> _loadShopSettings() async {
@@ -744,42 +736,16 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: CustomAppBar.build(
-        title: 'NHẬT KÝ',
-        subtitle: _tabController.index == 0
-            ? '${_activities.length} hoạt động'
-            : '${_auditLogs.length} log',
+        title: 'NHẬT KÝ HOẠT ĐỘNG',
+        subtitle: '${_filteredAuditLogs.length} log',
         accentColor: AppBarAccents.finance,
         actions: [
-          if (_tabController.index == 0) ...[
-            IconButton(
-              onPressed: _showFilterSheet,
-              icon: Badge(
-                isLabelVisible:
-                    _selectedType != null ||
-                    _selectedDirection != null ||
-                    _searchQuery.isNotEmpty,
-                child: const Icon(
-                  Icons.filter_list_rounded,
-                  size: 20,
-                  color: AppBarAccents.finance,
-                ),
-              ),
-              tooltip: 'Bộ lọc',
-              splashRadius: 18,
-            ),
-          ],
           IconButton(
-            onPressed: () {
-              if (_tabController.index == 0) {
-                _loadData();
-              } else {
-                _loadAuditLogs();
-              }
-            },
+            onPressed: _loadAuditLogs,
             icon: const Icon(
               Icons.refresh_rounded,
               size: 20,
-              color: AppBarAccents.finance,
+              color: Colors.white,
             ),
             tooltip: 'Làm mới',
             splashRadius: 18,
@@ -788,237 +754,109 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
             icon: const Icon(
               Icons.file_download_outlined,
               size: 20,
-              color: AppBarAccents.finance,
+              color: Colors.white,
             ),
             tooltip: 'Xuất Excel nhật ký',
             splashRadius: 18,
             onPressed: () async {
-              if (_tabController.index == 0) {
-                // Export "Tài chính" tab — use already-loaded data
-                if (_activities.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Không có dữ liệu tài chính để xuất')),
-                  );
-                  return;
-                }
-                if (!mounted) return;
-                await ExcelExportHelper.exportActivityLog(
-                  context,
-                  activities: _activities,
-                  startMs: DateTime(_startDate.year, _startDate.month, _startDate.day).millisecondsSinceEpoch,
-                  endMs: DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59).millisecondsSinceEpoch,
+              final logs = _filteredAuditLogs;
+              if (logs.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Không có dữ liệu để xuất')),
                 );
-              } else {
-                // Export "Hệ thống" tab — use already-loaded audit logs
-                final logs = _filteredAuditLogs;
-                if (logs.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Không có dữ liệu hệ thống để xuất')),
-                  );
-                  return;
-                }
-                if (!mounted) return;
-                await ExcelExportHelper.exportAuditLog(
-                  context,
-                  auditLogs: logs,
-                );
+                return;
               }
+              if (!mounted) return;
+              await ExcelExportHelper.exportAuditLog(
+                context,
+                auditLogs: logs,
+              );
             },
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(_tabController.index == 0 ? 82 : 40),
-          child: _buildStandaloneTabBar(),
+          preferredSize: const Size.fromHeight(42),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+            color: Colors.white,
+            child: _buildAuditSearchField(),
+          ),
         ),
       ),
       body: ResponsiveCenter(
-        child: TabBarView(
-        controller: _tabController,
-        children: [_buildFinancialTab(), _buildAuditLogTab()],
-      ),
+        child: _buildAuditLogTab(),
       ),
     );
   }
 
-  /// TabBar for standalone mode (used in AppBar bottom)
-  Widget _buildStandaloneTabBar() {
-    return Column(
-      children: [
-        Container(
-          color: Colors.white,
-          child: TabBar(
-            controller: _tabController,
-            labelColor: AppBarAccents.finance,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: AppBarAccents.finance,
-            indicatorWeight: 2,
-            labelStyle: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: AppTextStyles.subtitle1.fontSize,
-            ),
-            unselectedLabelStyle: TextStyle(
-              fontWeight: FontWeight.normal,
-              fontSize: AppTextStyles.subtitle1.fontSize,
-            ),
-            tabs: const [
-              Tab(height: 36, text: 'Tài chính'),
-              Tab(height: 36, text: 'Hệ thống'),
-            ],
-            onTap: (_) => setState(() {}),
-          ),
+  /// Reusable audit-log search field
+  Widget _buildAuditSearchField() {
+    return Container(
+      height: 34,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(17),
+      ),
+      child: TextField(
+        controller: _auditSearchController,
+        onChanged: (v) => setState(() => _auditSearchQuery = v.trim()),
+        style: TextStyle(
+          color: CustomAppBar.kTextPrimary,
+          fontSize: AppTextStyles.subtitle1.fontSize,
         ),
-        if (_tabController.index == 0)
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-            color: Colors.white,
-            child: Container(
-              height: 34,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(17),
-              ),
-              child: TextField(
-                controller: _searchController,
-                onSubmitted: (v) {
-                  _searchQuery = v.trim();
-                  _loadData();
-                },
-                style: TextStyle(
-                  color: CustomAppBar.kTextPrimary,
-                  fontSize: AppTextStyles.subtitle1.fontSize,
-                ),
-                cursorColor: AppBarAccents.finance,
-                decoration: InputDecoration(
-                  hintText: 'Tìm theo tên, SĐT, mô tả...',
-                  hintStyle: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: AppTextStyles.subtitle1.fontSize,
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    color: AppBarAccents.finance,
-                    size: 16,
-                  ),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 34),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(
-                            Icons.close_rounded,
-                            color: Colors.grey.shade500,
-                            size: 16,
-                          ),
-                          onPressed: () {
-                            _searchController.clear();
-                            _searchQuery = '';
-                            _loadData();
-                          },
-                          splashRadius: 14,
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                ),
-              ),
-            ),
+        cursorColor: AppBarAccents.finance,
+        decoration: InputDecoration(
+          hintText: 'Tìm theo hành động, người dùng, mô tả...',
+          hintStyle: TextStyle(
+            color: Colors.grey.shade500,
+            fontSize: AppTextStyles.subtitle1.fontSize,
           ),
-      ],
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: AppBarAccents.finance,
+            size: 16,
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 34),
+          suffixIcon: _auditSearchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.close_rounded, color: Colors.grey.shade500, size: 16),
+                  onPressed: () {
+                    _auditSearchController.clear();
+                    setState(() => _auditSearchQuery = '');
+                  },
+                  splashRadius: 14,
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        ),
+      ),
     );
   }
 
-  /// Embedded mode - no Scaffold/AppBar, compact inline tabs
+  /// Embedded mode - no Scaffold/AppBar, compact inline content
   Widget _buildEmbeddedContent() {
-    return Column(
-      children: [
-        // TabBar + actions in one row
-        _buildTabBarAndSearch(),
-        // Body
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [_buildFinancialTab(), _buildAuditLogTab()],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Shared TabBar + Search widget
-  Widget _buildTabBarAndSearch() {
     return Column(
       children: [
         Container(
           color: Colors.white,
           child: Row(
             children: [
-              Expanded(
-                child: TabBar(
-                  controller: _tabController,
-                  labelColor: AppBarAccents.finance,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: AppBarAccents.finance,
-                  indicatorWeight: 2,
-                  labelStyle: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: AppTextStyles.subtitle1.fontSize,
-                  ),
-                  unselectedLabelStyle: TextStyle(
-                    fontWeight: FontWeight.normal,
-                    fontSize: AppTextStyles.subtitle1.fontSize,
-                  ),
-                  tabs: const [
-                    Tab(
-                      height: 36,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [Icon(Icons.account_balance_wallet, size: 16), SizedBox(width: 6), Text('Tài chính')],
-                      ),
-                    ),
-                    Tab(
-                      height: 36,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [Icon(Icons.history, size: 16), SizedBox(width: 6), Text('Hệ thống')],
-                      ),
-                    ),
-                  ],
-                  onTap: (_) => setState(() {}),
-                ),
-              ),
-              if (_tabController.index == 0)
-                IconButton(
-                  onPressed: _showFilterSheet,
-                  icon: Badge(
-                    isLabelVisible:
-                        _selectedType != null ||
-                        _selectedDirection != null ||
-                        _searchQuery.isNotEmpty,
-                    child: Icon(
-                      Icons.filter_list_rounded,
-                      size: 18,
-                      color: AppBarAccents.finance,
-                    ),
-                  ),
-                  tooltip: 'Bộ lọc',
-                  splashRadius: 16,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                ),
-              IconButton(
-                onPressed: () {
-                  if (_tabController.index == 0) {
-                    _loadData();
-                  } else {
-                    _loadAuditLogs();
-                  }
-                },
-                icon: Icon(
-                  Icons.refresh_rounded,
-                  size: 18,
+              const SizedBox(width: 12),
+              const Icon(Icons.history, size: 16, color: AppBarAccents.finance),
+              const SizedBox(width: 6),
+              Text(
+                'Nhật ký hoạt động',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: AppTextStyles.subtitle1.fontSize,
                   color: AppBarAccents.finance,
                 ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: _loadAuditLogs,
+                icon: const Icon(Icons.refresh_rounded, size: 18, color: AppBarAccents.finance),
                 tooltip: 'Làm mới',
                 splashRadius: 16,
                 padding: EdgeInsets.zero,
@@ -1028,63 +866,14 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView>
             ],
           ),
         ),
-        if (_tabController.index == 0)
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-            color: Colors.white,
-            child: Container(
-              height: 34,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(17),
-              ),
-              child: TextField(
-                controller: _searchController,
-                onSubmitted: (v) {
-                  _searchQuery = v.trim();
-                  _loadData();
-                },
-                style: TextStyle(
-                  color: CustomAppBar.kTextPrimary,
-                  fontSize: AppTextStyles.subtitle1.fontSize,
-                ),
-                cursorColor: AppBarAccents.finance,
-                decoration: InputDecoration(
-                  hintText: 'Tìm theo tên, SĐT, mô tả...',
-                  hintStyle: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: AppTextStyles.subtitle1.fontSize,
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    color: AppBarAccents.finance,
-                    size: 16,
-                  ),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 34),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(
-                            Icons.close_rounded,
-                            color: Colors.grey.shade500,
-                            size: 16,
-                          ),
-                          onPressed: () {
-                            _searchController.clear();
-                            _searchQuery = '';
-                            _loadData();
-                          },
-                          splashRadius: 14,
-                        )
-                      : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                ),
-              ),
-            ),
-          ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+          color: Colors.white,
+          child: _buildAuditSearchField(),
+        ),
+        Expanded(
+          child: _buildAuditLogTab(),
+        ),
       ],
     );
   }

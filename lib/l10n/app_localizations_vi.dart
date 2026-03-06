@@ -384,7 +384,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get developerName => 'Quang Huy';
 
   @override
-  String get developerRole => 'Chuyên gia phát triển ứng dụng mobile';
+  String get developerRole => 'Chuyên gia phát triển ứng dụng mobile web';
 
   @override
   String get contactPhone => 'SĐT/Zalo: 0964 095 979';

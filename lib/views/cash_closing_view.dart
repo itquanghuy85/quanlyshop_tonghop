@@ -76,6 +76,11 @@ class _CashClosingViewState extends State<CashClosingView>
   Timer? _debounceTimer;
   bool _isLoadingFromFirestore = false;
 
+  // Transaction filter/search (showOnlyTransactions mode)
+  String _txSearchQuery = '';
+  String? _txTypeFilter; // null = all
+  final _txSearchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -107,6 +112,7 @@ class _CashClosingViewState extends State<CashClosingView>
     cashEndCtrl.dispose();
     bankEndCtrl.dispose();
     noteCtrl.dispose();
+    _txSearchController.dispose();
     super.dispose();
   }
 
@@ -472,15 +478,68 @@ class _CashClosingViewState extends State<CashClosingView>
         backgroundColor: const Color(0xFFF5F7FA),
         appBar: CustomAppBar.build(
           title: 'LỊCH SỬ TÀI CHÍNH',
-          subtitle: 'Tất cả giao dịch trong ngày',
+          subtitle: DateFormat('dd/MM/yyyy').format(_selectedDate),
           accentColor: Colors.indigo,
           actions: [
+            IconButton(
+              icon: Badge(
+                isLabelVisible: _txTypeFilter != null,
+                child: const Icon(Icons.filter_list_rounded, size: 20, color: Colors.white),
+              ),
+              onPressed: _showTxFilterSheet,
+              splashRadius: 18,
+              tooltip: 'Bộ lọc',
+            ),
             IconButton(
               icon: const Icon(Icons.calendar_month, size: 20, color: Colors.white),
               onPressed: _pickDate,
               splashRadius: 18,
             ),
           ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(42),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+              color: Colors.white,
+              child: Container(
+                height: 34,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: TextField(
+                  controller: _txSearchController,
+                  onChanged: (v) => setState(() => _txSearchQuery = v.trim()),
+                  style: TextStyle(
+                    color: CustomAppBar.kTextPrimary,
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                  ),
+                  cursorColor: Colors.indigo,
+                  decoration: InputDecoration(
+                    hintText: 'Tìm theo tên, mô tả, ghi chú...',
+                    hintStyle: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                    ),
+                    prefixIcon: const Icon(Icons.search_rounded, color: Colors.indigo, size: 16),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 34),
+                    suffixIcon: _txSearchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(Icons.close_rounded, color: Colors.grey.shade500, size: 16),
+                            onPressed: () {
+                              _txSearchController.clear();
+                              setState(() => _txSearchQuery = '');
+                            },
+                            splashRadius: 14,
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
         body: ResponsiveCenter(
           child: _isLoading
@@ -2289,6 +2348,95 @@ class _CashClosingViewState extends State<CashClosingView>
     );
   }
 
+  // ─── TRANSACTION FILTER SHEET ──────────────────────────────
+
+  void _showTxFilterSheet() {
+    final types = <Map<String, String>>[
+      {'value': '', 'label': 'Tất cả'},
+      {'value': 'sale', 'label': '🛒 Bán hàng'},
+      {'value': 'settlement', 'label': '🏦 Tất toán NH'},
+      if (_enableRepair) {'value': 'repair', 'label': '🔧 Sửa chữa'},
+      {'value': 'debt_collect', 'label': '💳 Thu nợ'},
+      {'value': 'misc_income', 'label': '💰 Thu phát sinh'},
+      {'value': 'expense', 'label': '📝 Chi phí'},
+      {'value': 'refund', 'label': '↩️ Trả hàng'},
+      {'value': 'import', 'label': '📦 Nhập hàng'},
+      {'value': 'supplier_pay', 'label': '🏭 Trả NCC'},
+      if (_enableRepair) {'value': 'partner_pay', 'label': '🤝 Trả đối tác SC'},
+      if (_enableRepair) {'value': 'repair_parts_cost', 'label': '🔩 Vốn LK SC'},
+      {'value': 'debt_pay', 'label': '💸 Trả nợ'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36, height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text('Lọc theo loại giao dịch',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize)),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: types.map((t) {
+                    final val = t['value']!;
+                    final selected = (val.isEmpty && _txTypeFilter == null) || val == _txTypeFilter;
+                    return ChoiceChip(
+                      label: Text(t['label']!, style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
+                      selected: selected,
+                      selectedColor: Colors.indigo.shade100,
+                      onSelected: (_) {
+                        setSheetState(() {});
+                        setState(() {
+                          _txTypeFilter = val.isEmpty ? null : val;
+                        });
+                        Navigator.pop(ctx);
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                if (_txTypeFilter != null)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        setState(() => _txTypeFilter = null);
+                        Navigator.pop(ctx);
+                      },
+                      icon: const Icon(Icons.clear_all, size: 18),
+                      label: const Text('Xóa bộ lọc'),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   // ─── TRANSACTIONS TAB ───────────────────────────────────────
 
   Widget _buildTransactionsTab() {
@@ -2297,7 +2445,7 @@ class _CashClosingViewState extends State<CashClosingView>
     final expenseList = _getExpenseTransactions(_selectedDate);
 
     // Build unified list with isIncome flag
-    final allTransactions = <Map<String, dynamic>>[];
+    var allTransactions = <Map<String, dynamic>>[];
     for (final t in incomeList) {
       allTransactions.add({...t, '_isIncome': true});
     }
@@ -2306,6 +2454,23 @@ class _CashClosingViewState extends State<CashClosingView>
     }
     // Sort by time descending
     allTransactions.sort((a, b) => (b['time'] as String).compareTo(a['time'] as String));
+
+    // Apply type filter
+    if (_txTypeFilter != null) {
+      allTransactions = allTransactions.where((t) => t['type'] == _txTypeFilter).toList();
+    }
+
+    // Apply search filter
+    if (_txSearchQuery.isNotEmpty) {
+      final q = _txSearchQuery.toLowerCase();
+      allTransactions = allTransactions.where((t) {
+        final title = (t['title'] as String? ?? '').toLowerCase();
+        final detail = (t['detail'] as String? ?? '').toLowerCase();
+        final customer = (t['customerName'] as String? ?? '').toLowerCase();
+        final note = (t['note'] as String? ?? '').toLowerCase();
+        return title.contains(q) || detail.contains(q) || customer.contains(q) || note.contains(q);
+      }).toList();
+    }
 
     final totalIn = incomeList.fold<int>(0, (s, t) => s + (t['amount'] as int));
     final totalOut = expenseList.fold<int>(0, (s, t) => s + (t['amount'] as int));
