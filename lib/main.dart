@@ -276,12 +276,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   ) {
     if (_roleFuture == null || _currentUid != uid) {
       _currentUid = uid;
-      // Web needs more time: syncUserInfo (10-24s) + downloadAllFromCloud (25s)
-      final timeout = kIsWeb ? 60 : 30;
-      _roleFuture = _getRoleAfterSync(
-        uid,
-        email,
-      ).timeout(Duration(seconds: timeout));
+      _roleFuture = _getRoleAfterSync(uid, email);
+      if (!kIsWeb) {
+        // Mobile: timeout 30s vì có SQLite persistent
+        _roleFuture = _roleFuture!.timeout(const Duration(seconds: 30));
+      }
+      // Web: không timeout — function tự quản lý timeout từng bước
     }
     return _roleFuture!;
   }
@@ -301,78 +301,121 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     PerfMonitor.start('_getRoleAfterSync');
     debugPrint('🚀 _getRoleAfterSync: START for uid=$uid, email=$email');
 
-    try {
-      await UserService.syncUserInfo(uid, email);
-      debugPrint('✅ _getRoleAfterSync: syncUserInfo completed');
-      
-      // Initialize CurrentShopService for multi-shop support
-      await CurrentShopService().init();
-      debugPrint('✅ _getRoleAfterSync: CurrentShopService initialized');
-    } catch (e) {
-      debugPrint('❌ syncUserInfo error: $e');
-      // Nếu syncUserInfo thất bại hoàn toàn, vẫn thử tiếp để xem có cache không
-    }
-
     // Kiểm tra super admin TRƯỚC - không cần sync data
-    final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
+    final bool isSuperAdmin = email.toLowerCase() == 'admin@huluca.com';
     if (isSuperAdmin) {
+      // Vẫn sync nhưng không chặn
+      try {
+        await UserService.syncUserInfo(uid, email).timeout(
+          const Duration(seconds: 10),
+        );
+        await CurrentShopService().init();
+      } catch (e) {
+        debugPrint('⚠️ Super admin sync error (non-fatal): $e');
+      }
       debugPrint('🔑 Super admin đăng nhập - chờ chọn shop');
+      PerfMonitor.stop('_getRoleAfterSync');
       return {'role': 'admin', 'isSuperAdmin': true};
     }
 
-    // User thường: Kiểm tra và đảm bảo có shopId
-    String? currentShopId;
+    // ═══════════ STEP 1: syncUserInfo (với timeout cho web) ═══════════
     try {
-      // TỐI ƯU: Giảm maxRetries từ 5 xuống 2 để không chờ quá lâu
-      currentShopId = await UserService.ensureShopId(maxRetries: 2);
-      debugPrint('✅ _getRoleAfterSync: Got shopId=$currentShopId');
-    } catch (e) {
-      debugPrint('❌ _getRoleAfterSync: Cannot get shopId: $e');
-      // Thử lần cuối với getCurrentShopId và refresh claims
+      if (kIsWeb) {
+        await UserService.syncUserInfo(uid, email).timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            debugPrint('⚠️ [WEB] syncUserInfo timeout 15s, tiếp tục...');
+          },
+        );
+      } else {
+        await UserService.syncUserInfo(uid, email);
+      }
+      debugPrint('✅ _getRoleAfterSync: syncUserInfo completed');
+      
       try {
-        debugPrint('🔄 _getRoleAfterSync: Attempting final claims refresh...');
-        await ClaimsService().refreshMyClaims();
-        // TỐI ƯU: Giảm delay từ 3s xuống 1s
-        await Future.delayed(const Duration(seconds: 1));
-        currentShopId = await UserService.getCurrentShopId();
-      } catch (_) {}
+        await CurrentShopService().init();
+      } catch (e) {
+        debugPrint('⚠️ CurrentShopService.init error (non-fatal): $e');
+      }
+    } catch (e) {
+      debugPrint('❌ syncUserInfo error: $e');
     }
 
-    // Nếu VẪN không có shopId, đây là lỗi nghiêm trọng
+    // ═══════════ STEP 2: Lấy shopId (nhiều fallback) ═══════════
+    String? currentShopId = UserService.getShopIdSync();
+    debugPrint('📌 shopId from cache: $currentShopId');
+
+    // Fallback 1: ensureShopId nếu cache trống
     if (currentShopId == null || currentShopId.isEmpty) {
-      debugPrint('⛔ _getRoleAfterSync: CRITICAL - No shopId available!');
-      debugPrint('📝 User cần logout và login lại để tạo shop mới');
-      throw Exception(
-        'Không thể xác định cửa hàng cho tài khoản này. Vui lòng đăng xuất và đăng nhập lại.',
-      );
-    } else {
       try {
-        await _checkAndClearLocalDataIfShopChanged(currentShopId);
+        currentShopId = await UserService.ensureShopId(maxRetries: 2)
+            .timeout(const Duration(seconds: 8));
+        debugPrint('✅ shopId from ensureShopId: $currentShopId');
       } catch (e) {
-        debugPrint('⚠️ _checkAndClearLocalDataIfShopChanged error (non-fatal): $e');
+        debugPrint('⚠️ ensureShopId failed: $e');
       }
     }
 
-    // Download dữ liệu từ cloud về (chỉ khi có shopId)
+    // Fallback 2: Claims
+    if (currentShopId == null || currentShopId.isEmpty) {
+      try {
+        currentShopId = await ClaimsService().getShopIdFromClaims()
+            .timeout(const Duration(seconds: 5));
+        debugPrint('📌 shopId from claims: $currentShopId');
+      } catch (e) {
+        debugPrint('⚠️ getShopIdFromClaims failed: $e');
+      }
+    }
+
+    // Fallback 3: TRÊN WEB - dùng uid làm shopId (owner mặc định)
+    if (kIsWeb && (currentShopId == null || currentShopId.isEmpty)) {
+      debugPrint('⚠️ [WEB] Tất cả cách lấy shopId thất bại, thử uid=$uid');
+      currentShopId = uid;
+      UserService.updateCachedShopId(currentShopId);
+    }
+
+    // Mobile: throw nếu vẫn không có shopId
+    if (currentShopId == null || currentShopId.isEmpty) {
+      debugPrint('⛔ _getRoleAfterSync: CRITICAL - No shopId available!');
+      throw Exception(
+        'Không thể xác định cửa hàng cho tài khoản này. Vui lòng đăng xuất và đăng nhập lại.',
+      );
+    }
+
+    debugPrint('✅ _getRoleAfterSync: Using shopId=$currentShopId');
+
+    // ═══════════ STEP 3: Clear local data nếu shop thay đổi ═══════════
+    try {
+      await _checkAndClearLocalDataIfShopChanged(currentShopId);
+    } catch (e) {
+      debugPrint('⚠️ _checkAndClearLocalDataIfShopChanged error (non-fatal): $e');
+    }
+
+    // ═══════════ STEP 4: Download dữ liệu ═══════════
     if (currentShopId.isNotEmpty) {
       if (kIsWeb) {
-        // WEB: PHẢI await download trước khi hiển thị UI
-        // Vì web không có SQLite persistent - DB thường trống khi mở app
         try {
           debugPrint('🔄 [WEB] Đồng bộ dữ liệu trước khi hiển thị...');
           await SyncService.downloadAllFromCloud().timeout(
-            const Duration(seconds: 25),
+            const Duration(seconds: 20),
             onTimeout: () {
-              debugPrint('⚠️ [WEB] Sync timeout sau 25s, tiếp tục với data hiện có...');
+              debugPrint('⚠️ [WEB] Sync timeout sau 20s, tiếp tục với data hiện có...');
             },
           );
           debugPrint('✅ [WEB] Sync hoàn thành');
-          await _initSyncOrchestrator();
-          await CashClosingNotifier.instance.init();
-          await PaymentIntentService.initialize();
         } catch (e) {
-          debugPrint('❌ [WEB] Lỗi đồng bộ: $e');
+          debugPrint('❌ [WEB] Lỗi đồng bộ (non-fatal): $e');
         }
+        // Init services in background - không chặn login
+        Future.microtask(() async {
+          try {
+            await _initSyncOrchestrator();
+            await CashClosingNotifier.instance.init();
+            await PaymentIntentService.initialize();
+          } catch (e) {
+            debugPrint('⚠️ [WEB] Init services error: $e');
+          }
+        });
       } else {
         // MOBILE: Chạy background - SQLite có data persistent
         Future.microtask(() async {
@@ -393,12 +436,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
           }
         });
       }
-    } else {
-      debugPrint('⚠️ Skipping sync - no shopId available');
     }
 
-    // Chạy health check ngầm (không chặn)
-    // ignore: unawaited_futures
+    // Health check ngầm
     Future.microtask(() async {
       try {
         await SyncHealthCheck.runFullCheck();
@@ -407,7 +447,15 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       }
     });
 
-    final role = await UserService.getUserRole(uid);
+    // ═══════════ STEP 5: Lấy role ═══════════
+    String role = 'user';
+    try {
+      role = await UserService.getUserRole(uid)
+          .timeout(const Duration(seconds: 8));
+    } catch (e) {
+      debugPrint('⚠️ getUserRole failed, defaulting to user: $e');
+    }
+
     PerfMonitor.stop('_getRoleAfterSync');
     return {'role': role, 'isSuperAdmin': false};
   }

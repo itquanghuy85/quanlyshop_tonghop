@@ -306,24 +306,14 @@ class UserService {
       return null;
     }
 
-    // Nếu cache còn hiệu lực và đúng user thì trả về
+    // Nếu cache còn hiệu lực và đúng user thì trả về ngay
+    // Shop validation sẽ được thực hiện khi load dữ liệu, không chặn login
     if (_cachedShopId != null && _cachedUid == currentUser.uid) {
-      try {
-        final shopDoc = await _db.collection('shops').doc(_cachedShopId).get();
-        final validCached = shopDoc.exists && shopDoc.data()?['deleted'] != true;
-        if (!validCached) {
-          debugPrint('getCurrentShopId: cached shopId=$_cachedShopId is invalid, clearing cache');
-          _cachedShopId = null;
-        }
-      } catch (e) {
-        debugPrint('getCurrentShopId: cached shop validation error: $e');
-      }
-
-      if (_cachedShopId != null && _cachedShopId!.isNotEmpty) {
-      debugPrint(
-        "getCurrentShopId: trả về cache $_cachedShopId cho user $_cachedUid",
-      );
-      return _cachedShopId;
+      if (_cachedShopId!.isNotEmpty) {
+        debugPrint(
+          "getCurrentShopId: trả về cache $_cachedShopId cho user $_cachedUid",
+        );
+        return _cachedShopId;
       }
     }
 
