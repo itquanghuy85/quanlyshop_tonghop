@@ -359,44 +359,53 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                 return Expanded(
                   child: GestureDetector(
                     onTap: () => _showMonthDetail(m),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        // Grouped bars side by side
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: revenueH,
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade400,
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: revenueH.clamp(0, 120),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade400,
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 1),
-                            Container(
-                              width: 8,
-                              height: profitH,
-                              decoration: BoxDecoration(
-                                color: m.netProfit >= 0 ? Colors.green.shade400 : Colors.red.shade400,
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                              const SizedBox(width: 1),
+                              Container(
+                                width: 8,
+                                height: profitH.clamp(0, 120),
+                                decoration: BoxDecoration(
+                                  color: m.netProfit >= 0 ? Colors.green.shade400 : Colors.red.shade400,
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          monthNames[m.month - 1],
-                          style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
-                        ),
-                      ],
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
               }).toList(),
             ),
+          ),
+          // Month labels row (outside SizedBox to avoid overflow)
+          Row(
+            children: _months.map((m) {
+              return Expanded(
+                child: Text(
+                  monthNames[m.month - 1],
+                  style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                  textAlign: TextAlign.center,
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
