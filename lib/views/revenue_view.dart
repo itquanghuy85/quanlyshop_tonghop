@@ -3003,6 +3003,12 @@ class _RevenueViewState extends State<RevenueView>
           ),
           const SizedBox(height: 20),
 
+          // Top sản phẩm bán chạy
+          _buildTopProductsSection(fSales),
+
+          // Top khách hàng mua nhiều
+          _buildTopCustomersSection(fSales),
+
           // Receivables Section - Công nợ phải thu
           _buildReceivablesSection(),
         ],
@@ -3165,6 +3171,269 @@ class _RevenueViewState extends State<RevenueView>
           ),
         ],
       ),
+    );
+  }
+
+  /// Top sản phẩm bán chạy (parsed from comma-separated productNames)
+  Widget _buildTopProductsSection(List<SaleOrder> fSales) {
+    // Aggregate product counts and revenue
+    final productStats = <String, _ProductStat>{};
+    for (var s in fSales) {
+      final names = s.productNames
+          .split(RegExp(r'[,\n]'))
+          .map((n) => n.trim())
+          .where((n) => n.isNotEmpty);
+      // Spread revenue evenly across products in the order
+      final count = names.length;
+      if (count == 0) continue;
+      final revenuePerItem = s.finalPrice ~/ count;
+      for (var name in names) {
+        final key = name.toUpperCase();
+        productStats.putIfAbsent(key, () => _ProductStat(name: name));
+        productStats[key]!.qty += 1;
+        productStats[key]!.revenue += revenuePerItem;
+      }
+    }
+    if (productStats.isEmpty) return const SizedBox();
+
+    final sorted = productStats.values.toList()
+      ..sort((a, b) => b.qty.compareTo(a.qty));
+    final top = sorted.take(10).toList();
+
+    return Column(
+      children: [
+        const SizedBox(height: 20),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.star_rounded,
+                      color: Colors.deepPurple,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    "TOP SẢN PHẨM BÁN CHẠY",
+                    style: TextStyle(
+                      fontSize: AppTextStyles.headline5.fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              ...top.asMap().entries.map((entry) {
+                final idx = entry.key + 1;
+                final p = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '$idx',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: idx <= 3
+                                ? Colors.deepPurple
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          p.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.headline5.fontSize,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.deepPurple.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${p.qty} sp',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${NumberFormat('#,###').format(p.revenue)} đ',
+                        style: TextStyle(
+                          fontSize: AppTextStyles.headline5.fontSize,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Top khách hàng mua nhiều nhất
+  Widget _buildTopCustomersSection(List<SaleOrder> fSales) {
+    final customerStats = <String, _CustomerStat>{};
+    for (var s in fSales) {
+      final name = s.customerName.trim();
+      if (name.isEmpty) continue;
+      final key = name.toUpperCase();
+      customerStats.putIfAbsent(key, () => _CustomerStat(name: name));
+      customerStats[key]!.orders += 1;
+      customerStats[key]!.totalSpent += s.finalPrice;
+    }
+    if (customerStats.isEmpty) return const SizedBox();
+
+    final sorted = customerStats.values.toList()
+      ..sort((a, b) => b.totalSpent.compareTo(a.totalSpent));
+    final top = sorted.take(10).toList();
+
+    return Column(
+      children: [
+        const SizedBox(height: 20),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.people_alt_rounded,
+                      color: Colors.teal,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    "TOP KHÁCH HÀNG",
+                    style: TextStyle(
+                      fontSize: AppTextStyles.headline5.fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              ...top.asMap().entries.map((entry) {
+                final idx = entry.key + 1;
+                final c = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '$idx',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: idx <= 3 ? Colors.teal : Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          c.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.headline5.fontSize,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${c.orders} đơn',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.teal,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${NumberFormat('#,###').format(c.totalSpent)} đ',
+                        style: TextStyle(
+                          fontSize: AppTextStyles.headline5.fontSize,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -4141,4 +4410,18 @@ class _PeriodStats {
   int get totalRevenue => salesIncome + repairsIncome + miscIncome;
   int get totalCost => salesCost + repairsCost;
   int get profit => totalRevenue - expenseOut - totalCost;
+}
+
+class _ProductStat {
+  final String name;
+  int qty = 0;
+  int revenue = 0;
+  _ProductStat({required this.name});
+}
+
+class _CustomerStat {
+  final String name;
+  int orders = 0;
+  int totalSpent = 0;
+  _CustomerStat({required this.name});
 }
