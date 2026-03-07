@@ -5604,7 +5604,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   ),
                 ),
                 _financeQuickCard(
-                  'Nhật ký tài chính',
+                  'Nhật ký hệ thống',
                   Icons.history,
                   Colors.purple,
                   () => Navigator.push(

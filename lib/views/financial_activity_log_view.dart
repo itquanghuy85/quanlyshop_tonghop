@@ -63,7 +63,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: CustomAppBar.build(
-        title: 'NHẬT KÝ TÀI CHÍNH',
+        title: 'NHẬT KÝ HỆ THỐNG',
         subtitle: '${_filteredActivities.length} giao dịch',
         accentColor: AppBarAccents.finance,
         actions: [
@@ -83,7 +83,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
               size: 20,
               color: Colors.white,
             ),
-            tooltip: 'Xuất Excel nhật ký tài chính',
+            tooltip: 'Xuất Excel nhật ký hệ thống',
             splashRadius: 18,
             onPressed: () async {
               final activities = _filteredActivities;
@@ -178,7 +178,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
               const Icon(Icons.history, size: 16, color: AppBarAccents.finance),
               const SizedBox(width: 6),
               Text(
-                'Nhật ký tài chính',
+                'Nhật ký hệ thống',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: AppTextStyles.subtitle1.fontSize,

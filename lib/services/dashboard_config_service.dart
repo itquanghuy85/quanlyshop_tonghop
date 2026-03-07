@@ -420,7 +420,7 @@ class ShortcutConfig {
       case ShortcutType.debt: return 'Công nợ';
       case ShortcutType.qrScan: return 'Quét QR';
       case ShortcutType.financialReport: return 'Tài chính';
-      case ShortcutType.activityLog: return 'Nhật ký TC';
+      case ShortcutType.activityLog: return 'Nhật ký HT';
       case ShortcutType.printer: return 'Máy in';
       case ShortcutType.quickCodes: return 'Mã nhanh';
       case ShortcutType.bankInstallment: return 'Trả góp NH';
