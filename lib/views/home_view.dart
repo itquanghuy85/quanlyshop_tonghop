@@ -197,6 +197,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   bool _isSyncing = false;
   int pendingApprovalCount = 0; // Số đơn chờ duyệt giao
   int totalDebtRemain = 0;
+  int _customerDebtRemain = 0; // Khách nợ shop
+  int _supplierDebtRemain = 0; // Shop nợ NCC
+  int _partnerDebtRemain = 0; // Nợ đối tác SC
   int expiringWarranties = 0;
   int unreadChatCount = 0;
   String _latestChatMessage = ''; // Tin nhắn mới nhất
@@ -1605,6 +1608,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       final fSalesReturns = batch1[12] as List<Map<String, dynamic>>;
 
       int doneT = 0, soldT = 0, debtR = 0, expW = 0;
+      int custDebt = 0, suppDebt = 0, partDebt = 0;
 
       final analysis = DailyFinancialAnalysisService.analyze(
         sales: fSales,
@@ -1635,9 +1639,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         dbConn.query('sales',
           columns: ['soldAt', 'warranty'],
           where: "warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'"),
-        // [2] debtRemain
+        // [2] debtRemain — split by type
         dbConn.rawQuery(
-          "SELECT SUM(CASE WHEN totalAmount > paidAmount THEN (totalAmount - paidAmount) ELSE 0 END) as remain "
+          "SELECT "
+          "SUM(CASE WHEN (type IN ('CUSTOMER_OWES','OTHER_CUSTOMER_OWES','OWE') OR type IS NULL) AND totalAmount > paidAmount THEN (totalAmount - paidAmount) ELSE 0 END) as customerRemain, "
+          "SUM(CASE WHEN type IN ('SHOP_OWES','OTHER_SHOP_OWES','OWED') AND totalAmount > paidAmount THEN (totalAmount - paidAmount) ELSE 0 END) as supplierRemain "
           "FROM debts WHERE (deleted IS NULL OR deleted != 1) AND (status IS NULL OR UPPER(status) NOT IN ('PAID','CANCELLED'))"),
         // [3] partner debt total (single aggregated query instead of N+1)
         dbConn.rawQuery('''
@@ -1689,14 +1695,19 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
       }
 
-      debtR = (debtRemainRow.first['remain'] as num?)?.toInt() ?? 0;
+      custDebt = (debtRemainRow.first['customerRemain'] as num?)?.toInt() ?? 0;
+      suppDebt = (debtRemainRow.first['supplierRemain'] as num?)?.toInt() ?? 0;
+      debtR = custDebt + suppDebt;
 
       // Partner debt from aggregated query
       if (partnerDebtRow.isNotEmpty) {
         final ptCost = (partnerDebtRow.first['totalCost'] as num?)?.toInt() ?? 0;
         final ptPaid = (partnerDebtRow.first['totalPaid'] as num?)?.toInt() ?? 0;
         final ptRemain = ptCost - ptPaid;
-        if (ptRemain > 0) debtR += ptRemain;
+        if (ptRemain > 0) {
+          partDebt = ptRemain;
+          debtR += ptRemain;
+        }
       }
 
       final totalRecords = (recordCounts.first['repairs'] as int? ?? 0)
@@ -1720,6 +1731,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           pendingApprovalCount = pendingApprovalR;
           todaySaleCount = soldT;
           totalDebtRemain = debtR;
+          _customerDebtRemain = custDebt;
+          _supplierDebtRemain = suppDebt;
+          _partnerDebtRemain = partDebt;
           expiringWarranties = expW;
           _todayTotalIn = analysis.totalIn;
           _todayTotalOut = analysis.totalOut;
@@ -5502,6 +5516,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
             const SizedBox(height: 16),
 
+            // CÔNG NỢ TỔNG HỢP
+            _buildSectionHeader("CÔNG NỢ"),
+            _buildDebtSummaryCard(),
+
+            const SizedBox(height: 16),
+
             // THAO TÁC NHANH - Sổ quỹ + Thu Chi
             _buildSectionHeader(loc.quickActions),
             Row(
@@ -5698,6 +5718,123 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           ),
         ],
       ),
+    );
+  }
+
+  /// Debt summary card for Finance tab: Khách nợ / NCC nợ / Đối tác nợ
+  Widget _buildDebtSummaryCard() {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const DebtView()),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.account_balance, color: Colors.orange.shade600, size: 16),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'CÔNG NỢ TỔNG HỢP',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade700,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  'Tổng: ${MoneyUtils.formatVND(totalDebtRemain)}đ',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: totalDebtRemain > 0 ? Colors.red.shade600 : Colors.grey.shade500,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_ios, size: 10, color: Colors.grey.shade400),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _debtTypeColumn(
+                    '👤 Khách nợ',
+                    _customerDebtRemain,
+                    Colors.cyan,
+                    'Phải thu',
+                  ),
+                ),
+                Container(width: 1, height: 44, color: Colors.grey.shade200),
+                Expanded(
+                  child: _debtTypeColumn(
+                    '🏭 Nợ NCC',
+                    _supplierDebtRemain,
+                    Colors.deepOrange,
+                    'Phải trả',
+                  ),
+                ),
+                Container(width: 1, height: 44, color: Colors.grey.shade200),
+                Expanded(
+                  child: _debtTypeColumn(
+                    '🤝 Đối tác',
+                    _partnerDebtRemain,
+                    Colors.purple,
+                    'Phải trả',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _debtTypeColumn(String label, int amount, Color color, String subLabel) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          MoneyUtils.formatVND(amount),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: amount > 0 ? color : Colors.grey,
+          ),
+        ),
+        Text(
+          subLabel,
+          style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+        ),
+      ],
     );
   }
 
