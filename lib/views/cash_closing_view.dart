@@ -161,7 +161,10 @@ class _CashClosingViewState extends State<CashClosingView>
   Future<void> _loadAllDataFromFirestore() async {
     if (!mounted || _isLoadingFromFirestore) return;
     _isLoadingFromFirestore = true;
-    setState(() => _isLoading = true);
+    // Don't show loading spinner if we already have local data
+    if (_sales.isEmpty && _repairs.isEmpty && _expenses.isEmpty) {
+      setState(() => _isLoading = true);
+    }
 
     try {
       final shopId = await UserService.getCurrentShopId();
@@ -217,7 +220,7 @@ class _CashClosingViewState extends State<CashClosingView>
             .collection('sales_returns')
             .where('shopId', isEqualTo: shopId)
             .get(),
-      ]);
+      ]).timeout(const Duration(seconds: 10));
 
       // Parse sales - filter deleted
       final sales = results[0].docs
@@ -327,9 +330,11 @@ class _CashClosingViewState extends State<CashClosingView>
       final supplierImportsSnapshot = await firestore
           .collection('supplier_import_history')
           .where('shopId', isEqualTo: shopId)
-          .where('deleted', isNotEqualTo: true)
-          .get();
-      final supplierImports = supplierImportsSnapshot.docs.map((doc) {
+          .get()
+          .timeout(const Duration(seconds: 10));
+      final supplierImports = supplierImportsSnapshot.docs
+          .where((doc) => doc.data()['deleted'] != true)
+          .map((doc) {
         final data = doc.data();
         data['firestoreId'] = doc.id;
         _convertTimestampFields(data);
@@ -583,9 +588,12 @@ class _CashClosingViewState extends State<CashClosingView>
     }
   }
 
-  /// Load tất cả dữ liệu - ưu tiên từ Firestore
+  /// Load tất cả dữ liệu - local DB trước để hiển thị ngay, Firestore sau để đồng bộ
   Future<void> _loadAllData() async {
-    await _loadAllDataFromFirestore();
+    // Load local DB first for instant display
+    await _loadAllDataFromLocalDB();
+    // Then merge Firestore data in background (non-blocking)
+    _loadAllDataFromFirestore();
   }
 
   bool _isSameDay(int timestamp, DateTime target) {

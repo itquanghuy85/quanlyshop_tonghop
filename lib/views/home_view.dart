@@ -2303,6 +2303,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           widgets.add(_buildUnifiedShortcuts());
           break;
         case DashboardCardType.financeSummary:
+          // Merged into financeDetail below
+          break;
+        case DashboardCardType.financeDetail:
           widgets.add(FinanceSummaryCard(
             key: const ValueKey('finance_summary'),
             revenue: _todaySaleIncome + _todaySettlementIncome + _todayRepairIncome,
@@ -2313,9 +2316,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               MaterialPageRoute(builder: (_) => const CashClosingView()),
             ),
           ));
-          break;
-        case DashboardCardType.financeDetail:
-          widgets.add(_buildSectionHeader("TỔNG QUAN TÀI CHÍNH"));
           widgets.add(_buildDashboardOverview());
           widgets.add(const SizedBox(height: 10));
           break;
@@ -5524,12 +5524,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
             const SizedBox(height: 16),
 
-            // BIẾN ĐỘNG TRONG NGÀY - detailed bar chart + breakdown
-            _buildSectionHeader("BIẾN ĐỘNG TRONG NGÀY"),
-            _buildDashboardOverview(),
-
-            const SizedBox(height: 16),
-
             // CÔNG NỢ TỔNG HỢP
             _buildSectionHeader("CÔNG NỢ"),
             _buildDebtSummaryCard(),
@@ -5610,7 +5604,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   ),
                 ),
                 _financeQuickCard(
-                  'Nhật ký hoạt động',
+                  'Nhật ký tài chính',
                   Icons.history,
                   Colors.purple,
                   () => Navigator.push(
@@ -5896,75 +5890,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       ),
       child: Column(
         children: [
-          // THU và CHI row
-          Row(
-            children: [
-              Expanded(
-                child: _financeStatCard(
-                  icon: Icons.arrow_circle_down_rounded,
-                  label: loc.todayIncome,
-                  value: _todayTotalIn,
-                  color: AppColors.success,
-                  detail: _enableRepair
-                      ? "$_todaySaleOrderCount ${loc.sales} + $_todayRepairCount ${loc.repair}"
-                      : "$_todaySaleOrderCount ${loc.sales}",
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const CashClosingView()),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _financeStatCard(
-                  icon: Icons.arrow_circle_up_rounded,
-                  label: loc.todayExpense,
-                  value: _todayTotalOut,
-                  color: AppColors.error,
-                  detail: _buildExpenseDetail(loc),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const CashClosingView()),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          
-          // CHI PHÍ NHẬP KHO - Hiển thị riêng nếu có
-          if (_todayStockInCost > 0) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.inventory_2_outlined, color: Colors.orange.shade700, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Chi nhập kho hôm nay: ',
-                    style: AppTextStyles.body1.copyWith(color: Colors.orange.shade800),
-                  ),
-                  Expanded(
-                    child: Text(
-                      '${MoneyUtils.formatVND(_todayStockInCost)}đ',
-                      style: AppTextStyles.subtitle1.copyWith(
-                        color: Colors.orange.shade900,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
-
           // LỢI NHUẬN RÒNG
           Container(
             width: double.infinity,
@@ -6052,64 +5977,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   ),
                 ),
               ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-          const SizedBox(height: 16),
-
-          // Công nợ
-          InkWell(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const DebtView()),
-            ),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.receipt_long_rounded,
-                    color: AppColors.warning,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          loc.totalDebt,
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.warning,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          "${MoneyUtils.formatVND(totalDebtRemain)} đ",
-                          style: AppTextStyles.headline6.copyWith(
-                            color: AppColors.warning,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    color: AppColors.warning.withOpacity(0.6),
-                    size: 16,
-                  ),
-                ],
-              ),
             ),
           ),
         ],
@@ -6851,64 +6718,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             const SizedBox(height: 12),
             const Divider(),
             const SizedBox(height: 8),
-            // LỢI NHUẬN RÒNG - giống Sổ quỹ
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _todayNetProfit >= 0 ? Colors.green.shade50 : Colors.red.shade50,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _todayNetProfit >= 0 ? Colors.green.shade200 : Colors.red.shade200,
-                ),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "💰 LỢI NHUẬN RÒNG",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: AppTextStyles.headline5.fontSize,
-                        ),
-                      ),
-                      Text(
-                        "${_todayNetProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(_todayNetProfit)}",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: AppTextStyles.headline3.fontSize,
-                          color: _todayNetProfit >= 0 ? Colors.green : Colors.red,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _homeBreakdownItem("Giá vốn bán", _todaySaleCost + _todayReturnCost, Colors.orange),
-                      ),
-                      Expanded(
-                        child: _homeBreakdownItem("Giá vốn SC", _todayRepairCost, Colors.orange),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "= Doanh thu - Chi phí - Giá vốn",
-                    style: TextStyle(
-                      fontSize: AppTextStyles.caption.fontSize,
-                      color: Colors.grey.shade600,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 8),
             // HOẠT ĐỘNG HÔM NAY
             Text(
               loc.todayActivity,
@@ -7007,14 +6816,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   ? activityItems.length.clamp(1, 6)
                   : (r2.isTablet
                       ? activityItems.length.clamp(1, 5)
-                      : activityItems.length.clamp(1, 3));
+                      : activityItems.length.clamp(1, 6));
               return GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: crossAxisCount,
-                mainAxisSpacing: 4,
-                crossAxisSpacing: 4,
-                childAspectRatio: 1.0,
+                mainAxisSpacing: 2,
+                crossAxisSpacing: 2,
+                childAspectRatio: 0.85,
                 children: activityItems,
               );
             }),
@@ -7065,34 +6874,37 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 22),
+              child: Icon(icon, color: color, size: 18),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
               value,
-              style: AppTextStyles.body1.copyWith(
+              style: AppTextStyles.body2.copyWith(
                 color: color,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 2),
             Text(
               label,
-              style: AppTextStyles.overline.copyWith(
+              style: TextStyle(
+                fontSize: 9,
                 color: AppColors.onSurface.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

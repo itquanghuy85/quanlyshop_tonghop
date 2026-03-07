@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/custom_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_service.dart';
@@ -201,28 +203,11 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFF),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("QUẢN LÝ PHÂN QUYỀN NHÂN VIÊN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize)),
-            if (_currentRole != null)
-              Text("Role: $_currentRole", style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.white70)),
-          ],
-        ),
+      backgroundColor: AppColors.background,
+      appBar: CustomAppBar.build(
+        title: 'QUẢN LÝ PHÂN QUYỀN',
+        subtitle: _currentRole != null ? 'Role: $_currentRole' : null,
+        accentColor: AppBarAccents.staff,
       ),
       body: ResponsiveCenter(child: StreamBuilder<QuerySnapshot>(
         stream: UserService.getAllUsersStream(),

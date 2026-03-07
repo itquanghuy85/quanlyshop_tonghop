@@ -6,6 +6,7 @@ import '../services/salary_calculation_service.dart';
 import '../services/salary_slip_pdf_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/custom_app_bar.dart';
 import 'hr_salary_settings_view.dart';
 import 'hr/shop_deduction_settings_view.dart';
 import 'hr/add_custom_adjustment_dialog.dart';
@@ -108,36 +109,11 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Quay lại',
-        ),
-        title: Text(
-          "BẢNG LƯƠNG NHÂN VIÊN",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: AppTextStyles.headline3.fontSize,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+      backgroundColor: AppColors.background,
+      appBar: CustomAppBar.build(
+        title: 'BẢNG LƯƠNG NHÂN VIÊN',
+        accentColor: AppBarAccents.staff,
         actions: [
-          // Chỉ giữ refresh trên AppBar
           IconButton(
             onPressed: _loadReport,
             icon: const Icon(Icons.refresh, color: Colors.white),

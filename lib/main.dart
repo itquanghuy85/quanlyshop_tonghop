@@ -614,6 +614,13 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                     debugPrint('🌱 Seed flag saved');
                   });
                 }
+                // Force refresh claims to fix permission-denied
+                if (prefs.getBool('claims_refreshed') != true) {
+                  ClaimsService().refreshMyClaims().then((_) {
+                    prefs.setBool('claims_refreshed', true);
+                    debugPrint('🔑 Claims refreshed for test account');
+                  }).catchError((e) => debugPrint('⚠️ Claims refresh failed: $e'));
+                }
               });
             }
 

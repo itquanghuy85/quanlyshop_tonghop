@@ -17,6 +17,9 @@ import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../services/sales_return_service.dart';
+import 'debt_view.dart';
+import 'monthly_profit_report_view.dart';
+import 'customer_management_view.dart';
 
 class SaleListView extends StatefulWidget {
   final bool todayOnly;
@@ -457,17 +460,6 @@ class _SaleListViewState extends State<SaleListView> {
         accentColor: AppBarAccents.sales,
         centerTitle: false,
         actions: [
-          IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CreateSaleView()),
-            ).then((_) => _refresh()),
-            icon: const Icon(
-              Icons.add_shopping_cart_rounded,
-              color: Colors.white,
-            ),
-            tooltip: "Tạo đơn bán hàng mới",
-          ),
           Stack(
             children: [
               IconButton(
@@ -499,24 +491,6 @@ class _SaleListViewState extends State<SaleListView> {
                   ),
                 ),
             ],
-          ),
-          IconButton(
-            onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-          ),
-          IconButton(
-            icon: const Icon(Icons.file_download_outlined, color: Colors.white),
-            tooltip: 'Xuất Excel đơn bán',
-            onPressed: () async {
-              final result = await ExportDateFilterDialog.show(context, title: 'Xuất đơn bán');
-              if (result == null) return;
-              if (!mounted) return;
-              await ExcelExportHelper.exportSales(
-                context,
-                startMs: result['startMs'],
-                endMs: result['endMs'],
-              );
-            },
           ),
         ],
         bottom: PreferredSize(
@@ -850,6 +824,59 @@ class _SaleListViewState extends State<SaleListView> {
               ],
             ),
             ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, -1))],
+        ),
+        padding: const EdgeInsets.only(top: 6, bottom: 6, left: 4, right: 4),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _bottomBarItem(Icons.add_shopping_cart_rounded, 'Tạo đơn', Colors.green, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView())).then((_) => _refresh());
+              }),
+              _bottomBarItem(Icons.people_outline, 'Khách hàng', Colors.blue, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerManagementView()));
+              }),
+              _bottomBarItem(Icons.account_balance_wallet_outlined, 'Công nợ', Colors.orange, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const DebtView()));
+              }),
+              _bottomBarItem(Icons.bar_chart_rounded, 'Lợi nhuận', Colors.purple, () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const MonthlyProfitReportView()));
+              }),
+              _bottomBarItem(Icons.file_download_outlined, 'Excel', Colors.blueGrey, () async {
+                final result = await ExportDateFilterDialog.show(context, title: 'Xuất đơn bán');
+                if (result == null) return;
+                if (!mounted) return;
+                await ExcelExportHelper.exportSales(context, startMs: result['startMs'], endMs: result['endMs']);
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomBarItem(IconData icon, String label, Color color, VoidCallback onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 2),
+              Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

@@ -350,36 +350,41 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 140,
+            height: 160,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: _months.map((m) {
-                final revenueH = maxVal > 0 ? (m.revenue / maxVal * 120).clamp(0, 120).toDouble() : 0.0;
-                final profitH = maxVal > 0 ? (m.netProfit.abs() / maxVal * 120).clamp(0, 120).toDouble() : 0.0;
+                final revenueH = maxVal > 0 ? (m.revenue / maxVal * 130).clamp(0, 130).toDouble() : 0.0;
+                final profitH = maxVal > 0 ? (m.netProfit.abs() / maxVal * 130).clamp(0, 130).toDouble() : 0.0;
                 return Expanded(
                   child: GestureDetector(
                     onTap: () => _showMonthDetail(m),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        // Revenue bar
-                        Container(
-                          width: 10,
-                          height: revenueH,
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade400,
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        // Profit bar (stacked next to revenue)
-                        Container(
-                          width: 10,
-                          height: profitH,
-                          decoration: BoxDecoration(
-                            color: m.netProfit >= 0 ? Colors.green.shade400 : Colors.red.shade400,
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
-                          ),
+                        // Grouped bars side by side
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: revenueH,
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade400,
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                              ),
+                            ),
+                            const SizedBox(width: 1),
+                            Container(
+                              width: 8,
+                              height: profitH,
+                              decoration: BoxDecoration(
+                                color: m.netProfit >= 0 ? Colors.green.shade400 : Colors.red.shade400,
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(

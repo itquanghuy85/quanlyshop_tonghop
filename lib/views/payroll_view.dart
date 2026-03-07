@@ -11,6 +11,7 @@ import '../widgets/validated_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
+import '../widgets/custom_app_bar.dart';
 import 'hr/add_custom_adjustment_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
 
@@ -368,22 +369,9 @@ class _PayrollViewState extends State<PayrollView> {
 
     final summary = _calc();
     return Scaffold(
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        toolbarHeight: 44,
-        title: const Text('BẢNG LƯƠNG', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-        automaticallyImplyLeading: true,
+      appBar: CustomAppBar.build(
+        title: 'BẢNG LƯƠNG',
+        accentColor: AppBarAccents.staff,
       ),
       body: ResponsiveCenter(
         child: _loading

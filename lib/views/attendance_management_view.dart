@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/custom_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../models/attendance_model.dart';
@@ -250,25 +251,13 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        title: Text(AppLocalizations.of(context)!.attendanceTracking, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      backgroundColor: AppColors.background,
+      appBar: CustomAppBar.build(
+        title: AppLocalizations.of(context)!.attendanceTracking,
+        accentColor: AppBarAccents.staff,
         actions: [
-          // Toggle view mode
           IconButton(
-            icon: Icon(_viewMode == 'day' ? Icons.calendar_month : Icons.calendar_today),
+            icon: Icon(_viewMode == 'day' ? Icons.calendar_month : Icons.calendar_today, color: Colors.white),
             tooltip: _viewMode == 'day' ? AppLocalizations.of(context)!.viewByMonth : AppLocalizations.of(context)!.viewByDay,
             onPressed: () {
               setState(() {
@@ -278,7 +267,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadData,
           ),
         ],

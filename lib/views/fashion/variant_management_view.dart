@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../widgets/responsive_wrapper.dart';
+import '../../widgets/responsive_wrapper.dart';\nimport '../../widgets/custom_app_bar.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/product_model.dart';
 import '../../models/product_variant_model.dart';
@@ -10,7 +10,7 @@ import '../../services/business_type_helper.dart';
 import '../../data/db_helper.dart';
 import '../../widgets/variant_selector.dart';
 
-/// Màn hình quản lý biến thể sản phẩm (size, color)
+/// Màn hình quản lý phân loại sản phẩm (size, color)
 /// Module Thời trang - Phase 3 Multi-Industry
 class VariantManagementView extends StatefulWidget {
   const VariantManagementView({super.key});
@@ -113,8 +113,9 @@ class _VariantManagementViewState extends State<VariantManagementView>
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quản lý biến thể'),
+      appBar: CustomAppBar.build(
+        title: 'Quản lý phân loại',
+        accentColor: AppBarAccents.inventory,
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -203,7 +204,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddVariantDialog,
         icon: const Icon(Icons.add),
-        label: const Text('Thêm biến thể'),
+        label: const Text('Thêm phân loại'),
       ),
     );
   }
@@ -254,7 +255,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
       childAspectRatio: 1.5,
       children: [
         _buildStatCard(
-          'Tổng biến thể',
+          'Tổng phân loại',
           '${_allVariants.length}',
           Icons.style,
           Colors.blue,
@@ -319,17 +320,17 @@ class _VariantManagementViewState extends State<VariantManagementView>
       children: [
         ActionChip(
           avatar: const Icon(Icons.add, size: 18),
-          label: const Text('Thêm biến thể mới'),
+          label: const Text('Thêm phân loại mới'),
           onPressed: _showAddVariantDialog,
         ),
         ActionChip(
           avatar: const Icon(Icons.inventory, size: 18),
-          label: const Text('Nhập hàng theo biến thể'),
+          label: const Text('Nhập hàng theo phân loại'),
           onPressed: _showBulkImportDialog,
         ),
         ActionChip(
           avatar: const Icon(Icons.print, size: 18),
-          label: const Text('In barcode biến thể'),
+          label: const Text('In barcode phân loại'),
           onPressed: _showPrintBarcodeDialog,
         ),
         ActionChip(
@@ -352,7 +353,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
                 Icon(Icons.grid_off, size: 48, color: Colors.grey),
                 SizedBox(height: 12),
                 Text(
-                  'Chưa có biến thể nào',
+                  'Chưa có phân loại nào',
                   style: TextStyle(color: Colors.grey),
                 ),
               ],
@@ -399,7 +400,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
             leading: const Icon(Icons.checkroom),
             title: Text(product.name),
             subtitle: Text(
-              '${summary.totalVariants} biến thể • ${summary.totalStock} tồn kho',
+              '${summary.totalVariants} phân loại • ${summary.totalStock} tồn kho',
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
             ),
             trailing: Row(
@@ -521,7 +522,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
             Icon(Icons.check_circle_outline, size: 64, color: Colors.green),
             SizedBox(height: 16),
             Text(
-              'Không có biến thể nào hết hàng! 🎉',
+              'Không có phân loại nào hết hàng! 🎉',
               style: TextStyle(fontSize: 16),
             ),
           ],
@@ -551,7 +552,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
             Icon(Icons.check_circle_outline, size: 64, color: Colors.green),
             SizedBox(height: 16),
             Text(
-              'Không có biến thể nào sắp hết! 🎉',
+              'Không có phân loại nào sắp hết! 🎉',
               style: TextStyle(fontSize: 16),
             ),
           ],
@@ -619,12 +620,12 @@ class _VariantManagementViewState extends State<VariantManagementView>
             const Icon(Icons.checkroom_outlined, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
-              'Chưa có ${_terms.productLabel.toLowerCase()} nào có biến thể',
+              'Chưa có ${_terms.productLabel.toLowerCase()} nào có phân loại',
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 8),
             Text(
-              'Thêm biến thể size/màu cho ${_terms.productLabel.toLowerCase()}',
+              'Thêm phân loại size/màu cho ${_terms.productLabel.toLowerCase()}',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
@@ -669,7 +670,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
       await _loadData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã thêm biến thể thành công!')),
+          const SnackBar(content: Text('Đã thêm phân loại thành công!')),
         );
       }
     }
@@ -712,7 +713,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
       await _loadData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã nhập hàng theo biến thể thành công!')),
+          const SnackBar(content: Text('Đã nhập hàng theo phân loại thành công!')),
         );
       }
     }
@@ -721,7 +722,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
   void _showPrintBarcodeDialog() async {
     if (_allVariants.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chưa có biến thể nào để in barcode!')),
+        const SnackBar(content: Text('Chưa có phân loại nào để in barcode!')),
       );
       return;
     }
@@ -735,7 +736,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
     if (result != null && result.isNotEmpty && mounted) {
       // TODO: Integrate with printer service
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đã chọn ${result.length} biến thể để in barcode')),
+        SnackBar(content: Text('Đã chọn ${result.length} phân loại để in barcode')),
       );
     }
   }
@@ -743,7 +744,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
   void _exportToExcel() async {
     if (_allVariants.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chưa có biến thể nào để xuất!')),
+        const SnackBar(content: Text('Chưa có phân loại nào để xuất!')),
       );
       return;
     }
@@ -772,7 +773,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
     // For now, show the data - full Excel export would need a file picker
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Đã tạo dữ liệu ${_allVariants.length} biến thể. Sao chép hoặc chia sẻ?'),
+        content: Text('Đã tạo dữ liệu ${_allVariants.length} phân loại. Sao chép hoặc chia sẻ?'),
         action: SnackBarAction(
           label: 'OK',
           onPressed: () {},
@@ -883,7 +884,7 @@ class _ProductSelectorSheetState extends State<_ProductSelectorSheet> {
   }
 }
 
-/// Dialog thêm biến thể mới
+/// Dialog thêm phân loại mới
 class _AddVariantDialog extends StatefulWidget {
   final Product product;
   final VariantService variantService;
@@ -943,7 +944,7 @@ class _AddVariantDialogState extends State<_AddVariantDialog> {
       Navigator.pop(context, variant.copyWith(firestoreId: id));
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lỗi khi thêm biến thể!')),
+        const SnackBar(content: Text('Lỗi khi thêm phân loại!')),
       );
     }
   }
@@ -951,7 +952,7 @@ class _AddVariantDialogState extends State<_AddVariantDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Thêm biến thể: ${widget.product.name}'),
+      title: Text('Thêm phân loại: ${widget.product.name}'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1058,7 +1059,7 @@ class _AddVariantDialogState extends State<_AddVariantDialog> {
   }
 }
 
-/// Dialog chỉnh sửa biến thể
+/// Dialog chỉnh sửa phân loại
 class _EditVariantDialog extends StatefulWidget {
   final ProductVariant variant;
   final VariantService variantService;
@@ -1128,7 +1129,7 @@ class _EditVariantDialogState extends State<_EditVariantDialog> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xóa biến thể?'),
+        title: const Text('Xóa phân loại?'),
         content: Text('Bạn có chắc muốn xóa "${widget.variant.displayName}"?'),
         actions: [
           TextButton(
@@ -1154,7 +1155,7 @@ class _EditVariantDialogState extends State<_EditVariantDialog> {
     if (success && mounted) {
       Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã xóa biến thể!')),
+        const SnackBar(content: Text('Đã xóa phân loại!')),
       );
     }
   }
@@ -1239,7 +1240,7 @@ class _EditVariantDialogState extends State<_EditVariantDialog> {
   }
 }
 
-/// Dialog nhập hàng hàng loạt theo biến thể
+/// Dialog nhập hàng hàng loạt theo phân loại
 class _BulkImportDialog extends StatefulWidget {
   final Product product;
   final VariantService variantService;
@@ -1311,7 +1312,7 @@ class _BulkImportDialogState extends State<_BulkImportDialog> {
       Navigator.pop(context, successCount > 0);
       if (successCount > 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã cập nhật $successCount biến thể!')),
+          SnackBar(content: Text('Đã cập nhật $successCount phân loại!')),
         );
       }
     }
@@ -1329,7 +1330,7 @@ class _BulkImportDialogState extends State<_BulkImportDialog> {
             : _existingVariants.isEmpty
                 ? const Center(
                     child: Text(
-                      'Chưa có biến thể.\nHãy thêm biến thể trước khi nhập hàng.',
+                      'Chưa có phân loại.\nHãy thêm phân loại trước khi nhập hàng.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.grey),
                     ),
@@ -1379,7 +1380,7 @@ class _BulkImportDialogState extends State<_BulkImportDialog> {
   }
 }
 
-/// Dialog chọn biến thể để in barcode
+/// Dialog chọn phân loại để in barcode
 class _PrintBarcodeDialog extends StatefulWidget {
   final List<ProductVariant> variants;
 
@@ -1417,7 +1418,7 @@ class _PrintBarcodeDialogState extends State<_PrintBarcodeDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Chọn biến thể để in barcode'),
+      title: const Text('Chọn phân loại để in barcode'),
       content: SizedBox(
         width: double.maxFinite,
         height: 400,

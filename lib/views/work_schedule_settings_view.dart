@@ -10,6 +10,7 @@ import '../data/db_helper.dart';
 import '../models/attendance_model.dart';
 import '../services/user_service.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/custom_app_bar.dart';
 
 class WorkScheduleSettingsView extends StatefulWidget {
   const WorkScheduleSettingsView({super.key});
@@ -662,21 +663,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(loc.workScheduleSettingsTitle),
-          automaticallyImplyLeading: true,
-          flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          iconTheme: const IconThemeData(color: Colors.white),
+        appBar: CustomAppBar.build(
+          title: loc.workScheduleSettingsTitle,
+          accentColor: AppBarAccents.staff,
           bottom: TabBar(
             tabs: [
               Tab(text: loc.generalSettingsTab),
