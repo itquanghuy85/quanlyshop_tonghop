@@ -105,9 +105,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   int totalPendingRepair = 0;
   int todaySaleCount = 0;
   int _currentIndex = 0; // Bottom navigation index
-  int _totalLocalRecords =
-      0; // Tổng số dữ liệu local (để biết máy mới hay không)
-  
   /// Getter for localization - dùng chung cho tất cả methods
   AppLocalizations get loc => AppLocalizations.of(context)!;
 
@@ -197,11 +194,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   bool _shopLocked = false;
   final TextEditingController _phoneSearchCtrl = TextEditingController();
   bool _isSyncing = false;
-  int todayRepairDone = 0;
   int pendingApprovalCount = 0; // Số đơn chờ duyệt giao
-  int revenueToday = 0;
-  int todayNewRepairs = 0;
-  int todayExpense = 0;
   int totalDebtRemain = 0;
   int expiringWarranties = 0;
   int unreadChatCount = 0;
@@ -1936,12 +1929,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       if (mounted) {
         setState(() {
           totalPendingRepair = pendingR;
-          todayRepairDone = doneT;
           pendingApprovalCount = pendingApprovalR;
           todaySaleCount = soldT;
-          revenueToday = profit; // Keep for backward compatibility
-          todayNewRepairs = newRT;
-          todayExpense = totalCashFlowOut; // Chi phí = cash flow out
           totalDebtRemain = debtR;
           expiringWarranties = expW;
           // Cash flow totals (giống Sổ quỹ: cashIn + bankIn / cashOut + bankOut)
@@ -1969,7 +1958,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           _todaySettlementIncome = settlementIncome;
           _todayRefundOut = refundOut;
           _todayReturnCost = returnCostTotal;
-          _totalLocalRecords = totalRecords;
           _rebuildTabWidgets();
         });
       }
@@ -7088,170 +7076,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               color: color,
               fontWeight: FontWeight.w500,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Professional finance metric card
-  Widget _financeMetricCard({
-    required IconData icon,
-    required String label,
-    required int value,
-    required Color color,
-    String? subLabel,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 16),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: AppTextStyles.caption.copyWith(
-                      color: color.withOpacity(0.8),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                if (onTap != null)
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    color: color.withOpacity(0.4),
-                    size: 10,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              "${MoneyUtils.formatVND(value)} đ",
-              style: AppTextStyles.headline3.copyWith(
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (subLabel != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                subLabel,
-                style: AppTextStyles.overline.copyWith(
-                  color: AppColors.onSurface.withOpacity(0.5),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Profit card with gradient
-  Widget _profitCard(int profit) {
-    final isPositive = profit >= 0;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isPositive
-              ? [const Color(0xFF00C853), const Color(0xFF69F0AE)]
-              : [const Color(0xFFFF5252), const Color(0xFFFF8A80)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: (isPositive ? Colors.green : Colors.red).withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isPositive
-                    ? Icons.trending_up_rounded
-                    : Icons.trending_down_rounded,
-                color: Colors.white.withOpacity(0.9),
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                loc.todayNetProfit,
-                style: AppTextStyles.caption.copyWith(
-                  color: Colors.white.withOpacity(0.9),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "${MoneyUtils.formatVND(profit)} đ",
-            style: AppTextStyles.headline5.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 6),
-          // Breakdown: sales profit + repair profit
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '🛒 ${MoneyUtils.formatVND(_todaySalesProfit)}',
-                style: AppTextStyles.overline.copyWith(
-                  color: Colors.white.withOpacity(0.85),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (_enableRepair) ...[
-                Text(
-                  '  •  ',
-                  style: AppTextStyles.overline.copyWith(color: Colors.white54),
-                ),
-                Text(
-                  '🔧 ${MoneyUtils.formatVND(_todayRepairProfit)}',
-                  style: AppTextStyles.overline.copyWith(
-                    color: Colors.white.withOpacity(0.85),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            loc.netProfitFormula,
-            style: AppTextStyles.overline.copyWith(color: Colors.white70),
           ),
         ],
       ),
