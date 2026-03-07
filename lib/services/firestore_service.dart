@@ -10,6 +10,7 @@ import '../models/quick_input_code_model.dart';
 import 'user_service.dart';
 import 'notification_service.dart';
 import 'encryption_service.dart';
+import 'financial_activity_service.dart';
 import 'money_validation_service.dart';
 
 class FirestoreService {
@@ -1291,6 +1292,10 @@ class FirestoreService {
 
       int newPaidAmount = 0;
       String? paymentDocId;
+      String debtType = 'CUSTOMER_OWES';
+      String personName = 'Không rõ';
+      String phone = '';
+      int paidAt = DateTime.now().millisecondsSinceEpoch;
 
       await _db.runTransaction((transaction) async {
         // PHASE 1: Đọc debt document
@@ -1329,11 +1334,19 @@ class FirestoreService {
 
         // PHASE 4: Create payment record
         final now = DateTime.now().millisecondsSinceEpoch;
+        paidAt = now;
         paymentDocId = 'pay_${now}_$createdBy';
         final paymentRef = _db.collection('debt_payments').doc(paymentDocId);
 
         // Lấy debtType từ debt để cash_closing có thể phân biệt thu nợ KH vs trả nợ shop
-        final debtType = debtData['type'] as String? ?? 'CUSTOMER_OWES';
+        debtType = debtData['type'] as String? ?? 'CUSTOMER_OWES';
+        personName = (debtData['personName'] ??
+                debtData['customerName'] ??
+                debtData['supplierName'] ??
+                debtData['name'] ??
+                'Không rõ')
+            .toString();
+        phone = (debtData['phone'] ?? debtData['phoneNumber'] ?? '').toString();
 
         final paymentData = {
           'firestoreId': paymentDocId,
@@ -1354,6 +1367,36 @@ class FirestoreService {
       debugPrint(
         '✅ Debt payment transaction completed: $debtFirestoreId, paid: $payAmount, total paid: $newPaidAmount',
       );
+
+      final isSupplierDebt =
+          debtType == 'SHOP_OWES' ||
+          debtType == 'OTHER_SHOP_OWES' ||
+          debtType == 'OWED';
+      if (paymentDocId != null) {
+        if (isSupplierDebt) {
+          await FinancialActivityService.logSupplierPayment(
+            firestoreId: paymentDocId!,
+            amount: payAmount,
+            paymentMethod: paymentMethod,
+            supplierName: personName,
+            createdAt: paidAt,
+            createdBy: createdBy,
+            note: note,
+          );
+        } else {
+          await FinancialActivityService.logDebtCollection(
+            firestoreId: paymentDocId!,
+            amount: payAmount,
+            paymentMethod: paymentMethod,
+            customerName: personName,
+            phone: phone,
+            createdAt: paidAt,
+            createdBy: createdBy,
+            note: note,
+          );
+        }
+      }
+
       return {
         'success': true,
         'newPaidAmount': newPaidAmount,

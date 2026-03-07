@@ -2,16 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../data/db_helper.dart';
+import '../models/financial_activity_model.dart';
 import '../widgets/custom_app_bar.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/excel_export_helper.dart';
 
-/// Trang theo dõi nhật ký hoạt động hệ thống
+/// Trang theo dõi nhật ký tài chính
 /// Chỉ xem, không sửa - có tìm kiếm
 class FinancialActivityLogView extends StatefulWidget {
   final int initialTab;
   final bool embedded;
-  const FinancialActivityLogView({super.key, this.initialTab = 0, this.embedded = false});
+
+  const FinancialActivityLogView({
+    super.key,
+    this.initialTab = 0,
+    this.embedded = false,
+  });
 
   @override
   State<FinancialActivityLogView> createState() =>
@@ -21,31 +27,31 @@ class FinancialActivityLogView extends StatefulWidget {
 class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
   final db = DBHelper();
 
-  List<Map<String, dynamic>> _auditLogs = [];
-  bool _auditLoading = true;
+  List<FinancialActivity> _activities = [];
+  bool _loading = true;
 
-  String _auditSearchQuery = '';
-  final _auditSearchController = TextEditingController();
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadAuditLogs();
+    _loadActivities();
   }
 
   @override
   void dispose() {
-    _auditSearchController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadAuditLogs() async {
-    setState(() => _auditLoading = true);
-    final data = await db.getAuditLogs();
+  Future<void> _loadActivities() async {
+    setState(() => _loading = true);
+    final data = await db.getFinancialActivities(limit: 500);
     if (!mounted) return;
     setState(() {
-      _auditLogs = data;
-      _auditLoading = false;
+      _activities = data.map(FinancialActivity.fromMap).toList();
+      _loading = false;
     });
   }
 
@@ -57,12 +63,12 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: CustomAppBar.build(
-        title: 'NHẬT KÝ HOẠT ĐỘNG',
-        subtitle: '${_filteredAuditLogs.length} log',
+        title: 'NHẬT KÝ TÀI CHÍNH',
+        subtitle: '${_filteredActivities.length} giao dịch',
         accentColor: AppBarAccents.finance,
         actions: [
           IconButton(
-            onPressed: _loadAuditLogs,
+            onPressed: _loadActivities,
             icon: const Icon(
               Icons.refresh_rounded,
               size: 20,
@@ -77,20 +83,20 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
               size: 20,
               color: Colors.white,
             ),
-            tooltip: 'Xuất Excel nhật ký',
+            tooltip: 'Xuất Excel nhật ký tài chính',
             splashRadius: 18,
             onPressed: () async {
-              final logs = _filteredAuditLogs;
-              if (logs.isEmpty) {
+              final activities = _filteredActivities;
+              if (activities.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Không có dữ liệu để xuất')),
                 );
                 return;
               }
               if (!mounted) return;
-              await ExcelExportHelper.exportAuditLog(
+              await ExcelExportHelper.exportActivityLog(
                 context,
-                auditLogs: logs,
+                activities: activities,
               );
             },
           ),
@@ -100,17 +106,17 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
           child: Container(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
             color: Colors.white,
-            child: _buildAuditSearchField(),
+            child: _buildSearchField(),
           ),
         ),
       ),
       body: ResponsiveCenter(
-        child: _buildAuditLogTab(),
+        child: _buildActivityTab(),
       ),
     );
   }
 
-  Widget _buildAuditSearchField() {
+  Widget _buildSearchField() {
     return Container(
       height: 34,
       decoration: BoxDecoration(
@@ -118,15 +124,15 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
         borderRadius: BorderRadius.circular(17),
       ),
       child: TextField(
-        controller: _auditSearchController,
-        onChanged: (v) => setState(() => _auditSearchQuery = v.trim()),
+        controller: _searchController,
+        onChanged: (value) => setState(() => _searchQuery = value.trim()),
         style: TextStyle(
           color: CustomAppBar.kTextPrimary,
           fontSize: AppTextStyles.subtitle1.fontSize,
         ),
         cursorColor: AppBarAccents.finance,
         decoration: InputDecoration(
-          hintText: 'Tìm theo hành động, người dùng, mô tả...',
+          hintText: 'Tìm theo loại, tiêu đề, người tạo, mô tả...',
           hintStyle: TextStyle(
             color: Colors.grey.shade500,
             fontSize: AppTextStyles.subtitle1.fontSize,
@@ -137,18 +143,25 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
             size: 16,
           ),
           prefixIconConstraints: const BoxConstraints(minWidth: 34),
-          suffixIcon: _auditSearchController.text.isNotEmpty
+          suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.close_rounded, color: Colors.grey.shade500, size: 16),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: Colors.grey.shade500,
+                    size: 16,
+                  ),
                   onPressed: () {
-                    _auditSearchController.clear();
-                    setState(() => _auditSearchQuery = '');
+                    _searchController.clear();
+                    setState(() => _searchQuery = '');
                   },
                   splashRadius: 14,
                 )
               : null,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
+          ),
         ),
       ),
     );
@@ -165,7 +178,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
               const Icon(Icons.history, size: 16, color: AppBarAccents.finance),
               const SizedBox(width: 6),
               Text(
-                'Nhật ký hoạt động',
+                'Nhật ký tài chính',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: AppTextStyles.subtitle1.fontSize,
@@ -174,8 +187,12 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
               ),
               const Spacer(),
               IconButton(
-                onPressed: _loadAuditLogs,
-                icon: const Icon(Icons.refresh_rounded, size: 18, color: AppBarAccents.finance),
+                onPressed: _loadActivities,
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: AppBarAccents.finance,
+                ),
                 tooltip: 'Làm mới',
                 splashRadius: 16,
                 padding: EdgeInsets.zero,
@@ -188,43 +205,50 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
         Container(
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
           color: Colors.white,
-          child: _buildAuditSearchField(),
+          child: _buildSearchField(),
         ),
         Expanded(
-          child: _buildAuditLogTab(),
+          child: _buildActivityTab(),
         ),
       ],
     );
   }
 
-  List<Map<String, dynamic>> get _filteredAuditLogs {
-    if (_auditSearchQuery.isEmpty) return _auditLogs;
-    final q = _auditSearchQuery.toLowerCase();
-    return _auditLogs.where((log) {
-      final action = (log['action'] ?? '').toString().toLowerCase();
-      final description = (log['description'] ?? log['summary'] ?? '').toString().toLowerCase();
-      final userName = (log['userName'] ?? '').toString().toLowerCase();
-      final entityType = (log['targetType'] ?? log['entityType'] ?? '').toString().toLowerCase();
-      final entityId = (log['targetId'] ?? log['entityId'] ?? '').toString().toLowerCase();
-      return action.contains(q) || description.contains(q) || userName.contains(q) || entityType.contains(q) || entityId.contains(q);
+  List<FinancialActivity> get _filteredActivities {
+    if (_searchQuery.isEmpty) return _activities;
+    final query = _searchQuery.toLowerCase();
+    return _activities.where((activity) {
+      return activity.activityType.toLowerCase().contains(query) ||
+          activity.activityTypeName.toLowerCase().contains(query) ||
+          activity.title.toLowerCase().contains(query) ||
+          (activity.description ?? '').toLowerCase().contains(query) ||
+          (activity.createdBy ?? '').toLowerCase().contains(query) ||
+          (activity.customerName ?? '').toLowerCase().contains(query) ||
+          (activity.referenceType ?? '').toLowerCase().contains(query) ||
+          (activity.referenceId ?? '').toLowerCase().contains(query);
     }).toList();
   }
 
-  Widget _buildAuditLogTab() {
-    if (_auditLoading) {
+  Widget _buildActivityTab() {
+    if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
-    final filtered = _filteredAuditLogs;
+
+    final filtered = _filteredActivities;
     return Column(
       children: [
-        if (_auditSearchQuery.isNotEmpty)
+        if (_searchQuery.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               children: [
                 Text(
                   'Tìm thấy ${filtered.length} kết quả',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ],
             ),
@@ -238,9 +262,9 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
                       Icon(Icons.history_toggle_off_rounded, size: 80, color: Colors.grey[300]),
                       const SizedBox(height: 10),
                       Text(
-                        _auditSearchQuery.isNotEmpty
-                            ? 'Không tìm thấy kết quả cho "$_auditSearchQuery"'
-                            : 'Chưa có ghi chép hoạt động nào',
+                        _searchQuery.isNotEmpty
+                            ? 'Không tìm thấy kết quả cho "$_searchQuery"'
+                            : 'Chưa có giao dịch tài chính nào',
                         style: const TextStyle(color: Colors.grey),
                       ),
                     ],
@@ -249,22 +273,30 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: filtered.length,
-                  itemBuilder: (ctx, i) => _buildAuditLogCard(filtered[i], i + 1),
+                  itemBuilder: (context, index) =>
+                      _buildActivityCard(filtered[index], index + 1),
                 ),
         ),
       ],
     );
   }
 
-  Widget _buildAuditLogCard(Map<String, dynamic> log, int index) {
-    final DateTime date = DateTime.fromMillisecondsSinceEpoch(log['createdAt']);
-    final Color actionColor = _getAuditActionColor(log['action']);
-    final String entityType = log['targetType'] ?? log['entityType'] ?? '';
-    final String entityId = log['targetId'] ?? log['entityId'] ?? '';
-    final String description = log['description'] ?? log['summary'] ?? '';
+  Widget _buildActivityCard(FinancialActivity activity, int index) {
+    final date = DateTime.fromMillisecondsSinceEpoch(activity.createdAt);
+    final actionColor = _getActivityColor(activity);
+    final amountPrefix = activity.direction == 'IN'
+        ? '+'
+        : activity.direction == 'OUT'
+            ? '-'
+            : '';
+    final amountColor = activity.direction == 'IN'
+        ? Colors.green
+        : activity.direction == 'OUT'
+            ? Colors.red
+            : Colors.orange;
 
     return GestureDetector(
-      onTap: () => _showAuditLogDetail(log),
+      onTap: () => _showActivityDetail(activity),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
@@ -310,24 +342,48 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    _getAuditActionIcon(log['action']),
+                    _getActivityIcon(activity),
                     color: actionColor,
                     size: 18,
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    log['action'] ?? '',
-                    style: TextStyle(
-                      color: actionColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: AppTextStyles.body1.fontSize,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        activity.activityTypeName,
+                        style: TextStyle(
+                          color: actionColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.body1.fontSize,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        activity.title,
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: AppTextStyles.caption.fontSize,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                Text(
+                  '$amountPrefix${NumberFormat('#,###').format(activity.amount)}',
+                  style: TextStyle(
+                    fontSize: AppTextStyles.body1.fontSize,
+                    fontWeight: FontWeight.bold,
+                    color: amountColor,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -349,7 +405,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
               ],
             ),
             const SizedBox(height: 10),
-            if (description.isNotEmpty)
+            if ((activity.description ?? '').isNotEmpty)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
@@ -358,7 +414,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  description,
+                  activity.description ?? '',
                   style: TextStyle(
                     fontSize: AppTextStyles.body1.fontSize,
                     color: Colors.black87,
@@ -391,7 +447,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
                         const SizedBox(width: 3),
                         Flexible(
                           child: Text(
-                            log['userName'] ?? '?',
+                            activity.createdBy ?? '-',
                             style: TextStyle(
                               fontSize: AppTextStyles.caption.fontSize,
                               fontWeight: FontWeight.bold,
@@ -405,22 +461,23 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                if (entityType.isNotEmpty)
+                if ((activity.referenceType ?? '').isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: _getEntityTypeColor(entityType).withAlpha(25),
+                      color: _getReferenceTypeColor(activity.referenceType!)
+                          .withAlpha(25),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      _getEntityTypeName(entityType),
+                      _getReferenceTypeName(activity.referenceType!),
                       style: TextStyle(
                         fontSize: AppTextStyles.caption.fontSize,
                         fontWeight: FontWeight.bold,
-                        color: _getEntityTypeColor(entityType),
+                        color: _getReferenceTypeColor(activity.referenceType!),
                       ),
                     ),
                   ),
@@ -446,12 +503,15 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
     );
   }
 
-  void _showAuditLogDetail(Map<String, dynamic> log) {
-    final DateTime date = DateTime.fromMillisecondsSinceEpoch(log['createdAt']);
-    final Color actionColor = _getAuditActionColor(log['action']);
-    final String entityType = log['targetType'] ?? log['entityType'] ?? '';
-    final String entityId = log['targetId'] ?? log['entityId'] ?? '';
-    final String description = log['description'] ?? log['summary'] ?? '';
+  void _showActivityDetail(FinancialActivity activity) {
+    final date = DateTime.fromMillisecondsSinceEpoch(activity.createdAt);
+    final actionColor = _getActivityColor(activity);
+    final directionLabel = _directionName(activity.direction);
+    final amountPrefix = activity.direction == 'IN'
+        ? '+'
+        : activity.direction == 'OUT'
+            ? '-'
+            : '';
 
     showAppBottomSheet(
       context: context,
@@ -490,7 +550,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      _getAuditActionIcon(log['action']),
+                      _getActivityIcon(activity),
                       color: actionColor,
                       size: 24,
                     ),
@@ -501,7 +561,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          log['action'] ?? '',
+                          activity.activityTypeName,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: AppTextStyles.headline2.fontSize,
@@ -523,23 +583,30 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
               const SizedBox(height: 20),
               const Divider(),
               const SizedBox(height: 12),
-              _buildAuditDetailRow(
-                'Người thực hiện',
-                log['userName'] ?? 'Unknown',
+              _buildDetailRow('Loại giao dịch', activity.activityTypeName),
+              _buildDetailRow('Tiêu đề', activity.title),
+              _buildDetailRow('Chiều', directionLabel),
+              _buildDetailRow(
+                'Số tiền',
+                '$amountPrefix${NumberFormat('#,###').format(activity.amount)}',
               ),
-              if (log['email'] != null && log['email'].toString().isNotEmpty)
-                _buildAuditDetailRow('Email', log['email'].toString()),
-              if (log['role'] != null && log['role'].toString().isNotEmpty)
-                _buildAuditDetailRow('Vai trò', log['role'].toString()),
-              if (entityType.isNotEmpty)
-                _buildAuditDetailRow(
-                  'Loại đối tượng',
-                  _getEntityTypeName(entityType),
+              _buildDetailRow('PT thanh toán', activity.paymentMethod),
+              _buildDetailRow('Người thực hiện', activity.createdBy ?? 'Unknown'),
+              if ((activity.customerName ?? '').isNotEmpty)
+                _buildDetailRow('Khách hàng / NCC', activity.customerName!),
+              if ((activity.phone ?? '').isNotEmpty)
+                _buildDetailRow('Số điện thoại', activity.phone!),
+              if ((activity.productInfo ?? '').isNotEmpty)
+                _buildDetailRow('Sản phẩm', activity.productInfo!),
+              if ((activity.referenceType ?? '').isNotEmpty)
+                _buildDetailRow(
+                  'Loại tham chiếu',
+                  _getReferenceTypeName(activity.referenceType!),
                 ),
-              if (entityId.isNotEmpty)
-                _buildAuditDetailRow('ID đối tượng', entityId),
-              if (description.isNotEmpty)
-                _buildAuditDetailRow('Mô tả', description),
+              if ((activity.referenceId ?? '').isNotEmpty)
+                _buildDetailRow('ID tham chiếu', activity.referenceId!),
+              if ((activity.description ?? '').isNotEmpty)
+                _buildDetailRow('Mô tả', activity.description!),
               SizedBox(height: MediaQuery.of(ctx).padding.bottom + 16),
             ],
           ),
@@ -548,7 +615,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
     );
   }
 
-  Widget _buildAuditDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -578,13 +645,17 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
     );
   }
 
-  Color _getEntityTypeColor(String entityType) {
-    switch (entityType.toUpperCase()) {
+  Color _getReferenceTypeColor(String referenceType) {
+    switch (referenceType.toUpperCase()) {
       case 'PRODUCT':
         return Colors.indigo;
       case 'SALE':
         return Colors.pink;
+      case 'DEBT':
+      case 'DEBT_PAYMENT':
+        return Colors.deepOrange;
       case 'SUPPLIER':
+      case 'SUPPLIER_PAYMENT':
         return Colors.teal;
       case 'STAFF':
         return Colors.orange;
@@ -592,6 +663,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
         return Colors.red;
       case 'REPAIR':
         return Colors.blue;
+      case 'CASH_CLOSING':
       case 'CASH_CLOSE':
         return Colors.green;
       default:
@@ -599,13 +671,17 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
     }
   }
 
-  String _getEntityTypeName(String entityType) {
-    switch (entityType.toUpperCase()) {
+  String _getReferenceTypeName(String referenceType) {
+    switch (referenceType.toUpperCase()) {
       case 'PRODUCT':
         return 'Sản phẩm';
       case 'SALE':
         return 'Đơn bán';
+      case 'DEBT':
+      case 'DEBT_PAYMENT':
+        return 'Công nợ';
       case 'SUPPLIER':
+      case 'SUPPLIER_PAYMENT':
         return 'NCC';
       case 'STAFF':
         return 'Nhân viên';
@@ -613,29 +689,74 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
         return 'Chi phí';
       case 'REPAIR':
         return 'Sửa chữa';
+      case 'CASH_CLOSING':
       case 'CASH_CLOSE':
         return 'Chốt sổ';
       default:
-        return entityType;
+        return referenceType;
     }
   }
 
-  Color _getAuditActionColor(String? action) {
-    if (action == null) return Colors.blue;
-    if (action.contains("XÓA")) return Colors.red;
-    if (action.contains("NHẬP") || action.contains("THÊM")) return Colors.green;
-    if (action.contains("SỬA") || action.contains("CẬP NHẬT"))
-      return Colors.orange;
-    if (action.contains("BÁN")) return Colors.pink;
-    return Colors.blue;
+  Color _getActivityColor(FinancialActivity activity) {
+    switch (activity.direction) {
+      case 'IN':
+        return Colors.green;
+      case 'OUT':
+        return Colors.red;
+      case 'DEBT':
+        return Colors.orange;
+      default:
+        return Colors.blue;
+    }
   }
 
-  IconData _getAuditActionIcon(String? action) {
-    if (action == null) return Icons.info_outline;
-    if (action.contains("XÓA")) return Icons.delete_forever;
-    if (action.contains("NHẬP")) return Icons.add_business;
-    if (action.contains("BÁN")) return Icons.shopping_cart;
-    if (action.contains("SỬA")) return Icons.edit_note;
-    return Icons.info_outline;
+  IconData _getActivityIcon(FinancialActivity activity) {
+    switch (activity.activityType) {
+      case 'SALE':
+      case 'SALE_PAYMENT':
+      case 'SALE_INSTALLMENT':
+        return Icons.shopping_cart;
+      case 'PURCHASE':
+      case 'INVENTORY_PURCHASE':
+      case 'SUPPLIER_PURCHASE':
+      case 'PARTS_STOCK_IN':
+        return Icons.inventory_2;
+      case 'EXPENSE':
+      case 'OPERATING_EXPENSE':
+      case 'UTILITY_EXPENSE':
+      case 'OTHER_EXPENSE':
+        return Icons.money_off;
+      case 'DEBT_COLLECT':
+      case 'CUSTOMER_DEBT_COLLECT':
+        return Icons.arrow_circle_down_rounded;
+      case 'DEBT_PAY':
+      case 'SUPPLIER_DEBT':
+      case 'REPAIR_PARTNER_DEBT':
+      case 'OTHER_DEBT':
+        return Icons.arrow_circle_up_rounded;
+      case 'SETTLEMENT':
+        return Icons.account_balance;
+      case 'REPAIR':
+      case 'REPAIR_SERVICE':
+        return Icons.build;
+      case 'REFUND':
+      case 'CUSTOMER_REFUND':
+        return Icons.undo;
+      default:
+        return Icons.receipt_long;
+    }
+  }
+
+  String _directionName(String direction) {
+    switch (direction) {
+      case 'IN':
+        return 'Thu';
+      case 'OUT':
+        return 'Chi';
+      case 'DEBT':
+        return 'Công nợ';
+      default:
+        return direction;
+    }
   }
 }
