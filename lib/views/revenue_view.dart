@@ -75,7 +75,7 @@ class _RevenueViewState extends State<RevenueView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 1, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _loadPermissions();
     _loadShopSettings();
     _loadAllData();
@@ -631,7 +631,384 @@ class _RevenueViewState extends State<RevenueView>
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             )
-          : _buildOverview(),
+          : Column(
+              children: [
+                TabBar(
+                  controller: _tabController,
+                  labelColor: AppColors.primary,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: AppColors.primary,
+                  tabs: const [
+                    Tab(text: 'TỔNG QUAN'),
+                    Tab(text: 'SO SÁNH'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildOverview(),
+                      _buildComparisonTab(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+      ),
+    );
+  }
+
+  /// Calculate stats for a given date range filter function
+  _PeriodStats _calculatePeriodStats(String label, bool Function(int ms) filter) {
+    final fSales = _sales.where((s) => filter(s.soldAt)).toList();
+    final fRepairs = _repairs
+        .where((r) => r.status == 4 && r.deliveredAt != null && filter(r.deliveredAt!))
+        .toList();
+    final fExpenses = _expenses
+        .where((e) => filter((e['date'] ?? e['createdAt']) as int))
+        .toList();
+
+    int salesIncome = 0, salesCost = 0;
+    for (var s in fSales) {
+      final saleRevenue = s.finalPrice;
+      if (s.paymentMethod == 'CÔNG NỢ') {
+        salesIncome += saleRevenue;
+        salesCost += s.totalCost;
+        continue;
+      }
+      if (s.isInstallment) {
+        final downPaid = s.downPayment;
+        final settlementPaid =
+            (s.settlementReceivedAt != null && filter(s.settlementReceivedAt!))
+            ? s.settlementAmount.clamp(0, s.loanAmount + s.loanAmount2)
+            : 0;
+        final totalPaid = downPaid + settlementPaid;
+        salesIncome += totalPaid;
+        final ratio = saleRevenue > 0 ? totalPaid / saleRevenue : 0.0;
+        salesCost += (s.totalCost * ratio).round();
+      } else {
+        salesIncome += saleRevenue;
+        salesCost += s.totalCost;
+      }
+    }
+
+    int repairsIncome = 0, repairsCost = 0;
+    for (var r in fRepairs) {
+      repairsIncome += r.price;
+      repairsCost += r.totalCost;
+    }
+
+    int miscIncome = fExpenses
+        .where((e) => (e['type'] ?? 'CHI').toString().toUpperCase() == 'THU')
+        .fold<int>(0, (sum, e) => sum + (e['amount'] as int? ?? 0));
+
+    int expenseOut = fExpenses
+        .where((e) {
+          final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
+          if (eType == 'THU') return false;
+          final category = (e['category'] as String? ?? '').toUpperCase();
+          return !category.contains('NHẬP HÀNG') &&
+              !category.contains('PURCHASE') &&
+              !category.contains('STOCK') &&
+              !category.contains('ĐƠN NHẬP');
+        })
+        .fold<int>(0, (sum, e) => sum + (e['amount'] as int));
+
+    return _PeriodStats(
+      label: label,
+      salesIncome: salesIncome,
+      salesCost: salesCost,
+      repairsIncome: repairsIncome,
+      repairsCost: repairsCost,
+      miscIncome: miscIncome,
+      expenseOut: expenseOut,
+      salesCount: fSales.length,
+      repairsCount: fRepairs.length,
+    );
+  }
+
+  /// Get date ranges for current period and previous period based on _timeFilter
+  List<_PeriodStats> _getComparisonPeriods() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    switch (_timeFilter) {
+      case 'today':
+        final yesterday = today.subtract(const Duration(days: 1));
+        return [
+          _calculatePeriodStats('Hôm nay', (ms) => _isSameDay(ms, now)),
+          _calculatePeriodStats('Hôm qua', (ms) => _isSameDay(ms, yesterday)),
+        ];
+      case 'week':
+        final weekAgo = today.subtract(const Duration(days: 7));
+        final twoWeeksAgo = today.subtract(const Duration(days: 14));
+        return [
+          _calculatePeriodStats('7 ngày gần đây', (ms) {
+            final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+            return !dt.isBefore(weekAgo);
+          }),
+          _calculatePeriodStats('7 ngày trước đó', (ms) {
+            final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+            return !dt.isBefore(twoWeeksAgo) && dt.isBefore(weekAgo);
+          }),
+        ];
+      case 'month':
+        final monthStart = DateTime(now.year, now.month, 1);
+        final prevMonthStart = DateTime(now.year, now.month - 1, 1);
+        return [
+          _calculatePeriodStats('Tháng ${now.month}', (ms) {
+            final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+            return !dt.isBefore(monthStart);
+          }),
+          _calculatePeriodStats('Tháng ${now.month - 1 == 0 ? 12 : now.month - 1}', (ms) {
+            final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+            return !dt.isBefore(prevMonthStart) && dt.isBefore(monthStart);
+          }),
+        ];
+      case 'quarter':
+        final currentQ = ((now.month - 1) ~/ 3) + 1;
+        final qStartMonth = (currentQ - 1) * 3 + 1;
+        final qStart = DateTime(now.year, qStartMonth, 1);
+        final prevQ = currentQ == 1 ? 4 : currentQ - 1;
+        final prevYear = currentQ == 1 ? now.year - 1 : now.year;
+        final prevQStartMonth = (prevQ - 1) * 3 + 1;
+        final prevQStart = DateTime(prevYear, prevQStartMonth, 1);
+        return [
+          _calculatePeriodStats('Quý $currentQ/${now.year}', (ms) {
+            final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+            return !dt.isBefore(qStart);
+          }),
+          _calculatePeriodStats('Quý $prevQ/$prevYear', (ms) {
+            final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+            return !dt.isBefore(prevQStart) && dt.isBefore(qStart);
+          }),
+        ];
+      case 'year':
+        final yearStart = DateTime(now.year, 1, 1);
+        final prevYearStart = DateTime(now.year - 1, 1, 1);
+        return [
+          _calculatePeriodStats('Năm ${now.year}', (ms) {
+            final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+            return !dt.isBefore(yearStart);
+          }),
+          _calculatePeriodStats('Năm ${now.year - 1}', (ms) {
+            final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+            return !dt.isBefore(prevYearStart) && dt.isBefore(yearStart);
+          }),
+        ];
+      default: // custom or fallback — compare this month vs last month
+        final monthStart = DateTime(now.year, now.month, 1);
+        final prevMonthStart = DateTime(now.year, now.month - 1, 1);
+        return [
+          _calculatePeriodStats('Tháng này', (ms) {
+            final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+            return !dt.isBefore(monthStart);
+          }),
+          _calculatePeriodStats('Tháng trước', (ms) {
+            final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+            return !dt.isBefore(prevMonthStart) && dt.isBefore(monthStart);
+          }),
+        ];
+    }
+  }
+
+  Widget _buildComparisonTab() {
+    final periods = _getComparisonPeriods();
+    if (periods.length < 2) return const SizedBox();
+    final current = periods[0];
+    final previous = periods[1];
+
+    String fmt(int v) => '${NumberFormat('#,###').format(v)}đ';
+
+    int delta(int a, int b) => a - b;
+    String pct(int a, int b) {
+      if (b == 0) return a > 0 ? '+∞' : '0%';
+      final p = ((a - b) / b.abs() * 100).round();
+      return '${p >= 0 ? '+' : ''}$p%';
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Period headers
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(current.label, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 13)),
+                      const SizedBox(height: 4),
+                      Text(fmt(current.totalRevenue), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade700)),
+                      Text('Doanh thu', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(previous.label, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700, fontSize: 13)),
+                      const SizedBox(height: 4),
+                      Text(fmt(previous.totalRevenue), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade700)),
+                      Text('Doanh thu', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Comparison rows
+          _comparisonCard('Doanh thu', current.totalRevenue, previous.totalRevenue, fmt, pct, Icons.trending_up, Colors.blue),
+          _comparisonCard('Lợi nhuận', current.profit, previous.profit, fmt, pct, Icons.account_balance_wallet, Colors.green),
+          _comparisonCard('Giá vốn', current.totalCost, previous.totalCost, fmt, pct, Icons.inventory, Colors.orange),
+          _comparisonCard('Chi phí', current.expenseOut, previous.expenseOut, fmt, pct, Icons.money_off, Colors.red),
+          if (_enableRepair)
+            _comparisonCard('Sửa chữa', current.repairsIncome, previous.repairsIncome, fmt, pct, Icons.build, Colors.purple),
+
+          const SizedBox(height: 16),
+
+          // Detailed breakdown
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('CHI TIẾT SO SÁNH', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey.shade700, letterSpacing: 0.5)),
+                const SizedBox(height: 10),
+                _compRow('Bán hàng (thu)', current.salesIncome, previous.salesIncome, fmt, pct),
+                _compRow('Bán hàng (vốn)', current.salesCost, previous.salesCost, fmt, pct),
+                if (_enableRepair) _compRow('Sửa chữa (thu)', current.repairsIncome, previous.repairsIncome, fmt, pct),
+                if (_enableRepair) _compRow('Sửa chữa (vốn)', current.repairsCost, previous.repairsCost, fmt, pct),
+                _compRow('Thu khác', current.miscIncome, previous.miscIncome, fmt, pct),
+                _compRow('Chi phí HĐ', current.expenseOut, previous.expenseOut, fmt, pct),
+                const Divider(),
+                _compRow('Số đơn bán', current.salesCount, previous.salesCount,
+                  (v) => '$v đơn', pct),
+                if (_enableRepair)
+                  _compRow('Số đơn SC', current.repairsCount, previous.repairsCount,
+                    (v) => '$v đơn', pct),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _comparisonCard(String title, int current, int previous,
+      String Function(int) fmt, String Function(int, int) pct,
+      IconData icon, Color color) {
+    final d = current - previous;
+    final isUp = d >= 0;
+    // For costs/expenses — up is bad, for revenue/profit — up is good
+    final isPositiveMetric = title == 'Doanh thu' || title == 'Lợi nhuận' || title == 'Sửa chữa';
+    final changeColor = isUp
+        ? (isPositiveMetric ? Colors.green : Colors.red)
+        : (isPositiveMetric ? Colors.red : Colors.green);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 1)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                Text(fmt(current), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(isUp ? Icons.arrow_upward : Icons.arrow_downward, size: 12, color: changeColor),
+                  const SizedBox(width: 2),
+                  Text(pct(current, previous), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: changeColor)),
+                ],
+              ),
+              Text(
+                '${d >= 0 ? '+' : ''}${fmt(d)}',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compRow(String label, int current, int previous,
+      String Function(int) fmt, String Function(int, int) pct) {
+    final d = current - previous;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(width: 110, child: Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade700))),
+          Expanded(child: Text(fmt(current), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
+          const SizedBox(width: 8),
+          Expanded(child: Text(fmt(previous), style: TextStyle(fontSize: 11, color: Colors.grey.shade500), textAlign: TextAlign.right)),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 55,
+            child: Text(
+              pct(current, previous),
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: d >= 0 ? Colors.green.shade600 : Colors.red.shade600,
+              ),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3735,4 +4112,33 @@ class _TransactionAnalysis {
   int get bankDelta => bankIn - bankOut;
   int get totalIn => cashIn + bankIn;
   int get totalOut => cashOut + bankOut;
+}
+
+/// Stats for a time period, used in comparison tab
+class _PeriodStats {
+  final String label;
+  final int salesIncome;
+  final int salesCost;
+  final int repairsIncome;
+  final int repairsCost;
+  final int miscIncome;
+  final int expenseOut;  // Chi phí hoạt động (không gồm nhập hàng)
+  final int salesCount;
+  final int repairsCount;
+
+  _PeriodStats({
+    required this.label,
+    required this.salesIncome,
+    required this.salesCost,
+    required this.repairsIncome,
+    required this.repairsCost,
+    required this.miscIncome,
+    required this.expenseOut,
+    required this.salesCount,
+    required this.repairsCount,
+  });
+
+  int get totalRevenue => salesIncome + repairsIncome + miscIncome;
+  int get totalCost => salesCost + repairsCost;
+  int get profit => totalRevenue - expenseOut - totalCost;
 }
