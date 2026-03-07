@@ -72,6 +72,7 @@ import '../services/variant_service.dart';
 import '../services/business_type_helper.dart';
 import '../services/payment_intent_service.dart';
 import '../services/adjustment_service.dart';
+import '../services/daily_financial_analysis_service.dart';
 import '../models/shop_settings_model.dart';
 import '../models/payment_intent_model.dart';
 import '../models/repair_model.dart';
@@ -1605,232 +1606,19 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
 
       int doneT = 0, soldT = 0, debtR = 0, expW = 0;
 
-      // === PHÂN TÍCH GIAO DỊCH - MIRROR SỔ QUỸ _analyzeTransactions ===
-      // Track cash flow (cashIn/cashOut/bankIn/bankOut) cho biểu đồ THU/CHI
-      // Track accrual categories cho CHI TIẾT THU/CHI và LỢI NHUẬN RÒNG
-      int cashIn = 0, cashOut = 0, bankIn = 0, bankOut = 0;
-      int saleIncome = 0, repairIncome = 0, debtCollected = 0;
-      int miscIncome = 0; // Thu phát sinh (type=THU)
-      int expenseOut = 0, importOut = 0, supplierPaid = 0;
-      int partnerPaid = 0; // TT đối tác sửa chữa (tách riêng khỏi supplierPaid)
-      int saleCost = 0, repairCost = 0;
-      int settlementIncome = 0;
-
-      // ===== SALES (ACCRUAL BASIS) =====
-      for (final s in fSales) {
-        final paymentMethod = (s['paymentMethod'] ?? '').toString();
-        final totalPrice = (s['totalPrice'] as num?)?.toInt() ?? 0;
-        final discount = (s['discount'] as num?)?.toInt() ?? 0;
-        final finalPrice = totalPrice - discount > 0 ? totalPrice - discount : 0;
-        final totalCost = (s['totalCost'] as num?)?.toInt() ?? 0;
-        final isInstallment = (s['isInstallment'] == 1 || s['isInstallment'] == true);
-
-        if (paymentMethod == 'CÔNG NỢ') {
-          // Accrual: tính doanh thu (sau giảm giá) + giá vốn, nhưng KHÔNG tăng quỹ tiền
-          saleIncome += finalPrice;
-          saleCost += totalCost;
-          continue;
-        }
-
-        if (isInstallment) {
-          // Trả góp: chỉ tính phần down vào ngày bán
-          final downPaid = (s['downPayment'] as num?)?.toInt() ?? 0;
-          saleIncome += downPaid;
-
-          final ratio = finalPrice > 0 ? downPaid / finalPrice : 0.0;
-          saleCost += (totalCost * ratio).round();
-
-          final downMethod = (s['downPaymentMethod'] ?? paymentMethod).toString();
-          if (downMethod == 'TIỀN MẶT') {
-            cashIn += downPaid;
-          } else {
-            bankIn += downPaid;
-          }
-        } else {
-          saleIncome += finalPrice;
-          saleCost += totalCost;
-          if (paymentMethod == 'TIỀN MẶT') {
-            cashIn += finalPrice;
-          } else {
-            bankIn += finalPrice;
-          }
-        }
-      }
-
-      // ===== BANK SETTLEMENT (Tất toán NH) =====
-      // Query riêng: installment sales settled today (có thể bán ngày khác)
-      for (final s in fSettlements) {
-        final stlAmount = (s['settlementAmount'] as num?)?.toInt() ?? 0;
-        final loanAmount = (s['loanAmount'] as num?)?.toInt() ?? 0;
-        final loanAmount2 = (s['loanAmount2'] as num?)?.toInt() ?? 0;
-        final totalLoan = loanAmount + loanAmount2;
-        final amount = stlAmount.clamp(0, totalLoan);
-        if (amount > 0) {
-          settlementIncome += amount;
-          bankIn += amount;
-          // Giá vốn phần còn lại (sau down payment)
-          final totalPrice = (s['totalPrice'] as num?)?.toInt() ?? 0;
-          final discount = (s['discount'] as num?)?.toInt() ?? 0;
-          final finalPrice = totalPrice - discount > 0 ? totalPrice - discount : 0;
-          final totalCost = (s['totalCost'] as num?)?.toInt() ?? 0;
-          final downPaid = (s['downPayment'] as num?)?.toInt() ?? 0;
-          final downRatio = finalPrice > 0 ? downPaid / finalPrice : 0.0;
-          final remainRatio = 1.0 - downRatio;
-          saleCost += (totalCost * remainRatio).round();
-        }
-      }
-
-      // ===== REPAIRS (ACCRUAL BASIS) =====
-      if (_enableRepair) {
-        for (final r in fRepairs) {
-          final price = (r['price'] as num?)?.toInt() ?? 0;
-          final cost = (r['cost'] as num?)?.toInt() ?? 0;
-          final paymentMethod = (r['paymentMethod'] ?? '').toString();
-          // Cash-basis for repairs: recognize income/profit only when collected.
-          // Delivered debt repairs are excluded until money is actually collected.
-          if (paymentMethod == 'CÔNG NỢ') continue;
-          repairIncome += price;
-          repairCost += cost;
-          if (paymentMethod == 'TIỀN MẶT') {
-            cashIn += price;
-          } else {
-            bankIn += price;
-          }
-        }
-      } else {
-        for (final r in fRepairs) {
-          final price = (r['price'] as num?)?.toInt() ?? 0;
-          final cost = (r['cost'] as num?)?.toInt() ?? 0;
-          repairIncome += price;
-          repairCost += cost;
-        }
-      }
-
-      // ===== EXPENSES =====
-      for (final e in fExpenses) {
-        final category = (e['category'] as String? ?? '').toUpperCase();
-        final amount = (e['amount'] as num?)?.toInt() ?? 0;
-        final eType = (e['type'] as String? ?? '').toUpperCase();
-        final method = (e['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
-
-        // Thu phát sinh (type=THU) → income
-        if (eType == 'THU') {
-          miscIncome += amount;
-          if (method == 'TIỀN MẶT') { cashIn += amount; } else { bankIn += amount; }
-          continue;
-        }
-
-        // Import expenses (tính riêng)
-        final isImport = category.contains('NHẬP') ||
-            category.contains('LINH KIỆN') ||
-            category.contains('PURCHASE');
-
-        if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
-
-        if (!isImport) {
-          expenseOut += amount;
-        }
-      }
-
-      // ===== SUPPLIER IMPORT (with dedup against expenses) =====
-      for (final imp in supplierImports) {
-        final method = (imp['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
-        if (method == 'CÔNG NỢ') continue;
-
-        final amount = (imp['totalAmount'] ?? imp['costPrice'] ?? 0) as int;
-        importOut += amount;
-
-        // Dedup: nếu đã có expense nhập hàng cùng ngày với cùng amount → không tính cash flow lần nữa
-        final hasMatchingExpense = fExpenses.any((e) {
-          final cat = (e['category'] ?? '').toString().toUpperCase();
-          if (!cat.contains('NHẬP') && !cat.contains('LINH KIỆN') && !cat.contains('PURCHASE')) return false;
-          final expAmount = (e['amount'] as num?)?.toInt() ?? 0;
-          return (expAmount - amount).abs() < 1000;
-        });
-        if (!hasMatchingExpense) {
-          if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
-        }
-      }
-
-      // ===== SUPPLIER PAYMENTS (thanh toán trực tiếp NCC) =====
-      for (final p in supplierPayments) {
-        final amount = (p['amount'] as num?)?.toInt() ?? 0;
-        final method = (p['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
-        supplierPaid += amount;
-        if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
-      }
-
-      // ===== REPAIR PARTNER PAYMENTS (tách riêng khỏi NCC) =====
-      if (_enableRepair) {
-        for (final p in partnerPayments) {
-          final amount = (p['amount'] as num?)?.toInt() ?? 0;
-          final method = (p['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
-          partnerPaid += amount;
-          if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
-        }
-      }
-
-      // ===== DEBT PAYMENTS =====
-      for (final p in debtPayments) {
-        final amount = (p['amount'] as num?)?.toInt() ?? 0;
-        final method = (p['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
-        final debtType =
-            (p['resolvedDebtType'] ?? p['debtType'] ?? '').toString();
-
-        if (debtType == 'SHOP_OWES' ||
-            debtType == 'OTHER_SHOP_OWES' ||
-            debtType == 'OWED') {
-          // Trả nợ NCC → chi tiền
-          supplierPaid += amount;
-          if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
-        } else {
-          // Thu nợ KH → thu tiền (không ảnh hưởng lợi nhuận accrual)
-          debtCollected += amount;
-          if (method == 'TIỀN MẶT') { cashIn += amount; } else { bankIn += amount; }
-        }
-      }
-
-      // ===== REPAIR PARTS COST FUND RECORDING =====
-      // Chi phí vốn linh kiện đã ghi sổ quỹ → CashOut / BankOut
-      int repairPartsCostFund = 0;
-      for (final r in repairPartsCostFundRows) {
-        final cost = (r['costRecordedAmount'] as num?)?.toInt() ??
-            (r['cost'] as num?)?.toInt() ??
-            0;
-        final method = (r['costPaymentMethod'] as String? ?? 'TIỀN MẶT').toString();
-        repairPartsCostFund += cost;
-        if (method == 'TIỀN MẶT') { cashOut += cost; } else { bankOut += cost; }
-      }
-
-      // ===== SALES RETURNS (TRẢ HÀNG - GIẢM DOANH THU & QUỸ) =====
-      int refundOut = 0;
-      int returnCostTotal = 0;
-      for (final ret in fSalesReturns) {
-        final amount = (ret['totalReturnAmount'] as num?)?.toInt() ?? 0;
-        final returnCost = (ret['totalReturnCost'] as num?)?.toInt() ?? 0;
-        final method = (ret['refundMethod'] as String? ?? 'TIỀN MẶT').toString();
-        if (method == 'CÔNG NỢ') {
-          // Giảm công nợ — không ảnh hưởng quỹ tiền mặt
-          continue;
-        }
-        refundOut += amount;
-        returnCostTotal += returnCost;
-        saleIncome -= amount; // Giảm doanh thu
-        saleCost -= returnCost; // Giảm giá vốn (hàng trả lại)
-        if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
-      }
-
-      // ===== KẾT QUẢ =====
-      final totalCashFlowIn = cashIn + bankIn;
-      final totalCashFlowOut = cashOut + bankOut;
-
-      // LỢI NHUẬN RÒNG (ACCRUAL BASIS) = Doanh thu - Chi phí - Giá vốn
-      // saleIncome đã bao gồm cả bán công nợ, trừ trả hàng
-      // debtCollected KHÔNG tính vào lợi nhuận (đã tính khi bán)
-      final profit = saleIncome + settlementIncome + repairIncome + miscIncome
-          - expenseOut - saleCost - repairCost;
-      final saleProfit = saleIncome + settlementIncome - saleCost;
-      final repairProfit = repairIncome - repairCost;
+      final analysis = DailyFinancialAnalysisService.analyze(
+        sales: fSales,
+        settlementSales: fSettlements,
+        repairs: fRepairs,
+        expenses: fExpenses,
+        debtPayments: debtPayments,
+        supplierPayments: supplierPayments,
+        repairPartnerPayments: partnerPayments,
+        supplierImports: supplierImports,
+        repairPartsCostFundRows: repairPartsCostFundRows,
+        salesReturns: fSalesReturns,
+        enableRepair: _enableRepair,
+      );
 
       // Thống kê số lượng
       doneT = fRepairs.length;
@@ -1933,31 +1721,29 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           todaySaleCount = soldT;
           totalDebtRemain = debtR;
           expiringWarranties = expW;
-          // Cash flow totals (giống Sổ quỹ: cashIn + bankIn / cashOut + bankOut)
-          _todayTotalIn = totalCashFlowIn;
-          _todayTotalOut = totalCashFlowOut;
-          _todayNetProfit = profit;
-          _todaySalesProfit = saleProfit;
-          _todayRepairProfit = repairProfit;
+          _todayTotalIn = analysis.totalIn;
+          _todayTotalOut = analysis.totalOut;
+          _todayNetProfit = analysis.netProfit;
+          _todaySalesProfit = analysis.saleProfit;
+          _todayRepairProfit = analysis.repairProfit;
           _todayRepairCount = fRepairs.length;
           _todaySaleOrderCount = fSales.length;
           _todayExpenseCount = fExpenses.where((e) => (e['type'] as String? ?? '').toUpperCase() != 'THU').length;
-          _todayStockInCost = importOut;
-          _todayDebtPaidToSupplier = supplierPaid; // Chỉ NCC + shop_owes debt
-          _todayExpenseOnly = expenseOut;
-          // Detail breakdown (giống Sổ quỹ analysis)
-          _todaySaleIncome = saleIncome;
-          _todayRepairIncome = repairIncome;
-          _todayDebtCollected = debtCollected;
-          _todayMiscIncome = miscIncome;
-          _todayImportOut = importOut;
-          _todayPartnerPaid = partnerPaid; // TT đối tác sửa chữa (tách riêng)
-          _todayRepairPartsCostFund = repairPartsCostFund; // Vốn LK SC đã ghi sổ quỹ
-          _todaySaleCost = saleCost;
-          _todayRepairCost = repairCost;
-          _todaySettlementIncome = settlementIncome;
-          _todayRefundOut = refundOut;
-          _todayReturnCost = returnCostTotal;
+          _todayStockInCost = analysis.importOut;
+          _todayDebtPaidToSupplier = analysis.supplierPaid;
+          _todayExpenseOnly = analysis.expenseOut;
+          _todaySaleIncome = analysis.saleIncome;
+          _todayRepairIncome = analysis.repairIncome;
+          _todayDebtCollected = analysis.debtCollected;
+          _todayMiscIncome = analysis.miscIncome;
+          _todayImportOut = analysis.importOut;
+          _todayPartnerPaid = analysis.partnerPaid;
+          _todayRepairPartsCostFund = analysis.repairPartsCostFund;
+          _todaySaleCost = analysis.saleCost;
+          _todayRepairCost = analysis.repairCost;
+          _todaySettlementIncome = analysis.settlementIncome;
+          _todayRefundOut = analysis.refundOut;
+          _todayReturnCost = analysis.returnCost;
           _rebuildTabWidgets();
         });
       }
