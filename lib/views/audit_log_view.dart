@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/custom_app_bar.dart';
 import '../data/db_helper.dart';
 import '../theme/app_text_styles.dart';
+import '../services/user_service.dart';
 
 class AuditLogView extends StatefulWidget {
   const AuditLogView({super.key});
@@ -14,11 +16,19 @@ class _AuditLogViewState extends State<AuditLogView> {
   final db = DBHelper();
   List<Map<String, dynamic>> _logs = [];
   bool _loading = true;
+  bool _hasPermission = false;
 
   @override
   void initState() {
     super.initState();
+    _checkPermission();
     _refresh();
+  }
+
+  Future<void> _checkPermission() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    if (!mounted) return;
+    setState(() => _hasPermission = perms['allowViewRevenue'] ?? false);
   }
 
   Future<void> _refresh() async {
@@ -33,34 +43,33 @@ class _AuditLogViewState extends State<AuditLogView> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_hasPermission) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0F4F8),
+        appBar: CustomAppBar.build(
+          title: 'NHẬT KÝ HỆ THỐNG',
+          accentColor: AppBarAccents.finance,
+        ),
+        body: const Center(
+          child: Text(
+            'Bạn không có quyền truy cập tính năng này',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        title: Text(
-          "NHẬT KÝ HỆ THỐNG",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: AppTextStyles.headline3.fontSize,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: true,
+      appBar: CustomAppBar.build(
+        title: 'NHẬT KÝ HỆ THỐNG',
+        subtitle: '${_logs.length} ghi chép',
+        accentColor: AppBarAccents.finance,
         actions: [
           IconButton(
             onPressed: _refresh,
             icon: const Icon(Icons.refresh, color: Colors.white),
+            splashRadius: 18,
           ),
         ],
       ),

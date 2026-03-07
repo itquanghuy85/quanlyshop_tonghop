@@ -29,11 +29,19 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
   int _yearProfit = 0;
   int _yearTotalIn = 0;
   int _yearTotalOut = 0;
+  bool _hasPermission = false;
 
   @override
   void initState() {
     super.initState();
+    _checkPermission();
     _loadData();
+  }
+
+  Future<void> _checkPermission() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    if (!mounted) return;
+    setState(() => _hasPermission = perms['allowViewRevenue'] ?? false);
   }
 
   Future<void> _loadData() async {
@@ -164,6 +172,18 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_hasPermission) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Báo cáo lợi nhuận'), centerTitle: true),
+        body: const Center(
+          child: Text(
+            'Bạn không có quyền truy cập tính năng này',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Báo cáo lợi nhuận'),

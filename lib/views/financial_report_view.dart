@@ -7,6 +7,7 @@ import '../utils/money_utils.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/event_bus.dart';
+import '../services/user_service.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/responsive_wrapper.dart';
 
@@ -117,11 +118,13 @@ class _FinancialReportViewState extends State<FinancialReportView>
   StreamSubscription<String>? _eventSubscription;
   Timer? _reloadDebounce;
   bool _isLoadingData = false;
+  bool _hasPermission = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _checkPermission();
     _loadData();
 
     // Subscribe to data change events for real-time sync (debounced)
@@ -141,6 +144,12 @@ class _FinancialReportViewState extends State<FinancialReportView>
     _reloadDebounce = Timer(const Duration(milliseconds: 500), () {
       if (mounted && !_isLoadingData) _loadData();
     });
+  }
+
+  Future<void> _checkPermission() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    if (!mounted) return;
+    setState(() => _hasPermission = perms['allowViewRevenue'] ?? false);
   }
 
   @override
@@ -469,6 +478,46 @@ class _FinancialReportViewState extends State<FinancialReportView>
 
   @override
   Widget build(BuildContext context) {
+    if (!_hasPermission) {
+      if (widget.embedded) {
+        return Center(
+          child: Text(
+            'Bạn không có quyền truy cập tính năng này',
+            style: AppTextStyles.body1.copyWith(
+              color: AppColors.onSurface.withOpacity(0.6),
+            ),
+          ),
+        );
+      }
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          title: Text(AppLocalizations.of(context)?.financialReportLabel ?? 'Financial Report',
+            style: const TextStyle(color: Colors.white, fontSize: 16)),
+        ),
+        body: Center(
+          child: Text(
+            'Bạn không có quyền truy cập tính năng này',
+            style: AppTextStyles.body1.copyWith(
+              color: AppColors.onSurface.withOpacity(0.6),
+            ),
+          ),
+        ),
+      );
+    }
+
     final bodyContent = _loading
         ? const Expanded(child: Center(child: CircularProgressIndicator()))
         : Expanded(

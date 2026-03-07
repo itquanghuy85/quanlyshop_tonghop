@@ -6,6 +6,7 @@ import '../models/financial_activity_model.dart';
 import '../widgets/custom_app_bar.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/excel_export_helper.dart';
+import '../services/user_service.dart';
 
 /// Trang theo dõi nhật ký tài chính
 /// Chỉ xem, không sửa - có tìm kiếm
@@ -29,6 +30,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
 
   List<FinancialActivity> _activities = [];
   bool _loading = true;
+  bool _hasPermission = false;
 
   String _searchQuery = '';
   final _searchController = TextEditingController();
@@ -36,7 +38,14 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
   @override
   void initState() {
     super.initState();
+    _checkPermission();
     _loadActivities();
+  }
+
+  Future<void> _checkPermission() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    if (!mounted) return;
+    setState(() => _hasPermission = perms['allowViewRevenue'] ?? false);
   }
 
   @override
@@ -57,6 +66,30 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_hasPermission) {
+      if (widget.embedded) {
+        return const Center(
+          child: Text(
+            'Bạn không có quyền truy cập tính năng này',
+            style: TextStyle(color: Colors.grey),
+          ),
+        );
+      }
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0F4F8),
+        appBar: CustomAppBar.build(
+          title: 'NHẬT KÝ TÀI CHÍNH',
+          accentColor: AppBarAccents.finance,
+        ),
+        body: const Center(
+          child: Text(
+            'Bạn không có quyền truy cập tính năng này',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     if (widget.embedded) {
       return _buildEmbeddedContent();
     }

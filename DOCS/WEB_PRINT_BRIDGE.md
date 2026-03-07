@@ -343,3 +343,4 @@ Export filtered data
 - 30 unit tests pass cho DailyFinancialAnalysisService
 - Live trên iOS, Google Play và web (quanlyshop.web.app)
 
+xóa 

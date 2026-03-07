@@ -17,6 +17,7 @@ import '../services/payment_intent_service.dart';
 import '../models/payment_intent_model.dart';
 import '../services/financial_activity_service.dart';
 import '../services/audit_service.dart';
+import '../services/user_service.dart';
 import '../constants/financial_constants.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_colors.dart';
@@ -50,10 +51,12 @@ class _DebtViewState extends State<DebtView>
   ShopSettings? _shopSettings;
   bool get _enableRepair => _shopSettings?.enableRepair ?? true;
   int get _tabCount => _enableRepair ? 4 : 3; // 4 tabs for electronics, 3 for fashion
+  bool _hasPermission = false;
 
   @override
   void initState() {
     super.initState();
+    _checkPermission();
     _loadShopSettings();
     _loadRole();
     _refresh();
@@ -149,6 +152,12 @@ class _DebtViewState extends State<DebtView>
 
   Future<void> _loadRole() async {
     // Role loading not needed for current functionality
+  }
+
+  Future<void> _checkPermission() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    if (!mounted) return;
+    setState(() => _hasPermission = perms['allowViewDebts'] ?? false);
   }
 
   Future<void> _refresh() async {
@@ -583,6 +592,22 @@ class _DebtViewState extends State<DebtView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+    if (!_hasPermission) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0F4F8),
+        appBar: CustomAppBar.build(
+          title: 'QUẢN LÝ CÔNG NỢ',
+          accentColor: AppBarAccents.customer,
+        ),
+        body: const Center(
+          child: Text(
+            'Bạn không có quyền truy cập tính năng này',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
 
     // Chờ shop settings load xong
     if (_tabController == null) {

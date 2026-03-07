@@ -47,6 +47,7 @@ import 'cash_closing_view.dart';
 import 'bank_installment_report_view.dart';
 import 'financial_report_view.dart';
 import 'financial_activity_log_view.dart';
+import 'audit_log_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
@@ -3408,7 +3409,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         case ShortcutType.financialReport:
           return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FinancialReportView()));
         case ShortcutType.activityLog:
-          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FinancialActivityLogView()));
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuditLogView()));
         case ShortcutType.printer:
           return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrinterSettingsView()));
         case ShortcutType.quickCodes:
@@ -5610,7 +5611,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const FinancialActivityLogView(),
+                      builder: (_) => const AuditLogView(),
                     ),
                   ),
                 ),

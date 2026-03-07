@@ -5,6 +5,7 @@ import '../data/db_helper.dart';
 import '../models/sale_order_model.dart';
 import '../utils/money_utils.dart';
 import '../services/event_bus.dart';
+import '../services/user_service.dart';
 import '../theme/app_text_styles.dart';
 import 'sale_detail_view.dart';
 
@@ -33,14 +34,22 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
 
   // Unique bank names from data
   List<String> _bankNames = [];
+  bool _hasPermission = false;
 
   @override
   void initState() {
     super.initState();
+    _checkPermission();
     _loadData();
     EventBus().on('sales_changed', (_) {
       if (mounted) _loadData();
     });
+  }
+
+  Future<void> _checkPermission() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    if (!mounted) return;
+    setState(() => _hasPermission = perms['allowViewRevenue'] ?? false);
   }
 
   Future<void> _loadData() async {
@@ -246,6 +255,41 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_hasPermission) {
+      if (widget.embedded) {
+        return const Center(
+          child: Text(
+            'Bạn không có quyền truy cập tính năng này',
+            style: TextStyle(color: Colors.grey),
+          ),
+        );
+      }
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFF),
+        appBar: AppBar(
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          title: const Text('TRẢ GÓP NGÂN HÀNG'),
+        ),
+        body: const Center(
+          child: Text(
+            'Bạn không có quyền truy cập tính năng này',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     final filteredSales = _applyFilters();
     final totals = _calculateTotals(filteredSales);
     final byBank = _calculateByBank(filteredSales);

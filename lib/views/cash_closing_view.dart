@@ -83,10 +83,12 @@ class _CashClosingViewState extends State<CashClosingView>
   String? _txTypeFilter; // null = all
   final _txSearchController = TextEditingController();
   DateTime? _txEndDate; // null = single date, set = date range
+  bool _hasPermission = false;
 
   @override
   void initState() {
     super.initState();
+    _checkPermission();
     _tabController = TabController(
       length: widget.showOnlyTransactions ? 1 : 4,
       vsync: this,
@@ -104,6 +106,12 @@ class _CashClosingViewState extends State<CashClosingView>
     } catch (e) {
       debugPrint('Error loading shop settings: $e');
     }
+  }
+
+  Future<void> _checkPermission() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    if (!mounted) return;
+    setState(() => _hasPermission = perms['allowViewRevenue'] ?? false);
   }
 
   @override
@@ -605,6 +613,22 @@ class _CashClosingViewState extends State<CashClosingView>
 
   @override
   Widget build(BuildContext context) {
+    if (!_hasPermission) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F7FA),
+        appBar: CustomAppBar.build(
+          title: 'SỔ QUỸ',
+          accentColor: AppBarAccents.finance,
+        ),
+        body: const Center(
+          child: Text(
+            'Bạn không có quyền truy cập tính năng này',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
     if (widget.showOnlyTransactions) {
       return Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
