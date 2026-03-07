@@ -375,17 +375,111 @@ class _CashClosingViewState extends State<CashClosingView>
         debugPrint('📖 [LOAD] Local DB fallback for $todayKey: ${todayClosing != null ? 'FOUND' : 'NOT FOUND'}');
       }
 
-      // FIX K1: Merge expenses chưa sync từ Local DB vào danh sách Firestore
-      // Để không bỏ sót các expense vừa tạo offline
-      // FIX K2: Dedup by firestoreId to prevent duplicate display
+      // ═══════════════════════════════════════════════════════════════════
+      // MERGE LOCAL DB: Gộp dữ liệu chưa sync từ Local DB vào Firestore
+      // để Sổ Quỹ luôn khớp với Home (cả hai dùng cùng nguồn dữ liệu)
+      // Dedup by firestoreId để tránh trùng lặp
+      // ═══════════════════════════════════════════════════════════════════
+
+      // Merge sales
+      final localSales = await db.getAllSales();
+      final seenSaleIds = sales.map((s) => s.firestoreId).whereType<String>().where((s) => s.isNotEmpty).toSet();
+      for (final ls in localSales) {
+        final fid = ls.firestoreId;
+        if (fid != null && fid.isNotEmpty && seenSaleIds.add(fid)) {
+          sales.add(ls);
+        }
+      }
+
+      // Merge repairs
+      final localRepairs = await db.getAllRepairs();
+      final seenRepairIds = repairs.map((r) => r.firestoreId).whereType<String>().where((s) => s.isNotEmpty).toSet();
+      for (final lr in localRepairs) {
+        final fid = lr.firestoreId;
+        if (fid != null && fid.isNotEmpty && seenRepairIds.add(fid)) {
+          repairs.add(lr);
+        }
+      }
+
+      // Merge expenses
       final localExpenses = await db.getAllExpenses();
-      final seenIds = expenses.map((e) => e['firestoreId']).whereType<String>().toSet();
+      final seenExpenseIds = expenses.map((e) => e['firestoreId']).whereType<String>().toSet();
       for (final e in localExpenses) {
         final fid = e['firestoreId'] as String?;
-        if (fid != null && fid.isNotEmpty && seenIds.add(fid)) {
+        if (fid != null && fid.isNotEmpty && seenExpenseIds.add(fid)) {
           expenses.add(e);
         }
       }
+
+      // Merge debt_payments (critical for Trả nợ NCC + Thu nợ khách)
+      final localDebtPayments = await db.getAllDebtPaymentsWithDetails();
+      final seenDebtPaymentIds = debtPayments.map((e) => e['firestoreId']).whereType<String>().toSet();
+      for (final dp in localDebtPayments) {
+        final fid = dp['firestoreId'] as String?;
+        if (fid != null && fid.isNotEmpty && seenDebtPaymentIds.add(fid)) {
+          debtPayments.add(dp);
+        }
+      }
+
+      // Merge supplier_payments
+      final localSupplierPayments = await db.getAllSupplierPayments();
+      final seenSupplierPaymentIds = supplierPayments.map((e) => e['firestoreId']).whereType<String>().toSet();
+      for (final sp in localSupplierPayments) {
+        final fid = sp['firestoreId'] as String?;
+        if (fid != null && fid.isNotEmpty && seenSupplierPaymentIds.add(fid)) {
+          supplierPayments.add(sp);
+        }
+      }
+
+      // Merge repair_partner_payments
+      final localPartnerPayments = await db.getRepairPartnerPaymentsForSync();
+      final seenPartnerPaymentIds = repairPartnerPayments.map((e) => e['firestoreId']).whereType<String>().toSet();
+      for (final pp in localPartnerPayments) {
+        final fid = pp['firestoreId'] as String?;
+        if (fid != null && fid.isNotEmpty && seenPartnerPaymentIds.add(fid)) {
+          repairPartnerPayments.add(pp);
+        }
+      }
+
+      // Merge supplier_import_history
+      final localSupplierImports = await db.getAllSupplierImportHistory();
+      final seenImportIds = supplierImports.map((e) => e['firestoreId']).whereType<String>().toSet();
+      for (final si in localSupplierImports) {
+        final fid = si['firestoreId'] as String?;
+        if (fid != null && fid.isNotEmpty && seenImportIds.add(fid)) {
+          supplierImports.add(si);
+        }
+      }
+
+      // Merge sales_returns
+      final localSalesReturns = await db.getSalesReturns();
+      final seenReturnIds = salesReturns.map((e) => e['firestoreId']).whereType<String>().toSet();
+      for (final sr in localSalesReturns) {
+        final fid = sr['firestoreId'] as String?;
+        if (fid != null && fid.isNotEmpty && seenReturnIds.add(fid)) {
+          salesReturns.add(sr);
+        }
+      }
+
+      // Build debtTypeMap from local debts too (for resolving debtType of local debt_payments)
+      final localDebts = await db.getAllDebts();
+      for (final debt in localDebts) {
+        final fid = debt['firestoreId'] as String?;
+        final localId = debt['id']?.toString();
+        final dType = (debt['type'] as String?) ?? '';
+        if (dType.isNotEmpty) {
+          if (fid != null && fid.isNotEmpty && !debtTypeMap.containsKey(fid)) {
+            debtTypeMap[fid] = dType;
+          }
+          if (localId != null && !debtTypeMap.containsKey(localId)) {
+            debtTypeMap[localId] = dType;
+          }
+        }
+      }
+
+      debugPrint('📖 [MERGE] sales=${sales.length}, repairs=${repairs.length}, '
+          'debtPayments=${debtPayments.length}, supplierPayments=${supplierPayments.length}, '
+          'partnerPayments=${repairPartnerPayments.length}, salesReturns=${salesReturns.length}');
 
       if (mounted) {
         setState(() {
@@ -395,9 +489,9 @@ class _CashClosingViewState extends State<CashClosingView>
           _debtPayments = debtPayments.cast<Map<String, dynamic>>();
           _supplierImports = supplierImports;
           _supplierPayments = supplierPayments.cast<Map<String, dynamic>>();
-          _repairPartnerPayments = repairPartnerPayments.cast<Map<String, dynamic>>(); // FIX: Lưu thanh toán đối tác
+          _repairPartnerPayments = repairPartnerPayments.cast<Map<String, dynamic>>();
           _salesReturns = salesReturns.cast<Map<String, dynamic>>();
-          _debtTypeMap = debtTypeMap; // FIX: Lưu lookup map để xác định debtType
+          _debtTypeMap = debtTypeMap;
           _previousDayClosing = previousClosing;
           _todayClosing = todayClosing;
           _isLoading = false;
@@ -3186,7 +3280,7 @@ class _CashClosingViewState extends State<CashClosingView>
         'type': 'debt_collect',
         'icon': '💳',
         'title': 'Thu nợ khách',
-        'customerName': p['customerName'] as String? ?? 'KH',
+        'customerName': p['personName'] as String? ?? p['customerName'] as String? ?? 'KH',
         'detail': p['note'] as String? ?? 'Thanh toán công nợ',
         'paymentMethod': p['paymentMethod'] as String? ?? 'TIỀN MẶT',
         'time': DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(p['paidAt'] as int)),

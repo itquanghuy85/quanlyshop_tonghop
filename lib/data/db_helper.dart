@@ -5311,17 +5311,25 @@ class DBHelper {
     final db = await database;
     if (shopId != null && shopId.isNotEmpty) {
       return await db.rawQuery('''
-        SELECT p.*, d.type as debtType, d.personName 
+        SELECT p.*,
+          COALESCE(NULLIF(p.debtType, ''), d.type, '') as debtType,
+          COALESCE(d.personName, p.customerName, '') as personName
         FROM debt_payments p
-        JOIN debts d ON p.debtId = d.id
+        LEFT JOIN debts d
+          ON (p.debtId IS NOT NULL AND p.debtId = d.id)
+          OR (p.debtFirestoreId IS NOT NULL AND p.debtFirestoreId != '' AND p.debtFirestoreId = d.firestoreId)
         WHERE p.shopId = ? OR p.shopId IS NULL
         ORDER BY p.paidAt DESC
       ''', [shopId]);
     }
     return await db.rawQuery('''
-      SELECT p.*, d.type as debtType, d.personName 
+      SELECT p.*,
+        COALESCE(NULLIF(p.debtType, ''), d.type, '') as debtType,
+        COALESCE(d.personName, p.customerName, '') as personName
       FROM debt_payments p
-      JOIN debts d ON p.debtId = d.id
+      LEFT JOIN debts d
+        ON (p.debtId IS NOT NULL AND p.debtId = d.id)
+        OR (p.debtFirestoreId IS NOT NULL AND p.debtFirestoreId != '' AND p.debtFirestoreId = d.firestoreId)
       ORDER BY p.paidAt DESC
     ''');
   }
