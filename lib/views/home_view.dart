@@ -1489,6 +1489,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   int _todaySettlementIncome = 0; // Tất toán NH (bank settlement)
   int _todayRefundOut = 0; // Tiền trả hàng (cash out)
   int _todayReturnCost = 0; // Giá vốn hàng trả lại
+  int _previousClosingTotal = 0; // Quỹ chốt ngày trước (cashEnd + bankEnd)
 
   /// Load chat info separately (deferred) - Firestore calls, don't block main stats
   Future<void> _loadChatInfo() async {
@@ -1666,8 +1667,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           '(SELECT COUNT(*) FROM repairs) as repairs, '
           '(SELECT COUNT(*) FROM sales) as sales, '
           '(SELECT COUNT(*) FROM products) as products'),
+        // [5] previous day closing balance for "Quỹ hiện có"
+        db.getPreviousDayClosing(DateFormat('yyyy-MM-dd').format(todayStart)),
       ]);
-      debugPrint('HomeView: Batch 2 (5 queries) took ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint('HomeView: Batch 2 (6 queries) took ${stopwatch.elapsedMilliseconds}ms');
 
       final repairsWarranty = batch2[0] as List<Map<String, dynamic>>;
       final salesWarranty = batch2[1] as List<Map<String, dynamic>>;
@@ -1710,6 +1713,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           debtR += ptRemain;
         }
       }
+
+      final previousClosing = batch2[5] as Map<String, dynamic>?;
+      final prevCashEnd = (previousClosing?['cashEnd'] as num?)?.toInt() ?? 0;
+      final prevBankEnd = (previousClosing?['bankEnd'] as num?)?.toInt() ?? 0;
+      final prevClosingTotal = prevCashEnd + prevBankEnd;
 
       final totalRecords = (recordCounts.first['repairs'] as int? ?? 0)
           + (recordCounts.first['sales'] as int? ?? 0)
@@ -1759,6 +1767,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           _todaySettlementIncome = analysis.settlementIncome;
           _todayRefundOut = analysis.refundOut;
           _todayReturnCost = analysis.returnCost;
+          _previousClosingTotal = prevClosingTotal;
           _rebuildTabWidgets();
         });
       }
@@ -2298,7 +2307,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             key: const ValueKey('finance_summary'),
             revenue: _todaySaleIncome + _todaySettlementIncome + _todayRepairIncome,
             netProfit: _todayNetProfit,
-            currentFund: _todayTotalIn - _todayTotalOut,
+            currentFund: _previousClosingTotal + _todayTotalIn - _todayTotalOut,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const CashClosingView()),
