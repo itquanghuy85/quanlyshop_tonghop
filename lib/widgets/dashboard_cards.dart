@@ -207,18 +207,18 @@ class _ActionItem {
   const _ActionItem({required this.icon, required this.label, required this.color, this.onTap});
 }
 
-/// Compact finance summary - shows Thu/Chi with expandable detail
+/// Compact finance summary - shows Doanh thu / Lợi nhuận / Quỹ
 class FinanceSummaryCard extends StatelessWidget {
-  final int totalIn;
-  final int totalOut;
+  final int revenue;
   final int netProfit;
+  final int currentFund;
   final VoidCallback? onTap;
 
   const FinanceSummaryCard({
     super.key,
-    required this.totalIn,
-    required this.totalOut,
+    required this.revenue,
     required this.netProfit,
+    required this.currentFund,
     this.onTap,
   });
 
@@ -279,25 +279,25 @@ class FinanceSummaryCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _metricTile(
-                    '📥 Thu',
-                    '+${MoneyUtils.formatVND(totalIn)}',
-                    Colors.green,
+                    '� Doanh thu',
+                    MoneyUtils.formatVND(revenue),
+                    Colors.blue.shade700,
                   ),
                 ),
                 Container(width: 1, height: 36, color: Colors.grey.shade200),
                 Expanded(
                   child: _metricTile(
-                    '📤 Chi',
-                    '-${MoneyUtils.formatVND(totalOut)}',
-                    Colors.red,
-                  ),
-                ),
-                Container(width: 1, height: 36, color: Colors.grey.shade200),
-                Expanded(
-                  child: _metricTile(
-                    '💰 Lãi',
+                    '📈 Lợi nhuận',
                     '${netProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(netProfit)}',
                     netProfit >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                  ),
+                ),
+                Container(width: 1, height: 36, color: Colors.grey.shade200),
+                Expanded(
+                  child: _metricTile(
+                    '🏦 Quỹ',
+                    '${currentFund >= 0 ? '+' : ''}${MoneyUtils.formatVND(currentFund)}',
+                    currentFund >= 0 ? Colors.indigo : Colors.red.shade700,
                   ),
                 ),
               ],
@@ -359,7 +359,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
       final todayStart = DateTime(now.year, now.month, now.day);
       final startMs = todayStart.millisecondsSinceEpoch;
 
-      // Load recent sales, repairs, expenses from today
+      // Load recent sales, repairs, expenses, debt_payments, supplier_payments from today
       final results = await Future.wait([
         // Recent sales (last 5)
         db.query('sales',
@@ -380,6 +380,16 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
           columns: ['title', 'amount', 'date', 'type', 'category'],
           where: 'date >= ?', whereArgs: [startMs],
           orderBy: 'date DESC', limit: 5),
+        // Recent debt payments (last 5)
+        db.query('debt_payments',
+          columns: ['amount', 'paidAt', 'paymentMethod', 'debtType', 'note'],
+          where: 'paidAt >= ?', whereArgs: [startMs],
+          orderBy: 'paidAt DESC', limit: 5),
+        // Recent supplier payments (last 5)
+        db.query('supplier_payments',
+          columns: ['amount', 'paidAt', 'paymentMethod', 'supplierName', 'note'],
+          where: 'paidAt >= ?', whereArgs: [startMs],
+          orderBy: 'paidAt DESC', limit: 5),
       ]);
 
       final activities = <_ActivityItem>[];
@@ -430,6 +440,38 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
           title: isIncome ? 'Thu: $title' : 'Chi: $title',
           amount: isIncome ? '+${MoneyUtils.formatVND(amount)}' : '-${MoneyUtils.formatVND(amount)}',
           amountColor: isIncome ? Colors.teal : Colors.red,
+          timestamp: at,
+        ));
+      }
+
+      // Debt payments
+      for (final d in results[3]) {
+        final amount = (d['amount'] as num?)?.toInt() ?? 0;
+        final at = (d['paidAt'] as num?)?.toInt() ?? 0;
+        final debtType = (d['debtType'] as String? ?? '').toUpperCase();
+        final note = (d['note'] ?? '').toString();
+        final isShopOwes = debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES' || debtType == 'OWED';
+        activities.add(_ActivityItem(
+          icon: isShopOwes ? Icons.payment : Icons.account_balance_wallet,
+          color: isShopOwes ? Colors.deepOrange : Colors.cyan,
+          title: isShopOwes ? 'Trả nợ NCC${note.isNotEmpty ? ' - $note' : ''}' : 'Thu nợ KH${note.isNotEmpty ? ' - $note' : ''}',
+          amount: isShopOwes ? '-${MoneyUtils.formatVND(amount)}' : '+${MoneyUtils.formatVND(amount)}',
+          amountColor: isShopOwes ? Colors.deepOrange : Colors.cyan,
+          timestamp: at,
+        ));
+      }
+
+      // Supplier payments
+      for (final sp in results[4]) {
+        final amount = (sp['amount'] as num?)?.toInt() ?? 0;
+        final at = (sp['paidAt'] as num?)?.toInt() ?? 0;
+        final supplier = (sp['supplierName'] ?? 'NCC').toString();
+        activities.add(_ActivityItem(
+          icon: Icons.local_shipping,
+          color: Colors.brown,
+          title: 'Trả NCC - $supplier',
+          amount: '-${MoneyUtils.formatVND(amount)}',
+          amountColor: Colors.brown,
           timestamp: at,
         ));
       }

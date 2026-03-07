@@ -2281,9 +2281,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         case DashboardCardType.financeSummary:
           widgets.add(FinanceSummaryCard(
             key: const ValueKey('finance_summary'),
-            totalIn: _todayTotalIn,
-            totalOut: _todayTotalOut,
+            revenue: _todaySaleIncome + _todaySettlementIncome + _todayRepairIncome,
             netProfit: _todayNetProfit,
+            currentFund: _todayTotalIn - _todayTotalOut,
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const CashClosingView()),
@@ -5490,6 +5490,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             // Financial Overview Cards
             _buildSectionHeader(loc.todayOverview),
             _financeOverviewSection(),
+
+            const SizedBox(height: 16),
+
+            // BIẾN ĐỘNG TRONG NGÀY - detailed bar chart + breakdown
+            _buildSectionHeader("BIẾN ĐỘNG TRONG NGÀY"),
+            _buildDashboardOverview(),
 
             const SizedBox(height: 16),
 
