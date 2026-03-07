@@ -139,9 +139,6 @@ Engine tính toán duy nhất: **DailyFinancialAnalysisService.analyze()**
 | 5 | 30 unit tests cho DailyFinancialAnalysisService | `034805e` | Bao phủ tất cả loại giao dịch |
 | 6 | Home: Truy cập nhanh tài chính (financeShortcuts) | `9248d0c` | 3 nút: Sổ quỹ/Công nợ/Thu chi |
 | 7 | Finance: Công nợ tổng hợp card | `f2b1d8f` | Khách nợ/NCC/Đối tác split |
+| 8 | Finance: Báo cáo lợi nhuận theo tháng | `a6ee0ec` | MonthlyProfitReportView + bar chart + breakdown |
 
-## ⬜ CÒN LẠI
-
-| # | Hạng mục | Mô tả | File chính |
-|---|----------|-------|------------|
-| C | Finance: Báo cáo nâng cao | Biến động theo tháng, Lợi nhuận dài hạn | new views |
+## ✅ HOÀN TẤT TẤT CẢ HẠNG MỤC
