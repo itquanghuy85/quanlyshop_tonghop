@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../widgets/responsive_wrapper.dart';\nimport '../../widgets/custom_app_bar.dart';
+import '../../widgets/responsive_wrapper.dart';
+import '../../widgets/custom_app_bar.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/product_model.dart';
 import '../../models/product_variant_model.dart';
