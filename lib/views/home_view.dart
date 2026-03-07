@@ -15,6 +15,7 @@ import '../services/event_bus.dart';
 import '../services/current_shop_service.dart';
 import 'order_list_view.dart';
 import 'revenue_view.dart';
+import 'monthly_profit_report_view.dart';
 import 'inventory_view.dart';
 import 'fast_inventory_input_view.dart';
 import 'fast_inventory_check_view.dart';
@@ -5601,6 +5602,17 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     context,
                     MaterialPageRoute(
                       builder: (_) => const FinancialActivityLogView(),
+                    ),
+                  ),
+                ),
+                _financeQuickCard(
+                  'Lợi nhuận theo tháng',
+                  Icons.bar_chart,
+                  Colors.teal,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MonthlyProfitReportView(),
                     ),
                   ),
                 ),
