@@ -5350,6 +5350,53 @@ class DBHelper {
     ''', [startMs, endMs]);
   }
 
+  /// Debt payments for cash-flow dashboards.
+  /// Resolves debt type from the payment row first, then falls back to the linked debt.
+  Future<List<Map<String, dynamic>>> getDebtPaymentsForCashFlowByDateRange(
+    int startMs,
+    int endMs,
+  ) async {
+    final shopId = UserService.getShopIdSync();
+    final db = await database;
+
+    final selectSql = '''
+      SELECT
+        p.amount,
+        p.paidAt,
+        p.paymentMethod,
+        p.shopId,
+        p.debtId,
+        p.debtFirestoreId,
+        p.debtType,
+        COALESCE(NULLIF(p.debtType, ''), d.type, '') as resolvedDebtType,
+        COALESCE(d.personName, '') as debtPersonName
+      FROM debt_payments p
+      LEFT JOIN debts d
+        ON (p.debtId IS NOT NULL AND p.debtId = d.id)
+        OR (p.debtFirestoreId IS NOT NULL AND p.debtFirestoreId != '' AND p.debtFirestoreId = d.firestoreId)
+      WHERE p.paidAt >= ? AND p.paidAt < ?
+    ''';
+
+    if (shopId != null && shopId.isNotEmpty) {
+      return await db.rawQuery(
+        '''
+        $selectSql
+          AND (p.shopId = ? OR p.shopId IS NULL)
+        ORDER BY p.paidAt DESC
+        ''',
+        [startMs, endMs, shopId],
+      );
+    }
+
+    return await db.rawQuery(
+      '''
+      $selectSql
+      ORDER BY p.paidAt DESC
+      ''',
+      [startMs, endMs],
+    );
+  }
+
   /// Lấy tất cả debt payments để sync
   Future<List<Map<String, dynamic>>> getAllDebtPaymentsForSync() async {
     final db = await database;

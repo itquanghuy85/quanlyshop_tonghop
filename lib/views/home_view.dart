@@ -1556,11 +1556,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               : 'date >= ? AND date < ?',
           whereArgs: shopId != null && shopId.isNotEmpty
               ? [startMs, endMs, shopId] : [startMs, endMs]),
-        // [6] debtPayments
-        dbConn.query('debt_payments',
-          columns: ['amount', 'paidAt', 'debtType', 'paymentMethod'],
-          where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ?',
-          whereArgs: [startMs, endMs]),
+        // [6] debtPayments - resolved debtType + shop filter để khớp chốt quỹ
+        db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs),
         // [7] partnerPayments
         dbConn.query('repair_partner_payments',
           columns: ['amount', 'paidAt', 'paymentMethod'],
@@ -1777,9 +1774,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       for (final p in debtPayments) {
         final amount = (p['amount'] as num?)?.toInt() ?? 0;
         final method = (p['paymentMethod'] as String? ?? 'TIỀN MẶT').toString();
-        final debtType = (p['debtType'] ?? '').toString();
+        final debtType =
+            (p['resolvedDebtType'] ?? p['debtType'] ?? '').toString();
 
-        if (debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES') {
+        if (debtType == 'SHOP_OWES' ||
+            debtType == 'OTHER_SHOP_OWES' ||
+            debtType == 'OWED') {
           // Trả nợ NCC → chi tiền
           supplierPaid += amount;
           if (method == 'TIỀN MẶT') { cashOut += amount; } else { bankOut += amount; }
