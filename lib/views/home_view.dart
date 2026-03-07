@@ -5545,6 +5545,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                       context,
                       MaterialPageRoute(builder: (_) => const CashClosingView()),
                     ),
+                    subtitle: MoneyUtils.formatVND(_previousClosingTotal + _todayTotalIn - _todayTotalOut),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -5557,6 +5558,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                       context,
                       MaterialPageRoute(builder: (_) => const ExpenseView()),
                     ),
+                    subtitle: '+${MoneyUtils.formatVND(_todayTotalIn)} / -${MoneyUtils.formatVND(_todayTotalOut)}',
                   ),
                 ),
               ],
@@ -5639,8 +5641,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     String title,
     IconData icon,
     Color color,
-    VoidCallback onTap,
-  ) {
+    VoidCallback onTap, {
+    String? subtitle,
+  }) {
     return Card(
       elevation: 0,
       margin: EdgeInsets.zero,
@@ -5669,14 +5672,27 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  title,
-                  style: AppTextStyles.body2.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.body2.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle,
+                        style: TextStyle(fontSize: 10, color: color.withOpacity(0.7)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
                 ),
               ),
               Icon(Icons.chevron_right, color: color.withOpacity(0.4), size: 16),
