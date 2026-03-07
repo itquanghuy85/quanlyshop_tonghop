@@ -34,6 +34,7 @@ import '../services/sync_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_service.dart';
 import '../services/audit_service.dart';
+import '../services/storage_service.dart';
 import '../data/db_helper.dart';
 import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
@@ -61,7 +62,6 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   String _shopPhone = "";
   bool _hasPermission = false;
   List<RepairPartner> _partners = [];
-  final Map<String, String> _gsImageUrlCache = {};
 
   // Shop settings for dynamic terminology (reserved for future multi-industry use)
   // ignore: unused_field
@@ -132,41 +132,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   bool _isGsStoragePath(String path) {
-    return path.trim().toLowerCase().startsWith('gs://');
+    return StorageService.isGsStoragePath(path);
   }
 
   bool _isStorageRelativePath(String path) {
-    final p = path.trim().toLowerCase();
-    if (p.isEmpty) return false;
-    if (p.contains('://') || p.startsWith('blob:') || p.startsWith('data:')) {
-      return false;
-    }
-    return p.startsWith('repairs/') || p.startsWith('/repairs/');
+    return StorageService.isStorageRelativePath(path);
   }
 
   Future<String?> _resolveDisplayImagePath(String path) async {
-    final normalized = path.trim();
-    if (normalized.isEmpty) return null;
-    if (!_isGsStoragePath(normalized) && !_isStorageRelativePath(normalized)) {
-      return normalized;
-    }
-
-    final cached = _gsImageUrlCache[normalized];
-    if (cached != null && cached.isNotEmpty) return cached;
-
-    try {
-      final ref = _isGsStoragePath(normalized)
-          ? FirebaseStorage.instance.refFromURL(normalized)
-          : FirebaseStorage.instance.ref(
-              normalized.startsWith('/') ? normalized.substring(1) : normalized,
-            );
-      final url = await ref.getDownloadURL();
-      _gsImageUrlCache[normalized] = url;
-      return url;
-    } catch (e) {
-      debugPrint('RepairDetailView: failed to resolve gs:// image $normalized: $e');
-      return null;
-    }
+    return StorageService.resolveDisplayUrl(path);
   }
 
   Widget _buildSmartImage(String path) {
@@ -218,14 +192,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   bool _isWebImageSource(String path) {
-    final p = path.trim().toLowerCase();
-    return p.startsWith('http://') ||
-        p.startsWith('https://') ||
-      p.startsWith('gs://') ||
-      p.startsWith('repairs/') ||
-      p.startsWith('/repairs/') ||
-        p.startsWith('blob:') ||
-        p.startsWith('data:');
+    return StorageService.isDisplayableCloudPath(path);
   }
 
   List<String> _displayableImages(List<String> images) {

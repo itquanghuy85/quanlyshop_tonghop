@@ -4,6 +4,7 @@ import '../widgets/responsive_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../models/attendance_model.dart';
+import '../services/storage_service.dart';
 import '../services/user_service.dart';
 import '../services/osm_map_service.dart';
 import '../theme/app_colors.dart';
@@ -33,6 +34,43 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
   
   // View mode: 'day' or 'month'
   String _viewMode = 'day';
+
+  Widget _buildAttendanceImage(String imagePath) {
+    return FutureBuilder<String?>(
+      future: StorageService.resolveDisplayUrl(imagePath),
+      builder: (context, snapshot) {
+        final imageUrl = snapshot.data;
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 120,
+            color: Colors.grey[100],
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+
+        if (imageUrl == null || imageUrl.isEmpty) {
+          return Container(
+            height: 120,
+            color: Colors.grey[200],
+            child: const Icon(Icons.broken_image),
+          );
+        }
+
+        return Image.network(
+          imageUrl,
+          height: 120,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            height: 120,
+            color: Colors.grey[200],
+            child: const Icon(Icons.broken_image),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -835,16 +873,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              record.photoIn!,
-                              height: 120,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                height: 120,
-                                color: Colors.grey[200],
-                                child: const Icon(Icons.broken_image),
-                              ),
-                            ),
+                            child: _buildAttendanceImage(record.photoIn!),
                           ),
                           const SizedBox(height: 4),
                           Text(AppLocalizations.of(context)!.checkInPhoto, style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
@@ -859,16 +888,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              record.photoOut!,
-                              height: 120,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                height: 120,
-                                color: Colors.grey[200],
-                                child: const Icon(Icons.broken_image),
-                              ),
-                            ),
+                            child: _buildAttendanceImage(record.photoOut!),
                           ),
                           const SizedBox(height: 4),
                           Text(AppLocalizations.of(context)!.checkOutPhoto, style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),

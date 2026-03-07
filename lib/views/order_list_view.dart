@@ -14,6 +14,7 @@ import '../models/shop_settings_model.dart';
 import '../services/event_bus.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
+import '../services/storage_service.dart';
 import '../services/user_service.dart';
 import '../utils/vietnamese_utils.dart';
 import '../widgets/gradient_fab.dart';
@@ -71,7 +72,6 @@ class OrderListViewState extends State<OrderListView> {
   Set<int> _statusFilters = {}; // Empty = all, {1,2} = tiếp nhận + đang sửa
   bool _filterPendingApproval = false; // Lọc đơn chờ duyệt giao
   bool _canDelete = false;
-  final Map<String, String> _gsImageUrlCache = {};
 
   bool get canDelete => _canDelete;
   
@@ -134,41 +134,15 @@ class OrderListViewState extends State<OrderListView> {
   }
 
   bool _isGsStoragePath(String path) {
-    return path.trim().toLowerCase().startsWith('gs://');
+    return StorageService.isGsStoragePath(path);
   }
 
   bool _isStorageRelativePath(String path) {
-    final p = path.trim().toLowerCase();
-    if (p.isEmpty) return false;
-    if (p.contains('://') || p.startsWith('blob:') || p.startsWith('data:')) {
-      return false;
-    }
-    return p.startsWith('repairs/') || p.startsWith('/repairs/');
+    return StorageService.isStorageRelativePath(path);
   }
 
   Future<String?> _resolveDisplayImagePath(String path) async {
-    final normalized = path.trim();
-    if (normalized.isEmpty) return null;
-    if (!_isGsStoragePath(normalized) && !_isStorageRelativePath(normalized)) {
-      return normalized;
-    }
-
-    final cached = _gsImageUrlCache[normalized];
-    if (cached != null && cached.isNotEmpty) return cached;
-
-    try {
-      final ref = _isGsStoragePath(normalized)
-          ? FirebaseStorage.instance.refFromURL(normalized)
-          : FirebaseStorage.instance.ref(
-              normalized.startsWith('/') ? normalized.substring(1) : normalized,
-            );
-      final url = await ref.getDownloadURL();
-      _gsImageUrlCache[normalized] = url;
-      return url;
-    } catch (e) {
-      debugPrint('OrderListView: failed to resolve gs image $normalized: $e');
-      return null;
-    }
+    return StorageService.resolveDisplayUrl(path);
   }
 
   @override

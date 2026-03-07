@@ -9,6 +9,15 @@ import 'package:path_provider/path_provider.dart';
 
 class StorageService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
+  static final Map<String, String> _resolvedUrlCache = {};
+  static const Set<String> _storageRoots = {
+    'repairs',
+    'attendance',
+    'shop_logos',
+    'user_photos',
+    'chat_images',
+    'products',
+  };
 
   /// Các extension hình ảnh được hỗ trợ nén
   static const List<String> _imageExtensions = [
@@ -173,6 +182,74 @@ class StorageService {
         return 'image/heic';
       default:
         return 'image/jpeg';
+    }
+  }
+
+  static bool isGsStoragePath(String filePath) {
+    return filePath.trim().toLowerCase().startsWith('gs://');
+  }
+
+  static bool isStorageRelativePath(String filePath) {
+    final normalized = filePath.trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+    if (normalized.contains('://') ||
+        normalized.startsWith('blob:') ||
+        normalized.startsWith('data:')) {
+      return false;
+    }
+
+    final cleanPath = normalized.startsWith('/')
+        ? normalized.substring(1)
+        : normalized;
+    if (!cleanPath.contains('/')) return false;
+
+    return _storageRoots.contains(cleanPath.split('/').first);
+  }
+
+  static bool isDisplayableCloudPath(String filePath) {
+    final normalized = filePath.trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+    return normalized.startsWith('http://') ||
+        normalized.startsWith('https://') ||
+        normalized.startsWith('blob:') ||
+        normalized.startsWith('data:') ||
+        isGsStoragePath(normalized) ||
+        isStorageRelativePath(normalized);
+  }
+
+  static Future<String?> resolveDisplayUrl(String filePath) async {
+    final normalized = filePath.trim();
+    if (normalized.isEmpty) return null;
+
+    final lower = normalized.toLowerCase();
+    if (lower.startsWith('http://') ||
+        lower.startsWith('https://') ||
+        lower.startsWith('blob:') ||
+        lower.startsWith('data:')) {
+      return normalized;
+    }
+
+    if (!isGsStoragePath(normalized) && !isStorageRelativePath(normalized)) {
+      return kIsWeb ? null : normalized;
+    }
+
+    final cached = _resolvedUrlCache[normalized];
+    if (cached != null && cached.isNotEmpty) return cached;
+
+    try {
+      final ref = isGsStoragePath(normalized)
+          ? _storage.refFromURL(normalized)
+          : _storage.ref(
+              normalized.startsWith('/')
+                  ? normalized.substring(1)
+                  : normalized,
+            );
+      final url = await ref.getDownloadURL();
+      _resolvedUrlCache[normalized] = url;
+      return url;
+    } catch (e) {
+      debugPrint('StorageService: failed to resolve image path $normalized: $e');
+      return null;
     }
   }
 
