@@ -390,6 +390,13 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
           columns: ['amount', 'paidAt', 'paymentMethod', 'supplierName', 'note'],
           where: 'paidAt >= ?', whereArgs: [startMs],
           orderBy: 'paidAt DESC', limit: 5),
+        // Recent repair partner payments (last 5)
+        db.query('repair_partner_payments',
+          columns: ['amount', 'paidAt', 'paymentMethod', 'partnerName', 'note'],
+          where: 'paidAt >= ? AND (deleted IS NULL OR deleted != 1)',
+          whereArgs: [startMs],
+          orderBy: 'paidAt DESC', limit: 5)
+            .catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
       final activities = <_ActivityItem>[];
@@ -476,9 +483,24 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         ));
       }
 
-      // Sort by timestamp desc, take top 8
+      // Repair partner payments
+      for (final rp in results[5]) {
+        final amount = (rp['amount'] as num?)?.toInt() ?? 0;
+        final at = (rp['paidAt'] as num?)?.toInt() ?? 0;
+        final partner = (rp['partnerName'] ?? 'Đối tác').toString();
+        activities.add(_ActivityItem(
+          icon: Icons.handshake,
+          color: Colors.indigo,
+          title: 'TT đối tác - $partner',
+          amount: '-${MoneyUtils.formatVND(amount)}',
+          amountColor: Colors.indigo,
+          timestamp: at,
+        ));
+      }
+
+      // Sort by timestamp desc, take top 10
       activities.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      final top = activities.take(8).toList();
+      final top = activities.take(10).toList();
 
       if (mounted) {
         setState(() {
