@@ -166,9 +166,12 @@ class _CashClosingViewState extends State<CashClosingView>
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) {
-        // FIX: Fallback to local DB when shopId is null instead of showing empty
         _isLoadingFromFirestore = false;
-        if (mounted) await _loadAllDataFromLocalDB();
+        if (mounted) {
+          await _loadAllDataFromLocalDB();
+        } else {
+          _isLoading = false;
+        }
         return;
       }
 
@@ -501,8 +504,11 @@ class _CashClosingViewState extends State<CashClosingView>
     } catch (e) {
       debugPrint('Error loading from Firestore: $e');
       _isLoadingFromFirestore = false;
-      // Fallback to local DB if Firestore fails
-      if (mounted) await _loadAllDataFromLocalDB();
+      if (mounted) {
+        await _loadAllDataFromLocalDB();
+      } else {
+        _isLoading = false;
+      }
     }
   }
 
@@ -563,6 +569,8 @@ class _CashClosingViewState extends State<CashClosingView>
         _todayClosing = todayClosing;
         _isLoading = false;
       });
+    } else {
+      _isLoading = false;
     }
   }
 

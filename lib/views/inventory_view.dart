@@ -430,14 +430,16 @@ class _InventoryViewState extends State<InventoryView>
             ],
             Text(
               displayProduct.name,
-              style: AppTextStyles.headline1.copyWith(
+              style: AppTextStyles.headline3.copyWith(
                 fontWeight: FontWeight.bold,
                 color: displayProduct.isPending
                     ? Colors.orange.shade800
                     : const Color(0xFF2962FF),
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 12),
             // Show capacity/size based on business type
             if (_isElectronics)
               _detailItem("Chi tiết máy", displayProduct.capacity ?? "")
@@ -611,14 +613,15 @@ class _InventoryViewState extends State<InventoryView>
                     icon: const Icon(Icons.qr_code_2, color: Colors.white),
                     label: Text(
                       "IN TEM",
-                      style: AppTextStyles.subtitle1.copyWith(
+                      style: AppTextStyles.caption.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      minimumSize: const Size(0, 36),
                     ),
                   ),
                 ),
@@ -631,15 +634,16 @@ class _InventoryViewState extends State<InventoryView>
                     },
                     icon: const Icon(Icons.edit, color: Colors.white),
                     label: Text(
-                      "CHỈNH SỬA",
-                      style: AppTextStyles.body1.copyWith(
+                      "SỬA",
+                      style: AppTextStyles.caption.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      minimumSize: const Size(0, 36),
                     ),
                   ),
                 ),
@@ -652,15 +656,16 @@ class _InventoryViewState extends State<InventoryView>
                     },
                     icon: const Icon(Icons.shopping_cart, color: Colors.white),
                     label: Text(
-                      "TẠO ĐƠN HÀNG",
-                      style: AppTextStyles.body1.copyWith(
+                      "BÁN",
+                      style: AppTextStyles.caption.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2962FF),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      minimumSize: const Size(0, 36),
                     ),
                   ),
                 ),
@@ -669,9 +674,10 @@ class _InventoryViewState extends State<InventoryView>
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.pop(ctx),
                     icon: const Icon(Icons.close),
-                    label: Text("ĐÓNG", style: AppTextStyles.body1),
+                    label: Text("ĐÓNG", style: AppTextStyles.caption),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      minimumSize: const Size(0, 36),
                     ),
                   ),
                 ),

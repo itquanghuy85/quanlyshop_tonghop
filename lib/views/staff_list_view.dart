@@ -1046,11 +1046,13 @@ class _StaffListViewState extends State<StaffListView> {
                     final shopId = userData['shopId'];
 
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      elevation: 1,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         leading: CircleAvatar(
                           backgroundImage: _safeImageProvider(photoUrl),
                           backgroundColor: role == 'owner'

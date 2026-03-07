@@ -34,6 +34,7 @@ import '../services/sync_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_service.dart';
 import '../services/audit_service.dart';
+import '../services/financial_activity_service.dart';
 import '../services/storage_service.dart';
 import '../data/db_helper.dart';
 import '../services/event_bus.dart';
@@ -1035,6 +1036,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         targetId: r.firestoreId,
         desc: loc.approvedDelivery(r.model, r.customerName, r.warranty),
       );
+
+      // Financial activity log
+      if (r.price > 0 && r.paymentMethod != 'CÔNG NỢ') {
+        await FinancialActivityService.logRepair(
+          firestoreId: r.firestoreId ?? 'repair_${r.createdAt}',
+          amount: r.price,
+          paymentMethod: r.paymentMethod,
+          customerName: r.customerName,
+          phone: r.phone,
+          deviceModel: r.model,
+          createdBy: user?.email,
+        );
+      }
 
       // Chat notification
       final key = r.firestoreId ?? "repair_${r.createdAt}";

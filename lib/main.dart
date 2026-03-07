@@ -28,6 +28,7 @@ import 'services/payment_intent_service.dart'; // Payment intents management
 import 'services/current_shop_service.dart'; // Multi-shop support
 import 'data/db_helper.dart'; // Local database helper
 import 'utils/perf_monitor.dart'; // Performance monitoring
+import 'utils/seed_test_data.dart'; // Test data seeder
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'widgets/loading_intro_screen.dart'; // Loading intro animation
@@ -602,6 +603,18 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
             // Super admin: Chuyển đến màn hình chọn shop
             if (isSuperAdmin) {
               return ShopSelectorView(setLocale: widget.setLocale);
+            }
+
+            // Seed test data cho tài khoản debug (1 lần duy nhất)
+            if (!kIsWeb && email == 'tuan@mobile.com') {
+              SharedPreferences.getInstance().then((prefs) {
+                if (prefs.getBool('seed_done') != true) {
+                  SeedTestData.run().then((_) {
+                    prefs.setBool('seed_done', true);
+                    debugPrint('🌱 Seed flag saved');
+                  });
+                }
+              });
             }
 
             // User thường: Vào HomeView
