@@ -332,10 +332,12 @@ class FinanceSummaryCard extends StatelessWidget {
 /// Activity Feed card showing recent transactions
 class ActivityFeedCard extends StatefulWidget {
   final bool enableRepair;
+  final VoidCallback? onViewAll;
 
   const ActivityFeedCard({
     super.key,
     this.enableRepair = true,
+    this.onViewAll,
   });
 
   @override
@@ -584,6 +586,27 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
           ),
           const Divider(height: 1),
           ..._activities.map((a) => _buildActivityRow(a)),
+          if (widget.onViewAll != null)
+            InkWell(
+              onTap: widget.onViewAll,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                ),
+                child: Center(
+                  child: Text(
+                    'Xem tất cả ›',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.purple.shade400,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

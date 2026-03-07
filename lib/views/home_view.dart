@@ -2323,6 +2323,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           widgets.add(ActivityFeedCard(
             key: const ValueKey('activity_feed'),
             enableRepair: _enableRepair,
+            onViewAll: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CashClosingView(showOnlyTransactions: true)),
+            ),
           ));
           break;
         case DashboardCardType.chat:
