@@ -2310,6 +2310,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         case DashboardCardType.userGuide:
           widgets.add(_buildUserGuideShortcut());
           break;
+        case DashboardCardType.financeShortcuts:
+          widgets.add(_buildFinanceShortcuts());
+          break;
       }
     }
 
@@ -6972,6 +6975,126 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Finance shortcuts: Sổ quỹ / Công nợ / Thu chi
+  Widget _buildFinanceShortcuts() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.account_balance, color: Colors.indigo.shade400, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                'TRUY CẬP NHANH TÀI CHÍNH',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.indigo.shade600,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _financeShortcutButton(
+                  icon: Icons.menu_book,
+                  label: 'Sổ quỹ',
+                  color: Colors.green,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CashClosingView()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _financeShortcutButton(
+                  icon: Icons.account_balance_wallet,
+                  label: 'Công nợ',
+                  color: Colors.orange,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DebtView()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _financeShortcutButton(
+                  icon: Icons.swap_vert,
+                  label: 'Thu Chi',
+                  color: Colors.blue,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ExpenseView()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _financeShortcutButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
         ),
       ),
     );

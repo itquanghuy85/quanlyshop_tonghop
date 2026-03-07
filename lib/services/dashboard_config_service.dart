@@ -6,15 +6,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 /// Represents a dashboard card type
 enum DashboardCardType {
-  greeting,       // Lời chào
-  actionRequired, // Cần xử lý (badges)
-  quickActions,   // Thao tác nhanh (grid)
-  financeSummary, // Tóm tắt Thu/Chi (compact)
-  financeDetail,  // Chi tiết tài chính (full breakdown)
-  activityFeed,   // Hoạt động gần đây
-  chat,           // Chat nhóm
-  alerts,         // Cảnh báo (bảo hành, HSD)
-  userGuide,      // Hướng dẫn sử dụng
+  greeting,           // Lời chào
+  actionRequired,     // Cần xử lý (badges)
+  quickActions,       // Thao tác nhanh (grid)
+  financeSummary,     // Tóm tắt Thu/Chi (compact)
+  financeDetail,      // Chi tiết tài chính (full breakdown)
+  activityFeed,       // Hoạt động gần đây
+  chat,               // Chat nhóm
+  alerts,             // Cảnh báo (bảo hành, HSD)
+  userGuide,          // Hướng dẫn sử dụng
+  financeShortcuts,   // Truy cập nhanh tài chính (Sổ quỹ/Công nợ/Thu chi)
 }
 
 /// Config for a single dashboard card
@@ -67,6 +68,8 @@ class DashboardCardConfig {
         return 'Cảnh báo';
       case DashboardCardType.userGuide:
         return 'Hướng dẫn sử dụng';
+      case DashboardCardType.financeShortcuts:
+        return 'Truy cập nhanh tài chính';
     }
   }
 
@@ -91,6 +94,8 @@ class DashboardCardConfig {
         return 'Bảo hành, hết hạn sử dụng';
       case DashboardCardType.userGuide:
         return 'Lối tắt đến hướng dẫn';
+      case DashboardCardType.financeShortcuts:
+        return 'Sổ quỹ, Công nợ, Thu chi';
     }
   }
 
@@ -115,6 +120,8 @@ class DashboardCardConfig {
         return Icons.warning_amber;
       case DashboardCardType.userGuide:
         return Icons.menu_book;
+      case DashboardCardType.financeShortcuts:
+        return Icons.account_balance;
     }
   }
 
@@ -139,13 +146,16 @@ class DashboardCardConfig {
         return Colors.red;
       case DashboardCardType.userGuide:
         return Colors.blue;
+      case DashboardCardType.financeShortcuts:
+        return Colors.indigo;
     }
   }
 
   /// Whether this card requires owner/admin role
   bool get requiresFinanceAccess {
     return type == DashboardCardType.financeSummary ||
-           type == DashboardCardType.financeDetail;
+           type == DashboardCardType.financeDetail ||
+           type == DashboardCardType.financeShortcuts;
   }
 }
 
@@ -177,6 +187,7 @@ class DashboardConfigService {
       DashboardCardConfig(type: DashboardCardType.chat, visible: true, order: 6),
       DashboardCardConfig(type: DashboardCardType.alerts, visible: false, order: 7),
       DashboardCardConfig(type: DashboardCardType.userGuide, visible: true, order: 8),
+      DashboardCardConfig(type: DashboardCardType.financeShortcuts, visible: true, order: 9),
     ];
   }
 
