@@ -30,10 +30,10 @@ HOME
 │     ├ Thu nợ KH / Trả nợ NCC   ← MỚI thêm
 │     └ Trả NCC (supplier_payments) ← MỚI thêm
 │
-├── ⬜ Truy cập nhanh tài chính   ← CHƯA LÀM
-│     ├ Sổ quỹ
-│     ├ Công nợ
-│     └ Thu chi
+├── ⬜ Truy cập nhanh tài chính   ← ĐÃ LÀM (financeShortcuts card)
+│     ├ ✅ Sổ quỹ
+│     ├ ✅ Công nợ
+│     └ ✅ Thu chi
 │
 └── 🟡 Chi tiết tài chính (financeDetail) — ẩn mặc định trên Home
       └ Bar chart + CHI TIẾT THU/CHI + Lợi nhuận (đã có, user bật trong Settings)
@@ -71,10 +71,10 @@ TÀI CHÍNH
 │     ├ Lịch sử tài chính → CashClosingView(showOnlyTransactions)
 │     └ Nhật ký hoạt động → FinancialActivityLogView
 │
-├── ⬜ Công nợ tổng hợp card         ← CHƯA LÀM
-│     ├ Tổng nợ khách hàng
-│     ├ Tổng nợ NCC
-│     └ Tổng nợ đối tác
+├── ✅ Công nợ tổng hợp card         ← ĐÃ LÀM
+│     ├ ✅ Tổng nợ khách hàng (CUSTOMER_OWES)
+│     ├ ✅ Tổng nợ NCC (SHOP_OWES)
+│     └ ✅ Tổng nợ đối tác (partner_repair_history)
 │
 └── ⬜ Báo cáo nâng cao              ← CHƯA LÀM
       ├ Biến động theo tháng
@@ -137,11 +137,11 @@ Engine tính toán duy nhất: **DailyFinancialAnalysisService.analyze()**
 | 3 | ActivityFeed: +debt_payments +supplier_payments | `034805e` | 5 loại giao dịch thay vì 3 |
 | 4 | Finance tab: +Biến động trong ngày | `034805e` | Bar chart + breakdown chuyển từ Home |
 | 5 | 30 unit tests cho DailyFinancialAnalysisService | `034805e` | Bao phủ tất cả loại giao dịch |
+| 6 | Home: Truy cập nhanh tài chính (financeShortcuts) | `9248d0c` | 3 nút: Sổ quỹ/Công nợ/Thu chi |
+| 7 | Finance: Công nợ tổng hợp card | `f2b1d8f` | Khách nợ/NCC/Đối tác split |
 
 ## ⬜ CÒN LẠI
 
 | # | Hạng mục | Mô tả | File chính |
 |---|----------|-------|------------|
-| A | Home: Truy cập nhanh tài chính | 3 nút: Sổ quỹ / Công nợ / Thu chi ở cuối Home | home_view.dart |
-| B | Finance: Công nợ tổng hợp card | Card hiển thị Khách nợ / NCC nợ / Đối tác nợ | home_view.dart |
 | C | Finance: Báo cáo nâng cao | Biến động theo tháng, Lợi nhuận dài hạn | new views |
